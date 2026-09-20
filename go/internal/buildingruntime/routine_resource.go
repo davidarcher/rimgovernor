@@ -189,14 +189,33 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if targets, err = r.reviewer.resourceTargets(call, state.Snapshot, stock); err != nil {
 		return RoutineResourceResult{}, err
 	}
-	resource, target, ok, err := policy.SelectResourceTarget(targets, stock)
+	ranked, err := policy.RankResourceTargets(targets, stock)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	if !ok {
+	// Worst-covered floor first, but a floor whose only sources are ones
+	// this vertical cannot dispatch (a harvest-only selection, nothing
+	// reachable) must not starve the next demanded resource behind it
+	// (#595): keep going until a target admits a plan, lends a window, or
+	// reports a real block. When nothing at all is dispatchable the first
+	// target's outcome stands, so its selected sources stay observable.
+	var first *RoutineResourceResult
+	for _, row := range ranked {
+		result, err := r.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, row.Resource, row.Target, stock, nil, started)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		if result.Reason != BuildingMethodUsed || result.Plan != "" || result.NativeWorkTicks != 0 {
+			return result, nil
+		}
+		if first == nil {
+			first = &result
+		}
+	}
+	if first == nil {
 		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 	}
-	return r.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, resource, target, stock, nil, started)
+	return *first, nil
 }
 
 // dispatchResourceGoal is the shared MaintainResource/MaintainAnimalFeed

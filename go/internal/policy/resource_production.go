@@ -332,6 +332,13 @@ func SelectStockpileCapacity(capacityNeeded int64, storage ResourceStorage) (zon
 	return ResourceStorageZone{Cells: cells}, true, false, nil
 }
 
+// ResourceTarget is one configured stock floor still unmet by the census:
+// the resource and its absolute target.
+type ResourceTarget struct {
+	Resource Resource
+	Target   int64
+}
+
 // SelectResourceTarget performs MaintainResource's dynamic-target selection:
 // given every operator-configured resource target (RoutinePolicy's future
 // ResourceTargets, one native stock floor per definition) and a fresh native
@@ -347,50 +354,70 @@ func SelectStockpileCapacity(capacityNeeded int64, storage ResourceStorage) (zon
 // yet known, no resource is configured, or every configured resource already
 // meets its target — there is nothing to dispatch a method for this tick.
 func SelectResourceTarget(targets map[Resource]int64, stock domain.Fact[[]Amount]) (resource Resource, target int64, ok bool, err error) {
+	ranked, err := RankResourceTargets(targets, stock)
+	if err != nil || len(ranked) == 0 {
+		return "", 0, false, err
+	}
+	return ranked[0].Resource, ranked[0].Target, true, nil
+}
+
+// RankResourceTargets is SelectResourceTarget's full order: every unmet
+// configured floor, worst-covered first (proportional deficit descending,
+// definition name ascending on a tie), so a caller whose first choice has no
+// dispatchable method can go on to the next demanded resource in the same
+// step instead of starving it behind one it cannot act on (#595). Empty when
+// stock is unknown, nothing is configured, or every floor is met.
+func RankResourceTargets(targets map[Resource]int64, stock domain.Fact[[]Amount]) ([]ResourceTarget, error) {
 	if len(targets) == 0 {
-		return "", 0, false, nil
+		return nil, nil
 	}
 	if len(targets) > 4096 {
-		return "", 0, false, errors.New("too many configured resource targets")
+		return nil, errors.New("too many configured resource targets")
 	}
 	names := make([]Resource, 0, len(targets))
 	for name, want := range targets {
 		if !validResource(name) || want <= 0 || want > 10000 {
-			return "", 0, false, errors.New("invalid resource target")
+			return nil, errors.New("invalid resource target")
 		}
 		names = append(names, name)
 	}
 	sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
 	rows, known := stock.Value()
 	if !known {
-		return "", 0, false, nil
+		return nil, nil
 	}
 	if len(rows) > 4096 {
-		return "", 0, false, errors.New("resource stock census exceeds bound")
+		return nil, errors.New("resource stock census exceeds bound")
 	}
 	have := map[Resource]int64{}
 	for _, q := range rows {
 		if !validResource(q.Resource) || q.Count < 0 {
-			return "", 0, false, errors.New("invalid resource stock")
+			return nil, errors.New("invalid resource stock")
 		}
 		if _, exists := have[q.Resource]; exists {
-			return "", 0, false, errors.New("duplicate resource stock")
+			return nil, errors.New("duplicate resource stock")
 		}
 		have[q.Resource] = q.Count
 	}
-	bestRatio := -1.0
+	type ranked struct {
+		ResourceTarget
+		ratio float64
+	}
+	var unmet []ranked
 	for _, name := range names {
 		want := targets[name]
 		deficit := want - have[name]
 		if deficit <= 0 {
 			continue
 		}
-		ratio := float64(deficit) / float64(want)
-		if ratio > bestRatio {
-			bestRatio, resource, target = ratio, name, want
-		}
+		unmet = append(unmet, ranked{ResourceTarget{name, want}, float64(deficit) / float64(want)})
 	}
-	return resource, target, resource != "", nil
+	sort.SliceStable(unmet, func(i, j int) bool { return unmet[i].ratio > unmet[j].ratio })
+	out := make([]ResourceTarget, 0, len(unmet))
+	for _, row := range unmet {
+		out = append(out, row.ResourceTarget)
+	}
+	return out, nil
 }
 
 // ResourceMethodKind names the shape of one proposed MaintainResource method.

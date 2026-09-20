@@ -219,3 +219,97 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 		t.Fatal(result, err, native.previews)
 	}
 }
+
+// starvingResourceNative is the workshop fixture with no producing recipe,
+// so every demanded resource falls to the mine/harvest sources: herbal
+// medicine offers only a harvest source this vertical cannot dispatch, steel
+// a reachable open-surface ore cell with storage already covering it.
+type starvingResourceNative struct {
+	*resourceNative
+	reads        []string
+	acquisitions []bridge.AcquisitionTarget
+}
+
+func (n *starvingResourceNative) ReadResourceSources(_ context.Context, _ *c.Identity, resource string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error) {
+	n.reads = append(n.reads, resource)
+	storage := policy.ResourceStorage{Resource: policy.Resource(resource), Capacity: 1000, StackLimit: 75, Haulers: 2}
+	switch resource {
+	case "MedicineHerbal":
+		return []bridge.ResourceSourceRow{{ThingID: "healroot1", Yield: 60, Distance: 4, Method: "harvest", Reachable: domain.Known(true)}}, storage, bridge.Result{}, nil
+	case "Steel":
+		return []bridge.ResourceSourceRow{{ThingID: "ore1", Yield: 160, Distance: 6, Method: policy.ResourceSourceMine, Safety: "open_surface", Reachable: domain.Known(true), Cell: domain.Cell{X: 2, Z: 2}, Token: "ore-cas"}}, storage, bridge.Result{}, nil
+	}
+	return nil, storage, bridge.Result{}, nil
+}
+
+func (n *starvingResourceNative) PreviewAcquisition(_ context.Context, _ *c.Identity, target bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error) {
+	n.acquisitions = append(n.acquisitions, target)
+	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
+}
+
+// #595: with herbal medicine and steel tied on proportional deficit, the
+// medicine target wins the tie but has only a harvest source this vertical
+// cannot dispatch; the step must go on to steel and mine its ore rather
+// than surface the medicine selection and admit nothing.
+func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testing.T) {
+	t.Parallel()
+	base, db, _, _, sleeping := sleepingFixture(t)
+	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MedicineHerbal": 100, "Steel": 100}
+	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MedicineHerbal"), Units: proto.Int64(0)}, {DefName: proto.String("Steel"), Units: proto.Int64(0)}}
+	club := policy.GearRecipe{
+		Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"},
+		Available: domain.Known(true), AvailableOn: domain.Known(true),
+		Ingredients:  domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}}}),
+		RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting"}}),
+	}
+	native := &starvingResourceNative{resourceNative: &resourceNative{
+		workshopNative: &workshopNative{sleepingNative: sleeping, benches: []bridge.GearBenchRead{{Token: "bench-cas", Bench: policy.GearBench{ID: "Thing_CraftingSpot1", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{club})}}}},
+	}}
+	v := sleeping.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	worker := func(id string) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	}
+	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{worker("crafter"), worker("builder")}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	base.reviewer.native = native
+	if _, err := base.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// The ore lies inside the known colony extent: a wall at the cell the
+	// mining reach filter checks against.
+	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 2, Z: 2}, domain.North, "WoodLog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts := &base.reviewer.census.latest.reading.Projection.Facts
+	facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: wall, Cells: []domain.Cell{{X: 2, Z: 2}}}}})
+	facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Cells: []domain.Cell{{X: 2, Z: 2}}, Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), ExtentGeometry: domain.Known(policy.HomeExtentGeometry{})}}})
+	facts.MapBounds = domain.Known(policy.Bounds{Width: 100, Height: 100})
+	planner, err := NewRoutineResourcePlanner(base.reviewer, native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The review's own runway reads precede the planner's; the planner read
+	// medicine first (the tie winner) and then went on to steel.
+	if got := native.reads; len(got) < 2 || got[len(got)-2] != "MedicineHerbal" || got[len(got)-1] != "Steel" {
+		t.Fatal("source reads", got, result)
+	}
+	if result.Reason != BuildingMethodAdmitted || result.Plan == "" || len(native.acquisitions) != 1 || native.acquisitions[0].Token != "ore-cas" {
+		t.Fatal(result, native.acquisitions)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Plan)
+	if err != nil || len(plan.Spec.Actions()) != 1 {
+		t.Fatal(plan, err)
+	}
+	if _, ok := plan.Spec.Actions()[0].MineAcquisition(); !ok {
+		t.Fatal(plan.Spec.Actions()[0])
+	}
+}
