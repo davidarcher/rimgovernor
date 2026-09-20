@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -504,14 +505,16 @@ func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
 		t.Fatal(err)
 	}
 	session := &playerFakeSession{}
-	p, err := newPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, &playerWorldSource{world: playerSubmission().World})
+	// Admission and journal I/O need the same headroom as playerFixture under
+	// Windows race load; the trigger, not a deadline, must fail completion.
+	p, err := newPlayer(ctx, PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, session, &playerWorldSource{world: playerSubmission().World})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer p.Close(ctx)
 	q := playerAcquire(t, p)
 	result, err := p.Resume(ctx, q)
-	if err == nil || result.Phase != store.PendingControl || p.State().Enabled || session.acquires.Load() != 1 {
+	if err == nil || !strings.Contains(err.Error(), "test journal failure") || result.Phase != store.PendingControl || p.State().Enabled || session.acquires.Load() != 1 {
 		t.Fatal(result, err)
 	}
 	replay, err := p.Resume(ctx, q)
