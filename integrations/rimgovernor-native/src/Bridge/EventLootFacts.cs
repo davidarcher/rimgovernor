@@ -22,18 +22,48 @@ namespace HomeBridge.BridgeTools
                 return new Obs.LootSection { Unavailable = new Common.Unavailable {
                     Reason = Common.UnavailableReason.LimitExceeded, Detail = "Hauling safety census exceeds 4096 items." } };
             var safety = new HaulingSafety(map);
-            var census = new Obs.LootCensus();
+            var census = new Obs.LootCensus { FreeHaulers = safety.FreeHaulers, StorytellerQuiet = StorytellerQuiet() };
+            var headroom = new Dictionary<ThingDef, long>();
             foreach (var t in items) {
                 var row = new Obs.LootItem {
                     Item = new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName,
                         MapId = map.uniqueID, Position = new Common.Cell { X = t.Position.x, Z = t.Position.z } },
-                    Forbidden = t.IsForbidden(Faction.OfPlayer)
+                    Forbidden = t.IsForbidden(Faction.OfPlayer), Count = t.stackCount
                 };
                 var safe = safety.Safe(t);
                 if (safe.HasValue) row.SafeToHaul = safe.Value;
+                if (safe == true && safety.PathLength >= 0) row.PathLength = safety.PathLength;
+                if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
+                row.StorageHeadroom = units;
                 census.Items.Add(row);
             }
             return new Obs.LootSection { Observed = census };
+        }
+
+        // Reach readiness (#520) reads the storyteller as quiet at zero threat
+        // scale (peaceful) or with no incident generators at all.
+        private static bool StorytellerQuiet()
+        {
+            var storyteller = Find.Storyteller;
+            return storyteller != null && (storyteller.difficulty.threatScale <= 0f || storyteller.storytellerComps.Count == 0);
+        }
+
+        // Free item units the player's storage accepting this def can still take:
+        // empty accepting cells at the def's stack limit plus partial same-def
+        // stacks. Bounded so a huge storage never drives the census cost.
+        private static long StorageHeadroom(Map map, Thing item)
+        {
+            long units = 0;
+            foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder) {
+                if (group.parent?.Accepts(item) != true) continue;
+                foreach (var cell in group.CellsList) {
+                    var occupant = cell.GetFirstItem(map);
+                    if (occupant == null) units += item.def.stackLimit;
+                    else if (occupant.def == item.def && occupant.CanStackWith(item)) units += Math.Max(0, item.def.stackLimit - occupant.stackCount);
+                    if (units >= 1_000_000) return 1_000_000;
+                }
+            }
+            return units;
         }
 
         internal static bool? Safe(Thing item) => new HaulingSafety(item.Map).Safe(item);
@@ -44,10 +74,16 @@ namespace HomeBridge.BridgeTools
             private readonly List<Pawn> people;
             private readonly List<Thing> hazards;
             private readonly Dictionary<IntVec3, bool> exposed = new Dictionary<IntVec3, bool>();
+            // PathLength is the last Safe(true) verdict's colonist route length in
+            // cells, -1 when that verdict came without a measured path.
+            internal double PathLength = -1;
+            internal readonly long FreeHaulers;
             internal HaulingSafety(Map map)
             {
                 this.map = map;
                 people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.InMentalState).ToList();
+                FreeHaulers = people.Count(p => !p.Drafted && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
+                    && p.workSettings != null && p.workSettings.WorkIsActive(WorkTypeDefOf.Hauling));
                 hazards = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)
                     && (t is Fire || t is Building_Trap
                         || t is Pawn p && !p.Dead && !p.Downed && p.HostileTo(Faction.OfPlayer)
@@ -69,15 +105,19 @@ namespace HomeBridge.BridgeTools
                 return result;
             }
 
-            private bool Route(Pawn pawn, IntVec3 from, LocalTargetInfo target, PathEndMode end)
+            private bool Route(Pawn pawn, IntVec3 from, LocalTargetInfo target, PathEndMode end, bool measure = false)
             {
-                if (hazards.Count == 0) return pawn.CanReach(target, end, Danger.None);
-                using (var path = map.pathFinder.FindPathNow(from, target, TraverseParms.For(pawn, Danger.None), peMode: end))
-                    return path.Found && path.NodesReversed.All(c => !Exposed(c) && c.GetDangerFor(pawn, map) == Danger.None);
+                if (hazards.Count == 0 && !measure) return pawn.CanReach(target, end, Danger.None);
+                using (var path = map.pathFinder.FindPathNow(from, target, TraverseParms.For(pawn, Danger.None), peMode: end)) {
+                    if (!path.Found) return false;
+                    if (measure) PathLength = Math.Min(PathLength < 0 ? path.NodesReversed.Count : PathLength, path.NodesReversed.Count);
+                    return hazards.Count == 0 || path.NodesReversed.All(c => !Exposed(c) && c.GetDangerFor(pawn, map) == Danger.None);
+                }
             }
 
             internal bool? Safe(Thing item)
             {
+                PathLength = -1;
                 if (Exposed(item.Position)) return false;
                 var reachable = false;
                 foreach (var pawn in people)
@@ -86,7 +126,7 @@ namespace HomeBridge.BridgeTools
                     if (area != null && !area[item.Position]) continue;
                     if (!pawn.CanReach(item, PathEndMode.Touch, Danger.None)) continue;
                     reachable = true;
-                    if (!Route(pawn, pawn.Position, item, PathEndMode.Touch)) return false;
+                    if (!Route(pawn, pawn.Position, item, PathEndMode.Touch, measure: true)) return false;
                     // Check the return route to the native storage choice, too.
                     if (StoreUtility.TryFindBestBetterStoreCellFor(item, pawn, map, StoragePriority.Unstored,
                         Faction.OfPlayer, out var destination)

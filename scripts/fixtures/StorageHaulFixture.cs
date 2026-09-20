@@ -251,11 +251,10 @@ namespace HomeBridge.BridgeTools
                     return Refuse("Prepared loot fixture required.");
                 if (removeDanger) {
                     if (lootTrap != null && !lootTrap.Destroyed) lootTrap.Destroy(DestroyMode.Vanish);
-                    foreach (var pawn in preparedPeople) {
-                        foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
-                            if (!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, work == WorkTypeDefOf.Hauling ? 1 : 0);
-                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                    }
+                    // The drop sits outside the established extent, so the
+                    // safe-haul phase also needs far resource reach (#522).
+                    var readiness = RaiseReadiness(preparedMap);
+                    if (readiness is string refusal) return Refuse(refusal);
                 }
                 var stored = lootZone.Cells.SelectMany(c => c.GetThingList(preparedMap))
                     .Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
@@ -264,6 +263,104 @@ namespace HomeBridge.BridgeTools
                     inStockpile = lootStack.Spawned && lootZone.Cells.Contains(lootStack.Position) };
             }, cancellationToken).ConfigureAwait(false);
         }
+        // Far resource reach (#520) needs six armed colonists, two free
+        // haulers and a quiet storyteller: every existing colonist takes a
+        // rifle and Hauling, and generated colonists fill the count. Returns
+        // a refusal string or the readiness summary.
+        private static object RaiseReadiness(Map map)
+        {
+            var rifle = DefDatabase<ThingDef>.GetNamed("Gun_BoltActionRifle");
+            var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed).ToList();
+            var anchor = preparedHauler?.Position ?? people.First().Position;
+            var generated = new List<string>();
+            while (people.Count(p => p.equipment != null && !p.WorkTagIsDisabled(WorkTags.Violent)) < 6) {
+                var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer,
+                    forceGenerateNewPawn: true, colonistRelationChanceFactor: 0f, allowDead: false, allowDowned: false,
+                    canGeneratePawnRelations: false, mustBeCapableOfViolence: true, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f));
+                var cell = CellFinder.RandomClosewalkCellNear(anchor, map, 6, c => c.Standable(map) && !c.Fogged(map));
+                GenSpawn.Spawn(pawn, cell, map);
+                pawn.needs.food.CurLevelPercentage = .95f;
+                pawn.needs.rest.CurLevelPercentage = .95f;
+                people.Add(pawn);
+                generated.Add(pawn.GetUniqueLoadID());
+                if (generated.Count > 8) return "Could not generate enough armed colonists.";
+            }
+            var armed = 0;
+            foreach (var pawn in people) {
+                if (pawn.equipment != null && !pawn.WorkTagIsDisabled(WorkTags.Violent)) {
+                    if (pawn.equipment.Primary == null || pawn.equipment.Primary.def != rifle) {
+                        var prior = pawn.equipment.Primary;
+                        if (prior != null) pawn.equipment.TryDropEquipment(prior, out _, pawn.Position, false);
+                        pawn.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(rifle));
+                    }
+                    if (pawn.equipment.Primary != null) armed++;
+                }
+                if (pawn.workSettings != null) {
+                    if (!pawn.workSettings.Initialized) pawn.workSettings.EnableAndInitialize();
+                    foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
+                        if (!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, work == WorkTypeDefOf.Hauling ? 1 : 0);
+                }
+                pawn.jobs?.EndCurrentJob(JobCondition.InterruptForced);
+                if (!preparedPeople.Contains(pawn)) preparedPeople.Add(pawn);
+            }
+            if (armed < 6) return "Fewer than six colonists could be armed.";
+            var haulers = people.Count(p => p.workSettings != null && p.workSettings.WorkIsActive(WorkTypeDefOf.Hauling));
+            return new { armed, haulers, generated = generated.ToArray(), colonists = people.Count,
+                raidPoints = StorytellerUtility.DefaultThreatPointsNow(map) };
+        }
+
+        private static Thing remoteStack;
+
+        [Tool("test/loot_remote_drop", Description = "UNSAFE FOR MODEL EXECUTION. Spawn a forbidden Steel stack on a safe cell near the far map edge, reachable by the prepared hauler and outside Home; extend the prepared stockpile. Tests reach-staged remote loot recovery (#522).")]
+        public async Task<object> LootRemoteDrop(IRimBridgeContext ctx, CancellationToken cancellationToken, int count = 75)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || map != preparedMap || preparedHauler == null || !Find.TickManager.Paused)
+                    return Refuse("Prepared paused storage fixture required.");
+                if (count < 1 || count > 75) return Refuse("Use 1..75 units.");
+                var center = new IntVec3((int)preparedPeople.Average(p => p.Position.x), 0, (int)preparedPeople.Average(p => p.Position.z));
+                int Edge(IntVec3 c) => Math.Min(Math.Min(c.x, map.Size.x - 1 - c.x), Math.Min(c.z, map.Size.z - 1 - c.z));
+                var cells = map.AllCells.Where(c => Edge(c) <= 4 && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null
+                    && c.GetThingList(map).All(t => t is Plant) && map.zoneManager.ZoneAt(c) == null
+                    && !map.areaManager.Home[c] && preparedHauler.CanReach(c, PathEndMode.Touch, Danger.None))
+                    .OrderByDescending(c => c.DistanceToSquared(center)).ToList();
+                if (cells.Count == 0) return Refuse("No safe reachable cell near the map edge.");
+                lootZone = map.zoneManager.AllZones.OfType<Zone_Stockpile>().First(z => z.GetStoreSettings().filter.Allows(ThingDefOf.Steel));
+                foreach (var c in GenRadial.RadialCellsAround(lootZone.Cells[0], 6, true)
+                    .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null).Take(8))
+                    lootZone.AddCell(c);
+                remoteStack = ThingMaker.MakeThing(ThingDefOf.Steel);
+                remoteStack.stackCount = count;
+                GenSpawn.Spawn(remoteStack, cells[0], map);
+                remoteStack.SetForbidden(true, false);
+                return new { success = true, id = remoteStack.GetUniqueLoadID(), x = cells[0].x, z = cells[0].z,
+                    distance = cells[0].DistanceTo(center), edge = Edge(cells[0]), forbidden = true, count };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/loot_remote_control", Description = "UNSAFE FOR MODEL EXECUTION. Read the remote loot stack's forbidden/storage/Home state, or raise the colony's resource reach readiness (six armed colonists, every colonist hauling).")]
+        public async Task<object> LootRemoteControl(IRimBridgeContext ctx, CancellationToken cancellationToken, bool raiseReadiness = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Current.Game != preparedGame || Find.CurrentMap != preparedMap || remoteStack == null || lootZone == null)
+                    return Refuse("Prepared remote loot fixture required.");
+                object readiness = null;
+                if (raiseReadiness) {
+                    readiness = RaiseReadiness(preparedMap);
+                    if (readiness is string refusal) return Refuse(refusal);
+                }
+                var stored = lootZone.Cells.SelectMany(c => c.GetThingList(preparedMap))
+                    .Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
+                return new { success = true, forbidden = !remoteStack.Destroyed && remoteStack.IsForbidden(Faction.OfPlayer),
+                    spawned = remoteStack.Spawned, storedSteel = stored, readiness,
+                    inStockpile = remoteStack.Spawned && lootZone.Cells.Contains(remoteStack.Position),
+                    inHome = remoteStack.Spawned && preparedMap.areaManager.Home[remoteStack.Position],
+                    armed = preparedMap.mapPawns.FreeColonistsSpawned.Count(p => p.equipment?.Primary != null),
+                    raidPoints = StorytellerUtility.DefaultThreatPointsNow(preparedMap) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         private static object Refuse(string reason) => new { success = false, reason };
     }
 }

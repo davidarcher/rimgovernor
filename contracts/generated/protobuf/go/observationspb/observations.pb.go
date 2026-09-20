@@ -29415,14 +29415,22 @@ func (*ThreatSection_Observed) isThreatSection_Outcome() {}
 
 func (*ThreatSection_Unavailable) isThreatSection_Outcome() {}
 
-// Current autonomous hauling safety for visible haulable items.
+// Current autonomous hauling safety for visible haulable items. count is the
+// stack size; path_length is the shortest observed safe colonist route to the
+// item in cells (present only with safe_to_haul true); storage_headroom is the
+// item units the player's accepting storage can still take for this def.
+// free_haulers counts free colonists with Hauling enabled; storyteller_quiet
+// is true at zero threat scale or with no storyteller incident generators.
 type LootItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Item          *EntityRef             `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
-	Forbidden     *bool                  `protobuf:"varint,2,opt,name=forbidden,proto3,oneof" json:"forbidden,omitempty"`
-	SafeToHaul    *bool                  `protobuf:"varint,3,opt,name=safe_to_haul,json=safeToHaul,proto3,oneof" json:"safe_to_haul,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Item            *EntityRef             `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	Forbidden       *bool                  `protobuf:"varint,2,opt,name=forbidden,proto3,oneof" json:"forbidden,omitempty"`
+	SafeToHaul      *bool                  `protobuf:"varint,3,opt,name=safe_to_haul,json=safeToHaul,proto3,oneof" json:"safe_to_haul,omitempty"`
+	Count           *int64                 `protobuf:"varint,4,opt,name=count,proto3,oneof" json:"count,omitempty"`
+	PathLength      *float64               `protobuf:"fixed64,5,opt,name=path_length,json=pathLength,proto3,oneof" json:"path_length,omitempty"`
+	StorageHeadroom *int64                 `protobuf:"varint,6,opt,name=storage_headroom,json=storageHeadroom,proto3,oneof" json:"storage_headroom,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *LootItem) Reset() {
@@ -29476,11 +29484,34 @@ func (x *LootItem) GetSafeToHaul() bool {
 	return false
 }
 
+func (x *LootItem) GetCount() int64 {
+	if x != nil && x.Count != nil {
+		return *x.Count
+	}
+	return 0
+}
+
+func (x *LootItem) GetPathLength() float64 {
+	if x != nil && x.PathLength != nil {
+		return *x.PathLength
+	}
+	return 0
+}
+
+func (x *LootItem) GetStorageHeadroom() int64 {
+	if x != nil && x.StorageHeadroom != nil {
+		return *x.StorageHeadroom
+	}
+	return 0
+}
+
 type LootCensus struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*LootItem            `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Items            []*LootItem            `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	FreeHaulers      *int64                 `protobuf:"varint,2,opt,name=free_haulers,json=freeHaulers,proto3,oneof" json:"free_haulers,omitempty"`
+	StorytellerQuiet *bool                  `protobuf:"varint,3,opt,name=storyteller_quiet,json=storytellerQuiet,proto3,oneof" json:"storyteller_quiet,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *LootCensus) Reset() {
@@ -29518,6 +29549,20 @@ func (x *LootCensus) GetItems() []*LootItem {
 		return x.Items
 	}
 	return nil
+}
+
+func (x *LootCensus) GetFreeHaulers() int64 {
+	if x != nil && x.FreeHaulers != nil {
+		return *x.FreeHaulers
+	}
+	return 0
+}
+
+func (x *LootCensus) GetStorytellerQuiet() bool {
+	if x != nil && x.StorytellerQuiet != nil {
+		return *x.StorytellerQuiet
+	}
+	return false
 }
 
 type LootSection struct {
@@ -38295,18 +38340,29 @@ const file_observations_proto_rawDesc = "" +
 	"\rThreatSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.ThreatFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xaf\x01\n" +
+	"\aoutcome\"\xcf\x02\n" +
 	"\bLootItem\x12:\n" +
 	"\x04item\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04item\x12!\n" +
 	"\tforbidden\x18\x02 \x01(\bH\x00R\tforbidden\x88\x01\x01\x12%\n" +
 	"\fsafe_to_haul\x18\x03 \x01(\bH\x01R\n" +
-	"safeToHaul\x88\x01\x01B\f\n" +
+	"safeToHaul\x88\x01\x01\x12\x19\n" +
+	"\x05count\x18\x04 \x01(\x03H\x02R\x05count\x88\x01\x01\x12$\n" +
+	"\vpath_length\x18\x05 \x01(\x01H\x03R\n" +
+	"pathLength\x88\x01\x01\x12.\n" +
+	"\x10storage_headroom\x18\x06 \x01(\x03H\x04R\x0fstorageHeadroom\x88\x01\x01B\f\n" +
 	"\n" +
 	"_forbiddenB\x0f\n" +
-	"\r_safe_to_haul\"I\n" +
+	"\r_safe_to_haulB\b\n" +
+	"\x06_countB\x0e\n" +
+	"\f_path_lengthB\x13\n" +
+	"\x11_storage_headroom\"\xca\x01\n" +
 	"\n" +
 	"LootCensus\x12;\n" +
-	"\x05items\x18\x01 \x03(\v2%.rimgovernor.observations.v1.LootItemR\x05items\"\xa7\x01\n" +
+	"\x05items\x18\x01 \x03(\v2%.rimgovernor.observations.v1.LootItemR\x05items\x12&\n" +
+	"\ffree_haulers\x18\x02 \x01(\x03H\x00R\vfreeHaulers\x88\x01\x01\x120\n" +
+	"\x11storyteller_quiet\x18\x03 \x01(\bH\x01R\x10storytellerQuiet\x88\x01\x01B\x0f\n" +
+	"\r_free_haulersB\x14\n" +
+	"\x12_storyteller_quiet\"\xa7\x01\n" +
 	"\vLootSection\x12E\n" +
 	"\bobserved\x18\x01 \x01(\v2'.rimgovernor.observations.v1.LootCensusH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -40840,6 +40896,7 @@ func file_observations_proto_init() {
 		(*ThreatSection_Unavailable)(nil),
 	}
 	file_observations_proto_msgTypes[312].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[313].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[314].OneofWrappers = []any{
 		(*LootSection_Observed)(nil),
 		(*LootSection_Unavailable)(nil),

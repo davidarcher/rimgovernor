@@ -770,3 +770,24 @@ The census is bounded to 4096 items. Each later review may reverse a prior decis
 when danger clears or returns. A designation receipt proves the flag only; native
 storage observations prove hauling completed. `supply/loot-safety` exercises a
 mid-run distant drop, danger removal, both flag changes and stockpile delivery.
+
+### Remote loot and resource reach
+
+Allow is additionally a reach and demand candidate filter (#522); Forbid is
+not. A safe forbidden stack on a cell of the derived colony extent is allowed as
+above. Outside the extent it is allowed only when `FilterResourceReach` admits
+its cell at the current [reach stage](upkeep-contracts.md) and it scores against
+unmet demand (`ScoreResourceCandidate` over the effective stock targets, the
+operator's reserve floors and the usable stock census); otherwise it stays
+forbidden and the review records the stack under `EventLoot.Held` with the
+reach reason (`outside_base:insufficient_defense`, `outside_near:...`) or the
+demand hold (`demand:no_demand`, `demand:no_storage_headroom`,
+`demand:unknown_demand_or_cost`). The routines API reports these as
+`lootHolds`. The census supplies the readiness the reach needs beside each
+item's stack count, safe route length and accepting-storage headroom:
+`free_haulers` (free colonists with Hauling active) and `storyteller_quiet`
+(zero threat scale or no incident generators). Unknown readiness or demand
+holds remote stacks; it never widens reach. Reach changes no Home cell.
+`supply/loot-remote` drops a forbidden stack near the far map edge, proves the
+hold at base reach, raises readiness and proves Allow and stockpile delivery
+with the cell still outside Home.

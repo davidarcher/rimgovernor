@@ -392,6 +392,8 @@ type RoutineFacts struct {
 	StartingSupplies     domain.Fact[[]StartingSupply]
 	EventLoot            domain.Fact[[]LootItem]
 	EventLootPending     domain.Fact[bool]
+	LootReadiness        LootReadiness // the loot census's reach readiness (#522)
+	MapBounds            domain.Fact[Bounds]
 	MedicalPawns         domain.Fact[[]CarePawn]
 	MedicalCareRecovered domain.Fact[bool]
 	Workers              domain.Fact[int]

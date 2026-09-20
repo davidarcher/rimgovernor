@@ -899,9 +899,14 @@ message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.co
 // TotalThreatPointsFactor) and difficulty_threat_scale. Read-only.
 message ThreatFacts { optional double wealth_items = 1; optional double wealth_buildings = 2; optional double wealth_pawns = 3; optional double wealth_total = 4; optional double storyteller_wealth = 5; optional double raid_points = 6; optional double adaptation_factor = 7; optional double difficulty_threat_scale = 8; optional uint32 colonist_count = 9; Completeness completeness = 10; repeated ReadIssue issues = 11; }
 message ThreatSection { oneof outcome { ThreatFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-// Current autonomous hauling safety for visible haulable items.
-message LootItem { EntityRef item = 1; optional bool forbidden = 2; optional bool safe_to_haul = 3; }
-message LootCensus { repeated LootItem items = 1; }
+// Current autonomous hauling safety for visible haulable items. count is the
+// stack size; path_length is the shortest observed safe colonist route to the
+// item in cells (present only with safe_to_haul true); storage_headroom is the
+// item units the player's accepting storage can still take for this def.
+// free_haulers counts free colonists with Hauling enabled; storyteller_quiet
+// is true at zero threat scale or with no storyteller incident generators.
+message LootItem { EntityRef item = 1; optional bool forbidden = 2; optional bool safe_to_haul = 3; optional int64 count = 4; optional double path_length = 5; optional int64 storage_headroom = 6; }
+message LootCensus { repeated LootItem items = 1; optional int64 free_haulers = 2; optional bool storyteller_quiet = 3; }
 message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Food source potential, independent of acquisition instances and policy.
 // Animal rows cover every tame animal: absent components leave their scalars

@@ -10,15 +10,30 @@ type LootItem struct {
 	Supply                StartingSupply
 	Forbidden, SafeToHaul bool
 	SafetyKnown           bool
+	// Count, PathLength and StorageHeadroom feed remote loot's reach and
+	// demand filter (#522); unknown cost or storage holds a remote stack.
+	Count           int64
+	PathLength      domain.Fact[float64]
+	StorageHeadroom domain.Fact[int64]
 }
 
 // EventLootHistory is the latest complete safety census's work, not a
 // first-seen cohort. The controller owns both forbidding and allowing items.
-type EventLootHistory struct{ Pending []StartingSupply }
+// Held lists the safe forbidden stacks the reach stage or demand kept
+// forbidden, with reasons (#522).
+type EventLootHistory struct {
+	Pending []StartingSupply
+	Held    []LootHold `json:",omitempty"`
+}
 
 func (h EventLootHistory) Validate() error {
-	if len(h.Pending) > 4096 {
+	if len(h.Pending) > 4096 || len(h.Held) > 4096 {
 		return errors.New("event loot exceeds bound")
+	}
+	for i, row := range h.Held {
+		if row.Thing == "" || row.Reason == "" || i > 0 && h.Held[i-1].Thing >= row.Thing {
+			return errors.New("invalid event loot hold")
+		}
 	}
 	for i, row := range h.Pending {
 		if err := row.Validate(); err != nil {

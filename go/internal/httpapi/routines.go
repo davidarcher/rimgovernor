@@ -41,6 +41,9 @@ type RoutineStatus struct {
 	// an enabled review planned work.
 	Roster   *policy.WorkRosterReport
 	Sections []facts.Status
+	// LootHolds are the safe forbidden stacks the last review's reach stage
+	// or demand kept forbidden, with reasons (#522).
+	LootHolds []policy.LootHold
 }
 
 type routineStatusDTO struct {
@@ -55,6 +58,7 @@ type routineStatusDTO struct {
 	Development       *routineDevelopmentDTO       `json:"development"`
 	Roster            *routineRosterDTO            `json:"roster"`
 	Sections          []routineSectionDTO          `json:"sections"`
+	LootHolds         []lootHoldDTO                `json:"lootHolds"`
 }
 
 // routineRosterDTO is the roster planner's recorded report: the per-work-type
@@ -184,6 +188,7 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.ResourceReach = policy.ResourceReach(v.ResourceReach)
 	result.Extent = routineExtent(v.ResourceReach.Extent)
 	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
+	result.LootHolds = lootHolds(v.LootHolds)
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano), Stale: routineStale(section.Stale)})
 	}

@@ -55,6 +55,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 		LastReviewTick:  review.Tick,
 		LastReviewKnown: review.Revision != 0,
 		Sections:        s.sections.Status(),
+		LootHolds:       review.EventLoot.Held,
 	}
 	// Read-only diagnostics: missing complete extent geometry or readiness
 	// stays unknown. This does not widen any planner or dispatch surface.

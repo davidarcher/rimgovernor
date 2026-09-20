@@ -56,8 +56,9 @@ acquisition, while an unrelated routine deficit does not. Positive scores sort b
 score descending, then kind and stable source ID; input order cannot break ties.
 These are alternatives, not a batch allocation or permission to dispatch. Consumers
 must bound selected work and refresh demand, reach, native safety and storage before
-using the existing goals and Hands path. The remote acquisition integrations are
-tracked by #522, #523 and #524.
+using the existing goals and Hands path. Remote loot consumes it through the
+[supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach)
+(#522); salvage and mining integrations are tracked by #523 and #524.
 
 ## Material runway
 

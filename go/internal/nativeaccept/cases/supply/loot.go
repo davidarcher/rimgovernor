@@ -21,7 +21,7 @@ func init() {
 		Start:       cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 1}, On: cases.FlatDebugStart()},
 		RequiredOps: []string{"test/loot_drop", "test/loot_safety_control"},
 		Quiet:       na.QuietRequired, QuietWorld: true, Budget: 8 * time.Minute,
-		Serve: &cases.ServeSpec{Families: []string{"supply"}, NativeTimeout: 30 * time.Second},
+		Serve: &cases.ServeSpec{Families: []string{"supply,resource"}, NativeTimeout: 30 * time.Second, Extra: lootServe},
 		Run:   runLootSafety,
 	})
 }

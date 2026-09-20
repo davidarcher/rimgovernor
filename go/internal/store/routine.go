@@ -373,10 +373,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
-		loot, request.Facts.EventLootPending, err = policy.ReviewEventLoot(request.Facts.EventLoot, loot)
+		lootCensus, held, err := lootReachFilter(request)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
+		loot, request.Facts.EventLootPending, err = policy.ReviewEventLoot(lootCensus, loot)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		loot.Held = held
 		medical, err = policy.ReviewMedicalCare(request.Facts.MedicalPawns, medical)
 		if err != nil {
 			return RoutineReviewResult{}, err

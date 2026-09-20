@@ -195,6 +195,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
+	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
@@ -377,9 +378,22 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if loot := v.GetEventLoot().GetObserved(); loot != nil {
 		rows := make([]policy.LootItem, 0, len(loot.Items))
 		for _, row := range loot.Items {
-			rows = append(rows, policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: row.Item.GetDefName(), Cell: domain.Cell{X: row.Item.Position.GetX(), Z: row.Item.Position.GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil})
+			item := policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: row.Item.GetDefName(), Cell: domain.Cell{X: row.Item.Position.GetX(), Z: row.Item.Position.GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil, Count: row.GetCount()}
+			if row.PathLength != nil {
+				item.PathLength = domain.Known(row.GetPathLength())
+			}
+			if row.StorageHeadroom != nil {
+				item.StorageHeadroom = domain.Known(row.GetStorageHeadroom())
+			}
+			rows = append(rows, item)
 		}
 		r.Facts.EventLoot = domain.Known(rows)
+		if loot.FreeHaulers != nil {
+			r.Facts.LootReadiness.FreeHaulers = domain.Known(loot.GetFreeHaulers())
+		}
+		if loot.StorytellerQuiet != nil {
+			r.Facts.LootReadiness.StorytellerQuiet = domain.Known(loot.GetStorytellerQuiet())
+		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
 		for _, row := range planning.Definitions {
