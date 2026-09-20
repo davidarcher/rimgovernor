@@ -17,6 +17,9 @@ import (
 type callTiming struct {
 	began    time.Time
 	gateWait time.Duration
+	// admission is the class the call was admitted under and what it saw
+	// of the queue (#631).
+	admission admissionOutcome
 	// request is the flight-recorder sequence of the native_request row core
 	// wrote, so a later native_decode row can correlate with it.
 	request uint64
@@ -38,11 +41,13 @@ func millis(d time.Duration) float64 { return float64(d) / float64(time.Millisec
 // nativeTimingReport is the companion's own phase report from a
 // ProtoBoundary reply wrapper: {"payload": "...", "timing": {"queueMs":
 // <wait for the main thread>, "executeMs": <tool body>, "trace": <the
-// trace argument the call sent, echoed>}}. trace is empty when the call
-// sent none or the companion predates the echo.
+// trace argument the call sent, echoed>, "queueDepth": <hops waiting for
+// the main thread when this one was queued>}}. trace is empty and
+// queueDepth -1 when the call sent none or the companion predates them.
 type nativeTimingReport struct {
 	queueMs, executeMs float64
 	trace              string
+	queueDepth         int
 }
 
 // nativeTiming reads the companion's phase report out of a reply wrapper.
@@ -54,9 +59,10 @@ func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 	}
 	var wrapper struct {
 		Timing *struct {
-			QueueMs   *float64 `json:"queueMs"`
-			ExecuteMs *float64 `json:"executeMs"`
-			Trace     string   `json:"trace"`
+			QueueMs    *float64 `json:"queueMs"`
+			ExecuteMs  *float64 `json:"executeMs"`
+			Trace      string   `json:"trace"`
+			QueueDepth *int     `json:"queueDepth"`
 		} `json:"timing"`
 	}
 	if json.Unmarshal(structured, &wrapper) != nil || wrapper.Timing == nil || wrapper.Timing.QueueMs == nil || wrapper.Timing.ExecuteMs == nil {
@@ -65,7 +71,11 @@ func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 	if *wrapper.Timing.QueueMs < 0 || *wrapper.Timing.ExecuteMs < 0 {
 		return nativeTimingReport{}, false
 	}
-	return nativeTimingReport{queueMs: *wrapper.Timing.QueueMs, executeMs: *wrapper.Timing.ExecuteMs, trace: wrapper.Timing.Trace}, true
+	report := nativeTimingReport{queueMs: *wrapper.Timing.QueueMs, executeMs: *wrapper.Timing.ExecuteMs, trace: wrapper.Timing.Trace, queueDepth: -1}
+	if wrapper.Timing.QueueDepth != nil && *wrapper.Timing.QueueDepth >= 0 {
+		report.queueDepth = *wrapper.Timing.QueueDepth
+	}
+	return report, true
 }
 
 // nativeToolOf names the inner native tool for the GABS wrappers that carry

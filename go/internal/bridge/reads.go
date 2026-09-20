@@ -41,7 +41,7 @@ func (c *Client) ConnectGameWithTakeover(ctx context.Context) (Result, error) {
 }
 
 func (c *Client) connectGame(ctx context.Context, force bool) (Result, error) {
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		args := struct {
 			GameID        string `json:"gameId"`
 			Timeout       int    `json:"timeout"`
@@ -67,7 +67,7 @@ func (c *Client) connectGame(ctx context.Context, force bool) (Result, error) {
 	})
 }
 func (c *Client) GameStatus(ctx context.Context) (Result, error) {
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		return c.core(ctx, live, "games_status", encode(gameArgument{c.gameID}))
 	})
 }
@@ -79,7 +79,7 @@ type attentionArgument struct {
 
 // GetAttention reads the current GABS attention without acknowledging it.
 func (c *Client) GetAttention(ctx context.Context) (Result, error) {
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		return c.core(ctx, live, "games_get_attention", encode(gameArgument{c.gameID}))
 	})
 }
@@ -93,7 +93,7 @@ func (c *Client) AckAttention(ctx context.Context, attentionID string) (Result, 
 	if attentionID == "" {
 		return Result{}, fmt.Errorf("%w: attention id required", ErrContract)
 	}
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		return c.core(ctx, live, "games_ack_attention", encode(attentionArgument{c.gameID, attentionID}))
 	})
 }
@@ -104,7 +104,7 @@ func (c *Client) NativeNames(ctx context.Context, cursor, query string) (Result,
 	if len(cursor) > 4096 || len(query) > 256 {
 		return Result{}, fmt.Errorf("%w: discovery filter too long", ErrContract)
 	}
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		args := struct {
 			GameID string `json:"gameId"`
 			Cursor string `json:"cursor"`
@@ -117,7 +117,7 @@ func (c *Client) Describe(ctx context.Context, name string) (Result, error) {
 	if name == "" || len(name) > 256 || strings.ContainsAny(name, "\x00\r\n") {
 		return Result{}, fmt.Errorf("%w: invalid tool name", ErrContract)
 	}
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) { return c.describe(ctx, live, name) })
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) { return c.describe(ctx, live, name) })
 }
 func (c *Client) describe(ctx context.Context, live *liveSession, name string) (Result, error) {
 	return c.core(ctx, live, "games_tool_detail", encode(detailArgument{c.gameID, name}))

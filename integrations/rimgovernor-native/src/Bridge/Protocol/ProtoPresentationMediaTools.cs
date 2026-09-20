@@ -228,7 +228,7 @@ namespace HomeBridge.BridgeTools
                 result.SourceId = status.SourceId;
                 result.RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f));
                 result.CapturedFrames = (ulong)Math.Max(0, status.CapturedFrames);
-                result.FramesPerSecond = status.Source.FramesPerSecond;
+                result.FramesPerSecond = status.FramesPerSecond;
                 result.PixelFormat = status.Bgra ? Presentation.MediaEncoding.Bgra32TopDown : Presentation.MediaEncoding.Rgba32BottomUp;
                 result.CaptureMethod = status.CaptureMethod switch
                 {

@@ -129,8 +129,10 @@ type liveSession struct {
 // which handles each request concurrently, and GABS's own GABP client
 // correlates concurrent native calls by request ID (pendingReqs), as the
 // go-sdk correlates ours (jsonrpc2.Connection.outgoingCalls). So calls need
-// not be single-flight; this cap is only backpressure against a caller bug
-// flooding the native bridge at once.
+// not be single-flight; this cap is backpressure against a caller bug
+// flooding the native bridge at once, and the slots are handed out by
+// AdmissionClass (admission.go, #631) so bulk reads and media never hold
+// every one against the control path.
 const MaxConcurrentCalls = 8
 
 // Client owns a single session. Up to MaxConcurrentCalls calls may be in
@@ -149,7 +151,7 @@ type Client struct {
 	factory    transportFactory
 	gameID     string
 	timeout    time.Duration
-	gate       chan struct{}
+	gate       *admission
 
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
@@ -192,7 +194,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, recorder *F
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder, transcript: transcript}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: newAdmission(MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder, transcript: transcript}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -399,7 +401,9 @@ func discover(ctx context.Context, session *mcp.ClientSession) (Discovery, error
 	return Discovery{}, fmt.Errorf("%w: discovery page limit", ErrContract)
 }
 
-func (c *Client) operation(ctx context.Context, run func(context.Context, *liveSession) (Result, error)) (Result, error) {
+// operation admits one call under class (the class of the native tool it
+// will reach; see admissionClassOf) and runs it against the live session.
+func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(context.Context, *liveSession) (Result, error)) (Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	c.mu.Lock()
@@ -417,14 +421,17 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 	// is a trace of its own, so its request, reply and decode rows share
 	// one id instead of each minting a single-row trace (#298).
 	ctx, _ = telemetry.EnsureTrace(ctx)
-	timing := &callTiming{began: time.Now()}
-	select {
-	case c.gate <- struct{}{}:
-		defer func() { <-c.gate }()
-	case <-ctx.Done():
-		return Result{}, ctx.Err()
+	if override, ok := admissionClassFrom(ctx); ok {
+		class = override
 	}
-	timing.gateWait = time.Since(timing.began)
+	timing := &callTiming{began: time.Now()}
+	admitted, err := c.gate.acquire(ctx, class)
+	if err != nil {
+		return Result{}, err
+	}
+	defer c.gate.release(class)
+	timing.admission = admitted
+	timing.gateWait = admitted.wait
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
@@ -517,6 +524,9 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 		if timing != nil {
 			out["gate_wait_ms"] = millis(timing.gateWait)
 			out["total_ms"] = millis(time.Since(timing.began))
+			out["class"] = string(timing.admission.class)
+			out["queue_depth"] = timing.admission.queueDepth
+			out["class_queue_depth"] = timing.admission.classDepth
 		}
 		return out
 	}
@@ -575,6 +585,9 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 				timing["native_execute_ms"] = native.executeMs
 				if native.trace != "" {
 					timing["native_trace"] = native.trace
+				}
+				if native.queueDepth >= 0 {
+					timing["native_queue_depth"] = native.queueDepth
 				}
 			}
 			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing})

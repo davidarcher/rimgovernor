@@ -147,7 +147,13 @@ header (sequence, width, height, encoding, capture method, capture time,
 readback cost; little-endian) followed by raw pixels; the client drops stale or
 duplicate sequences and paints the latest frame.
 
-The Go relay reads frames from the native shared-memory buffer whenever it runs
+The Go relay reads frames once per source, not once per socket (#631): the
+sockets streaming one source share a reader and each holds a one-frame queue
+that a newer frame replaces, so a socket that is not draining (a hidden tab)
+keeps only the latest frame, never delays another viewer's frames, and is
+closed alone once one of its writes outlasts the server's read timeout. The
+reader ends with the source's last socket or when its lease ends. It reads
+frames from the native shared-memory buffer whenever it runs
 on the game's host: Windows uses a named mapping with a nonblocking mutex,
 Linux a private `/dev/shm/RimGovernorVideo-<id>` mapping with nonblocking file
 locks (`go/internal/videoshm`). The buffer name is the lease's `sourceId`, learned
@@ -162,8 +168,13 @@ envelope instead. Only `ReadFrame`-delivered frames are acknowledged;
 A lease names one source (`VideoStart.source`): the presented screen (the
 default), a colonist (`pawn_id`, a second camera following the pawn at ten
 cells of height) or the whole map. Each source has its own buffer, `sourceId`,
-sequence and cadence (`frames_per_second`: screen 60, pawn up to 30, map up to
-10; feeds default to 15 and 4), and `ReadFrame` selects a source by id. Feeds
+sequence and cadence (`frames_per_second`: screen up to 60, pawn up to 30, map
+up to 10; feeds default to 15 and 4), and `ReadFrame` selects a source by id.
+The screen is one source whatever cadence its viewers declare: it captures at
+the highest cadence its holders asked for and the reply's `framesPerSecond`
+reports it (#631); a rendered feed's cadence and size are part of its
+identity, so differing demands are different sources. No held source means
+no capture at all. Feeds
 render right after the game's own draw pass, with the player camera's culling
 rect widened to cover them only on the frames they are due, and clip the
 silhouette and overlay altitudes so a far player zoom never blanks the pawns

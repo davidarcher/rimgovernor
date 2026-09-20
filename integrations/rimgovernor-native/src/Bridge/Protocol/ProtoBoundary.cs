@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var key in arguments.Keys)
             {
-                if (key != "request" && key != TraceArgument && key != "_rimBridgeTimeoutMs")
+                if (key != "request" && key != TraceArgument && key != MainThreadAdmission.ClassArgument && key != "_rimBridgeTimeoutMs")
                 {
                     failure = Fail(Common.FailureCode.InvalidRequest, "The sole caller argument must be request.");
                     return false;
@@ -126,7 +126,9 @@ namespace HomeBridge.BridgeTools
         // Timing is reported beside the payload so the Go sampler can split
         // native main-thread scheduling from tool execution: queueMs is the
         // wait between requesting the main thread and the body starting,
-        // executeMs is the body itself including ProtoJSON formatting. It
+        // executeMs is the body itself including ProtoJSON formatting,
+        // class is the admission class the hop ran under and queueDepth how
+        // many hops were pending when it was queued (#631). It
         // covers every tool whose single main-thread hop goes through
         // OnMainThread; multi-hop media captures stay unreported. The
         // caller's trace argument ("<trace_id>/<span_id>", the controller's
@@ -135,26 +137,39 @@ namespace HomeBridge.BridgeTools
         internal const string TimingField = "timing";
         internal const string TraceArgument = "trace";
 
+        // Hops are ordered by the caller's class argument (control,
+        // observation, media) through MainThreadAdmission, so a queued
+        // renew or stop runs before the reads queued ahead of it.
         internal static Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
         {
             var queued = Stopwatch.GetTimestamp();
             var trace = TraceOf(ctx);
+            var rank = MainThreadAdmission.RankOf(ClassOf(ctx));
             var hop = MainThreadWatchdog.Enqueue(OperationOf(ctx), trace);
-            var task = ctx.MainThread.InvokeAsync<object>(() =>
+            int depth = 0;
+            var task = MainThreadAdmission.Enqueue(ctx, rank, () =>
             {
                 MainThreadWatchdog.Start(hop);
                 var started = Stopwatch.GetTimestamp();
                 try
                 {
                     var reply = body();
-                    return WithTiming(reply, queued, started, Stopwatch.GetTimestamp(), trace);
+                    return WithTiming(reply, queued, started, Stopwatch.GetTimestamp(), trace, MainThreadAdmission.ClassOf(rank), depth);
                 }
                 finally { MainThreadWatchdog.Finish(hop); }
-            }, cancellationToken);
+            }, cancellationToken, out depth);
             // A hop the host never runs (cancelled while queued) still leaves
             // the watchdog once its task settles.
             task.ContinueWith(_ => MainThreadWatchdog.Finish(hop), TaskContinuationOptions.ExecuteSynchronously);
             return task;
+        }
+
+        // The caller's class argument, or null when it sent none.
+        internal static string? ClassOf(IRimBridgeContext ctx)
+        {
+            var arguments = BridgeCommon.RawArguments(ctx, out _);
+            if (arguments == null || !arguments.TryGetValue(MainThreadAdmission.ClassArgument, out var raw) || !TryString(raw, out var cls)) return null;
+            return cls;
         }
 
         // The host's capability id (the tool) and operation id for the
@@ -181,7 +196,7 @@ namespace HomeBridge.BridgeTools
         internal static Task<object> OnMainThreadEncoded(IRimBridgeContext ctx, Func<IMessage> body, CancellationToken cancellationToken)
             => OnMainThread(ctx, () => Encode(body()), cancellationToken);
 
-        internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null)
+        internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null, string? cls = null, int queueDepth = -1)
         {
             var envelope = reply as Dictionary<string, object?>;
             if (envelope == null || !envelope.ContainsKey("payload") || envelope.ContainsKey(TimingField)) return reply;
@@ -191,6 +206,8 @@ namespace HomeBridge.BridgeTools
                 ["executeMs"] = Millis(finished - started),
             };
             if (trace != null) timing[TraceArgument] = trace;
+            if (cls != null) timing[MainThreadAdmission.ClassArgument] = cls;
+            if (queueDepth >= 0) timing["queueDepth"] = queueDepth;
             envelope[TimingField] = timing;
             return envelope;
         }

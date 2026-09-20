@@ -333,6 +333,20 @@ the highest priorities first. Native reads still execute one at a time on the
 game's main thread; the wave only overlaps their round trips, so a wider
 session pool would not help.
 
+The bridge hands those slots out by admission class (#631): every reviewed
+method is `control` (clock, authority, operations, receipts, lifecycle,
+placement previews), `observation` (`observations_*`, presentation state and
+leases) or `media` (frame reads, acknowledgements, pawn captures). One slot
+is reserved for control, observation may hold at most five and media two,
+and a waiting control call is admitted before any waiting read when a slot
+frees, so a renew or stop never queues behind a burst of bundle reads or
+fallback frames. The class rides beside `request` and `trace` on the wire and
+the companion's `ProtoBoundary.OnMainThread` runs queued control hops before
+observation and media hops within a frame (`MainThreadAdmission`); legacy
+`home/*` tools that call the host's main thread directly stay outside that
+ordering. `bridge.WithAdmissionClass` overrides a call's class for a caller
+whose use differs from the method's default.
+
 The admission cycle waits on the critical class only (#623). Each catalog
 entry is `critical` (the preempt and critical priority classes and fire
 safety: authority, emergency evidence and the verdicts the window decision

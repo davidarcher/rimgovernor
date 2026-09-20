@@ -16,9 +16,11 @@ import (
 // viewer adds. It demands rendering, holds a 15 s screen lease renewed
 // every 10 s, mints a ticket, connects the WebSocket and drains frames at
 // the stream's own cadence (the server's default poll interval), retrying a
-// second after a closed socket as the tile does. A game that cannot capture
-// (batch mode) answers the lease unsupported; the client records that and
-// stops, as the tile does.
+// second after a closed socket as the tile does. Beside it a second socket
+// on the same source is opened and never read (#631): a stalled or hidden
+// tab, which must cost neither the draining tile nor the simulation
+// anything. A game that cannot capture (batch mode) answers the lease
+// unsupported; the client records that and stops, as the tile does.
 type ViewerClient struct {
 	service *ServiceProcess
 	token   string
@@ -32,18 +34,21 @@ type ViewerClient struct {
 }
 
 type viewerSummary struct {
-	Supported     bool     `json:"supported"`
-	Active        bool     `json:"active"`
-	Unavailable   string   `json:"unavailable,omitempty"`
-	SourceID      string   `json:"source_id,omitempty"`
-	Frames        uint64   `json:"frames"`
-	Bytes         uint64   `json:"bytes"`
-	Connects      int      `json:"connects"`
-	Leases        int      `json:"leases"`
-	Errors        []string `json:"errors,omitempty"`
-	DurationS     float64  `json:"duration_s"`
-	FramesPerSec  float64  `json:"frames_per_second"`
-	CaptureMethod string   `json:"capture_method,omitempty"`
+	Supported   bool   `json:"supported"`
+	Active      bool   `json:"active"`
+	Unavailable string `json:"unavailable,omitempty"`
+	SourceID    string `json:"source_id,omitempty"`
+	Frames      uint64 `json:"frames"`
+	Bytes       uint64 `json:"bytes"`
+	Connects    int    `json:"connects"`
+	// StalledConnects counts the never-read companion sockets opened; the
+	// server ends each once its write outlasts its timeout.
+	StalledConnects int      `json:"stalled_connects"`
+	Leases          int      `json:"leases"`
+	Errors          []string `json:"errors,omitempty"`
+	DurationS       float64  `json:"duration_s"`
+	FramesPerSec    float64  `json:"frames_per_second"`
+	CaptureMethod   string   `json:"capture_method,omitempty"`
 }
 
 const (
@@ -74,7 +79,7 @@ func (v *ViewerClient) Stop() map[string]any {
 	}
 	return map[string]any{
 		"supported": v.summary.Supported, "active": v.summary.Active, "unavailable": v.summary.Unavailable, "source_id": v.summary.SourceID,
-		"frames": v.summary.Frames, "bytes": v.summary.Bytes, "connects": v.summary.Connects, "leases": v.summary.Leases,
+		"frames": v.summary.Frames, "bytes": v.summary.Bytes, "connects": v.summary.Connects, "stalled_connects": v.summary.StalledConnects, "leases": v.summary.Leases,
 		"errors": v.summary.Errors, "duration_s": v.summary.DurationS, "frames_per_second": v.summary.FramesPerSec, "capture_method": v.summary.CaptureMethod,
 	}
 }
@@ -186,6 +191,9 @@ func (v *ViewerClient) stream(ctx context.Context, source string) {
 	v.mu.Lock()
 	v.summary.Connects++
 	v.mu.Unlock()
+	if stalled := v.stalledCompanion(ctx, source); stalled != nil {
+		defer stalled.CloseNow()
+	}
 	for {
 		_, data, err := conn.Read(ctx)
 		if err != nil {
@@ -196,6 +204,24 @@ func (v *ViewerClient) stream(ctx context.Context, source string) {
 		v.summary.Bytes += uint64(len(data))
 		v.mu.Unlock()
 	}
+}
+
+// stalledCompanion opens a second socket on source that is never read,
+// the way a hidden tab's stream stalls; nil when it could not connect.
+func (v *ViewerClient) stalledCompanion(ctx context.Context, source string) *websocket.Conn {
+	ticket, status, err := v.service.API("POST", "/api/presentation/video-stream/ticket", map[string]any{"sourceId": source}, v.token)
+	if err != nil || status != 200 {
+		return nil
+	}
+	url := strings.Replace(v.service.URL, "http://", "ws://", 1) + "/api/presentation/video-stream?ticket=" + AsString(ticket["ticket"])
+	conn, _, err := websocket.Dial(ctx, url, &websocket.DialOptions{HTTPHeader: http.Header{"Origin": []string{v.service.URL}}})
+	if err != nil {
+		return nil
+	}
+	v.mu.Lock()
+	v.summary.StalledConnects++
+	v.mu.Unlock()
+	return conn
 }
 
 func sleep(ctx context.Context, d time.Duration) bool {

@@ -74,6 +74,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/CompactCellEncoding.cs" Link="Production/CompactCellEncoding.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockPauseAccounting.cs" Link="Production/ClockPauseAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />

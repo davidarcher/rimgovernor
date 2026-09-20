@@ -32,7 +32,10 @@ namespace HomeBridge.BridgeTools
 
     // What one lease captures. Screen is the presented framebuffer; Pawn and
     // Map are rendered by a second camera into a feed of the given size at
-    // the given cadence. Equal specs share one source (and one buffer).
+    // the given cadence. Equal specs share one source (and one buffer). The
+    // screen has one source whatever cadence its viewers declare: its
+    // FramesPerSecond is the viewer's demand, and the source captures at the
+    // highest demand among its holders (#631).
     internal readonly struct VideoSourceSpec : IEquatable<VideoSourceSpec>
     {
         internal const int MinSide = 16, MaxWidth = 3840, MaxHeight = 2160;
@@ -58,7 +61,13 @@ namespace HomeBridge.BridgeTools
             out VideoSourceSpec spec, out string? reason)
         {
             spec = Screen; reason = null;
-            if (kind == VideoSourceKind.Screen) return true;
+            if (kind == VideoSourceKind.Screen)
+            {
+                if (fps == 0) fps = DefaultFps(kind);
+                if (fps < 0.5 || fps > MaxFps(kind)) { reason = "frames_per_second must be within 0.5 and " + MaxFps(kind) + " for this source."; return false; }
+                spec = new VideoSourceSpec(kind, null, 0, 0, fps);
+                return true;
+            }
             if (kind == VideoSourceKind.Pawn && string.IsNullOrEmpty(pawnId)) { reason = "A pawn source requires pawn_id."; return false; }
             if (width == 0) width = kind == VideoSourceKind.Map ? 0 : 320;
             if (height == 0) height = kind == VideoSourceKind.Map ? 400 : 200;
@@ -71,7 +80,7 @@ namespace HomeBridge.BridgeTools
         }
 
         public bool Equals(VideoSourceSpec other) => Kind == other.Kind && PawnId == other.PawnId
-            && Width == other.Width && Height == other.Height && FramesPerSecond.Equals(other.FramesPerSecond);
+            && Width == other.Width && Height == other.Height && (!Rendered || FramesPerSecond.Equals(other.FramesPerSecond));
         public override bool Equals(object obj) => obj is VideoSourceSpec other && Equals(other);
         public override int GetHashCode() => unchecked(((int)Kind * 397 ^ (PawnId?.GetHashCode() ?? 0)) * 397 ^ Width * 31 ^ Height);
     }
@@ -114,8 +123,9 @@ namespace HomeBridge.BridgeTools
         internal VideoLeaseStatus(bool supported, string? unavailableDetail, bool active, string? sourceId,
             float remainingSeconds, long capturedFrames, bool topDown, bool bgra, string? captureMethod,
             bool asyncReadbackSupported, string renderer, bool focused, int targetFrameRate, float frameSeconds,
-            int vsyncCount, double refreshRate, ulong workingSetBytes, double processCpuSeconds, VideoSourceSpec source)
+            int vsyncCount, double refreshRate, ulong workingSetBytes, double processCpuSeconds, VideoSourceSpec source, double framesPerSecond)
         {
+            FramesPerSecond = framesPerSecond;
             Supported = supported; UnavailableDetail = unavailableDetail; Active = active; SourceId = sourceId;
             RemainingSeconds = remainingSeconds; CapturedFrames = capturedFrames; TopDown = topDown; Bgra = bgra;
             CaptureMethod = captureMethod; AsyncReadbackSupported = asyncReadbackSupported; Renderer = renderer;
@@ -142,6 +152,8 @@ namespace HomeBridge.BridgeTools
         internal ulong WorkingSetBytes { get; }
         internal double ProcessCpuSeconds { get; }
         internal VideoSourceSpec Source { get; }
+        // The cadence the source captures at: the highest demand its holders declared.
+        internal double FramesPerSecond { get; }
     }
 
     // One leased source: its shared-memory buffer (latest RGBA32 frame behind
@@ -167,6 +179,11 @@ namespace HomeBridge.BridgeTools
         // Each viewer's lease expiry; the source lives while any viewer holds
         // it, so one tab stopping or timing out does not end another's feed.
         internal readonly Dictionary<string, float> Holds = new Dictionary<string, float>();
+        // Each viewer's declared cadence; the source captures at the highest
+        // one still held, so no viewer means no capture and one slow viewer
+        // never lowers another's feed.
+        internal readonly Dictionary<string, double> Demands = new Dictionary<string, double>();
+        internal double FramesPerSecond;
         internal float Until, Next;
         internal long Sequence;
         internal byte[]? LatestFrame;
@@ -194,7 +211,29 @@ namespace HomeBridge.BridgeTools
         }
 
         internal bool Open => mapping != null;
-        internal double Interval => 1.0 / Spec.FramesPerSecond;
+        internal double Interval => 1.0 / (FramesPerSecond > 0 ? FramesPerSecond : Spec.FramesPerSecond);
+
+        // Records viewer's hold and demand, then the cadence the source
+        // captures at: the highest demand among its holders.
+        internal void Hold(string viewer, float until, double fps)
+        {
+            Holds[viewer] = until;
+            Demands[viewer] = fps;
+            Recompute();
+        }
+
+        internal void Drop(string viewer)
+        {
+            Holds.Remove(viewer);
+            Demands.Remove(viewer);
+            Recompute();
+        }
+
+        void Recompute()
+        {
+            Until = Holds.Count > 0 ? Holds.Values.Max() : 0;
+            FramesPerSecond = Demands.Count > 0 ? Demands.Values.Max() : Spec.FramesPerSecond;
+        }
 
         internal void Publish(int width, int height, double captured, double readbackMs, byte[] pixels, PlayerFrame? view)
         {
@@ -346,7 +385,8 @@ namespace HomeBridge.BridgeTools
                 Application.targetFrameRate, Time.unscaledDeltaTime, QualitySettings.vSyncCount,
                 UnityEngine.Screen.currentResolution.refreshRateRatio.value,
                 (ulong)System.Diagnostics.Process.GetCurrentProcess().WorkingSet64,
-                System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds, spec);
+                System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds, spec,
+                live != null ? live.FramesPerSecond : spec.FramesPerSecond);
         }
 
         // Reads the same in-process bytes Publish() just captured; never touches
@@ -395,8 +435,7 @@ namespace HomeBridge.BridgeTools
                 sources[source.Name] = source;
                 error = "";
             }
-            source.Holds[viewer] = Time.realtimeSinceStartup + seconds;
-            source.Until = source.Holds.Values.Max();
+            source.Hold(viewer, Time.realtimeSinceStartup + seconds, spec.FramesPerSecond);
             ApplyDisplayPacing();
             RenderDemandDriver.Lease(seconds);
             return source;
@@ -411,8 +450,8 @@ namespace HomeBridge.BridgeTools
                 var source = sources[name];
                 if (viewer != null)
                 {
-                    source.Holds.Remove(viewer);
-                    if (source.Holds.Count > 0) { source.Until = source.Holds.Values.Max(); continue; }
+                    source.Drop(viewer);
+                    if (source.Holds.Count > 0) continue;
                 }
                 source.Release();
                 sources.Remove(name);
@@ -469,7 +508,7 @@ namespace HomeBridge.BridgeTools
                 Expire();
                 var screen = Screen;
                 if (screen == null || Time.realtimeSinceStartup < screen.Next) continue;
-                screen.Next = Time.realtimeSinceStartup + 1f / 60;
+                screen.Next = Time.realtimeSinceStartup + (float)screen.Interval;
                 if (UsePresented)
                 {
                     // End-of-frame state belongs to the buffer about to be

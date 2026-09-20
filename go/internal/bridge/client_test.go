@@ -120,7 +120,7 @@ func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 
 // Tests below exercise MCP transport ownership independently of a domain decoder.
 func testNativeRead(client *Client, ctx context.Context) (Result, error) {
-	return client.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return client.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		return client.core(ctx, live, "games_call_tool", encode(nativeArgument{client.gameID, "fixture/read", json.RawMessage(`{}`)}))
 	})
 }
@@ -455,7 +455,7 @@ func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
 	for i := 0; i < n; i++ {
 		i := i
 		go func() {
-			result, err := client.operation(context.Background(), func(ctx context.Context, live *liveSession) (Result, error) {
+			result, err := client.operation(context.Background(), AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 				return client.core(ctx, live, "games_call_tool", encode(nativeArgument{client.gameID, "fixture/read", json.RawMessage(fmt.Sprintf("%d", i))}))
 			})
 			results <- outcome{want: fmt.Sprintf(`{"echo":%d}`, i), got: result, err: err}

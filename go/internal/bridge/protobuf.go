@@ -314,14 +314,75 @@ func (caller *Client) recordCacheHit(ctx context.Context, name string) {
 // video and frame-acknowledge RPCs are active mutations (lease state, capture
 // telemetry), not free reads, so they are reviewed only in protoCall's allowlist.
 
+// reviewedNativeMethods is protoCall's allowlist: the typed adapters this
+// package exposes. Every entry has an admission class in
+// nativeAdmissionClass (admission.go).
+var reviewedNativeMethods = map[string]bool{
+	clearanceTool:                            true,
+	shrinesTool:                              true,
+	"rimgovernor/observations_list_supplies": true,
+	"rimgovernor/observations_read_colony_facts":       true,
+	"rimgovernor/observations_list_buildings":          true,
+	"rimgovernor/observations_list_rooms":              true,
+	"rimgovernor/observations_read_research":           true,
+	"rimgovernor/observations_list_wall_upgrade_sites": true,
+	"rimgovernor/observations_list_zones":              true,
+	"rimgovernor/observations_read_defense_site":       true,
+	"rimgovernor/observations_read_lines_of_fire":      true,
+	"rimgovernor/observations_read_spatial_access":     true,
+	"rimgovernor/observations_read_husbandry":          true,
+	"rimgovernor/presentation_camera":                  true,
+	"rimgovernor/presentation_selection":               true,
+	"rimgovernor/presentation_colonists":               true,
+	"rimgovernor/presentation_notifications":           true,
+	"rimgovernor/presentation_render_state":            true,
+	"rimgovernor/presentation_render_demand":           true,
+	"rimgovernor/presentation_capture_pawn":            true,
+	"rimgovernor/presentation_lease_video":             true,
+	"rimgovernor/presentation_read_frame":              true,
+	"rimgovernor/presentation_acknowledge_frame":       true,
+	"rimgovernor/clock_read_events":                    true,
+	"rimgovernor/clock_read_status":                    true,
+	"rimgovernor/clock_read_attempt":                   true,
+	"rimgovernor/operations_preview":                   true,
+	"rimgovernor/observations_list_pawns":              true,
+	"rimgovernor/observations_get_cells":               true,
+	"rimgovernor/lifecycle_read_identity":              true,
+	"rimgovernor/lifecycle_read_tick":                  true,
+	"rimgovernor/observations_read_status":             true,
+	"rimgovernor/placement_preview":                    true,
+	"rimgovernor/authority_read_status":                true,
+	"rimgovernor/receipts_lookup":                      true,
+	"rimgovernor/receipts_observe_progress":            true,
+	"rimgovernor/authority_control":                    true,
+	"rimgovernor/operations_release_owned_draft":       true,
+	"rimgovernor/operations_execute":                   true,
+	"rimgovernor/clock_start":                          true,
+	"rimgovernor/clock_renew":                          true,
+	"rimgovernor/clock_change_speed":                   true,
+	"rimgovernor/clock_pause":                          true,
+	"rimgovernor/observations_read_caravan_catalog":    true,
+	"rimgovernor/observations_read_world_progression":  true,
+	"rimgovernor/observations_read_world":              true,
+	"rimgovernor/observations_read_bills":              true,
+	"rimgovernor/observations_read_recipes":            true,
+	"rimgovernor/observations_list_resource_sources":   true,
+	"rimgovernor/observations_read_production_policy":  true,
+	"rimgovernor/observations_read_population":         true,
+	"rimgovernor/observations_read_trade_sheet":        true,
+	"rimgovernor/observations_list_traders":            true,
+	"rimgovernor/observations_read_excavation_site":    true,
+	"rimgovernor/lifecycle_save":                       true,
+	"rimgovernor/lifecycle_read_save":                  true,
+	"rimgovernor/lifecycle_load":                       true,
+	"rimgovernor/lifecycle_read_load":                  true,
+	"rimgovernor/observations_read_bundle":             true,
+}
+
 // protoCall is the closed transport seam for reviewed typed adapters. Adapters
 // validate request semantics and apply their own read or explicit write capability.
 func (caller *Client) protoCall(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
-	switch name {
-	case clearanceTool, shrinesTool, "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms", "rimgovernor/observations_read_research", "rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_defense_site", "rimgovernor/observations_read_lines_of_fire", "rimgovernor/observations_read_spatial_access", "rimgovernor/observations_read_husbandry":
-	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications", "rimgovernor/presentation_render_state", "rimgovernor/presentation_render_demand", "rimgovernor/presentation_capture_pawn", "rimgovernor/presentation_lease_video", "rimgovernor/presentation_read_frame", "rimgovernor/presentation_acknowledge_frame":
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_release_owned_draft", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_list_traders", "rimgovernor/observations_read_excavation_site", "rimgovernor/lifecycle_save", "rimgovernor/lifecycle_read_save", "rimgovernor/lifecycle_load", "rimgovernor/lifecycle_read_load", "rimgovernor/observations_read_bundle":
-	default:
+	if !reviewedNativeMethods[name] {
 		return Result{}, contract("unreviewed native method")
 	}
 	// A write through a cached step context discards the step's memoized
@@ -343,7 +404,11 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	invoked := false
 	var recordCtx map[string]any
 	var requestRow uint64
-	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	class := admissionClassOf(name)
+	if override, ok := admissionClassFrom(ctx); ok {
+		class = override
+	}
+	result, err := caller.operation(ctx, class, func(ctx context.Context, live *liveSession) (Result, error) {
 		// Nothing before games_call_tool reaches native: a failure here is
 		// proof the write was never issued (domain.ErrWriteUnsent).
 		if detail, err := caller.ensureDescribed(ctx, live, name); err != nil {
@@ -356,11 +421,14 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		// The trace the call runs under (the caller's step or dispatch,
 		// else the operation's own) rides beside the request; the
 		// companion echoes it in its timing object, so its main-thread
-		// phases join the same trace as the bridge's own (#298).
+		// phases join the same trace as the bridge's own (#298). The
+		// admission class rides with it so the companion services queued
+		// control hops first within a frame (#631).
 		args := encode(struct {
 			Request string `json:"request"`
 			Trace   string `json:"trace,omitempty"`
-		}{string(inner), telemetry.TraceFrom(ctx).Wire()})
+			Class   string `json:"class,omitempty"`
+		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class)})
 		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
 		if timing := callTimingFrom(ctx); timing != nil {
 			requestRow = timing.request

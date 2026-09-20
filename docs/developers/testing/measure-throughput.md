@@ -28,7 +28,12 @@ Every row a phase report reads:
 
 - `timing` on a native call: gate wait, GABS round trip, receipt decode and
   ProtoJSON decode, and (when the companion carries it) its own
-  main-thread queue wait and execute time.
+  main-thread queue wait and execute time. `class` is the admission class
+  the call took a bridge slot under (`control`, `observation` or `media`,
+  #631), `gate_wait_ms` the wait for that slot, `queue_depth` and
+  `class_queue_depth` how many calls (of any class, of its own) were
+  waiting when it asked, and `native_queue_depth` how many hops were
+  pending for the game thread when the companion queued this one.
 - `native_cache_hit`: a read the scheduler's per-step read cache served
   without a round trip.
 - `clock_step`: one row per `ClockScheduler.Step` with the round trips it
@@ -281,14 +286,16 @@ Needs a `ThroughputFixture` build; both profiles admit the uncapped case
 (every wall plan completed, no storage deficit pending; the clock admits no
 window after that, #210); each governed row runs `serve` with the
 flight recorder and the case reduces the recording with `SummarizePhases`
-and `SummarizeStops`. The default matrix (`-cases`, `DefaultSpeedMatrix`)
-is `Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off,viewer`.
+and `SummarizeStops`. The default matrix (`DefaultSpeedMatrix`)
+is `Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off,viewer`;
+`RIMGOVERNOR_SPEED_MATRIX=uncapped,viewer` in the runner's environment
+narrows a run to the rows named.
 The last two separate the governor's cost from the rest (#621):
 
 | Row | What runs |
 | --- | --- |
 | `governor-off` | The same save and renderer played natively at the uncapped speed with no controller attached: the simulation ceiling. Nothing is submitted, so the row reports `ticks_advanced`, `wall_seconds` and `wall_tps` (`governor_off: true`, zeros for the governor's counters) and is outside the outcome comparison. |
-| `viewer` | The uncapped governed row with one dashboard client attached for the whole run: a render demand, a screen video lease renewed every 10 s and the WebSocket stream drained at the server's default cadence, as the dashboard tile does. Its `viewer` block reports `frames`, `bytes`, `frames_per_second`, `connects` and `unavailable` (a game that cannot capture, such as batch mode, answers the lease unsupported and the row records that). Compare its `wall_tps` with `uncapped` for the viewing overhead. |
+| `viewer` | The uncapped governed row with one dashboard client attached for the whole run: a render demand, a screen video lease renewed every 10 s and the WebSocket stream drained at the server's default cadence, as the dashboard tile does, plus a second socket on the same source that is never read (a stalled or hidden tab, #631). Its `viewer` block reports `frames`, `bytes`, `frames_per_second`, `connects`, `stalled_connects` and `unavailable` (a game that cannot capture, such as batch mode, answers the lease unsupported and the row records that). Compare its `wall_tps` with `uncapped` for the viewing overhead; the stalled socket must cost neither. |
 
 `result.json` carries, per row under `speed_metrics` (`metrics` is the
 flat cost block every result carries, #297):

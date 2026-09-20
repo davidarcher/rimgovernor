@@ -115,7 +115,13 @@ type matrix struct {
 }
 
 func run(ctx context.Context, s cases.Session) error {
-	speedCases, err := na.ParseSpeedCases(na.DefaultSpeedMatrix)
+	// RIMGOVERNOR_SPEED_MATRIX narrows the rows for a targeted comparison
+	// (a rendered "uncapped,viewer" pair, #631); the default is every row.
+	spec := os.Getenv("RIMGOVERNOR_SPEED_MATRIX")
+	if spec == "" {
+		spec = na.DefaultSpeedMatrix
+	}
+	speedCases, err := na.ParseSpeedCases(spec)
 	if err != nil {
 		return err
 	}

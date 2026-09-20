@@ -509,3 +509,64 @@ func TestVideoLeaseForwardsTheViewerID(t *testing.T) {
 		t.Fatal(out.Code, out.Body.String())
 	}
 }
+
+// TestVideoStreamSharesOneReaderAcrossClients is the relay's per-source
+// contract (#631): two sockets on one source cost one ReadFrame and one
+// buffer read per frame, and a client that stops draining its socket
+// keeps only the newest frame while the other client's stream continues.
+func TestVideoStreamSharesOneReaderAcrossClients(t *testing.T) {
+	server, api, f, token := videoStreamAPI(t)
+	// Frames large enough that a client not reading them fills its socket
+	// buffers within a few frames instead of absorbing the whole run.
+	big := make([]byte, 1<<20)
+	f.frames = []*p.FrameReply{rpcFrame(`Local\RimGovernorVideo-a`, 1, big)}
+	shared := &sharedFrames{}
+	var opened []string
+	api.config.VideoFrames = func(source string) (videoshm.Reader, error) {
+		opened = append(opened, source)
+		return shared, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	dial := func() *websocket.Conn {
+		conn, _, err := websocket.Dial(ctx, wsURL(server, mintTicket(t, server, token)), &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {server.URL}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.SetReadLimit(4 << 20)
+		return conn
+	}
+	drainer := dial()
+	defer drainer.Close(websocket.StatusNormalClosure, "")
+	stalled := dial()
+	defer stalled.CloseNow()
+	if sequence, _, _ := readFrameMessage(t, ctx, drainer); sequence != 1 {
+		t.Fatal("first frame comes from ReadFrame", sequence)
+	}
+	const frames = 40
+	for sequence := uint64(2); sequence <= frames; sequence++ {
+		shared.publish(sequence, big)
+		got, _, _ := readFrameMessage(t, ctx, drainer)
+		if got != sequence {
+			t.Fatalf("draining client got %d, want %d", got, sequence)
+		}
+	}
+	if len(opened) != 1 || f.frameCalls != 1 {
+		t.Fatalf("one reader per source: opened %v, ReadFrame calls %d", opened, f.frameCalls)
+	}
+	api.videoRelay.mu.Lock()
+	var dropped uint64
+	for _, source := range api.videoRelay.sources {
+		for sub := range source.subscribers {
+			dropped += sub.dropped.Load()
+		}
+	}
+	subscribers := 0
+	for _, source := range api.videoRelay.sources {
+		subscribers += len(source.subscribers)
+	}
+	api.videoRelay.mu.Unlock()
+	if dropped == 0 && subscribers == 2 {
+		t.Fatal("the stalled client neither dropped frames nor lost its stream")
+	}
+}

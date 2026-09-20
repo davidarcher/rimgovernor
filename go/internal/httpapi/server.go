@@ -34,7 +34,8 @@ type Server struct {
 	telemetry    *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
 	closeOnce    sync.Once
 	closeErr     error
-	videoTickets sync.Map // hex ticket -> videoTicket; single-use, short-lived
+	videoTickets sync.Map   // hex ticket -> videoTicket; single-use, short-lived
+	videoRelay   videoRelay // one frame reader per leased source, shared by its sockets (#631)
 	chat         *interpreter.Interpreter
 	chatNative   buildingruntime.ChatFactsNative
 	chatJournal  buildingruntime.ChatFactsJournal

@@ -28,7 +28,7 @@ func (c *Client) GamesStart(ctx context.Context) (Result, error) {
 	const maxAttempts = 6
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		result, err := c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+		result, err := c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 			return c.core(ctx, live, "games_start", encode(gameArgument{c.gameID}))
 		})
 		if err == nil {
@@ -91,7 +91,7 @@ func refusalDetail(refusal *Refusal) string {
 // GamesStop stops the process GABS owns for this game. It never retries a game
 // mutation; callers observe the receipt for reconciliation.
 func (c *Client) GamesStop(ctx context.Context) (Result, error) {
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		return c.core(ctx, live, "games_stop", encode(gameArgument{c.gameID}))
 	})
 }
@@ -111,7 +111,7 @@ func (c *Client) NativeCall(ctx context.Context, tool string, arguments json.Raw
 	if len(arguments) == 0 {
 		arguments = json.RawMessage("{}")
 	}
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+	return c.operation(ctx, admissionClassOf(tool), func(ctx context.Context, live *liveSession) (Result, error) {
 		return c.core(ctx, live, "games_call_tool", encode(nativeArgument{c.gameID, tool, arguments}))
 	})
 }
