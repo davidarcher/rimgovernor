@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             return fixtureHostile;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -79,6 +79,7 @@ namespace HomeBridge.BridgeTools
                 {
                     case "terrain": return Terrain(map, center);
                     case "stock": return Stock(map, center);
+                    case "scaling": return ScalingStock(map, center, points);
                     case "ranged": return Ranged(map, colonists, rifles);
                     case "raid": return Raid(map, strategy, arrival, points, x < 0 ? IntVec3.Invalid : new IntVec3(x, 0, z));
                     case "predator": return Predator(map, colonists, kind);
@@ -173,6 +174,51 @@ namespace HomeBridge.BridgeTools
             return new { success = true, spawned, resource = wood.defName, food, provisioned };
         }
 
+        // Paused threat-scaling comparison: the selected loose-stock bundle
+        // (steel, industrial components and silver) is normalized to 2000,
+        // 100 and 20000, then tripled exactly. No pawns/buildings are added
+        // between readings. Incidents stay disabled and the clock never runs.
+        // Calibrate difficulty ONCE to 290 native points, just below the
+        // 300-point budget band; the tripled stage keeps that difficulty.
+        private static object ScalingStock(Map map, IntVec3 center, int multiplier)
+        {
+            if (multiplier != 1 && multiplier != 3) return Refuse("scaling points must be 1 or 3 (stock multiplier).");
+            var counts = new[] { new { def = ThingDefOf.Steel, count = 2000 },
+                new { def = ThingDefOf.ComponentIndustrial, count = 100 },
+                new { def = ThingDefOf.Silver, count = 20000 } };
+            foreach (var stock in counts)
+            {
+                foreach (var old in map.listerThings.ThingsOfDef(stock.def).Where(t => t.def.category == ThingCategory.Item).ToList())
+                    old.Destroy(DestroyMode.Vanish);
+                for (var left = stock.count * multiplier; left > 0;)
+                {
+                    var thing = ThingMaker.MakeThing(stock.def);
+                    thing.stackCount = Math.Min(stock.def.stackLimit, left);
+                    left -= thing.stackCount;
+                    if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Scaling stock placement failed.");
+                    thing.SetForbidden(false, false);
+                }
+            }
+            if (multiplier == 1)
+            {
+                Quiet();
+                // CompTick computes native generator output without advancing
+                // pawns, construction or the storyteller.
+                foreach (var building in map.listerBuildings.allBuildingsColonist)
+                    building.TryGetComp<CompPowerPlant>()?.CompTick();
+                map.powerNetManager.UpdatePowerNetsAndConnections_First();
+                map.wealthWatcher.ForceRecount();
+                Find.Storyteller.difficulty.threatScale = 1f;
+                var raw = StorytellerUtility.DefaultThreatPointsNow(map);
+                if (raw <= 35f) return Refuse("Baseline threat is clamped; cannot calibrate the stock comparison.");
+                Find.Storyteller.difficulty.threatScale = 290f / raw;
+            }
+            map.wealthWatcher.ForceRecount();
+            return new { success = true, multiplier, threat = Threat(map),
+                stock = counts.Select(s => new { definition = s.def.defName,
+                    count = map.listerThings.ThingsOfDef(s.def).Sum(t => t.stackCount) }).ToArray(),
+                tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+        }
         private static object Ranged(Map map, List<Pawn> colonists, int rifles)
         {
             var def = DefDatabase<ThingDef>.GetNamed("Gun_BoltActionRifle"); var armed = new List<object>();
