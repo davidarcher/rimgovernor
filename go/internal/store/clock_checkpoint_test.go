@@ -101,7 +101,11 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 }
 
 func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
-	t.Parallel()
+	// Keep enough pages to compact beyond the retained eight-page tail.
+	// Run serially because HistoryTail is shared with the other clock tests.
+	originalTail := clock.HistoryTail
+	clock.HistoryTail = 16
+	t.Cleanup(func() { clock.HistoryTail = originalTail })
 	for _, kind := range []string{"unreviewed", "interruption", "gap"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
@@ -128,8 +132,9 @@ func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.CompactClockHistory(ctx, profile); err != nil {
-				t.Fatal(err)
+			compacted, err := s.CompactClockHistory(ctx, profile)
+			if err != nil || compacted.RemovedPages != tail+1-8 {
+				t.Fatal(compacted, err)
 			}
 			after, err := s.ReadClockReview(ctx, profile)
 			if err != nil || !reflect.DeepEqual(after, before) {
