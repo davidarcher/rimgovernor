@@ -188,11 +188,11 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		finished.Finished = append(finished.Finished, policy.ResearchProjectID(name))
 	}
 	f.Facts.Research = domain.Known(finished)
-	if len(deepDrillSites(f, review.ResourceRunwayState())) == 0 {
-		return RoutineResourceResult{}, false, nil
-	}
 	if result, handled, err := r.removeExhaustedDrill(call, epoch, state, goal, f, started); err != nil || handled {
 		return result, handled, err
+	}
+	if len(deepDrillSites(f, review.ResourceRunwayState())) == 0 {
+		return RoutineResourceResult{}, false, nil
 	}
 	buildings, _, err := native.ReadBuildings(call, boundary.Identity(state.Snapshot), 0)
 	if err != nil {

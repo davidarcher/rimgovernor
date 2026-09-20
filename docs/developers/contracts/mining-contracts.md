@@ -31,7 +31,8 @@ resource census also reports every colonist drill with its exact next deposit
 (resource and remaining units) and the native depletion verdict; under
 autonomous play every colonist drill is the controller's, so there is no
 ownership ledger. While a metal runway is in deficit, a drill the census reads
-as depleted is removed through the shared Hands deconstruction path (a drill
+as depleted is removed even when no scanned lumps remain, through the shared
+Hands deconstruction path (a drill
 `Deconstruction`, bounded attempts per drill); the dispatch guard re-reads the
 census and designates only while the exact drill (id, definition, cell) is
 still present and depleted. A lump centre moving as it is mined, an unknown

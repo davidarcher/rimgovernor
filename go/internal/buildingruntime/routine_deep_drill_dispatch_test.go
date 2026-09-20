@@ -156,13 +156,18 @@ func TestDeepDrillRemovesOnlyExhaustedDrills(t *testing.T) {
 		name                 string
 		depleted, designated bool
 		removal              bool
+		noLumps              bool
 	}{
-		{"exhausted", true, false, true},
-		{"yielding", false, false, false},
-		{"exhausted designated", true, true, false},
+		{"exhausted", true, false, true, false},
+		{"last lump exhausted", true, false, true, true},
+		{"yielding", false, false, false, false},
+		{"exhausted designated", true, true, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := deepDrillDispatchFixture(t, false, []*o.DeepDrillState{drillRow(tc.depleted, tc.designated)})
+			if tc.noLumps {
+				d.sleeping.reply.GetObserved().GetDeepResources().GetObserved().Lumps = nil
+			}
 			result, handled, err := d.run(t)
 			if err != nil || !handled {
 				t.Fatal(result, handled, err)
