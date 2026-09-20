@@ -188,6 +188,9 @@ type RoutinePolicy struct {
 	// ResearchTarget: the review does not derive layout completeness from a
 	// census, the planner decides per tier from its own admitted plans.
 	DefensiveLayout bool
+	// Stage holds the colony stage thresholds (#630); zero fields take the
+	// defaults RoutinePolicy.Stages derives from the food thresholds.
+	Stage ColonyStagePolicy
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
@@ -223,6 +226,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.PrisonerReleaseAfterDays < 0 || p.PrisonerReleaseAfterDays > 120 {
 		return errors.New("invalid prisoner release threshold")
+	}
+	if err := p.Stages().validate(); err != nil {
+		return err
 	}
 	if p.HuntStallTicks <= 0 {
 		return errors.New("invalid hunt stall grace")

@@ -152,14 +152,17 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineResearchResult{Reason: BuildingMethodNoReview}, nil
 	}
-	needs, err := routineResearchNeeds(call, p.journal, r.reviewer.policy, state.Snapshot)
+	// The ladder is paced by the colony stage (#630): a Foothold colony
+	// walks its first rungs, a Development colony the whole ladder.
+	staged := r.reviewer.staged()
+	needs, err := routineResearchNeeds(call, p.journal, staged, state.Snapshot)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
 	needs = r.reviewer.fishingResearchNeeds(needs)
 	needs = policy.DeepDrillingResearch(needs, review.ResourceRunwayState())
-	roadmap := r.reviewer.policy.ResearchTarget == "" && (len(needs) > 0 || len(r.reviewer.policy.ResearchLadder) > 0)
-	if r.reviewer.policy.ResearchTarget == "" && !roadmap {
+	roadmap := staged.ResearchTarget == "" && (len(needs) > 0 || len(staged.ResearchLadder) > 0)
+	if staged.ResearchTarget == "" && !roadmap {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
 	var goal store.GoalState
@@ -223,7 +226,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	// The goal against the fresh census: the first recorded need the
 	// census lists and has not finished, else the first such ladder rung.
-	target, _ := policy.ResearchGoal(policy.ArmorResearchPolicy(r.reviewer.policy, review.Latches.Soldiers), needs, domain.Known(facts))
+	target, _ := policy.ResearchGoal(policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), needs, domain.Known(facts))
 	if target == "" {
 		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
 	}

@@ -33,6 +33,40 @@ type RoutineReviewer struct {
 	// buildTier is the last build tier logged (#604): the service log
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
+	// stage is the colony stage of the review the last step loaded (#630):
+	// the stage the store holds that step's review to, so the planners'
+	// targets (staged) agree with the review's. Foothold before any
+	// review filed one.
+	stage policy.ColonyStage
+	// stageLogged is the last stage record logged; the service log records
+	// a change once, not every review.
+	stageLogged domain.Fact[policy.ColonyStageRecord]
+}
+
+// staged is the configured policy with its goal budgets set by the colony
+// stage (policy.StageRoutinePolicy): the development-project limit, the
+// research ladder's pace and the reserve targets.
+func (r *RoutineReviewer) staged() policy.RoutinePolicy {
+	return policy.StageRoutinePolicy(r.policy, r.stage)
+}
+
+// logColonyStage records a review's stage in the service log and timeline
+// once per change of stage or blocker: `[routine] colony stage Reserves
+// (settling: production clear 1.0 of 2.0 days)`.
+func (r *RoutineReviewer) logColonyStage(ctx context.Context, review store.RoutineReview) {
+	if review.Stage == nil {
+		return
+	}
+	stage := *review.Stage
+	if last, logged := r.stageLogged.Value(); logged && last.Stage == stage.Stage && last.Blocker == stage.Blocker && last.Held == stage.Held {
+		return
+	}
+	r.stageLogged = domain.Known(stage)
+	message := "colony stage " + stage.Stage.String()
+	if stage.Reason != "" {
+		message += " (" + string(stage.Blocker) + ": " + stage.Reason + ")"
+	}
+	clockEvent(ctx, "routine", "colony_stage", message, "stage", stage.Stage.String(), "since", int64(stage.Since), "blocker", string(stage.Blocker), "reason", stage.Reason, "held", stage.Held)
 }
 
 // logBuildTier records the reading's build tier in the service log once per
@@ -60,7 +94,7 @@ func (r *RoutineReviewer) logBuildTier(ctx context.Context, projection observati
 // same targets DetectRoutine measures the latches against, so a planner's
 // deficit, field budget and butcher gate agree with the review.
 func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePolicy {
-	return r.policy.Seasonal(facts.Calendar, facts.DisasterConditions)
+	return r.staged().Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
 // routineStore is the review's section refresher (#360): the reviewer's
@@ -168,6 +202,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadRoutineReview err=%v", err)
 		return store.RoutineReviewResult{}, err
+	}
+	r.stage = policy.StageFoothold
+	if previous.Stage != nil {
+		r.stage = previous.Stage.Stage
 	}
 	expected, err := stepScope(ctx, r.native)
 	if err != nil {
@@ -414,9 +452,19 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		// as_of is the tick each census section described; as_of_spread
 		// (max - min) is zero while every section comes from one bundle
 		// and becomes visible the moment a section takes another source.
-		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency), "as_of", routineAsOf(asOf), "as_of_min", asOfMin, "as_of_spread", asOfSpread}, routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency), "as_of", routineAsOf(asOf), "as_of_min", asOfMin, "as_of_spread", asOfSpread}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		r.logColonyStage(ctx, result.Review)
 	}
 	return result, err
+}
+
+// routineStageAttrs are the review row's colony stage attrs (#630): the
+// stage the review derived and the first unmet condition of the next.
+func routineStageAttrs(stage *policy.ColonyStageRecord) []any {
+	if stage == nil {
+		return nil
+	}
+	return []any{"stage", stage.Stage.String(), "stage_blocker", string(stage.Blocker), "stage_reason", stage.Reason, "stage_held", stage.Held}
 }
 
 // routineAsOf keys the sections' ticks by name for the journal.

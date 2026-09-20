@@ -41,6 +41,10 @@ type RoutineStatus struct {
 	// (#629): method, expected observable, last progress tick, next review
 	// tick and blocker.
 	Progress []policy.GoalProgress
+	// Stage is the colony stage the last review derived (#630) with the
+	// first unmet condition of the next; nil until an enabled review
+	// filed one.
+	Stage *policy.ColonyStageRecord
 	// Roster is the roster planner's last recorded report (#448), nil until
 	// an enabled review planned work.
 	Roster   *policy.WorkRosterReport
@@ -65,6 +69,7 @@ type routineStatusDTO struct {
 	LastReviewTick    *domain.Tick                 `json:"lastReviewTick"`
 	Development       *routineDevelopmentDTO       `json:"development"`
 	Progress          []goalProgressDTO            `json:"progress"`
+	Stage             *colonyStageDTO              `json:"stage"`
 	Roster            *routineRosterDTO            `json:"roster"`
 	Sections          []routineSectionDTO          `json:"sections"`
 	LootHolds         []lootHoldDTO                `json:"lootHolds"`
@@ -188,6 +193,18 @@ func routineStale(st facts.Staleness) *routineStaleDTO {
 	return out
 }
 
+// colonyStageDTO is the colony stage (#630): its name, the review tick it
+// was entered, the first unmet condition of the next stage (blocker,
+// empty at Development) with the measured values in words, and whether
+// the Foothold hold refuses the comfort-class development.
+type colonyStageDTO struct {
+	Stage   string      `json:"stage"`
+	Since   domain.Tick `json:"since"`
+	Blocker string      `json:"blocker"`
+	Reason  string      `json:"reason"`
+	Held    bool        `json:"held"`
+}
+
 // routineDevelopmentDTO is the recorded development ranking: bounded
 // admission (capacity, labor) and every optional goal's ordering evidence and
 // deferral reason. Unknown facts are null; labor rows are sorted by work type.
@@ -269,6 +286,9 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	if v.Development != nil {
 		dto := routineDevelopment(*v.Development)
 		result.Development = &dto
+	}
+	if v.Stage != nil {
+		result.Stage = &colonyStageDTO{Stage: v.Stage.Stage.String(), Since: v.Stage.Since, Blocker: string(v.Stage.Blocker), Reason: v.Stage.Reason, Held: v.Stage.Held}
 	}
 	if v.Roster != nil {
 		dto := routineRoster(*v.Roster)

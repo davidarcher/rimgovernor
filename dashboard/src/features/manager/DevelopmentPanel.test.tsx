@@ -34,6 +34,12 @@ it('renders each goal progress record with its five fields', async () => {
   expect(food.getByText('Needs EnsureCooking first')).toBeInTheDocument();
   expect(screen.getByText(/No capable worker available · cooldowns: cut\/Plant_TreeOak until 1,200/)).toBeInTheDocument();
 });
+it('renders the colony stage with its blocker and hold', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [], progress: [],
+    stage: {stage: 'Foothold', since: 10, blocker: 'shelter', reason: 'shelter unmet', held: true}})));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByTestId('colony-stage')).toHaveTextContent('Colony stage Foothold since tick 10 · next stage waits on shelter: shelter unmet · comfort-class development held'));
+});
 it('renders the recorded ranking with reasons, bottlenecks and labor', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development, roster: null, sections: []})));
   render(<DevelopmentPanel active/>);

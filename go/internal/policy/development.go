@@ -134,6 +134,10 @@ const (
 	// player interruption, a restart before authority returned); the row
 	// keeps its waiting age from the last ranking but nothing is selected.
 	DevelopmentDisabled DevelopmentReason = "control_disabled"
+	// DevelopmentStage: the colony stage holds the project (#630): at
+	// Foothold with the shelter unmet, the comfort-class development
+	// (StageDevelopmentGoal) waits for the builder to raise the shelter.
+	DevelopmentStage DevelopmentReason = "stage_foothold"
 )
 
 type DevelopmentRow struct {
@@ -200,6 +204,10 @@ type DevelopmentRequest struct {
 	// queue (WithheldLabor): one pawn of each type is reserved before any
 	// optional goal takes it, so a goal needing it reads labor_unavailable.
 	Withheld LaborProfile
+	// Stage is the colony stage record this review derived
+	// (ReviewColonyStage); its Foothold hold refuses the comfort-class
+	// development with DevelopmentStage.
+	Stage ColonyStageRecord
 }
 
 func validGoal(id GoalID, source GoalSource, priority int) bool {
@@ -453,6 +461,16 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		if free == 0 {
 			row.Reason = DevelopmentCapacity
+			continue
+		}
+		// The Foothold hold (#630) is the last reason: a held project still
+		// names the labor it lacks, and never claims labor it may not use.
+		if r.Stage.HoldsDevelopment() && StageDevelopmentGoal(row.Goal) {
+			if bottleneck, ok := ledger.peek(profiles[row.Goal]); !ok {
+				row.Reason, row.Bottleneck = DevelopmentLabor, bottleneck
+				continue
+			}
+			row.Reason = DevelopmentStage
 			continue
 		}
 		if bottleneck, ok := ledger.take(profiles[row.Goal]); !ok {

@@ -67,6 +67,11 @@ type RoutineReview struct {
 	// need: method, expected observable, last progress tick, next review
 	// tick, blocked reason and the bounded cooldowns its rotations keyed.
 	Progress []policy.GoalProgress `json:",omitempty"`
+	// Stage is the colony stage (#630) the review derived from its facts
+	// and progress records, with the first unmet condition of the next
+	// stage; a disabled review keeps the last one. Absent before any
+	// enabled review filed one.
+	Stage *policy.ColonyStageRecord `json:",omitempty"`
 }
 
 type RoutineReviewRequest struct {
@@ -203,6 +208,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			return RoutineReview{}, errors.New("invalid routine progress history")
 		}
 		progressGoals[p.Goal] = true
+	}
+	if r.Stage != nil && policy.ValidateColonyStage(*r.Stage, r.Tick) != nil {
+		return RoutineReview{}, errors.New("invalid routine stage history")
 	}
 	if r.Enabled {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
@@ -354,6 +362,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		mood = policy.MoodHistory{}
 		disaster = nil
 	}
+	// The stage the last review left sets this review's goal budgets (the
+	// development limit, the research ladder's pace, the reserve targets);
+	// the stage this review derives is filed for the next.
+	var previousStage policy.ColonyStageRecord
+	if previous.Stage != nil && !reset {
+		previousStage = *previous.Stage
+	}
+	baseLimit := request.Policy.MaxDevelopmentProjects
+	request.Policy = policy.StageRoutinePolicy(request.Policy, previousStage.Stage)
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
@@ -544,6 +561,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.Development.Rows = append([]RoutineDevelopmentRow(nil), previous.Development.Rows...)
 		if !reset {
 			r.Progress = previous.Progress
+			r.Stage = previous.Stage
 		}
 		for i := range r.Development.Rows {
 			if row := &r.Development.Rows[i]; row.Selected || row.Reason == "" {
@@ -608,8 +626,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
+		stage := policy.ReviewColonyStage(previousStage, policy.StageColonyFacts(needs, request.Facts, r.Progress), request.Policy.Stages(), request.Tick)
+		r.Stage = &stage
 		var development policy.DevelopmentState
-		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress))
+		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, policy.StageDevelopmentLimit(stage.Stage, baseLimit))
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

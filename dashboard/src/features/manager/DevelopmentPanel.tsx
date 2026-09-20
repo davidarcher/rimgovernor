@@ -6,7 +6,7 @@ import {useRoutineStatus} from './useRoutineStatus';
 export const reasonLabels: Record<DevelopmentReason, string> = {
   '': 'Eligible', cancelled: 'Cancelled', adviser: 'Adviser hold', emergency: 'Emergency precedence', startup_survival: 'Startup survival precedence', blocked: 'Blocked',
   existing_commitment: 'Already committed', labor_idle: 'Committed work idle: slot released', workers_unknown: 'Worker count unknown', no_workers: 'No workers', deficit_unknown: 'Deficit unknown',
-  capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control',
+  capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control', stage_foothold: 'Held at Foothold: shelter unmet',
 };
 // Blockers as the controller records them (policy.BlockedReason); a
 // prerequisite names the goal that must land first.
@@ -52,6 +52,7 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
   const d = state.value?.development ?? null;
   return <section className="observation-panel development-panel" aria-label="Development priorities"><h2>Development priorities</h2>
     {state.stale && <p role="status">{state.value ? 'Stale — last recorded ranking and forecasts. ' : 'Unavailable. '}{state.error || 'Waiting for routine diagnostics.'}</p>}
+    {state.value?.stage && <p className="colony-stage" data-testid="colony-stage">Colony stage {state.value.stage.stage} since tick {state.value.stage.since.toLocaleString()}{state.value.stage.blocker ? ` · next stage waits on ${state.value.stage.blocker}: ${state.value.stage.reason}` : ''}{state.value.stage.held ? ' · comfort-class development held' : ''}</p>}
     {state.value && !d && <p>No routine review has ranked development yet.</p>}
     {d && <>
       <p>Reviewed tick {d.tick.toLocaleString()} · Capacity {d.capacity} · Workers {d.workers ?? 'unknown'} · Committed {d.committed.length ? d.committed.join(', ') : 'none'}</p>

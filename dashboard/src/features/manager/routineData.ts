@@ -1,6 +1,6 @@
 // Read-only view of /api/routines: the composed routine runtime and the
 // development ranking its last review recorded. Nulls are unknown facts.
-export const developmentReasons = ['', 'cancelled', 'adviser', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled'] as const;
+export const developmentReasons = ['', 'cancelled', 'adviser', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled', 'stage_foothold'] as const;
 export type DevelopmentReason = typeof developmentReasons[number];
 export type DevelopmentRow = {goal: string; score: number; deficit: number | null; risk: number | null; waitingSince: number; selected: boolean; committed: boolean; reason: DevelopmentReason; bottleneck: string};
 export type LaborRow = {work: string; free: number};
@@ -28,7 +28,12 @@ export type ColonyGrid = {origin: GridCell; pitch: number; axes: [GridCell, Grid
 // it, the tick the review inspects the blocker, and why it is blocked ('' when
 // it is not). Cooldowns key failed situations out until a bounded tick.
 export type GoalProgress = {goal: string; method: string; expected: string; lastProgress: number; nextReview: number; blocked: string; cooldowns: {key: string; until: number}[]};
-export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; progress: GoalProgress[]; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; colonyGrid: ColonyGrid | null};
+// ColonyStage is the outcome-derived stage the last review recorded (#630):
+// its name, the tick it was entered, the first unmet condition of the next
+// stage (blocker '' at Development) with the measured values, and whether
+// the Foothold hold refuses the comfort-class development.
+export type ColonyStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
+export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; progress: GoalProgress[]; stage: ColonyStage | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; colonyGrid: ColonyGrid | null};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).length !== keys.length || keys.some(key => !Object.hasOwn(v, key))) throw Error('Invalid routine fields'); return v;}
@@ -104,9 +109,17 @@ function readGoalProgress(v: unknown): GoalProgress {
   return row;
 }
 
+const colonyStages = ['Foothold', 'Reserves', 'Stable', 'Development'];
+function readColonyStage(v: unknown): ColonyStage {
+  const s = object(v, ['stage', 'since', 'blocker', 'reason', 'held']);
+  const stage = {stage: id(s.stage), since: tick(s.since), blocker: text(s.blocker), reason: text(s.reason), held: bool(s.held)};
+  if (!colonyStages.includes(stage.stage) || stage.held && stage.stage !== 'Foothold' || (stage.blocker === '') !== (stage.stage === 'Development')) throw Error('Inconsistent colony stage');
+  return stage;
+}
+
 export function readRoutineStatus(value: unknown): RoutineStatus {
-  // Older retained responses predate extent diagnostics, loot holds, the colony grid and goal progress.
-  const optional = ['resourceReach', 'extent', 'extentEligibility', 'lootHolds', 'colonyGrid', 'progress'].filter(k => isObject(value) && Object.hasOwn(value, k));
+  // Older retained responses predate extent diagnostics, loot holds, the colony grid, goal progress and the colony stage.
+  const optional = ['resourceReach', 'extent', 'extentEligibility', 'lootHolds', 'colonyGrid', 'progress', 'stage'].filter(k => isObject(value) && Object.hasOwn(value, k));
   const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections', 'resourceRunways', ...optional]);
   let resourceReach = null;
   if (v.resourceReach !== undefined) {const r = object(v.resourceReach, ['stage', 'reason']); resourceReach = {stage: id(r.stage), reason: text(r.reason)};}
@@ -125,7 +138,8 @@ export function readRoutineStatus(value: unknown): RoutineStatus {
   const colonyGrid = v.colonyGrid === undefined ? null : nullable(v.colonyGrid, readColonyGrid);
   const progress = v.progress === undefined ? [] : list(v.progress, 512).map(readGoalProgress);
   if (new Set(progress.map(p => p.goal)).size !== progress.length) throw Error('Duplicate goal progress');
-  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), progress, roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, colonyGrid};
+  const stage = v.stage === undefined ? null : nullable(v.stage, readColonyStage);
+  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), progress, stage, roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, colonyGrid};
 }
 export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {

@@ -1897,6 +1897,17 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		// every window while one is observed stopped the clock for good in
 		// autonomous play. The break stays visible through the pawn's mood
 		// goal and the native hazard supervisor keeps its authority.
+		if stage := review.Review.Stage; stage != nil && stage.HoldsDevelopment() {
+			// The Foothold hold (#630): the comfort-class planners of the
+			// optional wave are not eligible while the shelter is unmet,
+			// so the wave spends nothing evaluating proposals the ranking
+			// would refuse.
+			clockSchedulerLog("colony stage %s holds the comfort-class planners: %s", stage.Stage, stage.Reason)
+			inner := pick
+			pick = func(entry plannerEntry) bool {
+				return entry.priority != plannerComfort && (inner == nil || inner(entry))
+			}
+		}
 	}
 	return s.queuePlanners(call, epoch, wave, arbiter, pick), nil
 }

@@ -175,6 +175,34 @@ foothold prerequisite withholds Construction from the same review's development 
 of diverting the builder. `GET /api/routines` returns the records under `progress` and
 the Development priorities panel lists them as "Goal progress".
 
+The review also derives the colony stage (`policy.ColonyStage`, #630), one ordered fact
+of what the colony has achieved by outcome: Foothold, Reserves, Stable, Development.
+It is a pure function of colony facts and the progress records (`ReviewColonyStage`),
+never of research: `policy.BuildTier` (#604) is what the colony can build, the stage is
+what it has. Reserves needs shelter for everyone, the food runway at
+`FoodTargetDays`, the wood latch clear and the resource floors met; Stable needs the
+production goals (food ladder, cooking, storage, wood, resources) unblocked on native
+evidence for `StableTicks` (two days); Development needs Stable held for
+`DevelopmentTicks` (three days) with the runway at twice the target. Every transition
+has a laxer exit than entry (`ColonyStagePolicy`: Reserves drops only under
+`FootholdFoodDays`, Development only under the target, Stable only after a production
+goal stays blocked `StableExitTicks`), the stage climbs one step per review and drops
+cascade, and unknown facts neither advance nor drop it, so a colony oscillating around
+a threshold keeps its stage. The record (`ColonyStageRecord`: stage, since, the first
+unmet condition of the next stage as blocker + reason, held) persists on the review
+(`RoutineReview.Stage`) and sets the next review's budgets
+(`policy.StageRoutinePolicy`): Development adds one to the development-project limit,
+the research ladder walks two rungs at Foothold, five at Reserves, eight at Stable and
+all at Development, and the food reserve and wood targets scale 1.5x at Stable and 2x
+at Development. Foothold with the shelter unmet holds the comfort-class development
+(`EnsureComfort`, `MaintainStoneShell`, `MaintainHomeCoverage`; their rows read
+`stage_foothold`, after the labor check so a held project still names the labor it
+lacks) and the optional wave skips their planners. No new action kind or command
+stream: the stage only moves budgets the existing planners already read. The
+`routine_review` timeline event carries `stage`/`stage_blocker`/`stage_reason`/
+`stage_held`, a `colony_stage` event records each change, `GET /api/routines` returns
+the record under `stage` and the Development priorities panel shows it.
+
 ## Method compilation and work allocation
 
 Work allocation reserves the highest-skilled native builder first, then separates

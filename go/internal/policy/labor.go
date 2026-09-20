@@ -184,12 +184,23 @@ func newLaborLedger(labor domain.Fact[map[WorkType]int]) laborLedger {
 // census or an empty profile nothing is reserved and the goal is admissible;
 // otherwise the returned work type names the bottleneck.
 func (l *laborLedger) take(profile LaborProfile) (bottleneck WorkType, ok bool) {
+	return l.claim(profile, true)
+}
+
+// peek is take without the claim: whether the profile could be served.
+func (l *laborLedger) peek(profile LaborProfile) (bottleneck WorkType, ok bool) {
+	return l.claim(profile, false)
+}
+
+func (l *laborLedger) claim(profile LaborProfile, take bool) (bottleneck WorkType, ok bool) {
 	if !l.known || len(profile) == 0 {
 		return "", true
 	}
 	for _, w := range profile {
 		if l.free[w] > 0 {
-			l.free[w]--
+			if take {
+				l.free[w]--
+			}
 			return "", true
 		}
 	}

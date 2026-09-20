@@ -32,6 +32,17 @@ it('reads goal progress records with their five fields and cooldowns', () => {
   expect(() => readRoutineStatus(status({progress: [{...record, extra: true}]}))).toThrow();
   expect(() => readRoutineStatus(status({progress: [{...record, method: ''}]}))).toThrow();
 });
+it('reads the colony stage and rejects an inconsistent one', () => {
+  const stage = {stage: 'Reserves', since: 400, blocker: 'settling', reason: 'production clear 0.5 of 2.0 days', held: false};
+  expect(readRoutineStatus(status()).stage).toBeNull();
+  expect(readRoutineStatus(status({stage: null})).stage).toBeNull();
+  expect(readRoutineStatus(status({stage})).stage).toEqual(stage);
+  expect(readRoutineStatus(status({stage: {...stage, stage: 'Development', blocker: '', reason: ''}})).stage?.stage).toBe('Development');
+  expect(() => readRoutineStatus(status({stage: {...stage, stage: 'Thriving'}}))).toThrow();
+  expect(() => readRoutineStatus(status({stage: {...stage, held: true}}))).toThrow();
+  expect(() => readRoutineStatus(status({stage: {...stage, blocker: ''}}))).toThrow();
+  expect(() => readRoutineStatus(status({stage: {...stage, extra: true}}))).toThrow();
+});
 it('reads the work roster report and the held sections', () => {
   const result = readRoutineStatus(status());
   expect(result.roster).toEqual(roster());

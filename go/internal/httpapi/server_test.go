@@ -467,7 +467,7 @@ func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
 	}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
 		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
-			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Progress: progress}, nil
+			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Progress: progress, Stage: &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 400, Blocker: policy.StageBlockerSettling, Reason: "production clear 0.5 of 2.0 days"}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -490,7 +490,10 @@ func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
 	if wood.Blocked != policy.BlockedNoWorker || len(wood.Cooldowns) != 1 || wood.Cooldowns[0].Key != "cut/Plant_TreeOak" || wood.Cooldowns[0].Until != 1200 {
 		t.Fatalf("wood record: %s", body)
 	}
-	for _, want := range []string{`"blocked":"prerequisite:EnsureCooking"`, `"blocked":"no_worker"`, `"cooldowns":[]`, `"lastProgress":100`, `"nextReview":900`} {
+	if got.Stage == nil || got.Stage.Stage != "Reserves" || got.Stage.Since != 400 || got.Stage.Blocker != "settling" || got.Stage.Held {
+		t.Fatalf("colony stage: %s", body)
+	}
+	for _, want := range []string{`"blocked":"prerequisite:EnsureCooking"`, `"blocked":"no_worker"`, `"cooldowns":[]`, `"lastProgress":100`, `"nextReview":900`, `"stage":{"stage":"Reserves","since":400,"blocker":"settling","reason":"production clear 0.5 of 2.0 days","held":false}`} {
 		if !strings.Contains(string(body), want) {
 			t.Fatalf("wire %s missing: %s", want, body)
 		}
@@ -502,7 +505,7 @@ func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s2.Close() })
-	if _, body = get(t, testHTTP(t, s2).URL+"/api/routines"); !strings.Contains(string(body), `"progress":[]`) {
+	if _, body = get(t, testHTTP(t, s2).URL+"/api/routines"); !strings.Contains(string(body), `"progress":[]`) || !strings.Contains(string(body), `"stage":null`) {
 		t.Fatalf("empty progress: %s", body)
 	}
 }

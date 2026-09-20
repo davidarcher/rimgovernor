@@ -18,10 +18,13 @@ import (
 func (r *RoutineReviewer) reviewReserve(p *observation.ColonyProjection) {
 	p.Facts.FoodReserve = domain.Unknown[policy.FoodReserveReview]()
 	supply, known := p.FoodSupply.Value()
-	if !known || r.policy.FoodReserveDays == 0 {
+	staged := r.staged()
+	if !known || staged.FoodReserveDays == 0 {
 		return
 	}
-	reserve, err := policy.ReviewFoodReserve(supply, nil, r.policy.FoodReserveDays, r.seasonal(p.Facts).FoodMinDays, foodDeliveryDays(p.Facts.FoodPlan))
+	// The reserve target is staged (#630): the configured days below
+	// Stable, half as much again at Stable, doubled at Development.
+	reserve, err := policy.ReviewFoodReserve(supply, nil, staged.FoodReserveDays, r.seasonal(p.Facts).FoodMinDays, foodDeliveryDays(p.Facts.FoodPlan))
 	if err == nil {
 		p.Facts.FoodReserve = domain.Known(reserve)
 	}
