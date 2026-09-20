@@ -4,13 +4,10 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 const SocialDrugPolicyName = "RimGovernor social drugs"
 
-// DrugPolicyChange assigns the social policy only to an available pawn still
-// on the colony default policy; player-chosen policies stay untouched.
 func DrugPolicyChange(pawn WorkPawn) bool {
 	writable, known := pawn.DrugPolicyWritable.Value()
-	onDefault, dk := pawn.DrugPolicyDefault.Value()
 	available, ready := pawn.Available.Value()
-	return known && writable && dk && onDefault && ready && available && pawn.DrugPolicyName != SocialDrugPolicyName
+	return known && writable && ready && available && pawn.DrugPolicyName != SocialDrugPolicyName
 }
 
 func BrewingFinished(research domain.Fact[ResearchFacts]) bool {

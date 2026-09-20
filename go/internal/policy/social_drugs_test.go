@@ -15,20 +15,10 @@ func TestSocialDrugsRequireResearchAndWritablePawn(t *testing.T) {
 	if len(targets) != 2 || targets["Beer"] != 12 || targets["SmokeleafJoint"] != 12 {
 		t.Fatal(targets)
 	}
-	pawn := WorkPawn{Available: domain.Known(true), DrugPolicyWritable: domain.Known(true), DrugPolicyDefault: domain.Known(true)}
+	pawn := WorkPawn{Available: domain.Known(true), DrugPolicyWritable: domain.Known(true)}
 	if !DrugPolicyChange(pawn) {
 		t.Fatal("default not assigned")
 	}
-	// A player-chosen policy (off the colony default) is preserved.
-	pawn.DrugPolicyName, pawn.DrugPolicyDefault = "", domain.Known(false)
-	if DrugPolicyChange(pawn) {
-		t.Fatal("player-set policy overwritten")
-	}
-	pawn.DrugPolicyDefault = domain.Unknown[bool]()
-	if DrugPolicyChange(pawn) {
-		t.Fatal("unknown default status overwritten")
-	}
-	pawn.DrugPolicyDefault = domain.Known(true)
 	pawn.DrugPolicyName = SocialDrugPolicyName
 	if DrugPolicyChange(pawn) {
 		t.Fatal("repeated matching assignment")

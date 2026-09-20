@@ -4064,7 +4064,6 @@ type PawnSettings struct {
 	FoodRestriction          *FoodRestriction       `protobuf:"bytes,17,opt,name=food_restriction,json=foodRestriction,proto3" json:"food_restriction,omitempty"`
 	DrugPolicyWritable       *bool                  `protobuf:"varint,18,opt,name=drug_policy_writable,json=drugPolicyWritable,proto3,oneof" json:"drug_policy_writable,omitempty"`
 	DrugPolicyName           *string                `protobuf:"bytes,19,opt,name=drug_policy_name,json=drugPolicyName,proto3,oneof" json:"drug_policy_name,omitempty"`
-	DrugPolicyDefault        *bool                  `protobuf:"varint,20,opt,name=drug_policy_default,json=drugPolicyDefault,proto3,oneof" json:"drug_policy_default,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -4230,13 +4229,6 @@ func (x *PawnSettings) GetDrugPolicyName() string {
 		return *x.DrugPolicyName
 	}
 	return ""
-}
-
-func (x *PawnSettings) GetDrugPolicyDefault() bool {
-	if x != nil && x.DrugPolicyDefault != nil {
-		return *x.DrugPolicyDefault
-	}
-	return false
 }
 
 type TrainingEntry struct {
@@ -35249,7 +35241,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17situational_cache_stale\x18\x04 \x01(\bH\x01R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x14\n" +
 	"\x12_high_expectationsB\x1a\n" +
-	"\x18_situational_cache_stale\"\xcd\n" +
+	"\x18_situational_cache_stale\"\x80\n" +
 	"\n" +
 	"\fPawnSettings\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12&\n" +
@@ -35272,8 +35264,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10food_restriction\x18\x11 \x01(\v2,.rimgovernor.observations.v1.FoodRestrictionR\x0ffoodRestriction\x125\n" +
 	"\x14drug_policy_writable\x18\x12 \x01(\bH\tR\x12drugPolicyWritable\x88\x01\x01\x12-\n" +
 	"\x10drug_policy_name\x18\x13 \x01(\tH\n" +
-	"R\x0edrugPolicyName\x88\x01\x01\x123\n" +
-	"\x13drug_policy_default\x18\x14 \x01(\bH\vR\x11drugPolicyDefault\x88\x01\x01B\x0f\n" +
+	"R\x0edrugPolicyName\x88\x01\x01B\x0f\n" +
 	"\r_medical_careB\f\n" +
 	"\n" +
 	"_self_tendB\x15\n" +
@@ -35286,8 +35277,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_work_appliesB\x19\n" +
 	"\x17_manual_work_prioritiesB\x17\n" +
 	"\x15_drug_policy_writableB\x13\n" +
-	"\x11_drug_policy_nameB\x16\n" +
-	"\x14_drug_policy_default\"\xe8\x01\n" +
+	"\x11_drug_policy_name\"\xe8\x01\n" +
 	"\rTrainingEntry\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x1d\n" +
 	"\alearned\x18\x02 \x01(\bH\x01R\alearned\x88\x01\x01\x12\x1b\n" +
