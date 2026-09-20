@@ -150,6 +150,25 @@ instead of reloading; the next `acceptance run` unloads it as it does any
 leftover. Evidence lands under `<root>/acceptance/fixture/<op>-<time>`
 (`-output`), `-json` prints one object.
 
+## Late-game material production
+
+`production/deepdrill` and `production/components` run in the nightly full
+tier only. `ProductionLadderFixture` stages their research, power, skilled
+workers and exhausted surface. Deep drilling starts with a built scanner,
+a seeded steel lump and construction funding; fabrication starts with a
+bench, 600 steel and no components. The harness stages a cancelled plan
+from a day earlier so the runway forecast has history immediately.
+Neither fixture supplies a drill or a bill.
+
+Each case gives ordinary pawn production six minutes within an eight-minute
+budget and starts fresh to preserve its baseline. Deep drilling requires
+steel stock above the baseline, depletion of the seeded lump and a drill
+over it. Fabrication requires more components, steel consumption and a
+`MakeComponent` bill. Both fixture operations are declared by the cases;
+`acceptance setup -fixture ProductionLadderFixture` includes their existing
+build registration. Compilation and registration complete the case-writing
+task; the next nightly run proves the native outcome.
+
 ## Isolated food channels
 
 The `food/` area owns nutrition-channel acceptance. `food/empty-channels`

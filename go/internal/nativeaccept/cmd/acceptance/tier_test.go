@@ -109,65 +109,39 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	if len(land) != len(full.Cases)-2 {
+	if len(land) != len(full.Cases)-4 {
 		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
 	}
 }
 
 func TestColonyStableNightlyOnly(t *testing.T) {
-	const name = "sustained/colony-stable"
-	for _, tier := range []string{"full", "smoke", "matrix"} {
-		set, err := tierCases(tier, "", "main")
-		if err != nil {
-			t.Fatal(err)
+	for _, name := range []string{"sustained/colony-stable", "mood/recreation", "production/deepdrill", "production/components"} {
+		for _, tier := range []string{"full", "smoke", "matrix"} {
+			set, err := tierCases(tier, "", "main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := false
+			for _, c := range set.Cases {
+				found = found || c.Name == name
+			}
+			if found != (tier == "full") {
+				t.Errorf("%s contains stable gate: %v", tier, found)
+			}
 		}
-		found := false
-		for _, c := range set.Cases {
-			found = found || c.Name == name
-		}
-		if found != (tier == "full") {
-			t.Errorf("%s contains stable gate: %v", tier, found)
-		}
-	}
-	for _, sel := range []affected.Selection{{AllHarnesses: true}, {Cases: []string{"sustained"}}, {Cases: []string{"sustained"}, Sampled: []string{"sustained"}}} {
-		land, err := landCases(cases.All(), sel)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, c := range land {
-			if c.Name == name {
-				t.Fatalf("land contains nightly gate for %+v", sel)
+		for _, sel := range []affected.Selection{{AllHarnesses: true}, {Cases: []string{"sustained", "production", "mood"}}, {Cases: []string{"sustained", "production", "mood"}, Sampled: []string{"sustained", "production", "mood"}}} {
+			land, err := landCases(cases.All(), sel)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, c := range land {
+				if c.Name == name {
+					t.Fatalf("land contains nightly gate for %+v", sel)
+				}
 			}
 		}
 	}
-}
 
-func TestRecreationNightlyOnly(t *testing.T) {
-	const name = "mood/recreation"
-	for _, tier := range []string{"full", "smoke", "matrix"} {
-		set, err := tierCases(tier, "", "main")
-		if err != nil {
-			t.Fatal(err)
-		}
-		found := false
-		for _, c := range set.Cases {
-			found = found || c.Name == name
-		}
-		if found != (tier == "full") {
-			t.Errorf("%s contains recreation gate: %v", tier, found)
-		}
-	}
-	for _, sel := range []affected.Selection{{AllHarnesses: true}, {Cases: []string{"mood"}}, {Cases: []string{"mood"}, Sampled: []string{"mood"}}} {
-		land, err := landCases(cases.All(), sel)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, c := range land {
-			if c.Name == name {
-				t.Fatalf("land contains nightly gate for %+v", sel)
-			}
-		}
-	}
 }
 
 // A sampled area (#348) contributes its cheapest non-matrix case, a

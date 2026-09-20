@@ -101,6 +101,100 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/production_materials_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an exhausted surface, powered workshop, completed research and either a seeded steel lump plus scanner or a fabrication bench; no drill or bill is supplied.")]
+        public async Task<object> PrepareMaterials(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "deepdrill")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
+                if (scenario != "deepdrill" && scenario != "components") throw new InvalidOperationException("Unknown materials scenario.");
+                var component = ThingDef.Named("ComponentIndustrial");
+                bool Material(Thing t) => t.def == ThingDefOf.Steel || t.def == component || t.def.defName == "Plasteel";
+                // Remove every alternative mineral source, including fogged ore,
+                // slag and carried stock. The only newly produced steel is deep.
+                foreach (var t in map.listerThings.AllThings.Where(t => t is Mineable && t.def.building.mineableThing != null || Material(t) || t.def.defName == "ChunkSlagSteel").ToList()) t.Destroy(DestroyMode.Vanish);
+                foreach (var pawn in map.mapPawns.AllPawnsSpawned) {
+                    foreach (var t in pawn.inventory.innerContainer.Where(Material).ToList()) t.Destroy(DestroyMode.Vanish);
+                    if (pawn.carryTracker.CarriedThing != null && Material(pawn.carryTracker.CarriedThing)) pawn.carryTracker.CarriedThing.Destroy(DestroyMode.Vanish);
+                }
+                foreach (var cell in map.AllCells) map.deepResourceGrid.SetAt(cell, null, 0);
+                var hut = FixtureHut.Build(map, HutSize);
+                void Finish(ResearchProjectDef project) {
+                    if (project.IsFinished) return;
+                    if (project.prerequisites != null) foreach (var prerequisite in project.prerequisites) Finish(prerequisite);
+                    Find.ResearchManager.FinishProject(project, false);
+                }
+                Finish(DefDatabase<ResearchProjectDef>.GetNamed(scenario == "deepdrill" ? "GroundPenetratingScanner" : "Fabrication"));
+                var generator = FixtureHut.SpawnInside(map, hut, ThingDef.Named("WoodFiredGenerator"));
+                generator.TryGetComp<CompRefuelable>().Refuel(1000f);
+                var end = generator.Position;
+                if (scenario == "components") {
+                    FixtureHut.SpawnInside(map, hut, ThingDef.Named("FabricationBench"));
+                } else {
+                    var origin = GenRadial.RadialCellsAround(hut.Door, 24, true).FirstOrDefault(c =>
+                        new CellRect(c.x, c.z, 9, 7).Cells.All(x => x.InBounds(map) && !x.Fogged(map) && x.Standable(map) && x.GetEdifice(map) == null && x.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
+                    if (origin == default) throw new InvalidOperationException("No clear scanner/lump site beside hut.");
+                    foreach (var cell in new CellRect(origin.x, origin.z, 9, 7).Cells) {
+                        map.roofGrid.SetRoof(cell, null);
+                        foreach (var plant in cell.GetThingList(map).OfType<Plant>().ToList()) plant.Destroy(DestroyMode.Vanish);
+                        map.areaManager.Home[cell] = true;
+                    }
+                    var scanner = ThingMaker.MakeThing(ThingDefOf.GroundPenetratingScanner);
+                    scanner.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(scanner, origin + new IntVec3(1, 0, 1), map);
+                    end = origin + new IntVec3(6, 0, 3);
+                    foreach (var cell in CellRect.CenteredOn(end, 1).Cells) map.deepResourceGrid.SetAt(cell, ThingDefOf.Steel, 300);
+                }
+                // A funded ordinary network already reaches the future drill.
+                // No power flags, work progress, bills or drill are fabricated.
+                var wireCells = hut.Interior.Concat(GenAdj.OccupiedRect(generator.Position, generator.Rotation, generator.def.size).Cells).ToList();
+                var cursor = generator.Position;
+                while (cursor.x != end.x) { wireCells.Add(cursor); cursor.x += Math.Sign(end.x - cursor.x); }
+                while (cursor.z != end.z) { wireCells.Add(cursor); cursor.z += Math.Sign(end.z - cursor.z); }
+                wireCells.Add(end);
+                foreach (var cell in wireCells.Distinct())
+                    if (!cell.GetThingList(map).Any(t => t.def == ThingDef.Named("HiddenConduit"))) {
+                        var wire = ThingMaker.MakeThing(ThingDef.Named("HiddenConduit")); wire.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(wire, cell, map);
+                    }
+                foreach (var pawn in hut.People) {
+                    pawn.skills.GetSkill(SkillDefOf.Construction).Level = 15;
+                    pawn.skills.GetSkill(SkillDefOf.Mining).Level = 15;
+                    pawn.skills.GetSkill(SkillDefOf.Crafting).Level = 15;
+                    pawn.workSettings.EnableAndInitialize();
+                    foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
+                        if (!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, work == WorkTypeDefOf.Construction || work == WorkTypeDefOf.Mining || work == WorkTypeDefOf.Crafting ? 1 : 0);
+                }
+                FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, scenario == "deepdrill" ? 150 : 600);
+                FixtureHut.DropOutside(map, hut, component, scenario == "deepdrill" ? 10 : 0);
+                map.powerNetManager.UpdatePowerNetsAndConnections_First();
+                // Pair with the harness's synthetic, cancelled history plan;
+                // this advances the fixture date, not simulation or production.
+                Find.TickManager.DebugSetTicksGame(Math.Max(120000, Find.TickManager.TicksGame));
+                return new { success = true, scenario, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/production_materials_audit", Description = "Read-only material stock, deep steel remaining, drill/lump overlap, scanner, fabrication bench and MakeComponent bill census.")]
+        public async Task<object> AuditMaterials(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null) throw new InvalidOperationException("No current map.");
+                int Stock(ThingDef def) => map.listerThings.ThingsOfDef(def).Where(t => t.Spawned).Sum(t => t.stackCount)
+                    + map.mapPawns.AllPawnsSpawned.Sum(p => p.inventory.innerContainer.Where(t => t.def == def).Sum(t => t.stackCount)
+                        + (p.carryTracker.CarriedThing?.def == def ? p.carryTracker.CarriedThing.stackCount : 0));
+                var drills = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "DeepDrill").ToArray();
+                var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>().Where(b => b.def.defName == "FabricationBench").ToArray();
+                return new { success = true, tick = Find.TickManager.TicksGame, steel = Stock(ThingDefOf.Steel), components = Stock(ThingDef.Named("ComponentIndustrial")),
+                    surfaceOre = map.listerThings.AllThings.Count(t => t is Mineable && t.def.building.mineableThing != null),
+                    deepSteel = map.AllCells.Where(c => map.deepResourceGrid.ThingDefAt(c) == ThingDefOf.Steel).Sum(c => map.deepResourceGrid.CountAt(c)),
+                    drills = drills.Length, drillsOnLump = drills.Count(b => b.OccupiedRect().Cells.Any(c => map.deepResourceGrid.ThingDefAt(c) == ThingDefOf.Steel)),
+                    scanners = map.listerBuildings.allBuildingsColonist.Count(b => b.def == ThingDefOf.GroundPenetratingScanner), benches = benches.Length,
+                    componentBills = benches.Sum(b => b.BillStack.Bills.Count(bill => bill.recipe.defName == "MakeComponent")),
+                    researched = DefDatabase<ResearchProjectDef>.GetNamed(benches.Length > 0 ? "Fabrication" : "GroundPenetratingScanner").IsFinished };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         const string StoneProject = "Stonecutting";
 
         static object[] StoneChunks(Map map, IntVec3 center) => map.listerThings.AllThings

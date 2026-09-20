@@ -125,8 +125,8 @@ func landCases(all []cases.Case, sel affected.Selection) ([]cases.Case, error) {
 	var out []cases.Case
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
-		// Multi-day outcome gates belong to the nightly full tier only.
-		if c.Matrix || (c.Name == "sustained/colony-stable" || c.Name == "mood/recreation") {
+		// Long production and stability cases belong to the nightly full tier only.
+		if c.Matrix || nightlyOnly(c.Name) {
 			continue
 		}
 		if want[c.Name] || (areas[area] && !sampled[area]) || sel.AllHarnesses {
@@ -143,7 +143,7 @@ func sampleCases(all []cases.Case, areas []string) []cases.Case {
 	pick := map[string]cases.Case{}
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
-		if c.Matrix || (c.Name == "sustained/colony-stable" || c.Name == "mood/recreation") || !slices.Contains(areas, area) {
+		if c.Matrix || nightlyOnly(c.Name) || !slices.Contains(areas, area) {
 			continue
 		}
 		best, ok := pick[area]
@@ -196,4 +196,9 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 		}
 	}
 	return out, nil
+}
+
+// nightlyOnly excludes slow gameplay proofs from the landing and sampled sets.
+func nightlyOnly(name string) bool {
+	return name == "mood/recreation" || name == "sustained/colony-stable" || name == "production/deepdrill" || name == "production/components"
 }
