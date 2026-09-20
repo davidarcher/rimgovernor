@@ -115,18 +115,41 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, style, check); err != nil || adopted {
 		return selected, stock, reason, err
 	}
+	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style})
+	if err != nil {
+		return nil, policy.StockObservation{}, "", err
+	}
+	return r.previewFreshShell(ctx, snapshot, facts, layouts, check)
+}
+
+// shellSiteCells is the open ground a starter shell may stand on: the
+// observed cells neither indoors nor roofed. Cells in free are offered as
+// unoccupied ground whatever the census says of them: the bunks this
+// planner placed earlier stand on the interior the ring is raised around
+// (#612).
+func shellSiteCells(facts observation.ColonyProjection, free []domain.Cell) []policy.SiteCell {
+	freed := make(map[domain.Cell]bool, len(free))
+	for _, c := range free {
+		freed[c] = true
+	}
 	var cells []policy.SiteCell
 	for _, c := range facts.Cells {
 		indoors, indoorKnown := c.Indoors.Value()
 		roof, roofKnown := c.Roofed.Value()
-		if indoorKnown && !indoors && roofKnown && !roof {
-			cells = append(cells, c)
+		if !(indoorKnown && !indoors && roofKnown && !roof) {
+			continue
 		}
+		if freed[c.Cell] {
+			c.Walkable, c.Occupied, c.Zone = domain.Known(true), domain.Known(false), domain.Known(false)
+		}
+		cells = append(cells, c)
 	}
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: cells, Protected: protected, Shelter: style})
-	if err != nil {
-		return nil, policy.StockObservation{}, "", err
-	}
+	return cells
+}
+
+// previewFreshShell previews the layouts in order and returns the first
+// whose whole ring is placeable now.
+func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, layouts []policy.StarterLayout, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	for candidate, layout := range layouts {
 		perimeter := layout.Shell.Placements("Wall", "Door", "WoodLog")
 		if len(perimeter) == 0 {

@@ -18,14 +18,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleepingNative) {
+// shelterSiteFixture is the open 9x9 site before any sleeping work: the
+// first Step places the sleeping spots (#612).
+func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleepingNative) {
 	t.Helper()
 	r, db, _, _, n := sleepingFixture(t)
 	planning := n.reply.GetObserved().Planning.GetObserved()
 	for _, name := range []string{"Wall", "Door"} {
 		planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
-	planning.Completeness.Matched, planning.Completeness.Returned = proto.Uint64(3), proto.Uint64(3)
+	planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
+	planning.Completeness.Matched, planning.Completeness.Returned = proto.Uint64(4), proto.Uint64(4)
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
 	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned = proto.Uint64(81), proto.Uint64(81)
 	planning.Cells.Cells = nil
@@ -40,6 +43,12 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 	n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
 		b, _ := v.Preview.Action.Building()
 		if b.Definition() == "SleepingSpot" {
+			return
+		}
+		if b.Definition() == "Bed" {
+			// A wooden bed on the default 1x2 footprint; its stock is not
+			// charged so the ring's budget tests count the ring alone.
+			v.Preview.MadeFromStuff = domain.Known(true)
 			return
 		}
 		cost := int64(5)
@@ -58,6 +67,27 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 	return planner, db, n
 }
 
+// shelterFixture is the site with its spots and beds already staged, so the
+// next Step sites the ring around them; the tests of the ring itself start
+// here.
+func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleepingNative) {
+	t.Helper()
+	planner, db, n := shelterSiteFixture(t)
+	stageShelterBunks(t, planner, db, n)
+	return planner, db, n
+}
+
+// shellMethod is the goal method the ring was admitted under: the one that
+// is not a bunk rung, or the last bound when only bunks are.
+func shellMethod(goal store.GoalState) domain.GoalMethod {
+	for _, m := range goal.Methods {
+		if !strings.HasPrefix(string(m.Plan), bunkPlanPrefix+"-") {
+			return m
+		}
+	}
+	return goal.Methods[len(goal.Methods)-1]
+}
+
 // The shell is one wave: the door leads the dispatch order and no wall is
 // gated on it completing, since a door blueprint seals nothing (#602).
 func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
@@ -67,7 +97,7 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 || n.calls != 1 {
 		t.Fatal(result, err, n.previews, n.calls)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
@@ -135,15 +165,15 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 				t.Fatal(err)
 			}
 			if change == "spending-stop" {
-				if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 32 || result.Decision.Refused[0].Reason != policy.SpendingBlocked || len(plans) != 2 {
+				if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 32 || result.Decision.Refused[0].Reason != policy.SpendingBlocked || len(plans) != 4 {
 					t.Fatal("spending rule did not refuse the shell", result, len(plans))
 				}
 				return
 			}
-			if result.Reason != BuildingMethodAdmitted || len(plans) != 3 {
+			if result.Reason != BuildingMethodAdmitted || len(plans) != 5 {
 				t.Fatal("shell not admitted", result, len(plans))
 			}
-			plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+			plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 			if err != nil || len(plan.Progress) != 32 {
 				t.Fatal(plan, err)
 			}
@@ -230,8 +260,9 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			if err == nil && result.Reason == BuildingMethodAdmitted {
 				t.Fatal("invalid shell admitted", change)
 			}
+			// The load plan and the two bunk plans are all the journal holds.
 			plans, err := db.LoadPlans(context.Background(), 256)
-			if err != nil || len(plans) != 2 {
+			if err != nil || len(plans) != 4 {
 				t.Fatal("partial shell committed", plans, err)
 			}
 		})
@@ -249,7 +280,7 @@ func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +299,7 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 	if err != nil || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +367,7 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	if _, err := r.reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
-	plan, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
 	if err != nil || len(plan.Progress) != 32 {
 		t.Fatal(plan, err)
 	}
@@ -388,6 +419,38 @@ func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result Routine
 			t.Fatal(err)
 		}
 	}
+}
+
+// stageShelterBunks walks the initial shelter's bunk rungs (#612): every
+// bunk method the planner admits (the spots, then the beds) is completed in
+// the journal, so the next Step sites the ring around them. It returns the
+// bunk plans in the order admitted and resets the fixture's preview
+// counters, so a test's shell assertions count the ring alone.
+func stageShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, n *sleepingNative) []store.PlanState {
+	t.Helper()
+	ctx := context.Background()
+	var plans []store.PlanState
+	for rung := 0; rung < 2; rung++ {
+		result, err := r.Step(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Reason != BuildingMethodAdmitted {
+			t.Fatal("bunk rung not admitted", rung, result)
+		}
+		method := methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
+		if !strings.HasPrefix(string(method), bunkPlanPrefix+"-") {
+			t.Fatal("the shell went up before its bunks", method)
+		}
+		completeRoutineBuildingMethod(t, db, result)
+		plan, err := db.LoadPlan(ctx, method)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plans = append(plans, plan)
+	}
+	n.previews, n.calls = 0, 0
+	return plans
 }
 
 func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
@@ -488,7 +551,7 @@ func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -546,7 +609,7 @@ func TestRoutineShelterKeepsRectangleWithoutNeolithicTechLevel(t *testing.T) {
 		if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 {
 			t.Fatal(result, err, n.previews)
 		}
-		plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+		plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -570,7 +633,7 @@ func TestRoutineShelterGrowsIrregularShellOverConstrainedTerrain(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -675,7 +738,7 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 	if n.censuses == 0 {
 		t.Fatal("no structure census")
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -722,7 +785,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -823,7 +886,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -909,7 +972,7 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -963,7 +1026,7 @@ func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1001,7 +1064,7 @@ func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) 
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1039,7 +1102,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	// The shell settles with one wall unsuccessful (the player cancelled its
 	// frame in-game); the goal keeps its epoch, so the bound method alone
 	// would leave the gap forever.
-	plan, err := db.LoadPlan(ctx, first.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(ctx, shellMethod(first.Decision.Goal).Plan)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -104,6 +104,18 @@ out (minimum nine), and walls its ring; that is how shapeless rooms in a
 corridor arise. Site score, reserved yard and indoor storage placement are
 computed from the footprint, not a fixed rectangle.
 
+On a fresh site the initial shelter runs three rungs under one goal epoch
+(#612): sleeping spots at the first review, one per colonist owed, on the
+chosen layout's interior; then the wooden beds (`Bed`, north-facing 1x2)
+as the first construction, off the ring's corner cells, the entrance aisle
+and the storage patch; then the ring around them. Each rung is one plan
+(`routine-bunks-*`, methods `shelter-spots` and `shelter-beds`) and the next
+waits for it to settle. Bunk cells are treated as free by the shell search
+and the layout enclosing every bunk, with no bed on a corner, is preferred;
+the dig is weighed only before any bunk is placed, and a ring already
+standing is adopted without bunks. A bed rung the native previews refuse
+whole falls through to the ring in the same review.
+
 Pausing and resuming control (a letter pause, a keep-alive resume, a paired
 restart) suspends every routine goal and reactivates it in the same world
 with its plans still open. A world change (load token, map, tick rewind)

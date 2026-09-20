@@ -304,6 +304,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.shelter {
 		definitions = []string{"Wall", "Door"}
 	}
+	// The read names the definitions the step may place; the initial
+	// shelter also places its bunks before the ring (#612), and their
+	// availability is judged from the same read.
+	observed := definitions
+	if r.shelter && r.goal == policy.EnsureInitialShelter {
+		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition)
+	}
 	var reading observation.ColonyReading
 	_, routineSource := r.native.(observation.RoutineSource)
 	_, roomSource := r.native.(observation.TemperatureSource)
@@ -312,13 +319,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
 		// rooms (issue #6 slice 2); without a census nothing is protected.
-		full, readErr := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
+		full, readErr := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), observed...)
 		reading, err = full.ColonyReading, readErr
 	} else if r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureBasicComfort {
-		full, readErr := r.reviewer.observeOwned(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
+		full, readErr := r.reviewer.observeOwned(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), observed...)
 		reading, err = full.ColonyReading, readErr
 	} else {
-		reading, err = r.reviewer.observeColony(call, r.native, expected, definitions)
+		reading, err = r.reviewer.observeColony(call, r.native, expected, observed)
 	}
 	if err != nil {
 		return RoutineBuildingResult{}, err
@@ -661,7 +668,19 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	var selected []policy.Preview
 	var stock policy.StockObservation
-	if r.shelter && r.excavation != nil {
+	if r.shelter && r.goal == policy.EnsureInitialShelter {
+		// The starter shell is raised around its bunks (#612): the sleeping
+		// spots and then the beds are placed on the site first, each a rung
+		// under this goal, and the ring follows once the beds stand.
+		var handled *RoutineBuildingResult
+		selected, stock, reason, handled, err = r.stepShelterSite(call, epoch, shelterSite{state: state, review: review, goal: goal, facts: facts, read: reading, snapshot: snapshot, protected: protected, check: check})
+		if err != nil || handled != nil {
+			if handled == nil {
+				handled = &RoutineBuildingResult{}
+			}
+			return *handled, err
+		}
+	} else if r.shelter && r.excavation != nil {
 		var target *policy.ExcavationTarget
 		selected, stock, reason, target, err = r.previewShelter(call, snapshot, facts, protected, check)
 		if err == nil && target != nil {
@@ -672,42 +691,6 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	if err != nil || reason != "" {
 		return RoutineBuildingResult{Reason: reason}, err
-	}
-	last, _, err := r.native.Identity(call)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	actual, err := observation.DecodeIdentity(last)
-	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
-		return RoutineBuildingResult{}, ErrControl
-	}
-	now := r.reviewer.clock.Now()
-	if now.Before(reading.StartedAt) || now.Sub(reading.StartedAt) > r.reviewer.maxAge {
-		return RoutineBuildingResult{}, observation.ErrStale
-	}
-	if err = check(); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	latest, err := p.journal.LoadRoutineReview(call)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if latest.Revision != review.Revision || !latest.Enabled {
-		return RoutineBuildingResult{}, ErrControl
-	}
-	actions := make([]domain.Action, len(selected))
-	// A shell goes out as one wave with its door first in dispatch order
-	// (the preview lists it first). The walls are not gated on the door
-	// completing: a door blueprint or frame no more seals a room than a
-	// wall's does, and gating held every wall until the door stood, or for
-	// ever when its observation came back unknown (#602). The pen shell in
-	// routine_animal_containment.go orders its ring the same way.
-	for i, v := range selected {
-		actions[i] = v.Action
-	}
-	plan, err := domain.NewPlan(planID, 1, actions)
-	if err != nil {
-		return RoutineBuildingResult{}, err
 	}
 	// A shell (the initial shelter, expansion, or a power shelter) is
 	// admitted without a stock check: RimWorld places its blueprints
@@ -725,11 +708,72 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	// a shell); a generator and its conduits, a cooler and its wall, a
 	// heater batch or a pasted layout are one set and admit whole or not.
 	partial := r.power == nil && r.temperature == nil && r.refrigeration == nil && len(r.paste) == 0
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: selected, Purpose: purpose, PartialStock: partial})
+	return r.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose, partial: partial, check: check})
+}
+
+// routineAdmission is what admitPreviews commits: the previews a method
+// selected under one observation, bound to the goal as that method.
+type routineAdmission struct {
+	state    ControlState
+	review   store.RoutineReview
+	goal     store.GoalState
+	facts    observation.ColonyProjection
+	read     observation.ColonyReading
+	method   domain.MethodID
+	snapshot domain.GenerationSnapshot
+	selected []policy.Preview
+	stock    policy.StockObservation
+	purpose  policy.Purpose
+	partial  bool
+	check    func() error
+}
+
+// admitPreviews re-verifies the observation boundary the previews were
+// taken under (native identity, reading age, review revision) and admits
+// the plan, the previews in dispatch order.
+func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a routineAdmission) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
+	last, _, err := r.native.Identity(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	reason = BuildingMethodRefused
+	actual, err := observation.DecodeIdentity(last)
+	if err != nil || !routineBuildingBoundary(actual, a.state.Snapshot, a.facts.Identity.Tick) {
+		return RoutineBuildingResult{}, ErrControl
+	}
+	now := r.reviewer.clock.Now()
+	if now.Before(a.read.StartedAt) || now.Sub(a.read.StartedAt) > r.reviewer.maxAge {
+		return RoutineBuildingResult{}, observation.ErrStale
+	}
+	if err = a.check(); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	latest, err := p.journal.LoadRoutineReview(call)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if latest.Revision != a.review.Revision || !latest.Enabled {
+		return RoutineBuildingResult{}, ErrControl
+	}
+	actions := make([]domain.Action, len(a.selected))
+	// A shell goes out as one wave with its door first in dispatch order
+	// (the preview lists it first). The walls are not gated on the door
+	// completing: a door blueprint or frame no more seals a room than a
+	// wall's does, and gating held every wall until the door stood, or for
+	// ever when its observation came back unknown (#602). The pen shell in
+	// routine_animal_containment.go orders its ring the same way.
+	for i, v := range a.selected {
+		actions[i] = v.Action
+	}
+	plan, err := domain.NewPlan(a.snapshot.Plan, a.snapshot.Revision, actions)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: a.goal.Goal.ID, Revision: a.goal.Revision, Method: a.method, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Rules: r.reviewer.rules, Previews: a.selected, Purpose: a.purpose, PartialStock: a.partial})
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	reason := BuildingMethodRefused
 	if decision.Admitted {
 		reason = BuildingMethodAdmitted
 	}

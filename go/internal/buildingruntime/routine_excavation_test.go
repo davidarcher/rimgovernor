@@ -68,7 +68,7 @@ func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 // excavated room is within reach and beats the wooden shell.
 func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *excavationNative) {
 	t.Helper()
-	planner, db, n := shelterFixture(t)
+	planner, db, n := shelterSiteFixture(t)
 	x := &excavationNative{sleepingNative: n, rock: map[domain.Cell]string{}, fogged: map[domain.Cell]bool{}, blocked: map[domain.Cell]bool{}, hazard: map[domain.Cell]bool{}, sealed: map[domain.Cell]bool{}, support: policy.ExcavationSupportSupported, worker: true}
 	planning := n.reply.GetObserved().Planning.GetObserved()
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(19)}
@@ -164,7 +164,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	r, db, x := excavationFixture(t)
 	ctx := context.Background()
 	// Stage 0: only the two visible corridor cells can be designated; the
-	// wooden shell was previewed but lost on anchor distance.
+	// wooden shell lost on anchor distance before anything was previewed.
 	result, err := r.Step(ctx)
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
@@ -173,7 +173,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
-	if result.Decision.Goal.Methods[0].Method != excavationStageMethod(0) || x.sleepingNative.previews != 32 || x.reads < 1 {
+	if result.Decision.Goal.Methods[0].Method != excavationStageMethod(0) || x.sleepingNative.previews != 0 || x.reads < 1 {
 		t.Fatal(result.Decision.Goal.Methods, x.sleepingNative.previews, x.reads)
 	}
 	if again, err := r.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
@@ -193,8 +193,8 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
-	if x.sleepingNative.previews != 32 {
-		t.Fatal("stage re-previewed the shell", x.sleepingNative.previews)
+	if x.sleepingNative.previews != 0 {
+		t.Fatal("stage previewed the shell", x.sleepingNative.previews)
 	}
 	// Every remaining interior cell becomes visible; stages are capped at 8.
 	completeExcavation(t, db, result.Decision, excavationStageMethod(1), x)
@@ -277,11 +277,13 @@ func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 			}})
 		}
 	}
+	// The surface site takes the bunks first, then the ring around them.
+	stageShelterBunks(t, r, db, x.sleepingNative)
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted || x.sleepingNative.previews != 32 {
 		t.Fatal(result, err, x.sleepingNative.previews)
 	}
-	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
 	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") || len(plan.Progress) != 32 {
 		t.Fatal(plan, err)
 	}
@@ -339,7 +341,7 @@ func TestRoutineExcavationHoldsWhenFrontierUnknown(t *testing.T) {
 	// The interior stays fogged: nothing can be designated and the project
 	// waits for the next observation rather than falling back to a shell.
 	next, err := r.Step(context.Background())
-	if err != nil || next.Reason != BuildingMethodUnknown || x.sleepingNative.previews != 32 {
+	if err != nil || next.Reason != BuildingMethodUnknown || x.sleepingNative.previews != 0 {
 		t.Fatal(next, err, x.sleepingNative.previews)
 	}
 }
@@ -747,6 +749,7 @@ func TestRoutineExcavationBlockedEntranceIsResited(t *testing.T) {
 	if len(dug) != 2 || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, dug)
 	}
+	result = finishShelterBunks(t, r, db, result)
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[len(result.Decision.Goal.Methods)-1].Plan)
 	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
 		t.Fatal(plan.Spec.ID(), err)
@@ -769,6 +772,7 @@ func TestRoutineExcavationBreachedRoofAbandonsTheDig(t *testing.T) {
 	if len(dug) != 2 || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, dug)
 	}
+	result = finishShelterBunks(t, r, db, result)
 	var shell bool
 	for _, m := range result.Decision.Goal.Methods {
 		if strings.HasPrefix(string(m.Plan), "routine-shell") {
@@ -894,4 +898,23 @@ func TestCancelStalledExcavation(t *testing.T) {
 			t.Fatal(v.Action, v.Stage)
 		}
 	}
+}
+
+// finishShelterBunks completes the bunk rungs a re-sited shelter admits
+// once its dig is dropped (#612) and returns the Step that follows them,
+// which sites the ring.
+func finishShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, result RoutineBuildingResult) RoutineBuildingResult {
+	t.Helper()
+	for rung := 0; rung < 2; rung++ {
+		method := methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
+		if !strings.HasPrefix(string(method), bunkPlanPrefix+"-") {
+			t.Fatal("the shell went up before its bunks", rung, method)
+		}
+		completeRoutineBuildingMethod(t, db, result)
+		var err error
+		if result, err = r.Step(context.Background()); err != nil || result.Reason != BuildingMethodAdmitted {
+			t.Fatal(result, err)
+		}
+	}
+	return result
 }
