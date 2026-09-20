@@ -128,6 +128,18 @@ func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSe
 	if _, err := p.Resume(context.Background(), request); err != nil {
 		t.Fatal(err)
 	}
+	n := colonyCoreNative(t)
+	r, err := NewRoutineReviewer(p, n, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r, db, session, request, n
+}
+
+// colonyCoreNative is the reviewer's fact source over the committed
+// colony-core fixture: world colony/load/map 0 at tick 7, generation 1.
+func colonyCoreNative(t *testing.T) *routineNative {
+	t.Helper()
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
 		t.Fatal(err)
@@ -136,11 +148,7 @@ func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSe
 	if err = protojson.Unmarshal(data, n.reply); err != nil {
 		t.Fatal(err)
 	}
-	r, err := NewRoutineReviewer(p, n, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return r, db, session, request, n
+	return n
 }
 
 func TestRoutineReviewerPersistsNeedsAndManualSuspendsWithoutRead(t *testing.T) {

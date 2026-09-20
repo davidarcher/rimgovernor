@@ -57,6 +57,22 @@ func (n *sleepingNative) previewOne(ctx context.Context, a domain.Action, s doma
 func sleepingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *playerFakeSession, store.ControlRequest, *sleepingNative) {
 	t.Helper()
 	r, db, session, request, n := routineFixture(t)
+	sleepingFacts(n)
+	if _, err := r.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	source := &sleepingNative{routineNative: n}
+	planner, err := NewRoutineSleepingPlanner(r, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return planner, db, session, request, source
+}
+
+// sleepingFacts seeds the colony fixture with a 5x5 roofed indoor site and
+// the SleepingSpot definition, the precondition for the sleeping planner's
+// first rung.
+func sleepingFacts(n *routineNative) {
 	v := n.reply.GetObserved()
 	v.Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
 	planning := v.Planning.GetObserved()
@@ -71,15 +87,6 @@ func sleepingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *play
 			cells.Cells = append(cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Roof: proto.String("RoofConstructed"), Indoors: proto.Bool(true), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{{Field: proto.String("zone_id"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}})
 		}
 	}
-	if _, err := r.Step(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	source := &sleepingNative{routineNative: n}
-	planner, err := NewRoutineSleepingPlanner(r, source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return planner, db, session, request, source
 }
 
 func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.T) {
