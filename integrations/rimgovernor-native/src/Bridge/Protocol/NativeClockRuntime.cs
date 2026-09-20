@@ -287,6 +287,7 @@ namespace HomeBridge.BridgeTools
                     // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
                     result.EvidenceCompleteness = new Common.PageInfo { Complete = s.SuppressedInjuries.Count == 0 };
                 }
+                result.PausedMs = ClockPauseAccounting.PausedMs(Current.Game); result.RunningMs = ClockPauseAccounting.RunningMs(Current.Game);
                 if (_patchError != null) result.WatcherError = Text(_patchError);
                 return result;
             }
@@ -334,6 +335,9 @@ namespace HomeBridge.BridgeTools
                         var observed = Clock.Event.Parser.ParseJson(canonical);
                         if (!ValidStoredEvent(observed) || observed.Cursor <= previous
                             || observed.Cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
+                        // Native's own clock on both sides: the unobserved age of
+                        // the row when this page was composed (#621).
+                        if (observed.HasObservedAtUnixMs) observed.AgeAtReplyMs = (ulong)Math.Max(0, NowMs() - observed.ObservedAtUnixMs);
                         page.Events.Add(observed); previous = observed.Cursor;
                     }
                     // Only a read beginning at zero establishes the earliest retained row.

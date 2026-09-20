@@ -188,6 +188,13 @@ message Status {
   optional bool actual_paused = 19;
   // The launch admits StartRequest.test_acceleration.
   optional bool test_acceleration_available = 20;
+  // Wall time the supervisor's own stop/start transitions account for in
+  // this game session, on a monotonic clock: paused_ms is the time from
+  // each stop to the next start (the open gap included while stopped),
+  // running_ms the time each epoch ran. Gaps no controller observed count.
+  // Both reset when the loaded game changes.
+  optional uint64 paused_ms = 21;
+  optional uint64 running_ms = 22;
 }
 message StatusReply {
   oneof outcome {
@@ -357,6 +364,12 @@ message StopEvent {
     rimgovernor.common.v1.Unavailable unavailable = 8;
     WatchLatched watch = 9;
   }
+  // The tick at which the supervisor first raised this stop; the event's
+  // context tick is the tick it took (a failed pause retries per frame).
+  optional int64 detected_tick = 10;
+  // The tick the hazard arose, when the evidence carries one (a new wound's
+  // age); absent otherwise.
+  optional int64 occurrence_tick = 11;
 }
 message EpochStarted { Epoch epoch = 1; }
 // A group of observation reads that go stale together. Definitions and world
@@ -431,6 +444,10 @@ message Event {
     AuthorityChanged authority_changed = 17;
     ObservationInvalidated observation_invalidated = 18;
   }
+  // How long ago, on native's own clock, this event was observed when the
+  // page carrying it was composed: the unobserved time a stop sat in native
+  // before this reply, measured without comparing clocks across processes.
+  optional uint64 age_at_reply_ms = 19;
 }
 message EventsRequest {
   rimgovernor.common.v1.Identity identity = 1;

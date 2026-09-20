@@ -260,3 +260,32 @@ func TestSummarizePhasesStopLatency(t *testing.T) {
 		t.Fatal(report.String())
 	}
 }
+
+// Native's own pause account (issue #621) is the difference between the
+// first and last status samples' cumulative paused_ms / running_ms, read
+// from the status, a bundle's clock section or an applied start's status;
+// a sample without it (an older native build) leaves the account at zero.
+func TestSummarizePhasesNativePauseAccount(t *testing.T) {
+	sample := func(wall float64, payload string) TimelineRecord {
+		return TimelineRecord{Kind: "native_response", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
+	}
+	rows := []TimelineRecord{
+		sample(10, `{"status":{"actualPaused":true,"stopped":{},"pausedMs":"1000","runningMs":"4000"}}`),
+		sample(11, `{"receipt":{"applied":{"status":{"running":{"epoch":{}},"pausedMs":"1500","runningMs":"4000"}}}}`),
+		sample(15, `{"bundle":{"clockStatus":{"actualPaused":true,"stopped":{},"pausedMs":"1600","runningMs":"7900"}}}`),
+	}
+	clock := SummarizePhases(rows).Clock
+	if clock.NativePauseSamples != 3 || clock.NativePausedMs != 600 || clock.NativeRunningMs != 3900 {
+		t.Fatalf("clock: %+v", clock)
+	}
+	if got := clock.PausedFractionNative(); got < 0.13 || got > 0.14 {
+		t.Fatal(got)
+	}
+	if legacy := SummarizePhases(rows[:0]).Clock; legacy.NativePauseSamples != 0 || legacy.PausedFractionNative() != 0 {
+		t.Fatalf("empty: %+v", legacy)
+	}
+	old := SummarizePhases([]TimelineRecord{sample(1, `{"status":{"actualPaused":true,"stopped":{}}}`)}).Clock
+	if old.NativePauseSamples != 0 || old.NativePausedMs != 0 {
+		t.Fatalf("older native: %+v", old)
+	}
+}

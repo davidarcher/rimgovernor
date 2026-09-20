@@ -1,8 +1,16 @@
 // Package speedmatrix (issue #111, M4a) runs the same staged colony under
 // rimgovernor serve once per clock speed -- Normal, Fast, Superfast,
-// Ultrafast and uncapped (Ultrafast with the acceptance test acceleration,
-// #109) -- with an identical game-tick budget, and requires the pawns to
-// achieve the same outcome at every speed.
+// Ultrafast, uncapped (Ultrafast with the acceptance test acceleration,
+// #109) and regulated (#583) -- with an identical game-tick budget, and
+// requires the pawns to achieve the same outcome at every speed. Two rows
+// separate the governor's cost from the rest (#621): governor-off plays the
+// same save uncapped with no controller attached (the simulation ceiling;
+// nothing is built, so it is outside the outcome comparison) and viewer
+// runs the governor with one dashboard client streaming video at the
+// default cadence (the viewing overhead). Every row reports wall TPS
+// including pauses; the governed rows report native's own paused account
+// (paused_fraction_native) beside the status-sample ratio and a per-stop
+// latency split.
 //
 // The stage is test/throughput_prepare (ThroughputFixture.cs) applied once
 // to a quiet debug colony with frozen needs: three or more colonists on
@@ -125,14 +133,32 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 
 	for _, c := range m.cases {
-		outcome, err := m.runCase(ctx, c)
+		var outcome na.SpeedOutcome
+		var err error
+		if c.GovernorOff {
+			err = m.runGovernorOff(ctx, c)
+		} else {
+			outcome, err = m.runCase(ctx, c)
+		}
 		if err != nil {
 			return fmt.Errorf("%s: %w", c.Name, err)
+		}
+		if !c.Compared() {
+			fmt.Printf("DONE %s: no controller\n", c.Name)
+			continue
 		}
 		m.outcomes = append(m.outcomes, outcome)
 		m.report["outcomes"] = m.outcomes
 		fmt.Printf("DONE %s: stored=%d/%d walls=%d colonists=%d unsuccessful=%d\n", c.Name,
 			outcome.StoredUnits, outcome.StoredUnits+outcome.LooseUnits, outcome.WallsBuilt, outcome.HealthyColonists, outcome.UnsuccessfulStages)
+	}
+	// Every required row is present and advanced the tick before any
+	// comparator, which accept an empty matrix, sees them (#621).
+	rows, _ := m.report["speed_metrics"].([]map[string]any)
+	metrics := na.SpeedMetricsFromRows(rows)
+	if problems := na.SpeedRowProblems(m.cases, m.outcomes, metrics); len(problems) > 0 {
+		m.report["row_problems"] = problems
+		return fmt.Errorf("speed rows missing or empty: %s", strings.Join(problems, "; "))
 	}
 	if problems := na.CompareOutcomes(m.outcomes, tolerance); len(problems) > 0 {
 		m.report["outcome_problems"] = problems
@@ -145,8 +171,7 @@ func run(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("%s: nothing was hauled or built within the tick budget; raise ticks or check the stage", o.Case)
 		}
 	}
-	rows, _ := m.report["speed_metrics"].([]map[string]any)
-	if problems := na.CheckSpeedMetrics(na.SpeedMetricsFromRows(rows), maxPausedFraction, minUltrafastTPSRatio); len(problems) > 0 {
+	if problems := na.CheckSpeedMetrics(metrics, maxPausedFraction, minUltrafastTPSRatio); len(problems) > 0 {
 		m.report["metric_problems"] = problems
 		return fmt.Errorf("clock throughput short of the thresholds: %s", strings.Join(problems, "; "))
 	}
@@ -248,16 +273,10 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return outcome, err
 	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
+	identity, err := readIdentity(ctx, h)
 	if err != nil {
 		return outcome, err
 	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return outcome, err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
 	frozen, err := na.FreezeNeeds(ctx, h, nil)
 	if err != nil {
 		return outcome, err
@@ -295,6 +314,17 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	report["root_plan"] = rootPlanID
+	// The viewer row (#621): one dashboard client holding a video lease
+	// and draining the stream for the whole run.
+	var viewer *na.ViewerClient
+	if c.Viewer {
+		viewer = na.StartViewer(ctx, service, token)
+		defer func() {
+			if viewer != nil {
+				report["viewer"] = viewer.Stop()
+			}
+		}()
+	}
 	resumedAt := time.Now()
 	keepAlive := &na.AuthorityKeepAlive{Service: service, Prefix: prefix, Identity: identity, Token: token}
 	stopKeepAlive := keepAlive.Start(ctx)
@@ -354,6 +384,12 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	report["plans_inspected"] = planCount
 	journal.Close()
+	var viewerSummary map[string]any
+	if viewer != nil {
+		viewerSummary = viewer.Stop()
+		report["viewer"] = viewerSummary
+		viewer = nil
+	}
 	service.Stop()
 	rows, err := bridge.ReadTimeline(na.FlightRecorderPath(output))
 	if err != nil {
@@ -363,6 +399,9 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	stops := na.SummarizeStops(rows, resumedAt.UnixMilli())
 	report["stops"] = stops
 	metrics := caseMetrics(c, phases, stops, startTick, lastTick, wallSeconds)
+	if viewerSummary != nil {
+		metrics["viewer"] = viewerSummary
+	}
 	report["metrics"] = metrics
 	appendMetrics(m.report, metrics)
 
@@ -561,6 +600,8 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	}
 	// Time-weighted (bridge.ClockSample.PausedFraction): the count ratio
 	// over-represents pauses, when the service issues most of its reads.
+	// A sampling diagnostic since #621; native's own account of its
+	// stop/start transitions (paused_fraction_native) is the headline.
 	pausedFraction := phases.Clock.PausedFraction()
 	budgetTPS, budgetStopsPer6000 := 0.0, 0.0
 	if wallSeconds > 0 && lastTick > startTick {
@@ -584,12 +625,17 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		// widest blind span they reported; zero on an unregulated row.
 		"speed_changes": stops.SpeedChanges, "max_blind_ticks": stops.MaxBlindTicks,
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
-		"wall_tps": phases.Clock.WallTPS, "paused_fraction": pausedFraction, "paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
+		"wall_tps":  phases.Clock.WallTPS,
+		"paused_ms": phases.Clock.NativePausedMs, "running_ms": phases.Clock.NativeRunningMs, "paused_fraction_native": phases.Clock.PausedFractionNative(), "native_pause_samples": phases.Clock.NativePauseSamples,
+		"paused_fraction": pausedFraction, "paused_fraction_sampling": "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure",
+		"paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,
 		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks,
 		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
+		// Per stop (#621): detect_ticks, stop_ticks, observe_ms, readmit_ms.
+		"stop_latencies":      stops.Latencies,
 		"readmit_pause_count": phases.Steps.Pauses, "readmit_pause_mean_s": pauseMean, "readmit_pause_max_s": phases.Steps.MaxPauseSecs,
 		// Live dispatch (#243): steps by reason ("live" plans under a running
 		// window), the worker's native runs made under a running window and

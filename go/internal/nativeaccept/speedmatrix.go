@@ -16,17 +16,27 @@ import (
 // (headless and rendered) admit it, a player launch does not. "regulated"
 // is uncapped under the native blind-tick regulator (#583), the budget in
 // BlindTicks: the row that must match the capped speeds' outcome while
-// beating their wall time.
+// beating their wall time. "governor-off" (#621) is uncapped native play
+// with no controller attached, the simulation ceiling on the same save and
+// renderer; it builds nothing, so it is outside the outcome comparison.
+// "viewer" is uncapped with one dashboard client streaming video at the
+// default cadence beside the governor, the viewing overhead.
 type SpeedCase struct {
 	Name             string `json:"name"`
 	Speed            string `json:"speed"`
 	TestAcceleration bool   `json:"test_acceleration"`
 	BlindTicks       uint   `json:"blind_ticks,omitempty"`
+	GovernorOff      bool   `json:"governor_off,omitempty"`
+	Viewer           bool   `json:"viewer,omitempty"`
 }
 
+// Compared reports whether the case's pawn outcome takes part in the
+// cross-speed comparison: every governed row does.
+func (c SpeedCase) Compared() bool { return !c.GovernorOff }
+
 // DefaultSpeedMatrix is the -speeds default: every native speed plus
-// uncapped and regulated.
-const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated"
+// uncapped, regulated, governor-off and viewer.
+const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off,viewer"
 
 // RegulatedBlindTicks is the regulated row's budget: the planning fact
 // tolerance and the combat window already encode this horizon (#583).
@@ -36,12 +46,14 @@ const RegulatedBlindTicks = 300
 // refusing unknown names and repeats.
 func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 	known := map[string]SpeedCase{
-		"normal":    {Name: "Normal", Speed: "Normal"},
-		"fast":      {Name: "Fast", Speed: "Fast"},
-		"superfast": {Name: "Superfast", Speed: "Superfast"},
-		"ultrafast": {Name: "Ultrafast", Speed: "Ultrafast"},
-		"uncapped":  {Name: "uncapped", Speed: "Ultrafast", TestAcceleration: true},
-		"regulated": {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
+		"normal":       {Name: "Normal", Speed: "Normal"},
+		"fast":         {Name: "Fast", Speed: "Fast"},
+		"superfast":    {Name: "Superfast", Speed: "Superfast"},
+		"ultrafast":    {Name: "Ultrafast", Speed: "Ultrafast"},
+		"uncapped":     {Name: "uncapped", Speed: "Ultrafast", TestAcceleration: true},
+		"regulated":    {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
+		"governor-off": {Name: "governor-off", Speed: "Ultrafast", TestAcceleration: true, GovernorOff: true},
+		"viewer":       {Name: "viewer", Speed: "Ultrafast", TestAcceleration: true, Viewer: true},
 	}
 	var cases []SpeedCase
 	seen := map[string]bool{}
@@ -52,7 +64,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		}
 		c, ok := known[key]
 		if !ok {
-			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped or regulated)", strings.TrimSpace(part))
+			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off or viewer)", strings.TrimSpace(part))
 		}
 		if seen[key] {
 			return nil, fmt.Errorf("speed %q listed twice", c.Name)
@@ -167,11 +179,36 @@ type StopSummary struct {
 	// span a regulator row reported.
 	SpeedChanges  int   `json:"speed_changes"`
 	MaxBlindTicks int64 `json:"max_blind_ticks"`
+	// Latencies is the per-stop split (#621), in cursor order.
+	Latencies []StopLatency `json:"latencies,omitempty"`
+}
+
+// StopLatency splits one clock stop's latency (#621) along occurrence ->
+// native detection -> stop -> controller observation -> readmit. Ticks come
+// from the stop event alone (native's context tick, the tick the stop was
+// raised at and, where the hazard carries one, the tick it arose).
+// ObserveMs is native's own age of the row when the page carrying it was
+// composed (age_at_reply_ms) plus the round trip's transport residual on
+// the controller's side (call_ms less native queue and execute), each on
+// one process's clock; ReadmitMs is the controller's wall time from that
+// reply to the next clock_start receipt. Nothing subtracts one process's
+// Unix time from another's; the cursor is the only cross-process key.
+type StopLatency struct {
+	Cursor         int64    `json:"cursor"`
+	Reason         string   `json:"reason"`
+	StopTick       int64    `json:"stop_tick"`
+	DetectedTick   *int64   `json:"detected_tick,omitempty"`
+	OccurrenceTick *int64   `json:"occurrence_tick,omitempty"`
+	DetectTicks    *int64   `json:"detect_ticks,omitempty"`
+	StopTicks      *int64   `json:"stop_ticks,omitempty"`
+	ObserveMs      *float64 `json:"observe_ms,omitempty"`
+	ReadmitMs      *float64 `json:"readmit_ms,omitempty"`
 }
 
 const (
 	clockEventsTool = "rimgovernor/clock_read_events"
 	bundleTool      = "rimgovernor/observations_read_bundle"
+	clockStartTool  = "rimgovernor/clock_start"
 )
 
 // SummarizeStops scans the timeline's clock_read_events replies and the
@@ -186,11 +223,24 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 	summary := StopSummary{Reasons: map[string]int{}}
 	seen := map[string]bool{}
 	var total float64
+	// carried is the wall time of the reply that carried each stop, for
+	// the readmit leg; starts the wall time of each clock_start receipt.
+	carried := map[int]float64{}
+	var starts []float64
 	for _, row := range rows {
 		if row.Kind != "native_response" {
 			continue
 		}
-		if tool, _ := row.Payload["native_tool"].(string); tool != clockEventsTool && tool != bundleTool {
+		tool, _ := row.Payload["native_tool"].(string)
+		if tool == clockStartTool {
+			if wrapper, ok := row.Payload["result"].(map[string]any); ok {
+				if payload, ok := wrapper["payload"].(string); ok && strings.Contains(payload, `"receipt"`) {
+					starts = append(starts, row.WallTime)
+				}
+			}
+			continue
+		}
+		if tool != clockEventsTool && tool != bundleTool {
 			continue
 		}
 		wrapper, ok := row.Payload["result"].(map[string]any)
@@ -244,6 +294,8 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 			} else {
 				summary.ReactiveStops++
 			}
+			carried[len(summary.Latencies)] = row.WallTime
+			summary.Latencies = append(summary.Latencies, stopLatency(event, stopped, reason, row))
 			if hasObserved && row.WallTime > 0 {
 				latency := row.WallTime*1000 - float64(observed)
 				if latency >= 0 {
@@ -259,10 +311,61 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 	if summary.LatencyCount > 0 {
 		summary.MeanLatencyMs = total / float64(summary.LatencyCount)
 	}
+	for i := range summary.Latencies {
+		at := carried[i]
+		for _, start := range starts {
+			if start > at {
+				readmit := (start - at) * 1000
+				summary.Latencies[i].ReadmitMs = &readmit
+				break
+			}
+		}
+	}
 	if len(summary.Reasons) == 0 {
 		summary.Reasons = nil
 	}
 	return summary
+}
+
+// stopLatency derives one stop's tick and observation legs from its event
+// and the reply row that carried it; the readmit leg is filled in once the
+// scan has seen the starts that followed.
+func stopLatency(event, stopped map[string]any, reason string, row bridge.TimelineRecord) StopLatency {
+	out := StopLatency{Cursor: 0, Reason: reason}
+	out.Cursor, _ = int64Value(event["cursor"])
+	if context, ok := event["context"].(map[string]any); ok {
+		out.StopTick, _ = int64Value(context["tick"])
+	}
+	if detected, ok := int64Value(stopped["detectedTick"]); ok {
+		out.DetectedTick = &detected
+		stopTicks := out.StopTick - detected
+		out.StopTicks = &stopTicks
+		if occurrence, ok := int64Value(stopped["occurrenceTick"]); ok {
+			out.OccurrenceTick = &occurrence
+			detectTicks := detected - occurrence
+			out.DetectTicks = &detectTicks
+		}
+	}
+	if age, ok := int64Value(event["ageAtReplyMs"]); ok && age >= 0 {
+		observe := float64(age)
+		if timing, ok := row.Payload["timing"].(map[string]any); ok {
+			// Only the legs the row carries: a missing key reads as -1.
+			residual := timingMs(timing, "call_ms") - timingMs(timing, "native_queue_ms") - timingMs(timing, "native_execute_ms")
+			if residual > 0 {
+				observe += residual
+			}
+		}
+		out.ObserveMs = &observe
+	}
+	return out
+}
+
+// timingMs reads one leg of a native_response timing map, zero when absent.
+func timingMs(timing map[string]any, key string) float64 {
+	if _, ok := timing[key]; !ok {
+		return 0
+	}
+	return AsNumber(timing[key])
 }
 
 // findEvents returns every object in an "events" array anywhere in the
@@ -313,23 +416,70 @@ func int64Value(v any) (int64, bool) {
 }
 
 // SpeedMetrics is the per-case row a speed matrix reports (caseMetrics in
-// cases/speedmatrix): the fields CheckSpeedMetrics reads, decoded from the
-// report's metrics rows.
+// cases/speedmatrix): the fields CheckSpeedMetrics and SpeedRowProblems
+// read, decoded from the report's metrics rows. PausedFraction is the
+// status-sample ratio (a sampling diagnostic); PausedFractionNative is
+// native's own account of its stop/start transitions (#621), the paused
+// share the thresholds bound where the row carries it.
 type SpeedMetrics struct {
-	Case           string
-	Speed          string
-	WallTPS        float64
-	PausedFraction float64
+	Case                 string
+	Speed                string
+	WallTPS              float64
+	TicksAdvanced        float64
+	PausedFraction       float64
+	PausedFractionNative float64
+	NativePauseSamples   float64
 }
 
-// SpeedMetricsFromRows decodes the "case", "speed", "wall_tps" and
-// "paused_fraction" fields of each metrics row.
+// PausedShare is the paused fraction a threshold bounds: native's account
+// when the row sampled it, else the sample ratio.
+func (m SpeedMetrics) PausedShare() float64 {
+	if m.NativePauseSamples > 0 {
+		return m.PausedFractionNative
+	}
+	return m.PausedFraction
+}
+
+// SpeedMetricsFromRows decodes the "case", "speed", "wall_tps",
+// "ticks_advanced", "paused_fraction", "paused_fraction_native" and
+// "native_pause_samples" fields of each metrics row.
 func SpeedMetricsFromRows(rows []map[string]any) []SpeedMetrics {
 	out := make([]SpeedMetrics, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, SpeedMetrics{Case: AsString(row["case"]), Speed: AsString(row["speed"]), WallTPS: AsNumber(row["wall_tps"]), PausedFraction: AsNumber(row["paused_fraction"])})
+		out = append(out, SpeedMetrics{Case: AsString(row["case"]), Speed: AsString(row["speed"]), WallTPS: AsNumber(row["wall_tps"]), TicksAdvanced: AsNumber(row["ticks_advanced"]),
+			PausedFraction: AsNumber(row["paused_fraction"]), PausedFractionNative: AsNumber(row["paused_fraction_native"]), NativePauseSamples: AsNumber(row["native_pause_samples"])})
 	}
 	return out
+}
+
+// SpeedRowProblems is the runner-boundary check (#621) the outcome and
+// metric comparators cannot make, since both accept an empty matrix: every
+// required case must have a metrics row that advanced the tick and, when
+// the case is compared, an outcome row. Each problem names the row. An
+// empty result means every required row is present and non-empty.
+func SpeedRowProblems(required []SpeedCase, outcomes []SpeedOutcome, metrics []SpeedMetrics) []string {
+	var problems []string
+	byCase := map[string]SpeedMetrics{}
+	for _, m := range metrics {
+		byCase[m.Case] = m
+	}
+	outcomeByCase := map[string]bool{}
+	for _, o := range outcomes {
+		outcomeByCase[o.Case] = true
+	}
+	for _, c := range required {
+		m, ok := byCase[c.Name]
+		switch {
+		case !ok:
+			problems = append(problems, fmt.Sprintf("%s: no metrics row", c.Name))
+		case m.TicksAdvanced <= 0 || m.WallTPS <= 0:
+			problems = append(problems, fmt.Sprintf("%s: empty metrics row (ticks_advanced=%.0f wall_tps=%.1f)", c.Name, m.TicksAdvanced, m.WallTPS))
+		}
+		if c.Compared() && !outcomeByCase[c.Name] {
+			problems = append(problems, fmt.Sprintf("%s: no outcome row", c.Name))
+		}
+	}
+	return problems
 }
 
 // CheckSpeedMetrics lists the clock-throughput expectations of issue #126
@@ -350,8 +500,8 @@ func CheckSpeedMetrics(rows []SpeedMetrics, maxPausedFraction, minUltrafastRatio
 		case "Ultrafast":
 			ultrafast = row
 		}
-		if maxPausedFraction > 0 && (row.Speed == "Superfast" || row.Speed == "Ultrafast") && row.PausedFraction > maxPausedFraction {
-			problems = append(problems, fmt.Sprintf("%s: paused fraction %.2f exceeds %.2f", row.Case, row.PausedFraction, maxPausedFraction))
+		if maxPausedFraction > 0 && (row.Speed == "Superfast" || row.Speed == "Ultrafast") && row.PausedShare() > maxPausedFraction {
+			problems = append(problems, fmt.Sprintf("%s: paused fraction %.2f exceeds %.2f", row.Case, row.PausedShare(), maxPausedFraction))
 		}
 	}
 	if minUltrafastRatio > 0 && fast != nil && ultrafast != nil && ultrafast.WallTPS < minUltrafastRatio*fast.WallTPS {

@@ -45,6 +45,15 @@ type speedNative struct {
 	receipt   *k.ControlReceipt
 	// stops is the wall time of each budget stop, in order.
 	stops []time.Time
+	// The paused account native keeps from its own transitions (#621):
+	// starts is the wall time of each window start, stoppedAt the last
+	// stop (zero while running or before the first), and the two
+	// accumulators the closed stop->start gaps and start->stop spans.
+	// account() serves them on the status with the open span included.
+	starts    []time.Time
+	stoppedAt time.Time
+	pausedAcc time.Duration
+	runAcc    time.Duration
 	// reads counts every native read the scheduler's steps issue (the
 	// bundle, the identity, tick, status, attempt and emergency reads
 	// under a step's context), not the worker's poll, for the
@@ -90,6 +99,7 @@ func newSpeedNative(snapshot domain.GenerationSnapshot, tickEvery time.Duration)
 // advance moves the running window's tick to now and stops it on its
 // budget. Callers hold mu.
 func (n *speedNative) advance() {
+	defer n.account()
 	running := n.status.GetRunning()
 	if running == nil {
 		return
@@ -119,8 +129,48 @@ func (n *speedNative) advance() {
 		n.regulator.unacked = append(n.regulator.unacked, speedRow{cursor, tick})
 	}
 	n.stops = append(n.stops, now)
+	n.stopped(now)
 	close(n.changed)
 	n.changed = make(chan struct{})
+}
+
+// stopped closes the running span at now. Callers hold mu.
+func (n *speedNative) stopped(now time.Time) {
+	n.runAcc += now.Sub(n.startedAt)
+	n.stoppedAt = now
+}
+
+// account serves the paused account on the status as native does: the
+// closed spans plus whichever span is open now. Callers hold mu.
+func (n *speedNative) account() {
+	paused, running := n.pausedAcc, n.runAcc
+	if n.status.GetRunning() != nil {
+		running += time.Since(n.startedAt)
+	} else if !n.stoppedAt.IsZero() {
+		paused += time.Since(n.stoppedAt)
+	}
+	n.status.PausedMs = proto.Uint64(uint64(paused.Milliseconds()))
+	n.status.RunningMs = proto.Uint64(uint64(running.Milliseconds()))
+}
+
+// expectedPausedFraction is the fraction the fake's own transition times
+// imply at now: every stop->start gap, the open gap when stopped, over
+// the wall time since the first start.
+func (n *speedNative) expectedPausedFraction(now time.Time) float64 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if len(n.starts) == 0 {
+		return 0
+	}
+	var paused time.Duration
+	for i, stop := range n.stops {
+		if i+1 < len(n.starts) {
+			paused += n.starts[i+1].Sub(stop)
+		} else {
+			paused += now.Sub(stop)
+		}
+	}
+	return float64(paused) / float64(now.Sub(n.starts[0]))
 }
 
 // due is how long until the running window reaches its deadline; false
@@ -303,6 +353,11 @@ func (n *speedNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlR
 	n.status.ActualPaused = proto.Bool(false)
 	n.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum()
 	n.startedAt, n.startTick, n.deadline = time.Now(), tick, epoch.GetTickDeadline()
+	if !n.stoppedAt.IsZero() {
+		n.pausedAcc += n.startedAt.Sub(n.stoppedAt)
+	}
+	n.starts = append(n.starts, n.startedAt)
+	n.stoppedAt = time.Time{}
 	if budget := int64(r.GetBlindTickBudget()); budget > 0 {
 		epoch.BlindTickBudget = proto.Uint32(r.GetBlindTickBudget())
 		n.regulator = speedRegulator{budget: budget, lastReadTick: tick, lastReadAt: n.startedAt, ackedCursor: int64(len(n.events)), advancedAt: n.startedAt, throttles: n.regulator.throttles, changes: n.regulator.changes, violations: n.regulator.violations, observations: n.regulator.observations, maxBlind: n.regulator.maxBlind}
@@ -338,9 +393,12 @@ func (n *speedNative) OwnedPause(ctx context.Context, r *k.OwnedRequest) (*k.Sta
 	defer n.mu.Unlock()
 	n.advance()
 	if running := n.status.GetRunning(); running != nil {
-		n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: running.Epoch, Reason: k.StopReason_STOP_REASON_REQUESTED_PAUSE.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(true), StoppedAtUnixMs: proto.Int64(time.Now().UnixMilli())}}
+		now := time.Now()
+		n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: running.Epoch, Reason: k.StopReason_STOP_REASON_REQUESTED_PAUSE.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(true), StoppedAtUnixMs: proto.Int64(now.UnixMilli())}}
 		n.status.ActualPaused = proto.Bool(true)
 		n.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum()
+		n.stopped(now)
+		n.account()
 	}
 	return &k.StatusReply{Outcome: &k.StatusReply_Status{Status: proto.Clone(n.status).(*k.Status)}}, bridge.Result{}, ctx.Err()
 }
@@ -456,6 +514,13 @@ func (n *speedNative) regulation() speedRegulator {
 	defer n.mu.Unlock()
 	n.advance()
 	return n.regulator
+}
+
+// speedStarts returns the wall time of each window start so far.
+func (n *speedNative) speedStarts() []time.Time {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return append([]time.Time(nil), n.starts...)
 }
 
 // speedStops returns the wall time of each budget stop so far.
@@ -717,6 +782,25 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			}
 			if len(decisions) != 2*windows {
 				t.Fatalf("x%d: %d windows admitted: %+v", multiplier, len(epochs), decisions)
+			}
+			// paused_fraction_native (#621) is native's own account of
+			// its stop->start gaps, read from the status the way the
+			// speed matrix reads it, and it agrees with the fraction
+			// the fake's known stop and start times imply to within one
+			// step interval of the wall time: the worker's stop parks
+			// the clock, so the open gap at the read is what a read
+			// after a stop sees.
+			statusReply, _, err := native.ReadClockStatus(context.Background(), boundary.Identity(snapshot))
+			if err != nil {
+				t.Fatal(err)
+			}
+			now := time.Now()
+			status := statusReply.GetStatus()
+			got := bridge.ClockStatusPausedFraction(status)
+			want := native.expectedPausedFraction(now)
+			wall := now.Sub(native.speedStarts()[0])
+			if tolerance := float64(config.StepInterval) / float64(wall); got <= 0 || got >= 1 || got < want-tolerance || got > want+tolerance {
+				t.Fatalf("x%d: paused_fraction_native %.3f (paused %d ms, running %d ms) differs from the %.3f the fake's %d stops imply by more than %.3f", multiplier, got, status.GetPausedMs(), status.GetRunningMs(), want, len(stops), tolerance)
 			}
 			// Every step observes through its one bundle (#593): the
 			// reads the fake counts under the steps' contexts stay

@@ -151,7 +151,8 @@ Clock (`clock`, from `clock_read_events` reply ticks):
 | --- | --- |
 | `ticks_advanced`, `wall_seconds`, `wall_tps` | Game ticks gained over the sampled span; wall TPS **includes paused time**, so a run that stops often reads low even if the game ran fast between stops. |
 | `resets` | Tick decreases (load, rewind); excluded from the tick sum. |
-| `paused_samples` / `clock_samples` | The paused fraction: how many status samples found the clock stopped. The speed matrix reports this against `max_paused_fraction`. |
+| `native_paused_ms`, `native_running_ms` | Native's own paused account (#621): the stop->start gaps and start->stop spans its supervisor measured on a monotonic clock, as the difference between the first and last status samples, so a gap no sample observed still counts. `PausedFractionNative()` is paused over paused plus running: **the headline paused number**. Zero with `native_pause_samples` 0 against a native that predates it. |
+| `paused_samples` / `clock_samples` | How many status samples found the clock stopped: a sampling diagnostic, not the measure, since the service issues most of its reads when the clock is stopped. |
 
 Steps (`steps`, from `clock_step` rows):
 
@@ -259,9 +260,11 @@ go test ./internal/buildingruntime -run TestClockSpeedMatrix
 Drives the scheduler and worker against a wall-clock fake native at tick
 multipliers 1, 3, 6, 15 and 150 (Normal through the uncapped test
 acceleration) and asserts an identical window-decision sequence per game
-tick across multipliers, and that every budget stop wakes a step within
-`StepInterval` (#112). Run it first after any scheduler, `WakeSignal` or
-worker change.
+tick across multipliers, that every budget stop wakes a step within
+`StepInterval` (#112), and that `paused_fraction_native` read from the
+status agrees with the fake's known stop and start times to within one
+step interval of the wall time (#621). Run it first after any scheduler,
+`WakeSignal` or worker change.
 
 **Native (about 2 minutes per speed):**
 
@@ -270,26 +273,42 @@ go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/plain -root <abs r
 ```
 
 Needs a `ThroughputFixture` build; both profiles admit the uncapped case
-(a rendered run reports a lower wall TPS for it, since every frame also draws). One staged colony is reloaded per speed and served with the `haul` and
+(a rendered run reports a lower wall TPS for it, since every frame also draws). One staged colony is reloaded per row and served with the `haul` and
 `work` families for a 6000-tick budget, or until the stage runs out of work
 (every wall plan completed, no storage deficit pending; the clock admits no
-window after that, #210); each speed runs `serve` with the
+window after that, #210); each governed row runs `serve` with the
 flight recorder and the case reduces the recording with `SummarizePhases`
-and `SummarizeStops`. `result.json` carries, per speed under `speed_metrics`
-(`metrics` is the flat cost block every result carries, #297):
+and `SummarizeStops`. The default matrix (`-cases`, `DefaultSpeedMatrix`)
+is `Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off,viewer`.
+The last two separate the governor's cost from the rest (#621):
+
+| Row | What runs |
+| --- | --- |
+| `governor-off` | The same save and renderer played natively at the uncapped speed with no controller attached: the simulation ceiling. Nothing is submitted, so the row reports `ticks_advanced`, `wall_seconds` and `wall_tps` (`governor_off: true`, zeros for the governor's counters) and is outside the outcome comparison. |
+| `viewer` | The uncapped governed row with one dashboard client attached for the whole run: a render demand, a screen video lease renewed every 10 s and the WebSocket stream drained at the server's default cadence, as the dashboard tile does. Its `viewer` block reports `frames`, `bytes`, `frames_per_second`, `connects` and `unavailable` (a game that cannot capture, such as batch mode, answers the lease unsupported and the row records that). Compare its `wall_tps` with `uncapped` for the viewing overhead. |
+
+`result.json` carries, per row under `speed_metrics` (`metrics` is the
+flat cost block every result carries, #297):
 
 | Key | Meaning |
 | --- | --- |
-| `wall_tps`, `budget_wall_tps`, `paused_fraction` | The phase report's clock numbers; `budget_wall_tps` is `ticks_advanced` over the wait's own wall time. |
+| `wall_tps`, `budget_wall_tps` | The phase report's clock numbers, including paused time on every row; `budget_wall_tps` is `ticks_advanced` over the wait's own wall time. |
+| `paused_ms`, `running_ms`, `paused_fraction_native` | **The headline paused number**: native's own account of the supervisor's stop->start gaps and start->stop spans on a monotonic clock, reset when the loaded game changes so the reload between rows is not counted; `native_pause_samples` is how many status replies carried it (zero against an older native). This is what `max_paused_fraction` bounds where it was sampled. |
+| `paused_fraction`, `paused_samples`, `clock_samples` | The status-sample ratio (`paused_fraction_sampling` says so in the row): a sampling diagnostic, not the measure; it over-represents pauses because the service reads mostly while stopped. |
+| `stop_latencies` | One row per stop, correlated across the two processes by cursor only (no Unix time of one process is subtracted from the other's): `detect_ticks` occurrence to native detection where the stop carries an occurrence tick (a colonist injury's wound age), `stop_ticks` detection to the tick the clock stopped at, `observe_ms` native's own age of the stop row when the reply carrying it was composed plus the reply's transport residual (`call_ms` less the native queue and execute legs), `readmit_ms` the service's wall time from that reply to the next accepted `clock_start`. |
 | `steps`, `reads_per_step`, `cache_hits`, `parent_hits` | As above. |
 | `window_ticks_mean`, `window_ticks_max`, `window_target_secs_max` | The wall-sized windows at that speed; ticks per window should scale with the multiplier while the wall target stays put. |
 | `stops`, `budget_stops`, `reactive_stops`, `stop_reasons`, `budget_stops_per_6000_ticks` | Stops classified from the `clock_read_events` replies: budget stops (the window's ticks ran out) versus reactive ones (a watch latch, a letter, a requested pause). Budget stops per 6000 ticks is the comparable rate across speeds. |
 | `stop_latency_mean_ms`, `stop_latency_max_ms` | From the companion's `observedAtUnixMs` to the reply reaching the service (transport latency; the phase report's `stops` adds the step scheduling on top). |
 
-The case fails on pawn outcomes that differ by more than 1 across speeds,
-an unsuccessful plan stage, or nothing hauled or built; the
-`max_paused_fraction` and `min_ultrafast_tps_ratio` thresholds are written
-to the report and checked at zero, so they are reported, not enforced.
+The case fails when a required row has no metrics row or one that
+advanced no ticks, or a compared row has no outcome (`row_problems` names
+each; `SpeedRowProblems` is the boundary, since `CompareOutcomes` and
+`CheckSpeedMetrics` accept an empty matrix), on pawn outcomes that differ
+by more than 1 across speeds, an unsuccessful plan stage, or nothing
+hauled or built; the `max_paused_fraction` and `min_ultrafast_tps_ratio`
+thresholds are written to the report and checked at zero, so they are
+reported, not enforced.
 
 Rerun the native check when the clock scheduler, the step cache or the
 Ultrafast/acceleration path changes; the unit check on every scheduler

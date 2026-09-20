@@ -279,6 +279,7 @@ namespace HomeBridge.BridgeTools
                         { "secondsRemaining", (int)((owed + 999) / 1000) } });
                 }
                 _state = s;
+                ClockPauseAccounting.Started(s.Session);
                 PublishFactChanges(s);
                 var hit = Probe(s);
                 if (hit != null)
@@ -915,6 +916,8 @@ namespace HomeBridge.BridgeTools
                         payload["suppressedBy"] = suppressed ? (acknowledged ? "acknowledged" : "cooldown") : null;
                         payload["cooldownRemainingMs"] = owedMs;
                         payload["newWound"] = newWound;
+                        if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
+                            payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
                         if (((s.Mode == "colony" && newWound) || threshold) && !suppressed)
                         {
                             RecordInjuryStop(p);
@@ -1120,6 +1123,9 @@ namespace HomeBridge.BridgeTools
             Dictionary<string, object?>? payload)
         {
             if (s == null || !ReferenceEquals(s, _state) || !s.Active) return;
+            // The tick the stop was first raised at; a failed pause retries
+            // per frame and keeps it, so the journaled stop tick can be later.
+            if (s.PendingKind == null && Find.TickManager != null) s.DetectedTick = Find.TickManager.TicksGame;
             if (s.Typed != null) s.Typed.PauseRequested = pause;
             if (pause && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) Find.TickManager.Pause();
             s.PausedAtStop = Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
@@ -1142,7 +1148,9 @@ namespace HomeBridge.BridgeTools
             s.PendingKind = null; s.PendingDetail = null; s.PendingPayload = null;
             RestoreBoost(s);
             s.StopAtMs = NowMs();
-            s.Active = false; s.StopReason = kind; s.StopDetail = detail; Add(kind, detail, s, payload);
+            payload = payload ?? new Dictionary<string, object?>();
+            payload["detectedTick"] = s.DetectedTick;
+            s.Active = false; s.StopReason = kind; s.StopDetail = detail; ClockPauseAccounting.Stopped(); Add(kind, detail, s, payload);
             LogTiming(s, kind);
             if (kind == "lease_expired") RevokeDisconnected(s);
         }
@@ -1167,7 +1175,7 @@ namespace HomeBridge.BridgeTools
                 if (sameContext && Find.TickManager != null)
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                 RestoreBoost(s);
-                s.Active = false; s.StopReason = "event_journal_error";
+                s.Active = false; s.StopReason = "event_journal_error"; ClockPauseAccounting.Stopped();
                 if (s.Typed != null)
                 {
                     s.Typed.PauseRequested = sameContext;
@@ -1240,6 +1248,7 @@ namespace HomeBridge.BridgeTools
                 { "maxProbeTickGap", s != null ? s.MaxProbeTickGap : 0 },
                 { "probeCount", s != null ? s.ProbeCount : 0 },
                 { "stopAtMs", s != null ? (object?)s.StopAtMs : null },
+                { "pausedMs", ClockPauseAccounting.PausedMs(Current.Game) }, { "runningMs", ClockPauseAccounting.RunningMs(Current.Game) },
                 { "probeTickLimit", s != null && s.TestAcceleration ? (object)AcceleratedProbeTicks : null },
                 { "blindTickBudget", s != null ? s.BlindTickBudget : 0 }, { "maxTicksPerSecond", s != null ? s.MaxTicksPerSecond : 0 },
                 { "regulatedTicksPerSecond", s != null ? s.RegulatedTicksPerSecond : 0 }, { "blindTicks", s != null ? BlindTicks(s) : 0 },
@@ -1303,6 +1312,8 @@ namespace HomeBridge.BridgeTools
         private sealed class InjurySnapshot
         {
             public int Count; public float Severity; public float BleedRate; public float BloodLoss; public float Health;
+            // Age in ticks of the youngest injury, for the stop's occurrence tick.
+            public int NewestWoundAgeTicks = int.MaxValue;
             public static InjurySnapshot Capture(Pawn pawn)
             {
                 var result = new InjurySnapshot();
@@ -1313,7 +1324,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var h in hediffs)
                     {
                         var injury = h as Hediff_Injury;
-                        if (injury != null) { result.Count++; result.Severity += injury.Severity; result.BleedRate += injury.BleedRate; }
+                        if (injury != null) { result.Count++; result.Severity += injury.Severity; result.BleedRate += injury.BleedRate; result.NewestWoundAgeTicks = Math.Min(result.NewestWoundAgeTicks, Math.Max(0, injury.ageTicks)); }
                         if (h.def == HediffDefOf.BloodLoss) result.BloodLoss = Math.Max(result.BloodLoss, h.Severity);
                     }
                 }
@@ -1341,6 +1352,7 @@ namespace HomeBridge.BridgeTools
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
             public readonly EpochTiming Timing = new EpochTiming();
             public long? StopAtMs;
+            public int DetectedTick;
             public bool? PauseVerified; public bool PauseFailureReported;
             public string? StopReason; public string? StopDetail;
             public string? PendingKind; public string? PendingDetail;

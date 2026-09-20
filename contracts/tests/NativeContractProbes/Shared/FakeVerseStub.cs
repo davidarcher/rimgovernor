@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
                 StartTick = Verse.Find.TickManager.TicksGame, TickDeadline = Verse.Find.TickManager.TicksGame + maxTicks, LastTick = Verse.Find.TickManager.TicksGame
             };
             EnsureJournal();
-            AttachTypedEpoch(s); _state = s;
+            AttachTypedEpoch(s); _state = s; ClockPauseAccounting.Started(s.Session);
             if (InitialStop != null) Stop(s, InitialStop, "Initial safety probe stopped", true, null);
             else { Verse.Find.TickManager.CurTimeSpeed = speed; Add("started", "Started", s, null); }
             return null;
@@ -152,7 +152,7 @@ namespace HomeBridge.BridgeTools
             s.PauseVerified = !pause || Verse.Find.TickManager.CurTimeSpeed == Verse.TimeSpeed.Paused;
             s.Typed.StopPauseVerified = ReferenceEquals(Verse.Current.Game, s.Session) && ReferenceEquals(Verse.Find.CurrentMap, s.Map) && Verse.Find.TickManager.CurTimeSpeed == Verse.TimeSpeed.Paused;
             if (s.PauseVerified == false) { s.PendingKind = kind; s.PendingDetail = detail; Add("pause_failed", detail, s, payload); return; }
-            s.Active = false; s.StopReason = kind; s.StopDetail = detail; s.StopAtMs = NowMs(); s.PendingKind = null;
+            s.Active = false; s.StopReason = kind; s.StopDetail = detail; s.StopAtMs = NowMs(); s.PendingKind = null; ClockPauseAccounting.Stopped();
             Add(kind, detail, s, payload);
         }
         private static void Add(string kind, string detail, State s, Dictionary<string, object> payload)

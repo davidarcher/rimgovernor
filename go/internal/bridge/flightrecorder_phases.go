@@ -7,6 +7,8 @@ import (
 	"math"
 	"sort"
 	"strings"
+
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 // ToolPhases aggregates the recorded call phases for one native tool.
@@ -146,6 +148,31 @@ type ClockSample struct {
 	ClockSamples  uint64  `json:"clock_samples"`
 	PausedSecs    float64 `json:"paused_seconds"`
 	SampledSecs   float64 `json:"sampled_seconds"`
+	// NativePausedMs and NativeRunningMs are native's own account of the
+	// wall time between the first and last status samples (issue #621):
+	// the supervisor's stop-to-start gaps and its epochs' running time,
+	// measured on native's monotonic clock across every transition,
+	// polled or not. The sample ratio above is a sampling diagnostic;
+	// PausedFractionNative is the paused share to report.
+	NativePausedMs     uint64 `json:"native_paused_ms"`
+	NativeRunningMs    uint64 `json:"native_running_ms"`
+	NativePauseSamples uint64 `json:"native_pause_samples"`
+}
+
+// PausedFractionNative is native's paused share of the accounted wall
+// time, NativePausedMs / (NativePausedMs + NativeRunningMs), or 0 without
+// any accounted time.
+func (c ClockSample) PausedFractionNative() float64 {
+	return NativePausedFraction(c.NativePausedMs, c.NativeRunningMs)
+}
+
+// NativePausedFraction is paused / (paused + running), or 0 for nothing
+// accounted.
+func NativePausedFraction(pausedMs, runningMs uint64) float64 {
+	if pausedMs+runningMs == 0 {
+		return 0
+	}
+	return float64(pausedMs) / float64(pausedMs+runningMs)
 }
 
 // PausedFraction is the time-weighted share of the sampled wall time the
@@ -173,6 +200,8 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	var pausedWall float64
 	var lastPaused, havePaused bool
 	var stopLatencyMs float64
+	var firstPause, lastPause nativePause
+	var havePause bool
 	for _, row := range records {
 		summary.Records++
 		if row.Kind == "recording_gap" {
@@ -213,7 +242,14 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			if row.Kind != "native_response" || entry.Wrapper != "games_call_tool" {
 				continue
 			}
-			tick, paused, hasTick, hasPaused := replyClock(row.Payload["result"])
+			tick, paused, hasTick, hasPaused, pause, hasPause := replyClock(row.Payload["result"])
+			if hasPause {
+				summary.Clock.NativePauseSamples++
+				if !havePause {
+					firstPause, havePause = pause, true
+				}
+				lastPause = pause
+			}
 			if hasPaused {
 				summary.Clock.ClockSamples++
 				if paused {
@@ -331,6 +367,10 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 		return summary.Tools[i].NativeTool+summary.Tools[i].Wrapper < summary.Tools[j].NativeTool+summary.Tools[j].Wrapper
 	})
 	summary.WallSecs = summary.LastWall - summary.FirstWall
+	if havePause && lastPause.paused >= firstPause.paused && lastPause.running >= firstPause.running {
+		summary.Clock.NativePausedMs = lastPause.paused - firstPause.paused
+		summary.Clock.NativeRunningMs = lastPause.running - firstPause.running
+	}
 	if summary.Steps.Stops.LatencySamples > 0 {
 		summary.Steps.Stops.MeanLatencyMs = stopLatencyMs / float64(summary.Steps.Stops.LatencySamples)
 	}
@@ -378,7 +418,11 @@ func number(value any) (float64, bool) {
 // result is the ProtoBoundary wrapper {"payload": "<ProtoJSON>"}; the tick
 // lives at <reply>.<outcome>.context.tick for observation replies and at
 // <reply>.status.context.tick for clock status.
-func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bool) {
+// nativePause is one status sample's native pause account (issue #621):
+// cumulative paused and running milliseconds on native's clock.
+type nativePause struct{ paused, running uint64 }
+
+func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bool, pause nativePause, hasPause bool) {
 	wrapper, ok := result.(map[string]any)
 	if !ok {
 		return
@@ -391,6 +435,14 @@ func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bo
 	if json.Unmarshal([]byte(payload), &reply) != nil {
 		return
 	}
+	status := func(candidate map[string]any) {
+		if value, ok := statusPaused(candidate); ok {
+			paused, hasPaused = value, true
+		}
+		if value, ok := statusPause(candidate); ok {
+			pause, hasPause = value, true
+		}
+	}
 	for _, outcome := range reply {
 		body, ok := outcome.(map[string]any)
 		if !ok {
@@ -401,25 +453,34 @@ func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bo
 				tick, hasTick = value, true
 			}
 		}
-		if value, ok := statusPaused(body); ok {
-			paused, hasPaused = value, true
-		}
+		status(body)
 		// A bundle carries the clock status as a section; a control
 		// receipt's applied outcome carries the status it applied.
-		if status, ok := body["clockStatus"].(map[string]any); ok {
-			if value, ok := statusPaused(status); ok {
-				paused, hasPaused = value, true
-			}
+		if section, ok := body["clockStatus"].(map[string]any); ok {
+			status(section)
 		}
 		if applied, ok := body["applied"].(map[string]any); ok {
-			if status, ok := applied["status"].(map[string]any); ok {
-				if value, ok := statusPaused(status); ok {
-					paused, hasPaused = value, true
-				}
+			if section, ok := applied["status"].(map[string]any); ok {
+				status(section)
 			}
 		}
 	}
 	return
+}
+
+// statusPause reads a recorded clock status's native pause account
+// (pausedMs / runningMs, ProtoJSON uint64 strings), absent on a status from
+// a native build without it.
+func statusPause(status map[string]any) (nativePause, bool) {
+	pausedMs, ok := tickValue(status["pausedMs"])
+	if !ok {
+		return nativePause{}, false
+	}
+	runningMs, _ := tickValue(status["runningMs"])
+	if pausedMs < 0 || runningMs < 0 {
+		return nativePause{}, false
+	}
+	return nativePause{paused: uint64(pausedMs), running: uint64(runningMs)}, true
 }
 
 // statusPaused reads whether a recorded clock status shows the clock paused:
@@ -465,6 +526,9 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, "clock: %d ticks over %.1fs = %.1f wall TPS (%d tick samples, %d resets)", clock.TicksAdvanced, clock.WallSecs, clock.WallTPS, clock.TickSamples, clock.Resets)
 		if clock.ClockSamples > 0 {
 			fmt.Fprintf(w, ", paused %d/%d status samples (%.0f%% of %.1fs sampled)", clock.PausedSamples, clock.ClockSamples, 100*clock.PausedFraction(), clock.SampledSecs)
+		}
+		if clock.NativePausedMs+clock.NativeRunningMs > 0 {
+			fmt.Fprintf(w, ", native paused %.1fs of %.1fs (%.0f%%)", float64(clock.NativePausedMs)/1000, float64(clock.NativePausedMs+clock.NativeRunningMs)/1000, 100*clock.PausedFractionNative())
 		}
 		fmt.Fprintln(w)
 	}
@@ -526,4 +590,12 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, "%-52s %-17s %6d %6d %4d %9.1f %9.1f %9.1f %9s %9s %9.2f %9.2f %9.1f\n", tool.NativeTool, wrapper, tool.Calls, tool.CacheHits, tool.Errors,
 			tool.TotalMs/calls, tool.GateWaitMs/calls, tool.CallMs/calls, queue, execute, tool.DecodeMs/calls, tool.ProtoDecodeMs/calls, float64(tool.ResponseBytes)/calls/1024)
 	}
+}
+
+// ClockStatusPausedFraction is PausedFractionNative over one typed clock
+// status: native's cumulative paused_ms / (paused_ms + running_ms) for the
+// loaded session (issue #621). A status from a native build without the
+// account reads as 0.
+func ClockStatusPausedFraction(status *k.Status) float64 {
+	return NativePausedFraction(status.GetPausedMs(), status.GetRunningMs())
 }

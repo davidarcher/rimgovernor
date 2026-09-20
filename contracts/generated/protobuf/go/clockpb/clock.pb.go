@@ -1352,8 +1352,15 @@ type Status struct {
 	ActualPaused         *bool              `protobuf:"varint,19,opt,name=actual_paused,json=actualPaused,proto3,oneof" json:"actual_paused,omitempty"`
 	// The launch admits StartRequest.test_acceleration.
 	TestAccelerationAvailable *bool `protobuf:"varint,20,opt,name=test_acceleration_available,json=testAccelerationAvailable,proto3,oneof" json:"test_acceleration_available,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Wall time the supervisor's own stop/start transitions account for in
+	// this game session, on a monotonic clock: paused_ms is the time from
+	// each stop to the next start (the open gap included while stopped),
+	// running_ms the time each epoch ran. Gaps no controller observed count.
+	// Both reset when the loaded game changes.
+	PausedMs      *uint64 `protobuf:"varint,21,opt,name=paused_ms,json=pausedMs,proto3,oneof" json:"paused_ms,omitempty"`
+	RunningMs     *uint64 `protobuf:"varint,22,opt,name=running_ms,json=runningMs,proto3,oneof" json:"running_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Status) Reset() {
@@ -1541,6 +1548,20 @@ func (x *Status) GetTestAccelerationAvailable() bool {
 		return *x.TestAccelerationAvailable
 	}
 	return false
+}
+
+func (x *Status) GetPausedMs() uint64 {
+	if x != nil && x.PausedMs != nil {
+		return *x.PausedMs
+	}
+	return 0
+}
+
+func (x *Status) GetRunningMs() uint64 {
+	if x != nil && x.RunningMs != nil {
+		return *x.RunningMs
+	}
+	return 0
 }
 
 type isStatus_State interface {
@@ -3408,9 +3429,15 @@ type StopEvent struct {
 	//	*StopEvent_Pause
 	//	*StopEvent_Unavailable
 	//	*StopEvent_Watch
-	Evidence      isStopEvent_Evidence `protobuf_oneof:"evidence"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Evidence isStopEvent_Evidence `protobuf_oneof:"evidence"`
+	// The tick at which the supervisor first raised this stop; the event's
+	// context tick is the tick it took (a failed pause retries per frame).
+	DetectedTick *int64 `protobuf:"varint,10,opt,name=detected_tick,json=detectedTick,proto3,oneof" json:"detected_tick,omitempty"`
+	// The tick the hazard arose, when the evidence carries one (a new wound's
+	// age); absent otherwise.
+	OccurrenceTick *int64 `protobuf:"varint,11,opt,name=occurrence_tick,json=occurrenceTick,proto3,oneof" json:"occurrence_tick,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StopEvent) Reset() {
@@ -3527,6 +3554,20 @@ func (x *StopEvent) GetWatch() *WatchLatched {
 		}
 	}
 	return nil
+}
+
+func (x *StopEvent) GetDetectedTick() int64 {
+	if x != nil && x.DetectedTick != nil {
+		return *x.DetectedTick
+	}
+	return 0
+}
+
+func (x *StopEvent) GetOccurrenceTick() int64 {
+	if x != nil && x.OccurrenceTick != nil {
+		return *x.OccurrenceTick
+	}
+	return 0
 }
 
 type isStopEvent_Evidence interface {
@@ -4013,7 +4054,11 @@ type Event struct {
 	//	*Event_OperationOutcome
 	//	*Event_AuthorityChanged
 	//	*Event_ObservationInvalidated
-	Event         isEvent_Event `protobuf_oneof:"event"`
+	Event isEvent_Event `protobuf_oneof:"event"`
+	// How long ago, on native's own clock, this event was observed when the
+	// page carrying it was composed: the unobserved time a stop sat in native
+	// before this reply, measured without comparing clocks across processes.
+	AgeAtReplyMs  *uint64 `protobuf:"varint,19,opt,name=age_at_reply_ms,json=ageAtReplyMs,proto3,oneof" json:"age_at_reply_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4205,6 +4250,13 @@ func (x *Event) GetObservationInvalidated() *ObservationInvalidated {
 		}
 	}
 	return nil
+}
+
+func (x *Event) GetAgeAtReplyMs() uint64 {
+	if x != nil && x.AgeAtReplyMs != nil {
+		return *x.AgeAtReplyMs
+	}
+	return 0
 }
 
 type isEvent_Event interface {
@@ -4645,7 +4697,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x0f_pause_verifiedB\x12\n" +
 	"\x10_pause_requestedB\x15\n" +
 	"\x13_stopped_at_unix_ms\"\x0e\n" +
-	"\fNeverStarted\"\xac\v\n" +
+	"\fNeverStarted\"\x8f\f\n" +
 	"\x06Status\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x129\n" +
 	"\arunning\x18\x02 \x01(\v2\x1d.rimgovernor.clock.v1.RunningH\x00R\arunning\x12<\n" +
@@ -4669,7 +4721,10 @@ const file_clock_proto_rawDesc = "" +
 	"\x0eobserved_speed\x18\x12 \x01(\x0e2#.rimgovernor.clock.v1.ObservedSpeedH\tR\robservedSpeed\x88\x01\x01\x12(\n" +
 	"\ractual_paused\x18\x13 \x01(\bH\n" +
 	"R\factualPaused\x88\x01\x01\x12C\n" +
-	"\x1btest_acceleration_available\x18\x14 \x01(\bH\vR\x19testAccelerationAvailable\x88\x01\x01B\a\n" +
+	"\x1btest_acceleration_available\x18\x14 \x01(\bH\vR\x19testAccelerationAvailable\x88\x01\x01\x12 \n" +
+	"\tpaused_ms\x18\x15 \x01(\x04H\fR\bpausedMs\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"running_ms\x18\x16 \x01(\x04H\rR\trunningMs\x88\x01\x01B\a\n" +
 	"\x05stateB\x17\n" +
 	"\x15_native_tick_boundaryB\x11\n" +
 	"\x0f_durable_eventsB\x10\n" +
@@ -4681,7 +4736,10 @@ const file_clock_proto_rawDesc = "" +
 	"\f_probe_countB\x11\n" +
 	"\x0f_observed_speedB\x10\n" +
 	"\x0e_actual_pausedB\x1e\n" +
-	"\x1c_test_acceleration_available\"\x8c\x01\n" +
+	"\x1c_test_acceleration_availableB\f\n" +
+	"\n" +
+	"_paused_msB\r\n" +
+	"\v_running_ms\"\x8c\x01\n" +
 	"\vStatusReply\x126\n" +
 	"\x06status\x18\x01 \x01(\v2\x1c.rimgovernor.clock.v1.StatusH\x00R\x06status\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
@@ -4859,7 +4917,7 @@ const file_clock_proto_rawDesc = "" +
 	"\fWatchLatched\x12@\n" +
 	"\aoutcome\x18\x01 \x01(\v2&.rimgovernor.clock.v1.OperationOutcomeR\aoutcome\x12(\n" +
 	"\rtick_deadline\x18\x02 \x01(\x03H\x00R\ftickDeadline\x88\x01\x01B\x10\n" +
-	"\x0e_tick_deadline\"\xe2\x04\n" +
+	"\x0e_tick_deadline\"\xe0\x05\n" +
 	"\tStopEvent\x12=\n" +
 	"\x06reason\x18\x01 \x01(\x0e2 .rimgovernor.clock.v1.StopReasonH\x01R\x06reason\x88\x01\x01\x12O\n" +
 	"\rnotifications\x18\x02 \x01(\v2'.rimgovernor.clock.v1.NotificationBatchH\x00R\rnotifications\x125\n" +
@@ -4869,10 +4927,15 @@ const file_clock_proto_rawDesc = "" +
 	"\x06budget\x18\x06 \x01(\v2#.rimgovernor.clock.v1.BudgetReachedH\x00R\x06budget\x12;\n" +
 	"\x05pause\x18\a \x01(\v2#.rimgovernor.clock.v1.PauseEvidenceH\x00R\x05pause\x12F\n" +
 	"\vunavailable\x18\b \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
-	"\x05watch\x18\t \x01(\v2\".rimgovernor.clock.v1.WatchLatchedH\x00R\x05watchB\n" +
+	"\x05watch\x18\t \x01(\v2\".rimgovernor.clock.v1.WatchLatchedH\x00R\x05watch\x12(\n" +
+	"\rdetected_tick\x18\n" +
+	" \x01(\x03H\x02R\fdetectedTick\x88\x01\x01\x12,\n" +
+	"\x0foccurrence_tick\x18\v \x01(\x03H\x03R\x0eoccurrenceTick\x88\x01\x01B\n" +
 	"\n" +
 	"\bevidenceB\t\n" +
-	"\a_reason\"A\n" +
+	"\a_reasonB\x10\n" +
+	"\x0e_detected_tickB\x12\n" +
+	"\x10_occurrence_tick\"A\n" +
 	"\fEpochStarted\x121\n" +
 	"\x05epoch\x18\x01 \x01(\v2\x1b.rimgovernor.clock.v1.EpochR\x05epoch\"\xd4\x01\n" +
 	"\x16ObservationInvalidated\x12<\n" +
@@ -4911,7 +4974,7 @@ const file_clock_proto_rawDesc = "" +
 	"\n" +
 	"_waited_msB\x13\n" +
 	"\x11_force_pause_kindB\x11\n" +
-	"\x0f_speed_restored\"\xa2\n" +
+	"\x0f_speed_restored\"\xe2\n" +
 	"\n" +
 	"\x05Event\x12\x1b\n" +
 	"\x06cursor\x18\x01 \x01(\x03H\x01R\x06cursor\x88\x01\x01\x126\n" +
@@ -4932,11 +4995,13 @@ const file_clock_proto_rawDesc = "" +
 	"\x13force_pause_cleared\x18\x0f \x01(\v2'.rimgovernor.clock.v1.ForcePauseClearedH\x00R\x11forcePauseCleared\x12U\n" +
 	"\x11operation_outcome\x18\x10 \x01(\v2&.rimgovernor.clock.v1.OperationOutcomeH\x00R\x10operationOutcome\x12U\n" +
 	"\x11authority_changed\x18\x11 \x01(\v2&.rimgovernor.clock.v1.AuthorityChangedH\x00R\x10authorityChanged\x12g\n" +
-	"\x17observation_invalidated\x18\x12 \x01(\v2,.rimgovernor.clock.v1.ObservationInvalidatedH\x00R\x16observationInvalidatedB\a\n" +
+	"\x17observation_invalidated\x18\x12 \x01(\v2,.rimgovernor.clock.v1.ObservationInvalidatedH\x00R\x16observationInvalidated\x12*\n" +
+	"\x0fage_at_reply_ms\x18\x13 \x01(\x04H\x04R\fageAtReplyMs\x88\x01\x01B\a\n" +
 	"\x05eventB\t\n" +
 	"\a_cursorB\x16\n" +
 	"\x14_observed_at_unix_msB\t\n" +
-	"\a_detail\"\xd4\x01\n" +
+	"\a_detailB\x12\n" +
+	"\x10_age_at_reply_ms\"\xd4\x01\n" +
 	"\rEventsRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12&\n" +
 	"\fafter_cursor\x18\x02 \x01(\x03H\x00R\vafterCursor\x88\x01\x01\x12\x19\n" +
