@@ -70,7 +70,17 @@ it('rejects malformed resource runways at the API boundary', () => {
     expect(() => readRoutineStatus(status({resourceRunways: [{...runway, ...extra}]}))).toThrow();
   }
   expect(() => readRoutineStatus(status({resourceRunways: null}))).toThrow();
-});it('reads the colony grid, tolerates loot holds and rejects an inconsistent grid', () => {
+});it('reads the layout tidy review and rejects an inconsistent one', () => {
+  const proposal = {kind: 'field', item: 'Zone_7', from: {x: 20, z: 5, width: 2, height: 2}, to: {x: 17, z: 1, width: 11, height: 5}, crop: 'Plant_Rice', gain: 6, distance: 12, explanation: 'field Zone_7 off grid'};
+  const tidy = {active: true, reason: '', candidates: 1, proposal};
+  expect(readRoutineStatus(status({layoutTidy: tidy})).layoutTidy).toEqual(tidy);
+  expect(readRoutineStatus(status({layoutTidy: {active: false, reason: 'colony busy', candidates: 1, proposal: null}})).layoutTidy?.reason).toBe('colony busy');
+  expect(readRoutineStatus(status()).layoutTidy).toBeNull();
+  for (const bad of [{...tidy, active: false}, {...tidy, proposal: {...proposal, gain: -1}}, {...tidy, candidates: null}]) {
+    expect(() => readRoutineStatus(status({layoutTidy: bad}))).toThrow();
+  }
+});
+it('reads the colony grid, tolerates loot holds and rejects an inconsistent grid', () => {
   const grid = {origin: {x: 40, z: 50}, pitch: 16, axes: [{x: 0, z: -1}, {x: 1, z: 0}], source: 'starter_shell', bounds: {width: 250, height: 200}};
   expect(readRoutineStatus(status({colonyGrid: grid, lootHolds: [{thing: 'Thing_1', definition: 'Steel', x: 1, z: 2, reason: 'reach'}]})).colonyGrid).toEqual(grid);
   expect(readRoutineStatus(status({colonyGrid: null})).colonyGrid).toBeNull();

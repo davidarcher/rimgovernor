@@ -14,6 +14,8 @@ namespace HomeBridge.BridgeTools
     // reads Masonry, stages the starter hut (FixtureHut) whose south-west
     // corner the controller fixes the colony grid on, and drops wood beside
     // its door; the field the controller then plans is the case's own.
+    // The layout/tidy case (#611) stages the hut at Camp with PrepareTidy and
+    // finishes Stonecutting mid-run with FinishResearch.
     // Audit reads every finished player wall ring and growing zone back
     // with their cells so the case checks both footprints against the grid.
     public sealed class LayoutGridFixture
@@ -35,6 +37,32 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        [Tool("test/layout_tidy_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture for layout/tidy (#611): build the fixture hut with wood beside its door at Camp tier (no research finished) so the field family plants its first patch off the grid; the tidy stage finishes Stonecutting later with test/layout_tidy_research.")]
+        public async Task<object> PrepareTidy(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
+                var hut = FixtureHut.Build(map, 9);
+                FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
+                return new { success = true, hut = hut.Summary(), hutOrigin = new { x = hut.Origin.x, z = hut.Origin.z }, hutSize = 9,
+                    stonecutting = DefDatabase<ResearchProjectDef>.GetNamed("Stonecutting").IsFinished, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/layout_tidy_research", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: finish the named research (default Stonecutting) with its prerequisites on the paused game so the build tier reads Masonry.")]
+        public async Task<object> FinishResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "ResearchProjectDef to finish (default Stonecutting).")] string project = "Stonecutting")
+        {
+            var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Find.CurrentMap == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
+                var def = DefDatabase<ResearchProjectDef>.GetNamed(name);
+                Finish(def);
+                return new { success = true, project = name, finished = def.IsFinished, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("test/layout_grid_audit", Description = "Private read-only fixture: every finished player wall or door cell and every growing zone with its cells and crop.")]
         public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
@@ -45,7 +73,7 @@ namespace HomeBridge.BridgeTools
                     .Where(b => b.def.defName == "Wall" || b.def.defName == "Door")
                     .Select(b => new { x = b.Position.x, z = b.Position.z, def = b.def.defName }).ToList();
                 var zones = map.zoneManager.AllZones.OfType<Zone_Growing>()
-                    .Select(z => new { id = z.ID, label = z.label, crop = z.GetPlantDefToGrow()?.defName,
+                    .Select(z => new { id = z.ID, loadId = z.GetUniqueLoadID(), label = z.label, crop = z.GetPlantDefToGrow()?.defName,
                         cells = z.Cells.Select(c => new { x = c.x, z = c.z }).ToList() }).ToList();
                 return new { success = true, tick = Find.TickManager.TicksGame, walls, zones };
             }, cancellationToken).ConfigureAwait(false);

@@ -84,6 +84,13 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
         <ColonyGridOverlay grid={state.value.colonyGrid}/>
       </> : <p>No colony grid has been established yet.</p>}
     </section>}
+    {state.value?.layoutTidy && <section aria-label="Layout tidy"><h3>Layout tidy</h3>
+      {state.value.layoutTidy.proposal ? <>
+        <p>Pending re-site: {state.value.layoutTidy.proposal.kind} {state.value.layoutTidy.proposal.item} from {state.value.layoutTidy.proposal.from.width}×{state.value.layoutTidy.proposal.from.height} at {state.value.layoutTidy.proposal.from.x}, {state.value.layoutTidy.proposal.from.z}{state.value.layoutTidy.proposal.kind === 'shell' ? ' (deconstruct)' : ` to ${state.value.layoutTidy.proposal.to.width}×${state.value.layoutTidy.proposal.to.height} at ${state.value.layoutTidy.proposal.to.x}, ${state.value.layoutTidy.proposal.to.z}`}{state.value.layoutTidy.proposal.crop && ` · crop ${state.value.layoutTidy.proposal.crop}`} · alignment gain {state.value.layoutTidy.proposal.gain}</p>
+        <p>{state.value.layoutTidy.proposal.explanation}</p>
+      </> : <p>No re-site pending{state.value.layoutTidy.reason && ` · ${state.value.layoutTidy.reason}`}{state.value.layoutTidy.candidates > 0 && ` · ${state.value.layoutTidy.candidates} off grid`}</p>}
+      <p>One re-site moves at a time, only while no construction or hauling work is open; a tidied item is never re-sited again.</p>
+    </section>}
     {state.value && <section aria-label="Material runway"><h3>Material runway</h3>
       {state.value.resourceRunways.length === 0 ? <p>No material runway has been recorded yet.</p> : <>
         <div className="material-runway-scroll" role="region" aria-label="Material runway details" tabIndex={0}><table className="development-table"><thead><tr><th scope="col">Material</th><th scope="col">Days left</th><th scope="col">Stock-only days</th><th scope="col">Stock</th><th scope="col">Surface ore</th><th scope="col">Consumption/day</th><th scope="col">Reserve</th><th scope="col">Status</th><th scope="col">Target</th><th scope="col">Review</th></tr></thead>

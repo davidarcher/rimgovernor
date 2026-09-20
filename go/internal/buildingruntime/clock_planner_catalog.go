@@ -756,6 +756,16 @@ var plannerCatalog = []plannerEntry{
 			out.StoneShell = &method
 			return method.Reason, nil
 		}},
+	{name: "tidy", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCreateAction, domain.ZoneDeleteAction, domain.DeconstructionAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Tidy != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.Tidy.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.Tidy = &method
+			return method.Reason, nil
+		}},
 	{name: "defenseLayout", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.RecoveryServiceAction, domain.CoverClearanceAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.DefenseLayout != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

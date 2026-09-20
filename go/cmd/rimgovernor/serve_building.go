@@ -36,6 +36,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zonedelete"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -152,6 +153,7 @@ type buildingServiceBridge struct {
 	bedMedical          *bedmedical.Capabilities
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
+	zoneDelete          *zonedelete.Capabilities
 	openCasket          *buildingruntime.OpenCasketCapabilities
 	bedAssign           *bedassign.Capabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
@@ -326,6 +328,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	zoneDeleteControl, err := bridge.NewZoneDeleteControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	bedAssignWriter, err := bridge.NewBedAssignWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -391,6 +397,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
+		zoneDelete:          &zonedelete.Capabilities{Native: client, Writer: zoneDeleteControl},
 		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
 		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
@@ -814,6 +821,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		claimBuildingCapabilities = client.claimBuilding
 	}
+	// The tidy family dissolves re-sited zones through the shared executor (#611).
+	var zoneDeleteCapabilities *zonedelete.Capabilities
+	if config.routineTidyPlans {
+		if client.zoneDelete == nil {
+			return errors.New("tidy plans require typed capabilities")
+		}
+		zoneDeleteCapabilities = client.zoneDelete
+	}
 	// The shrine family opens filled caskets through the shared executor (#460).
 	var openCasketCapabilities *buildingruntime.OpenCasketCapabilities
 	if config.routineShrinePlans {
@@ -894,6 +909,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		BedMedical:          bedMedicalCapabilities,
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
+		ZoneDelete:          zoneDeleteCapabilities,
 		OpenCasket:          openCasketCapabilities,
 		BedAssign:           bedAssignCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,

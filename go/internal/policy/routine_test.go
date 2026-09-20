@@ -20,6 +20,7 @@ func stableRoutine() RoutineFacts {
 		Prisoners:            domain.Known([]PrisonerFacts{}),
 		Waste:                domain.Known([]WasteItem{}),
 		Blight:               domain.Known([]BlightedPlant{}),
+		LayoutTidy:           domain.Known(TidyReview{Known: true, Reason: "nothing off grid"}),
 		MedicalReserve:       MedicalReserveObservation{Items: domain.Known([]MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 9, Perishable: domain.Known(false)}}), Resources: domain.Known([]Amount{{"MedicineHerbal", 9}})},
 		FoodStorageUpkeep:    FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{})},
 		Upkeep:               emptyUpkeep(),

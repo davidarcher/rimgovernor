@@ -128,6 +128,7 @@ type ClockSchedulerConfig struct {
 	CaravanJourney                   *CaravanJourneyTracker
 	HomeCoverage                     *RoutineHomeCoveragePlanner
 	StoneShell                       *RoutineStoneShellPlanner
+	Tidy                             *RoutineTidyPlanner
 	DefenseLayout                    *RoutineDefenseLayoutPlanner
 	Waste                            *RoutineWastePlanner
 	MoodRelief                       *RoutineMoodReliefPlanner
@@ -194,6 +195,7 @@ type ClockSchedulerResult struct {
 	CaravanJourney                   *CaravanJourneyResult
 	HomeCoverage                     *RoutineHomeCoverageResult
 	StoneShell                       *RoutineStoneShellResult
+	Tidy                             *RoutineTidyResult
 	DefenseLayout                    *RoutineDefenseLayoutResult
 	Waste                            *RoutineWasteResult
 	MoodRelief                       *RoutineMoodReliefResult
@@ -537,6 +539,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Tidy != nil && (config.Routine == nil || config.Tidy.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine) {
@@ -2007,7 +2012,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		// Allow, work settings, zones, a building's temperature target, a
 		// bed's medical flag, a bed's owner, a grower's crop and a claim are immediate
 		// designations and need no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.SupplyForbidAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction || p.Action().Kind() == domain.ClaimBuildingAction {
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.SupplyForbidAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction || p.Action().Kind() == domain.ClaimBuildingAction || p.Action().Kind() == domain.ZoneDeleteAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action

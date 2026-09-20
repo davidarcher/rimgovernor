@@ -231,7 +231,46 @@ it as `colonyGrid` with the map bounds, the dashboard's development panel
 draws the overlay (grid lines and origin marker) and `acceptance why` lists
 the persisted rows.
 
-## Site selection and development
+### Layout tidy
+
+`TidyLayout` (#611) re-sites a settled colony's early sprawl one item at a
+time. It is a maintenance goal ranked below every production, upkeep and
+defense goal (the lowest priority, a nominal deficit) and is active only at
+tier >= `Masonry`, with a known grid, while the colony has no unfilled
+construction or hauling work: any open project definition or open building,
+haul, zone or clearance action, an incomplete zone census or unknown zone
+claims all read as busy. Candidates are managed items only: a zone the
+colony itself created (a completed `zone_create` under an autopilot goal,
+`store.ZoneClaims`) still listed by the zone census, or a `Camp` shell whose
+every ring cell stands on a construction claim. A managed field is a
+candidate when its corner is off the module sub-cell corners
+(`tidyAlignment`, offsets 1 and 7 from a grid line) or it holds fewer than
+a half module's cells; a managed stockpile when it is off those corners; a
+shell when it is off the grid lines, not in use (no beds, no contents) and
+another empty enclosed room of the same role stands on the grid.
+`policy.PlanTidyLayout` proposes the candidate with the largest alignment
+gain (ties to the nearest free sub-cell, then the lowest id): a field moves
+to the nearest free fertile sub-cell of the C5 size in the Fields district
+(then any), a stockpile to the smallest sub-cell holding its cells in
+Storage, a shell is deconstructed. Player zones and buildings are never
+touched, one re-site is in flight at a time and a tidied item (moving, done
+or abandoned) is never proposed again; the set is journaled per world and
+timeline (`store.RecordLayoutTidy`, persistence contracts).
+
+The planner (`RoutineTidyPlanner`, family `tidy`) runs a zone re-site as two
+methods under the goal: `tidy-create-*` admits the new zone through the
+building admission family (a zone preview, no cost) and journals the tidy
+moving; once the new field reports planted cells (a stockpile as soon as it
+stands, its contents move by ordinary hauling) `tidy-delete-*` commits a
+one-shot `zone_delete` of the old zone by its per-zone CAS token, and the
+tidy is journaled done when the census no longer lists it. A refused
+preview or admission, a create method that closed without a zone, or a new
+zone that vanished journals the tidy abandoned. A replaced shell is one
+`tidy-shell-*` method of deconstruction actions over its claimed ring. The
+review record carries the outcome (`RoutineReview.Layout`), the routines
+API reports it as `layoutTidy` (the pending proposal with its explanation,
+or why none stands), the dashboard's development panel shows it, and every
+proposal, start, deletion and completion is a `layout`/`tidy` clock event.
 
 Site selection compares up to the configured method-attempt limit using native
 terrain/fertility, placement, danger, current stock and projected travel to each

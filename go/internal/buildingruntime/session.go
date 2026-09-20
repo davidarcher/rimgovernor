@@ -30,6 +30,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zonedelete"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -77,6 +78,9 @@ type SessionConfig struct {
 	// ClaimBuilding backs the shrine family's casket claim (#459), the same
 	// one-shot CAS write shape as GrowerCrop.
 	ClaimBuilding *claimbuilding.Capabilities
+	// ZoneDelete backs the layout tidy's dissolution of a re-sited zone
+	// (#611), the same one-shot CAS write shape as ClaimBuilding.
+	ZoneDelete *zonedelete.Capabilities
 	// OpenCasket backs the shrine family casket opening (#460), a Repair-shaped
 	// pawn order whose opener the melee lock drafts first.
 	OpenCasket *OpenCasketCapabilities
@@ -388,6 +392,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.ZoneDelete != nil && (config.ZoneDelete.Native == nil || config.ZoneDelete.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -506,6 +513,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.ClaimBuilding != nil {
 		if err := worker.EnableClaimBuilding(claimbuilding.NewBoundary(place, *config.ClaimBuilding)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.ZoneDelete != nil {
+		if err := worker.EnableZoneDelete(zonedelete.NewBoundary(place, *config.ZoneDelete)); err != nil {
 			return cleanup(err)
 		}
 	}

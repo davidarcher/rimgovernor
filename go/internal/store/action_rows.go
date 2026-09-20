@@ -142,6 +142,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if claim, ok := a.ClaimBuilding(); ok {
 		// stuff carries the CAS token; there is nothing else to say.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff) VALUES(?,?,?,'claim_building',?,?)", a.ID(), plan, ordinal, claim.Thing(), claim.BeforeToken())
+	} else if del, ok := a.ZoneDelete(); ok {
+		// stuff carries the zone's CAS token; there is nothing else to say.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff) VALUES(?,?,?,'zone_delete',?,?)", a.ID(), plan, ordinal, del.Zone(), del.BeforeToken())
 	} else if crop, ok := a.GrowerCrop(); ok {
 		// definition carries the wanted crop, stuff the CAS token.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'grower_crop',?,?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop(), crop.BeforeToken())
@@ -706,6 +709,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewClaimBuildingAction(id, claim)
+		return a, ordinal, err
+	}
+	if kind == "zone_delete" && target.Valid && stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		del, err := domain.NewZoneDelete(target.String, stuff.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewZoneDeleteAction(id, del)
 		return a, ordinal, err
 	}
 	if kind == "grower_crop" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {

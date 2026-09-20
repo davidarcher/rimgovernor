@@ -18,7 +18,37 @@ import (
 // The link query keeps only plans with an observed zone_create action, as in
 // constructionClaims.
 func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
-	unknown := domain.Unknown[[]policy.OwnedStockpile]()
+	zones, err := zoneClaims(ctx, tx, current, tick)
+	if err != nil {
+		return domain.Unknown[[]policy.OwnedStockpile](), err
+	}
+	owned, known := zones.Value()
+	if !known {
+		return domain.Unknown[[]policy.OwnedStockpile](), nil
+	}
+	result := []policy.OwnedStockpile{}
+	for _, z := range owned {
+		if z.Kind == domain.StockpileZone {
+			result = append(result, policy.OwnedStockpile{ID: z.ID, Cells: z.Cells})
+		}
+	}
+	return domain.Known(result), nil
+}
+
+// OwnedZone is one zone this colony created, by native zone identity:
+// the completed zone_create's kind, crop and cells.
+type OwnedZone struct {
+	ID    string
+	Kind  domain.ZoneKind
+	Crop  string
+	Cells []domain.Cell
+}
+
+// zoneClaims lists every completed autopilot zone_create of the current
+// world scope by the native zone identity its receipt returned; the layout
+// tidy (#611) treats only these zones as managed.
+func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
+	unknown := domain.Unknown[[]OwnedZone]()
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.goal_id FROM goal_methods m JOIN goals g ON g.id=m.goal_id
  WHERE json_extract(g.payload,'$.Source')=? AND json_extract(g.payload,'$.Snapshot.Colony')=?
  AND json_extract(g.payload,'$.Snapshot.Load')=? AND json_extract(g.payload,'$.Snapshot.Map')=?
@@ -48,7 +78,7 @@ func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 	if len(links) > 256 {
 		return unknown, nil
 	}
-	result := []policy.OwnedStockpile{}
+	result := []OwnedZone{}
 	goals := map[domain.GoalID]GoalState{}
 	for _, link := range links {
 		g, cached := goals[link.goal]
@@ -71,10 +101,10 @@ func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 			zone, isZone := progress.Action().ZoneCreate()
 			effect, ek := v.Effect.Value()
 			id, known := v.Zone.Value()
-			if !isZone || zone.Kind() != domain.StockpileZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
+			if !isZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, policy.OwnedStockpile{ID: id, Cells: zone.Cells()})
+			result = append(result, OwnedZone{ID: id, Kind: zone.Kind(), Crop: zone.Crop(), Cells: zone.Cells()})
 			if len(result) > 256 {
 				return unknown, nil
 			}
@@ -96,6 +126,24 @@ func (s *Store) StockpileClaims(ctx context.Context, current domain.GenerationSn
 	}
 	defer tx.Rollback()
 	result, err := stockpileClaims(ctx, tx, current, tick)
+	if err != nil {
+		return result, err
+	}
+	return result, tx.Commit()
+}
+
+// ZoneClaims exposes zoneClaims outside the routine review transaction:
+// every zone this colony created in the current world scope.
+func (s *Store) ZoneClaims(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
+	if current.Validate() != nil || tick < 0 {
+		return domain.Unknown[[]OwnedZone](), ErrConflict
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return domain.Unknown[[]OwnedZone](), err
+	}
+	defer tx.Rollback()
+	result, err := zoneClaims(ctx, tx, current, tick)
 	if err != nil {
 		return result, err
 	}

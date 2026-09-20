@@ -378,6 +378,10 @@ type RoutineFacts struct {
 	// blighted_plants section), for BlightDeficit to detect and
 	// SelectBlightCuts to designate from.
 	Blight domain.Fact[[]BlightedPlant]
+	// LayoutTidy is the layout tidying review (#611) the reviewer measures
+	// from the zone census, the construction claims and the colony grid;
+	// unknown without a tier or grid.
+	LayoutTidy domain.Fact[TidyReview]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]GoalID]
 	Upkeep           UpkeepObservation
@@ -1264,6 +1268,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// Census-driven like waste: any standing blighted plant is a full
 		// deficit; availability is gated below through AvailableMethods.
 		addGoal(RemoveBlight, 3)
+	}
+	// TidyLayout (#611) is census-driven too: the layout review measures
+	// managed zones and Camp shells against the colony grid and stands a
+	// proposal only while the colony is idle; a standing proposal is the
+	// deficit. It ranks last (tidyPriority, tidyDeficit), and its
+	// availability is gated below through AvailableMethods.
+	tidyRecovered := domain.Unknown[bool]()
+	if tidy, known := f.LayoutTidy.Value(); known && tidy.Known {
+		tidyRecovered = domain.Known(!tidy.Active)
+	}
+	addAssessment(TidyLayout, tidyPriority, tidyRecovered)
+	if !positive(tidyRecovered) {
+		addGoal(TidyLayout, tidyPriority)
 	}
 	if err := f.Mood.Validate(); err != nil {
 		return RoutineNeeds{}, err

@@ -109,6 +109,13 @@ it('draws the colony grid overlay with its lines and origin', async () => {
   expect(overlay.querySelectorAll('[data-grid-line="z"]')).toHaveLength(5);
   expect(overlay.querySelector('[data-grid-origin]')).not.toBeNull();
 });
+it('shows the pending layout re-site and its explanation', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [], colonyGrid: null,
+    layoutTidy: {active: true, reason: '', candidates: 1, proposal: {kind: 'field', item: 'Zone_7', from: {x: 20, z: 5, width: 2, height: 2}, to: {x: 17, z: 1, width: 11, height: 5}, crop: 'Plant_Rice', gain: 6, distance: 12, explanation: 'field Zone_7 sits off the grid'}}})));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByText(/Pending re-site: field Zone_7 from 2×2 at 20, 5 to 11×5 at 17, 1 · crop Plant_Rice · alignment gain 6/)).toBeInTheDocument());
+  expect(screen.getByText('field Zone_7 sits off the grid')).toBeInTheDocument();
+});
 it('reports a missing colony grid', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [], colonyGrid: null})));
   render(<DevelopmentPanel active/>);

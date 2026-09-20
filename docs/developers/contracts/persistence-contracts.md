@@ -58,6 +58,12 @@ paired backups, manifests or archive tables.
   rewind within one load past the grid's tick forgets it. A grid visible
   through the lineage is never replaced: `EstablishColonyGrid` returns the
   visible grid and reports nothing established.
+- **Layout tidies.** The re-sites `TidyLayout` moved or is moving
+  (`store.RecordLayoutTidy`, `LayoutTidies`, #611) share the extent's
+  segments and reconciliation the same way: each status change (moving,
+  done, abandoned) is a row on the recording load, the latest visible row
+  per item through the lineage is the item's state, an older save restores
+  what it knew and a same-load tick rewind past a tidy's tick forgets it.
 
 ## What is re-derived
 

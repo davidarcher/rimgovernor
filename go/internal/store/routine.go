@@ -60,6 +60,9 @@ type RoutineReview struct {
 	// decaying skills and pawn profiles as of its Tick. A disabled review
 	// keeps the last one; absent until an enabled review planned work.
 	Roster *policy.WorkRosterReport `json:",omitempty"`
+	// Layout is the TidyLayout review this enabled review measured (#611):
+	// the standing proposal with its explanation, or why none stands.
+	Layout *policy.TidyReview `json:",omitempty"`
 	// AsOf is the tick each census section the review read described,
 	// by facts.Section name (#354); absent before any review filed one.
 	AsOf map[string]int64 `json:",omitempty"`
@@ -116,7 +119,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 305 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 306 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
@@ -199,7 +202,10 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256) {
 		return RoutineReview{}, errors.New("invalid routine roster history")
 	}
-	if len(r.Progress) > 305 {
+	if r.Layout != nil && len(r.Layout.Reason) > 256 {
+		return RoutineReview{}, errors.New("invalid routine layout review")
+	}
+	if len(r.Progress) > 306 {
 		return RoutineReview{}, errors.New("invalid routine progress history")
 	}
 	progressGoals := map[domain.GoalID]bool{}
@@ -537,6 +543,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.Sleeping = sleeping
 	r.Mood = moodRecord(mood)
 	r.Roster = routineRoster(request, previous, reset)
+	r.Layout = previous.Layout
+	if tidy, known := request.Facts.LayoutTidy.Value(); request.Enabled && known {
+		copied := tidy
+		r.Layout = &copied
+	}
 	r.ResourceRunways = resourceRunwayRecords(request.Facts.ResourceRunways)
 	if !request.Enabled && !reset {
 		r.ResourceRunways = previous.ResourceRunways

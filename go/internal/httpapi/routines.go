@@ -47,8 +47,11 @@ type RoutineStatus struct {
 	Stage *policy.ColonyStageRecord
 	// Roster is the roster planner's last recorded report (#448), nil until
 	// an enabled review planned work.
-	Roster   *policy.WorkRosterReport
-	Sections []facts.Status
+	Roster *policy.WorkRosterReport
+	// LayoutTidy is the last review's TidyLayout outcome (#611): the pending
+	// re-site with its explanation, or why none stands.
+	LayoutTidy *policy.TidyReview
+	Sections   []facts.Status
 	// LootHolds are the safe forbidden stacks the last review's reach stage
 	// or demand kept forbidden, with reasons (#522).
 	LootHolds []policy.LootHold
@@ -71,9 +74,49 @@ type routineStatusDTO struct {
 	Progress          []goalProgressDTO            `json:"progress"`
 	Stage             *colonyStageDTO              `json:"stage"`
 	Roster            *routineRosterDTO            `json:"roster"`
+	LayoutTidy        *layoutTidyDTO               `json:"layoutTidy"`
 	Sections          []routineSectionDTO          `json:"sections"`
 	LootHolds         []lootHoldDTO                `json:"lootHolds"`
 	ColonyGrid        *colonyGridDTO               `json:"colonyGrid"`
+}
+
+// layoutTidyDTO is the TidyLayout review for the development panel: the
+// gate outcome, the candidate count and the pending proposal, if any.
+type layoutTidyDTO struct {
+	Active     bool             `json:"active"`
+	Reason     string           `json:"reason"`
+	Candidates int              `json:"candidates"`
+	Proposal   *tidyProposalDTO `json:"proposal"`
+}
+type tidyProposalDTO struct {
+	Kind        string       `json:"kind"`
+	Item        string       `json:"item"`
+	From        rectangleDTO `json:"from"`
+	To          rectangleDTO `json:"to"`
+	Crop        string       `json:"crop"`
+	Gain        int          `json:"gain"`
+	Distance    int32        `json:"distance"`
+	Explanation string       `json:"explanation"`
+}
+type rectangleDTO struct {
+	X      int32 `json:"x"`
+	Z      int32 `json:"z"`
+	Width  int32 `json:"width"`
+	Height int32 `json:"height"`
+}
+
+func rectangle(r policy.Rectangle) rectangleDTO {
+	return rectangleDTO{X: r.X, Z: r.Z, Width: r.Width, Height: r.Height}
+}
+func layoutTidy(v *policy.TidyReview) *layoutTidyDTO {
+	if v == nil || !v.Known {
+		return nil
+	}
+	dto := &layoutTidyDTO{Active: v.Active, Reason: v.Reason, Candidates: v.Candidates}
+	if p, known := v.Proposal.Value(); known {
+		dto.Proposal = &tidyProposalDTO{Kind: string(p.Item.Kind), Item: p.Item.ID, From: rectangle(p.Item.Footprint), To: rectangle(p.Target), Crop: p.Item.Crop, Gain: p.Gain, Distance: p.Distance, Explanation: p.Explanation}
+	}
+	return dto
 }
 
 // colonyGridDTO is the persisted colony grid for the dashboard overlay:
@@ -294,6 +337,7 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 		dto := routineRoster(*v.Roster)
 		result.Roster = &dto
 	}
+	result.LayoutTidy = layoutTidy(v.LayoutTidy)
 	return result
 }
 
