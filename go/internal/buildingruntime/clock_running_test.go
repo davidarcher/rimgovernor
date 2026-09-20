@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -90,40 +91,48 @@ func TestClockPollStoppedPageClearsTheRunningWindow(t *testing.T) {
 // cadence, so a held read never queues ahead of a review's native reads.
 func TestClockWorkerHoldsThePollOnlyUnderARunningWindow(t *testing.T) {
 	t.Parallel()
-	w := clockLoopFixture(t)
-	w.config.PollInterval = 20 * time.Millisecond
-	w.config.PollWait = 10 * time.Millisecond
-	var mu sync.Mutex
-	var running bool
-	var waits []time.Duration
-	w.held = func() bool { mu.Lock(); defer mu.Unlock(); return running }
-	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
-		mu.Lock()
-		waits = append(waits, wait)
-		n := len(waits)
-		mu.Unlock()
-		if wait > 0 {
-			time.Sleep(wait)
-		}
-		if n == 3 {
+	synctest.Test(t, func(t *testing.T) {
+		w := clockLoopFixture(t)
+		w.config.PollInterval = 20 * time.Millisecond
+		w.config.PollWait = 10 * time.Millisecond
+		var mu sync.Mutex
+		var running bool
+		var waits []time.Duration
+		w.held = func() bool { mu.Lock(); defer mu.Unlock(); return running }
+		w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
 			mu.Lock()
-			running = true
+			waits = append(waits, wait)
+			n := len(waits)
 			mu.Unlock()
+			if wait > 0 {
+				time.Sleep(wait)
+			}
+			if n == 3 {
+				mu.Lock()
+				running = true
+				mu.Unlock()
+			}
+			return ClockPollResult{}, nil
 		}
-		return ClockPollResult{}, nil
-	}
-	w.start()
-	time.Sleep(120 * time.Millisecond)
-	mu.Lock()
-	defer mu.Unlock()
-	if len(waits) < 5 {
-		t.Fatal(waits)
-	}
-	for i, wait := range waits {
-		if held := i >= 3; (wait > 0) != held {
-			t.Fatal(i, waits)
+		w.start()
+		// Advance only virtual time, then join all runnable loop work.
+		time.Sleep(120 * time.Millisecond)
+		synctest.Wait()
+		mu.Lock()
+		defer mu.Unlock()
+		if len(waits) != 10 {
+			t.Fatal(waits)
 		}
-	}
+		for i, wait := range waits {
+			want := time.Duration(0)
+			if i >= 3 {
+				want = w.config.PollWait
+			}
+			if wait != want {
+				t.Fatal(i, waits)
+			}
+		}
+	})
 }
 
 // A step that leaves a window running ends the poll loop's cadence sleep,
@@ -315,38 +324,47 @@ func TestClockSchedulerDefersAdmissionForUndispatchedWork(t *testing.T) {
 // cadence otherwise.
 func TestClockWorkerPollsFasterUnderARunningWindow(t *testing.T) {
 	t.Parallel()
-	w := clockLoopFixture(t)
-	w.config.PollInterval = 60 * time.Millisecond
-	w.config.RunningPollInterval = 5 * time.Millisecond
-	w.config.PollWait = 0
-	var mu sync.Mutex
-	var running bool
-	var polls []time.Time
-	w.held = func() bool { mu.Lock(); defer mu.Unlock(); return running }
-	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
+	synctest.Test(t, func(t *testing.T) {
+		w := clockLoopFixture(t)
+		w.config.PollInterval = 60 * time.Millisecond
+		w.config.RunningPollInterval = 5 * time.Millisecond
+		w.config.PollWait = 0
+		var mu sync.Mutex
+		var running bool
+		var polls []time.Time
+		w.held = func() bool { mu.Lock(); defer mu.Unlock(); return running }
+		w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			polls = append(polls, time.Now())
+			if wait != 0 {
+				t.Error("read must not be held", wait)
+			}
+			if len(polls) == 3 {
+				running = true
+			}
+			return ClockPollResult{}, nil
+		}
+		w.start()
+		time.Sleep(190 * time.Millisecond)
+		synctest.Wait()
 		mu.Lock()
 		defer mu.Unlock()
-		polls = append(polls, time.Now())
-		if wait != 0 {
-			t.Error("read must not be held", wait)
+		// The third poll changes the hint; its already-selected idle interval
+		// ends at 180ms. Subsequent polls use the 5ms running cadence.
+		if len(polls) != 6 {
+			t.Fatal(len(polls), polls)
 		}
-		if len(polls) == 3 {
-			running = true
+		for i := 1; i < len(polls); i++ {
+			want := w.config.PollInterval
+			if i >= 4 {
+				want = w.config.RunningPollInterval
+			}
+			if gap := polls[i].Sub(polls[i-1]); gap != want {
+				t.Fatalf("poll %d cadence = %v, want %v", i, gap, want)
+			}
 		}
-		return ClockPollResult{}, nil
-	}
-	w.start()
-	time.Sleep(400 * time.Millisecond)
-	mu.Lock()
-	defer mu.Unlock()
-	// Two idle intervals (~120ms) then the running cadence: well over the
-	// handful of polls the idle cadence alone would allow in 400ms.
-	if len(polls) < 12 {
-		t.Fatal(len(polls), polls)
-	}
-	if gap := polls[2].Sub(polls[1]); gap < 40*time.Millisecond {
-		t.Fatal("idle cadence", gap)
-	}
+	})
 }
 
 // A routine window watches nothing (#244) and work dispatched under it

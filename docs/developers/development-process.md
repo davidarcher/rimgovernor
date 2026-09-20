@@ -69,13 +69,15 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 `task build && task test` from the repository root when the change touches
 dashboard, protobuf or C# projects. There is no
 hosted CI: checks run on the developer's machine before work lands on
-`main`. The `-race` pass is opt-in, not part of `go:test`: run
-`task go:test:race` (needs a C compiler such as WinLibs MinGW-w64 via `winget`
-on `PATH`) when a change touches shared-state concurrency, or `go test -race`
-on that package alone. The nightly `remote-acceptance` run also has a `race`
-job that runs the whole module on Linux. The race runtime is several times slower on Windows
-than on Linux, so test deadlines that gate on wall-clock time allow at least
-5s.
+`main`. Whole-module race checks and repeated package-wide race stress runs
+belong in nightly validation, not the local landing loop. The nightly
+`remote-acceptance` workflow runs the whole module with `-race` on Linux.
+For a concurrency fix, use a focused local `go test -race -run <tests>`
+check when useful; repeat only those tests to reproduce a timing flake.
+`task go:test:race` remains an explicit whole-module diagnostic and needs
+a C compiler such as WinLibs MinGW-w64 on `PATH`. Windows race instrumentation
+is substantially slower; prefer synchronized events or virtual time, and
+allow at least 5s for unavoidable wall-clock deadlines.
 [Task](https://taskfile.dev) installs with `winget install Task.Task` or
 `go install github.com/go-task/task/v3/cmd/task@latest`. The root
 `Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and

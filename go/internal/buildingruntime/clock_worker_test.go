@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -180,31 +181,41 @@ func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 // succeeding still backs off instead of spinning.
 func TestClockWorkerStepsAgainAtOnceAfterSettlingAnEpoch(t *testing.T) {
 	t.Parallel()
-	w := clockLoopFixture(t)
-	w.config.StepInterval = 40 * time.Millisecond
-	w.config.MaxBackoff = 40 * time.Millisecond
-	var stamps []time.Time
-	var mu sync.Mutex
-	w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
+	synctest.Test(t, func(t *testing.T) {
+		w := clockLoopFixture(t)
+		w.config.StepInterval = 40 * time.Millisecond
+		w.config.MaxBackoff = 40 * time.Millisecond
+		var stamps []time.Time
+		var mu sync.Mutex
+		w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			stamps = append(stamps, time.Now())
+			// Every step settles an epoch: the skip must alternate, never chain.
+			return ClockSchedulerResult{Cleaned: true}, nil
+		}
+		w.start()
+		synctest.Wait()
+		mu.Lock()
+		first := append([]time.Time(nil), stamps...)
+		mu.Unlock()
+		if len(first) != 2 || !first[0].Equal(first[1]) {
+			t.Fatal("cleanup must step again without advancing virtual time", first)
+		}
+		time.Sleep(w.config.StepInterval)
+		synctest.Wait()
 		mu.Lock()
 		defer mu.Unlock()
-		stamps = append(stamps, time.Now())
-		// Every step settles an epoch: the skip must alternate, never chain.
-		return ClockSchedulerResult{Cleaned: true}, nil
-	}
-	w.start()
-	time.Sleep(150 * time.Millisecond)
-	mu.Lock()
-	defer mu.Unlock()
-	if len(stamps) < 4 {
-		t.Fatal("too few steps", len(stamps))
-	}
-	if gap := stamps[1].Sub(stamps[0]); gap > 20*time.Millisecond {
-		t.Fatal("cleanup step was not followed at once", gap)
-	}
-	if gap := stamps[2].Sub(stamps[1]); gap < 30*time.Millisecond {
-		t.Fatal("two skips in a row", gap)
-	}
+		if len(stamps) != 4 {
+			t.Fatal("expected another pair after the cadence", len(stamps))
+		}
+		if gap := stamps[3].Sub(stamps[2]); gap != 0 {
+			t.Fatal("cleanup step was not followed at once", gap)
+		}
+		if gap := stamps[2].Sub(stamps[1]); gap != w.config.StepInterval {
+			t.Fatal("two skips in a row", gap)
+		}
+	})
 }
 
 func TestClockWorkerConcurrentStopCachesSuccessfulCleanup(t *testing.T) {

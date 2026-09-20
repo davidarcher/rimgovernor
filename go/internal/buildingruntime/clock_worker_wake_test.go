@@ -75,47 +75,47 @@ func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 
 // A native build that ignores wait_ms returns at once: the loop keeps the
 // PollInterval cadence instead of spinning; one that waited re-polls at once.
-// Both are read from the time the loop takes to reach a poll count, which a
-// loaded machine can only lengthen: the cadence case takes at least its
-// intervals, and the waiting case, whose interval is far longer than the
-// polls it must fit, stays under a single one. (#374: a fixed sleep and a
-// count window failed once in four -race runs.)
+// Virtual time measures the exact cadence independently of host scheduling:
+// ignored waits add PollInterval, while held reads add only PollWait.
 func TestClockWorkerLongPollCadence(t *testing.T) {
 	t.Parallel()
-	const target = 7
-	for _, waits := range []bool{false, true} {
-		w := clockLoopFixture(t)
-		w.config.PollInterval = 30 * time.Millisecond
-		if waits {
-			w.config.PollInterval = 500 * time.Millisecond
-		}
-		w.config.PollWait = 10 * time.Millisecond
-		var polls atomic.Int32
-		reached := make(chan struct{})
-		w.poll = func(ctx context.Context, _ time.Duration) (ClockPollResult, error) {
+	synctest.Test(t, func(t *testing.T) {
+		const target = 7
+		for _, waits := range []bool{false, true} {
+			w := clockLoopFixture(t)
+			w.config.PollInterval = 30 * time.Millisecond
 			if waits {
-				time.Sleep(w.config.PollWait)
+				w.config.PollInterval = 500 * time.Millisecond
 			}
-			if polls.Add(1) == target {
-				close(reached)
+			w.config.PollWait = 10 * time.Millisecond
+			var polls atomic.Int32
+			reached := make(chan struct{})
+			w.poll = func(ctx context.Context, _ time.Duration) (ClockPollResult, error) {
+				if waits {
+					time.Sleep(w.config.PollWait)
+				}
+				if polls.Add(1) == target {
+					close(reached)
+				}
+				return ClockPollResult{}, nil
 			}
-			return ClockPollResult{}, nil
+			started := time.Now()
+			w.start()
+			select {
+			case <-reached:
+			case <-time.After(5 * time.Second):
+				t.Fatal("poll loop stalled", waits, polls.Load())
+			}
+			elapsed := time.Since(started)
+			want := (target - 1) * w.config.PollInterval
+			if waits {
+				want = target * w.config.PollWait
+			}
+			if elapsed != want {
+				t.Fatalf("held %v: poll cadence = %v, want %v", waits, elapsed, want)
+			}
 		}
-		started := time.Now()
-		w.start()
-		select {
-		case <-reached:
-		case <-time.After(5 * time.Second):
-			t.Fatal("poll loop stalled", waits, polls.Load())
-		}
-		elapsed := time.Since(started)
-		if !waits && elapsed < (target-1)*w.config.PollInterval {
-			t.Fatal("early return spun instead of keeping the cadence", elapsed)
-		}
-		if waits && elapsed >= w.config.PollInterval {
-			t.Fatal("waited poll fell back to the cadence", elapsed)
-		}
-	}
+	})
 }
 
 func TestWakeSignalMergesAndDrains(t *testing.T) {
