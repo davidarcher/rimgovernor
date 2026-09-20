@@ -30,7 +30,7 @@ const defenseSiteHalfExtent = 22
 // MaintainStoneShell upgrades flammable walls afterwards through its own goal.
 // The wood floor under each shooter needs no research and keeps the firing
 // cell free of the trees that grew onto it before (#224).
-var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Floor: "WoodPlankFloor"}
+var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor"}
 
 // The powered turret tier (#61): the mini turret needs no rearming, and a
 // conduit chain connects it to the network. Both are planning definitions
@@ -949,17 +949,18 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
 		}
 	}
-	// The audit blocks every impassable placement of the whole layout (walls,
-	// fences and turrets), not the traps, conduits or floors: a spike trap
-	// stays walkable and colonists cross their own with a negligible spring
-	// chance, while the fenced safe lane leaves no trap-free route by
-	// design, and a conduit or a floor lies under the pawn. Trap cells are
-	// kept off the colonists' resting positions separately.
+	// The audit blocks every placement of the whole layout that colonists
+	// cannot pass (walls, fences and turrets), not the traps, the safe
+	// lane's doors, conduits or floors: a spike trap stays walkable, a
+	// colonist opens the colony's own door, and a conduit or a floor lies
+	// under the pawn. The corridor's pricing keeps colonists off the trap
+	// cells (#619); trap cells are kept off their resting positions
+	// separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
-			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseConduitDefinition || b.Definition == defenseDefinitions.Floor {
+			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseDefinitions.Door || b.Definition == defenseConduitDefinition || b.Definition == defenseDefinitions.Floor {
 				continue
 			}
 			if !blocked[b.Cell] {

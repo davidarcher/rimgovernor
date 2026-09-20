@@ -172,7 +172,14 @@ still repeats the full support check against current native roofs and buildings.
 
 `EnsureDefensiveLayout` (opt-in) commits one stored corridor layout per colony
 and builds it tier by tier; a tier is `Built` only while every one of its
-buildings is observed standing in the defense-site census. The firing line
+buildings is observed standing in the defense-site census. The trap corridor
+is priced for the game's own pathfinder (#619): vanilla colonists cross their
+own traps at no cost, so the trap lane carries traps on rows 1 and 3 with
+fences between them (80 each) and the safe lane wooden doors on the same
+rows (38 each for a colonist to open, impassable or 300 to bash for a
+raider), which keeps every cheapest colonist route to the edge off the trap
+cells (`policy.colonistRouteAvoidsTraps`) while raiders take the trap lane;
+the access audit leaves the doors open for colonists. The firing line
 floors each shooter cell beside its barricade (#224): a floor is terrain,
 so the census reads it from the cell's terrain rather than its edifice,
 the access audit leaves it walkable, and nothing grows onto the position

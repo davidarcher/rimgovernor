@@ -15,12 +15,12 @@ func defenseFixture() DefenseRequest {
 		Region:      Rectangle{X: 0, Z: 0, Width: 20, Height: 30},
 		Home:        domain.Cell{X: 9, Z: 27},
 		Entrances:   []domain.Cell{{X: 9, Z: 26}},
-		Definitions: DefenseDefinitions{Sandbag: "Sandbags", Wall: "Wall", WallStuff: "BlocksGranite", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Floor: "WoodPlankFloor"},
+		Definitions: DefenseDefinitions{Sandbag: "Sandbags", Wall: "Wall", WallStuff: "BlocksGranite", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor"},
 		MinRange:    domain.Known(25.9),
 		Defenders:   3,
 		UnitCosts: map[string][]Amount{
 			"Sandbags": {{Resource: "Cloth", Count: 5}}, "Wall": {{Resource: "BlocksGranite", Count: 5}},
-			"Fence": {{Resource: "WoodLog", Count: 2}}, "TrapSpike": {{Resource: "WoodLog", Count: 45}},
+			"Fence": {{Resource: "WoodLog", Count: 2}}, "TrapSpike": {{Resource: "WoodLog", Count: 45}}, "Door": {{Resource: "WoodLog", Count: 25}},
 		},
 	}
 	for x := int32(0); x < 20; x++ {
@@ -69,12 +69,17 @@ func TestDefenseLayoutCorridorAtNarrowestChokepoint(t *testing.T) {
 	corridor, _ := layout.Tier(TierTrapCorridor)
 	got := placed(t, corridor)
 	want := map[domain.Cell]string{}
-	// Traps skip every other row: RimWorld refuses adjacent traps.
-	for _, c := range cells(9, 15, 9, 17, 9, 19) {
+	// Traps on rows 1 and 3 (RimWorld refuses adjacent traps) with fences
+	// between them price the trap lane above the two wooden doors of the
+	// safe lane for colonists, and below them for raiders (#619).
+	for _, c := range cells(9, 15, 9, 17) {
 		want[c] = "TrapSpike"
 	}
-	for _, c := range cells(8, 15, 8, 17, 8, 19) {
+	for _, c := range cells(9, 16, 9, 18) {
 		want[c] = "Fence"
+	}
+	for _, c := range cells(8, 15, 8, 17) {
+		want[c] = "Door"
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("corridor %v", got)
@@ -91,7 +96,7 @@ func TestDefenseLayoutCorridorAtNarrowestChokepoint(t *testing.T) {
 	if v, k := funnel.Costs.Value(); !k || !reflect.DeepEqual(v, []Amount{{Resource: "BlocksGranite", Count: 60}}) {
 		t.Fatal(funnel.Costs)
 	}
-	if v, k := corridor.Costs.Value(); !k || !reflect.DeepEqual(v, []Amount{{Resource: "WoodLog", Count: 141}}) {
+	if v, k := corridor.Costs.Value(); !k || !reflect.DeepEqual(v, []Amount{{Resource: "WoodLog", Count: 144}}) {
 		t.Fatal(corridor.Costs)
 	}
 	choke, _ := layout.Tier(TierChokepoint)

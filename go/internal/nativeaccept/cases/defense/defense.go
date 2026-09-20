@@ -466,15 +466,15 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	if on := na.AsSlice(after["colonistsOnTraps"]); len(on) != 0 {
 		return fmt.Errorf("colonists standing on trap cells after layout: %v", on)
 	}
-	// Independent audit: with every wall and barricade of the layout
-	// blocked (traps and fences stay walkable for colonists, as natively:
-	// the fence lane is the safe lane, and the shooter floors are terrain)
-	// every colonist still reaches the entry and every colony door, and
-	// nobody lost a cell.
+	// Independent audit: with every wall, fence and barricade of the layout
+	// blocked (traps stay walkable for colonists, the safe lane's doors
+	// open for them, and the shooter floors are terrain) every colonist
+	// still reaches the entry and every colony door, and nobody lost a
+	// cell.
 	var impassable []domain.Cell
 	for _, tier := range layout.Tiers {
 		for _, b := range tier.Buildings {
-			if b.Definition != "TrapSpike" && b.Definition != "Fence" && b.Definition != "WoodPlankFloor" {
+			if b.Definition != "TrapSpike" && b.Definition != "Door" && b.Definition != "WoodPlankFloor" {
 				impassable = append(impassable, b.Cell)
 			}
 		}

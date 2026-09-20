@@ -213,7 +213,7 @@ func runStockedLayout(ctx context.Context, s cases.Session) error {
 // Only observed native gates feed the policy. The fixture has one power
 // network; rejecting any other topology prevents borrowing disconnected watts.
 func stockedTurretRequest(p observation.ColonyProjection) (policy.DefenseRequest, error) {
-	r := policy.DefenseRequest{Definitions: policy.DefenseDefinitions{Sandbag: "Barricade", Wall: "Wall", Fence: "Fence", Trap: "TrapSpike", Floor: "WoodPlankFloor"}, UnitCosts: map[string][]policy.Amount{}}
+	r := policy.DefenseRequest{Definitions: policy.DefenseDefinitions{Sandbag: "Barricade", Wall: "Wall", Fence: "Fence", Trap: "TrapSpike", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor"}, UnitCosts: map[string][]policy.Amount{}}
 	r.Turret = policy.DefenseTurretRequest{Definition: turretDefinition, Conduit: "HiddenConduit", Stock: p.Resources, Max: policy.TurretBudget(p.Facts.RaidPoints)}
 	for _, d := range p.Definitions {
 		if d.Name != turretDefinition && d.Name != r.Turret.Conduit {

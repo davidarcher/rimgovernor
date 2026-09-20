@@ -26,12 +26,14 @@ type DefenseLine struct {
 }
 
 // DefenseDefinitions names the native buildings each tier places. Stuff
-// empty requests the native default material. Floor is the constructed
+// empty requests the native default material. Door is the safe lane's
+// colonist-only passage; its stuff must be wood, the corridor's pricing
+// (#619) assumes a wooden door's opening time. Floor is the constructed
 // terrain the firing line lays on each shooter cell: nothing grows on a
 // built floor, and a blueprint over a plant has the constructor cut it, so
 // the firing position stays standable for the hold plan's move (#224).
 type DefenseDefinitions struct {
-	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff, Floor string
+	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff, Door, DoorStuff, Floor string
 }
 
 type DefenseRequest struct {
@@ -186,7 +188,7 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 		return defenseSite{}, errors.New("invalid minimum range")
 	}
 	d := r.Definitions
-	for _, name := range []string{d.Sandbag, d.Wall, d.Fence, d.Trap, d.Floor} {
+	for _, name := range []string{d.Sandbag, d.Wall, d.Fence, d.Trap, d.Door, d.Floor} {
 		if name == "" {
 			return defenseSite{}, errors.New("missing defense definition")
 		}
@@ -380,36 +382,53 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			}
 		}
 	}
-	// Trap corridor: traps on every other trap-lane row (RimWorld's
-	// PlaceWorker_NeverAdjacentTrap refuses a trap beside another, including
-	// diagonally, so a contiguous lane cannot be built), fences on the
-	// safe-lane cell of the same rows so raiders, who do not see the traps,
-	// path through them rather than pay the fence crossing, while colonists,
-	// who avoid their own traps, cross the fences. The entry pair stays open.
+	// Trap corridor (#619). Vanilla colonists path over their own traps at
+	// no cost (TrapSpike has no pathCost and the player's pawns get no
+	// avoid grid), so the corridor is priced for the game's own pathfinder
+	// rather than for a pawn that avoids its traps: traps on trap-lane
+	// rows 1 and 3 (PlaceWorker_NeverAdjacentTrap refuses a trap beside
+	// another, including diagonally) with fences on rows 2 and 4, so the
+	// trap lane costs everyone 160; wooden doors on safe-lane rows 1 and
+	// 3, which a colonist opens for 38 each while a raider cannot open a
+	// player door (150 in PassDoors mode, 300 to bash, otherwise
+	// impassable). A door is a full-fill edifice, so the pathfinder also
+	// refuses the diagonal steps around it that would let a pawn hop
+	// between the trap cells and the free safe-lane rows. The entry pair
+	// and the last row stay open. colonistRouteAvoidsTraps proves the
+	// result against the same prices below.
 	var corridor []domain.Building
-	trapCells := map[domain.Cell]bool{}
-	for k := 1; k < defenseCorridorLength; k += 2 {
-		t := layout.TrapLane[k]
-		if !s.free(t) {
-			return DefenseLayout{}, errors.New("trap cell is not buildable")
+	costs := newCorridorCosts()
+	for _, c := range funnelReserved {
+		costs.closed[c] = true
+	}
+	place := func(definition, stuff string, c domain.Cell, what string) error {
+		if !s.free(c) {
+			return errors.New(what + " cell is not buildable")
 		}
-		b, err := domain.NewBuilding(r.Definitions.Trap, t, domain.North, r.Definitions.TrapStuff)
+		b, err := domain.NewBuilding(definition, c, domain.North, stuff)
 		if err != nil {
-			return DefenseLayout{}, err
+			return err
 		}
 		corridor = append(corridor, b)
-		trapCells[t] = true
-		{
-			f := layout.SafeLane[k]
-			if !s.free(f) {
-				return DefenseLayout{}, errors.New("fence cell is not buildable")
-			}
-			b, err := domain.NewBuilding(r.Definitions.Fence, f, domain.North, r.Definitions.FenceStuff)
-			if err != nil {
+		return nil
+	}
+	for k := 1; k < defenseCorridorLength-1; k++ {
+		t, f := layout.TrapLane[k], layout.SafeLane[k]
+		if k%2 == 1 {
+			if err := place(r.Definitions.Trap, r.Definitions.TrapStuff, t, "trap"); err != nil {
 				return DefenseLayout{}, err
 			}
-			corridor = append(corridor, b)
+			costs.traps[t] = true
+			if err := place(r.Definitions.Door, r.Definitions.DoorStuff, f, "door"); err != nil {
+				return DefenseLayout{}, err
+			}
+			costs.cost[f], costs.full[f] = pathWoodDoorCost, true
+			continue
 		}
+		if err := place(r.Definitions.Fence, r.Definitions.FenceStuff, t, "fence"); err != nil {
+			return DefenseLayout{}, err
+		}
+		costs.cost[t] = pathFenceCost
 	}
 	// Firing line: sandbags two rows past the corridor exit, floored shooter
 	// cells behind them, a free retreat cell behind each shooter, all within
@@ -460,10 +479,12 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	for _, f := range layout.Firing {
 		layout.LinesVerified = layout.LinesVerified && f.Verified
 	}
-	// Every colony entrance keeps a trap-free passable route to the map edge
-	// once walls and traps stand; the safe lane counts as passable.
-	if !s.trapFreeRoutes(funnelReserved, trapCells) {
-		return DefenseLayout{}, errors.New("layout would cut an entrance off from the map edge")
+	// Every colony entrance, and Home, keeps a route to the map edge once
+	// the layout stands, and no cheapest colonist route crosses a trap.
+	for _, start := range append([]domain.Cell{s.r.Home}, s.r.Entrances...) {
+		if s.passable(start) && !s.colonistRouteAvoidsTraps(costs, start) {
+			return DefenseLayout{}, errors.New("layout would cut an entrance off from the map edge or route colonists over a trap")
+		}
 	}
 	// Chokepoint tier reuses existing geometry: it places nothing, reserving
 	// the lanes so routine construction never fills the corridor.
@@ -484,41 +505,6 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	}
 	layout.Approaches = s.defenseApproaches(layout)
 	return layout, nil
-}
-
-func (s defenseSite) trapFreeRoutes(walls []domain.Cell, traps map[domain.Cell]bool) bool {
-	closed := map[domain.Cell]bool{}
-	for _, c := range walls {
-		closed[c] = true
-	}
-	for c := range traps {
-		closed[c] = true
-	}
-	for _, start := range s.r.Entrances {
-		seen := map[domain.Cell]bool{start: true}
-		queue := []domain.Cell{start}
-		found := false
-		for len(queue) > 0 && !found {
-			c := queue[0]
-			queue = queue[1:]
-			if positive(s.cells[c].EdgeReachable) && s.onBorder(c) {
-				found = true
-				break
-			}
-			for _, d := range directions {
-				n := addCell(c, d)
-				if seen[n] || closed[n] || !s.passable(n) {
-					continue
-				}
-				seen[n] = true
-				queue = append(queue, n)
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
 }
 
 func tierCosts(unit map[string][]Amount, buildings []domain.Building) domain.Fact[[]Amount] {
