@@ -275,3 +275,36 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 		t.Fatal("bench census not consulted once the weapon was skipped", n.benchReads)
 	}
 }
+
+// The weapon-demand census the gear planner reads before selecting a method
+// asks for the colony's exact pawn IDs, so every other pawn the map holds
+// counts as filtered. Treating that as an incomplete read failed the whole
+// gear step with ErrControl once the goal's apparel policies were written, so
+// MaintainEquipment never planned a wear or bill method and never recovered
+// (#660).
+func TestGearPlannerPlansPastFilteredWeaponCensus(t *testing.T) {
+	t.Parallel()
+	reviewer, db, _, _, native := routineFixture(t)
+	setGearProductionNeed(native.reply.GetObserved())
+	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}, filtered: 4}}}
+	reviewer.native = n
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	if _, err := reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineGearPlanner(reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal("filtered weapon census held the gear step", result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := plan.Spec.Actions()[0].ProductionBill(); !ok {
+		t.Fatal("gear method is not a bill", plan.Spec.Actions()[0])
+	}
+}

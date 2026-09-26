@@ -19,6 +19,9 @@ type equipTestNative struct {
 	ids      []string
 	weapons  []bridge.EquipCandidate
 	editPawn func(*o.PawnState)
+	// filtered is the pawns the map holds that an exact-ID census excludes:
+	// animals, visitors and prisoners a caller never asked for.
+	filtered uint64
 }
 
 func (n *equipTestNative) pawn(id string) *o.PawnState {
@@ -39,7 +42,7 @@ func (n *equipTestNative) census() *o.ListPawnsReply {
 		rows = append(rows, row)
 	}
 	count := uint64(len(rows))
-	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(count), Returned: proto.Uint64(count), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(count), Returned: proto.Uint64(count), Filtered: proto.Uint64(n.filtered), Unreadable: proto.Uint64(0)}}}}
 }
 func (n *equipTestNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
 	return n.census(), bridge.Result{}, ctx.Err()

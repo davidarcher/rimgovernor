@@ -29,8 +29,16 @@ func (r *RoutineGearPlanner) weaponDemand(ctx context.Context, state ControlStat
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < gear.Context.GetTick() {
 		return nil, ErrControl
 	}
+	// An exact-ID census counts every other pawn on the map as filtered, so
+	// only the requested rows establish completeness: matched, returned and
+	// the decoded rows must each cover the whole request, the same contract
+	// RoutineEquipPlanner reads the identical census under. Demanding
+	// filtered == 0 here refused every real colony (a single animal or
+	// visitor is enough) and failed the whole gear step with ErrControl, so
+	// MaintainEquipment never planned a wear or bill method past its apparel
+	// policies and never recovered (#660).
 	counts := observed.Completeness
-	if counts == nil || !counts.GetPage().GetComplete() || counts.GetUnreadable() != 0 || counts.GetFiltered() != 0 || len(observed.Pawns) != len(ids) || counts.GetReturned() != uint64(len(ids)) {
+	if counts == nil || counts.Page == nil || !counts.GetPage().GetComplete() || counts.GetPage().GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
 		return nil, ErrControl
 	}
 	pawns := []policy.EquipCandidatePawn{}
