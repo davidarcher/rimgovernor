@@ -20,7 +20,21 @@ compete for bounded capacity based on measured deficits, player targets, waiting
 labor contention and observed outdoor risk. Each goal declares the native work types
 that can serve it; admission is bounded by both the project limit and free pawns of
 those types. Accepted work keeps its identity as capacity changes; unavailable methods
-yield to other candidates. Work displays the reason for deferral, including the
+yield to other candidates.
+`--routine-project-limit N` (1..8, default 2) is the count of concurrent optional
+projects (routine development goals and player projects) holding a slot; the stage
+adds one at Development. `--routine-project-limit auto` bounds slots only at eight
+(planner cost) and admits every project a distinct observed worker can take
+(`policy.DevelopmentCensus` matched by the worker allocator): a pawn enabled for
+three work types is one worker, open startup and survival work holds its worker
+without a slot, and open work beyond the census pauses new admissions
+(`workers_overcommitted`) without cancelling it. The ranking, a planner's yield and
+method admission share one fit (`policy/development_capacity.go`): labor and the stage
+are checked before the slot count, a yield regrants only rows that pass the same
+check (bounded per review, `yield_bound`), and admission refits against commitments
+read inside its transaction, so a player project or another admission since the
+ranking is counted. The development record shows the mode, workers held by startup
+work, unused workers and the limiting reason. Work displays the reason for deferral, including the
 bottleneck work type. Worker capacity is a scheduling bound, not a completion-time
 guarantee, and waiting age alone overtakes any deficit gap within a fixed tick bound.
 Accepted work holds its slot only while it is worked: the review reads each pawn's

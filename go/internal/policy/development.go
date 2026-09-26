@@ -141,6 +141,10 @@ const (
 	// Foothold with the shelter unmet, the comfort-class development
 	// (StageDevelopmentGoal) waits for the builder to raise the shelter.
 	DevelopmentStage DevelopmentReason = "stage_foothold"
+	// DevelopmentOvercommitted: in automatic mode, open work already holds
+	// more workers than the census has (workers left, or old work
+	// resumed); no project is admitted until a review finds room again.
+	DevelopmentOvercommitted DevelopmentReason = "workers_overcommitted"
 )
 
 type DevelopmentRow struct {
@@ -170,6 +174,9 @@ type DevelopmentRow struct {
 	// LaborEvidence is this review's evidence for the goal's open work
 	// (CommitmentLabor): attributed if any commitment's work is attended.
 	LaborEvidence LaborEvidence
+	// Labor is the goal's labor profile the ranking fitted; a yield and
+	// method admission refit the same profile.
+	Labor LaborProfile `json:",omitempty"`
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -188,6 +195,28 @@ type DevelopmentState struct {
 	// planners a wake named, so a selected goal whose planner did not run
 	// is not judged idle by the next review.
 	Partial bool
+	// Auto: the ranking matched distinct workers (development_capacity.go);
+	// Census is the worker census it matched, unknown in explicit mode or
+	// when the census was unobserved (the per-type Labor headcount then
+	// decides).
+	Auto   bool
+	Census domain.Fact[[]DevelopmentWorker]
+	// Holds is the labor open work and withheld prerequisites held ahead
+	// of the ranked rows (CommitmentHolds).
+	Holds []DevelopmentHold
+	// Yields counts the regrants YieldDevelopment made under this review;
+	// Continuation is DevelopmentYieldBound once they are spent.
+	Yields       int
+	Continuation string
+	// StageHold: the Foothold hold (#630) held the comfort-class goals
+	// (StageDevelopmentGoal) at this ranking; a yield grants none of them.
+	StageHold bool
+	// Unused is the census workers no hold or selection took (automatic
+	// mode with a known census); Limiting is the reason the first eligible
+	// goal left unselected reads, empty when every eligible goal was
+	// selected or none was eligible.
+	Unused   domain.Fact[int]
+	Limiting DevelopmentReason
 }
 
 type DevelopmentRequest struct {
@@ -214,6 +243,10 @@ type DevelopmentRequest struct {
 	// (ReviewColonyStage); its Foothold hold refuses the comfort-class
 	// development with DevelopmentStage.
 	Stage ColonyStageRecord
+	// Auto matches distinct workers from Census (automatic mode); Limit
+	// is then the slot bound only (MaxAutoDevelopmentProjects).
+	Auto   bool
+	Census domain.Fact[[]DevelopmentWorker]
 }
 
 func validGoal(id GoalID, source GoalSource, priority int) bool {
@@ -247,7 +280,13 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			}
 		}
 	}
-	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers)}
+	if census, known := r.Census.Value(); known && len(census) > MaxAllocWorkers {
+		return DevelopmentState{}, errors.New("invalid worker census")
+	}
+	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers), Auto: r.Auto, StageHold: r.Stage.HoldsDevelopment()}
+	if r.Auto {
+		result.Census = r.Census
+	}
 	result.Partial = r.Partial
 	if !validLabor(r.Withheld) {
 		return DevelopmentState{}, errors.New("invalid withheld labor")
@@ -330,6 +369,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	for id := range committed {
 		result.Committed = append(result.Committed, id)
 	}
+	result.Holds = CommitmentHolds(r.Commitments, r.Tick, released, r.Auto, r.Withheld)
 	sort.Slice(result.Committed, func(i, j int) bool { return result.Committed[i] < result.Committed[j] })
 	emergency, startup := false, false
 	seen := map[GoalID]bool{}
@@ -372,7 +412,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if riskKnown {
 			score -= weights.Risk * risk
 		}
-		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle}
+		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle, Labor: append(LaborProfile(nil), g.Labor...)}
 		if since, seen := idleSince[g.ID]; seen && (committed[g.ID] || released[g.ID]) {
 			row.LaborIdleSince = domain.Known(since)
 		}
@@ -453,7 +493,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		return a.Goal < b.Goal
 	})
-	free := max(0, result.Capacity-len(committed))
+	free := max(0, result.Capacity-slotHolds(result.Holds))
 	// A round ends once every eligible goal has been idle: the flags clear
 	// and score order restarts.
 	eligible, idle := 0, 0
@@ -479,65 +519,36 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			return a.Goal < b.Goal
 		})
 	}
+	_, _, paused := holdsFit(result, nil)
+	var chosen []LaborProfile
 	for i := range result.Rows {
 		row := &result.Rows[i]
 		if row.Reason != "" {
 			continue
 		}
-		if free == 0 {
-			row.Reason = DevelopmentCapacity
+		if paused {
+			row.Reason = DevelopmentOvercommitted
 			continue
 		}
-		// The Foothold hold (#630) is the last reason: a held project still
-		// names the labor it lacks, and never claims labor it may not use.
-		if r.Stage.HoldsDevelopment() && StageDevelopmentGoal(row.Goal) {
-			if bottleneck, ok := ledger.peek(profiles[row.Goal]); !ok {
-				row.Reason, row.Bottleneck = DevelopmentLabor, bottleneck
-				continue
-			}
+		// Labor and the stage are decided before the slot count, so a
+		// capacity-deferred row is one a freed slot could take as it is
+		// (YieldDevelopment). The Foothold hold (#630): a held project
+		// still names the labor it lacks, and never claims labor.
+		profile := profiles[row.Goal]
+		fits, bottlenecks, _ := holdsFit(result, append(chosen[:len(chosen):len(chosen)], profile))
+		switch last := len(fits) - 1; {
+		case !fits[last]:
+			row.Reason, row.Bottleneck = DevelopmentLabor, bottlenecks[last]
+		case r.Stage.HoldsDevelopment() && StageDevelopmentGoal(row.Goal):
 			row.Reason = DevelopmentStage
-			continue
+		case free == 0:
+			row.Reason = DevelopmentCapacity
+		default:
+			chosen = append(chosen, profile)
+			row.Selected = true
+			free--
 		}
-		if bottleneck, ok := ledger.take(profiles[row.Goal]); !ok {
-			row.Reason, row.Bottleneck = DevelopmentLabor, bottleneck
-			continue
-		}
-		row.Selected = true
-		free--
 	}
+	summarizeDevelopment(&result)
 	return result, nil
-}
-
-// YieldDevelopment lets a planner whose selected goal has no method this
-// review (retries exhausted, every fallback refused) hand its unused slot to
-// the next capacity-deferred goal in this same review, without inflating
-// waiting age. The yielding row reads method_unavailable and is idle, so the
-// next review ranks it behind the goals it yielded to, as an unused
-// selection would have been; the recipient is Granted, so the next review
-// does not judge it idle for a slot its planner may never have run under.
-// Labor released by the yielding goal is unknown here, so a labor-deferred
-// candidate waits for the next review's fresh census. A goal that is not
-// selected yields nothing.
-func YieldDevelopment(state DevelopmentState, goal GoalID) DevelopmentState {
-	state.Rows = append([]DevelopmentRow(nil), state.Rows...)
-	state.Committed = append([]GoalID(nil), state.Committed...)
-	for i := range state.Rows {
-		if state.Rows[i].Goal != goal || !state.Rows[i].Selected {
-			continue
-		}
-		state.Rows[i].Selected = false
-		state.Rows[i].Granted = false
-		state.Rows[i].Reason = DevelopmentMethodUnavailable
-		state.Rows[i].Idle = true
-		for j := range state.Rows {
-			if state.Rows[j].Reason == DevelopmentCapacity {
-				state.Rows[j].Selected = true
-				state.Rows[j].Granted = true
-				state.Rows[j].Reason = ""
-				break
-			}
-		}
-		break
-	}
-	return state
 }

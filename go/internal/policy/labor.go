@@ -195,11 +195,6 @@ func (l *laborLedger) take(profile LaborProfile) (bottleneck WorkType, ok bool) 
 	return l.claim(profile, true)
 }
 
-// peek is take without the claim: whether the profile could be served.
-func (l *laborLedger) peek(profile LaborProfile) (bottleneck WorkType, ok bool) {
-	return l.claim(profile, false)
-}
-
 func (l *laborLedger) claim(profile LaborProfile, take bool) (bottleneck WorkType, ok bool) {
 	if !l.known || len(profile) == 0 {
 		return "", true

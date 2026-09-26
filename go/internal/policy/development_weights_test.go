@@ -43,7 +43,9 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 		t.Fatal(s.Rows)
 	}
 	requireSelected(t, s, "comfort", "research")
-	if s.Rows[2].Reason != DevelopmentCapacity {
+	// The only builder went to comfort: expansion reads the labor it lacks,
+	// not the slot count.
+	if s.Rows[2].Reason != DevelopmentLabor || s.Rows[2].Bottleneck != WorkConstruction {
 		t.Fatal(s.Rows[2])
 	}
 	r.Weights = DefaultDevelopmentWeights()

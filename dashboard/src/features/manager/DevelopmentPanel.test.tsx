@@ -3,7 +3,7 @@ import {cleanup, render, screen, waitFor, within} from '@testing-library/react';
 import {afterEach, expect, it, vi} from 'vitest';
 import DevelopmentPanel from './DevelopmentPanel';
 const reply = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}}));
-const development = {tick: 500, workers: 3, labor: [{work: 'Construction', free: 0}], capacity: 2, committed: [], rows: [
+const development = {tick: 500, workers: 3, labor: [{work: 'Construction', free: 0}], capacity: 2, mode: 'explicit', heldWorkers: 0, unusedWorkers: null, limiting: 'labor_unavailable', continuation: '', committed: [], rows: [
   {goal: 'ensure-research', score: 60, deficit: 0.6, risk: null, waitingSince: 100, selected: true, committed: false, reason: '', bottleneck: ''},
   {goal: 'ensure-comfort', score: 40, deficit: 0.5, risk: 0, waitingSince: 100, selected: false, committed: false, reason: 'labor_unavailable', bottleneck: 'Construction'},
   {goal: 'maintain-wood', score: 0, deficit: 0.3, risk: 1, waitingSince: 200, selected: false, committed: false, reason: 'risk_deferred', bottleneck: ''},
@@ -48,6 +48,13 @@ it('renders the recorded ranking with reasons, bottlenecks and labor', async () 
   expect(screen.getByText('Deferred: outdoor risk')).toBeInTheDocument();
   expect(screen.getByText(/Free labor: Construction 0/)).toBeInTheDocument();
   expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByTestId('development-capacity')).toHaveTextContent('Held by startup work: 0 · Limited by: Waiting for labor');
+});
+it('names automatic admission, unused workers and an overcommitted pause', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: {...development, mode: 'auto', capacity: 3, heldWorkers: 2, unusedWorkers: 0, limiting: 'workers_overcommitted'}, roster: null, sections: []})));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByText(/Automatic admission, at most 3/)).toBeInTheDocument());
+  expect(screen.getByTestId('development-capacity')).toHaveTextContent('Held by startup work: 2 · Unused workers: 0 · Limited by: Paused: open work holds every worker');
 });
 it('hides itself when routine diagnostics are not enabled and marks failures stale', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({code: 'not_found', detail: 'Routine diagnostics are not enabled'}, 404)));

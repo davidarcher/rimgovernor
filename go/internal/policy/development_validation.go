@@ -19,6 +19,24 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 			}
 		}
 	}
+	if s.Yields < 0 || s.Yields > MaxDevelopmentYields || s.Continuation != "" && s.Continuation != DevelopmentYieldBound || len(s.Holds) > 4096 {
+		return errors.New("invalid development continuation")
+	}
+	for _, h := range s.Holds {
+		if h.Goal != "" && !validResource(Resource(h.Goal)) || !validLabor(h.Labor) {
+			return errors.New("invalid development hold")
+		}
+	}
+	if census, known := s.Census.Value(); known {
+		if !s.Auto || len(census) > MaxAllocWorkers {
+			return errors.New("invalid development census")
+		}
+		for _, w := range census {
+			if w.ID == "" || !validLabor(LaborProfile(w.Work)) {
+				return errors.New("invalid development census")
+			}
+		}
+	}
 	workers, known := s.Workers.Value()
 	if known && (workers < 0 || workers > 4096 || s.Capacity > workers) || !known && s.Capacity != 0 {
 		return errors.New("invalid development worker capacity")
@@ -48,7 +66,7 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		}
 		seen[row.Goal] = true
 		switch row.Reason {
-		case "", DevelopmentCancelled, DevelopmentAdviser, DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentLaborIdle, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable, DevelopmentRisk, DevelopmentDisabled, DevelopmentStage:
+		case "", DevelopmentCancelled, DevelopmentAdviser, DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentLaborIdle, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable, DevelopmentRisk, DevelopmentDisabled, DevelopmentStage, DevelopmentOvercommitted:
 			if row.Bottleneck != "" {
 				return errors.New("invalid development bottleneck")
 			}

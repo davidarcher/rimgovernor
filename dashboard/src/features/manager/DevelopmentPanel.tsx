@@ -6,7 +6,7 @@ import {useRoutineStatus} from './useRoutineStatus';
 export const reasonLabels: Record<DevelopmentReason, string> = {
   '': 'Eligible', cancelled: 'Cancelled', adviser: 'Adviser hold', emergency: 'Emergency precedence', startup_survival: 'Startup survival precedence', blocked: 'Blocked',
   existing_commitment: 'Already committed', labor_idle: 'Committed work idle: slot released', workers_unknown: 'Worker count unknown', no_workers: 'No workers', deficit_unknown: 'Deficit unknown',
-  capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control', stage_foothold: 'Held at Foothold: shelter unmet',
+  capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control', stage_foothold: 'Held at Foothold: shelter unmet', workers_overcommitted: 'Paused: open work holds every worker',
 };
 // Blockers as the controller records them (policy.BlockedReason); a
 // prerequisite names the goal that must land first.
@@ -55,7 +55,8 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
     {state.value?.stage && <p className="colony-stage" data-testid="colony-stage">Colony stage {state.value.stage.stage} since tick {state.value.stage.since.toLocaleString()}{state.value.stage.blocker ? ` · next stage waits on ${state.value.stage.blocker}: ${state.value.stage.reason}` : ''}{state.value.stage.held ? ' · comfort-class development held' : ''}</p>}
     {state.value && !d && <p>No routine review has ranked development yet.</p>}
     {d && <>
-      <p>Reviewed tick {d.tick.toLocaleString()} · Capacity {d.capacity} · Workers {d.workers ?? 'unknown'} · Committed {d.committed.length ? d.committed.join(', ') : 'none'}</p>
+      <p>Reviewed tick {d.tick.toLocaleString()} · {d.mode === 'auto' ? 'Automatic admission, at most' : 'Project limit'} {d.capacity} · Workers {d.workers ?? 'unknown'} · Committed {d.committed.length ? d.committed.join(', ') : 'none'}</p>
+      <p className="development-capacity" data-testid="development-capacity">Held by startup work: {d.heldWorkers}{d.unusedWorkers !== null && ` · Unused workers: ${d.unusedWorkers}`} · {d.limiting ? `Limited by: ${reasonLabels[d.limiting]}` : 'No eligible goal waiting'}{d.continuation && ' · Regrants spent until the next review'}</p>
       {d.labor.length > 0 && <p className="development-labor">Free labor: {d.labor.map(l => `${l.work} ${l.free}`).join(' · ')}</p>}
       {d.rows.length === 0 ? <p>No optional goals are competing.</p> : <table className="development-table"><thead><tr><th scope="col">Goal</th><th scope="col">Status</th><th scope="col">Score</th><th scope="col">Deficit</th><th scope="col">Risk</th><th scope="col">Waiting since</th></tr></thead>
         <tbody>{d.rows.map(row => <tr key={row.goal}>

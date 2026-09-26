@@ -63,15 +63,21 @@ const flooringPriority = 3
 const routesPriority = 3
 
 type RoutinePolicy struct {
-	AnimalUpkeep                                  AnimalUpkeepPolicy
-	MedicalReserve                                MedicalReservePolicy
-	FoodStorage                                   FoodStoragePolicy
-	Cleanliness                                   CleanlinessPolicy
-	Lighting                                      LightingPolicy
-	Flooring                                      FlooringPolicy
-	Routes                                        RoutesPolicy
-	Shrine                                        ShrinePolicy
+	AnimalUpkeep   AnimalUpkeepPolicy
+	MedicalReserve MedicalReservePolicy
+	FoodStorage    FoodStoragePolicy
+	Cleanliness    CleanlinessPolicy
+	Lighting       LightingPolicy
+	Flooring       FlooringPolicy
+	Routes         RoutesPolicy
+	Shrine         ShrinePolicy
+	// MaxDevelopmentProjects is the concurrent optional-project slot count
+	// (1..8; StageDevelopmentLimit adds one at Development). With
+	// AutoDevelopment it is MaxAutoDevelopmentProjects and only bounds
+	// planner cost: distinct observed workers decide admission
+	// (development_capacity.go).
 	MaxDevelopmentProjects                        int
+	AutoDevelopment                               bool
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	FoodReserveDays                               float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
@@ -222,7 +228,7 @@ func (p RoutinePolicy) Validate() error {
 	if !p.Cleanliness.valid() {
 		return errors.New("invalid cleanliness thresholds")
 	}
-	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
+	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 || p.AutoDevelopment && p.MaxDevelopmentProjects != MaxAutoDevelopmentProjects {
 		return errors.New("invalid development project limit")
 	}
 	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.FoodReserveDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter, p.PrisonerReleaseAfterDays} {
@@ -427,6 +433,9 @@ type RoutineFacts struct {
 	// LaborUse is what those pawns are doing (RoutineLaborUse): the evidence
 	// RankDevelopment releases an idle commitment's slot on.
 	LaborUse domain.Fact[LaborUse]
+	// WorkerCensus is the distinct-worker census of the same pawns
+	// (DevelopmentCensus), matched in automatic development mode.
+	WorkerCensus domain.Fact[[]DevelopmentWorker]
 	// WorkRoster is the planner's per-work-type coverage (PlanWork): the
 	// owners each type wanted and found and the pawns capable of it, so a
 	// goal can name a missing capability instead of stalling.

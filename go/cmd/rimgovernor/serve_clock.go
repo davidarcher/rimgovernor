@@ -855,6 +855,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	thresholds := policy.DefaultRoutinePolicy()
 	thresholds.FoodReserveDays = sc.routineFoodReserveDays
 	thresholds.MaxDevelopmentProjects = sc.routineProjectLimit
+	thresholds.AutoDevelopment = sc.routineProjectAuto
 	capabilities := buildingruntime.RoutineCapabilities{}
 	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)

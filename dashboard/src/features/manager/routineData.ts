@@ -1,10 +1,15 @@
 // Read-only view of /api/routines: the composed routine runtime and the
 // development ranking its last review recorded. Nulls are unknown facts.
-export const developmentReasons = ['', 'cancelled', 'adviser', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled', 'stage_foothold'] as const;
+export const developmentReasons = ['', 'cancelled', 'adviser', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled', 'stage_foothold', 'workers_overcommitted'] as const;
 export type DevelopmentReason = typeof developmentReasons[number];
 export type DevelopmentRow = {goal: string; score: number; deficit: number | null; risk: number | null; waitingSince: number; selected: boolean; committed: boolean; reason: DevelopmentReason; bottleneck: string};
 export type LaborRow = {work: string; free: number};
-export type Development = {tick: number; workers: number | null; labor: LaborRow[]; capacity: number; committed: string[]; rows: DevelopmentRow[]};
+// mode 'auto' admits by distinct observed workers (capacity bounds planner
+// cost only); heldWorkers is labor startup work holds without a slot,
+// unusedWorkers the auto census workers nothing took (null when explicit or
+// unknown), limiting the first reason an eligible goal waits. Servers before
+// automatic admission omit these fields.
+export type Development = {tick: number; workers: number | null; labor: LaborRow[]; capacity: number; committed: string[]; rows: DevelopmentRow[]; mode: 'explicit' | 'auto'; heldWorkers: number; unusedWorkers: number | null; limiting: DevelopmentReason; continuation: string};
 // The roster planner's last recorded report (#448): coverage per work type,
 // skills no assignment exercises and each pawn's typed profile as the
 // planner scored it. Pawn ids are the native pawn ids the colonist roster
@@ -53,7 +58,8 @@ function list(v: unknown, limit: number): unknown[] {if (!Array.isArray(v) || v.
 function reason(v: unknown): DevelopmentReason {const r = developmentReasons.find(item => item === v); if (r === undefined) throw Error('Unknown development reason'); return r;}
 
 export function readDevelopment(value: unknown): Development {
-  const v = object(value, ['tick', 'workers', 'labor', 'capacity', 'committed', 'rows']);
+  const v = object(value, ['tick', 'workers', 'labor', 'capacity', 'committed', 'rows', 'mode', 'heldWorkers', 'unusedWorkers', 'limiting', 'continuation']);
+  if (v.mode !== 'explicit' && v.mode !== 'auto') throw Error('Unknown development mode');
   const labor = list(v.labor, 64).map(item => {const l = object(item, ['work', 'free']); return {work: id(l.work), free: count(l.free)};});
   const rows = list(v.rows, 256).map((item): DevelopmentRow => {
     const r = object(item, ['goal', 'score', 'deficit', 'risk', 'waitingSince', 'selected', 'committed', 'reason', 'bottleneck']);
@@ -61,7 +67,8 @@ export function readDevelopment(value: unknown): Development {
     if (row.score < 0 || row.selected && (row.committed || row.reason !== '') || row.bottleneck !== '' && row.reason !== 'labor_unavailable') throw Error('Inconsistent development row');
     return row;
   });
-  const result = {tick: tick(v.tick), workers: nullable(v.workers, count), labor, capacity: count(v.capacity), committed: list(v.committed, 256).map(id), rows};
+  const result: Development = {tick: tick(v.tick), workers: nullable(v.workers, count), labor, capacity: count(v.capacity), committed: list(v.committed, 256).map(id), rows,
+    mode: v.mode, heldWorkers: count(v.heldWorkers), unusedWorkers: nullable(v.unusedWorkers, count), limiting: reason(v.limiting), continuation: text(v.continuation)};
   if (new Set(rows.map(r => r.goal)).size !== rows.length || rows.filter(r => r.selected).length + result.committed.length > result.capacity) throw Error('Inconsistent development admission');
   return result;
 }

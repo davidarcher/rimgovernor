@@ -44,7 +44,25 @@ func TestServeRoutineProjectLimit(t *testing.T) {
 		}
 	}
 	c, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-project-limit", "1"), io.Discard)
-	if err != nil || c.routineProjectLimit != 1 {
+	if err != nil || c.routineProjectLimit != 1 || c.routineProjectAuto {
+		t.Fatal(c, err)
+	}
+	// The default is unchanged; auto is the slot bound plus the distinct
+	// worker census, and a later explicit value replaces it.
+	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
+	if err != nil || c.routineProjectLimit != 2 || c.routineProjectAuto {
+		t.Fatal(c, err)
+	}
+	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-project-limit", "auto"), io.Discard)
+	if err != nil || c.routineProjectLimit != policy.MaxAutoDevelopmentProjects || !c.routineProjectAuto {
+		t.Fatal(c, err)
+	}
+	thresholds, _ := routineCapabilities(c)
+	if !thresholds.AutoDevelopment || thresholds.Validate() != nil {
+		t.Fatal(thresholds.AutoDevelopment)
+	}
+	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-project-limit", "auto", "--routine-project-limit", "3"), io.Discard)
+	if err != nil || c.routineProjectLimit != 3 || c.routineProjectAuto {
 		t.Fatal(c, err)
 	}
 }

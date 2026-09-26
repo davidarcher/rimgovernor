@@ -12,7 +12,8 @@ import (
 // capacity model: a pawn that can cook, grow and haul is one worker, not
 // three. It is planning and accounting only. It forces no job and reserves
 // nothing. Material and cell feasibility stay with admission, which
-// revalidates them atomically. Admission does not read this yet (#649).
+// revalidates them atomically. Development admission matches through it
+// in automatic mode (developmentFit, #649).
 //
 // Algorithm and bounds: candidates are expanded, in their ready-work order
 // (that order is the priority), into at most Parallelism positions each.

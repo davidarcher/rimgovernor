@@ -111,6 +111,7 @@ type serveConfig struct {
 	routineStoppedResources         stoppedResourceFlags
 	routineMethods                  bool
 	routineProjectLimit             int
+	routineProjectAuto              bool
 	caravanJourneyTracking          bool
 	worldEvaluation                 bool
 	worldEvaluationFoodMarginDays   float64
@@ -165,7 +166,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.BoolVar(&c.noFlightRecorder, "no-flight-recorder", false, "run without a flight recorder; /api/telemetry answers 404")
-	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
+	c.routineProjectLimit = 2
+	flags.Var(projectLimitFlag{&c.routineProjectLimit, &c.routineProjectAuto}, "routine-project-limit", "concurrent optional projects (development goals and player projects holding a slot), 1..8, also bounded by observed workers; or auto, which admits every project a distinct observed worker can take (at most 8)")
 	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
 	flags.Int64Var(&c.routineSilverReserve, "routine-silver-reserve", 0, "silver TradeWithCaravan never spends below when buying from a caravan")
 	flags.Int64Var(&c.routineComponentTarget, "routine-component-target", 0, "ComponentIndustrial stock TradeWithCaravan buys toward and, with the resource family, MaintainResource mines toward; 0 tracks no component target")
@@ -219,8 +221,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 			return c, errors.New("serve requires an absolute --profile (or --observe)")
 		}
 	}
-	if c.routineProjectLimit < 1 || c.routineProjectLimit > 8 {
-		return c, errors.New("--routine-project-limit must be 1 through 8")
+	if !c.routineProjectAuto && (c.routineProjectLimit < 1 || c.routineProjectLimit > 8) {
+		return c, errors.New("--routine-project-limit must be 1 through 8, or auto")
 	}
 	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" && c.clockSpeed != "Ultrafast" {
 		return c, errors.New("--clock-speed must be Normal, Fast, Superfast or Ultrafast")
@@ -605,4 +607,35 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 		return err
 	}
 	return server.Serve(ctx, listener)
+}
+
+// projectLimitFlag is --routine-project-limit: an explicit slot count, or
+// auto (policy.MaxAutoDevelopmentProjects slots, admission by distinct
+// observed workers). A number is range-checked after parsing.
+type projectLimitFlag struct {
+	limit *int
+	auto  *bool
+}
+
+func (f projectLimitFlag) String() string {
+	if f.auto != nil && *f.auto {
+		return "auto"
+	}
+	if f.limit == nil {
+		return ""
+	}
+	return strconv.Itoa(*f.limit)
+}
+
+func (f projectLimitFlag) Set(value string) error {
+	if value == "auto" {
+		*f.auto, *f.limit = true, policy.MaxAutoDevelopmentProjects
+		return nil
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return errors.New("must be 1 through 8, or auto")
+	}
+	*f.auto, *f.limit = false, n
+	return nil
 }

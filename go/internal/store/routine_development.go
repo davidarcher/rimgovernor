@@ -194,7 +194,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Auto: r.Policy.AutoDevelopment, Census: r.Facts.WorkerCensus})
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
 	}
@@ -273,36 +273,30 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 	if policy.DevelopmentExempt(need) {
 		return nil
 	}
-	selected := false
-	for _, row := range review.Development.Rows {
-		if row.Goal == need {
-			selected = row.Selected
-		}
-	}
-	if !selected {
-		return fmt.Errorf("%w: goal %s (%s) holds no development slot", ErrNotAdmitted, g.ID, need)
-	}
+	// The ranking's own accounting (policy.AdmitDevelopment) on the
+	// commitments as they stand now: a player project or another admission
+	// since the review holds its slot and worker. The same commitments the
+	// ranking freed hold nothing here either: a stalled one, and one whose
+	// labor idled (its row reads labor_idle).
 	commitments, err := routineCommitments(ctx, tx, review.Snapshot, review.Goals)
 	if err != nil {
 		return err
 	}
-	// The same commitments the review's ranking freed hold no slot here
-	// either: a stalled one, and one whose labor idled (its row reads
-	// labor_idle), or the freed slot could never be taken.
+	state := review.Development.State()
 	released := map[domain.GoalID]bool{}
-	for _, row := range review.Development.Rows {
+	for _, row := range state.Rows {
 		if row.Reason == policy.DevelopmentLaborIdle {
 			released[row.Goal] = true
 		}
 	}
-	ids := map[domain.GoalID]bool{}
-	for _, c := range commitments {
-		if c.Source != domain.AdviserGoal && (c.Source == domain.PlayerGoal || c.Priority >= 3) && !c.Stalled(review.Tick) && !released[c.Goal] {
-			ids[c.Goal] = true
+	var withheld policy.LaborProfile
+	for _, h := range state.Holds {
+		if h.Goal == "" {
+			withheld = append(withheld, h.Labor...)
 		}
 	}
-	if len(ids) >= review.Development.Capacity {
-		return fmt.Errorf("%w: development capacity %d already committed", ErrNotAdmitted, review.Development.Capacity)
+	if err = policy.AdmitDevelopment(state, need, policy.CommitmentHolds(commitments, review.Tick, released, state.Auto, withheld)); err != nil {
+		return fmt.Errorf("%w: %v", ErrNotAdmitted, err)
 	}
 	return nil
 }
