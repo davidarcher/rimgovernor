@@ -27,7 +27,19 @@ func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
 	if !pk || !rk || !sk {
 		return policy.BedroomStep{}
 	}
-	return policy.NextBedroomStep(plan, rooms, sleeping)
+	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts))
+}
+
+// bedroomTargets is the rooms' quality targets, so a bedroom move leaves an
+// ascetic's NeverUpgrade room alone (#826); nil while the census is unknown.
+func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTarget {
+	obs, known := facts.Facts.Sleeping.Value()
+	traits := sleepingTraits(facts)
+	if !known || traits == nil {
+		return nil
+	}
+	tier, _ := facts.BuildTier.Value()
+	return policy.RoomQualityTargets(obs, traits, tier)
 }
 
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
@@ -35,7 +47,7 @@ func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
 func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	owed := domain.Known(false)
 	if tier, known := facts.BuildTier.Value(); known && tier >= policy.BuildTierMasonry {
-		owed = policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping)
+		owed = policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts))
 	}
 	if v, known := owed.Value(); known && !v {
 		if _, swap := bedroomSwap(facts); swap {

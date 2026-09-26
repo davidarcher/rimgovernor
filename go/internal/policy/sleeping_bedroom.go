@@ -47,7 +47,9 @@ type BedroomStep struct {
 // standing bedrooms cannot take every colonist still outside one. Rooms dug
 // into rock wait on mining and are skipped. It reports BedroomNone whenever a
 // fact it needs is unknown.
-func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation) BedroomStep {
+// A colonist whose current room RoomTargets marks NeverUpgrade (an ascetic,
+// #826) counts as housed: the move never takes them from the plainest room.
+func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget) BedroomStep {
 	if len(sleeping.People) == 0 || len(sleeping.People) != sleeping.Colonists {
 		return BedroomStep{}
 	}
@@ -60,8 +62,12 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 		}
 	}
 	beds := map[string]SleepingBed{}
+	kept := map[string]bool{}
 	for _, b := range sleeping.Beds {
 		beds[b.ID] = b
+		if room, ok := b.Room.Value(); ok && targets[room].NeverUpgrade {
+			kept[b.ID] = true
+		}
 	}
 	people := append([]SleepingPerson(nil), sleeping.People...)
 	sort.Slice(people, func(i, j int) bool { return people[i].ID < people[j].ID })
@@ -72,7 +78,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			// Barracks stays the fallback until everyone has a bed.
 			return BedroomStep{}
 		}
-		if !bedroomBed[bed] {
+		if !bedroomBed[bed] && !kept[bed] {
 			unhoused = append(unhoused, p)
 		}
 	}
@@ -148,14 +154,14 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 
 // BedroomsOwed is the review's bedroom deficit: known true while a bedroom
 // step is due, unknown while the plan, room or sleeping census is.
-func BedroomsOwed(plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation]) domain.Fact[bool] {
+func BedroomsOwed(plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], sleeping domain.Fact[SleepingObservation], targets map[string]RoomTarget) domain.Fact[bool] {
 	p, pk := plan.Value()
 	r, rk := rooms.Value()
 	s, sk := sleeping.Value()
 	if !pk || !rk || !sk {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(NextBedroomStep(p, r, s).Kind != BedroomNone)
+	return domain.Known(NextBedroomStep(p, r, s, targets).Kind != BedroomNone)
 }
 
 func containsPawn(ids []PawnID, id PawnID) bool {

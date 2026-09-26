@@ -11,7 +11,7 @@ import (
 func upgradeFixture(t *testing.T, q RoomQuality) (SleepingObservation, []TidyRoom, InteriorPlan) {
 	t.Helper()
 	room := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{0, 0, 5, 4}, Doors: []domain.Cell{{X: 0, Z: -1}}}
-	plan, ok := PlanInterior(room)
+	plan, ok := PlanInterior(room, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no bedroom plan")
 	}

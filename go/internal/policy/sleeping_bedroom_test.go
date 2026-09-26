@@ -24,7 +24,7 @@ func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 
 func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
-	if got := NextBedroomStep(plan, rooms, sleeping); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
 		t.Fatalf("first step = %+v, want the first slot's shell", got)
 	}
 	var cells []domain.Cell
@@ -34,18 +34,18 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 		}
 	}
 	rooms.Rooms = append(rooms.Rooms, Room{ID: "r1", Role: domain.Known(RoomRole("None")), Enclosed: domain.Known(true), Cells: cells})
-	if got := NextBedroomStep(plan, rooms, sleeping); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomFurnish || len(got.Cells) != 25 {
 		t.Fatalf("standing empty bedroom = %+v, want furnish", got)
 	}
 	rooms.Rooms[1].Role, rooms.Rooms[1].Beds = domain.Known(RoomRoleBedroom), []string{"r1bed"}
 	sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: "r1bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), AccessibleTo: []PawnID{"a", "b"}})
-	got := NextBedroomStep(plan, rooms, sleeping)
+	got := NextBedroomStep(plan, rooms, sleeping, nil)
 	if got.Kind != BedroomMove || got.Pawn != "a" || got.Bed != "r1bed" || got.PreviousBed != "b1" {
 		t.Fatalf("vacant bedroom bed = %+v, want a moved from b1", got)
 	}
 	sleeping.People[0].OwnedBed = domain.Known("r1bed")
 	sleeping.Beds[3].Owners = []PawnID{"a"}
-	if got := NextBedroomStep(plan, rooms, sleeping); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomShell || got.Room.Interior.X != 16 {
 		t.Fatalf("second colonist = %+v, want the second slot's shell", got)
 	}
 }
@@ -53,10 +53,22 @@ func TestBedroomStepShellsFurnishesThenMoves(t *testing.T) {
 func TestBedroomStepWaitsForEveryoneToOwnABed(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
 	sleeping.People[1].OwnedBed = domain.Known("")
-	if got := NextBedroomStep(plan, rooms, sleeping); got.Kind != BedroomNone {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind != BedroomNone {
 		t.Fatalf("unbedded colonist = %+v, want barracks first", got)
 	}
-	if owed, known := BedroomsOwed(domain.Known(plan), domain.Unknown[RoomObservation](), domain.Known(sleeping)).Value(); known || owed {
+	if owed, known := BedroomsOwed(domain.Known(plan), domain.Unknown[RoomObservation](), domain.Known(sleeping), nil).Value(); known || owed {
 		t.Fatal("unknown rooms must leave the deficit unknown")
+	}
+}
+
+func TestBedroomStepKeepsNeverUpgradeOwner(t *testing.T) {
+	plan, rooms, sleeping := bedroomFixture()
+	rooms.Rooms = append(rooms.Rooms, Room{ID: "r1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"r1bed"}})
+	sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: "r1bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), AccessibleTo: []PawnID{"a", "b"}})
+	sleeping.Beds[0].Room = domain.Known("plain")
+	sleeping.Beds[1].Room = domain.Known("barracks")
+	got := NextBedroomStep(plan, rooms, sleeping, map[string]RoomTarget{"plain": {NeverUpgrade: true}})
+	if got.Kind != BedroomMove || got.Pawn != "b" || got.Bed != "r1bed" {
+		t.Fatalf("ascetic in a never-upgrade room = %+v, want b moved instead (#826)", got)
 	}
 }
