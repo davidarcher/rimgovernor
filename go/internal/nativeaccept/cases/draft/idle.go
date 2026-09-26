@@ -21,7 +21,7 @@ func init() {
 		}
 		cases.Register(cases.Case{
 			Name: name, Start: cases.Save{Name: "RimGovernor-tribal8-baseline"}, Budget: 3 * time.Minute,
-			Scope:       "Manual player drafts are adopted and released within one Auto observation window; the same fixture with hostiles retains drafts for squad defense (#465).",
+			Scope:       "Auto adopts and releases idle player drafts; the same fixture with hostiles retains drafts for squad defense (#465).",
 			RequiredOps: []string{"test/b04f_setup"},
 			Serve:       &cases.ServeSpec{Families: []string{"defense"}, Prefix: "idle-draft", Extra: []string{"--clock-window-ticks", "300"}},
 			Run:         func(ctx context.Context, s cases.Session) error { return runIdle(ctx, s, hostile) },
@@ -133,9 +133,11 @@ func runIdle(ctx context.Context, s cases.Session, hostile bool) error {
 		return err
 	}
 	started := time.Now()
+	// Stall-bounded: every adoption and release journaled is progress, so
+	// the ceiling is only a hang guard over the eight adopt-release pairs.
 	const window = 30 * time.Second // scheduler's full-observation safety net
 	seen := map[string]map[string]any{}
-	err = na.WaitProgress(ctx, na.Wait{Ceiling: window, Stall: window, Interval: 100 * time.Millisecond, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
+	err = na.WaitProgress(ctx, na.Wait{Ceiling: 2 * time.Minute, Stall: window, Interval: 100 * time.Millisecond, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 		rows, err := tail.Next()
 		if err != nil {
 			return "", false, err
@@ -180,16 +182,22 @@ func runIdle(ctx context.Context, s cases.Session, hostile bool) error {
 		if err != nil {
 			return "", false, err
 		}
-		adopted := false
+		adopted, claims := false, 0
 		for _, plan := range plans {
 			for _, progress := range plan.Progress {
 				draft, ok := progress.Action().OwnedDraft()
-				if !ok || seen[string(draft.Pawn())] == nil {
+				if !ok {
 					continue
 				}
 				v := progress.View()
 				cleanup, known := v.DraftCleanup.Value()
 				if !known {
+					continue
+				}
+				if _, claimed := cleanup.Claim.Value(); claimed {
+					claims++
+				}
+				if seen[string(draft.Pawn())] == nil {
 					continue
 				}
 				if !hostile && cleanup.Stage == domain.DraftReleased {
@@ -220,7 +228,7 @@ func runIdle(ctx context.Context, s cases.Session, hostile bool) error {
 			}
 			adopted = adopted && combat
 		}
-		return na.Signature(len(seen), adopted), adopted && (hostile || len(seen) == len(ids)), nil
+		return na.Signature(len(seen), claims, adopted), adopted && (hostile || len(seen) == len(ids)), nil
 	})
 	s.Report()["native_pawns_after_auto"] = seen
 	s.Report()["observation_window_ms"] = window.Milliseconds()

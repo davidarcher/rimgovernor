@@ -248,7 +248,9 @@ func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
 	}
 	var evidence *r.EffectEvidence
 	complete := false
-	issued := false
+	// Applied either issued the draft or adopted a player's existing draft
+	// (issued=false); only no-change forbids a claim of issuing.
+	mayIssue := false
 	switch outcome := v.Outcome.(type) {
 	case *r.Receipt_Applied:
 		if outcome.Applied == nil {
@@ -256,7 +258,7 @@ func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
 		}
 		evidence = outcome.Applied.Observed
 		complete = true
-		issued = true
+		mayIssue = true
 	case *r.Receipt_NoChange:
 		if outcome.NoChange == nil || !diagnostic(outcome.NoChange.Detail) {
 			return contract("draft no-change missing")
@@ -278,7 +280,7 @@ func draftReceipt(v *r.Receipt, expected DraftAttempt) error {
 	if err != nil {
 		return err
 	}
-	if complete && (job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.DraftClaimId == nil || job.ResultingSnapshotToken == nil) {
+	if complete && (job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() && !mayIssue || job.DraftClaimId == nil || job.ResultingSnapshotToken == nil) {
 		return contract("verified owned draft facts missing")
 	}
 	return nil

@@ -87,9 +87,17 @@ func TestDraftReceiptCorrelationAndUncertainty(t *testing.T) {
 		})
 	}
 	v := draftTestReceipt()
+	v.GetApplied().Observed.GetJob().Issued = proto.Bool(false) // adopted player draft
+	if err := draftReceipt(v, draftTestAttempt()); err != nil {
+		t.Fatal(err)
+	}
 	job := draftTestJob()
-	job.Issued = proto.Bool(false)
+	job.Issued = proto.Bool(true)
 	v.Outcome = &r.Receipt_NoChange{NoChange: &r.NoChange{Observed: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: job}}}}
+	if err := draftReceipt(v, draftTestAttempt()); err == nil {
+		t.Fatal("no-change claimed an issued draft")
+	}
+	job.Issued = proto.Bool(false)
 	if err := draftReceipt(v, draftTestAttempt()); err != nil {
 		t.Fatal(err)
 	}
