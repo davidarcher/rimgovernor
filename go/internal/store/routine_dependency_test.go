@@ -78,6 +78,47 @@ func TestShortfallDependencyNeedsMeasuredShortfall(t *testing.T) {
 		t.Fatal("unknown stock recorded a shortfall")
 	}
 	if _, short := ShortfallDependency(policy.EnsureInitialShelter, g.Goal, "shell", req.Plan.ID(), req.Previews, policy.StockObservation{Values: []policy.Stock{{Resource: "Steel", Available: domain.Known(int64(0))}}}, "Steel", 10); short {
-		t.Fatal("unmigrated resource recorded a shortfall")
+		t.Fatal("a resource the previews do not cost recorded a shortfall")
+	}
+}
+
+// A shell short of a non-wood material records an edge to MaintainResource;
+// the review raises that resource's floor to the open costs and carries it
+// for the resource planner (#728).
+func TestShelterNonWoodShortfallRaisesResourceFloor(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	r.Facts.Wood = domain.Known(int64(400))
+	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 30}})
+	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(0)), domain.Known(int64(0))
+	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkPlantCutting: 1, policy.WorkConstruction: 1})
+	first := reviewRoutine(t, s, &r)
+	shelter := routineGoal(t, first, policy.EnsureInitialShelter)
+	req := methodRequest(t, shelter, "shell", 60, 60)
+	req.Purpose = policy.Shelter
+	for i := range req.Previews {
+		req.Previews[i].Costs = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 60}})
+	}
+	req.Stock.Values = []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(30))}}
+	rec, short := ShortfallDependency(policy.EnsureInitialShelter, shelter.Goal, req.Method, req.Plan.ID(), req.Previews, req.Stock, "BlocksGranite", req.Tick)
+	if !short {
+		t.Fatal("granite shortfall not recorded")
+	}
+	if _, err := s.AdmitBuildingMethod(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordDependency(ctx, first.Review.Revision, rec); err != nil {
+		t.Fatal(err)
+	}
+	second := reviewRoutine(t, s, &r)
+	if got := second.Review.DependencyNeeds["BlocksGranite"]; got != 120 {
+		t.Fatalf("floor %d, deps %+v", got, second.Review.Dependencies)
+	}
+	row := developmentRow(t, second.Review, policy.MaintainResource)
+	if row.Donation == nil || row.Donation.Priority != 2 || row.Donation.Shortfall != 90 {
+		t.Fatalf("resource row %+v", row)
 	}
 }

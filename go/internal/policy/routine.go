@@ -468,7 +468,8 @@ type RoutineFacts struct {
 	Wood                                                        domain.Fact[int64]
 	// Dependencies are the live typed shortfall edges (#651) carried from the
 	// last review: an open WoodLog shortfall activates MaintainWood for the
-	// bounded difference while the wood latch is off (#711).
+	// bounded difference while the wood latch is off (#711); any other
+	// resource's raises a MaintainResource floor (#728).
 	Dependencies []DevelopmentDependency
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
@@ -948,7 +949,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, MedicineResourceNeeds(ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)))
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(MedicineResourceNeeds(ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)), DependencyResourceNeeds(f.Dependencies)))
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

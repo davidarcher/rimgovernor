@@ -56,11 +56,14 @@ type RoutineReview struct {
 	Latches                policy.RoutineLatches
 	MedicalCare            policy.MedicalCareHistory
 	MedicineTarget         int64 `json:",omitempty"`
-	StartingSupplies       policy.StartingSupplies
-	EventLoot              policy.EventLootHistory
-	Comfort                policy.ComfortHistory
-	Goals                  []RoutineGoal
-	Development            RoutineDevelopment
+	// DependencyNeeds are the MaintainResource floors this review's live
+	// shortfall edges raised (#728), so the resource planner stocks them.
+	DependencyNeeds  map[policy.Resource]int64 `json:",omitempty"`
+	StartingSupplies policy.StartingSupplies
+	EventLoot        policy.EventLootHistory
+	Comfort          policy.ComfortHistory
+	Goals            []RoutineGoal
+	Development      RoutineDevelopment
 	// Roster is the roster planner's last recorded report (#448): coverage,
 	// decaying skills and pawn profiles as of its Tick. A disabled review
 	// keeps the last one; absent until an enabled review planned work.
@@ -136,6 +139,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
 		return RoutineReview{}, errors.New("invalid medicine resource target")
+	}
+	if len(r.DependencyNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.DependencyNeeds) != nil {
+		return RoutineReview{}, errors.New("invalid dependency resource needs")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return RoutineReview{}, err
@@ -538,6 +544,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
+	r.DependencyNeeds = policy.DependencyResourceNeeds(request.Facts.Dependencies)
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
 	if request.Enabled {

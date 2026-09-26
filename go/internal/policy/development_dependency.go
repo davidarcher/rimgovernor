@@ -21,11 +21,15 @@ import (
 // world whose dependent goal epoch is still active, with the costs of the
 // dependent actions still open and the current usable stock.
 
-// ResourcePrerequisite is the goal that acquires resource, when one is
-// migrated. Only wood is: the first slice is shelter-to-wood.
+// ResourcePrerequisite is the goal that acquires resource: MaintainWood
+// for wood (until it folds into MaintainResource, #728), MaintainResource
+// for every other definition.
 func ResourcePrerequisite(resource Resource) (GoalID, bool) {
 	if resource == "WoodLog" {
 		return MaintainWood, true
+	}
+	if validResource(resource) {
+		return MaintainResource, true
 	}
 	return "", false
 }
@@ -270,34 +274,69 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 }
 
 // WoodShortfall is the open WoodLog demand of the live edges naming
-// MaintainWood: each open action's cost once, minus the freshest known
-// stock (ResolveDonations' shared demand). Edges with unknown stock add
-// nothing (#711).
+// MaintainWood (#711).
 func WoodShortfall(deps []DevelopmentDependency) int64 {
-	costs := map[domain.ActionID]int64{}
-	var available int64
-	var observed domain.Tick
-	known := false
+	d := dependencyDemands(deps, MaintainWood)["WoodLog"]
+	return max(0, d.need-d.available)
+}
+
+// DependencyResourceNeeds are the stock floors MaintainResource's live
+// shortfall edges ask for (#728): per resource, the open dependent costs,
+// each action once, wherever the freshest known stock falls short of them.
+// ResourceGoalTargets merges them into the configured targets, so a goal
+// admitted short of any resource raises its acquisition.
+func DependencyResourceNeeds(deps []DevelopmentDependency) map[Resource]int64 {
+	var out map[Resource]int64
+	for resource, d := range dependencyDemands(deps, MaintainResource) {
+		if d.need > d.available {
+			if out == nil {
+				out = map[Resource]int64{}
+			}
+			out[resource] = d.need
+		}
+	}
+	return out
+}
+
+type dependencyDemand struct{ need, available int64 }
+
+// dependencyDemands is ResolveDonations' shared demand for one
+// prerequisite: per resource, each open action's cost once against the
+// freshest known stock. Edges with unknown stock add nothing.
+func dependencyDemands(deps []DevelopmentDependency, prerequisite GoalID) map[Resource]dependencyDemand {
+	type acc struct {
+		costs     map[domain.ActionID]int64
+		available int64
+		observed  domain.Tick
+		known     bool
+	}
+	accs := map[Resource]*acc{}
 	for _, d := range deps {
-		if d.Prerequisite != MaintainWood || d.Resource != "WoodLog" {
+		stock, k := d.Available.Value()
+		if d.Prerequisite != prerequisite || d.Resource == "" || !k {
 			continue
 		}
-		stock, k := d.Available.Value()
-		if !k {
-			continue
+		a := accs[d.Resource]
+		if a == nil {
+			a = &acc{costs: map[domain.ActionID]int64{}}
+			accs[d.Resource] = a
 		}
 		for _, c := range d.Costs {
 			if c.Count > 0 {
-				costs[c.Action] = max(costs[c.Action], c.Count)
+				a.costs[c.Action] = max(a.costs[c.Action], c.Count)
 			}
 		}
-		if !known || d.Observed >= observed {
-			available, observed, known = max(0, stock), d.Observed, true
+		if !a.known || d.Observed >= a.observed {
+			a.available, a.observed, a.known = max(0, stock), d.Observed, true
 		}
 	}
-	var need int64
-	for _, c := range costs {
-		need += c
+	out := make(map[Resource]dependencyDemand, len(accs))
+	for r, a := range accs {
+		var need int64
+		for _, c := range a.costs {
+			need += c
+		}
+		out[r] = dependencyDemand{need, a.available}
 	}
-	return max(0, need-available)
+	return out
 }

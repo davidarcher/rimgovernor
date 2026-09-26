@@ -88,7 +88,7 @@ func ShortfallDependency(need domain.GoalID, goal domain.Goal, method domain.Met
 }
 
 // RecordDependency stores rec in the review at revision, replacing any
-// record of the same goal and method. A review that has moved past
+// record of the same goal, method and resource. A review that has moved past
 // revision is ErrConflict.
 func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec DependencyRecord) error {
 	if err := rec.validate(); err != nil {
@@ -108,7 +108,7 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 	}
 	kept := []DependencyRecord{rec}
 	for _, d := range review.Dependencies {
-		if d.Goal != rec.Goal || d.Method != rec.Method {
+		if d.Goal != rec.Goal || d.Method != rec.Method || d.Resource != rec.Resource {
 			kept = append(kept, d)
 		}
 	}
@@ -135,7 +135,10 @@ func sortDependencies(d []DependencyRecord) {
 		if d[i].Goal != d[j].Goal {
 			return d[i].Goal < d[j].Goal
 		}
-		return d[i].Method < d[j].Method
+		if d[i].Method != d[j].Method {
+			return d[i].Method < d[j].Method
+		}
+		return d[i].Resource < d[j].Resource
 	})
 }
 
@@ -193,13 +196,23 @@ func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRe
 	return kept, edges, nil
 }
 
-// resourceStock is the current usable stock of a migrated prerequisite
-// resource; unknown for any other.
+// resourceStock is the current usable stock of resource: the wood fact
+// for WoodLog, the item census for any other.
 func resourceStock(f policy.RoutineFacts, resource policy.Resource) domain.Fact[int64] {
 	if resource == "WoodLog" {
 		return f.Wood
 	}
-	return domain.Unknown[int64]()
+	rows, known := f.Resources.Value()
+	if !known {
+		return domain.Unknown[int64]()
+	}
+	var n int64
+	for _, a := range rows {
+		if a.Resource == resource {
+			n += a.Count
+		}
+	}
+	return domain.Known(n)
 }
 
 // priorDependencies is the last review's still-live edges against its goal

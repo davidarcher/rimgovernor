@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -803,14 +804,16 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	reason := BuildingMethodRefused
 	if decision.Admitted {
 		reason = BuildingMethodAdmitted
-		// A shell admitted short of wood (#602) records the shortfall so the
-		// ranking can order the wood acquisition ahead of unrelated
-		// optional work (#651). The review keeps the edge only while these
-		// actions stay open.
+		// A shell admitted short of a material (#602) records each
+		// shortfall so the ranking orders that resource's acquisition ahead
+		// of unrelated optional work (#651, #728). The review keeps an edge
+		// only while its actions stay open.
 		if a.purpose == policy.Shelter {
-			if rec, short := store.ShortfallDependency(r.goal, decision.Goal.Goal, a.method, plan.ID(), a.selected, a.stock, "WoodLog", a.facts.Identity.Tick); short {
-				if err = p.journal.RecordDependency(call, a.review.Revision, rec); err != nil && !errors.Is(err, store.ErrConflict) {
-					return RoutineBuildingResult{}, err
+			for _, resource := range previewResources(a.selected) {
+				if rec, short := store.ShortfallDependency(r.goal, decision.Goal.Goal, a.method, plan.ID(), a.selected, a.stock, resource, a.facts.Identity.Tick); short {
+					if err = p.journal.RecordDependency(call, a.review.Revision, rec); err != nil && !errors.Is(err, store.ErrConflict) {
+						return RoutineBuildingResult{}, err
+					}
 				}
 			}
 		}
@@ -1242,4 +1245,22 @@ type placementChoice struct {
 	choice  policy.Preview
 	preview bridge.BuildingPreview
 	score   policy.PlacementScore
+}
+
+// previewResources are the distinct resources the previews' known costs
+// name, sorted.
+func previewResources(previews []policy.Preview) []policy.Resource {
+	seen := map[policy.Resource]bool{}
+	var out []policy.Resource
+	for _, p := range previews {
+		costs, _ := p.Costs.Value()
+		for _, c := range costs {
+			if c.Count > 0 && !seen[c.Resource] {
+				seen[c.Resource] = true
+				out = append(out, c.Resource)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }

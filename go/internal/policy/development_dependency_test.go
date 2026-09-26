@@ -195,3 +195,27 @@ func TestShelterShortfallActivatesMaintainWood(t *testing.T) {
 		}
 	}
 }
+
+// A shortfall in any resource but wood routes to MaintainResource and
+// raises that resource's floor to the open costs (#728).
+func TestNonWoodShortfallRaisesResourceFloor(t *testing.T) {
+	if g, ok := ResourcePrerequisite("Steel"); !ok || g != MaintainResource {
+		t.Fatal(g, ok)
+	}
+	f := stableRoutine()
+	f.Resources = domain.Known([]Amount{{"Steel", 10}})
+	if hasNeed(needs(t, f, RoutineLatches{}), MaintainResource) {
+		t.Fatal("no floor configured")
+	}
+	f.Dependencies = []DevelopmentDependency{{Dependent: EnsureInitialShelter, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
+	if got := DependencyResourceNeeds(f.Dependencies); got["Steel"] != 50 || len(got) != 1 {
+		t.Fatal(got)
+	}
+	if !hasNeed(needs(t, f, RoutineLatches{}), MaintainResource) {
+		t.Fatal("steel shortfall did not activate MaintainResource")
+	}
+	f.Dependencies[0].Available = domain.Known(int64(50))
+	if got := DependencyResourceNeeds(f.Dependencies); len(got) != 0 {
+		t.Fatal("covered edge raised a floor", got)
+	}
+}
