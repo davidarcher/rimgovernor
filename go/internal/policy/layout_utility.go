@@ -77,7 +77,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 			if r.Role != role {
 				continue
 			}
-			if area, ok := u.exhaust(r); ok {
+			if area, ok := u.exhaust(r, southOfSpine(plan, r)); ok {
 				u.reserve(&plan, LayoutReservation{Kind: ReserveExhaust, Area: area})
 			}
 		}
@@ -267,7 +267,7 @@ func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 			}
 			in := r.Interior
 			x, wall, first, rot := in.X+in.Width/2, in.Z+in.Height, in.Z+in.Height+1, domain.North
-			if r.DoorRot == domain.North {
+			if southOfSpine(plan, r) {
 				wall, first, rot = in.Z-1, in.Z-2, domain.South
 			}
 			for _, e := range plan.Reservations {
@@ -411,10 +411,10 @@ func (u *utilityGrid) site(w, h int32, rockOK bool) (Rectangle, bool) {
 // exhaust is the column behind r's back wall, away from the spine, out to
 // the first open cell: one cell on an outer face, a dug shaft through
 // rock. False when the back is planned or off the map.
-func (u *utilityGrid) exhaust(r LayoutRoom) (Rectangle, bool) {
+func (u *utilityGrid) exhaust(r LayoutRoom, south bool) (Rectangle, bool) {
 	in := r.Interior
 	x, z, step := in.X+in.Width/2, in.Z+in.Height+1, int32(1)
-	if r.DoorRot == domain.North { // room south of the spine
+	if south {
 		z, step = in.Z-2, -1
 	}
 	for n := int32(1); n <= exhaustMax; n++ {

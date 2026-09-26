@@ -84,7 +84,10 @@ func Grow(plan LayoutPlan, pawns int) LayoutPlan {
 	seg := plan.Spine[0]
 	for _, role := range want {
 		next := seg
-		room, ok := g.place(&next, rooms, role)
+		room, ok := g.besideKitchen(&next, rooms, role)
+		if !ok {
+			room, ok = g.place(&next, rooms, role)
+		}
 		if !ok {
 			break
 		}
