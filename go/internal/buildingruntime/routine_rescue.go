@@ -28,6 +28,10 @@ type RoutineRescuePlanner struct {
 type RoutineRescueResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks is a bounded window the step may lend when the
+	// CriticalMedical deficit stands but no rescue method can run
+	// (medicalWaitTicks, #636).
+	NativeWorkTicks uint32
 }
 
 func NewRoutineRescuePlanner(reviewer *RoutineReviewer, native RoutineRescueSource) (*RoutineRescuePlanner, error) {
@@ -133,7 +137,9 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 		ok = false
 	}
 	if !ok {
-		return RoutineRescueResult{Reason: BuildingMethodUsed}, nil
+		// No pair to order: only game time frees a rescuer or resolves
+		// the casualty, so the step lends a window (#636).
+		return RoutineRescueResult{Reason: BuildingMethodUsed, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	rescue, err := domain.NewRescue(rescuer, patient)
 	if err != nil {
@@ -145,7 +151,9 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	prefix := fmt.Sprintf("rescue-%s-", patient)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineRescueResult{Reason: BuildingMethodExhausted}, nil
+		// The attempts are spent and the deficit stays visible; the
+		// clock must still advance under it (#636).
+		return RoutineRescueResult{Reason: BuildingMethodExhausted, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))

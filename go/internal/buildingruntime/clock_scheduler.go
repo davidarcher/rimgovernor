@@ -1269,6 +1269,19 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
 	}
+	// A standing CriticalMedical deficit with no tend or rescue method to run
+	// freezes development on "not selected: emergency" while contributing no
+	// plan of its own; the clock then parks on no_work for as long as the
+	// emergency stands, which is what a walking bleeding patient did for an
+	// hour in #636. The emergency clears on game time, not on another method,
+	// so the planner's lent window carries the step (cf. the deliberate
+	// non-refusal for EmergencyCriticalMedical in EvaluateClockWindow).
+	if out.Tend != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Tend.NativeWorkTicks)
+	}
+	if out.Rescue != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Rescue.NativeWorkTicks)
+	}
 	// A planner that failed on a native refusal produced neither work nor a
 	// wait, and the same read is refused again next step while the game
 	// stands still; one window lets the world move under it (#219).

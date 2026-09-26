@@ -26,6 +26,10 @@ type RoutineTendPlanner struct {
 type RoutineTendResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks is a bounded window the step may lend when the
+	// CriticalMedical deficit stands but no tend method can run
+	// (medicalWaitTicks, #636).
+	NativeWorkTicks uint32
 }
 
 func NewRoutineTendPlanner(reviewer *RoutineReviewer, native RoutineTendSource) (*RoutineTendPlanner, error) {
@@ -131,7 +135,10 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		ok = false
 	}
 	if !ok {
-		return RoutineTendResult{Reason: BuildingMethodUsed}, nil
+		// No pair to order: the patient is up and out of bed, or every
+		// doctor is ineligible or busy. Only game time changes that, so
+		// the step lends a window rather than reporting no work (#636).
+		return RoutineTendResult{Reason: BuildingMethodUsed, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	tend, err := domain.NewTend(doctor, patient)
 	if err != nil {
@@ -143,7 +150,9 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	prefix := fmt.Sprintf("tend-%s-", patient)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineTendResult{Reason: BuildingMethodExhausted}, nil
+		// The attempts are spent and the deficit stays visible; the
+		// clock must still advance under it (#636).
+		return RoutineTendResult{Reason: BuildingMethodExhausted, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
