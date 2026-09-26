@@ -1,6 +1,9 @@
 package snapshot
 
 import (
+	"encoding/json"
+	"fmt"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -50,23 +53,76 @@ func TestReplayFilthyKitchenOpensCleaning(t *testing.T) {
 	}
 }
 
-func TestRecordRoundTrips(t *testing.T) {
+func TestRecordStreamsKeyframesAndPatches(t *testing.T) {
 	r, err := Load(cleanFilthy)
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	if err = Record(dir, r); err != nil {
-		t.Fatal(err)
+	// Reviews that differ from one another: a tick, a changed pawn list and
+	// a dropped projection, twice at one tick, across a keyframe boundary.
+	var want []Routine
+	for i := 0; i < KeyEvery+3; i++ {
+		v, _ := Load(cleanFilthy)
+		v.Tick = r.Tick + domain.Tick(i/2)
+		v.Recorded = fmt.Sprint("review ", i)
+		if i%3 == 1 {
+			v.Projection = nil
+		}
+		if i%4 == 2 && v.Review != nil && len(v.Review.Goals) > 0 {
+			v.Review.Goals = v.Review.Goals[:len(v.Review.Goals)-1]
+		}
+		if err = Record(dir, v); err != nil {
+			t.Fatal(err)
+		}
+		want = append(want, v)
 	}
-	again, err := Load(dir + "/routine-158107-1.json")
-	if err != nil || !reflect.DeepEqual(r, again) {
-		t.Fatal("recorded snapshot does not round-trip", err)
+	paths, _ := filepath.Glob(filepath.Join(dir, "routine-stream-*.jsonl"))
+	if len(paths) != 1 {
+		t.Fatal("want one stream per serve, got", paths)
 	}
-	if err = Record(dir, r); err != nil {
-		t.Fatal(err)
+	reviews, err := Reviews(paths[0])
+	if err != nil || len(reviews) != len(want) {
+		t.Fatal(reviews, err)
 	}
-	if _, err = Load(dir + "/routine-158107-2.json"); err != nil {
-		t.Fatal("a second review at the same tick overwrote the first", err)
+	if reviews[1] != (Review{r.Tick, 2}) {
+		t.Error("second review at one tick is seq 2:", reviews[1])
+	}
+	i := 0
+	err = Replay(paths[0], nil, func(at Review, got Routine) (bool, error) {
+		if !reflect.DeepEqual(got, want[i]) {
+			t.Errorf("review %d (%s) does not round-trip", i, at)
+		}
+		i++
+		return true, nil
+	})
+	if err != nil || i != len(want) {
+		t.Fatal(i, err)
+	}
+	last := want[len(want)-1]
+	got, err := LoadReview(paths[0], last.Tick, 0)
+	if err != nil || !reflect.DeepEqual(got, last) {
+		t.Fatal("LoadReview did not materialise the last review", err)
+	}
+	if _, err = LoadReview(paths[0], 1, 0); err == nil {
+		t.Fatal("an unrecorded tick loaded")
+	}
+}
+
+func TestPatchNodes(t *testing.T) {
+	old, _ := parseTree([]byte(`{"rows":[{"ID":"p1","x":1},{"ID":"p2","x":2},{"ID":"p3"}],"a":1,"b":[1,2,3],"c":{"d":"x"},"gone":true,"n":null}`))
+	new, _ := parseTree([]byte(`{"rows":[{"ID":"p0"},{"ID":"p2","x":3},{"ID":"p1","x":1}],"a":1,"b":[1,5],"c":{"d":"y","e":[]},"n":null,"m":null}`))
+	patch, changed := diffTree(old, new)
+	if !changed {
+		t.Fatal("no patch")
+	}
+	data, _ := json.Marshal(patch) // as a stream line carries it
+	node, _ := parseTree(data)
+	got, err := applyPatch(old, node.(map[string]any))
+	if err != nil || !reflect.DeepEqual(got, new) {
+		t.Fatal(got, err)
+	}
+	if _, changed = diffTree(new, new); changed {
+		t.Fatal("equal trees patched")
 	}
 }

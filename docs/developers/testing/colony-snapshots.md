@@ -34,8 +34,12 @@ with `re-record the snapshot`.
 ## Recording
 
 Set `RIMGOVERNOR_SNAPSHOT_DIR` to an absolute directory for any serve.
-Every enabled review writes `routine-<tick>-<seq>.json` there, `<seq>`
-counting from 1 so several reviews at one paused tick each keep a file;
+Each serve appends every enabled review to one stream there,
+`routine-stream-<first tick>-<pid>.jsonl` (#756): a keyframe holding the
+whole review, then a field-level patch per review against the previous one
+(objects patched key by key, slices by index or replaced whole), with a
+fresh keyframe every 20 reviews to bound a replay. Reviews are named
+`<tick>-<seq>`, `<seq>` counting from 1 for several at one paused tick;
 a failed write is
 a `[routine] colony snapshot not recorded` service-log line, never a review
 error. The acceptance harness passes its environment to the serves it
@@ -48,8 +52,10 @@ RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance
 records every review of that case. A checkpoint save is recorded the same
 way: resume or `acceptance dev` the case from the bundle, or serve the save
 by hand, with the variable set. Pick the tick that shows the decision under
-test and copy it into the consuming package's `testdata/` with
-`go run ./internal/snapshot/cmd/trim <recording> testdata/<name>.json.gz`,
+test (`trim -list <stream>` lists them; `snapshot.Replay` steps through a
+range in Go) and materialise it into the consuming package's `testdata/`
+with
+`go run ./internal/snapshot/cmd/trim -tick <t> [-seq <s>] <stream> testdata/<name>.json.gz`,
 naming what it shows (`clean-filthy-kitchen.json.gz`); name the case and
 commit it came from in the test's comment. Trim writes gzipped compact
 JSON without the site cells (tens of KB instead of megabytes);

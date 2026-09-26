@@ -7,9 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -19,7 +17,8 @@ import (
 )
 
 // DirEnv names the directory a serve records every enabled routine
-// review's snapshot into, as routine-<tick>-<seq>.json; unset records nothing.
+// review's snapshot into, one routine-stream-<tick>-<pid>.jsonl per serve
+// (stream.go); unset records nothing.
 const DirEnv = "RIMGOVERNOR_SNAPSHOT_DIR"
 
 // Routine is one enabled routine review as recorded: the input the review
@@ -66,30 +65,6 @@ func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result stor
 	}, true
 }
 
-// Record writes r into dir as routine-<tick>-<seq>.json, seq the first
-// from 1 not already taken: several reviews at one paused tick each keep
-// their own file.
-func Record(dir string, r Routine) error {
-	data, err := Encode(r)
-	if err != nil {
-		return err
-	}
-	if err = os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	for seq := 1; ; seq++ {
-		f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("routine-%d-%d.json", r.Tick, seq)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-		if errors.Is(err, fs.ErrExist) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		_, err = f.Write(data)
-		return errors.Join(err, f.Close())
-	}
-}
-
 // readFile reads a recording, gunzipping one named *.gz: a colony's cell
 // census runs to megabytes of JSON, so committed testdata is compressed.
 func readFile(path string) ([]byte, error) {
@@ -111,9 +86,18 @@ func Load(path string) (Routine, error) {
 	if err != nil {
 		return Routine{}, fmt.Errorf("%s: %w", path, err)
 	}
-	var r Routine
-	if err = Decode(data, &r); err != nil {
+	r, err := decodeRoutine(data)
+	if err != nil {
 		return Routine{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return r, nil
+}
+
+// decodeRoutine reads one encoded review, restoring the projection's Facts.
+func decodeRoutine(data []byte) (Routine, error) {
+	var r Routine
+	if err := Decode(data, &r); err != nil {
+		return Routine{}, err
 	}
 	if r.Projection != nil {
 		r.Projection.Facts = r.Facts
