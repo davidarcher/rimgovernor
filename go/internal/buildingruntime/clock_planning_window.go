@@ -52,6 +52,10 @@ type planningWindow struct {
 	scope     facts.Scope
 	tick      int64
 	review    bool
+	// view is the step bundle's decoded planning window view (#650), nil
+	// when none rode or it failed to decode. A read the view serves under
+	// the step's validity fills the store from it without a native read.
+	view *bridge.PlanningWindowView
 }
 
 // planningWindowRead is the refresher's decision: whether the window is
@@ -96,6 +100,11 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 	if !planningWindowRead(p.review, ok, ok && p.store.Fresh(facts.PlanningCells, p.tick)) {
 		return held, nil
 	}
+	if out, stale := p.fromView(ctx, region); stale == "" {
+		return out, nil
+	} else if p.view != nil {
+		clockSchedulerLog("planning window view unused (%s): reading natively", stale)
+	}
 	requested := p.store.ResyncDue(facts.PlanningCells)
 	if !ok {
 		window, _, err := p.native.ReadPlanningWindow(ctx, identity, region, 0)
@@ -135,6 +144,46 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 		}
 	}
 	return p.put(window.Region, cells, window.Context.GetTick()), nil
+}
+
+// fromView serves the window from the step's planning window view: the
+// view covers region and its oldest chunk validation is fresh for the
+// step under the read validity the step fixed (#624), or under the
+// planning tolerance where none is carried. The store takes the view's
+// rows as of that oldest validation tick, its actual age, never the step
+// tick. The reason it cannot serve is returned instead, empty on success.
+func (p *planningWindow) fromView(ctx context.Context, region policy.Rectangle) (facts.Held[observation.PlanningCells], string) {
+	view := p.view
+	if view == nil {
+		return facts.Held[observation.PlanningCells]{}, "no view"
+	}
+	if !planningWindowCovers(view.Region, region) {
+		return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("region %+v does not cover %+v", view.Region, region)
+	}
+	validated := domain.Tick(view.Validated())
+	if validity, ok := domain.ReadValidityFrom(ctx); ok {
+		if stale := validity.Stale(domain.AgeInventory, domain.ReadObservation{Scope: viewScope(view.Context), Tick: validated}); stale != "" {
+			return facts.Held[observation.PlanningCells]{}, stale
+		}
+	} else if factsScope(view.Context) != p.scope || !domain.CoversIn(ctx, domain.AgeInventory, validated, domain.Tick(p.tick)) {
+		return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("validated at %d, step is at %d", validated, p.tick)
+	}
+	// One view fills the store once; a later ask in the step is served held.
+	p.view = nil
+	clockEvent(ctx, "facts", "planning_window_view", fmt.Sprintf("planning window view served: %d/%d chunks reused, validated %d ticks before the step", view.Reused(), len(view.Chunks), p.tick-int64(validated)),
+		"revision", view.Revision, "incarnation", view.Incarnation, "chunks", len(view.Chunks), "reused", view.Reused(), "age", p.tick-int64(validated))
+	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: view.Region, Cells: view.Cells}, AsOf: int64(validated), Complete: true, Source: planningWindowViewSource, Region: planningRegionRect(view.Region)}
+	facts.Put(p.store, p.scope, facts.PlanningCells, out)
+	return out, ""
+}
+
+// planningWindowViewSource is the provenance a view-filled window carries.
+const planningWindowViewSource = "rimgovernor/observations_read_bundle#planning_window_view"
+
+// viewScope is the read scope an observation context names.
+func viewScope(context *c.ObservationContext) domain.ReadScope {
+	identity := context.GetIdentity()
+	return domain.ReadScope{Colony: domain.ColonyID(identity.GetColonyId()), Map: domain.MapID(identity.GetMapId()), Load: domain.LoadID(identity.GetLoadToken()), Native: domain.NativeGeneration(context.GetNativeGeneration())}
 }
 
 func (p *planningWindow) put(region policy.Rectangle, cells []policy.SiteCell, tick int64) facts.Held[observation.PlanningCells] {

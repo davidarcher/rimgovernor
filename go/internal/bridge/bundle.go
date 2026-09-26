@@ -140,6 +140,9 @@ func (client *Client) bundleObserved(ctx context.Context, request *o.BundleReque
 	if err := validateBundleStepFamilies(request, v); err != nil {
 		return err
 	}
+	if err := validateBundleView(request, v); err != nil {
+		return err
+	}
 	client.seedBundle(ctx, request, v, emergency, raw)
 	if v.ClockStatus != nil && v.ClockStatus.GetUnavailable() != nil {
 		return unavailable(v.ClockStatus.GetUnavailable(), raw)

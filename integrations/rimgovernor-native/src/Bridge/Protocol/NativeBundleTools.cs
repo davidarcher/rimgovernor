@@ -96,6 +96,7 @@ namespace HomeBridge.BridgeTools
             internal readonly Obs.BundleReply Reply;
             internal readonly bool Step, Families;
             internal readonly Task<bool>? Wake;
+            internal PlanningViewRoot? View; // the planning window view's candidate (#650)
             internal Capture(Obs.BundleReply reply, bool step = false, bool families = false, Task<bool>? wake = null)
             { Reply = reply; Step = step; Families = families; Wake = wake; }
         }
@@ -188,7 +189,7 @@ namespace HomeBridge.BridgeTools
             }
             var families = ReadFamilies(map, request, context, observed);
             var step = ReadStepFamilies(map, request, context, observed);
-            return new Capture(new Obs.BundleReply { Observed = observed }, step, families);
+            return new Capture(new Obs.BundleReply { Observed = observed }, step || request.PlanningWindowView != null, families) { View = PlanningWindowViewCapture.ForBundle(map, request, context) };
         }
 
         // On an encoder worker (#644), once per hop: formats the captured
@@ -201,6 +202,7 @@ namespace HomeBridge.BridgeTools
             var observed = capture.Reply.Observed;
             if (observed == null) return ProtoBoundary.Encode(capture.Reply);
             if (observed.ClockStatus != null) observed.ClockStatus = NativeClockTools.Bounded(observed.ClockStatus, observed.Context);
+            if (capture.View != null) observed.PlanningWindowView = PlanningWindowViewProjection.Serve(PlanningWindowViewPublisher.Shared, capture.View, observed.Context);
             NativeColonyObservationTools.Bound(observed.ColonyFacts);
             var drops = new List<Func<int>>(2);
             if (capture.Step) drops.Add(() => DropStepFamilies(observed));
@@ -215,9 +217,9 @@ namespace HomeBridge.BridgeTools
         {
             var dropped = (observed.Buildings != null ? 1 : 0) + (observed.BuiltBuildings != null ? 1 : 0) + (observed.Bills != null ? 1 : 0)
                 + (observed.Zones != null ? 1 : 0) + (observed.Traders != null ? 1 : 0) + (observed.WorldProgression != null ? 1 : 0)
-                + observed.ResourceSources.Count + (observed.PlanningWindow != null ? 1 : 0);
+                + observed.ResourceSources.Count + (observed.PlanningWindow != null ? 1 : 0) + (observed.PlanningWindowView != null ? 1 : 0);
             observed.Buildings = null; observed.BuiltBuildings = null; observed.Bills = null; observed.Zones = null;
-            observed.Traders = null; observed.WorldProgression = null; observed.ResourceSources.Clear(); observed.PlanningWindow = null;
+            observed.Traders = null; observed.WorldProgression = null; observed.ResourceSources.Clear(); observed.PlanningWindow = null; observed.PlanningWindowView = null;
             return dropped;
         }
 

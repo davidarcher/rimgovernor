@@ -876,7 +876,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// census and the planners read them without another round trip; a step
 	// about to review asks for the census families too (issue #180).
 	started := s.clock.Now()
-	bundle, err := s.readStepBundle(call, s.bundleRequest(reason))
+	stepRequest := s.bundleRequest(reason)
+	bundle, err := s.readStepBundle(call, stepRequest)
 	if err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
@@ -925,7 +926,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		reason.TickAdvanced = true
 		reviews = s.stepReviews(reason)
 		started = s.clock.Now()
-		if bundle, err = s.readStepBundle(call, s.bundleRequest(reason)); err != nil {
+		stepRequest = s.bundleRequest(reason)
+		if bundle, err = s.readStepBundle(call, stepRequest); err != nil {
 			return out, errors.Join(err, s.session.Disable())
 		}
 		if loaded = bundle.GetObserved(); loaded == nil {
@@ -937,6 +939,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	if window != nil {
 		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
+		window.view = decodePlanningWindowView(stepRequest, loaded)
 	}
 	if zones != nil {
 		zones.scope, zones.tick, zones.carried = factsScope(loaded.Context), loaded.Context.GetTick(), loaded.Zones != nil
@@ -1809,8 +1812,10 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 		request.Zones = proto.Bool(stale(facts.Zones))
 	}
 	if _, ok := s.native.(PlanningWindowNative); ok && stale(facts.PlanningCells) {
-		if held, ok := facts.Get[observation.PlanningCells](store, facts.PlanningCells); ok {
-			request.PlanningWindow = bridge.BundlePlanningWindowRequest(&bridge.BundlePlanningWindow{Region: held.Value.Region, Since: held.AsOf})
+		if view := s.planningWindowView(); view != nil {
+			request.PlanningWindowView = view
+		} else {
+			request.PlanningWindow = s.legacyPlanningWindow()
 		}
 	}
 	asks := s.facts.asks
@@ -1823,6 +1828,43 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 	}
 	request.BuiltBuildings, request.Traders, request.WorldProgression = proto.Bool(asks.BuiltBuildings), proto.Bool(asks.Traders), proto.Bool(asks.WorldProgression)
 	request.ResourceSources = append([]string(nil), asks.Resources...)
+}
+
+// decodePlanningWindowView decodes the view a step's bundle carried for
+// the refresher (#650); nil when none rode. A view that fails to decode
+// is logged and left unused, so the refresher reads the window natively,
+// once, as it would without one.
+func decodePlanningWindowView(request *o.BundleRequest, loaded *o.BundleSnapshot) *bridge.PlanningWindowView {
+	if loaded.PlanningWindowView == nil || request.PlanningWindowView == nil {
+		return nil
+	}
+	view, err := bridge.DecodePlanningWindowView(loaded.PlanningWindowView, request.PlanningWindowView)
+	if err != nil {
+		clockSchedulerLog("planning window view refused: %v", err)
+		return nil
+	}
+	return &view
+}
+
+// planningWindowView is the opt-in planning window view (#650) for the
+// held window's region: nil when no window is held, the region is past
+// the view's bound, or the native refused the view once.
+func (s *ClockScheduler) planningWindowView() *o.BundlePlanningWindowViewRequest {
+	held, ok := facts.Get[observation.PlanningCells](s.facts.store, facts.PlanningCells)
+	if !ok || s.facts.viewUnsupported {
+		return nil
+	}
+	return bridge.BundlePlanningWindowViewRequest(held.Value.Region)
+}
+
+// legacyPlanningWindow is the same-tick planning window band for the held
+// window, a delta since its as-of tick; nil when none is held.
+func (s *ClockScheduler) legacyPlanningWindow() *o.BundlePlanningWindowRequest {
+	held, ok := facts.Get[observation.PlanningCells](s.facts.store, facts.PlanningCells)
+	if !ok {
+		return nil
+	}
+	return bridge.BundlePlanningWindowRequest(&bridge.BundlePlanningWindow{Region: held.Value.Region, Since: held.AsOf})
 }
 
 // bundleMasks is the review bundle's field mask per continuous family

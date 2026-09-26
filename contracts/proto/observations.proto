@@ -1132,10 +1132,41 @@ message BundleRequest {
   optional bool world_progression = 17; // read_world_progression without storage, page 256
   repeated string resource_sources = 18; // list_resource_sources per named resource, no development
   BundlePlanningWindowRequest planning_window = 19; // get_cells: the planning window's band
+  // Opt-in published planning-window view (#650), distinct from the same-tick
+  // planning_window band above; see PlanningWindowView.
+  BundlePlanningWindowViewRequest planning_window_view = 20;
 }
 // The planning window's one get_cells band: the region (at most 65536
 // cells) with the planning fields, compact, optionally as a delta.
 message BundlePlanningWindowRequest { Rectangle region = 1; optional int64 changed_since_tick = 2; }
+// The planning-window view a bundle asks for: the region (at most 65536 cells),
+// always the planning fields (roof, visibility, traversal, zone, room, growth).
+message BundlePlanningWindowViewRequest { Rectangle region = 1; }
+// A published planning-window view (#650): an immutable native root captured
+// on the game thread and projected off it. Unlike every other bundle section it
+// does not claim to describe the bundle tick: each chunk carries its own
+// content revision, capture tick and last validation tick, and a chunk the
+// change grid shows unchanged is re-served without being read again. Contract:
+// docs/developers/contracts/planning-window-view.md.
+message PlanningWindowView {
+  rimgovernor.common.v1.ObservationContext context = 1; // the serving hop: identity and publication tick
+  MapSize map_size = 2;
+  Rectangle region = 3;
+  CellFields applied_fields = 4;     // the field-mask key
+  optional uint64 incarnation = 5;   // publisher incarnation: new on every unload and identity change
+  optional uint64 revision = 6;      // publication revision, monotonic across incarnations
+  optional int64 published_tick = 7; // tick the root was published
+  optional bool complete = 8;        // chunks tile the region's rows exactly, in order
+  repeated PlanningWindowChunk chunks = 9;
+}
+message PlanningWindowChunk {
+  optional int32 min_z = 1;
+  optional int32 max_z = 2;
+  optional uint64 revision = 3;       // content revision: the publication that captured it
+  optional int64 captured_tick = 4;   // tick its cells were read
+  optional int64 validated_tick = 5;  // last tick the change grid confirmed them unchanged
+  CompactCells cells = 6;             // one row per z in min_z..max_z over the region's x span
+}
 message BundleSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional bool paused = 2;
@@ -1154,6 +1185,7 @@ message BundleSnapshot {
   WorldProgressionSnapshot world_progression = 15;
   repeated ResourceSourcesSnapshot resource_sources = 16;
   CellsSnapshot planning_window = 17;
+  PlanningWindowView planning_window_view = 18;
 }
 message BundleReply { oneof outcome { BundleSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ObservationBatchSnapshot {

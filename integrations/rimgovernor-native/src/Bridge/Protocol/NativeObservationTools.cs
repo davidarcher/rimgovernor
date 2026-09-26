@@ -86,9 +86,8 @@ namespace HomeBridge.BridgeTools
                     if (fields.Roof) { var roof = cell.GetRoof(map); if (roof != null) row.Roof = Identifier(roof.defName); }
                     if (fields.Traversal) {
                         row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
-                        row.Occupied = cell.GetEdifice(map) != null || cell.GetThingList(map).Any(t => t is Blueprint || t is Frame);
-                        row.Doorway = cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
-                            && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
+                        row.Occupied = CellOccupied(map, cell);
+                        row.Doorway = CellDoorway(map, cell);
                         row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
                     }
                     if (fields.Zone) {
@@ -143,6 +142,11 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        // Traversal's occupied and doorway facts, shared with the planning
+        // window view's capture (#650).
+        internal static bool CellOccupied(Map map, IntVec3 cell) => cell.GetEdifice(map) != null || cell.GetThingList(map).Any(t => t is Blueprint || t is Frame);
+        internal static bool CellDoorway(Map map, IntVec3 cell) => cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
+            && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
         internal static bool ValidateStatus(Obs.StatusRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope, page1..256 and finite nonnegative predator radius required.");

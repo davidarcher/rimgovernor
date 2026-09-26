@@ -30,6 +30,10 @@ type clockFacts struct {
 	// asks are the step families the last review step's planners asked
 	// for, folded into the next review bundle (#593).
 	asks bridge.BundleStepAsks
+	// viewUnsupported is set once a native refused the bundle's planning
+	// window view request (#650): every later review asks for the legacy
+	// band instead.
+	viewUnsupported bool
 	// definitions pools the project definition names the planners read
 	// beyond the census, so a step reads them once (#599).
 	definitions *observation.DefinitionPool

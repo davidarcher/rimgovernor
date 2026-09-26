@@ -2,6 +2,8 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -38,7 +40,31 @@ func (s *ClockScheduler) warmAdmission(ctx context.Context, observed *c.Observat
 	s.admissionWarm.Store(&clockAdmissionWarm{snapshot: proto.Clone(v).(*o.BundleSnapshot), at: at, invalidations: invalidations})
 }
 
+// readStepBundle reads the step's bundle. A native that predates the
+// planning window view (#650) refuses the whole request as invalid; the
+// scheduler then stops asking for the view and re-reads the bundle once
+// with the legacy planning window band, the one explicit fallback.
 func (s *ClockScheduler) readStepBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, error) {
+	reply, err := s.readStepBundleOnce(ctx, request)
+	if request.PlanningWindowView == nil || !viewRefused(err) {
+		return reply, err
+	}
+	s.facts.viewUnsupported = true
+	clockSchedulerLog("planning window view: native refused the request (%v); asking for the legacy planning window band from now on", err)
+	legacy := proto.Clone(request).(*o.BundleRequest)
+	legacy.PlanningWindowView, legacy.PlanningWindow = nil, s.legacyPlanningWindow()
+	return s.readStepBundleOnce(ctx, legacy)
+}
+
+// viewRefused is a bundle refused as unparseable: what a native without
+// the planning window view answers a request that names it (its ProtoJSON
+// parser rejects the unknown field).
+func viewRefused(err error) bool {
+	var refused *bridge.NativeFailure
+	return errors.As(err, &refused) && refused.Value.GetCode() == c.FailureCode_FAILURE_CODE_INVALID_REQUEST && strings.Contains(refused.Value.GetDetail(), "not valid ProtoJSON")
+}
+
+func (s *ClockScheduler) readStepBundleOnce(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, error) {
 	warm := s.admissionWarm.Load()
 	if warm == nil || s.clock.Now().Sub(warm.at) > s.config.MaxAge || s.facts.cache.Stats().Invalidations != warm.invalidations {
 		reply, _, err := s.native.ReadBundle(ctx, request)
