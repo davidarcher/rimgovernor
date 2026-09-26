@@ -59,7 +59,8 @@ corridor coverage and an uncovered outdoor cell, rejects stale geometry/revision
 restores a removed corridor cell across service restarts and audits save/load
 persistence. Remote resource work does not expand Home.
 
-`upkeep/storage-missing` proves the stockpile side: the zone SecureSupplies
+The retired native `upkeep/storage-missing` case (#746) proved the stockpile
+side: the zone SecureSupplies
 creates outside Home is extended over under its receipt identity. Vanilla's
 auto home area play setting (on by default, `AutoHomeAreaMaker`) marks Home
 four cells around every added zone cell and around player buildings, so with

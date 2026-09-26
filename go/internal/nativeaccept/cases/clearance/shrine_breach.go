@@ -15,7 +15,9 @@ import (
 // ShrineFixture is compiled by setup -rebuild -fixture ShrineFixture. RequiredOps
 // also lets the runner discover and heal the fixture package before launch.
 func init() {
-	for _, claim := range []bool{false, true} {
+	// clearance/shrine-claim (claim=true) replays as a colony snapshot
+	// instead (internal/snapshot, #746).
+	for _, claim := range []bool{false} {
 		name := "clearance/shrine-breach"
 		if claim {
 			name = "clearance/shrine-claim"
@@ -217,4 +219,20 @@ func checkShrineBreach(after map[string]any, caskets []string, claim bool) error
 		return fmt.Errorf("clearance salvage remains: %v", after)
 	}
 	return nil
+}
+func contains(ids []string, id string) bool {
+	for _, candidate := range ids {
+		if candidate == id {
+			return true
+		}
+	}
+	return false
+}
+
+func holdReasons(holds []policy.ShrineHold) []string {
+	var out []string
+	for _, h := range holds {
+		out = append(out, h.Shrine+":"+h.Reason+":"+h.Occupant)
+	}
+	return out
 }

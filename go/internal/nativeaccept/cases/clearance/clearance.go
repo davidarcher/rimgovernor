@@ -3,7 +3,6 @@ package clearance
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -18,7 +17,9 @@ import (
 const fixtureKey = "clearance_fixture"
 
 func init() {
-	for _, scenario := range []string{"ancient_wall", "roof_support_refused", "standing_designation", "chunk_dump"} {
+	// ancient_wall, roof_support_refused and standing_designation replay as
+	// colony snapshots instead (internal/snapshot, #746).
+	for _, scenario := range []string{"chunk_dump"} {
 		cases.Register(cases.Case{
 			Name:        "clearance/" + strings.ReplaceAll(scenario, "_", "-"),
 			Scope:       "Routine Home clearance: " + scenario + "; exact native targets, journal holds and observed completion.",
@@ -50,119 +51,12 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return fmt.Errorf("missing staged clearance identities")
 	}
 	s.Report()["fixture"] = fixture
-	target := na.AsString(fixture["target"])
 	before, err := census(ctx, s, "before")
 	if err != nil {
 		return err
 	}
 	s.Report()["census_before"] = before
-	if scenario == "chunk_dump" {
-		return runChunks(ctx, s, fixture, before)
-	}
-	row := targetRow(before, target)
-	if row == nil || na.AsString(row["faction"]) != "" || !boolean(row["deconstructible"]) || !boolean(row["inHome"]) {
-		return fmt.Errorf("missing unowned deconstructible Home wall %s: %v", target, row)
-	}
-	reason := ""
-	if scenario == "roof_support_refused" {
-		reason = "roof_blocker"
-	}
-	// A standing deconstruct designation, whoever placed it, is no hold: the
-	// routine adopts it into an ordinary Deconstruction plan (no ownership
-	// ledger) and the native operation keeps the one designation.
-	if (na.AsString(row["roofBlocker"]) != "") != (reason == "roof_blocker") || boolean(row["designated"]) != (scenario == "standing_designation") {
-		return fmt.Errorf("incorrect initial protection: %v", row)
-	}
-	if reason != "" {
-		// The hold is the only work these families have, and a hold lends
-		// the clock nothing, so the service parks it on no_work (#701): the
-		// harness advances 600 ticks between two serves instead.
-		first, err := protect(ctx, s, target, reason, 0)
-		if err != nil {
-			return err
-		}
-		if err = reattach(ctx, s); err != nil {
-			return err
-		}
-		if _, err = s.Advance(ctx, 600); err != nil {
-			return err
-		}
-		if _, err = protect(ctx, s, target, reason, first+600); err != nil {
-			return err
-		}
-		if err = reattach(ctx, s); err != nil {
-			return err
-		}
-		after, err := census(ctx, s, "protected-after-stop")
-		if err != nil {
-			return err
-		}
-		protected := targetRow(after, target)
-		if protected == nil || boolean(protected["designated"]) {
-			return fmt.Errorf("stop changed protected wall: %v", protected)
-		}
-		audit, err := audit(ctx, s, fixture, "protected-native")
-		if err != nil {
-			return err
-		}
-		if !boolean(audit["present"]) || boolean(audit["designated"]) {
-			return fmt.Errorf("protected designation changed: %v", audit)
-		}
-		if _, err = s.Harness().Call(ctx, "support-column", "test/clearance_support", map[string]any{"x": fixture["x"], "z": fixture["z"], "stuff": fixture["stuff"]}); err != nil {
-			return err
-		}
-		supported, err := census(ctx, s, "supported")
-		if err != nil {
-			return err
-		}
-		if row := targetRow(supported, target); row == nil || na.AsString(row["roofBlocker"]) != "" {
-			return fmt.Errorf("support column did not clear roof hold: %v", row)
-		}
-	}
-	return demolish(ctx, s, fixture, scenario == "standing_designation")
-}
-
-// protect serves until a routine review at or after tick from holds target
-// for reason with no clearance plan adopting it, and returns that review's
-// tick.
-func protect(ctx context.Context, s cases.Session, target, reason string, from domain.Tick) (domain.Tick, error) {
-	service, err := start(ctx, s)
-	if err != nil {
-		return 0, err
-	}
-	defer service.Stop()
-	journal, err := service.Store(ctx)
-	if err != nil {
-		return 0, err
-	}
-	var at domain.Tick
-	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
-		review, err := journal.LoadRoutineReview(ctx)
-		if err != nil {
-			return "", false, err
-		}
-		if review.Tick < from {
-			return "waiting for review at " + na.Signature(from), false, nil
-		}
-		if !slices.ContainsFunc(review.ClearanceHolds, func(h policy.ClearanceHold) bool { return h.Target == target && h.Reason == reason }) {
-			return "waiting for protection", false, nil
-		}
-		plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-clearance-", 256)
-		if err != nil {
-			return "", false, err
-		}
-		for _, plan := range plans {
-			for _, action := range plan.Spec.Actions() {
-				if d, ok := action.Deconstruction(); ok && d.Target() == target {
-					return "", false, fmt.Errorf("protected wall adopted into plan %s", plan.Spec.ID())
-				}
-			}
-		}
-		s.Report()["clearance_holds"] = review.ClearanceHolds
-		at = review.Tick
-		return na.Signature(review.Tick), true, nil
-	})
-	return at, err
+	return runChunks(ctx, s, fixture, before)
 }
 
 func wait(service *na.ServiceProcess) na.Wait {
@@ -208,16 +102,6 @@ func census(ctx context.Context, s cases.Session, label string) (map[string]any,
 	return observed, nil
 }
 
-func targetRow(census map[string]any, target string) map[string]any {
-	for _, raw := range na.AsSlice(census["targets"]) {
-		row, _ := na.AsMap(raw)
-		if na.AsString(row["entityId"]) == target {
-			return row
-		}
-	}
-	return nil
-}
-
 func audit(ctx context.Context, s cases.Session, fixture map[string]any, label string) (map[string]any, error) {
 	var ids []string
 	for _, raw := range na.AsSlice(fixture["chunks"]) {
@@ -229,85 +113,6 @@ func audit(ctx context.Context, s cases.Session, fixture map[string]any, label s
 }
 
 func boolean(raw any) bool { value, _ := na.AsBool(raw); return value }
-
-func demolish(ctx context.Context, s cases.Session, fixture map[string]any, standing bool) error {
-	target := na.AsString(fixture["target"])
-	// A standing designation is adopted into the plan, but the pawns may work
-	// it before the worker dispatches: the plan then cancels on an absent
-	// target rather than completing with demolition evidence. Either way the
-	// native audit below must find the wall and its designation gone.
-	// Follow native evidence from before launch so a fast demolition cannot
-	// disappear between the method-admission and completion polls.
-	tail := na.NewFlightTail(na.FlightRecorderPath(s.Config().Output))
-	service, err := start(ctx, s)
-	if err != nil {
-		return err
-	}
-	defer service.Stop()
-	journal, err := service.Store(ctx)
-	if err != nil {
-		return err
-	}
-	var effect map[string]any
-	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
-		rows, err := tail.Next()
-		if err != nil {
-			return "", false, err
-		}
-		for _, row := range rows {
-			if row.Kind != "native_response" || na.AsString(row.Payload["native_tool"]) != "rimgovernor/receipts_observe_progress" {
-				continue
-			}
-			result, _ := na.AsMap(row.Payload["result"])
-			var reply map[string]any
-			if err := json.Unmarshal([]byte(na.AsString(result["payload"])), &reply); err != nil {
-				continue
-			}
-			progress, _ := na.AsMap(reply["progress"])
-			completed, _ := na.AsMap(progress["completed"])
-			evidence, _ := na.AsMap(completed["evidence"])
-			deconstruct, _ := na.AsMap(evidence["deconstruct"])
-			if na.AsString(deconstruct["targetId"]) == target && boolean(deconstruct["demolitionObserved"]) && len(na.AsSlice(deconstruct["workerIds"])) > 0 {
-				effect = deconstruct
-			}
-		}
-		plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-clearance-", 256)
-		if err != nil {
-			return "", false, err
-		}
-		var states []string
-		completed := false
-		for _, plan := range plans {
-			for i, action := range plan.Spec.Actions() {
-				if d, ok := action.Deconstruction(); ok && d.Target() == target {
-					v := plan.Progress[i].View()
-					states = append(states, string(v.Stage))
-					if v.Stage == domain.Unsuccessful {
-						return "", false, fmt.Errorf("demolition failed: %v", v)
-					}
-					completed = completed || v.Stage == domain.Completed || standing && v.Stage == domain.Cancelled
-				}
-			}
-		}
-		return na.Signature(states, effect != nil), completed && (effect != nil || standing), nil
-	})
-	if err != nil {
-		return err
-	}
-	s.Report()["demolition_effect"] = effect
-	service.Stop()
-	if err = reattach(ctx, s); err != nil {
-		return err
-	}
-	live, err := audit(ctx, s, fixture, "demolition_after")
-	if err != nil {
-		return err
-	}
-	if boolean(live["present"]) || boolean(live["designated"]) {
-		return fmt.Errorf("demolished target or designation survives: %v", live)
-	}
-	return nil
-}
 
 func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]any) error {
 	ids := na.AsSlice(fixture["chunks"])

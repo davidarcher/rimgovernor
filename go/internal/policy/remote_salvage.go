@@ -86,3 +86,33 @@ func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]Clearan
 	}
 	return out, holds, nil
 }
+
+// ReviewClearanceHolds is the routine review's journalled clearance
+// judgement over a known clearance census: every Home hold, with a remote
+// salvage hold replacing the Home reason for the same target, and the
+// selected salvage target ("" when none).
+func ReviewClearanceHolds(p RoutinePolicy, f RoutineFacts, rows []ClearanceTarget) ([]ClearanceHold, string, error) {
+	holds := SelectHomeClearance(rows, domain.Cell{}).Holds
+	remote, err := SalvageContext(p, f)
+	if err != nil {
+		return nil, "", err
+	}
+	filtered, remoteHolds, err := FilterRemoteSalvage(rows, remote)
+	if err != nil {
+		return nil, "", err
+	}
+	salvage := ""
+	for _, row := range filtered {
+		if row.SalvageSelected {
+			salvage = row.EntityID
+		}
+	}
+	for _, hold := range remoteHolds {
+		for i := range holds {
+			if holds[i].Target == hold.Target {
+				holds[i] = hold
+			}
+		}
+	}
+	return holds, salvage, nil
+}

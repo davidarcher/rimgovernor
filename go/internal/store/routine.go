@@ -711,26 +711,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 	}
 	if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
-		r.ClearanceHolds = policy.SelectHomeClearance(rows, domain.Cell{}).Holds
-		remote, err := policy.SalvageContext(request.Policy, request.Facts)
+		var err error
+		r.ClearanceHolds, r.SalvageTarget, err = policy.ReviewClearanceHolds(request.Policy, request.Facts, rows)
 		if err != nil {
 			return RoutineReviewResult{}, err
-		}
-		filtered, remoteHolds, err := policy.FilterRemoteSalvage(rows, remote)
-		if err != nil {
-			return RoutineReviewResult{}, err
-		}
-		for _, row := range filtered {
-			if row.SalvageSelected {
-				r.SalvageTarget = row.EntityID
-			}
-		}
-		for _, hold := range remoteHolds {
-			for i := range r.ClearanceHolds {
-				if r.ClearanceHolds[i].Target == hold.Target {
-					r.ClearanceHolds[i] = hold
-				}
-			}
 		}
 	} else {
 		r.ClearanceHolds = previous.ClearanceHolds

@@ -766,8 +766,8 @@ Animal reference captures additionally check pen state, reachable feed, shared
 food competition and both reserve thresholds. Sleeping captures compare owners,
 users, access and comfort against native facts and retain exact pawn/bed use.
 A safe assignment still needs observed use; unsafe assignments remain deficits.
-Native floor-place replay establishes upgrade detection; the `upkeep/sleeping`
-case covers the assignment/building methods and real-bed use.
+Native floor-place replay establishes upgrade detection; a colony snapshot
+of `upkeep/sleeping` (#746) replays the deficit through real-bed use.
 Completed autonomous building methods retain exact native origin/current IDs in
 the journal, including after retirement and Manual. Routine reviews query those
 current IDs inside the paused observation bracket and verify definition, position,
