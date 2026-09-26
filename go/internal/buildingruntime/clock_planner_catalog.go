@@ -20,6 +20,14 @@ type plannerEntry struct {
 	// reviews. TestPlannerCatalogClasses holds the rule.
 	class    plannerClass
 	priority int
+	// startup promotes the planner into the critical wave while the colony
+	// stage holds development (the shelter every other goal waits for is
+	// unmet, ColonyStageRecord.HoldsDevelopment). Its work is the hold
+	// itself, not a development review, so the one-second optional grace
+	// must not discard it: siting a starter shell walks the bunk rungs and
+	// previews a ring, seconds of native round trips, and every step
+	// dropping it left the goal without a live method for good (#658).
+	startup bool
 	// kinds are the action kinds the planner dispatches. A terminal outcome
 	// of one of these kinds is the planner's own work completing, so a wake
 	// carrying it re-runs the planner (and only planners of that kind).
@@ -195,7 +203,7 @@ var plannerCatalog = []plannerEntry{
 			out.Supplies = &method
 			return method.Reason, nil
 		}},
-	{name: "sleeping", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
+	{name: "sleeping", class: classOptional, startup: true, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Sleeping != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Sleeping.step(ctx, epoch, arbiter)
@@ -781,12 +789,16 @@ var plannerCatalog = []plannerEntry{
 
 // queuePlanners queues the configured planners pick selects (all when nil)
 // onto the wave, returning the names queued in catalog order. A nil pick
-// selects the whole catalog.
-func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool) []string {
+// selects the whole catalog. With startup set, a startup planner is queued
+// into the critical cycle rather than the optional wave (plannerEntry.startup).
+func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool, startup bool) []string {
 	var queued []string
 	for _, entry := range s.catalog {
 		if !entry.configured(&s.config) || pick != nil && !pick(entry) {
 			continue
+		}
+		if startup && entry.startup {
+			entry.class = classCritical
 		}
 		queued = append(queued, entry.name)
 		wave.queue(s, ctx, epoch, arbiter, entry)

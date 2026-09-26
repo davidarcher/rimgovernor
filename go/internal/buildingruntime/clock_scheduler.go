@@ -1480,7 +1480,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		arbiter.close()
 		out.CriticalWave = time.Since(began)
 		for _, name := range pending {
-			if s.classOf(name) == classCritical {
+			if wave.queuedCritical(name) {
 				out.HeldBy = append(out.HeldBy, name)
 			} else {
 				out.MissedCutoff = append(out.MissedCutoff, name)
@@ -1559,16 +1559,6 @@ func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionRe
 		}
 		return openWorkOfKinds(plans, kinds)
 	})
-}
-
-// classOf is the class of the named catalog planner.
-func (s *ClockScheduler) classOf(name string) plannerClass {
-	for _, entry := range s.catalog {
-		if entry.name == name {
-			return entry.class
-		}
-	}
-	return classOptional
 }
 
 // commitmentHorizon is how long an undispatched hold outlives the tick of
@@ -1914,8 +1904,11 @@ func (s *ClockScheduler) fullStepDue() bool {
 // Routine's own error aborts before anything is queued; an error from a
 // queued planner is isolated by the wave and surfaces later, from its
 // failures, without stopping the step. wanted names the sections the
-// selected planners consume (nil: every section, #625).
+// selected planners consume (nil: every section, #625). The colony stage's
+// Foothold hold also drops the comfort-class planners and promotes the
+// startup planners into the critical cycle for the step (#658).
 func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, wanted map[facts.Section]bool, pick func(plannerEntry) bool) ([]string, error) {
+	startup := false
 	if s.config.Routine != nil {
 		review, err := s.config.Routine.step(call, epoch, arbiter, wanted)
 		if err != nil {
@@ -1942,15 +1935,18 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			// The Foothold hold (#630): the comfort-class planners of the
 			// optional wave are not eligible while the shelter is unmet,
 			// so the wave spends nothing evaluating proposals the ranking
-			// would refuse.
-			clockSchedulerLog("colony stage %s holds the comfort-class planners: %s", stage.Stage, stage.Reason)
+			// would refuse. The same hold makes the shelter's own planner
+			// critical for this step (#658): it is what the stage waits for,
+			// and its siting reads outlast the optional grace.
+			clockSchedulerLog("colony stage %s holds the comfort-class planners and makes the startup planners critical: %s", stage.Stage, stage.Reason)
 			inner := pick
 			pick = func(entry plannerEntry) bool {
 				return entry.priority != plannerComfort && (inner == nil || inner(entry))
 			}
+			startup = true
 		}
 	}
-	return s.queuePlanners(call, epoch, wave, arbiter, pick), nil
+	return s.queuePlanners(call, epoch, wave, arbiter, pick, startup), nil
 }
 
 type clockWorkItem struct {

@@ -211,3 +211,88 @@ func TestStepArbiterDropsLateResultsWithoutCarry(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// The shelter's planner is the one startup planner (#658): optional by
+// class, so a healthy colony's shell review never holds admission, and
+// promoted into the critical cycle while the stage waits for the shelter.
+func TestPlannerCatalogStartupPlanners(t *testing.T) {
+	t.Parallel()
+	var startup []string
+	for _, entry := range plannerCatalog {
+		if !entry.startup {
+			continue
+		}
+		if entry.class != classOptional {
+			t.Fatalf("%s is %q: a startup planner is optional until the hold promotes it", entry.name, entry.class)
+		}
+		startup = append(startup, entry.name)
+	}
+	if want := []string{"sleeping"}; !reflect.DeepEqual(startup, want) {
+		t.Fatalf("startup planners %v, want %v", startup, want)
+	}
+}
+
+// While the colony stage holds development because the shelter is unmet,
+// the shelter's own planner runs in the critical cycle (#658): siting a
+// starter shell walks the bunk rungs and previews a ring, which outlasts
+// the optional grace, and a step that drops that work admits nothing for
+// the goal at all. A step whose shelter planner has not returned holds
+// admission and names it, instead of recording it as having missed the
+// cutoff and discarding its result.
+func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	schedulerRoutine(t, s, f)
+	s.config.Budget.Wall = 100 * time.Millisecond
+	s.config.Budget.OptionalGrace = 20 * time.Millisecond
+	released := make(chan error, 1)
+	shelter := blockedPlanner("sleeping", classOptional, released)
+	shelter.startup = true
+	s.catalog = []plannerEntry{quickPlanner("tend", classCritical), shelter}
+	got, err := s.Step(context.Background())
+	if !errors.Is(err, executor.ErrHeld) || got.Attempt != nil || f.writes != 0 {
+		t.Fatal(got, err, f.writes)
+	}
+	if got.Routine == nil || got.Routine.Review.Stage == nil || !got.Routine.Review.Stage.HoldsDevelopment() {
+		t.Fatalf("the fixture must review under the Foothold hold: %+v", got.Routine)
+	}
+	if !reflect.DeepEqual(got.HeldBy, []string{"sleeping"}) || len(got.MissedCutoff) != 0 {
+		t.Fatalf("held %v missed %v", got.HeldBy, got.MissedCutoff)
+	}
+	select {
+	case cause := <-released:
+		if !errors.Is(cause, context.Canceled) {
+			t.Fatal(cause)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the promoted planner was never released")
+	}
+}
+
+// Without the hold the same planner is optional: the shell review of a
+// colony that already has its shelter is cut off at the grace and the step
+// admits its window (#658).
+func TestClockSchedulerCutsOffTheShelterPlannerWithoutTheHold(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	s.config.Budget.OptionalGrace = 20 * time.Millisecond
+	released := make(chan error, 1)
+	shelter := blockedPlanner("sleeping", classOptional, released)
+	shelter.startup = true
+	s.catalog = []plannerEntry{quickPlanner("tend", classCritical), shelter}
+	got, err := s.Step(context.Background())
+	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || f.writes != 1 {
+		t.Fatal(got, err, f.writes)
+	}
+	if !reflect.DeepEqual(got.MissedCutoff, []string{"sleeping"}) || len(got.HeldBy) != 0 {
+		t.Fatalf("missed %v held %v", got.MissedCutoff, got.HeldBy)
+	}
+	select {
+	case cause := <-released:
+		if !errors.Is(cause, context.Canceled) {
+			t.Fatal(cause)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the optional planner was never released")
+	}
+}

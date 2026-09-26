@@ -73,12 +73,15 @@ type plannerWave struct {
 	// migrated planner its proposal's outcome): what the due queue reads
 	// to tell a planner waiting on open work from one that is due (#625).
 	reasons map[string]RoutineBuildingReason
-	closed  bool
+	// critical records the class each planner was queued under, which is
+	// the entry's own class or a startup promotion of it (#658).
+	critical map[string]bool
+	closed   bool
 }
 
 func newPlannerWave(call context.Context) *plannerWave {
 	optional, cancel := context.WithCancel(call)
-	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]RoutineBuildingReason{}}
+	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]RoutineBuildingReason{}, critical: map[string]bool{}}
 }
 
 // queue queues entry's run on the wave: a critical planner under the step
@@ -86,6 +89,7 @@ func newPlannerWave(call context.Context) *plannerWave {
 func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbiter *stepArbiter, entry plannerEntry) {
 	private := &ClockSchedulerResult{}
 	w.results[entry.name] = private
+	w.critical[entry.name] = entry.class == classCritical
 	ctx := call
 	if entry.class != classCritical {
 		ctx = w.optional
@@ -135,6 +139,15 @@ func (w *plannerWave) reason(name string) (RoutineBuildingReason, bool) {
 	defer w.mu.Unlock()
 	reason, ok := w.reasons[name]
 	return reason, ok
+}
+
+// queuedCritical reports whether the named planner was queued into this
+// wave's critical cycle, promotion included: a pending one holds admission
+// instead of being recorded as having missed the cutoff.
+func (w *plannerWave) queuedCritical(name string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.critical[name]
 }
 
 // finishedNames lists the planners that returned before the cutoff, in

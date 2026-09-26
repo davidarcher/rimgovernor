@@ -364,6 +364,14 @@ cancelled, listed under `missed_cutoff` on the row and
 write into a private result merged only for those that made the cutoff, so
 a late return writes nothing the step reads.
 
+While the colony stage holds development for an unmet shelter
+(`ColonyStageRecord.HoldsDevelopment`, #630), the step also drops the
+comfort-class planners and promotes the startup planners -- the shelter's
+own, `plannerEntry.startup` -- into the critical cycle for that step (#658).
+Siting a starter shell walks the bunk rungs and previews a ring, seconds of
+native round trips, so at the optional grace its work was discarded on every
+step and the shelter goal the whole stage waits for never took a method.
+
 Migrated planners (#622) return proposals, and the coordinator arbitrates
 them after the cutoff by `(priority, urgency, id)` against the step's claim
 index. Before a proposal commits it is revalidated against the step's read
