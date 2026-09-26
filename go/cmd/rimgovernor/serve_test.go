@@ -427,22 +427,29 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 	}
 }
 
-// --clock-window-ticks is the routine window budget (default one game day,
-// maxClockWindowTicks) within 1..maxClockWindowTicks; the combat window
-// never exceeds it, and the retired --clock-window-seconds is refused (#244).
+// --clock-window-ticks is the routine window budget (default one game day)
+// within 1..maxClockWindowTicks, the wire bound above which no window can
+// be admitted (#584); the combat window never exceeds it, and the retired
+// --clock-window-seconds is refused (#244).
 func TestServeClockWindowTicksFlag(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
 	base := append(serveBase(dir), "--profile", dir)
 	c, err := parseServe(base, io.Discard)
-	if err != nil || c.clockWindowTicks != defaultClockWindowTicks || defaultClockWindowTicks != maxClockWindowTicks {
+	if err != nil || c.clockWindowTicks != defaultClockWindowTicks || defaultClockWindowTicks != 60000 {
+		t.Fatal(c.clockWindowTicks, err)
+	}
+	// Above a day the budget is a safety net, which an operator may ask
+	// for; the wire bound is the refusal (#584).
+	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-ticks", "600000"), io.Discard)
+	if err != nil || c.clockWindowTicks != 600000 {
 		t.Fatal(c.clockWindowTicks, err)
 	}
 	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-ticks", "15000"), io.Discard)
 	if err != nil || c.clockWindowTicks != 15000 {
 		t.Fatal(c.clockWindowTicks, err)
 	}
-	for _, bad := range []string{"0", "60001"} {
+	for _, bad := range []string{"0", "1800001"} {
 		if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-ticks", bad), io.Discard); err == nil {
 			t.Fatal("accepted --clock-window-ticks", bad)
 		}

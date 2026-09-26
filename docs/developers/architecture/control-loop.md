@@ -116,9 +116,10 @@ facts are bound to the tick they observed, so admission holds with
 planning tolerance (`bridge.PlanningTickTolerance`, the tightest fact
 family's: 250 ticks) or a window has since outrun them; the scheduler's
 `MaxAge` bounds only the admission reads. A routine window runs
-`--clock-window-ticks` (default and maximum one game day, 60000 ticks, the
-#126 bound) unless danger or player input stops it
-earlier: there is no wall-time budget and no `--clock-window-seconds` any
+`--clock-window-ticks` (default one game day, 60000 ticks, the review
+guarantee of #126; up to the wire bound of 1800000, where the budget is a
+safety net rather than a review guarantee, #584) unless danger or player
+input stops it earlier: there is no wall-time budget and no `--clock-window-seconds` any
 more (#244), since reviews and routine orders happen under the running
 window. Each step's flight-recorder `clock_step` row carries the window it
 admitted, the reason the step acted on and, for a step a clock stop woke,

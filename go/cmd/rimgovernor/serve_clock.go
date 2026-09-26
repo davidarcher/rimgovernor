@@ -135,17 +135,31 @@ func parseClockSpeed(speed string) k.Speed {
 }
 
 // Window policy. A routine window runs defaultClockWindowTicks (one game
-// day, the maxClockWindowTicks bound of #126) unless danger, a coupled
-// order or player input stops it earlier (#244): the planners review and
-// the Worker dispatches under the running window, so the stop between
-// windows is the exception, not the review cadence. --clock-window-ticks
-// narrows the budget for a run that wants more frequent stops. A raid
-// runs in combatClockWindowTicks windows so the defense planner re-targets
-// between them; that bound is fixed.
+// day, the review guarantee of #126) unless danger or player input stops it
+// earlier (#244, #584): the planners review and the Worker dispatches under
+// the running window, so the stop between windows is the exception, not the
+// review cadence. --clock-window-ticks narrows the budget for a run that
+// wants more frequent stops, and raises it up to the wire bound
+// (maxClockWindowTicks, 30 game days) for one that wants the budget as a
+// pure safety net.
+//
+// The default stays at a day because two review inputs still reach the
+// controller only through a review, not through a journal row: a growing
+// zone reaching harvest and a stock level crossing a planner's threshold
+// (the native digests cover research, faction relations, game conditions
+// and zone edits, #626). Live waves under the running window cover them
+// while the game runs slower than the wave, but the pace skip
+// (LivePlanningSkippedPace, #598) suppresses those waves at speed, and
+// then the budget stop is the review. Raising the default needs those rows
+// first (#669).
+//
+// A raid runs in combatClockWindowTicks windows so the defense planner
+// re-targets between them; that bound is fixed.
 const (
 	defaultClockWindowTicks = 60000
-	maxClockWindowTicks     = 60000
-	combatClockWindowTicks  = 300
+	// The bridge's own bound on StartRequest.max_ticks (bridge.ClockStart).
+	maxClockWindowTicks    = 1800000
+	combatClockWindowTicks = 300
 	// maxClockBlindTicks is the wire bound on StartRequest.blind_tick_budget.
 	maxClockBlindTicks = 1800000
 )
