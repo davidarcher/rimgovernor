@@ -16,9 +16,15 @@ func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids [
 	return client.readPawns(ctx, identity, ids, false)
 }
 func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids []string, combat bool) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, identity, ids, combat, false, false, false, false)
+	return client.readPawnDetails(ctx, identity, ids, pawnDetails{Combat: combat})
 }
-func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, combat, work, care, schedule, social bool) (*o.ListPawnsReply, Result, error) {
+
+// pawnDetails selects the PawnDetails families one read asks for. Every family
+// is opt-in here, and the reply validator refuses any family the request did
+// not select, so a caller sees exactly what it asked for.
+type pawnDetails struct{ Combat, Work, Care, Schedule, Social, Tend bool }
+
+func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, want pawnDetails) (*o.ListPawnsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
@@ -43,7 +49,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	// the caller never asked for, which validateSettings correctly refuses as
 	// unrequested detail, permanently failing every routine review (confirmed
 	// live: routinehaulaccept/issue #42).
-	request := pawnDetailsRequest(identity, copied, combat, work, care, schedule, social)
+	request := pawnDetailsRequest(identity, copied, want)
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
 	if err != nil {
@@ -58,7 +64,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	case *o.ListPawnsReply_Unavailable:
 		err = unavailable(v.Unavailable, raw)
 	case *o.ListPawnsReply_Observed:
-		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, combat, work, care, schedule, social)
+		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, want)
 	default:
 		err = contract("pawn read outcome missing")
 	}
@@ -68,14 +74,17 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 // pawnDetailsRequest is the exact request readPawnDetails issues for ids
 // (validated, in the caller's order); the bundle seeds its colonist_pawns
 // section under the routine form of it (ReadRoutinePawns).
-func pawnDetailsRequest(identity *c.Identity, ids []string, combat, work, care, schedule, social bool) *o.ListPawnsRequest {
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(social), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
-	if work {
+func pawnDetailsRequest(identity *c.Identity, ids []string, want pawnDetails) *o.ListPawnsRequest {
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(want.Combat), Equipment: proto.Bool(want.Combat), Biography: proto.Bool(want.Combat), Settings: proto.Bool(want.Care), Social: proto.Bool(want.Social), Animals: proto.Bool(want.Combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
+	if want.Work {
 		request.Details.Work = proto.Bool(true)
 		request.Details.Needs = proto.Bool(true)
 	}
-	if schedule {
+	if want.Schedule {
 		request.Details.Schedule = proto.Bool(true)
+	}
+	if want.Tend {
+		request.Details.Tend = proto.Bool(true)
 	}
 	return request
 }
@@ -84,9 +93,10 @@ func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool)
 	return pawnsSnapshotDetails(v, id, requested, false)
 }
 func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat bool) error {
-	return pawnsSnapshotSelected(v, id, requested, combat, false, false, false, false)
+	return pawnsSnapshotSelected(v, id, requested, pawnDetails{Combat: combat})
 }
-func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat, work, care, schedule, social bool) error {
+func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, want pawnDetails) error {
+	combat, work, care, schedule, social := want.Combat, want.Work, want.Care, want.Schedule, want.Social
 	if v == nil {
 		return contract("pawn snapshot missing")
 	}
@@ -116,8 +126,13 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && !schedule && row.Settings != nil || !social && row.Social != nil {
+		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && !schedule && row.Settings != nil || !social && row.Social != nil || !want.Tend && row.TendDoctor != nil {
 			return contract("unrequested pawn detail")
+		}
+		if want.Tend {
+			if err := pawnsTendDoctor(row, requested); err != nil {
+				return err
+			}
 		}
 		if row.Social != nil {
 			if err := pawnsSocial(row.Social); err != nil {
@@ -270,6 +285,40 @@ func pawnsSocial(v *o.PawnSocial) error {
 		}
 	}
 	return pawnsIssues(v.Issues, v.ProtoReflect())
+}
+
+// pawnsTendDoctor validates the doctor-side tend gates (#657). Reachability is
+// answered pairwise across the rows of this one reply, so every listed ID must
+// be another requested pawn, never the row itself. A producer that skips the
+// block leaves the gates unknown -- SelectTend then proposes no doctor -- rather
+// than failing the read.
+func pawnsTendDoctor(row *o.PawnState, requested map[string]bool) error {
+	tend := row.TendDoctor
+	if tend == nil {
+		return nil
+	}
+	if len(tend.ReachablePawnIds) > len(requested) {
+		return contract("too many reachable pawns")
+	}
+	seen := map[string]bool{}
+	for _, id := range tend.ReachablePawnIds {
+		if err := validID(id); err != nil {
+			return err
+		}
+		if !requested[id] || id == row.Pawn.GetId() || seen[id] {
+			return contract("unrequested, self or duplicate reachable pawn")
+		}
+		seen[id] = true
+	}
+	if tend.MissingCapacity != nil {
+		if err := validID(tend.GetMissingCapacity()); err != nil {
+			return err
+		}
+		if tend.CapacitiesOk == nil || tend.GetCapacitiesOk() {
+			return contract("missing tend capacity contradicts capacities_ok")
+		}
+	}
+	return pawnsIssues(tend.Issues, tend.ProtoReflect())
 }
 
 func pawnsIssues(issues []*o.ReadIssue, message protoreflect.Message) error {

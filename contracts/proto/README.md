@@ -12,6 +12,14 @@ work tables; `manual_work_priorities` distinguishes numbered and checkbox mode.
 0 or 3 in checkbox mode. Missing values remain unknown. Reads never initialize a
 work tracker or grant permission to change settings.
 
+`PawnDetails.tend` requests `PawnState.tend_doctor`: the doctor-side gates the
+native tend order enforces -- pawn-control eligibility, WorkGiver_Tend's required
+capacities, the Doctor work type -- plus `reachable_pawn_ids`, this pawn's
+`CanReach(ClosestTouch, Deadly)` over the other rows of the same reply. Reachability
+is pairwise, so it is answered only for a query of at most 64 rows and carries a
+`reachable_pawn_ids` issue beyond that. A producer that omits the block leaves the
+gates unknown and the controller proposes no doctor, rather than failing the read.
+
 - [Boundary inventory](coverage.md): all97 current boundary rows and55 native exports.
 - [Fixed MCP tools](mcp-tools.md):78 descriptor methods, exact wrappers and capabilities.
 - [Validation](validation.md): shared presence, bounds and outcome requirements.

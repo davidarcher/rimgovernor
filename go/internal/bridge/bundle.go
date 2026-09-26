@@ -206,7 +206,7 @@ func (client *Client) seedBundle(ctx context.Context, request *o.BundleRequest, 
 		seed("rimgovernor/observations_read_research", researchRequest(identity), &o.ResearchReply{Outcome: &o.ResearchReply_Observed{Observed: v.Research}})
 	}
 	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 {
-		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, true, true, true, true, true), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
+		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
 	}
 	client.seedBundleStepFamilies(ctx, request, v, seed)
 }

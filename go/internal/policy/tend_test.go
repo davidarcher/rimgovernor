@@ -26,7 +26,7 @@ func tendRequest(t *testing.T) TendRequest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	doctor := TendDoctorFacts{Pawn: "doctor", SnapshotToken: "doctor-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(int32(8)), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false)}
+	doctor := TendDoctorFacts{Pawn: "doctor", SnapshotToken: "doctor-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(int32(8)), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false), ControlEligible: domain.Known(true), TendCapacities: domain.Known(true), ReachesPatient: domain.Known(true)}
 	patient := TendPatientFacts{Pawn: "patient", SnapshotToken: "patient-cas", Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(true), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(6.0), ExistingJobDef: domain.Known("")}
 	return TendRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: TendFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Doctor: doctor, Patient: patient}}
 }
@@ -143,16 +143,30 @@ func TestTendStillBlocksUndraftedDoctorDuringHostile(t *testing.T) {
 }
 
 func tendDoctor(id domain.PawnID, skill int32) TendDoctorFacts {
-	return TendDoctorFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(skill), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false)}
+	return TendDoctorFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(skill), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false), ControlEligible: domain.Known(true), TendCapacities: domain.Known(true)}
 }
 func tendPatient(id domain.PawnID, hours float64) TendPatientFacts {
 	return TendPatientFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(true), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(hours), ExistingJobDef: domain.Known("")}
 }
 
+// selectTend runs the selection with every candidate pair reachable, so a test
+// exercising ranking or eligibility is not also asserting reachability.
+func selectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.PawnID, domain.PawnID, bool) {
+	reach := map[domain.PawnID][]domain.PawnID{}
+	for _, d := range doctors {
+		ids := make([]domain.PawnID, 0, len(patients))
+		for _, p := range patients {
+			ids = append(ids, p.Pawn)
+		}
+		reach[d.Pawn] = ids
+	}
+	return SelectTend(doctors, patients, ObserveTendReachability(reach))
+}
+
 func TestSelectTendRanksBySkillAndUrgency(t *testing.T) {
 	doctors := []TendDoctorFacts{tendDoctor("junior", 4), tendDoctor("senior", 12)}
 	patients := []TendPatientFacts{tendPatient("stable", 40), tendPatient("critical", 2)}
-	doctor, patient, ok := SelectTend(doctors, patients)
+	doctor, patient, ok := selectTend(doctors, patients)
 	if !ok || doctor != "senior" || patient != "critical" {
 		t.Fatal(doctor, patient, ok)
 	}
@@ -168,11 +182,11 @@ func TestSelectTendExcludesIneligibleCandidates(t *testing.T) {
 	noCare := tendPatient("nocare", 10)
 	noCare.NoCare = domain.Known(true)
 	sick := tendPatient("sick", 10)
-	doctor, patient, ok := SelectTend([]TendDoctorFacts{busy, drafted, fine}, []TendPatientFacts{recovered, noCare, sick})
+	doctor, patient, ok := selectTend([]TendDoctorFacts{busy, drafted, fine}, []TendPatientFacts{recovered, noCare, sick})
 	if !ok || doctor != "fine" || patient != "sick" {
 		t.Fatal(doctor, patient, ok)
 	}
-	if _, _, ok := SelectTend([]TendDoctorFacts{fine}, []TendPatientFacts{recovered, noCare}); ok {
+	if _, _, ok := selectTend([]TendDoctorFacts{fine}, []TendPatientFacts{recovered, noCare}); ok {
 		t.Fatal("selected an ineligible patient")
 	}
 }
@@ -185,11 +199,11 @@ func TestSelectTendFallsBackToDraftedDoctor(t *testing.T) {
 	drafted := tendDoctor("drafted", 10)
 	drafted.Drafted = domain.Known(true)
 	sick := tendPatient("sick", 10)
-	doctor, patient, ok := SelectTend([]TendDoctorFacts{busy, drafted}, []TendPatientFacts{sick})
+	doctor, patient, ok := selectTend([]TendDoctorFacts{busy, drafted}, []TendPatientFacts{sick})
 	if !ok || doctor != "drafted" || patient != "sick" {
 		t.Fatal(doctor, patient, ok)
 	}
-	if _, _, ok := SelectTend([]TendDoctorFacts{busy}, []TendPatientFacts{sick}); ok {
+	if _, _, ok := selectTend([]TendDoctorFacts{busy}, []TendPatientFacts{sick}); ok {
 		t.Fatal("selected an ineligible doctor")
 	}
 }
@@ -204,11 +218,11 @@ func TestSelectTendNeverPicksAPatientAsItsOwnDoctor(t *testing.T) {
 	self := tendDoctor("self", 10)
 	other := tendDoctor("other", 10)
 	selfAsPatient := tendPatient("self", 10)
-	doctor, patient, ok := SelectTend([]TendDoctorFacts{self, other}, []TendPatientFacts{selfAsPatient})
+	doctor, patient, ok := selectTend([]TendDoctorFacts{self, other}, []TendPatientFacts{selfAsPatient})
 	if !ok || doctor != "other" || patient != "self" {
 		t.Fatal(doctor, patient, ok)
 	}
-	if _, _, ok := SelectTend([]TendDoctorFacts{self}, []TendPatientFacts{selfAsPatient}); ok {
+	if _, _, ok := selectTend([]TendDoctorFacts{self}, []TendPatientFacts{selfAsPatient}); ok {
 		t.Fatal("selected a pawn as its own doctor")
 	}
 }
@@ -235,14 +249,14 @@ func TestSelectTendUsesForcedAndQueuedDoctorAsFallback(t *testing.T) {
 	forced, idle := tendDoctor("a", 12), tendDoctor("z", 8)
 	forced.PlayerForced, forced.QueuedJobs = domain.Known(true), domain.Known(uint32(2))
 	patients := []TendPatientFacts{tendPatient("patient", 2)}
-	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced, idle}, patients); !ok || pawn != idle.Pawn {
+	if pawn, _, ok := selectTend([]TendDoctorFacts{forced, idle}, patients); !ok || pawn != idle.Pawn {
 		t.Fatal(pawn, ok)
 	}
-	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
+	if pawn, _, ok := selectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
 		t.Fatal(pawn, ok)
 	}
 	forced.Drafted = domain.Known(true)
-	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
+	if pawn, _, ok := selectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
 		t.Fatal("drafted forced doctor excluded", pawn, ok)
 	}
 }
@@ -257,11 +271,11 @@ func TestTendSkipsUpPatientOutOfBed(t *testing.T) {
 	downed.InBed, downed.Downed = domain.Known(false), domain.Known(true)
 	unknownBed := tendPatient("unknown", 1)
 	unknownBed.InBed = domain.Unknown[bool]()
-	doctor, patient, ok := SelectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up, unknownBed, downed})
+	doctor, patient, ok := selectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up, unknownBed, downed})
 	if !ok || doctor != "doc" || patient != "downed" {
 		t.Fatal(doctor, patient, ok)
 	}
-	if _, _, ok := SelectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up}); ok {
+	if _, _, ok := selectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up}); ok {
 		t.Fatal("selected an up patient out of bed")
 	}
 	r := tendRequest(t)
@@ -276,5 +290,97 @@ func TestTendSkipsUpPatientOutOfBed(t *testing.T) {
 	r.Facts.Patient.Downed, r.Facts.Patient.InBed = domain.Known(false), domain.Unknown[bool]()
 	if d := EvaluateTend(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnknownFacts {
 		t.Fatal(d)
+	}
+}
+
+// Each native doctor gate #657 added: pawn-control eligibility, WorkGiver_Tend's
+// required capacities and reachability. Selection must skip a doctor failing any
+// of them -- and skip one whose fact is simply unobserved -- and admission must
+// refuse the same pair rather than spend an attempt on an order native refuses.
+func TestSelectTendHonoursNativeDoctorGates(t *testing.T) {
+	patients := []TendPatientFacts{tendPatient("patient", 2)}
+	for _, c := range []struct {
+		name   string
+		change func(*TendDoctorFacts)
+	}{
+		{"control ineligible", func(d *TendDoctorFacts) { d.ControlEligible = domain.Known(false) }},
+		{"control unknown", func(d *TendDoctorFacts) { d.ControlEligible = domain.Unknown[bool]() }},
+		{"capacity missing", func(d *TendDoctorFacts) { d.TendCapacities = domain.Known(false) }},
+		{"capacity unknown", func(d *TendDoctorFacts) { d.TendCapacities = domain.Unknown[bool]() }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			refused, fine := tendDoctor("refused", 20), tendDoctor("fine", 1)
+			c.change(&refused)
+			if pawn, _, ok := selectTend([]TendDoctorFacts{refused, fine}, patients); !ok || pawn != fine.Pawn {
+				t.Fatal("picked the doctor native would refuse", pawn, ok)
+			}
+			if _, _, ok := selectTend([]TendDoctorFacts{refused}, patients); ok {
+				t.Fatal("proposed a pair the native gate refuses")
+			}
+		})
+	}
+}
+
+// Reachability is the one pairwise gate: the pair is the first patient in
+// urgency order some ranked doctor can actually walk to.
+func TestSelectTendRequiresReachability(t *testing.T) {
+	walled, near := tendDoctor("walled", 20), tendDoctor("near", 1)
+	critical, stable := tendPatient("critical", 2), tendPatient("stable", 40)
+	doctors := []TendDoctorFacts{walled, near}
+	patients := []TendPatientFacts{critical, stable}
+	// The best doctor reaches only the less urgent patient; the worse doctor
+	// reaches the critical one, so that pair wins on urgency.
+	reach := ObserveTendReachability(map[domain.PawnID][]domain.PawnID{
+		"walled": {"stable"},
+		"near":   {"critical", "stable"},
+	})
+	if doctor, patient, ok := SelectTend(doctors, patients, reach); !ok || doctor != "near" || patient != "critical" {
+		t.Fatal(doctor, patient, ok)
+	}
+	// Nothing reachable, and an unobserved doctor, are both no pair.
+	none := ObserveTendReachability(map[domain.PawnID][]domain.PawnID{"walled": nil, "near": nil})
+	if _, _, ok := SelectTend(doctors, patients, none); ok {
+		t.Fatal("proposed an unreachable pair")
+	}
+	if _, _, ok := SelectTend(doctors, patients, ObserveTendReachability(nil)); ok {
+		t.Fatal("proposed a pair with no reachability fact at all")
+	}
+}
+
+// The drafted fallback is reachability-aware: an undrafted doctor walled off
+// from every patient must not shadow a drafted one who can reach them.
+func TestSelectTendFallsBackToDraftedWhenUndraftedCannotReach(t *testing.T) {
+	walled := tendDoctor("walled", 20)
+	drafted := tendDoctor("drafted", 1)
+	drafted.Drafted = domain.Known(true)
+	patients := []TendPatientFacts{tendPatient("patient", 2)}
+	reach := ObserveTendReachability(map[domain.PawnID][]domain.PawnID{"walled": nil, "drafted": {"patient"}})
+	doctor, patient, ok := SelectTend([]TendDoctorFacts{walled, drafted}, patients, reach)
+	if !ok || doctor != "drafted" || patient != "patient" {
+		t.Fatal(doctor, patient, ok)
+	}
+}
+
+func TestTendAdmissionRefusesNativeDoctorGates(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		change func(*TendDoctorFacts)
+		reason Reason
+	}{
+		{"control ineligible", func(d *TendDoctorFacts) { d.ControlEligible = domain.Known(false) }, DoctorUnavailable},
+		{"control unknown", func(d *TendDoctorFacts) { d.ControlEligible = domain.Unknown[bool]() }, UnknownFacts},
+		{"capacity missing", func(d *TendDoctorFacts) { d.TendCapacities = domain.Known(false) }, DoctorUnavailable},
+		{"capacity unknown", func(d *TendDoctorFacts) { d.TendCapacities = domain.Unknown[bool]() }, UnknownFacts},
+		{"unreachable", func(d *TendDoctorFacts) { d.ReachesPatient = domain.Known(false) }, DoctorUnavailable},
+		{"reachability unknown", func(d *TendDoctorFacts) { d.ReachesPatient = domain.Unknown[bool]() }, UnknownFacts},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := tendRequest(t)
+			c.change(&r.Facts.Doctor)
+			d := EvaluateTend(r)
+			if d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != c.reason {
+				t.Fatal(d)
+			}
+		})
 	}
 }

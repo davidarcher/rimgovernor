@@ -169,6 +169,7 @@ func (b *TendBoundary) InspectTend(ctx context.Context, target executor.Target) 
 		return out, err
 	}
 	facts.Doctor = NewTendDoctorFacts(tend.Doctor(), doctorRow, doctorToken)
+	facts.Doctor.ReachesPatient = TendReachability([]*n.PawnState{doctorRow, patientRow}).Reaches(tend.Doctor(), tend.Patient())
 	facts.Patient = NewTendPatientFacts(tend.Patient(), patientRow, patientToken)
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
@@ -188,7 +189,30 @@ func NewTendDoctorFacts(pawn domain.PawnID, row *n.PawnState, token string) poli
 	if settings := row.Settings; settings != nil && !boundary.IssueField(settings.Issues, "work") {
 		facts.DoctorWorkEnabled, facts.DoctorWorkOverrideDisabled = doctorWorkFacts(settings.Work)
 	}
+	if doctor := row.TendDoctor; doctor != nil {
+		facts.ControlEligible = boundary.FactBool(doctor.ControlEligible)
+		facts.TendCapacities = boundary.FactBool(doctor.CapacitiesOk)
+	}
 	return facts
+}
+
+// TendReachability collects the pairwise CanReach facts one list_pawns reply
+// carries (#657). A row without the tend detail, or whose reachability read
+// carried an issue, contributes no fact: the doctor is then never proposed.
+func TendReachability(rows []*n.PawnState) policy.TendReachability {
+	reachable := map[domain.PawnID][]domain.PawnID{}
+	for _, row := range rows {
+		doctor := row.GetTendDoctor()
+		if row.Pawn == nil || doctor == nil || boundary.IssueField(doctor.Issues, "reachable_pawn_ids") {
+			continue
+		}
+		patients := make([]domain.PawnID, 0, len(doctor.ReachablePawnIds))
+		for _, id := range doctor.ReachablePawnIds {
+			patients = append(patients, domain.PawnID(id))
+		}
+		reachable[domain.PawnID(row.Pawn.GetId())] = patients
+	}
+	return policy.ObserveTendReachability(reachable)
 }
 func NewTendPatientFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.TendPatientFacts {
 	facts := policy.TendPatientFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), InBed: boundary.FactBool(row.InBed)}

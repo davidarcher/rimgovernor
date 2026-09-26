@@ -130,13 +130,13 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		doctors = append(doctors, tend.NewTendDoctorFacts(pawn, row, ""))
 		patients = append(patients, tend.NewTendPatientFacts(pawn, row, ""))
 	}
-	doctor, patient, ok := policy.SelectTend(doctors, patients)
+	doctor, patient, ok := policy.SelectTend(doctors, patients, tend.TendReachability(observed.Pawns))
 	if ok && !arbiter.tryClaim([]domain.PawnID{doctor, patient}) {
 		ok = false
 	}
 	if !ok {
 		// No pair to order: the patient is up and out of bed, or every
-		// doctor is ineligible or busy. Only game time changes that, so
+		// doctor is ineligible, busy or walled off from the patients. Only game time changes that, so
 		// the step lends a window rather than reporting no work (#636).
 		return RoutineTendResult{Reason: BuildingMethodUsed, NativeWorkTicks: medicalWaitTicks}, nil
 	}

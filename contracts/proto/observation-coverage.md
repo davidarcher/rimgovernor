@@ -122,7 +122,7 @@ Sources in this table are under
 | ColonyIdentity.cs / colony_identity | lifecycle.ReadIdentity; no duplicate here | bridge_runtime, bridge_observation |
 | StatusTool.cs / status | ReadStatus; StatusSnapshot, PawnState, ThreatsSnapshot. Clock and notification/UI blocks belong to clock/presentation | bridge_observation, combat_outcome, hunting_outcome, supervisor |
 | ObservationBatchTool.cs / observation_batch | ReadObservationBatch; concrete before/pawns/supplies/buildings/rooms/zones/after replies | bridge_observation:74-136 |
-| ListPawnsTool.cs / list_pawns | ListPawns; PawnState, Needs, Health, Hediff, Capacity, Equipment, Biography, Settings, Social, AnimalState, JobEvidence | medical_outcome, medical_management, medical_recovery, hunting, gear, animal_feed |
+| ListPawnsTool.cs / list_pawns | ListPawns; PawnState, Needs, Health, Hediff, Capacity, Equipment, Biography, Settings, Social, AnimalState, JobEvidence, PawnTendDoctor | medical_outcome, medical_management, medical_recovery, hunting, gear, animal_feed |
 | ListThingsTool.cs / list_things | ListSupplies; ResourceStock, HeldStock, CorpseState | resource_accounting, food_forecast, waste, bridge_observation |
 | ListBuildingsTool.cs / list_buildings | ListBuildings; BuildingState, ConstructionState, PowerNetwork, ThermalSide, BillStack | construction_preflight, development, thermal_control, service_recovery, spatial |
 | ListRoomsTool.cs / list_rooms | ListRooms; RoomState, RoomStat, exact cells/beds/contents | spatial_site, room_actions, shelter_handoff, room_adoption |

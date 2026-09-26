@@ -86,6 +86,19 @@ func init() {
 						return err
 					}
 					report["medical_final"] = medical
+					// #657's evidence: a CriticalMedical episode that cannot be
+					// served should leave no tend methods at all, not eight
+					// spent on pairs the native gate refuses. The tally names
+					// how many of this goal's methods ended unsuccessful.
+					spent, failed := 0, 0
+					for _, raw := range na.AsSlice(medical["plans"]) {
+						plan, _ := na.AsMap(raw)
+						spent++
+						if len(na.AsSlice(plan["unsuccessful"])) > 0 {
+							failed++
+						}
+					}
+					report["tend_attempts"] = map[string]any{"methods": spent, "unsuccessful": failed}
 					report["concurrent_progress"] = map[string]any{
 						"medical_methods": medical["method_count"], "medical_need": medical["need"],
 						"food_methods": food["method_count"], "food_need": food["need"],

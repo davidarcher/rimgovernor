@@ -308,6 +308,29 @@ message PawnState {
   // Mean of each active spawned hostile's highest natural/worn sharp armor rating.
   // Equipment detail only; absent when there are no live, standing hostiles.
   optional double raid_armor = 41;
+  // Doctor-side tend gates, mirroring NativeTendOperations.Prepare so the
+  // controller never proposes a pair the native gate refuses (#657). Present
+  // only when PawnDetails.tend is requested.
+  PawnTendDoctor tend_doctor = 42;
+}
+message PawnTendDoctor {
+  // NativePawnControlState eligibility: a drafter exists, the pawn is spawned,
+  // alive, not downed, not in a mental state and player-controlled. This is
+  // the gate whose native refusal reads "Tend requires an eligible doctor".
+  optional bool control_eligible = 1;
+  optional bool spawned = 2; optional bool has_drafter = 3;
+  // WorkGiver_Tend.MissingRequiredCapacity(pawn) == null; missing_capacity
+  // names the failing PawnCapacityDef when it does not.
+  optional bool capacities_ok = 4; optional string missing_capacity = 5;
+  // WorkTypeIsDisabled(Doctor): the same gate the work settings report, read
+  // here from the pawn so a doctor row carries it without PawnDetails.work.
+  optional bool work_type_disabled = 6;
+  // Pawn IDs from this same reply this pawn can reach
+  // (CanReach ClosestTouch, Danger.Deadly); self is excluded. The list is
+  // exhaustive over the reply's other rows unless an issue names
+  // reachable_pawn_ids.
+  repeated string reachable_pawn_ids = 7;
+  repeated ReadIssue issues = 8;
 }
 message NoOwnedDraftClaim {}
 // owner (rimgovernor.authority.v1.Owner) was removed: a claim is either held by
@@ -338,6 +361,10 @@ message PawnDetails {
   optional bool social = 6; optional bool animals = 7; optional bool visible_hediffs_only = 8; optional bool work = 9;
   // schedule projects PawnSettings.schedule (the 24 TimetableSlot rows) on its own, independent of settings (care policy) and work (priorities).
   optional bool schedule = 10;
+  // tend projects PawnState.tend_doctor: the native tend gates plus pairwise
+  // reachability across the rows this query returns. Opt-in; reachability is
+  // quadratic in the page and is bounded to 64 rows.
+  optional bool tend = 11;
 }
 message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; }
 message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; }

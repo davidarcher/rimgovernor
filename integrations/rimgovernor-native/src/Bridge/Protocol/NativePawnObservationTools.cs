@@ -73,7 +73,11 @@ namespace HomeBridge.BridgeTools
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count) };
             result.Completeness.Page.Complete = !truncated;
             if (truncated) result.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Value.Pawn.Id);
-            var raidArmor = NativePawnDetails.Defaults(parsed.Details).Equipment ? NativeGearFacts.RaidArmor(map) : null;
+            var details = NativePawnDetails.Defaults(parsed.Details);
+            var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
+            // The tend detail is pairwise across the page, so it runs once over
+            // the whole page before the per-row snapshot tokens are taken.
+            if (details.Tend) NativePawnDetails.Tend(page);
             foreach (var item in page) {
                 if (raidArmor.HasValue) item.Value.RaidArmor = raidArmor.Value;
                 NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);

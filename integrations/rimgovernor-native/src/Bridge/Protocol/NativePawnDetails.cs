@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
@@ -19,7 +20,54 @@ namespace HomeBridge.BridgeTools
             Settings=source==null || !source.HasSettings || source.Settings,
             Social=source==null || !source.HasSocial || source.Social,
             Animals=source==null || !source.HasAnimals || source.Animals,
-            VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true, Schedule=source?.Schedule==true };
+            VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true, Schedule=source?.Schedule==true,
+            Tend=source?.Tend==true };
+
+        // Reachability is quadratic in the page, so the tend detail answers it
+        // only for a bounded query; beyond this the list carries an issue and
+        // the controller treats reachability as unknown.
+        internal const int TendRows=64;
+
+        // Doctor-side tend gates for one reply's rows (#657), mirroring
+        // NativeTendOperations.Prepare: pawn-control eligibility (the gate
+        // behind "Tend requires an eligible doctor"), WorkGiver_Tend's required
+        // capacities, the Doctor work type, and CanReach(ClosestTouch, Deadly)
+        // to every other row of the same reply -- the candidate patients.
+        internal static void Tend(System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>> page)
+        {
+            var giver=DefDatabase<WorkGiverDef>.AllDefsListForReading
+                .Where(d => d.giverClass!=null && typeof(WorkGiver_Tend).IsAssignableFrom(d.giverClass))
+                .Select(d => d.Worker as WorkGiver_Tend).FirstOrDefault(w => w!=null);
+            bool bounded=page.Count<=TendRows;
+            foreach(var item in page) {
+                var pawn=item.Key; var row=new Obs.PawnTendDoctor(); item.Value.TendDoctor=row;
+                row.Spawned=pawn.Spawned; row.HasDrafter=pawn.drafter!=null;
+                row.ControlEligible=pawn.drafter!=null && pawn.Spawned && !pawn.Dead && !pawn.Downed
+                    && !pawn.InMentalState && pawn.IsColonistPlayerControlled;
+                row.WorkTypeDisabled=pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor);
+                if(giver==null) {
+                    row.Issues.Add(Issue("capacities_ok",Common.UnavailableReason.NotApplicable,"WorkGiver_Tend is unavailable in this game."));
+                    row.Issues.Add(Issue("missing_capacity",Common.UnavailableReason.NotApplicable,"WorkGiver_Tend is unavailable in this game."));
+                } else {
+                    var missing=giver.MissingRequiredCapacity(pawn);
+                    row.CapacitiesOk=missing==null;
+                    if(missing!=null) row.MissingCapacity=Id(missing.defName);
+                    else row.Issues.Add(Issue("missing_capacity",Common.UnavailableReason.NotApplicable,"No tend capacity is missing."));
+                }
+                if(!bounded) {
+                    row.Issues.Add(Issue("reachable_pawn_ids",Common.UnavailableReason.LimitExceeded,"Pairwise reachability is bounded to "+TendRows+" rows."));
+                    continue;
+                }
+                if(!pawn.Spawned || pawn.Dead) {
+                    row.Issues.Add(Issue("reachable_pawn_ids",Common.UnavailableReason.NotApplicable,"An unspawned or dead pawn reaches nothing."));
+                    continue;
+                }
+                foreach(var other in page) {
+                    if(ReferenceEquals(other.Key,pawn) || !other.Key.Spawned || other.Key.Dead) continue;
+                    if(pawn.CanReach(other.Key,PathEndMode.ClosestTouch,Danger.Deadly)) row.ReachablePawnIds.Add(other.Value.Pawn.Id);
+                }
+            }
+        }
 
         internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
         {
@@ -58,6 +106,7 @@ namespace HomeBridge.BridgeTools
             } else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Social=Social(pawn,colonists);
             else row.Issues.Add(Skipped("social"));
+            if(!d.Tend) row.Issues.Add(Skipped("tend_doctor"));
             if(!d.Animals) row.Issues.Add(Skipped("animal_state"));
             else if(!pawn.RaceProps.Animal) row.Issues.Add(Issue("animal_state",Common.UnavailableReason.NotApplicable,"Pawn is not an animal."));
             else row.AnimalState=Animal(pawn);

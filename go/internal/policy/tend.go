@@ -29,6 +29,49 @@ type TendDoctorFacts struct {
 	MedicineSkillDisabled      domain.Fact[bool]
 	DoctorWorkEnabled          domain.Fact[bool]
 	DoctorWorkOverrideDisabled domain.Fact[bool]
+	// The native tend gates the Go predicate used to leave unmodelled, which
+	// burned every CriticalMedical attempt on orders that could not succeed
+	// (#657). ControlEligible is NativePawnControlState's own eligibility
+	// (a drafter exists, spawned, alive, not downed, not mental,
+	// player-controlled) -- the gate behind the refusal "Tend requires an
+	// eligible doctor". TendCapacities is WorkGiver_Tend.MissingRequiredCapacity
+	// coming back empty. ReachesPatient answers CanReach(ClosestTouch, Deadly)
+	// for the one patient this pair names; multi-candidate selection uses
+	// TendReachability instead.
+	ControlEligible domain.Fact[bool]
+	TendCapacities  domain.Fact[bool]
+	ReachesPatient  domain.Fact[bool]
+}
+
+// TendReachability answers CanReach for the doctor/patient candidates observed
+// together in one read. A doctor with no observed row reaches nothing known, so
+// SelectTend never proposes it: an unreachable doctor is refused natively.
+type TendReachability struct {
+	reach map[domain.PawnID]map[domain.PawnID]bool
+}
+
+// ObserveTendReachability records, per doctor, the candidate patients native
+// reported as reachable. A doctor absent from reachable has no fact at all.
+func ObserveTendReachability(reachable map[domain.PawnID][]domain.PawnID) TendReachability {
+	out := TendReachability{reach: make(map[domain.PawnID]map[domain.PawnID]bool, len(reachable))}
+	for doctor, patients := range reachable {
+		row := make(map[domain.PawnID]bool, len(patients))
+		for _, patient := range patients {
+			row[patient] = true
+		}
+		out.reach[doctor] = row
+	}
+	return out
+}
+
+// Reaches is unknown when the doctor was never observed, and a known false when
+// it was observed and the patient is not in its reachable set.
+func (r TendReachability) Reaches(doctor, patient domain.PawnID) domain.Fact[bool] {
+	row, observed := r.reach[doctor]
+	if !observed {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(row[patient])
 }
 
 // TendPatientFacts describes one candidate patient. HoursUntilDeathFromBloodLoss
@@ -55,7 +98,7 @@ type TendPatientFacts struct {
 // bleed-out urgency, then life-threatening, then downed, then ID, and pair the
 // first available doctor with the first available patient. This is a proposal
 // only; EvaluateTend re-validates the chosen pair against fresh facts.
-func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.PawnID, domain.PawnID, bool) {
+func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts, reach TendReachability) (domain.PawnID, domain.PawnID, bool) {
 	// allowDrafted is only tried once no undrafted doctor is eligible at all --
 	// giving up a drafted colonist's current order costs more than an idle
 	// undrafted one, so it is strictly a fallback, never a first choice.
@@ -69,10 +112,12 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		skillDisabled, sdk := d.MedicineSkillDisabled.Value()
 		enabled, wek := d.DoctorWorkEnabled.Value()
 		overrideDisabled, odk := d.DoctorWorkOverrideDisabled.Value()
-		if !dk || !wk || !tk || !mk || !ek || !sk || !sdk || !wek || !odk {
+		controlEligible, cek := d.ControlEligible.Value()
+		capacities, cak := d.TendCapacities.Value()
+		if !dk || !wk || !tk || !mk || !ek || !sk || !sdk || !wek || !odk || !cek || !cak {
 			return false
 		}
-		return !dead && !downed && (allowDrafted || !drafted) && !mental && existing != "TendPatient" && enabled && !overrideDisabled && !skillDisabled && skill >= 0
+		return !dead && !downed && (allowDrafted || !drafted) && !mental && existing != "TendPatient" && enabled && !overrideDisabled && !skillDisabled && skill >= 0 && controlEligible && capacities
 	}
 	eligiblePatient := func(p TendPatientFacts) bool {
 		dead, dk := p.Dead.Value()
@@ -107,14 +152,22 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 			doctorPool = append(doctorPool, d)
 		}
 	}
-	if len(doctorPool) == 0 {
+	if len(patientPool) == 0 {
+		return "", "", false
+	}
+	// The drafted fallback is reachability-aware too: an undrafted pool whose
+	// every member is walled off from the patients is no better than an empty
+	// one, so it falls through to the drafted candidates rather than reporting
+	// no pair (#657).
+	if !anyReachable(doctorPool, patientPool, reach) {
+		doctorPool = nil
 		for _, d := range doctors {
 			if !needsTendItself[d.Pawn] && eligibleDoctor(d, true) {
 				doctorPool = append(doctorPool, d)
 			}
 		}
 	}
-	if len(doctorPool) == 0 || len(patientPool) == 0 {
+	if len(doctorPool) == 0 {
 		return "", "", false
 	}
 	sort.SliceStable(doctorPool, func(i, j int) bool {
@@ -156,7 +209,28 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		}
 		return a.Pawn < b.Pawn
 	})
-	return doctorPool[0].Pawn, patientPool[0].Pawn, true
+	// Reachability is the one pairwise gate, so the pair is the first patient
+	// in urgency order some ranked doctor can actually reach. With every pair
+	// reachable this is the head of each pool, the ranking above.
+	for _, patient := range patientPool {
+		for _, doctor := range doctorPool {
+			if reaches, known := reach.Reaches(doctor.Pawn, patient.Pawn).Value(); known && reaches {
+				return doctor.Pawn, patient.Pawn, true
+			}
+		}
+	}
+	return "", "", false
+}
+
+func anyReachable(doctors []TendDoctorFacts, patients []TendPatientFacts, reach TendReachability) bool {
+	for _, d := range doctors {
+		for _, p := range patients {
+			if reaches, known := reach.Reaches(d.Pawn, p.Pawn).Value(); known && reaches {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // tendable reports whether a doctor can tend the patient where they are: in
@@ -266,6 +340,18 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	if !known {
 		return refuse(UnknownFacts)
 	}
+	controlEligible, known := f.Doctor.ControlEligible.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
+	capacities, known := f.Doctor.TendCapacities.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
+	reaches, known := f.Doctor.ReachesPatient.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
 	dead, _ := f.Doctor.Dead.Value()
 	downed, _ := f.Doctor.Downed.Value()
 	mental, _ := f.Doctor.MentalState.Value()
@@ -279,6 +365,12 @@ func EvaluateTend(r TendRequest) DraftDecision {
 		return refuse(DoctorUnavailable)
 	}
 	if !enabled || overrideDisabled || skillDisabled {
+		return refuse(DoctorUnavailable)
+	}
+	// The native Prepare gates (#657): pawn-control eligibility, WorkGiver_Tend's
+	// required capacities and reachability to this patient. Admitting without
+	// them spends an attempt on an order native refuses outright.
+	if !controlEligible || !capacities || !reaches {
 		return refuse(DoctorUnavailable)
 	}
 	for _, fact := range []domain.Fact[bool]{f.Patient.Dead, f.Patient.Downed, f.Patient.InBed, f.Patient.NeedsTend, f.Patient.NoCare} {
