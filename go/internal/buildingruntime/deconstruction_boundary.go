@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -86,6 +87,11 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 			candidate.Class = "ancient_casket"
 		}
 		candidate.SalvageSelected = !candidate.InHome && row.Salvage != nil && row.Salvage.Safe
+		// A shelter ring clears the ruin on its own site (#709), which
+		// the Home area need not cover yet.
+		if strings.HasPrefix(string(target.Snapshot.Plan), shellClearPlanPrefix) {
+			candidate.InHome = true
+		}
 		out.Eligible = policy.ClearanceHoldReason(candidate) == ""
 		out.Accepted = out.Eligible
 		out.Refusals = deconstructionRefusals(target.Action.ID(), candidate, row.Salvage)

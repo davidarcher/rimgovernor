@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -16,7 +17,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:        "mood/berserk",
 		Scope:       "Tribal8 controller-selected melee SUBDUE then RESCUE to the pawn's own bed; no deaths, prisoner conversion or forced recovery, with other dispatch outside containment.",
-		Start:       cases.Fixture{On: cases.Save{Name: "RimGovernor-tribal8-baseline"}, Op: "test/berserk_prepare"},
+		Start:       cases.Fixture{On: cases.Save{Name: "RimGovernor-tribal8-baseline"}, Op: "test/berserk_prepare", ArgsFrom: startersite.ArgsFor(11)},
 		RequiredOps: []string{"test/berserk_audit"}, QuietWorld: true,
 		Serve:  &cases.ServeSpec{Families: []string{"defense", "rescue", "repair"}, Prefix: "berserk", Extra: []string{"--clock-window-ticks", "120"}},
 		Budget: 4 * time.Minute, Run: runBerserk,

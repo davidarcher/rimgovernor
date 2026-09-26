@@ -537,3 +537,75 @@ func TestShelterBunksAvoidMinedRock(t *testing.T) {
 		t.Fatal("no bunk fits")
 	}
 }
+
+// standingColumns stands an edifice on columns 16 and 24, set by mark, and
+// leaves no buildable ground outside them, so the only rectangle's ring
+// runs along both columns.
+func standingColumns(mark func(*SiteCell)) StarterRequest {
+	r := starterFixture()
+	for i, c := range r.Cells {
+		switch {
+		case c.Cell.X == 16 || c.Cell.X == 24:
+			c.Walkable, c.Occupied = domain.Known(false), domain.Known(true)
+			mark(&c)
+		case c.Cell.X < 16 || c.Cell.X > 24:
+			c.SupportsLight = domain.Known(false)
+		}
+		r.Cells[i] = c
+	}
+	return r
+}
+
+// #709: ruins on the ring are cleared, then built, rather than blocking
+// the site.
+func TestStarterShellClearsRuinsOnItsRing(t *testing.T) {
+	layouts, err := StarterLayouts(standingColumns(func(c *SiteCell) { c.Ruin = domain.Known(true) }))
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	best := layouts[0]
+	if best.Room.Width != 9 || len(best.Cleared) != 18 || len(best.Reused) != 0 {
+		t.Fatalf("ring does not clear the ruins: %+v", best)
+	}
+	for _, p := range best.Cleared {
+		if p.X != 16 && p.X != 24 {
+			t.Fatalf("cleared open ground %v", p)
+		}
+	}
+}
+
+// #709: a player wall of the ring's kind stands as ring wall in the
+// search itself; another kind does not.
+func TestStarterShellReusesPlayerWallsOfItsKind(t *testing.T) {
+	r := standingColumns(func(c *SiteCell) { c.PlayerEdifice = domain.Known("Wall") })
+	r.WallDef = "Wall"
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	if best := layouts[0]; best.Room.Width != 9 || len(best.Reused) != 18 || len(best.Cleared) != 0 {
+		t.Fatalf("ring does not reuse the walls: %+v", best)
+	}
+	r.WallDef = "Fence"
+	layouts, err = StarterLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range layouts {
+		if len(l.Reused) != 0 {
+			t.Fatalf("reused a wall of another kind: %+v", l)
+		}
+	}
+}
+
+// #709: the rectangle template takes the fixture huts' other sizes.
+func TestStarterRectangleSize(t *testing.T) {
+	for _, size := range []int32{7, 11} {
+		r := starterFixture()
+		r.Size = size
+		layouts, err := StarterLayouts(r)
+		if err != nil || len(layouts) == 0 || layouts[0].Room.Width != size || layouts[0].Room.Height != size {
+			t.Fatalf("size %d: %v %v", size, layouts, err)
+		}
+	}
+}

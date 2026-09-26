@@ -48,6 +48,14 @@ const (
 	shellMinePlanPrefix string          = "routine-shelter-mine"
 )
 
+// shelterClearMethod deconstructs the ruins standing on the shell's ring
+// (#709), after the bunks and before the ring, which is then raised on the
+// ring's other cells and closed by adoption once the ruins are gone.
+const (
+	shelterClearMethod   domain.MethodID = "shelter-clear"
+	shellClearPlanPrefix string          = "routine-shelter-clear"
+)
+
 // BunkPlanPrefix names the plans the shelter's bunk rungs admit, for
 // acceptance tooling reading the journal.
 const BunkPlanPrefix = bunkPlanPrefix
@@ -146,7 +154,7 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	}
 	grid, _ := layoutAlignment(s.facts)
 	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
-		return policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts)})
+		return policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef})
 	}
 	layouts, err := search(layoutAnchor(s.facts, r.district()))
 	if err != nil {
@@ -228,6 +236,12 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 			return nil, none, "", &result, err
 		}
 	}
+	if len(layouts) > 0 && len(layouts[0].Cleared) > 0 {
+		result, admitted, err := r.admitShellClearing(call, epoch, s, layouts[0])
+		if err != nil || admitted {
+			return nil, none, "", &result, err
+		}
+	}
 	selected, stock, reason, err := r.previewFreshShell(call, s.snapshot, s.facts, layouts, s.check)
 	if err == nil && reason == BuildingMethodNoSpace && target != nil {
 		result, err := r.stepExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, target: *target})
@@ -288,6 +302,67 @@ func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s
 		return result, false, err
 	}
 	clockSchedulerLog("%s: %s: %d rock cells reason=%s", r.goal, shelterMineMethod, len(actions), result.Reason)
+	return result, result.Reason == BuildingMethodAdmitted, nil
+}
+
+// admitShellClearing designates the ruins on the sited shell's ring for
+// deconstruction (#709) once per goal epoch, as the shelter-clear rung. The
+// clearance census names each ruin's building; one the census holds for a
+// reason other than lying outside Home (a roof it carries, an ancient
+// danger) is left standing, and the ring's gap there waits on adoption. It
+// reports admitted=false, without error, when the rung is spent or nothing
+// on the ring is clearable, so the ring is still raised this review.
+func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context, s shelterSite, layout policy.StarterLayout) (RoutineBuildingResult, bool, error) {
+	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, shelterClearMethod); err == nil {
+		return RoutineBuildingResult{}, false, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineBuildingResult{}, false, err
+	}
+	source, ok := r.native.(observation.ClearanceSource)
+	if !ok {
+		return RoutineBuildingResult{}, false, nil
+	}
+	snapshot := s.state.Snapshot
+	snapshot.Revision = 1
+	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity)
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
+	if err := s.check(); err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
+	census, known := read.Value()
+	if !known {
+		return RoutineBuildingResult{}, false, nil
+	}
+	targets := policy.ShellRuins(census.Targets, layout.Cleared)
+	if len(targets) == 0 {
+		clockSchedulerLog("%s: %s: none of %d ring ruins clearable", r.goal, shelterClearMethod, len(layout.Cleared))
+		return RoutineBuildingResult{}, false, nil
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", s.goal.Goal.ID, s.goal.Goal.Epoch, shelterClearMethod)))
+	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", shellClearPlanPrefix, digest[:16]))
+	actions := make([]domain.Action, 0, len(targets))
+	for _, target := range targets {
+		value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		action, err := domain.NewDeconstructionAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), value)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
+	result, err := r.admitExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}, snapshot, shelterClearMethod, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, s.check)
+	if err != nil {
+		return result, false, err
+	}
+	clockSchedulerLog("%s: %s: %d ruins reason=%s", r.goal, shelterClearMethod, len(actions), result.Reason)
 	return result, result.Reason == BuildingMethodAdmitted, nil
 }
 

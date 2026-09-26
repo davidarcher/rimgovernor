@@ -8,14 +8,15 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "Existing Arrest operation delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{Op: "test/arrest_prepare"}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
+	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "Existing Arrest operation delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
 	cases.Register(cases.Case{
 		Name:   "mood/arrest",
 		Scope:  "Vanilla Arrest custody: refuse normal targets, unarmed arresters, hostile Berserk and non-prisoner beds; require owned draft; replay/lookup and observe a living sad-wander target in the exact prisoner bed with its mental state ended.",
-		Start:  cases.Fixture{Op: "test/arrest_prepare"},
+		Start:  cases.Fixture{Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)},
 		Keep:   []string{string(na.NeedRest)},
 		Budget: 2 * time.Minute,
 		Run:    runArrest,

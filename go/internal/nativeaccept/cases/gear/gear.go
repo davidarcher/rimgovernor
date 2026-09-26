@@ -19,6 +19,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -50,6 +51,14 @@ func start(mode string, args map[string]any) cases.Fixture {
 		all[k] = v
 	}
 	return cases.Fixture{Op: prepareOp, Args: all, On: cases.Save{Name: sustained.BaselineSave}}
+}
+
+// sited is start with the fixture hut on the controller's own size x size
+// starter site (#709).
+func sited(mode string, size int32) cases.Fixture {
+	f := start(mode, nil)
+	f.ArgsFrom = startersite.ArgsFor(size)
+	return f
 }
 
 func serve(families, prefix string) *cases.ServeSpec {

@@ -29,7 +29,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "gear/soldier",
 		Scope:  fmt.Sprintf("Armor ladder and weapon fit (#470, #471): two colonists with Shooting 12 and 8, Smithing and FlakArmor researched and steel funded, both end in a %s plus a %s or %s, the %s on the better shot and the %s on the other.", soldierVest, soldierHelmet, soldierFlakHelmet, soldierRifle, soldierShotgun),
-		Start:  start("soldier", nil),
+		Start:  sited("soldier", 11),
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  serve(soldierFamilies, "gear-soldier"),
 		Budget: watch + 3*time.Minute,

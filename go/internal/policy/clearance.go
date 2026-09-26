@@ -205,3 +205,26 @@ func SelectChunkDump(rows []ClearanceChunk, sites []domain.Cell, protected []dom
 	sort.Strings(allow)
 	return cells, allow, true
 }
+
+// ShellRuins is the census rows a starter ring clears (#709): each building
+// covering one of the ring's ruin cells whose only hold, if any, is lying
+// outside Home, which the ring's own site need not be. Ordered by identity.
+func ShellRuins(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
+	var out []ClearanceTarget
+	for _, row := range rows {
+		covers := false
+		for _, c := range cells {
+			covers = covers || c.X >= row.Minimum.X && c.X <= row.Maximum.X && c.Z >= row.Minimum.Z && c.Z <= row.Maximum.Z
+		}
+		if !covers {
+			continue
+		}
+		held := row
+		held.InHome = true
+		if ClearanceHoldReason(held) == "" {
+			out = append(out, row)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].EntityID < out[j].EntityID })
+	return out
+}

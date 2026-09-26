@@ -12,7 +12,11 @@ namespace HomeBridge.BridgeTools
     public sealed class BerserkFixture
     {
         [Tool("test/berserk_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage tribal colonist Berserk, two melee responders and an owned bed; ordinary damage and recovery only.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "South-west corner x of the 11x11 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
+            [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
+            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -25,7 +29,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var h in p.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) p.health.RemoveHediff(h);
                     if (p.InMentalState) p.MentalState.RecoverFromState();
                 }
-                var hut = FixtureHut.Build(map, 11);
+                var hut = FixtureHut.Build(map, 11, -1, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 if (hut.People.Count != 8) throw new InvalidOperationException("Expected eight baseline colonists.");
                 var squad = hut.People.Where(p => !p.WorkTagIsDisabled(WorkTags.Violent)).Take(2).ToList();
                 if (squad.Count != 2) throw new InvalidOperationException("Two melee responders required.");

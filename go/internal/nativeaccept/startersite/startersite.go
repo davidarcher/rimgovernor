@@ -14,13 +14,25 @@ type wallClock struct{}
 
 func (wallClock) Now() time.Time { return time.Now() }
 
-// Args is a Fixture's ArgsFrom for a 9x9 fixture hut (#700): the
+// Args is ArgsFor(9), the 9x9 fixture hut's site.
+func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
+	return ArgsFor(9)(ctx, h)
+}
+
+// ArgsFor is a Fixture's ArgsFrom for a size x size fixture hut (#700,
+// #709): the
 // south-west corner and door of the rectangle the initial shelter's starter
 // search ranks first on the loaded game, as the siteX/siteZ/doorX/doorZ
-// arguments FixtureHut takes, or none when no 9x9 rectangle fits. The hut then stands where the controller
+// arguments FixtureHut takes, or none when no such rectangle fits. The hut then stands where the controller
 // would have raised it, so the colony grid a case derives from it is the
 // one real play would have, and natural rock there is reused as wall.
-func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
+func ArgsFor(size int32) func(context.Context, *na.Harness) (map[string]any, error) {
+	return func(ctx context.Context, h *na.Harness) (map[string]any, error) {
+		return args(ctx, h, size)
+	}
+}
+
+func args(ctx context.Context, h *na.Harness, size int32) (map[string]any, error) {
 	reply, _, err := h.Client.Identity(ctx)
 	if err != nil {
 		return nil, err
@@ -33,7 +45,7 @@ func Args(ctx context.Context, h *na.Harness) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("colony facts: %w", err)
 	}
-	layout, ok, err := buildingruntime.StarterSite(reading.Projection)
+	layout, ok, err := buildingruntime.StarterSite(reading.Projection, size)
 	if err != nil {
 		return nil, err
 	}

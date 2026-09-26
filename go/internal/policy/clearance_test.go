@@ -153,3 +153,19 @@ func TestHaulableChunksNeedADestination(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// #709: a ring clears the ruins covering its cells whatever Home covers,
+// and leaves one the census holds for another reason.
+func TestShellRuins(t *testing.T) {
+	ring := []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}}
+	rows := []ClearanceTarget{
+		{EntityID: "b", Minimum: domain.Cell{X: 6, Z: 5}, Maximum: domain.Cell{X: 6, Z: 5}, Deconstructible: true},
+		{EntityID: "a", Minimum: domain.Cell{X: 4, Z: 5}, Maximum: domain.Cell{X: 5, Z: 5}, Deconstructible: true, InHome: true},
+		{EntityID: "roof", Minimum: domain.Cell{X: 5, Z: 5}, Maximum: domain.Cell{X: 5, Z: 5}, Deconstructible: true, RoofBlocker: "roof"},
+		{EntityID: "far", Minimum: domain.Cell{X: 9, Z: 9}, Maximum: domain.Cell{X: 9, Z: 9}, Deconstructible: true},
+	}
+	got := ShellRuins(rows, ring)
+	if len(got) != 2 || got[0].EntityID != "a" || got[1].EntityID != "b" {
+		t.Fatal(got)
+	}
+}

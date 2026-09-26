@@ -5,11 +5,12 @@ import (
 	"fmt"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"time"
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment: refuse non-aggro targets and ranged weapons; draft, issue, replay, lookup and observe a living downed or recovered colonist without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare"}, Budget: 2 * time.Minute, Run: runSubdue})
+	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment: refuse non-aggro targets and ranged weapons; draft, issue, replay, lookup and observe a living downed or recovered colonist without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7)}, Budget: 2 * time.Minute, Run: runSubdue})
 }
 func runSubdue(ctx context.Context, s cases.Session) error {
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()

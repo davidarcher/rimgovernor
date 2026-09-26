@@ -24,7 +24,7 @@ func TestCompactCellsPreservesFactsAndDelta(t *testing.T) {
 	if err := validatePlanningCells(s, s.Context, s.MapSize, 1); err != nil {
 		t.Fatal(err)
 	}
-	want := &o.CellState{Cell: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Walkable: proto.Bool(true), Passable: proto.Bool(true), Occupied: proto.Bool(true), Doorway: proto.Bool(true), SupportsLight: proto.Bool(true), StorageEmpty: proto.Bool(true), Indoors: proto.Bool(true), Polluted: proto.Bool(true), NaturalRock: proto.Bool(true), Roof: proto.String("RoofConstructed"), ZoneId: proto.String("7"), RoomId: proto.String("9"), Glow: proto.Float64(.123456789), Fertility: proto.Float64(1.23456789)}
+	want := &o.CellState{Cell: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Walkable: proto.Bool(true), Passable: proto.Bool(true), Occupied: proto.Bool(true), Doorway: proto.Bool(true), SupportsLight: proto.Bool(true), StorageEmpty: proto.Bool(true), Indoors: proto.Bool(true), Polluted: proto.Bool(true), NaturalRock: proto.Bool(true), Ruin: proto.Bool(false), Roof: proto.String("RoofConstructed"), ZoneId: proto.String("7"), RoomId: proto.String("9"), Glow: proto.Float64(.123456789), Fertility: proto.Float64(1.23456789)}
 	if !proto.Equal(s.Cells[0], want) || !s.Cells[1].GetFogged() || s.Cells[1].Cell.GetX() != 8 || len(s.Cells) != 2 || s.Compact != nil {
 		t.Fatal(s)
 	}
@@ -34,12 +34,28 @@ func TestCompactCellsPreservesFactsAndDelta(t *testing.T) {
 	}
 }
 
+// #709: bit 15 carries the edifice: 0 a ruin, else 1 + the player
+// edifice definition's string index.
+func TestCompactCellsEdifice(t *testing.T) {
+	for edifice, want := range map[byte]*o.CellState{0: {Ruin: proto.Bool(true)}, 2: {Ruin: proto.Bool(false), PlayerEdifice: proto.String("7")}} {
+		s := compactFixture()
+		s.Compact.Rows[0] = []byte{0xfc, 0xff, 0, 1, 2, edifice, 0, 2, 0, 1, 0}
+		if err := ExpandCompactCells(s); err != nil {
+			t.Fatal(err)
+		}
+		got := s.Cells[0]
+		if got.GetRuin() != want.GetRuin() || (got.PlayerEdifice == nil) != (want.PlayerEdifice == nil) || got.GetPlayerEdifice() != want.GetPlayerEdifice() || got.GetGlow() != .123456789 {
+			t.Fatalf("edifice %d: %v", edifice, got)
+		}
+	}
+}
+
 func TestCompactCellsRejectsMalformedCoverage(t *testing.T) {
 	for name, mutate := range map[string]func(*o.CellsSnapshot){
 		"mixed":              func(s *o.CellsSnapshot) { s.Cells = []*o.CellState{{}} },
 		"missing row":        func(s *o.CellsSnapshot) { s.Compact.Rows = nil },
 		"truncated":          func(s *o.CellsSnapshot) { s.Compact.Rows[0] = []byte{4} },
-		"unknown flags":      func(s *o.CellsSnapshot) { s.Compact.Rows[0][1] |= 0x80 },
+		"bad edifice":        func(s *o.CellsSnapshot) { s.Compact.Rows[0] = []byte{0xfc, 0xff, 0, 1, 2, 4, 0, 2, 0, 1, 0} },
 		"fog facts":          func(s *o.CellsSnapshot) { s.Compact.Rows[0][6] = 6 },
 		"unchanged facts":    func(s *o.CellsSnapshot) { s.Compact.Rows[0][8] = 5 },
 		"bad index":          func(s *o.CellsSnapshot) { s.Compact.Rows[0][2] = 3 },

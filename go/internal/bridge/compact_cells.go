@@ -52,9 +52,6 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			}
 			flags := binary.LittleEndian.Uint16(data)
 			data = data[2:]
-			if flags&0x8000 != 0 {
-				return bad()
-			}
 			if flags&1 != 0 {
 				if flags != 1 {
 					return bad()
@@ -90,6 +87,19 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 				}
 				data = data[n:]
 				*target = proto.String(p.Strings[index])
+			}
+			row.Ruin = proto.Bool(false)
+			if flags&0x8000 != 0 {
+				edifice, n := binary.Uvarint(data)
+				if n <= 0 || edifice > uint64(len(p.Strings)) {
+					return bad()
+				}
+				data = data[n:]
+				if edifice == 0 {
+					row.Ruin = proto.Bool(true)
+				} else {
+					row.PlayerEdifice = proto.String(p.Strings[edifice-1])
+				}
 			}
 			index, n := binary.Uvarint(data)
 			if n <= 0 || index >= uint64(len(p.Glow)) {

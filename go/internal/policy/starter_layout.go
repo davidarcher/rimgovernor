@@ -27,6 +27,12 @@ type SiteCell struct {
 	// NaturalRock reports the cell's edifice is natural rock (#700): a
 	// starter shell reuses it as wall or mines it from the interior.
 	NaturalRock domain.Fact[bool]
+	// Ruin reports an unowned edifice the player may deconstruct (#709): a
+	// starter ring on it clears it, then builds.
+	Ruin domain.Fact[bool]
+	// PlayerEdifice names the definition of a player-owned edifice on the
+	// cell, empty for none (#709): a ring of that wall kind stands on it.
+	PlayerEdifice domain.Fact[string]
 }
 
 // ShelterStyle selects the starter shell's shape family. The rectangle is
@@ -61,6 +67,11 @@ type StarterRequest struct {
 	Crop domain.Fact[CropChoice]
 	// Zones lists existing growing zones so farms can extend managed ones.
 	Zones []FarmZone
+	// WallDef is the ring's wall definition: a player wall of it already
+	// standing on the ring is reused as wall (#709). Empty reuses none.
+	WallDef string
+	// Size is the rectangle template's outer size; zero is the 9x9.
+	Size int32
 }
 type StarterLayout struct {
 	// Room is the shell's bounding rectangle, walls included; Shell is its
@@ -74,8 +85,11 @@ type StarterLayout struct {
 	TargetCells   domain.Fact[int]
 	// Reused lists the ring cells natural rock already walls and Mined the
 	// interior cells of natural rock the shell digs out (#700); the shell
-	// places walls on the rest of its ring and nothing on Reused.
-	Reused, Mined []domain.Cell
+	// places walls on the rest of its ring and nothing on Reused. Reused
+	// also holds ring cells a player wall of the ring's kind stands on
+	// (#709). Cleared lists the ring cells holding a ruin, deconstructed
+	// before the ring is built there.
+	Reused, Mined, Cleared []domain.Cell
 }
 
 // shellReuseCredit is the score a ring cell of standing rock saves (one
@@ -85,19 +99,26 @@ type StarterLayout struct {
 // shellMountainCost is the score one interior cell under overhead mountain
 // adds: infestations spawn only under a thick rock roof, and that roof can
 // never be removed, so a room clear of it wins when one is near.
+// shellClearCost is the score one ring cell holding a ruin adds: the
+// deconstruction is labour a wall on open ground does not need.
 const (
 	shellReuseCredit  = 6
 	shellMineCost     = 8
 	shellMountainCost = 4
+	shellClearCost    = 2
 )
 
-// shellRock splits a shell's rock cells into the ring cells it reuses as
-// wall and the interior cells it mines.
-func shellRock(shell domain.RoomFootprint, rock, mineable func(domain.Cell) bool) (reused, mined map[domain.Cell]bool) {
-	reused, mined = map[domain.Cell]bool{}, map[domain.Cell]bool{}
+// shellRock splits a shell's standing cells into the ring cells it reuses
+// as wall, the ring cells it clears of a ruin and the interior cells it
+// mines.
+func shellRock(shell domain.RoomFootprint, wall, ruin, mineable func(domain.Cell) bool) (reused, cleared, mined map[domain.Cell]bool) {
+	reused, cleared, mined = map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, p := range shell.Walls() {
-		if rock(p) {
+		switch {
+		case wall(p):
 			reused[p] = true
+		case ruin(p):
+			cleared[p] = true
 		}
 	}
 	for _, p := range shell.Interior() {
@@ -105,7 +126,7 @@ func shellRock(shell domain.RoomFootprint, rock, mineable func(domain.Cell) bool
 			mined[p] = true
 		}
 	}
-	return reused, mined
+	return reused, cleared, mined
 }
 
 func sortedCells(set map[domain.Cell]bool) []domain.Cell {
@@ -351,6 +372,28 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	mineable := func(p domain.Cell) bool {
 		return rock(p) && positive(cells[p].SupportsLight)
 	}
+	// wall is standing ring wall: rock, or a player wall of the ring's own
+	// kind (#709). ruin is an unowned edifice the ring clears and then
+	// builds on, so its ground must bear the wall.
+	wall := func(p domain.Cell) bool {
+		if rock(p) {
+			return true
+		}
+		c, exists := cells[p]
+		def, known := c.PlayerEdifice.Value()
+		return exists && known && r.WallDef != "" && def == r.WallDef && !protected[p] && positive(measured(c.Zone, func(v bool) bool { return !v }))
+	}
+	ruin := func(p domain.Cell) bool {
+		c, exists := cells[p]
+		return exists && !protected[p] && positive(c.Ruin) && positive(c.SupportsLight) && positive(measured(c.Zone, func(v bool) bool { return !v }))
+	}
+	size := r.Size
+	if size == 0 {
+		size = 9
+	}
+	if size < 3 {
+		return nil, errors.New("invalid starter rectangle size")
+	}
 	// A shell is buildable when every cell of it is free, lit ground, rock
 	// its ring reuses or rock its interior mines, its door stands on free
 	// ground, and its door does not open onto ground observed blocked: a
@@ -359,13 +402,13 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	// the observed site window is not held against the shell; the shell's
 	// own cells are.
 	buildable := func(shell domain.RoomFootprint) bool {
-		reused, mined := shellRock(shell, rock, mineable)
+		reused, cleared, mined := shellRock(shell, wall, ruin, mineable)
 		for _, p := range shell.Cells() {
-			if !reused[p] && !mined[p] && (!free(p) || !positive(cells[p].SupportsLight)) {
+			if !reused[p] && !cleared[p] && !mined[p] && (!free(p) || !positive(cells[p].SupportsLight)) {
 				return false
 			}
 		}
-		if reused[shell.Door()] {
+		if reused[shell.Door()] || cleared[shell.Door()] {
 			return false
 		}
 		_, observed := cells[shell.Threshold()]
@@ -394,8 +437,8 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	score := func(shell domain.RoomFootprint) int64 {
 		b := shell.Bounds()
 		score := squaredDistance(domain.Cell{X: b.X + b.Width/2, Z: b.Z + b.Height/2}, r.Anchor)
-		reused, mined := shellRock(shell, rock, mineable)
-		score += int64(len(mined))*shellMineCost - int64(len(reused))*shellReuseCredit
+		reused, cleared, mined := shellRock(shell, wall, ruin, mineable)
+		score += int64(len(mined))*shellMineCost - int64(len(reused))*shellReuseCredit + int64(len(cleared))*shellClearCost
 		for _, p := range shell.Interior() {
 			if roof, _ := cells[p].Roof.Value(); roof == "RoofRockThick" {
 				score += shellMountainCost
@@ -429,10 +472,10 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	}
 	if len(sites) == 0 {
 		for _, c := range ordered {
-			if c.X+9 > r.Bounds.Width || c.Z+9 > r.Bounds.Height {
+			if c.X+size > r.Bounds.Width || c.Z+size > r.Bounds.Height {
 				continue
 			}
-			shell, err := domain.RectangleFootprint(domain.RoomBounds{X: c.X, Z: c.Z, Width: 9, Height: 9}, domain.South)
+			shell, err := domain.RectangleFootprint(domain.RoomBounds{X: c.X, Z: c.Z, Width: size, Height: size}, domain.South)
 			if err != nil || !buildable(shell) {
 				continue
 			}
@@ -492,8 +535,8 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		}
 		storage := starterStorage(site.shell)
 		layout := StarterLayout{Room: room, Storage: storage, Shell: site.shell, Score: site.score, TargetCells: targetFact}
-		reused, mined := shellRock(site.shell, rock, mineable)
-		layout.Reused, layout.Mined = sortedCells(reused), sortedCells(mined)
+		reused, cleared, mined := shellRock(site.shell, wall, ruin, mineable)
+		layout.Reused, layout.Cleared, layout.Mined = sortedCells(reused), sortedCells(cleared), sortedCells(mined)
 		chosen := 0
 		if fk && target > 0 {
 			protectedCells := append([]domain.Cell(nil), r.Protected...)

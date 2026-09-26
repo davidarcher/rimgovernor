@@ -90,6 +90,14 @@ namespace HomeBridge.BridgeTools
                         row.Doorway = CellDoorway(map, cell);
                         row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
                         row.NaturalRock = cell.GetEdifice(map)?.def.building?.isNaturalRock == true;
+                        // A ring cell holding a ruin is cleared and then built;
+                        // a player edifice of the ring's kind stands as its
+                        // wall (#709).
+                        var edifice = cell.GetEdifice(map);
+                        var player = Faction.OfPlayerSilentFail;
+                        row.Ruin = edifice != null && player != null && edifice.Faction != player && edifice.def.building?.isNaturalRock != true
+                            && !edifice.def.mineable && edifice.DeconstructibleBy(player) && !NativeClearanceObservationTools.AncientDanger(map, edifice, player);
+                        if (edifice != null && player != null && edifice.Faction == player) row.PlayerEdifice = Identifier(edifice.def.defName);
                     }
                     if (fields.Zone) {
                         var zone = map.zoneManager.ZoneAt(cell);

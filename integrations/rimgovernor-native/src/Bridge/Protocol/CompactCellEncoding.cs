@@ -39,11 +39,13 @@ namespace HomeBridge.BridgeTools
                         | (cell.Indoors ? 256 : 0) | (cell.Polluted ? 512 : 0)
                         | (cell.HasFertility ? 1024 : 0) | (cell.HasRoof ? 2048 : 0)
                         | (cell.HasZoneId ? 4096 : 0) | (cell.HasRoomId ? 8192 : 0)
-                        | (cell.NaturalRock ? 16384 : 0);
+                        | (cell.NaturalRock ? 16384 : 0) | (cell.Ruin || cell.HasPlayerEdifice ? 32768 : 0);
                     bytes.Add((byte)flags); bytes.Add((byte)(flags >> 8));
                     if (cell.HasRoof) Varint(bytes, StringIndex(cell.Roof));
                     if (cell.HasZoneId) Varint(bytes, StringIndex(cell.ZoneId));
                     if (cell.HasRoomId) Varint(bytes, StringIndex(cell.RoomId));
+                    if (cell.Ruin) Varint(bytes, 0);
+                    else if (cell.HasPlayerEdifice) Varint(bytes, StringIndex(cell.PlayerEdifice) + 1);
                     if (!glows.TryGetValue(cell.Glow, out var glow)) {
                         glow = (uint)compact.Glow.Count; glows.Add(cell.Glow, glow); compact.Glow.Add(cell.Glow);
                     }

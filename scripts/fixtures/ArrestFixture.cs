@@ -12,12 +12,16 @@ namespace HomeBridge.BridgeTools
     public sealed class ArrestFixture
     {
         [Tool("test/arrest_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage two disposable colonists and a prisoner bed for native Arrest acceptance.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "South-west corner x of the 7x7 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
+            [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
+            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var hut = FixtureHut.Build(map, 7);
+                var hut = FixtureHut.Build(map, 7, -1, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 var wardens = hut.People.Where(p => !p.WorkTagIsDisabled(WorkTags.Violent)
                     && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
                     && !StatDefOf.ArrestSuccessChance.Worker.IsDisabledFor(p)).ToList();
@@ -42,7 +46,7 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException("Fixture prisoner bed must already satisfy native custody eligibility.");
                 var ordinary = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.SleepingSpot);
                 ordinary.SetFaction(Faction.OfPlayer);
-                GenSpawn.Spawn(ordinary, hut.Door + new IntVec3(2, 0, 0), map);
+                GenSpawn.Spawn(ordinary, hut.Door + hut.Outward * 2, map);
                 return new { success = true, pawn = pawn.GetUniqueLoadID(), target = target.GetUniqueLoadID(),
                     bed = bed.GetUniqueLoadID(), ordinaryBed = ordinary.GetUniqueLoadID() };
             }, cancellationToken);

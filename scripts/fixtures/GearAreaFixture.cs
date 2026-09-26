@@ -24,7 +24,11 @@ namespace HomeBridge.BridgeTools
         [Tool("test/gear_area_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: stage one gear/* acceptance precondition on the loaded colony. mode is winter (calendar moved to hoursBeforeWinter hours before the first winter twelfth, cloth and a tailoring bench supplied), tainted (a tainted parka beside a clean one), soldier (two colonists with Shooting 12 and 8, Smithing/FlakArmor researched, steel funded, a bolt-action and a shotgun loose) or roster (twelve colonists each stripped of shirt and headgear, spares in a stockpile).")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "winter, tainted, soldier or roster")] string mode = "winter",
-            [ToolParameter(Description = "winter: hours the calendar lands before the first winter twelfth")] int hoursBeforeWinter = 24)
+            [ToolParameter(Description = "winter: hours the calendar lands before the first winter twelfth")] int hoursBeforeWinter = 24,
+            [ToolParameter(Description = "soldier: south-west corner x of the 11x11 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
+            [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
+            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -35,7 +39,7 @@ namespace HomeBridge.BridgeTools
                 switch (mode) {
                     case "winter": return Winter(map, people, hoursBeforeWinter);
                     case "tainted": return Tainted(map, people);
-                    case "soldier": return Soldier(map, people);
+                    case "soldier": return Soldier(map, people, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                     case "roster": return Roster(map, people);
                 }
                 return Refuse("mode must be winter, tainted, soldier or roster: " + mode);
@@ -146,7 +150,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static object Soldier(Map map, List<Pawn> people)
+        private static object Soldier(Map map, List<Pawn> people, IntVec3? site, IntVec3? door)
         {
             var soldiers = people.Where(p => GearUpkeepTools.Available(p) == null && !p.WorkTagIsDisabled(WorkTags.Violent)
                 && !p.WorkTagIsDisabled(WorkTags.Shooting) && p.skills != null && !p.skills.GetSkill(SkillDefOf.Shooting).TotallyDisabled)
@@ -167,7 +171,7 @@ namespace HomeBridge.BridgeTools
                 if (project != null) Find.ResearchManager.FinishProject(project, false);
             }
             foreach (var t in map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).Where(t => !(t is Pawn)).ToList()) t.Destroy();
-            var hut = FixtureHut.Build(map, 11);
+            var hut = FixtureHut.Build(map, 11, -1, site, door);
             var smithy = FixtureHut.SpawnInside(map, hut, DefDatabase<ThingDef>.GetNamed("FueledSmithy"));
             smithy.TryGetComp<CompRefuelable>()?.Refuel(500);
             var generator = FixtureHut.SpawnInside(map, hut, DefDatabase<ThingDef>.GetNamed("WoodFiredGenerator"));
@@ -183,7 +187,7 @@ namespace HomeBridge.BridgeTools
             foreach (var name in new[] { "Gun_BoltActionRifle", "Gun_PumpShotgun" }) {
                 var weapon = (ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(name));
                 weapon.TryGetComp<CompQuality>()?.SetQuality(QualityCategory.Normal, ArtGenerationContext.Colony);
-                if (!GenPlace.TryPlaceThing(weapon, hut.Door + IntVec3.East * 4, map, ThingPlaceMode.Near)) return Refuse("No drop site for " + name);
+                if (!GenPlace.TryPlaceThing(weapon, hut.Door + hut.Outward * 4, map, ThingPlaceMode.Near)) return Refuse("No drop site for " + name);
                 weapon.SetForbidden(false, false);
                 weapons.Add(new { thingId = weapon.GetUniqueLoadID(), defName = name });
             }

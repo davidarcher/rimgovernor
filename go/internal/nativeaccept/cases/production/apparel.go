@@ -11,6 +11,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -53,7 +54,12 @@ func init() {
 					if err != nil {
 						return err
 					}
-					production, err := h.Call(ctx, "gear-production-setup", "test/gear_fixture", map[string]any{"mode": "production_unstaged", "material": apparelMaterial})
+					args, err := startersite.ArgsFor(11)(ctx, h)
+					if err != nil {
+						return err
+					}
+					args["mode"], args["material"] = "production_unstaged", apparelMaterial
+					production, err := h.Call(ctx, "gear-production-setup", "test/gear_fixture", args)
 					if err != nil {
 						return err
 					}
