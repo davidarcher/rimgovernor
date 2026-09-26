@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,7 +35,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var key in arguments.Keys)
             {
-                if (key != "request" && key != TraceArgument && key != MainThreadAdmission.ClassArgument && key != "_rimBridgeTimeoutMs")
+                if (key != "request" && key != TraceArgument && key != MainThreadAdmission.ClassArgument && key != EncodingArgument && key != "_rimBridgeTimeoutMs")
                 {
                     failure = Fail(Common.FailureCode.InvalidRequest, "The sole caller argument must be request.");
                     return false;
@@ -110,16 +111,69 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
+        // A caller that sends encoding=proto-gzip (the Go controller, #757)
+        // receives its reply in field "proto": base64 of the gzip-compressed
+        // binary protobuf message, instead of the ProtoJSON string in field
+        // "payload". Every other caller (acceptance cases, flight-log tools,
+        // an older controller) keeps "payload". The choice is per hop: RunHop
+        // reads the argument and a detached encode inherits it; an encode
+        // outside a hop always answers "payload".
+        internal const string EncodingArgument = "encoding";
+        internal const string BinaryEncoding = "proto-gzip";
+        internal const string PayloadField = "payload";
+        internal const string ProtoField = "proto";
+        [ThreadStatic] private static bool binary;
+
+        /// <summary>Runs encode with the binary reply form on or off for this thread.</summary>
+        internal static T WithBinary<T>(bool on, Func<T> encode)
         {
-            var payload = Format(reply, compact);
-            if (Measure(payload) > MaximumEnvelopeBytes)
-                throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
-            return Envelope(payload);
+            var previous = binary;
+            binary = on;
+            try { return encode(); }
+            finally { binary = previous; }
         }
 
-        private static Dictionary<string, object?> Envelope(string payload)
-            => new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
+        // True when the caller asked for the binary reply form.
+        internal static bool BinaryOf(IRimBridgeContext ctx)
+        {
+            var arguments = BridgeCommon.RawArguments(ctx, out _);
+            return arguments != null && arguments.TryGetValue(EncodingArgument, out var raw) && TryString(raw, out var value)
+                && string.Equals(value, BinaryEncoding, StringComparison.Ordinal);
+        }
+
+        // The reply body in the form this thread's caller asked for, and the
+        // envelope field that carries it; charged to the hop like Format.
+        private static string Body(IMessage reply, bool compact, out string field)
+        {
+            if (!binary)
+            {
+                field = PayloadField;
+                return Format(reply, compact);
+            }
+            field = ProtoField;
+            var began = Stopwatch.GetTimestamp();
+            try
+            {
+                using (var buffer = new MemoryStream())
+                {
+                    using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, true))
+                        reply.WriteTo(gzip);
+                    return Convert.ToBase64String(buffer.GetBuffer(), 0, (int)buffer.Length);
+                }
+            }
+            finally { ObservationWork.Formatted(Stopwatch.GetTimestamp() - began); }
+        }
+
+        internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
+        {
+            var payload = Body(reply, compact, out var field);
+            if (Measure(payload) > MaximumEnvelopeBytes)
+                throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
+            return Envelope(field, payload);
+        }
+
+        private static Dictionary<string, object?> Envelope(string field, string payload)
+            => new Dictionary<string, object?>(StringComparer.Ordinal) { [field] = payload };
 
         /// <summary>
         /// A compact reply that may carry optional groups (#644): formatted
@@ -132,7 +186,7 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         internal static Dictionary<string, object?> EncodeBounded(IMessage reply, IReadOnlyList<Func<int>> drops, Func<IMessage> oversized, out bool fits)
         {
-            var payload = Format(reply, compact: true);
+            var payload = Body(reply, true, out var field);
             var bytes = Measure(payload);
             foreach (var drop in drops)
             {
@@ -140,11 +194,11 @@ namespace HomeBridge.BridgeTools
                 var removed = drop();
                 if (removed <= 0) continue;
                 ObservationWork.DroppedSections(removed);
-                payload = Format(reply, compact: true);
+                payload = Body(reply, true, out field);
                 bytes = Measure(payload);
             }
             fits = bytes <= MaximumEnvelopeBytes;
-            return fits ? Envelope(payload) : Encode(oversized());
+            return fits ? Envelope(field, payload) : Encode(oversized());
         }
 
         // The payload's UTF-8 length, charged to the open hop as the size
@@ -166,10 +220,10 @@ namespace HomeBridge.BridgeTools
 
         internal static Dictionary<string, object?> EncodeMedia(IMessage reply, bool compact = false)
         {
-            var payload = Format(reply, compact);
+            var payload = Body(reply, compact, out var field);
             if (Measure(payload) > MaximumMediaEnvelopeBytes)
                 throw new InvalidOperationException("Media reply exceeds the 48 MiB media envelope limit.");
-            return new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
+            return Envelope(field, payload);
         }
 
         // Timing is reported beside the payload so the Go sampler can split
@@ -202,6 +256,7 @@ namespace HomeBridge.BridgeTools
             internal int Depth;
             internal ObservationWork.Hop? Work;
             internal int GameThread;
+            internal bool Binary;
         }
 
         /// <summary>
@@ -251,7 +306,7 @@ namespace HomeBridge.BridgeTools
                     var started = Stopwatch.GetTimestamp();
                     ObservationWork.Resume(work);
                     Dictionary<string, object?> envelope;
-                    try { envelope = encode(captured.Value); }
+                    try { envelope = WithBinary(hop.Binary, () => encode(captured.Value)); }
                     catch (Exception) { ObservationWork.Outcome("error"); throw; }
                     finally
                     {
@@ -276,6 +331,7 @@ namespace HomeBridge.BridgeTools
         {
             var queued = Stopwatch.GetTimestamp();
             var trace = TraceOf(ctx);
+            var wantsBinary = BinaryOf(ctx);
             var rank = MainThreadAdmission.RankOf(ClassOf(ctx));
             var hop = MainThreadWatchdog.Enqueue(OperationOf(ctx), trace);
             int depth = 0;
@@ -293,11 +349,11 @@ namespace HomeBridge.BridgeTools
                 var work = ObservationWork.Begin();
                 try
                 {
-                    var reply = body();
+                    var reply = WithBinary(wantsBinary, body);
                     var finished = Stopwatch.GetTimestamp();
                     FrameAccounting.Observed(finished - started, trace);
                     return complete(reply, new HopTiming { Queued = queued, Started = started, Finished = finished, Trace = trace,
-                        Class = MainThreadAdmission.ClassOf(rank), Depth = depth, Work = ObservationWork.End(), GameThread = Thread.CurrentThread.ManagedThreadId });
+                        Class = MainThreadAdmission.ClassOf(rank), Depth = depth, Work = ObservationWork.End(), GameThread = Thread.CurrentThread.ManagedThreadId, Binary = wantsBinary });
                 }
                 catch (Exception)
                 {
@@ -352,7 +408,7 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Hop? work = null)
         {
             var envelope = reply as Dictionary<string, object?>;
-            if (envelope == null || !envelope.ContainsKey("payload") || envelope.ContainsKey(TimingField)) return reply;
+            if (envelope == null || !(envelope.ContainsKey(PayloadField) || envelope.ContainsKey(ProtoField)) || envelope.ContainsKey(TimingField)) return reply;
             var timing = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["queueMs"] = Millis(started - queued),

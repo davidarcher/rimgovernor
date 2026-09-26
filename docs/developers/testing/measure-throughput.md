@@ -200,7 +200,7 @@ text report divides by `calls`):
 | `gate ms` | Waiting for the bridge gate (another call in flight: the host runs one tool at a time). |
 | `call ms` | The GABS round trip, including the native queue and execute time. |
 | `queue ms`, `exec ms` | The companion's own split for `rimgovernor/*` tools whose single main-thread hop goes through `ProtoBoundary.OnMainThread`: waiting for the main thread, then running on it. Means over the calls that carried it; `-` means absent (older companion or multi-hop media capture), not zero. |
-| `decode ms`, `proto ms` | Receipt decode and ProtoJSON decode in the service. |
+| `decode ms`, `proto ms` | Receipt decode and reply decode in the service. The controller asks for replies as gzipped binary protobuf (`encoding=proto-gzip`, wrapper field `proto`, #757); other callers get ProtoJSON in `payload`. `native_decode` rows carry `encoding`, `payload_bytes` (decoded reply) and `wire_bytes` (the JSON value as sent); recorded `native_response` rows keep a ProtoJSON `payload`. |
 | `avg KiB` | Mean response size. |
 
 Describe (`games_tool_detail`) round trips are listed separately: paid once

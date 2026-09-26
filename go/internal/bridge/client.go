@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -217,6 +218,10 @@ type Client struct {
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
 	transcript       *Transcript
+
+	// binaryReplies is the companion's answer to the binary reply form
+	// (binaryUnknown, binaryConfirmed, binaryRefused; replywire.go).
+	binaryReplies atomic.Int32
 }
 
 // SetRecordingContext installs a callback read once per recorded call and
@@ -705,7 +710,7 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 					timing["native_frames"] = native.frames
 				}
 			}
-			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing})
+			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": recordableResult(ctx, decoded.Structured), "timing": timing})
 		}
 	}
 	return decoded, decodeErr

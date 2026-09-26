@@ -68,6 +68,17 @@ internal static class NativeProtoBoundaryProbe {
         Check(reply.Equals(Common.Identity.Parser.ParseJson((string)wire["payload"])),"official payload round trip");
         var sdkJson=JObject.Parse(JsonConvert.SerializeObject(wire));
         Check(sdkJson["payload"].Type==JTokenType.String && sdkJson.Count==1,"outer Newtonsoft dictionary encoding");
+        var binaryWire=ProtoBoundary.WithBinary(true,()=>ProtoBoundary.Encode(reply));
+        Check(binaryWire.Count==1 && binaryWire[ProtoBoundary.ProtoField] is string,"binary envelope carries only proto");
+        using(var gz=new System.IO.Compression.GZipStream(new System.IO.MemoryStream(Convert.FromBase64String((string)binaryWire[ProtoBoundary.ProtoField])),System.IO.Compression.CompressionMode.Decompress))
+            Check(reply.Equals(Common.Identity.Parser.ParseFrom(gz)),"binary gzip round trip");
+        Check(ProtoBoundary.Encode(reply).ContainsKey("payload"),"binary form does not outlive its scope");
+        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
+        Check(Parse("{}",out parsed,out refusal),"encoding argument accepted");
+        Check(ProtoBoundary.BinaryOf(null),"encoding argument read");
+        BridgeCommon.Arguments=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
+        Check(!ProtoBoundary.BinaryOf(null),"other encoding stays ProtoJSON");
+        BridgeCommon.Arguments=null;
         var overflowRefused=false;
         try { ProtoBoundary.Encode(new Common.Identity { ColonyId=new string('a',ProtoBoundary.MaximumEnvelopeBytes) }); }
         catch(InvalidOperationException) { overflowRefused=true; }

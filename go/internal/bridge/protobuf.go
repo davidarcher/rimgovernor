@@ -1,12 +1,9 @@
 package bridge
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -24,7 +21,6 @@ import (
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const maxProtoBytes = 1 << 20
@@ -402,6 +398,18 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if len(inner) > maxProtoBytes {
 		return Result{}, contract("oversized request")
 	}
+	// Reads ask for the binary reply form until the companion refuses it;
+	// writes only once a read has proven it (replywire.go).
+	encoding := ""
+	switch caller.binaryReplies.Load() {
+	case binaryConfirmed:
+		encoding = replyEncodingArgument
+	case binaryUnknown:
+		if nativeReadMethod(name) {
+			encoding = replyEncodingArgument
+		}
+	}
+	ctx = withRecordedReply(ctx, reply)
 	invoked := false
 	var recordCtx map[string]any
 	var requestRow uint64
@@ -426,10 +434,11 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		// admission class rides with it so the companion services queued
 		// control hops first within a frame (#631).
 		args := encode(struct {
-			Request string `json:"request"`
-			Trace   string `json:"trace,omitempty"`
-			Class   string `json:"class,omitempty"`
-		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class)})
+			Request  string `json:"request"`
+			Trace    string `json:"trace,omitempty"`
+			Class    string `json:"class,omitempty"`
+			Encoding string `json:"encoding,omitempty"`
+		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), encoding})
 		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
 		if timing := callTimingFrom(ctx); timing != nil {
 			requestRow = timing.request
@@ -441,24 +450,40 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		return result, err
 	}
 	decodeBegan := time.Now()
-	payload, err := decodePayload(result.Structured, payloadLimit(name))
+	wire, err := decodeWrapper(result.Structured, payloadLimit(name))
 	if err != nil {
 		if callErr != nil {
 			return result, callErr
 		}
 		return result, err
 	}
-	err = (protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}).Unmarshal(payload, reply)
+	err = unmarshalReply(wire, reply)
 	if caller.recorder != nil && invoked {
-		// ProtoJSON decoding is the typed adapter's own cost, after the raw
+		// Reply decoding is the typed adapter's own cost, after the raw
 		// receipt row; it is correlated to that row by request sequence.
-		caller.recorder.Event("native_decode", recordCtx, false, map[string]any{"request": requestRow, "native_tool": name, "proto_decode_ms": millis(time.Since(decodeBegan)), "payload_bytes": len(payload), "ok": err == nil})
+		// payload_bytes is the decoded reply (ProtoJSON text or binary
+		// protobuf), wire_bytes the JSON value that carried it.
+		caller.recorder.Event("native_decode", recordCtx, false, map[string]any{"request": requestRow, "native_tool": name, "proto_decode_ms": millis(time.Since(decodeBegan)),
+			"payload_bytes": len(wire.data), "wire_bytes": wire.wire, "encoding": wire.encoding(), "ok": err == nil})
 	}
 	if err != nil {
 		if callErr != nil {
 			return result, callErr
 		}
 		return result, contract("reply parsing: %v", err)
+	}
+	if wire.binary {
+		caller.binaryReplies.CompareAndSwap(binaryUnknown, binaryConfirmed)
+	} else if encoding != "" && refusedEncoding(reply) {
+		// A companion predating the binary form refused the argument before
+		// running anything. Reads retry once in ProtoJSON; a write never
+		// asks before a read confirmed the form, so this refusal of one
+		// stands as the reply.
+		caller.binaryReplies.Store(binaryRefused)
+		if nativeReadMethod(name) {
+			proto.Reset(reply)
+			return caller.protoCall(ctx, name, request, reply)
+		}
 	}
 	if callErr != nil {
 		typedFailure := false
@@ -559,56 +584,6 @@ func (caller *Client) ensureDescribed(ctx context.Context, live *liveSession, na
 	return Result{}, nil
 }
 
-func decodePayload(raw []byte, limit int) ([]byte, error) {
-	if len(raw) == 0 || len(raw) > maxResponseBytes {
-		return nil, contract("invalid wrapper size")
-	}
-	d := json.NewDecoder(bytes.NewReader(raw))
-	token, err := d.Token()
-	if err != nil || token != json.Delim('{') {
-		return nil, contract("reply wrapper must be object")
-	}
-	fields := map[string]json.RawMessage{}
-	for d.More() {
-		token, err = d.Token()
-		if err != nil {
-			return nil, contract("wrapper key")
-		}
-		key, ok := token.(string)
-		if !ok {
-			return nil, contract("wrapper key")
-		}
-		if _, ok = fields[key]; ok {
-			return nil, contract("duplicate wrapper key")
-		}
-		if key != "payload" && key != "operation" && key != "timing" {
-			return nil, contract("unknown wrapper field %s", key)
-		}
-		var value json.RawMessage
-		if err = d.Decode(&value); err != nil {
-			return nil, contract("wrapper value")
-		}
-		fields[key] = value
-	}
-	if _, err = d.Token(); err != nil {
-		return nil, contract("wrapper end")
-	}
-	if _, err = d.Token(); err != io.EOF {
-		return nil, contract("trailing wrapper data")
-	}
-	value := fields["payload"]
-	if len(value) == 0 || value[0] != '"' {
-		return nil, contract("payload must be string")
-	}
-	text := &wrapperspb.StringValue{}
-	if err = protojson.Unmarshal(value, text); err != nil {
-		return nil, contract("invalid payload string")
-	}
-	if len(text.Value) > limit {
-		return nil, contract("oversized payload")
-	}
-	return []byte(text.Value), nil
-}
 func contract(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrContract, fmt.Sprintf(format, args...))
 }
