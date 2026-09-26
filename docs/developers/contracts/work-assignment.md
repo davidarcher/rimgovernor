@@ -170,22 +170,16 @@ Planner behaviour is table-driven in `work_assignment_test.go`,
 `pawn_profile_test.go` and `pawn_schedule_test.go` (trait table, floors,
 growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
 stability, timetable templates) and `construction_helpers_test.go` (helper
-restrictions, risky and unknown work, hold and restoration). The `workers/*` native cases
-(`nativeaccept/cases/workers`, `WorkersFixture`'s `test/workers_setup`) seed
-the three debug-start colonists with a flat sheet, no traits, manual
-priorities and the native timetable, then one scenario each: `workers/passion`
-(a major passion owns a tied kitchen, the other backs it at 2),
-`workers/traits` (Pyromaniac/Brawler/Abrasive never fight fires, hunt or
-warden; Industrious wins a tied Construction sheet), `workers/coverage` (every
-core role owned once, Capacity true, the written matrix matches on readback
-and replans unchanged) and `workers/nightowl` (the first native schedule
-write: a NightOwl's night shift and a QuickSleeper's six-hour sleep beside the
-work rows, a hand-edited timetable replanned and rewritten) and
-`workers/helpers` (two idle pawns under the Construction floor help at 4 beside
-six wood walls; with the skilled builder drafted, a helper's native
-`ThingsConstructed` rises as a wall finishes). Each writes through the real
-`PatchPawn` execute under the work snapshot token and reads the sheet back
-through the routine census's pawn observation.
+restrictions, risky and unknown work, hold and restoration). `internal/snapshot/workers_test.go` replays the three debug-start
+colonists' pawn reads recorded from the retired `workers/*` native cases
+(#748), seeded sheet and written readback: a major passion owns a tied
+kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
+never fight fires, hunt or warden while Industrious wins a tied Construction
+sheet; every core role is owned once and the written matrix replans
+unchanged; a NightOwl's night shift, a QuickSleeper's six-hour sleep and a
+hand-edited timetable replanned; two pawns under the Construction floor
+help at 4 beside six walls. `takeover/schedule` still writes a timetable
+through the real `PatchPawn` execute and reads it back natively.
 
 ## Social drug policy
 

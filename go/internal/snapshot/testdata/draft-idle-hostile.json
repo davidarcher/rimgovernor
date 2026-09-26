@@ -1,0 +1,9222 @@
+{
+ "Facts": {
+  "AnimalUpkeep": {
+   "Animals": {
+    "v": [
+     {
+      "AllowedArea": {
+       "v": ""
+      },
+      "Definition": "YorkshireTerrier",
+      "ID": "Thing_YorkshireTerrier5167",
+      "Pen": {
+       "v": ""
+      },
+      "ReachableBenches": [],
+      "ReachableStorage": [],
+      "Release": {
+       "v": false
+      },
+      "RequiresPen": {
+       "v": false
+      },
+      "SafeToRelease": {
+       "v": false
+      },
+      "Slaughter": {
+       "v": false
+      },
+      "StorageCandidates": [],
+      "SuitablePen": {
+       "v": ""
+      },
+      "SupportsAreas": {
+       "v": true
+      },
+      "Training": [
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Obedience",
+        "Learned": {
+         "v": true
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Release",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Rescue",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Haul",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Tameness",
+        "Learned": {
+         "v": true
+        }
+       }
+      ]
+     },
+     {
+      "AllowedArea": {
+       "v": ""
+      },
+      "Definition": "Husky",
+      "ID": "Thing_Husky5168",
+      "Pen": {
+       "v": ""
+      },
+      "ReachableBenches": [],
+      "ReachableStorage": [],
+      "Release": {
+       "v": false
+      },
+      "RequiresPen": {
+       "v": false
+      },
+      "SafeToRelease": {
+       "v": false
+      },
+      "Slaughter": {
+       "v": false
+      },
+      "StorageCandidates": [],
+      "SuitablePen": {
+       "v": ""
+      },
+      "SupportsAreas": {
+       "v": true
+      },
+      "Training": [
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Obedience",
+        "Learned": {
+         "v": true
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Release",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Rescue",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Haul",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Tameness",
+        "Learned": {
+         "v": true
+        }
+       }
+      ]
+     },
+     {
+      "AllowedArea": {
+       "v": ""
+      },
+      "Definition": "Cat",
+      "ID": "Thing_Cat5169",
+      "Pen": {
+       "v": ""
+      },
+      "ReachableBenches": [],
+      "ReachableStorage": [],
+      "Release": {
+       "v": false
+      },
+      "RequiresPen": {
+       "v": false
+      },
+      "SafeToRelease": {
+       "v": true
+      },
+      "Slaughter": {
+       "v": false
+      },
+      "StorageCandidates": [],
+      "SuitablePen": {
+       "v": ""
+      },
+      "SupportsAreas": {
+       "v": true
+      },
+      "Training": [
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Obedience",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Release",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Rescue",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Haul",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Tameness",
+        "Learned": {
+         "v": true
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "Food": {
+    "v": {
+     "Complete": {
+      "v": true
+     },
+     "Consumers": [
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human724",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human726",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human728",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human730",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human735",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human737",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human743",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human745",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": true
+       },
+       "ID": "Thing_YorkshireTerrier5167",
+       "NutritionPerDay": {
+        "v": 0.23999999463558197
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": true
+       },
+       "ID": "Thing_Husky5168",
+       "NutritionPerDay": {
+        "v": 0.800000011920929
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": true
+       },
+       "ID": "Thing_Cat5169",
+       "NutritionPerDay": {
+        "v": 0.23999999463558197
+       }
+      }
+     ],
+     "Larder": {
+      "v": {}
+     },
+     "Stocks": [
+      {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745",
+        "Thing_YorkshireTerrier5167",
+        "Thing_Husky5168",
+        "Thing_Cat5169"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5170",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      },
+      {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745",
+        "Thing_YorkshireTerrier5167",
+        "Thing_Husky5168",
+        "Thing_Cat5169"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5171",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      },
+      {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745",
+        "Thing_YorkshireTerrier5167",
+        "Thing_Husky5168",
+        "Thing_Cat5169"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5172",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      },
+      {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745",
+        "Thing_YorkshireTerrier5167",
+        "Thing_Husky5168",
+        "Thing_Cat5169"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5173",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      },
+      {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745",
+        "Thing_YorkshireTerrier5167",
+        "Thing_Husky5168",
+        "Thing_Cat5169"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5174",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      },
+      {
+       "Count": {
+        "v": 25
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745",
+        "Thing_YorkshireTerrier5167",
+        "Thing_Husky5168",
+        "Thing_Cat5169"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5159",
+       "Nutrition": {
+        "v": 1.25
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     ]
+    }
+   },
+   "Forecast": {
+    "v": {
+     "Consumers": [
+      {
+       "ID": "Thing_Cat5169",
+       "NutritionPerDay": 0.23999999463558197
+      },
+      {
+       "ID": "Thing_Human724",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human726",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human728",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human730",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human735",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human737",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human743",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human745",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Husky5168",
+       "NutritionPerDay": 0.800000011920929
+      },
+      {
+       "ID": "Thing_YorkshireTerrier5167",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "PetShortfalls": [
+      {
+       "ID": "Thing_Cat5169",
+       "NutritionPerDay": 0.23999999463558197
+      },
+      {
+       "ID": "Thing_Husky5168",
+       "NutritionPerDay": 0.800000011920929
+      },
+      {
+       "ID": "Thing_YorkshireTerrier5167",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "RunwayDays": {
+      "v": 0
+     }
+    }
+   },
+   "WildAnimals": {
+    "v": [
+     {
+      "Contained": {
+       "v": false
+      },
+      "Definition": "Tortoise",
+      "ID": "Thing_Tortoise44698",
+      "MinimumHandlingSkill": {
+       "v": 8
+      },
+      "Pen": {
+       "v": ""
+      },
+      "Release": {
+       "v": false
+      },
+      "RequiresPen": {
+       "v": false
+      },
+      "Slaughter": {
+       "v": false
+      },
+      "SuitablePen": {
+       "v": ""
+      },
+      "Tame": {
+       "v": false
+      },
+      "Tameable": {
+       "v": true
+      }
+     },
+     {
+      "Contained": {
+       "v": false
+      },
+      "Definition": "Tortoise",
+      "ID": "Thing_Tortoise44699",
+      "MinimumHandlingSkill": {
+       "v": 8
+      },
+      "Pen": {
+       "v": ""
+      },
+      "Release": {
+       "v": false
+      },
+      "RequiresPen": {
+       "v": false
+      },
+      "Slaughter": {
+       "v": false
+      },
+      "SuitablePen": {
+       "v": ""
+      },
+      "Tame": {
+       "v": false
+      },
+      "Tameable": {
+       "v": true
+      }
+     }
+    ]
+   }
+  },
+  "Armed": {
+   "v": 8
+  },
+  "AvailableMethods": {
+   "v": []
+  },
+  "BasicComfort": {
+   "v": {
+    "Dining": [],
+    "Joy": {
+     "Methods": [
+      {
+       "Definition": "HorseshoesPin",
+       "Kind": "Gaming_Dexterity"
+      }
+     ],
+     "Pawns": [
+      {
+       "Pawn": "Thing_Human724"
+      },
+      {
+       "Pawn": "Thing_Human726"
+      },
+      {
+       "Pawn": "Thing_Human728"
+      },
+      {
+       "Pawn": "Thing_Human730"
+      },
+      {
+       "Pawn": "Thing_Human735"
+      },
+      {
+       "Pawn": "Thing_Human737"
+      },
+      {
+       "Pawn": "Thing_Human743"
+      },
+      {
+       "Pawn": "Thing_Human745"
+      }
+     ]
+    },
+    "People": [
+     "Thing_Human724",
+     "Thing_Human726",
+     "Thing_Human728",
+     "Thing_Human730",
+     "Thing_Human735",
+     "Thing_Human737",
+     "Thing_Human743",
+     "Thing_Human745"
+    ],
+    "Recreation": []
+   }
+  },
+  "BedCapacity": {
+   "v": 0
+  },
+  "Blight": {
+   "v": []
+  },
+  "Calendar": {
+   "v": {
+    "DayOfYear": 10,
+    "GrowingDays": 30,
+    "GrowingDaysRemaining": 24,
+    "NonGrowingDays": 33,
+    "Season": "Spring",
+    "Sowing": true
+   }
+  },
+  "ChoiceDialog": {
+   "v": false
+  },
+  "CleanupPawns": {
+   "v": false
+  },
+  "Colonists": {
+   "v": 8
+  },
+  "ColonyNaming": {
+   "v": false
+  },
+  "Comfort": {
+   "v": {
+    "Dining": [],
+    "Joy": {
+     "Methods": [
+      {
+       "Definition": "HorseshoesPin",
+       "Kind": "Gaming_Dexterity"
+      }
+     ],
+     "Pawns": [
+      {
+       "Pawn": "Thing_Human724"
+      },
+      {
+       "Pawn": "Thing_Human726"
+      },
+      {
+       "Pawn": "Thing_Human728"
+      },
+      {
+       "Pawn": "Thing_Human730"
+      },
+      {
+       "Pawn": "Thing_Human735"
+      },
+      {
+       "Pawn": "Thing_Human737"
+      },
+      {
+       "Pawn": "Thing_Human743"
+      },
+      {
+       "Pawn": "Thing_Human745"
+      }
+     ]
+    },
+    "People": [
+     "Thing_Human724",
+     "Thing_Human726",
+     "Thing_Human728",
+     "Thing_Human730",
+     "Thing_Human735",
+     "Thing_Human737",
+     "Thing_Human743",
+     "Thing_Human745"
+    ],
+    "Recreation": []
+   }
+  },
+  "ComfortDeficit": {
+   "v": 1
+  },
+  "ComfortRecovered": {
+   "v": false
+  },
+  "ConstructionClaims": {
+   "v": []
+  },
+  "Cooking": {
+   "v": false
+  },
+  "CriticalPatients": {
+   "v": 0
+  },
+  "CurrentConstruction": {
+   "v": {
+    "Buildings": [],
+    "Colony": true,
+    "Requested": []
+   }
+  },
+  "Custody": {
+   "v": [
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human724",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human726",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human728",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human730",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human735",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human737",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human743",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human745",
+     "Prisoner": {
+      "v": false
+     }
+    }
+   ]
+  },
+  "DefenseTiers": {
+   "v": 0
+  },
+  "DisabledConsumers": {
+   "v": false
+  },
+  "DisasterConditions": {
+   "v": []
+  },
+  "DisasterTick": 15,
+  "EventLoot": {
+   "v": [
+    {
+     "Count": 200,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 113,
+       "Z": 129
+      },
+      "Definition": "Silver",
+      "Thing": "Thing_Silver5158"
+     }
+    },
+    {
+     "Count": 25,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 118,
+       "Z": 120
+      },
+      "Definition": "Pemmican",
+      "Thing": "Thing_Pemmican5159"
+     }
+    },
+    {
+     "Count": 20,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 111,
+       "Z": 124
+      },
+      "Definition": "MedicineHerbal",
+      "Thing": "Thing_MedicineHerbal5160"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 115,
+       "Z": 123
+      },
+      "Definition": "MeleeWeapon_Club",
+      "Thing": "Thing_MeleeWeapon_Club5161"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 117,
+       "Z": 127
+      },
+      "Definition": "MeleeWeapon_Ikwa",
+      "Thing": "Thing_MeleeWeapon_Ikwa5162"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 1
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 108,
+       "Z": 120
+      },
+      "Definition": "MeleeWeapon_Knife",
+      "Thing": "Thing_MeleeWeapon_Knife5163"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 1
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 108,
+       "Z": 121
+      },
+      "Definition": "Bow_Short",
+      "Thing": "Thing_Bow_Short5164"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 108,
+       "Z": 124
+      },
+      "Definition": "Bow_Short",
+      "Thing": "Thing_Bow_Short5165"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 114,
+       "Z": 129
+      },
+      "Definition": "Pila",
+      "Thing": "Thing_Pila5166"
+     }
+    },
+    {
+     "Count": 75,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 117,
+       "Z": 119
+      },
+      "Definition": "Pemmican",
+      "Thing": "Thing_Pemmican5170"
+     }
+    },
+    {
+     "Count": 75,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 118,
+       "Z": 119
+      },
+      "Definition": "Pemmican",
+      "Thing": "Thing_Pemmican5171"
+     }
+    },
+    {
+     "Count": 75,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 117,
+       "Z": 120
+      },
+      "Definition": "Pemmican",
+      "Thing": "Thing_Pemmican5172"
+     }
+    },
+    {
+     "Count": 75,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 117,
+       "Z": 118
+      },
+      "Definition": "Pemmican",
+      "Thing": "Thing_Pemmican5173"
+     }
+    },
+    {
+     "Count": 75,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 116,
+       "Z": 119
+      },
+      "Definition": "Pemmican",
+      "Thing": "Thing_Pemmican5174"
+     }
+    },
+    {
+     "Count": 52,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 13
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 95,
+       "Z": 114
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5175"
+     }
+    },
+    {
+     "Count": 61,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 14
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 94,
+       "Z": 120
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5176"
+     }
+    },
+    {
+     "Count": 54,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 11
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 97,
+       "Z": 115
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5177"
+     }
+    },
+    {
+     "Count": 51,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 15
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 93,
+       "Z": 120
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5178"
+     }
+    },
+    {
+     "Count": 45,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 118,
+       "Z": 124
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5179"
+     }
+    },
+    {
+     "Count": 70,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 119,
+       "Z": 124
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5180"
+     }
+    },
+    {
+     "Count": 66,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 119,
+       "Z": 128
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5181"
+     }
+    },
+    {
+     "Count": 51,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 122,
+       "Z": 124
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5182"
+     }
+    },
+    {
+     "Count": 50,
+     "Forbidden": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 118,
+       "Z": 137
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog5183"
+     }
+    }
+   ]
+  },
+  "EventLootPending": {
+   "v": false
+  },
+  "FieldCoverage": {
+   "v": 0
+  },
+  "FoodDays": {
+   "v": 0
+  },
+  "FoodPlan": {
+   "v": {
+    "DemandPerDay": 14.080000191926956,
+    "Forecast": {
+     "Consumers": [
+      {
+       "ID": "Thing_Cat5169",
+       "NutritionPerDay": 0.23999999463558197
+      },
+      {
+       "ID": "Thing_Human724",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human726",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human728",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human730",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human735",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human737",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human743",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human745",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Husky5168",
+       "NutritionPerDay": 0.800000011920929
+      },
+      {
+       "ID": "Thing_YorkshireTerrier5167",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "PetShortfalls": [
+      {
+       "ID": "Thing_Cat5169",
+       "NutritionPerDay": 0.23999999463558197
+      },
+      {
+       "ID": "Thing_Husky5168",
+       "NutritionPerDay": 0.800000011920929
+      },
+      {
+       "ID": "Thing_YorkshireTerrier5167",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "RunwayDays": {
+      "v": 0
+     }
+    },
+    "GapPerDay": 28.160000383853912,
+    "Portfolio": [
+     {
+      "Channel": {
+       "ID": "cooking-capacity",
+       "Kind": "Cook",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
+       "WorkPerDay": {
+        "v": 0
+       }
+      },
+      "Decision": "Hold",
+      "Reason": "no risk-adjusted nutrition",
+      "Terms": [
+       {
+        "Name": "supporting_method",
+        "Value": 1
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day"
+       },
+       {
+        "Name": "work_per_day"
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "field-capacity",
+       "Kind": "Crop",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
+       "WorkPerDay": {
+        "v": 0
+       }
+      },
+      "Decision": "Hold",
+      "Reason": "no risk-adjusted nutrition",
+      "Terms": [
+       {
+        "Name": "supporting_method",
+        "Value": 1
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day"
+       },
+       {
+        "Name": "work_per_day"
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "stock-protection",
+       "Kind": "Reserve",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
+       "WorkPerDay": {
+        "v": 0
+       }
+      },
+      "Decision": "Hold",
+      "Reason": "no risk-adjusted nutrition",
+      "Terms": [
+       {
+        "Name": "supporting_method",
+        "Value": 1
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day"
+       },
+       {
+        "Name": "work_per_day"
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "FoodReserve": {
+   "v": {
+    "ByDefinition": {},
+    "DeficitNutrition": 64.00000095367432,
+    "Emergency": true,
+    "Release": [
+     "Thing_Pemmican5159",
+     "Thing_Pemmican5170",
+     "Thing_Pemmican5171",
+     "Thing_Pemmican5172",
+     "Thing_Pemmican5173",
+     "Thing_Pemmican5174"
+    ],
+    "TargetNutrition": 64.00000095367432
+   }
+  },
+  "FoodStorage": {
+   "v": false
+  },
+  "FoodStorageUpkeep": {
+   "Larder": {
+    "v": {}
+   },
+   "Stocks": {
+    "v": [
+     {
+      "Stock": {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5170",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5171",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5172",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5173",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 75
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5174",
+       "Nutrition": {
+        "v": 3.75
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 25
+       },
+       "DefName": "Pemmican",
+       "Eaters": [
+        "Thing_Human724",
+        "Thing_Human726",
+        "Thing_Human728",
+        "Thing_Human730",
+        "Thing_Human735",
+        "Thing_Human737",
+        "Thing_Human743",
+        "Thing_Human745"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_Pemmican5159",
+       "Nutrition": {
+        "v": 1.25
+       },
+       "Perishable": {
+        "v": true
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "0"
+       },
+       "RotTicks": {
+        "v": 10500000
+       },
+       "TemperatureC": {
+        "v": 3.5625
+       }
+      }
+     }
+    ]
+   }
+  },
+  "ForbiddenSupplies": {
+   "v": false
+  },
+  "Gear": {
+   "v": {
+    "Pawns": [
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "83CFEA48A8BCF33B1E90DB201D41205BE3A4100B28B0C91E7BB471366D81B14B",
+      "Pawn": "Thing_Human724",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 9,
+             "Name": "Shooting",
+             "Passion": "Major"
+            },
+            {
+             "Level": 5,
+             "Name": "Melee",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 4,
+             "Name": "Construction",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 4,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Plants",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Animals",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Crafting",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Level": 6,
+             "Name": "Social",
+             "Passion": "Major"
+            },
+            {
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Priority": 3,
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "D64E1F8FFC8BF88F2EA4D2A83C9E1ECCE217FCA8D71EAB5BBD0C0896C4B33A5F"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "15932ADB7B266CF4BC909CD761E555F78EE32CE566C092F8F35502EAAB7D4E5C",
+      "Pawn": "Thing_Human726",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 2,
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Melee",
+             "Passion": "Major"
+            },
+            {
+             "Level": 1,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Plants",
+             "Passion": "Major"
+            },
+            {
+             "Level": 5,
+             "Name": "Animals",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 5,
+             "Name": "Crafting",
+             "Passion": "None"
+            },
+            {
+             "Level": 11,
+             "Name": "Artistic",
+             "Passion": "Major"
+            },
+            {
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Priority": 3,
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "874C124412D88E3E1C065879661B57EE9451DC7E64705003803DDDA80FDC139A"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "19BE6CEEE3A76F09EBD15BB14959EB1E5868BEA6D00B8ECF21EEC78D7F46409A",
+      "Pawn": "Thing_Human728",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 2,
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Level": 6,
+             "Name": "Melee",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 3,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 7,
+             "Name": "Plants",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 1,
+             "Name": "Animals",
+             "Passion": "None"
+            },
+            {
+             "Level": 7,
+             "Name": "Crafting",
+             "Passion": "Minor"
+            },
+            {
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Level": 10,
+             "Name": "Medicine",
+             "Passion": "Major"
+            },
+            {
+             "Level": 1,
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Priority": 3,
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Priority": 3,
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Priority": 3,
+             "Work": "PlantCutting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Smithing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Priority": 3,
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "1C19168828C8A4AC368100683D382681549E5A4A5125DACDB3F66BC599DE74E2"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "1E3933BEA69905B329916C8EB348D25D4E11000D00E1FA0CD2A670FB7F470D17",
+      "Pawn": "Thing_Human730",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 8,
+             "Name": "Shooting",
+             "Passion": "Major"
+            },
+            {
+             "Level": 6,
+             "Name": "Melee",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 2,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Plants",
+             "Passion": "None"
+            },
+            {
+             "Level": 7,
+             "Name": "Animals",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 4,
+             "Name": "Crafting",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Disabled": true,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Level": 6,
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Disabled": true,
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Priority": 3,
+             "Work": "Warden"
+            },
+            {
+             "Priority": 3,
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "50C86ABE13BBC272C494B47DAEA419EAD318B5C69E1DCAC6487C96FB9D8CD922"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "A37B430B744824558CE9B54917E6E7E7F5318E60459E1B7D7CBC7892676EA89D",
+      "Pawn": "Thing_Human735",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 5,
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Level": 8,
+             "Name": "Melee",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Level": 6,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 9,
+             "Name": "Plants",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 12,
+             "Name": "Animals",
+             "Passion": "Minor"
+            },
+            {
+             "Name": "Crafting",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Disabled": true,
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Level": 9,
+             "Name": "Intellectual",
+             "Passion": "Minor"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Disabled": true,
+             "Work": "Warden"
+            },
+            {
+             "Priority": 3,
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hunting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Construction"
+            },
+            {
+             "Priority": 3,
+             "Work": "Growing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Mining"
+            },
+            {
+             "Priority": 3,
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Disabled": true,
+             "Work": "Hauling"
+            },
+            {
+             "Disabled": true,
+             "Work": "Cleaning"
+            },
+            {
+             "Priority": 3,
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "3565B18D2FF2B03AF762E86E1AA41500139FBFA7903613420E3755BD41641316"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "5511407E6B6D91151049087F38139252AAF8D4546D9DF55AB665D94A94B612E1",
+      "Pawn": "Thing_Human737",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 5,
+             "Name": "Shooting",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 3,
+             "Name": "Melee",
+             "Passion": "None"
+            },
+            {
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Cooking",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 1,
+             "Name": "Plants",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Animals",
+             "Passion": "None"
+            },
+            {
+             "Level": 6,
+             "Name": "Crafting",
+             "Passion": "Major"
+            },
+            {
+             "Level": 18,
+             "Name": "Artistic",
+             "Passion": "Major"
+            },
+            {
+             "Level": 2,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cooking"
+            },
+            {
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Smithing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Tailoring"
+            },
+            {
+             "Priority": 3,
+             "Work": "Art"
+            },
+            {
+             "Priority": 3,
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "481866A65C79FEC13801D37DBA5732F23920B11A48CA66EF1C8DCED0C557F159"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "4F47BDD81E11B896FE5373F1881A8DC8C5FC00EA56BF76B1B58D1A1BDD983A46",
+      "Pawn": "Thing_Human743",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 4,
+             "Name": "Shooting",
+             "Passion": "Major"
+            },
+            {
+             "Level": 6,
+             "Name": "Melee",
+             "Passion": "Major"
+            },
+            {
+             "Level": 3,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Plants",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 4,
+             "Name": "Animals",
+             "Passion": "None"
+            },
+            {
+             "Level": 11,
+             "Name": "Crafting",
+             "Passion": "Major"
+            },
+            {
+             "Disabled": true,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Disabled": true,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Disabled": true,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Disabled": true,
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Smithing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Tailoring"
+            },
+            {
+             "Disabled": true,
+             "Work": "Art"
+            },
+            {
+             "Priority": 3,
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Disabled": true,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "EE6B73C64E307CAA183BBB4E987D9444CA94D66D1B88EA2478459DE72D8953C9"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_TribalA",
+         "Groups": [
+          "Torso",
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Blocked": true,
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -0.37360095977783203,
+        7.5736002922058105,
+        14.45608139038086,
+        18.4296817779541,
+        18.4296817779541,
+        14.456077575683594,
+        7.573597431182861,
+        -0.37360358238220215,
+        -7.256080150604248,
+        -11.229682922363281,
+        -11.229681015014648,
+        -7.256080150604248
+       ],
+       "TicksToNextTwelfth": 284985
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "476D559CC0036FD4E031D090F02AA9FBCA8C1421D8E79B77FD902505A0EE3220",
+      "Pawn": "Thing_Human745",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "DraftedSquad": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 6,
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Level": 7,
+             "Name": "Melee",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 3,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Level": 6,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Plants",
+             "Passion": "None"
+            },
+            {
+             "Level": 12,
+             "Name": "Animals",
+             "Passion": "Major"
+            },
+            {
+             "Level": 4,
+             "Name": "Crafting",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Level": 8,
+             "Name": "Social",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 7,
+             "Name": "Intellectual",
+             "Passion": "Minor"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Priority": 3,
+             "Work": "Warden"
+            },
+            {
+             "Priority": 3,
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Priority": 3,
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "022031A31062D669575812F8442C33D49829C97770925F2898F9B4976F93C6B3"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     }
+    ],
+    "Stored": {
+     "v": []
+    }
+   }
+  },
+  "GrowingCells": {
+   "v": 0
+  },
+  "HomeCoverage": {
+   "v": {
+    "Targets": []
+   }
+  },
+  "Hostiles": {
+   "v": 2
+  },
+  "IndoorCapacity": {
+   "v": 0
+  },
+  "JoinerLetters": {
+   "v": []
+  },
+  "Labor": {
+   "v": {}
+  },
+  "LaborUse": {
+   "v": {
+    "Busy": {},
+    "Idle": {}
+   }
+  },
+  "LootReadiness": {
+   "FreeHaulers": {
+    "v": 0
+   },
+   "StorytellerQuiet": {
+    "v": true
+   }
+  },
+  "MapBounds": {
+   "v": {
+    "Height": 250,
+    "Width": 250
+   }
+  },
+  "MedicalCareRecovered": {
+   "v": false
+  },
+  "MedicalPawns": {
+   "v": [
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Scratch"
+        },
+        "Severity": {
+         "v": 3
+        },
+        "Tended": {
+         "v": false
+        }
+       },
+       {
+        "DefName": {
+         "v": "Malnutrition"
+        },
+        "Severity": {
+         "v": 0.3721836507320404
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human724",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Stab"
+        },
+        "Severity": {
+         "v": 3
+        },
+        "Tended": {
+         "v": false
+        }
+       },
+       {
+        "DefName": {
+         "v": "Scratch"
+        },
+        "Severity": {
+         "v": 2
+        },
+        "Tended": {
+         "v": false
+        }
+       },
+       {
+        "DefName": {
+         "v": "Malnutrition"
+        },
+        "Severity": {
+         "v": 0.23582389950752258
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human726",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": false
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": []
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human728",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Scratch"
+        },
+        "Severity": {
+         "v": 2
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human730",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Bite"
+        },
+        "Severity": {
+         "v": 5
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human735",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Bite"
+        },
+        "Severity": {
+         "v": 2
+        },
+        "Tended": {
+         "v": false
+        }
+       },
+       {
+        "DefName": {
+         "v": "Scratch"
+        },
+        "Severity": {
+         "v": 5
+        },
+        "Tended": {
+         "v": false
+        }
+       },
+       {
+        "DefName": {
+         "v": "Malnutrition"
+        },
+        "Severity": {
+         "v": 0.2707426846027374
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human737",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": false
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": []
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human743",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    },
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Scratch"
+        },
+        "Severity": {
+         "v": 6
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human745",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     }
+    }
+   ]
+  },
+  "MedicalReserve": {
+   "Colonists": {
+    "v": 8
+   },
+   "Items": {
+    "v": [
+     {
+      "Count": 20,
+      "Definition": "MedicineHerbal",
+      "Forbidden": true,
+      "ID": "Thing_MedicineHerbal5160",
+      "Perishable": {
+       "v": true
+      },
+      "RotTicks": {
+       "v": 22500000
+      }
+     }
+    ]
+   },
+   "Resources": {
+    "v": []
+   }
+  },
+  "MoodPawns": {
+   "v": [
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human724",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "Pain",
+        "Offset": -5
+       },
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       },
+       {
+        "Def": "WantToSleepWithSpouseOrLover",
+        "Offset": -4
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human726",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human728",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.4300000071525574
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human730",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "Pain",
+        "Offset": -5
+       },
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human735",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human737",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "Greedy",
+        "Offset": -8
+       },
+       {
+        "Def": "Pain",
+        "Offset": -5
+       },
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       },
+       {
+        "Def": "WantToSleepWithSpouseOrLover",
+        "Offset": -4
+       },
+       {
+        "Def": "OpinionOfMyLover",
+        "Offset": -3
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human743",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       },
+       {
+        "Def": "WantToSleepWithSpouseOrLover",
+        "Offset": -4
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human745",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "Pain",
+        "Offset": -5
+       },
+       {
+        "Def": "EnvironmentCold",
+        "Offset": -4
+       },
+       {
+        "Def": "WantToSleepWithSpouseOrLover",
+        "Offset": -4
+       },
+       {
+        "Def": "ClothedNudist",
+        "Offset": -3
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    }
+   ]
+  },
+  "OutdoorTemperature": {
+   "v": 3.5616650581359863
+  },
+  "PenGrazing": {
+   "v": null
+  },
+  "PopulationCapacity": {
+   "v": {}
+  },
+  "PowerHeadroom": {
+   "v": 0
+  },
+  "PowerRequired": {
+   "v": false
+  },
+  "PowerWeatherSafe": {
+   "v": true
+  },
+  "Prisoners": {
+   "v": []
+  },
+  "QuestOffers": {
+   "v": []
+  },
+  "RaidPoints": {
+   "v": 35
+  },
+  "RecoveryBuildings": {
+   "v": []
+  },
+  "RecoverySafety": {
+   "v": {
+    "Restrictions": [
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human724"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human726"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human728"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human730"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human735"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human737"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human743"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human745"
+     }
+    ],
+    "RoofHazard": {
+     "v": false
+    }
+   }
+  },
+  "RecoveryWorkers": {
+   "v": [
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human724",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human726",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human728",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human730",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human735",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human737",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human743",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": true
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human745",
+     "PlayerForced": {
+      "v": false
+     }
+    }
+   ]
+  },
+  "Research": {
+   "v": {
+    "Finished": [
+     "PassiveCooler",
+     "Pemmican",
+     "PsychoidBrewing",
+     "RecurveBow",
+     "TreeSowing"
+    ],
+    "Projects": [
+     "AdvancedFabrication",
+     "AirConditioning",
+     "Autodoors",
+     "Batteries",
+     "BiofuelRefining",
+     "Bionics",
+     "BlowbackOperation",
+     "Brewing",
+     "CarpetMaking",
+     "ChargedShot",
+     "Cocoa",
+     "ColoredLights",
+     "ComplexClothing",
+     "ComplexFurniture",
+     "Cryptosleep",
+     "DeepDrilling",
+     "Devilstrand",
+     "DrugProduction",
+     "Electricity",
+     "Fabrication",
+     "Firefoam",
+     "FlakArmor",
+     "FlatscreenTelevision",
+     "FoamTurret",
+     "GasOperation",
+     "GeothermalPower",
+     "GoJuiceProduction",
+     "Greatbow",
+     "GroundPenetratingScanner",
+     "GunTurrets",
+     "Gunsmithing",
+     "HeavyTurrets",
+     "HospitalBed",
+     "Hydroponics",
+     "IEDs",
+     "LongBlades",
+     "LongRangeMineralScanner",
+     "Machining",
+     "MedicineProduction",
+     "MicroelectronicsBasics",
+     "MoisturePump",
+     "Mortars",
+     "MultiAnalyzer",
+     "MultibarrelWeapons",
+     "NutrientPaste",
+     "PackagedSurvivalMeal",
+     "PassiveCooler",
+     "Pemmican",
+     "PenoxycylineProduction",
+     "PlateArmor",
+     "PoweredArmor",
+     "PrecisionRifling",
+     "Prosthetics",
+     "PsychiteRefining",
+     "PsychoidBrewing",
+     "ReconArmor",
+     "RecurveBow",
+     "RocketswarmLauncher",
+     "ShieldBelt",
+     "ShipBasics",
+     "ShipComputerCore",
+     "ShipCryptosleep",
+     "ShipEngine",
+     "ShipReactor",
+     "ShipSensorCluster",
+     "Smithing",
+     "SmokepopBelt",
+     "SniperTurret",
+     "SolarPanels",
+     "SterileMaterials",
+     "Stonecutting",
+     "TransportPod",
+     "TreeSowing",
+     "TubeTelevision",
+     "VitalsMonitor",
+     "WakeUpProduction",
+     "WatermillGenerator"
+    ]
+   }
+  },
+  "ResourceNeeds": {
+   "MedicineHerbal": 24
+  },
+  "ResourceRunways": [
+   {
+    "Resource": "Steel",
+    "Stock": {
+     "v": 0
+    },
+    "SurfaceOre": {
+     "v": 0
+    },
+    "Tick": 15
+   },
+   {
+    "Resource": "ComponentIndustrial",
+    "Stock": {
+     "v": 0
+    },
+    "SurfaceOre": {
+     "v": 0
+    },
+    "Tick": 15
+   },
+   {
+    "Resource": "Plasteel",
+    "Stock": {
+     "v": 0
+    },
+    "SurfaceOre": {
+     "v": 0
+    },
+    "Tick": 15
+   }
+  ],
+  "ResourceSurfaceOre": {
+   "ComponentIndustrial": {
+    "v": 0
+   },
+   "Plasteel": {
+    "v": 0
+   },
+   "Steel": {
+    "v": 0
+   }
+  },
+  "Resources": {
+   "v": []
+  },
+  "Sleeping": {
+   "v": {
+    "Colonists": 8,
+    "People": [
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human724",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human726",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human728",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human730",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human735",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human737",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human743",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 35.900001525878906
+      },
+      "ComfortableMin": {
+       "v": 6.09999942779541
+      },
+      "ID": "Thing_Human745",
+      "OwnedBed": {
+       "v": ""
+      }
+     }
+    ]
+   }
+  },
+  "SleepingRecovered": {
+   "v": false
+  },
+  "StartingSupplies": {
+   "v": []
+  },
+  "StoneStructures": {
+   "v": []
+  },
+  "TradeMealIngredients": {
+   "v": null
+  },
+  "Traders": {
+   "v": []
+  },
+  "Upkeep": {
+   "CleaningWorkers": {
+    "v": 0
+   },
+   "Filth": {
+    "v": []
+   },
+   "Fires": {
+    "v": []
+   },
+   "Flooring": {
+    "v": {
+     "Rooms": [],
+     "Terrains": {},
+     "Traffic": []
+    }
+   },
+   "Items": {
+    "v": [
+     {
+      "Cell": {
+       "X": 118,
+       "Z": 120
+      },
+      "Count": 25,
+      "Definition": "Pemmican",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pemmican5159",
+      "RotTicks": {
+       "v": 10500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 111,
+       "Z": 124
+      },
+      "Count": 20,
+      "Definition": "MedicineHerbal",
+      "Deterioration": 6,
+      "Forbidden": true,
+      "ID": "Thing_MedicineHerbal5160",
+      "Medicine": true,
+      "RotTicks": {
+       "v": 22500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 115,
+       "Z": 123
+      },
+      "Count": 1,
+      "Definition": "MeleeWeapon_Club",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_MeleeWeapon_Club5161"
+     },
+     {
+      "Cell": {
+       "X": 117,
+       "Z": 127
+      },
+      "Count": 1,
+      "Definition": "MeleeWeapon_Ikwa",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_MeleeWeapon_Ikwa5162"
+     },
+     {
+      "Cell": {
+       "X": 108,
+       "Z": 120
+      },
+      "Count": 1,
+      "Definition": "MeleeWeapon_Knife",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_MeleeWeapon_Knife5163"
+     },
+     {
+      "Cell": {
+       "X": 108,
+       "Z": 121
+      },
+      "Count": 1,
+      "Definition": "Bow_Short",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Bow_Short5164"
+     },
+     {
+      "Cell": {
+       "X": 108,
+       "Z": 124
+      },
+      "Count": 1,
+      "Definition": "Bow_Short",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Bow_Short5165"
+     },
+     {
+      "Cell": {
+       "X": 114,
+       "Z": 129
+      },
+      "Count": 1,
+      "Definition": "Pila",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pila5166"
+     },
+     {
+      "Cell": {
+       "X": 117,
+       "Z": 119
+      },
+      "Count": 75,
+      "Definition": "Pemmican",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pemmican5170",
+      "RotTicks": {
+       "v": 10500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 118,
+       "Z": 119
+      },
+      "Count": 75,
+      "Definition": "Pemmican",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pemmican5171",
+      "RotTicks": {
+       "v": 10500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 117,
+       "Z": 120
+      },
+      "Count": 75,
+      "Definition": "Pemmican",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pemmican5172",
+      "RotTicks": {
+       "v": 10500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 117,
+       "Z": 118
+      },
+      "Count": 75,
+      "Definition": "Pemmican",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pemmican5173",
+      "RotTicks": {
+       "v": 10500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 116,
+       "Z": 119
+      },
+      "Count": 75,
+      "Definition": "Pemmican",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Pemmican5174",
+      "RotTicks": {
+       "v": 10500000
+      }
+     },
+     {
+      "Cell": {
+       "X": 95,
+       "Z": 114
+      },
+      "Count": 52,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5175"
+     },
+     {
+      "Cell": {
+       "X": 94,
+       "Z": 120
+      },
+      "Count": 61,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5176"
+     },
+     {
+      "Cell": {
+       "X": 97,
+       "Z": 115
+      },
+      "Count": 54,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5177"
+     },
+     {
+      "Cell": {
+       "X": 93,
+       "Z": 120
+      },
+      "Count": 51,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5178"
+     },
+     {
+      "Cell": {
+       "X": 118,
+       "Z": 124
+      },
+      "Count": 45,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5179"
+     },
+     {
+      "Cell": {
+       "X": 119,
+       "Z": 124
+      },
+      "Count": 70,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5180"
+     },
+     {
+      "Cell": {
+       "X": 119,
+       "Z": 128
+      },
+      "Count": 66,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5181"
+     },
+     {
+      "Cell": {
+       "X": 122,
+       "Z": 124
+      },
+      "Count": 51,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5182"
+     },
+     {
+      "Cell": {
+       "X": 118,
+       "Z": 137
+      },
+      "Count": 50,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog5183"
+     }
+    ]
+   },
+   "Lighting": {
+    "v": {
+     "Lamps": [],
+     "WorkCells": []
+    }
+   },
+   "Routes": {
+    "v": {
+     "Facilities": [],
+     "Pawns": [
+      "Thing_Human724",
+      "Thing_Human726",
+      "Thing_Human728",
+      "Thing_Human730",
+      "Thing_Human735",
+      "Thing_Human737",
+      "Thing_Human743",
+      "Thing_Human745"
+     ],
+     "Traffic": []
+    }
+   },
+   "Structures": {
+    "v": []
+   },
+   "Tick": 15
+  },
+  "UpkeepIssued": {},
+  "UrgentPatients": {
+   "v": 0
+  },
+  "Wealth": {
+   "v": {
+    "Items": 2853.415771484375,
+    "Pawns": 8150,
+    "Total": 11003.416015625
+   }
+  },
+  "Wood": {
+   "v": 0
+  },
+  "WorkCoverage": {
+   "v": true
+  },
+  "WorkDecaying": {
+   "v": null
+  },
+  "WorkHelp": {
+   "Reason": "construction_demand_unknown",
+   "Tick": 15
+  },
+  "WorkProfiles": {
+   "v": [
+    {
+     "Age": 34.91676712036133,
+     "Effects": {
+      "MoveSpeed": 0.4,
+      "Sociable": 1
+     },
+     "ID": "Thing_Human724",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 3,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Artistic": {
+       "Level": 2,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Construction": {
+       "Level": 4,
+       "Name": "Construction",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Name": "Intellectual",
+       "Passion": "None"
+      },
+      "Medicine": {
+       "Name": "Medicine",
+       "Passion": "None"
+      },
+      "Melee": {
+       "Level": 5,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Mining": {
+       "Level": 4,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Plants": {
+       "Level": 2,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Shooting": {
+       "Level": 9,
+       "Name": "Shooting",
+       "Passion": "Major",
+       "Stored": 9
+      },
+      "Social": {
+       "Level": 6,
+       "Name": "Social",
+       "Passion": "Major",
+       "Stored": 6
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 2,
+       "Name": "SpeedOffset"
+      },
+      {
+       "Name": "Kind"
+      },
+      {
+       "Degree": 1,
+       "Name": "NaturalMood"
+      }
+     ]
+    },
+    {
+     "Age": 48.48944854736328,
+     "Effects": {
+      "Execution": true
+     },
+     "ID": "Thing_Human726",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 5,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Artistic": {
+       "Level": 11,
+       "Name": "Artistic",
+       "Passion": "Major",
+       "Stored": 11
+      },
+      "Construction": {
+       "Level": 1,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 5,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Intellectual": {
+       "Name": "Intellectual",
+       "Passion": "None"
+      },
+      "Medicine": {
+       "Name": "Medicine",
+       "Passion": "None"
+      },
+      "Melee": {
+       "Level": 5,
+       "Name": "Melee",
+       "Passion": "Major",
+       "Stored": 5
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 5,
+       "Name": "Plants",
+       "Passion": "Major",
+       "Stored": 5
+      },
+      "Shooting": {
+       "Level": 2,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Social": {
+       "Name": "Social",
+       "Passion": "None"
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Bloodlust"
+      }
+     ]
+    },
+    {
+     "Age": 23.582595825195312,
+     "Effects": {
+      "WorkSpeed": 0.2
+     },
+     "ID": "Thing_Human728",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 1,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Artistic": {
+       "Name": "Artistic",
+       "Passion": "None"
+      },
+      "Construction": {
+       "Level": 3,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Cooking": {
+       "Level": 1,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Crafting": {
+       "Level": 7,
+       "Name": "Crafting",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Intellectual": {
+       "Name": "Intellectual",
+       "Passion": "None"
+      },
+      "Medicine": {
+       "Level": 10,
+       "Name": "Medicine",
+       "Passion": "Major",
+       "Stored": 10
+      },
+      "Melee": {
+       "Level": 6,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 6
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 7,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Shooting": {
+       "Level": 2,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Social": {
+       "Level": 1,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 1
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 1,
+       "Name": "Neurotic"
+      }
+     ]
+    },
+    {
+     "Age": 31.828346252441406,
+     "Effects": {
+      "MoveSpeed": 0.4
+     },
+     "ID": "Thing_Human730",
+     "Incapable": {
+      "Doctor": true
+     },
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 7,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Artistic": {
+       "Level": 3,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Construction": {
+       "Level": 2,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Level": 5,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Medicine": {
+       "Disabled": true,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Melee": {
+       "Level": 6,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 6
+      },
+      "Mining": {
+       "Level": 3,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Plants": {
+       "Level": 1,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Shooting": {
+       "Level": 8,
+       "Name": "Shooting",
+       "Passion": "Major",
+       "Stored": 8
+      },
+      "Social": {
+       "Level": 6,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 6
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 2,
+       "Name": "SpeedOffset"
+      }
+     ]
+    },
+    {
+     "Age": 45.077823638916016,
+     "ID": "Thing_Human735",
+     "Incapable": {
+      "Cleaning": true,
+      "Hauling": true,
+      "Warden": true
+     },
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 12,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 12
+      },
+      "Artistic": {
+       "Level": 1,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Construction": {
+       "Level": 5,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Cooking": {
+       "Level": 1,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Crafting": {
+       "Name": "Crafting",
+       "Passion": "None"
+      },
+      "Intellectual": {
+       "Level": 9,
+       "Name": "Intellectual",
+       "Passion": "Minor",
+       "Stored": 9
+      },
+      "Medicine": {
+       "Level": 3,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Melee": {
+       "Level": 8,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 8
+      },
+      "Mining": {
+       "Level": 6,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 6
+      },
+      "Plants": {
+       "Level": 9,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 9
+      },
+      "Shooting": {
+       "Level": 5,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Social": {
+       "Disabled": true,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 2
+      }
+     },
+     "Traits": [
+      {
+       "Name": "CreepyBreathing"
+      }
+     ]
+    },
+    {
+     "Age": 52.07332992553711,
+     "Effects": {
+      "Greedy": true
+     },
+     "ID": "Thing_Human737",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 4,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Artistic": {
+       "Level": 18,
+       "Name": "Artistic",
+       "Passion": "Major",
+       "Stored": 18
+      },
+      "Construction": {
+       "Name": "Construction",
+       "Passion": "None"
+      },
+      "Cooking": {
+       "Level": 4,
+       "Name": "Cooking",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Crafting": {
+       "Level": 6,
+       "Name": "Crafting",
+       "Passion": "Major",
+       "Stored": 6
+      },
+      "Intellectual": {
+       "Level": 2,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Medicine": {
+       "Level": 2,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Melee": {
+       "Level": 3,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 1,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Shooting": {
+       "Level": 5,
+       "Name": "Shooting",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Social": {
+       "Level": 2,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 2
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Greedy"
+      },
+      {
+       "Name": "DislikesMen"
+      }
+     ]
+    },
+    {
+     "Age": 38.68943405151367,
+     "Effects": {
+      "GreatMemory": true,
+      "MoveSpeed": 0.4,
+      "NoFirefighting": true,
+      "Pyromaniac": true
+     },
+     "ID": "Thing_Human743",
+     "Incapable": {
+      "Art": true,
+      "Cleaning": true,
+      "Doctor": true,
+      "Firefighter": true
+     },
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 4,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Artistic": {
+       "Disabled": true,
+       "Name": "Artistic",
+       "Passion": "None"
+      },
+      "Construction": {
+       "Level": 3,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 11,
+       "Name": "Crafting",
+       "Passion": "Major",
+       "Stored": 11
+      },
+      "Intellectual": {
+       "Level": 2,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Medicine": {
+       "Disabled": true,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Melee": {
+       "Level": 6,
+       "Name": "Melee",
+       "Passion": "Major",
+       "Stored": 6
+      },
+      "Mining": {
+       "Level": 1,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Plants": {
+       "Level": 4,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Shooting": {
+       "Level": 4,
+       "Name": "Shooting",
+       "Passion": "Major",
+       "Stored": 4
+      },
+      "Social": {
+       "Name": "Social",
+       "Passion": "None"
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 2,
+       "Name": "SpeedOffset"
+      },
+      {
+       "Name": "GreatMemory"
+      },
+      {
+       "Name": "Pyromaniac"
+      }
+     ]
+    },
+    {
+     "Age": 62.10084915161133,
+     "Effects": {
+      "Nudist": true
+     },
+     "ID": "Thing_Human745",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 12,
+       "Name": "Animals",
+       "Passion": "Major",
+       "Stored": 12
+      },
+      "Artistic": {
+       "Level": 4,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Construction": {
+       "Level": 3,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Cooking": {
+       "Level": 3,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Level": 7,
+       "Name": "Intellectual",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Medicine": {
+       "Name": "Medicine",
+       "Passion": "None"
+      },
+      "Melee": {
+       "Level": 7,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Mining": {
+       "Level": 6,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 6
+      },
+      "Plants": {
+       "Level": 3,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Shooting": {
+       "Level": 6,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 6
+      },
+      "Social": {
+       "Level": 8,
+       "Name": "Social",
+       "Passion": "Minor",
+       "Stored": 8
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Nudist"
+      },
+      {
+       "Degree": -2,
+       "Name": "Beauty"
+      }
+     ]
+    }
+   ]
+  },
+  "WorkRoster": {
+   "v": [
+    {
+     "Demand": 1,
+     "Work": "Doctor"
+    },
+    {
+     "Work": "Warden"
+    },
+    {
+     "Work": "Handling"
+    },
+    {
+     "Demand": 1,
+     "Work": "Cooking"
+    },
+    {
+     "Demand": 1,
+     "Work": "Hunting"
+    },
+    {
+     "Work": "Fishing"
+    },
+    {
+     "Demand": 1,
+     "Work": "Construction"
+    },
+    {
+     "Demand": 1,
+     "Work": "Growing"
+    },
+    {
+     "Work": "Mining"
+    },
+    {
+     "Demand": 1,
+     "Work": "PlantCutting"
+    },
+    {
+     "Work": "Smithing"
+    },
+    {
+     "Work": "Tailoring"
+    },
+    {
+     "Work": "Art"
+    },
+    {
+     "Work": "Crafting"
+    },
+    {
+     "Work": "Research"
+    }
+   ]
+  },
+  "WorkerCensus": {
+   "v": null
+  },
+  "Workers": {
+   "v": 0
+  }
+ },
+ "Policy": {
+  "AcquisitionStallTicks": 60000,
+  "AnimalUpkeep": {
+   "FeedMinimumDays": 2,
+   "FeedTargetDays": 4
+  },
+  "AutoDevelopment": true,
+  "Cleanliness": {
+   "EnterC": -1,
+   "ExitC": -0.25,
+   "GraceTicks": 30000,
+   "MaxTargets": 8
+  },
+  "ColdEnter": 12,
+  "ColdExit": 16,
+  "Flooring": {
+   "Clean": {
+    "Beauty": 1,
+    "Cleanliness": 10,
+    "Cost": 0.2,
+    "Flammability": 1,
+    "PathCost": 1
+   },
+   "Floors": [
+    "SterileTile",
+    "TileSandstone",
+    "TileGranite",
+    "TileLimestone",
+    "TileSlate",
+    "TileMarble",
+    "FlagstoneSandstone",
+    "FlagstoneGranite",
+    "FlagstoneLimestone",
+    "FlagstoneSlate",
+    "FlagstoneMarble",
+    "CarpetRed",
+    "PavedTile",
+    "Concrete",
+    "WoodPlankFloor"
+   ],
+   "Living": {
+    "Beauty": 3,
+    "Cleanliness": 1,
+    "Cost": 0.2,
+    "Flammability": 3,
+    "PathCost": 1
+   },
+   "MaxCellsPerPlan": 24,
+   "Traffic": {
+    "Beauty": 1,
+    "Cleanliness": 1,
+    "Cost": 0.5,
+    "Flammability": 1,
+    "PathCost": 5
+   },
+   "TrafficMinSamples": 12
+  },
+  "FoodMinDays": 3,
+  "FoodReserveDays": 5,
+  "FoodStorage": {
+   "AtRiskNutritionThreshold": 5,
+   "ChilledExitC": 5,
+   "ChilledMaxC": 10,
+   "FreezerTargetC": -5,
+   "MinimumStoredFraction": 0.5,
+   "SafeRotDays": 5,
+   "TargetStoredFraction": 0.9
+  },
+  "FoodTargetDays": 7,
+  "FootholdFoodDays": 3,
+  "GoalStallTicks": 2500,
+  "HaulStallTicks": 2500,
+  "HotEnter": 32,
+  "HotExit": 28,
+  "HuntStallTicks": 6000,
+  "Lighting": {
+   "Lamps": [
+    {
+     "Name": "StandingLamp",
+     "Powered": true
+    },
+    {
+     "Name": "TorchLamp"
+    }
+   ],
+   "LitGlow": 0.3,
+   "PlacementRadius": 2
+  },
+  "MaxDevelopmentProjects": 8,
+  "MedicalReserve": {
+   "MinimumPerColonist": 1,
+   "TargetPerColonist": 3
+  },
+  "Routes": {
+   "Door": "Door",
+   "MaxBreaches": 4,
+   "Stuff": "WoodLog"
+  },
+  "WoodMax": 500,
+  "WoodMin": 120,
+  "WoodTarget": 350
+ },
+ "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load e58f6c260b9d4e17a06ced7a4e2791b2 map 0 tick 15",
+ "Review": {
+  "AsOf": {
+   "bills": 15,
+   "buildings": 15,
+   "colony": 15,
+   "emergency": 15,
+   "pawns": 15,
+   "planning_cells": 15,
+   "population": 15,
+   "research": 15,
+   "zones": 15
+  },
+  "Development": {
+   "Auto": true,
+   "Census": [],
+   "Holds": [
+    {
+     "Labor": [
+      "Construction"
+     ]
+    }
+   ],
+   "Labor": {},
+   "Rows": [
+    {
+     "Deficit": 1,
+     "Goal": "MaintainAnimalFeed",
+     "Labor": [
+      "Cooking",
+      "Hauling",
+      "Growing"
+     ],
+     "Reason": "emergency",
+     "Risk": 0,
+     "Score": 100,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 1,
+     "Goal": "EnsureComfort",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "Score": 80,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 1,
+     "Goal": "EnsureExpansion",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "Score": 80,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainEquipment",
+     "Labor": [
+      "Construction",
+      "Tailoring",
+      "Smithing",
+      "Crafting"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "Score": 80,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainMedicalReserves",
+     "Labor": [
+      "Crafting",
+      "PlantCutting"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "Score": 80,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainResource",
+     "Labor": [
+      "Mining",
+      "PlantCutting",
+      "Crafting"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "Score": 80,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainSleeping",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "Score": 80,
+     "WaitingSince": 15
+    },
+    {
+     "Goal": "ClearAncientShrine",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "WaitingSince": 15
+    },
+    {
+     "Goal": "ClearHomeObstructions",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "WaitingSince": 15
+    },
+    {
+     "Deficit": 0,
+     "Goal": "EnsureBasicDefense",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "WaitingSince": 15
+    },
+    {
+     "Goal": "MaintainHerd",
+     "Labor": [
+      "Handling"
+     ],
+     "Reason": "emergency",
+     "Risk": 0,
+     "WaitingSince": 15
+    },
+    {
+     "Goal": "MaintainWaste",
+     "Labor": [
+      "Hauling"
+     ],
+     "Reason": "emergency",
+     "Risk": 0,
+     "WaitingSince": 15
+    },
+    {
+     "Goal": "TidyLayout",
+     "Labor": [
+      "Growing",
+      "Hauling",
+      "Construction"
+     ],
+     "Reason": "emergency",
+     "Risk": 0.5,
+     "WaitingSince": 15
+    }
+   ],
+   "Snapshot": {
+    "Colony": "7f60d09eec774440b7135c426cb600bc",
+    "Load": "e58f6c260b9d4e17a06ced7a4e2791b2",
+    "Native": 12,
+    "Plan": "root/7f60d09eec774440b7135c426cb600bc/e58f6c260b9d4e17a06ced7a4e2791b2/0",
+    "Revision": 1
+   },
+   "StageHold": true,
+   "Tick": 15,
+   "Unused": 0,
+   "Workers": 0
+  },
+  "Enabled": true,
+  "EventLoot": {
+   "Held": [
+    {
+     "Cell": {
+      "X": 108,
+      "Z": 121
+     },
+     "Definition": "Bow_Short",
+     "Reason": "threat_present",
+     "Thing": "Thing_Bow_Short5164"
+    },
+    {
+     "Cell": {
+      "X": 108,
+      "Z": 120
+     },
+     "Definition": "MeleeWeapon_Knife",
+     "Reason": "threat_present",
+     "Thing": "Thing_MeleeWeapon_Knife5163"
+    },
+    {
+     "Cell": {
+      "X": 95,
+      "Z": 114
+     },
+     "Definition": "WoodLog",
+     "Reason": "threat_present",
+     "Thing": "Thing_WoodLog5175"
+    },
+    {
+     "Cell": {
+      "X": 94,
+      "Z": 120
+     },
+     "Definition": "WoodLog",
+     "Reason": "threat_present",
+     "Thing": "Thing_WoodLog5176"
+    },
+    {
+     "Cell": {
+      "X": 97,
+      "Z": 115
+     },
+     "Definition": "WoodLog",
+     "Reason": "threat_present",
+     "Thing": "Thing_WoodLog5177"
+    },
+    {
+     "Cell": {
+      "X": 93,
+      "Z": 120
+     },
+     "Definition": "WoodLog",
+     "Reason": "threat_present",
+     "Thing": "Thing_WoodLog5178"
+    }
+   ]
+  },
+  "Goals": [
+   {
+    "Goal": "routine-65055e339def3a1b-ConfirmColonyNames",
+    "Need": "ConfirmColonyNames"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-AnswerDialog",
+    "Need": "AnswerDialog"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-ActiveCombat",
+    "Need": "ActiveCombat"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-CriticalMedical",
+    "Need": "CriticalMedical"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-RestoreWorkers",
+    "Need": "RestoreWorkers"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-AllowStartingSupplies",
+    "Need": "AllowStartingSupplies"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-ManageSupplySafety",
+    "Need": "ManageSupplySafety"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureWorkAssignments",
+    "Need": "EnsureWorkAssignments"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureFoodSupply",
+    "Need": "EnsureFoodSupply"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureInitialShelter",
+    "Need": "EnsureInitialShelter"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureTemperatureSafety",
+    "Need": "EnsureTemperatureSafety"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureCooking",
+    "Need": "EnsureCooking"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureBasicPower",
+    "Need": "EnsureBasicPower"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureFoodStorage",
+    "Need": "EnsureFoodStorage"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureBasicDefense",
+    "Need": "EnsureBasicDefense"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainMedicalCare",
+    "Need": "MaintainMedicalCare"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureBasicComfort",
+    "Need": "EnsureBasicComfort"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-ClearPests",
+    "Need": "ClearPests"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureComfort",
+    "Need": "EnsureComfort"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureExpansion",
+    "Need": "EnsureExpansion"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainEquipment",
+    "Need": "MaintainEquipment"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureResearch",
+    "Need": "EnsureResearch"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainResource",
+    "Need": "MaintainResource"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-ProductionPolicy",
+    "Need": "ProductionPolicy"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-TradeWithCaravan",
+    "Need": "TradeWithCaravan"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-EnsureDefensiveLayout",
+    "Need": "EnsureDefensiveLayout"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainFireSafety",
+    "Need": "MaintainFireSafety"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-SecureSupplies",
+    "Need": "SecureSupplies"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainEssentialRepairs",
+    "Need": "MaintainEssentialRepairs"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainCleanFacilities",
+    "Need": "MaintainCleanFacilities"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainStorage",
+    "Need": "MaintainStorage"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-ClearHomeObstructions",
+    "Need": "ClearHomeObstructions"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-ClearAncientShrine",
+    "Need": "ClearAncientShrine"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainHomeCoverage",
+    "Need": "MaintainHomeCoverage"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainStoneShell",
+    "Need": "MaintainStoneShell"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainSleeping",
+    "Need": "MaintainSleeping"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainFoodStorage",
+    "Need": "MaintainFoodStorage"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainRefrigeration",
+    "Need": "MaintainRefrigeration"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainLighting",
+    "Need": "MaintainLighting"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainFlooring",
+    "Need": "MaintainFlooring"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainRoutes",
+    "Need": "MaintainRoutes"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainHerd",
+    "Need": "MaintainHerd"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainPopulation",
+    "Need": "MaintainPopulation"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainAnimalContainment",
+    "Need": "MaintainAnimalContainment"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainAnimalFeed",
+    "Need": "MaintainAnimalFeed"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-MaintainWaste",
+    "Need": "MaintainWaste"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-RemoveBlight",
+    "Need": "RemoveBlight"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-TidyLayout",
+    "Need": "TidyLayout"
+   },
+   {
+    "Goal": "routine-65055e339def3a1b-RecoverDisasterServices",
+    "Need": "RecoverDisasterServices"
+   }
+  ],
+  "Latches": {
+   "Animals": {
+    "Feed": [
+     "Thing_Cat5169",
+     "Thing_Husky5168",
+     "Thing_YorkshireTerrier5167"
+    ]
+   },
+   "Cold": true,
+   "Food": true,
+   "FoodStorage": true,
+   "MedicalReserve": true,
+   "Sleeping": true,
+   "Soldiers": true,
+   "Wood": true
+  },
+  "MedicalCare": {
+   "CensusKnown": true,
+   "Patients": [
+    "Thing_Human724",
+    "Thing_Human726",
+    "Thing_Human730",
+    "Thing_Human735",
+    "Thing_Human737",
+    "Thing_Human745"
+   ]
+  },
+  "MedicineTarget": 24,
+  "Progress": [
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ActiveCombat",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "prerequisite:EnsureCooking",
+    "Expected": "food days rise toward the target",
+    "Goal": "EnsureFoodSupply",
+    "LastProgress": 15,
+    "Method": "acquire",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureInitialShelter",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureTemperatureSafety",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureCooking",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureFoodStorage",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureBasicDefense",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 0
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainMedicalCare",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureBasicComfort",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureComfort",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureExpansion",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainEquipment",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainResource",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ProductionPolicy",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ClearHomeObstructions",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ClearAncientShrine",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainSleeping",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainMedicalReserves",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainFoodStorage",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainHerd",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainAnimalFeed",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainWaste",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   },
+   {
+    "Blocked": "no_method",
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "TidyLayout",
+    "LastProgress": 15,
+    "Method": "assess",
+    "NextReview": 2515
+   }
+  ],
+  "ReadyWork": {
+   "Candidates": [
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "ClearAncientShrine"
+     ],
+     "ID": "1edc3c3448a2a204",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "TidyLayout"
+     ],
+     "ID": "230639da31bb2094",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainWaste"
+     ],
+     "ID": "70c91a9d3ecb014c",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "ClearHomeObstructions"
+     ],
+     "ID": "891832140d948f3e",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    }
+   ],
+   "Colony": "7f60d09eec774440b7135c426cb600bc",
+   "Load": "e58f6c260b9d4e17a06ced7a4e2791b2",
+   "Tick": 15
+  },
+  "ReserveSupplies": [
+   {
+    "Definition": "Pemmican",
+    "Thing": "Thing_Pemmican5170"
+   },
+   {
+    "Definition": "Pemmican",
+    "Thing": "Thing_Pemmican5171"
+   },
+   {
+    "Definition": "Pemmican",
+    "Thing": "Thing_Pemmican5172"
+   },
+   {
+    "Definition": "Pemmican",
+    "Thing": "Thing_Pemmican5173"
+   },
+   {
+    "Definition": "Pemmican",
+    "Thing": "Thing_Pemmican5174"
+   },
+   {
+    "Definition": "Pemmican",
+    "Thing": "Thing_Pemmican5159"
+   }
+  ],
+  "ResourceRunways": [
+   {
+    "Resource": "Steel",
+    "Stock": 0,
+    "SurfaceOre": 0,
+    "Tick": 15
+   },
+   {
+    "Resource": "ComponentIndustrial",
+    "Stock": 0,
+    "SurfaceOre": 0,
+    "Tick": 15
+   },
+   {
+    "Resource": "Plasteel",
+    "Stock": 0,
+    "SurfaceOre": 0,
+    "Tick": 15
+   }
+  ],
+  "Revision": 1,
+  "Roster": {
+   "Coverage": [
+    {
+     "Demand": 1,
+     "Work": "Doctor"
+    },
+    {
+     "Work": "Warden"
+    },
+    {
+     "Work": "Handling"
+    },
+    {
+     "Demand": 1,
+     "Work": "Cooking"
+    },
+    {
+     "Demand": 1,
+     "Work": "Hunting"
+    },
+    {
+     "Work": "Fishing"
+    },
+    {
+     "Demand": 1,
+     "Work": "Construction"
+    },
+    {
+     "Demand": 1,
+     "Work": "Growing"
+    },
+    {
+     "Work": "Mining"
+    },
+    {
+     "Demand": 1,
+     "Work": "PlantCutting"
+    },
+    {
+     "Work": "Smithing"
+    },
+    {
+     "Work": "Tailoring"
+    },
+    {
+     "Work": "Art"
+    },
+    {
+     "Work": "Crafting"
+    },
+    {
+     "Work": "Research"
+    }
+   ],
+   "Help": {
+    "Reason": "construction_demand_unknown",
+    "Tick": 15
+   },
+   "Profiles": [
+    {
+     "Age": 34.91676712036133,
+     "Effects": {
+      "MoveSpeed": 0.4,
+      "Sociable": 1
+     },
+     "ID": "Thing_Human724",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 3,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Artistic": {
+       "Level": 2,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Construction": {
+       "Level": 4,
+       "Name": "Construction",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Name": "Intellectual",
+       "Passion": "None"
+      },
+      "Medicine": {
+       "Name": "Medicine",
+       "Passion": "None"
+      },
+      "Melee": {
+       "Level": 5,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Mining": {
+       "Level": 4,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Plants": {
+       "Level": 2,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Shooting": {
+       "Level": 9,
+       "Name": "Shooting",
+       "Passion": "Major",
+       "Stored": 9
+      },
+      "Social": {
+       "Level": 6,
+       "Name": "Social",
+       "Passion": "Major",
+       "Stored": 6
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 2,
+       "Name": "SpeedOffset"
+      },
+      {
+       "Name": "Kind"
+      },
+      {
+       "Degree": 1,
+       "Name": "NaturalMood"
+      }
+     ]
+    },
+    {
+     "Age": 48.48944854736328,
+     "Effects": {
+      "Execution": true
+     },
+     "ID": "Thing_Human726",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 5,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Artistic": {
+       "Level": 11,
+       "Name": "Artistic",
+       "Passion": "Major",
+       "Stored": 11
+      },
+      "Construction": {
+       "Level": 1,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 5,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Intellectual": {
+       "Name": "Intellectual",
+       "Passion": "None"
+      },
+      "Medicine": {
+       "Name": "Medicine",
+       "Passion": "None"
+      },
+      "Melee": {
+       "Level": 5,
+       "Name": "Melee",
+       "Passion": "Major",
+       "Stored": 5
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 5,
+       "Name": "Plants",
+       "Passion": "Major",
+       "Stored": 5
+      },
+      "Shooting": {
+       "Level": 2,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Social": {
+       "Name": "Social",
+       "Passion": "None"
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Bloodlust"
+      }
+     ]
+    },
+    {
+     "Age": 23.582595825195312,
+     "Effects": {
+      "WorkSpeed": 0.2
+     },
+     "ID": "Thing_Human728",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 1,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Artistic": {
+       "Name": "Artistic",
+       "Passion": "None"
+      },
+      "Construction": {
+       "Level": 3,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Cooking": {
+       "Level": 1,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Crafting": {
+       "Level": 7,
+       "Name": "Crafting",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Intellectual": {
+       "Name": "Intellectual",
+       "Passion": "None"
+      },
+      "Medicine": {
+       "Level": 10,
+       "Name": "Medicine",
+       "Passion": "Major",
+       "Stored": 10
+      },
+      "Melee": {
+       "Level": 6,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 6
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 7,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Shooting": {
+       "Level": 2,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Social": {
+       "Level": 1,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 1
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 1,
+       "Name": "Neurotic"
+      }
+     ]
+    },
+    {
+     "Age": 31.828346252441406,
+     "Effects": {
+      "MoveSpeed": 0.4
+     },
+     "ID": "Thing_Human730",
+     "Incapable": {
+      "Doctor": true
+     },
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 7,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Artistic": {
+       "Level": 3,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Construction": {
+       "Level": 2,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Level": 5,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Medicine": {
+       "Disabled": true,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Melee": {
+       "Level": 6,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 6
+      },
+      "Mining": {
+       "Level": 3,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Plants": {
+       "Level": 1,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Shooting": {
+       "Level": 8,
+       "Name": "Shooting",
+       "Passion": "Major",
+       "Stored": 8
+      },
+      "Social": {
+       "Level": 6,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 6
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 2,
+       "Name": "SpeedOffset"
+      }
+     ]
+    },
+    {
+     "Age": 45.077823638916016,
+     "ID": "Thing_Human735",
+     "Incapable": {
+      "Cleaning": true,
+      "Hauling": true,
+      "Warden": true
+     },
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 12,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 12
+      },
+      "Artistic": {
+       "Level": 1,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Construction": {
+       "Level": 5,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Cooking": {
+       "Level": 1,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Crafting": {
+       "Name": "Crafting",
+       "Passion": "None"
+      },
+      "Intellectual": {
+       "Level": 9,
+       "Name": "Intellectual",
+       "Passion": "Minor",
+       "Stored": 9
+      },
+      "Medicine": {
+       "Level": 3,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Melee": {
+       "Level": 8,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 8
+      },
+      "Mining": {
+       "Level": 6,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 6
+      },
+      "Plants": {
+       "Level": 9,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 9
+      },
+      "Shooting": {
+       "Level": 5,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Social": {
+       "Disabled": true,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 2
+      }
+     },
+     "Traits": [
+      {
+       "Name": "CreepyBreathing"
+      }
+     ]
+    },
+    {
+     "Age": 52.07332992553711,
+     "Effects": {
+      "Greedy": true
+     },
+     "ID": "Thing_Human737",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 4,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Artistic": {
+       "Level": 18,
+       "Name": "Artistic",
+       "Passion": "Major",
+       "Stored": 18
+      },
+      "Construction": {
+       "Name": "Construction",
+       "Passion": "None"
+      },
+      "Cooking": {
+       "Level": 4,
+       "Name": "Cooking",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Crafting": {
+       "Level": 6,
+       "Name": "Crafting",
+       "Passion": "Major",
+       "Stored": 6
+      },
+      "Intellectual": {
+       "Level": 2,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Medicine": {
+       "Level": 2,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Melee": {
+       "Level": 3,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 1,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Shooting": {
+       "Level": 5,
+       "Name": "Shooting",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Social": {
+       "Level": 2,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 2
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Greedy"
+      },
+      {
+       "Name": "DislikesMen"
+      }
+     ]
+    },
+    {
+     "Age": 38.68943405151367,
+     "Effects": {
+      "GreatMemory": true,
+      "MoveSpeed": 0.4,
+      "NoFirefighting": true,
+      "Pyromaniac": true
+     },
+     "ID": "Thing_Human743",
+     "Incapable": {
+      "Art": true,
+      "Cleaning": true,
+      "Doctor": true,
+      "Firefighter": true
+     },
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 4,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Artistic": {
+       "Disabled": true,
+       "Name": "Artistic",
+       "Passion": "None"
+      },
+      "Construction": {
+       "Level": 3,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Cooking": {
+       "Name": "Cooking",
+       "Passion": "None"
+      },
+      "Crafting": {
+       "Level": 11,
+       "Name": "Crafting",
+       "Passion": "Major",
+       "Stored": 11
+      },
+      "Intellectual": {
+       "Level": 2,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Medicine": {
+       "Disabled": true,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Melee": {
+       "Level": 6,
+       "Name": "Melee",
+       "Passion": "Major",
+       "Stored": 6
+      },
+      "Mining": {
+       "Level": 1,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Plants": {
+       "Level": 4,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Shooting": {
+       "Level": 4,
+       "Name": "Shooting",
+       "Passion": "Major",
+       "Stored": 4
+      },
+      "Social": {
+       "Name": "Social",
+       "Passion": "None"
+      }
+     },
+     "Traits": [
+      {
+       "Degree": 2,
+       "Name": "SpeedOffset"
+      },
+      {
+       "Name": "GreatMemory"
+      },
+      {
+       "Name": "Pyromaniac"
+      }
+     ]
+    },
+    {
+     "Age": 62.10084915161133,
+     "Effects": {
+      "Nudist": true
+     },
+     "ID": "Thing_Human745",
+     "Incapable": {},
+     "Ranged": true,
+     "Skills": {
+      "Animals": {
+       "Level": 12,
+       "Name": "Animals",
+       "Passion": "Major",
+       "Stored": 12
+      },
+      "Artistic": {
+       "Level": 4,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Construction": {
+       "Level": 3,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Cooking": {
+       "Level": 3,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Level": 7,
+       "Name": "Intellectual",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Medicine": {
+       "Name": "Medicine",
+       "Passion": "None"
+      },
+      "Melee": {
+       "Level": 7,
+       "Name": "Melee",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Mining": {
+       "Level": 6,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 6
+      },
+      "Plants": {
+       "Level": 3,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Shooting": {
+       "Level": 6,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 6
+      },
+      "Social": {
+       "Level": 8,
+       "Name": "Social",
+       "Passion": "Minor",
+       "Stored": 8
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Nudist"
+      },
+      {
+       "Degree": -2,
+       "Name": "Beauty"
+      }
+     ]
+    }
+   ],
+   "Tick": 15
+  },
+  "Sleeping": {
+   "Uses": []
+  },
+  "Snapshot": {
+   "Colony": "7f60d09eec774440b7135c426cb600bc",
+   "Load": "e58f6c260b9d4e17a06ced7a4e2791b2",
+   "Native": 12,
+   "Plan": "root/7f60d09eec774440b7135c426cb600bc/e58f6c260b9d4e17a06ced7a4e2791b2/0",
+   "Revision": 1
+  },
+  "Stage": {
+   "Blocker": "shelter",
+   "Held": true,
+   "ProductionBlocked": true,
+   "ProductionSince": 15,
+   "Reason": "shelter unmet"
+  },
+  "StartingSupplies": {
+   "Initialized": true
+  },
+  "Tick": 15,
+  "WoodFloor": 1199
+ },
+ "Snapshot": {
+  "Colony": "7f60d09eec774440b7135c426cb600bc",
+  "Load": "e58f6c260b9d4e17a06ced7a4e2791b2",
+  "Native": 12,
+  "Plan": "root/7f60d09eec774440b7135c426cb600bc/e58f6c260b9d4e17a06ced7a4e2791b2/0",
+  "Revision": 1
+ },
+ "Tick": 15
+}

@@ -1,0 +1,49 @@
+{
+ "Dead": {
+  "v": false
+ },
+ "Downed": {
+  "v": false
+ },
+ "Drafted": {
+  "v": false
+ },
+ "Food": {
+  "v": 0.8999999761581421
+ },
+ "ID": "Thing_Human1023",
+ "Joy": {
+  "v": 0.10000000149011612
+ },
+ "Mental": {
+  "v": false
+ },
+ "Mood": {
+  "v": 0.3400000035762787
+ },
+ "PlayerForced": {
+  "v": false
+ },
+ "Rest": {
+  "v": 0.8999999761581421
+ },
+ "Thoughts": {
+  "v": [
+   {
+    "Def": "NeedJoy",
+    "Offset": -10
+   },
+   {
+    "Def": "EnvironmentCold",
+    "Offset": -4
+   },
+   {
+    "Def": "SleptOutside",
+    "Offset": -4
+   }
+  ]
+ },
+ "Threshold": {
+  "v": 0.3499999940395355
+ }
+}

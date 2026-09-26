@@ -181,17 +181,16 @@ not trigger unlimited replacement bills under the same loadout prerequisite.
 
 ## Acceptance
 
-The `gear/*` area (#472) is the gear planner's acceptance, each case a
-serve run over the tribal baseline staged by `test/gear_area_prepare`
-(`GearAreaFixture.cs`) and audited against `test/gear_area_probe`:
-`gear/winter` (season lookahead, #467) dresses every colonist in a parka or
-jacket plus a tuque before the first winter twelfth without a thermal deficit;
-`gear/tainted` (#468) leaves a tainted parka on the ground and assigns the
-worker policy; `gear/soldier` (#470, #471) ends two marksmen in flak vests and
-helmets holding the bolt-action and the shotgun by skill; `gear/roster` (#469)
-recovers twelve stripped colonists from stored spares within a day, with at
-most three bills and no slot dressed twice. `production/apparel` keeps the
-single-shirt-from-leather path.
+The gear planner's decisions (#472) replay from colony snapshots recorded
+off the former `gear/*` native cases (#748), in
+`go/internal/policy/gear_snapshot_test.go`: the season lookahead (#467)
+asks every colonist for a cloth parka or jacket plus a tuque before the
+first winter twelfth; tainted apparel (#468) moves everyone to the worker
+policy and never orders the tainted parka; a stripped twelve-pawn roster
+(#469) is dressed from stored spares, each pawn and each item once, with
+no bill while an offer stands. The soldier loadout (#470, #471) is covered
+by [weapon planner](weapon-planner.md#acceptance). `production/apparel`
+keeps the single-shirt-from-leather path natively.
 
 Finished apparel in valid storage is aggregated by definition, stuff, quality
 and hit-point band in `GearSnapshot.stored_apparel`, bounded to 4096 rows.

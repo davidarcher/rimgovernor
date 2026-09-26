@@ -1,0 +1,438 @@
+{
+ "Cell": {
+  "v": {
+   "X": 123,
+   "Z": 138
+  }
+ },
+ "Chosen": [
+  "Thing_Human724",
+  "Thing_Human726"
+ ],
+ "Responders": [
+  {
+   "Cell": {
+    "v": {
+     "X": 122,
+     "Z": 138
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": true
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human724",
+    "MeleeEquipped": {
+     "v": true
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 123,
+     "Z": 137
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": true
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human726",
+    "MeleeEquipped": {
+     "v": true
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 123,
+     "Z": 138
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": false
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human728",
+    "MeleeEquipped": {
+     "v": false
+    },
+    "MentalState": {
+     "v": true
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 115,
+     "Z": 130
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": false
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human730",
+    "MeleeEquipped": {
+     "v": false
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 115,
+     "Z": 130
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": false
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human735",
+    "MeleeEquipped": {
+     "v": false
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 115,
+     "Z": 130
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": false
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human737",
+    "MeleeEquipped": {
+     "v": false
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 115,
+     "Z": 130
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": false
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human743",
+    "MeleeEquipped": {
+     "v": false
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  },
+  {
+   "Cell": {
+    "v": {
+     "X": 115,
+     "Z": 130
+    }
+   },
+   "SquadDefenderFacts": {
+    "Armed": {
+     "v": false
+    },
+    "Dead": {
+     "v": false
+    },
+    "Downed": {
+     "v": false
+    },
+    "DraftOwned": {
+     "v": false
+    },
+    "Drafted": {
+     "v": false
+    },
+    "HealthFraction": {
+     "v": 1
+    },
+    "ID": "Thing_Human745",
+    "MeleeEquipped": {
+     "v": false
+    },
+    "MentalState": {
+     "v": false
+    },
+    "NeedsTend": {
+     "v": false
+    },
+    "PlayerForced": {
+     "v": false
+    },
+    "QueuedJobs": {
+     "v": 0
+    },
+    "RangedEquipped": {
+     "v": false
+    },
+    "ViolenceCapable": {
+     "v": true
+    }
+   }
+  }
+ ],
+ "Target": {
+  "Bleeding": {
+   "v": false
+  },
+  "Dead": {
+   "v": false
+  },
+  "Downed": {
+   "v": false
+  },
+  "ID": "Thing_Human728",
+  "InBed": {
+   "v": false
+  },
+  "MentalState": {
+   "v": {
+    "DefName": "Berserk",
+    "IsAggro": true
+   }
+  },
+  "NeedsTend": {
+   "v": false
+  }
+ }
+}

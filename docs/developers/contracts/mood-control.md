@@ -107,14 +107,13 @@ of the target; uncertain attempts and draft cleanup remain reconcilable. Downing
 the target ends containment and lets the ordinary RESCUE planner carry the pawn
 to a colonist bed using native bed selection. There is no Capture or prisoner
 custody. Arrest remains a non-aggressive custody operation.
-`mood/berserk` starts from the Core-only tribal8 baseline and proves the
-controller-selected melee squad, SUBDUE and subsequent RESCUE to the target's
-own assigned colonist bed. Its fixture gives an unarmed Wimp target two healthy
-wooden-club responders and induces Berserk once; damage, downing and mental
-recovery follow ordinary game rules. No damage immunity, healing or forced
-recovery is installed. A read-only native audit retains every baseline
-colonist's death or prisoner conversion, observes downing, and requires the
-living target's break to have ended in the exact owned bed.
+The squad and rescue selection replay in
+`go/internal/policy/mood_snapshot_test.go` over the `SelectBreakSquad` and
+`SelectRescue` inputs recorded from a tribal8 run (#748): of eight
+colonists, only the two wooden-club responders beside the berserk target
+are chosen to SUBDUE, and once it is down the RESCUE planner pairs a
+rescuer with it. The former native `mood/berserk` case is gone; the
+native bed delivery itself is not re-proved there.
 
 Containment clearance applies to new dispatch's observed worker and explicit
 target positions (including the fixture's nearby damaged wall), not a predicted
@@ -143,7 +142,7 @@ smokeleaf for joy, disables hard-drug joy, addiction use, scheduled use and
 inventory stocking. Native readback exposes the policy name only when its
 contents and default assignment match, so drift replans the assignment.
 Recreation relief itself still excludes ingestible joy; RimWorld chooses ordinary
-drug use. `takeover/drug-policy` proves the ownership rules directly.
+drug use. `policy.DrugPolicyChange` unit tests prove the ownership rules.
 
 ## Active mental-state observation
 

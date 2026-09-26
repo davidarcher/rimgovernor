@@ -6,7 +6,7 @@ import (
 )
 
 func TestTakeoverCasesRegisteredForNightly(t *testing.T) {
-	for _, name := range []string{"schedule", "draft", "built-facility", "suspended-bill", "demolition-designation", "home-removal"} {
+	for _, name := range []string{"draft"} {
 		c, ok := cases.Lookup("takeover/" + name)
 		if !ok {
 			t.Fatalf("missing takeover/%s", name)

@@ -45,7 +45,9 @@ pawn health and a different equipped item cannot clear the hold.
 
 ## Acceptance
 
-`gear/soldier` (#470, #471) is the area case: two marksmen at Shooting 12 and 8
-with a bolt-action rifle and a pump shotgun loose end holding the rifle and the
-shotgun respectively, in flak vests and helmets. See
-[equipment upkeep](equipment-upkeep.md#acceptance).
+The weapon fit (#471) replays in `go/internal/policy/gear_snapshot_test.go`
+over the `AssignEquip` input recorded from the former native `gear/soldier`
+run (#748): with a bolt-action rifle and a pump shotgun loose, the Shooting
+12 soldier gets the rifle and the Shooting 8 one the shotgun. The armor
+ladder half (#470) has no recording yet: that run's census carried no
+loadout model. See [equipment upkeep](equipment-upkeep.md#acceptance).

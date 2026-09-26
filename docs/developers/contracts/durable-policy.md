@@ -41,16 +41,16 @@ to work overrides. The current typed refuge writer in
 `buildingruntime/routine_recovery.go` and `routine_areas.go` use explicit area
 assignment/clear actions, not the legacy `RecoveryTools` lease. Corrections use
 monotonic admission identities so repeated Manual restrictions remain correctable
-after plan retirement or restart. `takeover/allowed-areas` covers repeated
-restrictions, save-load and actual colonist/animal feeding; `recovery/area` checks
+after plan retirement or restart. A snapshot test over a recorded
+takeover colony covers the correction; `recovery/area` checks
 hazard protection and native CAS refusal.
 
 `policy/animal_upkeep.go` and `policy/husbandry_upkeep.go` consume standing removal
 flags. `Bridge/FoodSupplyFacts.cs` and `Bridge/Protocol/NativeColonyObservationTools.cs`
 under the native source tree apply food filters. Refreshing those observations
 cannot by itself remove a saved restriction. `NativeFoodPolicy` supplies the
-guarded food-policy expansion; `takeover/food-policy` checks repeated Manual
-edits, stale settings, actual eating/nutrition recovery and native save/load.
+guarded food-policy expansion; a snapshot test over a recorded
+restrictive diet asserts the review's work deficit.
 
 This inventory is a source audit, not gameplay validation. It changes no runtime
 behavior. The takeover acceptance work remains in

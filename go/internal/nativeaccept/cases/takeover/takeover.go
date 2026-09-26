@@ -1,5 +1,5 @@
-// Package takeover supplies the authority boundary and journal audit shared by
-// the takeover/* cases registered beside their subsystem's native assertions.
+// Package takeover supplies the authority boundary and native receipt audit for
+// takeover/draft beside the draft subsystem's native assertions.
 package takeover
 
 import (
@@ -10,7 +10,6 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // Manual establishes and reads back Manual before any simulated player edit.
@@ -31,40 +30,6 @@ func Manual(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	s.Report()["manual_before_edit"] = status
-	return nil
-}
-
-// Journal refuses provenance holds in the current review, bound goals and their
-// executable plan history. Native outcome assertions remain each case's job.
-func Journal(ctx context.Context, journal *store.Store, report na.Report) error {
-	review, err := journal.LoadRoutineReview(ctx)
-	if err != nil {
-		return err
-	}
-	if review.Revision == 0 {
-		return fmt.Errorf("takeover has no durable routine review")
-	}
-	if err = noProvenanceHold(review); err != nil {
-		return err
-	}
-	for _, binding := range review.Goals {
-		goal, err := journal.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			return err
-		}
-		if err = noProvenanceHold(goal); err != nil {
-			return err
-		}
-	}
-	plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-", 256)
-	if err != nil {
-		return err
-	}
-	if err = noProvenanceHold(plans); err != nil {
-		return err
-	}
-	report["takeover_review"] = review
-	report["provenance_holds"] = 0
 	return nil
 }
 

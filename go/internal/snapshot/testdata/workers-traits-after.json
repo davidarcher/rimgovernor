@@ -1,0 +1,1638 @@
+[
+ {
+  "Age": {
+   "v": 29.263471603393555
+  },
+  "Applies": {
+   "v": true
+  },
+  "Available": {
+   "v": true
+  },
+  "DrugPolicyWritable": {
+   "v": true
+  },
+  "FoodRestriction": {
+   "v": {
+    "Allowed": [
+     "Agarilux",
+     "Ambrosia",
+     "Beer",
+     "Bryolux",
+     "Chocolate",
+     "Corpse_Alpaca",
+     "Corpse_Alphabeaver",
+     "Corpse_Bear_Grizzly",
+     "Corpse_Bear_Polar",
+     "Corpse_Bison",
+     "Corpse_Boomalope",
+     "Corpse_Boomrat",
+     "Corpse_Capybara",
+     "Corpse_Caribou",
+     "Corpse_Cassowary",
+     "Corpse_Cat",
+     "Corpse_Chicken",
+     "Corpse_Chinchilla",
+     "Corpse_Cobra",
+     "Corpse_Cougar",
+     "Corpse_Cow",
+     "Corpse_Deer",
+     "Corpse_Donkey",
+     "Corpse_Dromedary",
+     "Corpse_Duck",
+     "Corpse_Elephant",
+     "Corpse_Elk",
+     "Corpse_Emu",
+     "Corpse_Fox_Arctic",
+     "Corpse_Fox_Fennec",
+     "Corpse_Fox_Red",
+     "Corpse_Gazelle",
+     "Corpse_Goat",
+     "Corpse_Goose",
+     "Corpse_GuineaPig",
+     "Corpse_Hare",
+     "Corpse_Horse",
+     "Corpse_Human",
+     "Corpse_Husky",
+     "Corpse_Ibex",
+     "Corpse_Iguana",
+     "Corpse_LabradorRetriever",
+     "Corpse_Lynx",
+     "Corpse_Megascarab",
+     "Corpse_Megasloth",
+     "Corpse_Megaspider",
+     "Corpse_Monkey",
+     "Corpse_Muffalo",
+     "Corpse_Ostrich",
+     "Corpse_Panther",
+     "Corpse_Pig",
+     "Corpse_Raccoon",
+     "Corpse_Rat",
+     "Corpse_Rhinoceros",
+     "Corpse_Sheep",
+     "Corpse_Snowhare",
+     "Corpse_Spelopede",
+     "Corpse_Squirrel",
+     "Corpse_Thrumbo",
+     "Corpse_Tortoise",
+     "Corpse_Turkey",
+     "Corpse_Warg",
+     "Corpse_WildBoar",
+     "Corpse_Wolf_Arctic",
+     "Corpse_Wolf_Timber",
+     "Corpse_Yak",
+     "Corpse_YorkshireTerrier",
+     "EggCassowaryFertilized",
+     "EggCassowaryUnfertilized",
+     "EggChickenFertilized",
+     "EggChickenUnfertilized",
+     "EggCobraFertilized",
+     "EggCobraUnfertilized",
+     "EggDuckFertilized",
+     "EggDuckUnfertilized",
+     "EggEmuFertilized",
+     "EggEmuUnfertilized",
+     "EggGooseFertilized",
+     "EggGooseUnfertilized",
+     "EggIguanaFertilized",
+     "EggIguanaUnfertilized",
+     "EggOstrichFertilized",
+     "EggOstrichUnfertilized",
+     "EggTortoiseFertilized",
+     "EggTortoiseUnfertilized",
+     "EggTurkeyFertilized",
+     "EggTurkeyUnfertilized",
+     "Glowstool",
+     "Hay",
+     "InsectJelly",
+     "Kibble",
+     "MealFine",
+     "MealFine_Meat",
+     "MealFine_Veg",
+     "MealLavish",
+     "MealLavish_Meat",
+     "MealLavish_Veg",
+     "MealNutrientPaste",
+     "MealSimple",
+     "MealSurvivalPack",
+     "Meat_Alpaca",
+     "Meat_Alphabeaver",
+     "Meat_Bear_Grizzly",
+     "Meat_Bison",
+     "Meat_Boomalope",
+     "Meat_Boomrat",
+     "Meat_Capybara",
+     "Meat_Caribou",
+     "Meat_Cassowary",
+     "Meat_Cat",
+     "Meat_Chicken",
+     "Meat_Chinchilla",
+     "Meat_Cobra",
+     "Meat_Cougar",
+     "Meat_Cow",
+     "Meat_Deer",
+     "Meat_Donkey",
+     "Meat_Dromedary",
+     "Meat_Duck",
+     "Meat_Elephant",
+     "Meat_Elk",
+     "Meat_Fox_Fennec",
+     "Meat_Gazelle",
+     "Meat_Goat",
+     "Meat_GuineaPig",
+     "Meat_Hare",
+     "Meat_Horse",
+     "Meat_Human",
+     "Meat_Husky",
+     "Meat_Ibex",
+     "Meat_Iguana",
+     "Meat_LabradorRetriever",
+     "Meat_Lynx",
+     "Meat_Megasloth",
+     "Meat_Megaspider",
+     "Meat_Monkey",
+     "Meat_Muffalo",
+     "Meat_Panther",
+     "Meat_Pig",
+     "Meat_Raccoon",
+     "Meat_Rat",
+     "Meat_Rhinoceros",
+     "Meat_Sheep",
+     "Meat_Squirrel",
+     "Meat_Thrumbo",
+     "Meat_Tortoise",
+     "Meat_Turkey",
+     "Meat_Warg",
+     "Meat_Wolf_Timber",
+     "Meat_Yak",
+     "Meat_YorkshireTerrier",
+     "Milk",
+     "Pemmican",
+     "Plant_Agave",
+     "Plant_Alocasia",
+     "Plant_Ambrosia",
+     "Plant_Astragalus",
+     "Plant_Berry",
+     "Plant_Brambles",
+     "Plant_Bush",
+     "Plant_Chokevine",
+     "Plant_Clivia",
+     "Plant_Corn",
+     "Plant_Cotton",
+     "Plant_Dandelion",
+     "Plant_Daylily",
+     "Plant_Devilstrand",
+     "Plant_Grass",
+     "Plant_Haygrass",
+     "Plant_Healroot",
+     "Plant_HealrootWild",
+     "Plant_Hops",
+     "Plant_Moss",
+     "Plant_PincushionCactus",
+     "Plant_Potato",
+     "Plant_Psychoid",
+     "Plant_Rafflesia",
+     "Plant_Rice",
+     "Plant_Rose",
+     "Plant_SaguaroCactus",
+     "Plant_ShrubLow",
+     "Plant_Smokeleaf",
+     "Plant_Strawberry",
+     "Plant_TallGrass",
+     "Plant_Timbershroom",
+     "Plant_TreeBamboo",
+     "Plant_TreeBirch",
+     "Plant_TreeCecropia",
+     "Plant_TreeCocoa",
+     "Plant_TreeCypress",
+     "Plant_TreeDrago",
+     "Plant_TreeMaple",
+     "Plant_TreeOak",
+     "Plant_TreePalm",
+     "Plant_TreePine",
+     "Plant_TreePoplar",
+     "Plant_TreeTeak",
+     "Plant_TreeWillow",
+     "PsychoidLeaves",
+     "RawAgave",
+     "RawBerries",
+     "RawCorn",
+     "RawFungus",
+     "RawHops",
+     "RawPotatoes",
+     "RawRice",
+     "SmokeleafLeaves"
+    ],
+    "Eligible": [
+     "Chocolate",
+     "EggCassowaryFertilized",
+     "EggCassowaryUnfertilized",
+     "EggChickenFertilized",
+     "EggChickenUnfertilized",
+     "EggCobraFertilized",
+     "EggCobraUnfertilized",
+     "EggDuckFertilized",
+     "EggDuckUnfertilized",
+     "EggEmuFertilized",
+     "EggEmuUnfertilized",
+     "EggGooseFertilized",
+     "EggGooseUnfertilized",
+     "EggIguanaFertilized",
+     "EggIguanaUnfertilized",
+     "EggOstrichFertilized",
+     "EggOstrichUnfertilized",
+     "EggTortoiseFertilized",
+     "EggTortoiseUnfertilized",
+     "EggTurkeyFertilized",
+     "EggTurkeyUnfertilized",
+     "InsectJelly",
+     "MealFine",
+     "MealFine_Meat",
+     "MealFine_Veg",
+     "MealLavish",
+     "MealLavish_Meat",
+     "MealLavish_Veg",
+     "MealNutrientPaste",
+     "MealSimple",
+     "MealSurvivalPack",
+     "Meat_Alpaca",
+     "Meat_Alphabeaver",
+     "Meat_Bear_Grizzly",
+     "Meat_Bison",
+     "Meat_Boomalope",
+     "Meat_Boomrat",
+     "Meat_Capybara",
+     "Meat_Caribou",
+     "Meat_Cassowary",
+     "Meat_Cat",
+     "Meat_Chicken",
+     "Meat_Chinchilla",
+     "Meat_Cobra",
+     "Meat_Cougar",
+     "Meat_Cow",
+     "Meat_Deer",
+     "Meat_Donkey",
+     "Meat_Dromedary",
+     "Meat_Duck",
+     "Meat_Elephant",
+     "Meat_Elk",
+     "Meat_Fox_Fennec",
+     "Meat_Gazelle",
+     "Meat_Goat",
+     "Meat_GuineaPig",
+     "Meat_Hare",
+     "Meat_Horse",
+     "Meat_Husky",
+     "Meat_Ibex",
+     "Meat_Iguana",
+     "Meat_LabradorRetriever",
+     "Meat_Lynx",
+     "Meat_Megasloth",
+     "Meat_Megaspider",
+     "Meat_Monkey",
+     "Meat_Muffalo",
+     "Meat_Panther",
+     "Meat_Pig",
+     "Meat_Raccoon",
+     "Meat_Rat",
+     "Meat_Rhinoceros",
+     "Meat_Sheep",
+     "Meat_Squirrel",
+     "Meat_Thrumbo",
+     "Meat_Tortoise",
+     "Meat_Turkey",
+     "Meat_Warg",
+     "Meat_Wolf_Timber",
+     "Meat_Yak",
+     "Meat_YorkshireTerrier",
+     "Milk",
+     "Pemmican",
+     "RawAgave",
+     "RawBerries",
+     "RawCorn",
+     "RawFungus",
+     "RawPotatoes",
+     "RawRice"
+    ],
+    "PolicyID": "FoodPolicy_Lavish_1"
+   }
+  },
+  "ID": "Thing_Human79",
+  "Incapable": {
+   "v": [
+    "Firefighter"
+   ]
+  },
+  "Job": {
+   "v": {
+    "Def": "GotoWander",
+    "Target": {
+     "v": {
+      "Cell": {
+       "v": {
+        "X": 87,
+        "Z": 93
+       }
+      }
+     }
+    }
+   }
+  },
+  "Manual": {
+   "v": true
+  },
+  "Ranged": {
+   "v": false
+  },
+  "Schedule": {
+   "v": [
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Sleep",
+    "Sleep"
+   ]
+  },
+  "Skills": {
+   "v": [
+    {
+     "Level": 4,
+     "Name": "Shooting",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Melee",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Construction",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Mining",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Cooking",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Plants",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Animals",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Crafting",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Artistic",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Medicine",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Social",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Intellectual",
+     "Passion": "None",
+     "Stored": 4
+    }
+   ]
+  },
+  "SnapshotToken": {
+   "v": "drug-4D5779480E4DA84171ECFE1C02B48E43325C5508AA5A326CC87E7CC97972040B"
+  },
+  "Traits": {
+   "v": [
+    {
+     "Name": "Pyromaniac"
+    },
+    {
+     "Name": "Brawler"
+    },
+    {
+     "Name": "Abrasive"
+    }
+   ]
+  },
+  "Work": {
+   "v": [
+    {
+     "Disabled": true,
+     "Work": "Firefighter"
+    },
+    {
+     "Priority": 1,
+     "Work": "Patient"
+    },
+    {
+     "Priority": 1,
+     "Work": "Doctor"
+    },
+    {
+     "Priority": 1,
+     "Work": "PatientBedRest"
+    },
+    {
+     "Priority": 3,
+     "Work": "BasicWorker"
+    },
+    {
+     "Work": "Warden"
+    },
+    {
+     "Priority": 2,
+     "Work": "Handling"
+    },
+    {
+     "Priority": 2,
+     "Work": "Cooking"
+    },
+    {
+     "Work": "Hunting"
+    },
+    {
+     "Priority": 2,
+     "Work": "Construction"
+    },
+    {
+     "Priority": 1,
+     "Work": "Growing"
+    },
+    {
+     "Priority": 2,
+     "Work": "Mining"
+    },
+    {
+     "Priority": 2,
+     "Work": "PlantCutting"
+    },
+    {
+     "Priority": 1,
+     "Work": "Smithing"
+    },
+    {
+     "Priority": 2,
+     "Work": "Tailoring"
+    },
+    {
+     "Priority": 1,
+     "Work": "Art"
+    },
+    {
+     "Priority": 2,
+     "Work": "Crafting"
+    },
+    {
+     "Priority": 3,
+     "Work": "Hauling"
+    },
+    {
+     "Priority": 3,
+     "Work": "Cleaning"
+    },
+    {
+     "Priority": 2,
+     "Work": "Research"
+    }
+   ]
+  }
+ },
+ {
+  "Age": {
+   "v": 66.3838119506836
+  },
+  "Applies": {
+   "v": true
+  },
+  "Available": {
+   "v": true
+  },
+  "DrugPolicyWritable": {
+   "v": true
+  },
+  "FoodRestriction": {
+   "v": {
+    "Allowed": [
+     "Agarilux",
+     "Ambrosia",
+     "Beer",
+     "Bryolux",
+     "Chocolate",
+     "Corpse_Alpaca",
+     "Corpse_Alphabeaver",
+     "Corpse_Bear_Grizzly",
+     "Corpse_Bear_Polar",
+     "Corpse_Bison",
+     "Corpse_Boomalope",
+     "Corpse_Boomrat",
+     "Corpse_Capybara",
+     "Corpse_Caribou",
+     "Corpse_Cassowary",
+     "Corpse_Cat",
+     "Corpse_Chicken",
+     "Corpse_Chinchilla",
+     "Corpse_Cobra",
+     "Corpse_Cougar",
+     "Corpse_Cow",
+     "Corpse_Deer",
+     "Corpse_Donkey",
+     "Corpse_Dromedary",
+     "Corpse_Duck",
+     "Corpse_Elephant",
+     "Corpse_Elk",
+     "Corpse_Emu",
+     "Corpse_Fox_Arctic",
+     "Corpse_Fox_Fennec",
+     "Corpse_Fox_Red",
+     "Corpse_Gazelle",
+     "Corpse_Goat",
+     "Corpse_Goose",
+     "Corpse_GuineaPig",
+     "Corpse_Hare",
+     "Corpse_Horse",
+     "Corpse_Human",
+     "Corpse_Husky",
+     "Corpse_Ibex",
+     "Corpse_Iguana",
+     "Corpse_LabradorRetriever",
+     "Corpse_Lynx",
+     "Corpse_Megascarab",
+     "Corpse_Megasloth",
+     "Corpse_Megaspider",
+     "Corpse_Monkey",
+     "Corpse_Muffalo",
+     "Corpse_Ostrich",
+     "Corpse_Panther",
+     "Corpse_Pig",
+     "Corpse_Raccoon",
+     "Corpse_Rat",
+     "Corpse_Rhinoceros",
+     "Corpse_Sheep",
+     "Corpse_Snowhare",
+     "Corpse_Spelopede",
+     "Corpse_Squirrel",
+     "Corpse_Thrumbo",
+     "Corpse_Tortoise",
+     "Corpse_Turkey",
+     "Corpse_Warg",
+     "Corpse_WildBoar",
+     "Corpse_Wolf_Arctic",
+     "Corpse_Wolf_Timber",
+     "Corpse_Yak",
+     "Corpse_YorkshireTerrier",
+     "EggCassowaryFertilized",
+     "EggCassowaryUnfertilized",
+     "EggChickenFertilized",
+     "EggChickenUnfertilized",
+     "EggCobraFertilized",
+     "EggCobraUnfertilized",
+     "EggDuckFertilized",
+     "EggDuckUnfertilized",
+     "EggEmuFertilized",
+     "EggEmuUnfertilized",
+     "EggGooseFertilized",
+     "EggGooseUnfertilized",
+     "EggIguanaFertilized",
+     "EggIguanaUnfertilized",
+     "EggOstrichFertilized",
+     "EggOstrichUnfertilized",
+     "EggTortoiseFertilized",
+     "EggTortoiseUnfertilized",
+     "EggTurkeyFertilized",
+     "EggTurkeyUnfertilized",
+     "Glowstool",
+     "Hay",
+     "InsectJelly",
+     "Kibble",
+     "MealFine",
+     "MealFine_Meat",
+     "MealFine_Veg",
+     "MealLavish",
+     "MealLavish_Meat",
+     "MealLavish_Veg",
+     "MealNutrientPaste",
+     "MealSimple",
+     "MealSurvivalPack",
+     "Meat_Alpaca",
+     "Meat_Alphabeaver",
+     "Meat_Bear_Grizzly",
+     "Meat_Bison",
+     "Meat_Boomalope",
+     "Meat_Boomrat",
+     "Meat_Capybara",
+     "Meat_Caribou",
+     "Meat_Cassowary",
+     "Meat_Cat",
+     "Meat_Chicken",
+     "Meat_Chinchilla",
+     "Meat_Cobra",
+     "Meat_Cougar",
+     "Meat_Cow",
+     "Meat_Deer",
+     "Meat_Donkey",
+     "Meat_Dromedary",
+     "Meat_Duck",
+     "Meat_Elephant",
+     "Meat_Elk",
+     "Meat_Fox_Fennec",
+     "Meat_Gazelle",
+     "Meat_Goat",
+     "Meat_GuineaPig",
+     "Meat_Hare",
+     "Meat_Horse",
+     "Meat_Human",
+     "Meat_Husky",
+     "Meat_Ibex",
+     "Meat_Iguana",
+     "Meat_LabradorRetriever",
+     "Meat_Lynx",
+     "Meat_Megasloth",
+     "Meat_Megaspider",
+     "Meat_Monkey",
+     "Meat_Muffalo",
+     "Meat_Panther",
+     "Meat_Pig",
+     "Meat_Raccoon",
+     "Meat_Rat",
+     "Meat_Rhinoceros",
+     "Meat_Sheep",
+     "Meat_Squirrel",
+     "Meat_Thrumbo",
+     "Meat_Tortoise",
+     "Meat_Turkey",
+     "Meat_Warg",
+     "Meat_Wolf_Timber",
+     "Meat_Yak",
+     "Meat_YorkshireTerrier",
+     "Milk",
+     "Pemmican",
+     "Plant_Agave",
+     "Plant_Alocasia",
+     "Plant_Ambrosia",
+     "Plant_Astragalus",
+     "Plant_Berry",
+     "Plant_Brambles",
+     "Plant_Bush",
+     "Plant_Chokevine",
+     "Plant_Clivia",
+     "Plant_Corn",
+     "Plant_Cotton",
+     "Plant_Dandelion",
+     "Plant_Daylily",
+     "Plant_Devilstrand",
+     "Plant_Grass",
+     "Plant_Haygrass",
+     "Plant_Healroot",
+     "Plant_HealrootWild",
+     "Plant_Hops",
+     "Plant_Moss",
+     "Plant_PincushionCactus",
+     "Plant_Potato",
+     "Plant_Psychoid",
+     "Plant_Rafflesia",
+     "Plant_Rice",
+     "Plant_Rose",
+     "Plant_SaguaroCactus",
+     "Plant_ShrubLow",
+     "Plant_Smokeleaf",
+     "Plant_Strawberry",
+     "Plant_TallGrass",
+     "Plant_Timbershroom",
+     "Plant_TreeBamboo",
+     "Plant_TreeBirch",
+     "Plant_TreeCecropia",
+     "Plant_TreeCocoa",
+     "Plant_TreeCypress",
+     "Plant_TreeDrago",
+     "Plant_TreeMaple",
+     "Plant_TreeOak",
+     "Plant_TreePalm",
+     "Plant_TreePine",
+     "Plant_TreePoplar",
+     "Plant_TreeTeak",
+     "Plant_TreeWillow",
+     "PsychoidLeaves",
+     "RawAgave",
+     "RawBerries",
+     "RawCorn",
+     "RawFungus",
+     "RawHops",
+     "RawPotatoes",
+     "RawRice",
+     "SmokeleafLeaves"
+    ],
+    "Eligible": [
+     "Chocolate",
+     "EggCassowaryFertilized",
+     "EggCassowaryUnfertilized",
+     "EggChickenFertilized",
+     "EggChickenUnfertilized",
+     "EggCobraFertilized",
+     "EggCobraUnfertilized",
+     "EggDuckFertilized",
+     "EggDuckUnfertilized",
+     "EggEmuFertilized",
+     "EggEmuUnfertilized",
+     "EggGooseFertilized",
+     "EggGooseUnfertilized",
+     "EggIguanaFertilized",
+     "EggIguanaUnfertilized",
+     "EggOstrichFertilized",
+     "EggOstrichUnfertilized",
+     "EggTortoiseFertilized",
+     "EggTortoiseUnfertilized",
+     "EggTurkeyFertilized",
+     "EggTurkeyUnfertilized",
+     "InsectJelly",
+     "MealFine",
+     "MealFine_Meat",
+     "MealFine_Veg",
+     "MealLavish",
+     "MealLavish_Meat",
+     "MealLavish_Veg",
+     "MealNutrientPaste",
+     "MealSimple",
+     "MealSurvivalPack",
+     "Meat_Alpaca",
+     "Meat_Alphabeaver",
+     "Meat_Bear_Grizzly",
+     "Meat_Bison",
+     "Meat_Boomalope",
+     "Meat_Boomrat",
+     "Meat_Capybara",
+     "Meat_Caribou",
+     "Meat_Cassowary",
+     "Meat_Cat",
+     "Meat_Chicken",
+     "Meat_Chinchilla",
+     "Meat_Cobra",
+     "Meat_Cougar",
+     "Meat_Cow",
+     "Meat_Deer",
+     "Meat_Donkey",
+     "Meat_Dromedary",
+     "Meat_Duck",
+     "Meat_Elephant",
+     "Meat_Elk",
+     "Meat_Fox_Fennec",
+     "Meat_Gazelle",
+     "Meat_Goat",
+     "Meat_GuineaPig",
+     "Meat_Hare",
+     "Meat_Horse",
+     "Meat_Husky",
+     "Meat_Ibex",
+     "Meat_Iguana",
+     "Meat_LabradorRetriever",
+     "Meat_Lynx",
+     "Meat_Megasloth",
+     "Meat_Megaspider",
+     "Meat_Monkey",
+     "Meat_Muffalo",
+     "Meat_Panther",
+     "Meat_Pig",
+     "Meat_Raccoon",
+     "Meat_Rat",
+     "Meat_Rhinoceros",
+     "Meat_Sheep",
+     "Meat_Squirrel",
+     "Meat_Thrumbo",
+     "Meat_Tortoise",
+     "Meat_Turkey",
+     "Meat_Warg",
+     "Meat_Wolf_Timber",
+     "Meat_Yak",
+     "Meat_YorkshireTerrier",
+     "Milk",
+     "Pemmican",
+     "RawAgave",
+     "RawBerries",
+     "RawCorn",
+     "RawFungus",
+     "RawPotatoes",
+     "RawRice"
+    ],
+    "PolicyID": "FoodPolicy_Lavish_1"
+   }
+  },
+  "ID": "Thing_Human82",
+  "Incapable": {
+   "v": [
+    "Doctor",
+    "Warden"
+   ]
+  },
+  "Job": {
+   "v": {
+    "Def": "GotoWander",
+    "Target": {
+     "v": {
+      "Cell": {
+       "v": {
+        "X": 89,
+        "Z": 99
+       }
+      }
+     }
+    }
+   }
+  },
+  "Manual": {
+   "v": true
+  },
+  "Ranged": {
+   "v": false
+  },
+  "Schedule": {
+   "v": [
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Sleep",
+    "Sleep"
+   ]
+  },
+  "Skills": {
+   "v": [
+    {
+     "Level": 4,
+     "Name": "Shooting",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Melee",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 8,
+     "Name": "Construction",
+     "Passion": "None",
+     "Stored": 8
+    },
+    {
+     "Level": 4,
+     "Name": "Mining",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Cooking",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Plants",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Animals",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Crafting",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Artistic",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Disabled": true,
+     "Name": "Medicine",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Disabled": true,
+     "Name": "Social",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Intellectual",
+     "Passion": "None",
+     "Stored": 4
+    }
+   ]
+  },
+  "SnapshotToken": {
+   "v": "drug-9898BDCC4527D75EED3EF95B0C1CB0C448E7442F6D1BDFBE573014672B4F3A12"
+  },
+  "Traits": {
+   "v": [
+    {
+     "Degree": 2,
+     "Name": "Industriousness"
+    }
+   ]
+  },
+  "Work": {
+   "v": [
+    {
+     "Priority": 1,
+     "Work": "Firefighter"
+    },
+    {
+     "Priority": 1,
+     "Work": "Patient"
+    },
+    {
+     "Disabled": true,
+     "Work": "Doctor"
+    },
+    {
+     "Priority": 1,
+     "Work": "PatientBedRest"
+    },
+    {
+     "Priority": 3,
+     "Work": "BasicWorker"
+    },
+    {
+     "Disabled": true,
+     "Work": "Warden"
+    },
+    {
+     "Priority": 1,
+     "Work": "Handling"
+    },
+    {
+     "Priority": 1,
+     "Work": "Cooking"
+    },
+    {
+     "Work": "Hunting"
+    },
+    {
+     "Priority": 1,
+     "Work": "Construction"
+    },
+    {
+     "Priority": 2,
+     "Work": "Growing"
+    },
+    {
+     "Priority": 2,
+     "Work": "Mining"
+    },
+    {
+     "Priority": 1,
+     "Work": "PlantCutting"
+    },
+    {
+     "Priority": 2,
+     "Work": "Smithing"
+    },
+    {
+     "Priority": 1,
+     "Work": "Tailoring"
+    },
+    {
+     "Priority": 2,
+     "Work": "Art"
+    },
+    {
+     "Priority": 1,
+     "Work": "Crafting"
+    },
+    {
+     "Priority": 3,
+     "Work": "Hauling"
+    },
+    {
+     "Priority": 3,
+     "Work": "Cleaning"
+    },
+    {
+     "Priority": 2,
+     "Work": "Research"
+    }
+   ]
+  }
+ },
+ {
+  "Age": {
+   "v": 27.64729118347168
+  },
+  "Applies": {
+   "v": true
+  },
+  "Available": {
+   "v": true
+  },
+  "DrugPolicyWritable": {
+   "v": true
+  },
+  "FoodRestriction": {
+   "v": {
+    "Allowed": [
+     "Agarilux",
+     "Ambrosia",
+     "Beer",
+     "Bryolux",
+     "Chocolate",
+     "Corpse_Alpaca",
+     "Corpse_Alphabeaver",
+     "Corpse_Bear_Grizzly",
+     "Corpse_Bear_Polar",
+     "Corpse_Bison",
+     "Corpse_Boomalope",
+     "Corpse_Boomrat",
+     "Corpse_Capybara",
+     "Corpse_Caribou",
+     "Corpse_Cassowary",
+     "Corpse_Cat",
+     "Corpse_Chicken",
+     "Corpse_Chinchilla",
+     "Corpse_Cobra",
+     "Corpse_Cougar",
+     "Corpse_Cow",
+     "Corpse_Deer",
+     "Corpse_Donkey",
+     "Corpse_Dromedary",
+     "Corpse_Duck",
+     "Corpse_Elephant",
+     "Corpse_Elk",
+     "Corpse_Emu",
+     "Corpse_Fox_Arctic",
+     "Corpse_Fox_Fennec",
+     "Corpse_Fox_Red",
+     "Corpse_Gazelle",
+     "Corpse_Goat",
+     "Corpse_Goose",
+     "Corpse_GuineaPig",
+     "Corpse_Hare",
+     "Corpse_Horse",
+     "Corpse_Human",
+     "Corpse_Husky",
+     "Corpse_Ibex",
+     "Corpse_Iguana",
+     "Corpse_LabradorRetriever",
+     "Corpse_Lynx",
+     "Corpse_Megascarab",
+     "Corpse_Megasloth",
+     "Corpse_Megaspider",
+     "Corpse_Monkey",
+     "Corpse_Muffalo",
+     "Corpse_Ostrich",
+     "Corpse_Panther",
+     "Corpse_Pig",
+     "Corpse_Raccoon",
+     "Corpse_Rat",
+     "Corpse_Rhinoceros",
+     "Corpse_Sheep",
+     "Corpse_Snowhare",
+     "Corpse_Spelopede",
+     "Corpse_Squirrel",
+     "Corpse_Thrumbo",
+     "Corpse_Tortoise",
+     "Corpse_Turkey",
+     "Corpse_Warg",
+     "Corpse_WildBoar",
+     "Corpse_Wolf_Arctic",
+     "Corpse_Wolf_Timber",
+     "Corpse_Yak",
+     "Corpse_YorkshireTerrier",
+     "EggCassowaryFertilized",
+     "EggCassowaryUnfertilized",
+     "EggChickenFertilized",
+     "EggChickenUnfertilized",
+     "EggCobraFertilized",
+     "EggCobraUnfertilized",
+     "EggDuckFertilized",
+     "EggDuckUnfertilized",
+     "EggEmuFertilized",
+     "EggEmuUnfertilized",
+     "EggGooseFertilized",
+     "EggGooseUnfertilized",
+     "EggIguanaFertilized",
+     "EggIguanaUnfertilized",
+     "EggOstrichFertilized",
+     "EggOstrichUnfertilized",
+     "EggTortoiseFertilized",
+     "EggTortoiseUnfertilized",
+     "EggTurkeyFertilized",
+     "EggTurkeyUnfertilized",
+     "Glowstool",
+     "Hay",
+     "InsectJelly",
+     "Kibble",
+     "MealFine",
+     "MealFine_Meat",
+     "MealFine_Veg",
+     "MealLavish",
+     "MealLavish_Meat",
+     "MealLavish_Veg",
+     "MealNutrientPaste",
+     "MealSimple",
+     "MealSurvivalPack",
+     "Meat_Alpaca",
+     "Meat_Alphabeaver",
+     "Meat_Bear_Grizzly",
+     "Meat_Bison",
+     "Meat_Boomalope",
+     "Meat_Boomrat",
+     "Meat_Capybara",
+     "Meat_Caribou",
+     "Meat_Cassowary",
+     "Meat_Cat",
+     "Meat_Chicken",
+     "Meat_Chinchilla",
+     "Meat_Cobra",
+     "Meat_Cougar",
+     "Meat_Cow",
+     "Meat_Deer",
+     "Meat_Donkey",
+     "Meat_Dromedary",
+     "Meat_Duck",
+     "Meat_Elephant",
+     "Meat_Elk",
+     "Meat_Fox_Fennec",
+     "Meat_Gazelle",
+     "Meat_Goat",
+     "Meat_GuineaPig",
+     "Meat_Hare",
+     "Meat_Horse",
+     "Meat_Human",
+     "Meat_Husky",
+     "Meat_Ibex",
+     "Meat_Iguana",
+     "Meat_LabradorRetriever",
+     "Meat_Lynx",
+     "Meat_Megasloth",
+     "Meat_Megaspider",
+     "Meat_Monkey",
+     "Meat_Muffalo",
+     "Meat_Panther",
+     "Meat_Pig",
+     "Meat_Raccoon",
+     "Meat_Rat",
+     "Meat_Rhinoceros",
+     "Meat_Sheep",
+     "Meat_Squirrel",
+     "Meat_Thrumbo",
+     "Meat_Tortoise",
+     "Meat_Turkey",
+     "Meat_Warg",
+     "Meat_Wolf_Timber",
+     "Meat_Yak",
+     "Meat_YorkshireTerrier",
+     "Milk",
+     "Pemmican",
+     "Plant_Agave",
+     "Plant_Alocasia",
+     "Plant_Ambrosia",
+     "Plant_Astragalus",
+     "Plant_Berry",
+     "Plant_Brambles",
+     "Plant_Bush",
+     "Plant_Chokevine",
+     "Plant_Clivia",
+     "Plant_Corn",
+     "Plant_Cotton",
+     "Plant_Dandelion",
+     "Plant_Daylily",
+     "Plant_Devilstrand",
+     "Plant_Grass",
+     "Plant_Haygrass",
+     "Plant_Healroot",
+     "Plant_HealrootWild",
+     "Plant_Hops",
+     "Plant_Moss",
+     "Plant_PincushionCactus",
+     "Plant_Potato",
+     "Plant_Psychoid",
+     "Plant_Rafflesia",
+     "Plant_Rice",
+     "Plant_Rose",
+     "Plant_SaguaroCactus",
+     "Plant_ShrubLow",
+     "Plant_Smokeleaf",
+     "Plant_Strawberry",
+     "Plant_TallGrass",
+     "Plant_Timbershroom",
+     "Plant_TreeBamboo",
+     "Plant_TreeBirch",
+     "Plant_TreeCecropia",
+     "Plant_TreeCocoa",
+     "Plant_TreeCypress",
+     "Plant_TreeDrago",
+     "Plant_TreeMaple",
+     "Plant_TreeOak",
+     "Plant_TreePalm",
+     "Plant_TreePine",
+     "Plant_TreePoplar",
+     "Plant_TreeTeak",
+     "Plant_TreeWillow",
+     "PsychoidLeaves",
+     "RawAgave",
+     "RawBerries",
+     "RawCorn",
+     "RawFungus",
+     "RawHops",
+     "RawPotatoes",
+     "RawRice",
+     "SmokeleafLeaves"
+    ],
+    "Eligible": [
+     "Chocolate",
+     "EggCassowaryFertilized",
+     "EggCassowaryUnfertilized",
+     "EggChickenFertilized",
+     "EggChickenUnfertilized",
+     "EggCobraFertilized",
+     "EggCobraUnfertilized",
+     "EggDuckFertilized",
+     "EggDuckUnfertilized",
+     "EggEmuFertilized",
+     "EggEmuUnfertilized",
+     "EggGooseFertilized",
+     "EggGooseUnfertilized",
+     "EggIguanaFertilized",
+     "EggIguanaUnfertilized",
+     "EggOstrichFertilized",
+     "EggOstrichUnfertilized",
+     "EggTortoiseFertilized",
+     "EggTortoiseUnfertilized",
+     "EggTurkeyFertilized",
+     "EggTurkeyUnfertilized",
+     "InsectJelly",
+     "MealFine",
+     "MealFine_Meat",
+     "MealFine_Veg",
+     "MealLavish",
+     "MealLavish_Meat",
+     "MealLavish_Veg",
+     "MealNutrientPaste",
+     "MealSimple",
+     "MealSurvivalPack",
+     "Meat_Alpaca",
+     "Meat_Alphabeaver",
+     "Meat_Bear_Grizzly",
+     "Meat_Bison",
+     "Meat_Boomalope",
+     "Meat_Boomrat",
+     "Meat_Capybara",
+     "Meat_Caribou",
+     "Meat_Cassowary",
+     "Meat_Cat",
+     "Meat_Chicken",
+     "Meat_Chinchilla",
+     "Meat_Cobra",
+     "Meat_Cougar",
+     "Meat_Cow",
+     "Meat_Deer",
+     "Meat_Donkey",
+     "Meat_Dromedary",
+     "Meat_Duck",
+     "Meat_Elephant",
+     "Meat_Elk",
+     "Meat_Fox_Fennec",
+     "Meat_Gazelle",
+     "Meat_Goat",
+     "Meat_GuineaPig",
+     "Meat_Hare",
+     "Meat_Horse",
+     "Meat_Husky",
+     "Meat_Ibex",
+     "Meat_Iguana",
+     "Meat_LabradorRetriever",
+     "Meat_Lynx",
+     "Meat_Megasloth",
+     "Meat_Megaspider",
+     "Meat_Monkey",
+     "Meat_Muffalo",
+     "Meat_Panther",
+     "Meat_Pig",
+     "Meat_Raccoon",
+     "Meat_Rat",
+     "Meat_Rhinoceros",
+     "Meat_Sheep",
+     "Meat_Squirrel",
+     "Meat_Thrumbo",
+     "Meat_Tortoise",
+     "Meat_Turkey",
+     "Meat_Warg",
+     "Meat_Wolf_Timber",
+     "Meat_Yak",
+     "Meat_YorkshireTerrier",
+     "Milk",
+     "Pemmican",
+     "RawAgave",
+     "RawBerries",
+     "RawCorn",
+     "RawFungus",
+     "RawPotatoes",
+     "RawRice"
+    ],
+    "PolicyID": "FoodPolicy_Lavish_1"
+   }
+  },
+  "ID": "Thing_Human85",
+  "Incapable": {
+   "v": [
+    "Handling",
+    "Smithing",
+    "Tailoring",
+    "Art",
+    "Crafting"
+   ]
+  },
+  "Job": {
+   "v": {
+    "Def": "GotoWander",
+    "Target": {
+     "v": {
+      "Cell": {
+       "v": {
+        "X": 91,
+        "Z": 98
+       }
+      }
+     }
+    }
+   }
+  },
+  "Manual": {
+   "v": true
+  },
+  "Ranged": {
+   "v": false
+  },
+  "Schedule": {
+   "v": [
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Sleep",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Anything",
+    "Sleep",
+    "Sleep"
+   ]
+  },
+  "Skills": {
+   "v": [
+    {
+     "Level": 4,
+     "Name": "Shooting",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Melee",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 8,
+     "Name": "Construction",
+     "Passion": "None",
+     "Stored": 8
+    },
+    {
+     "Level": 4,
+     "Name": "Mining",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Cooking",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Plants",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Animals",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Disabled": true,
+     "Name": "Crafting",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Disabled": true,
+     "Name": "Artistic",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Medicine",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Social",
+     "Passion": "None",
+     "Stored": 4
+    },
+    {
+     "Level": 4,
+     "Name": "Intellectual",
+     "Passion": "None",
+     "Stored": 4
+    }
+   ]
+  },
+  "SnapshotToken": {
+   "v": "drug-356518210F0A4FB1AC88E990207A5BBE1427A38B1AF1537AF88C96C64F616C5C"
+  },
+  "Traits": {
+   "v": []
+  },
+  "Work": {
+   "v": [
+    {
+     "Priority": 1,
+     "Work": "Firefighter"
+    },
+    {
+     "Priority": 1,
+     "Work": "Patient"
+    },
+    {
+     "Priority": 2,
+     "Work": "Doctor"
+    },
+    {
+     "Priority": 1,
+     "Work": "PatientBedRest"
+    },
+    {
+     "Priority": 3,
+     "Work": "BasicWorker"
+    },
+    {
+     "Priority": 1,
+     "Work": "Warden"
+    },
+    {
+     "Disabled": true,
+     "Work": "Handling"
+    },
+    {
+     "Priority": 2,
+     "Work": "Cooking"
+    },
+    {
+     "Work": "Hunting"
+    },
+    {
+     "Priority": 2,
+     "Work": "Construction"
+    },
+    {
+     "Priority": 2,
+     "Work": "Growing"
+    },
+    {
+     "Priority": 1,
+     "Work": "Mining"
+    },
+    {
+     "Priority": 2,
+     "Work": "PlantCutting"
+    },
+    {
+     "Disabled": true,
+     "Work": "Smithing"
+    },
+    {
+     "Disabled": true,
+     "Work": "Tailoring"
+    },
+    {
+     "Disabled": true,
+     "Work": "Art"
+    },
+    {
+     "Disabled": true,
+     "Work": "Crafting"
+    },
+    {
+     "Priority": 4,
+     "Work": "Hauling"
+    },
+    {
+     "Priority": 4,
+     "Work": "Cleaning"
+    },
+    {
+     "Priority": 1,
+     "Work": "Research"
+    }
+   ]
+  }
+ }
+]

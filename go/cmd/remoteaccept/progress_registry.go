@@ -23,7 +23,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/farm"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/floor"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/food"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/gear"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/hazard"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/husbandry"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lab"
@@ -66,6 +65,5 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/video"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/wall"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/waste"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/workers"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/zone"
 )

@@ -29,10 +29,6 @@ import (
 
 const sessionOwner = "native-wall-removal-acceptance"
 
-// baselineSave is the committed save the lighting fixture builds its
-// colonist walls on (profile/Saves/<name>.rws).
-const baselineSave = "RimGovernor-tribal8-baseline"
-
 type site struct {
 	wall, stuff string
 	x, z        float64

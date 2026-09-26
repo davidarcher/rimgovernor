@@ -1,0 +1,321 @@
+{
+ "OK": true,
+ "Patient": "Thing_Human728",
+ "Patients": [
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "Wait_Wander"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human724"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "Clean"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human726"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": true
+   },
+   "ExistingJobDef": {
+    "v": "Wait_Downed"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human728"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human730"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human735"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human737"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human743"
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "InBed": {
+    "v": false
+   },
+   "Pawn": "Thing_Human745"
+  }
+ ],
+ "Rescuer": "Thing_Human724",
+ "Rescuers": [
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "Wait_Wander"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human724",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "Clean"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human726",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": true
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "Wait_Downed"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human728",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human730",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human735",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human737",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human743",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  },
+  {
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "ExistingJobDef": {
+    "v": "FleeAndCower"
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human745",
+   "PlayerForced": {
+    "v": false
+   },
+   "QueuedJobs": {
+    "v": 0
+   }
+  }
+ ]
+}

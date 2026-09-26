@@ -585,7 +585,8 @@ thoughts dominate a pawn's pressure the review records the upkeep goals whose
 facilities remove them, raises those goals' development deficits and proposes
 `facility_provision` instead of relief
 ([mood-control](../docs/developers/contracts/mood-control.md#facility-provisioning)).
-Targeted acceptance is `acceptance run mood/provision` (`MoodFixture`).
+The provisioning decision replays over a pawn recorded from the native
+fixture in `internal/policy/mood_snapshot_test.go`.
 
 Routine disaster history joins native environmental conditions and exact building
 service needs to the shared survival gates. It retains damaged identities, records

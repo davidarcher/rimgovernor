@@ -30,6 +30,8 @@ pawn's current policy with the role's specification and raises an
 
 `production/apparel-policy` is a short native smoke case for create/update/assign,
 stale CAS refusal, manual-policy override and clearing forced/locked apparel.
-`gear/tainted` (#468) is the area case: a tainted parka beside a clean one,
-nobody wears it and every colonist ends on a role policy, the worker policy
-among them. See [equipment upkeep](equipment-upkeep.md#acceptance).
+The tainted-apparel decision (#468) replays from colony snapshots in
+`go/internal/policy/gear_snapshot_test.go`: with a tainted parka beside a
+clean one, every colonist on Anything is moved to the RimGovernor worker
+policy, and once on it the tainted parka is no longer offered or ordered.
+See [equipment upkeep](equipment-upkeep.md#acceptance).

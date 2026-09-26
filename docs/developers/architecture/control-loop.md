@@ -174,8 +174,11 @@ Auto also adopts and releases an idle, unclaimed standing draft when the complet
 squad census has no threat and no open draft plan wants that colonist. The
 RestoreWorkers method uses the ordinary draft CAS and ownership lifecycle;
 existing claims and uncertain attempts retain their normal reconciliation.
-The native cases `draft/idle` and `draft/idle-hostile` cover the peaceful and
-threatened Manual-to-Auto transitions.
+`TestIdleDraftObservationGuards` (buildingruntime) covers the candidate
+guards and admission; the colony snapshots in `internal/snapshot`
+(`draft_idle_test.go`, recorded from the former `draft/idle` and
+`draft/idle-hostile` cases) replay the peaceful RestoreWorkers and the
+threatened ActiveCombat review.
 
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
@@ -193,26 +196,25 @@ resume (#228).
 
 ## Auto takeover acceptance
 
-The `takeover/*` cases enter Manual, apply a player edit, return to Auto and
-assert native readback. `takeover/schedule` restores the planned timetable;
-`takeover/draft` adopts and releases a standing player draft;
-`takeover/built-facility` maintains Home for a player-built bed without build
-history; `takeover/suspended-bill` corrects a player bill and observes produced
-feed; `takeover/demolition-designation` explicitly adopts a colony wall's order
-and observes pawn demolition; `takeover/home-removal` restores removed Home.
+A player's Manual edit is an ordinary deficit to Auto, never a provenance
+hold. Recorded colony snapshots (`internal/snapshot`, taken from the retired
+`takeover/*` cases, #748) replay the review over each staged edit: an edited
+timetable or a restrictive saved diet reads as a work deficit
+(`EnsureWorkAssignments`), a removed Home cell opens `MaintainHomeCoverage`,
+saved allowed-area restrictions are cleared, a suspended feed bill and standing
+release/slaughter flags open their upkeep goals. `takeover/draft` still adopts
+and releases a standing player draft natively.
 Resource and animal-feed production replace an inactive bill for the selected
 recipe using its native identity and the current bench snapshot. An active bill
 continues to suppress duplicate production; unrelated recipes remain unchanged.
-`takeover/food-policy` repairs a restrictive saved diet through the pawn-settings
-CAS, verifies actual eating and nutrition recovery after repeated edits, and
-checks that the assigned policy survives save/load. The planner restores missing
-natively eligible definitions while retaining ingredient filters and condition
-ranges; it never changes a shared diet in place or forces a pawn to eat.
-Service cases audit the durable routine journal for provenance holds; direct
-operation cases recover their applied receipt from the native attempt journal.
+The diet planner restores missing natively eligible definitions while retaining
+ingredient filters and condition ranges; it never changes a shared diet in place
+or forces a pawn to eat.
 `draft/order` retains stale-snapshot and exact-claim checks alongside adoption;
 `upkeep/home-coverage` checks connected Home restoration and save recovery.
-`takeover/herd-removal` cancels obsolete standing release/slaughter designations through shared Hands, resumes training without replacement taming, and checks restart and save/load readback. Destructive orders still require explicit opt-ins and native eligibility. A standing demolition order is neither a hold nor a ledger entry: an explicit
+Obsolete standing release/slaughter designations are cancelled through shared
+Hands. Destructive orders still require explicit opt-ins and native eligibility.
+A standing demolition order is neither a hold nor a ledger entry: an explicit
 removal adopts it, and a designation alone does not create a controller plan need.
 
 ## Verify progress

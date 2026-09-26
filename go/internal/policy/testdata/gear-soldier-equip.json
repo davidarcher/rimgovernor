@@ -1,0 +1,1007 @@
+{
+ "Assignments": [
+  {
+   "Pawn": "Thing_Human730",
+   "Score": 6.4416,
+   "Weapon": {
+    "Cell": {
+     "X": 128,
+     "Z": 135
+    },
+    "Class": 2,
+    "Definition": "Gun_PumpShotgun",
+    "Thing": "Thing_Gun_PumpShotgun44757"
+   }
+  },
+  {
+   "Pawn": "Thing_Human745",
+   "Score": 3.5102414499999997,
+   "Weapon": {
+    "Cell": {
+     "X": 115,
+     "Z": 140
+    },
+    "Class": 2,
+    "Definition": "Gun_BoltActionRifle",
+    "Thing": "Thing_Gun_BoltActionRifle44756"
+   }
+  },
+  {
+   "Pawn": "Thing_Human735",
+   "Score": 0.24499999999999997,
+   "Weapon": {
+    "Cell": {
+     "X": 127,
+     "Z": 132
+    },
+    "Definition": "WoodLog",
+    "Thing": "Thing_WoodLog44755"
+   }
+  },
+  {
+   "Pawn": "Thing_Human728",
+   "Score": 0.22749999999999998,
+   "Weapon": {
+    "Cell": {
+     "X": 125,
+     "Z": 136
+    },
+    "Definition": "WoodLog",
+    "Thing": "Thing_WoodLog44754"
+   }
+  },
+  {
+   "Pawn": "Thing_Human743",
+   "Score": 0.22749999999999998,
+   "Weapon": {
+    "Cell": {
+     "X": 127,
+     "Z": 136
+    },
+    "Definition": "WoodLog",
+    "Thing": "Thing_WoodLog44753"
+   }
+  }
+ ],
+ "Pawns": [
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": true
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human724",
+   "Position": {
+    "X": 115,
+    "Z": 130
+   },
+   "Profile": {
+    "Age": 34.93784713745117,
+    "Effects": {
+     "MoveSpeed": 0.4,
+     "Sociable": 1
+    },
+    "ID": "Thing_Human724",
+    "Incapable": {},
+    "Skills": {
+     "Animals": {
+      "Level": 3,
+      "Name": "Animals",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Artistic": {
+      "Level": 2,
+      "Name": "Artistic",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Construction": {
+      "Level": 4,
+      "Name": "Construction",
+      "Passion": "Minor",
+      "Stored": 4
+     },
+     "Cooking": {
+      "Name": "Cooking",
+      "Passion": "None"
+     },
+     "Crafting": {
+      "Level": 10,
+      "Name": "Crafting",
+      "Passion": "None",
+      "Stored": 10
+     },
+     "Intellectual": {
+      "Name": "Intellectual",
+      "Passion": "None"
+     },
+     "Medicine": {
+      "Name": "Medicine",
+      "Passion": "None"
+     },
+     "Melee": {
+      "Level": 5,
+      "Name": "Melee",
+      "Passion": "Minor",
+      "Stored": 5
+     },
+     "Mining": {
+      "Level": 4,
+      "Name": "Mining",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Plants": {
+      "Level": 2,
+      "Name": "Plants",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Shooting": {
+      "Level": 12,
+      "Name": "Shooting",
+      "Passion": "Major",
+      "Stored": 12
+     },
+     "Social": {
+      "Level": 6,
+      "Name": "Social",
+      "Passion": "Major",
+      "Stored": 6
+     }
+    },
+    "Traits": [
+     {
+      "Degree": 2,
+      "Name": "SpeedOffset"
+     },
+     {
+      "Name": "Kind"
+     },
+     {
+      "Degree": 1,
+      "Name": "NaturalMood"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": true
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human726",
+   "Position": {
+    "X": 122,
+    "Z": 130
+   },
+   "Profile": {
+    "Age": 48.510528564453125,
+    "Effects": {
+     "Execution": true
+    },
+    "ID": "Thing_Human726",
+    "Incapable": {},
+    "Skills": {
+     "Animals": {
+      "Level": 5,
+      "Name": "Animals",
+      "Passion": "Minor",
+      "Stored": 5
+     },
+     "Artistic": {
+      "Level": 11,
+      "Name": "Artistic",
+      "Passion": "Major",
+      "Stored": 11
+     },
+     "Construction": {
+      "Level": 1,
+      "Name": "Construction",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Cooking": {
+      "Name": "Cooking",
+      "Passion": "None"
+     },
+     "Crafting": {
+      "Level": 10,
+      "Name": "Crafting",
+      "Passion": "None",
+      "Stored": 10
+     },
+     "Intellectual": {
+      "Name": "Intellectual",
+      "Passion": "None"
+     },
+     "Medicine": {
+      "Name": "Medicine",
+      "Passion": "None"
+     },
+     "Melee": {
+      "Level": 5,
+      "Name": "Melee",
+      "Passion": "Major",
+      "Stored": 5
+     },
+     "Mining": {
+      "Name": "Mining",
+      "Passion": "None"
+     },
+     "Plants": {
+      "Level": 5,
+      "Name": "Plants",
+      "Passion": "Major",
+      "Stored": 5
+     },
+     "Shooting": {
+      "Level": 8,
+      "Name": "Shooting",
+      "Passion": "None",
+      "Stored": 8
+     },
+     "Social": {
+      "Name": "Social",
+      "Passion": "None"
+     }
+    },
+    "Traits": [
+     {
+      "Name": "Bloodlust"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human728",
+   "Position": {
+    "X": 119,
+    "Z": 130
+   },
+   "Profile": {
+    "Age": 23.603675842285156,
+    "Effects": {
+     "WorkSpeed": 0.2
+    },
+    "ID": "Thing_Human728",
+    "Incapable": {},
+    "Skills": {
+     "Animals": {
+      "Level": 1,
+      "Name": "Animals",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Artistic": {
+      "Name": "Artistic",
+      "Passion": "None"
+     },
+     "Construction": {
+      "Level": 3,
+      "Name": "Construction",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Cooking": {
+      "Level": 1,
+      "Name": "Cooking",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Crafting": {
+      "Level": 7,
+      "Name": "Crafting",
+      "Passion": "Minor",
+      "Stored": 7
+     },
+     "Intellectual": {
+      "Name": "Intellectual",
+      "Passion": "None"
+     },
+     "Medicine": {
+      "Level": 10,
+      "Name": "Medicine",
+      "Passion": "Major",
+      "Stored": 10
+     },
+     "Melee": {
+      "Level": 6,
+      "Name": "Melee",
+      "Passion": "Minor",
+      "Stored": 6
+     },
+     "Mining": {
+      "Name": "Mining",
+      "Passion": "None"
+     },
+     "Plants": {
+      "Level": 7,
+      "Name": "Plants",
+      "Passion": "Minor",
+      "Stored": 7
+     },
+     "Shooting": {
+      "Level": 2,
+      "Name": "Shooting",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Social": {
+      "Level": 1,
+      "Name": "Social",
+      "Passion": "None",
+      "Stored": 1
+     }
+    },
+    "Traits": [
+     {
+      "Degree": 1,
+      "Name": "Neurotic"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human730",
+   "Position": {
+    "X": 123,
+    "Z": 125
+   },
+   "Profile": {
+    "Age": 31.84942626953125,
+    "Effects": {
+     "MoveSpeed": 0.4
+    },
+    "ID": "Thing_Human730",
+    "Incapable": {
+     "Doctor": true
+    },
+    "Skills": {
+     "Animals": {
+      "Level": 7,
+      "Name": "Animals",
+      "Passion": "Minor",
+      "Stored": 7
+     },
+     "Artistic": {
+      "Level": 3,
+      "Name": "Artistic",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Construction": {
+      "Level": 2,
+      "Name": "Construction",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Cooking": {
+      "Name": "Cooking",
+      "Passion": "None"
+     },
+     "Crafting": {
+      "Level": 4,
+      "Name": "Crafting",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Intellectual": {
+      "Level": 5,
+      "Name": "Intellectual",
+      "Passion": "None",
+      "Stored": 5
+     },
+     "Medicine": {
+      "Disabled": true,
+      "Name": "Medicine",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Melee": {
+      "Level": 6,
+      "Name": "Melee",
+      "Passion": "Minor",
+      "Stored": 6
+     },
+     "Mining": {
+      "Level": 3,
+      "Name": "Mining",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Plants": {
+      "Level": 1,
+      "Name": "Plants",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Shooting": {
+      "Level": 8,
+      "Name": "Shooting",
+      "Passion": "Major",
+      "Stored": 8
+     },
+     "Social": {
+      "Level": 6,
+      "Name": "Social",
+      "Passion": "None",
+      "Stored": 6
+     }
+    },
+    "Traits": [
+     {
+      "Degree": 2,
+      "Name": "SpeedOffset"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human735",
+   "Position": {
+    "X": 122,
+    "Z": 126
+   },
+   "Profile": {
+    "Age": 45.09889602661133,
+    "ID": "Thing_Human735",
+    "Incapable": {
+     "Cleaning": true,
+     "Hauling": true,
+     "Warden": true
+    },
+    "Skills": {
+     "Animals": {
+      "Level": 12,
+      "Name": "Animals",
+      "Passion": "Minor",
+      "Stored": 12
+     },
+     "Artistic": {
+      "Level": 1,
+      "Name": "Artistic",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Construction": {
+      "Level": 5,
+      "Name": "Construction",
+      "Passion": "None",
+      "Stored": 5
+     },
+     "Cooking": {
+      "Level": 1,
+      "Name": "Cooking",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Crafting": {
+      "Name": "Crafting",
+      "Passion": "None"
+     },
+     "Intellectual": {
+      "Level": 9,
+      "Name": "Intellectual",
+      "Passion": "Minor",
+      "Stored": 9
+     },
+     "Medicine": {
+      "Level": 3,
+      "Name": "Medicine",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Melee": {
+      "Level": 8,
+      "Name": "Melee",
+      "Passion": "None",
+      "Stored": 8
+     },
+     "Mining": {
+      "Level": 6,
+      "Name": "Mining",
+      "Passion": "None",
+      "Stored": 6
+     },
+     "Plants": {
+      "Level": 9,
+      "Name": "Plants",
+      "Passion": "Minor",
+      "Stored": 9
+     },
+     "Shooting": {
+      "Level": 5,
+      "Name": "Shooting",
+      "Passion": "None",
+      "Stored": 5
+     },
+     "Social": {
+      "Disabled": true,
+      "Name": "Social",
+      "Passion": "None",
+      "Stored": 2
+     }
+    },
+    "Traits": [
+     {
+      "Name": "CreepyBreathing"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": true
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human737",
+   "Position": {
+    "X": 116,
+    "Z": 135
+   },
+   "Profile": {
+    "Age": 52.09440994262695,
+    "Effects": {
+     "Greedy": true
+    },
+    "ID": "Thing_Human737",
+    "Incapable": {},
+    "Skills": {
+     "Animals": {
+      "Level": 4,
+      "Name": "Animals",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Artistic": {
+      "Level": 17,
+      "Name": "Artistic",
+      "Passion": "Major",
+      "Stored": 17
+     },
+     "Construction": {
+      "Name": "Construction",
+      "Passion": "None"
+     },
+     "Cooking": {
+      "Level": 4,
+      "Name": "Cooking",
+      "Passion": "Minor",
+      "Stored": 4
+     },
+     "Crafting": {
+      "Level": 6,
+      "Name": "Crafting",
+      "Passion": "Major",
+      "Stored": 6
+     },
+     "Intellectual": {
+      "Level": 2,
+      "Name": "Intellectual",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Medicine": {
+      "Level": 2,
+      "Name": "Medicine",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Melee": {
+      "Level": 3,
+      "Name": "Melee",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Mining": {
+      "Name": "Mining",
+      "Passion": "None"
+     },
+     "Plants": {
+      "Level": 1,
+      "Name": "Plants",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Shooting": {
+      "Level": 5,
+      "Name": "Shooting",
+      "Passion": "Minor",
+      "Stored": 5
+     },
+     "Social": {
+      "Level": 2,
+      "Name": "Social",
+      "Passion": "None",
+      "Stored": 2
+     }
+    },
+    "Traits": [
+     {
+      "Name": "Greedy"
+     },
+     {
+      "Name": "DislikesMen"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human743",
+   "Position": {
+    "X": 112,
+    "Z": 140
+   },
+   "Profile": {
+    "Age": 38.71051025390625,
+    "Effects": {
+     "GreatMemory": true,
+     "MoveSpeed": 0.4,
+     "NoFirefighting": true,
+     "Pyromaniac": true
+    },
+    "ID": "Thing_Human743",
+    "Incapable": {
+     "Art": true,
+     "Cleaning": true,
+     "Doctor": true,
+     "Firefighter": true
+    },
+    "Skills": {
+     "Animals": {
+      "Level": 4,
+      "Name": "Animals",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Artistic": {
+      "Disabled": true,
+      "Name": "Artistic",
+      "Passion": "None"
+     },
+     "Construction": {
+      "Level": 3,
+      "Name": "Construction",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Cooking": {
+      "Name": "Cooking",
+      "Passion": "None"
+     },
+     "Crafting": {
+      "Level": 11,
+      "Name": "Crafting",
+      "Passion": "Major",
+      "Stored": 11
+     },
+     "Intellectual": {
+      "Level": 2,
+      "Name": "Intellectual",
+      "Passion": "None",
+      "Stored": 2
+     },
+     "Medicine": {
+      "Disabled": true,
+      "Name": "Medicine",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Melee": {
+      "Level": 6,
+      "Name": "Melee",
+      "Passion": "Major",
+      "Stored": 6
+     },
+     "Mining": {
+      "Level": 1,
+      "Name": "Mining",
+      "Passion": "None",
+      "Stored": 1
+     },
+     "Plants": {
+      "Level": 4,
+      "Name": "Plants",
+      "Passion": "Minor",
+      "Stored": 4
+     },
+     "Shooting": {
+      "Level": 4,
+      "Name": "Shooting",
+      "Passion": "Major",
+      "Stored": 4
+     },
+     "Social": {
+      "Name": "Social",
+      "Passion": "None"
+     }
+    },
+    "Traits": [
+     {
+      "Degree": 2,
+      "Name": "SpeedOffset"
+     },
+     {
+      "Name": "GreatMemory"
+     },
+     {
+      "Name": "Pyromaniac"
+     }
+    ]
+   }
+  },
+  {
+   "Armed": {
+    "v": false
+   },
+   "Dead": {
+    "v": false
+   },
+   "Downed": {
+    "v": false
+   },
+   "Drafted": {
+    "v": false
+   },
+   "IncapableOfViolence": {
+    "v": false
+   },
+   "MentalState": {
+    "v": false
+   },
+   "Pawn": "Thing_Human745",
+   "Position": {
+    "X": 129,
+    "Z": 135
+   },
+   "Profile": {
+    "Age": 62.12192916870117,
+    "Effects": {
+     "Nudist": true
+    },
+    "ID": "Thing_Human745",
+    "Incapable": {},
+    "Skills": {
+     "Animals": {
+      "Level": 12,
+      "Name": "Animals",
+      "Passion": "Major",
+      "Stored": 12
+     },
+     "Artistic": {
+      "Level": 4,
+      "Name": "Artistic",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Construction": {
+      "Level": 3,
+      "Name": "Construction",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Cooking": {
+      "Level": 3,
+      "Name": "Cooking",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Crafting": {
+      "Level": 4,
+      "Name": "Crafting",
+      "Passion": "None",
+      "Stored": 4
+     },
+     "Intellectual": {
+      "Level": 7,
+      "Name": "Intellectual",
+      "Passion": "Minor",
+      "Stored": 7
+     },
+     "Medicine": {
+      "Name": "Medicine",
+      "Passion": "None"
+     },
+     "Melee": {
+      "Level": 7,
+      "Name": "Melee",
+      "Passion": "Minor",
+      "Stored": 7
+     },
+     "Mining": {
+      "Level": 6,
+      "Name": "Mining",
+      "Passion": "None",
+      "Stored": 6
+     },
+     "Plants": {
+      "Level": 3,
+      "Name": "Plants",
+      "Passion": "None",
+      "Stored": 3
+     },
+     "Shooting": {
+      "Level": 6,
+      "Name": "Shooting",
+      "Passion": "None",
+      "Stored": 6
+     },
+     "Social": {
+      "Level": 8,
+      "Name": "Social",
+      "Passion": "Minor",
+      "Stored": 8
+     }
+    },
+    "Traits": [
+     {
+      "Name": "Nudist"
+     },
+     {
+      "Degree": -2,
+      "Name": "Beauty"
+     }
+    ]
+   }
+  }
+ ],
+ "Weapons": [
+  {
+   "Cell": {
+    "X": 115,
+    "Z": 140
+   },
+   "Class": 2,
+   "Definition": "Gun_BoltActionRifle",
+   "Thing": "Thing_Gun_BoltActionRifle44756"
+  },
+  {
+   "Cell": {
+    "X": 128,
+    "Z": 135
+   },
+   "Class": 2,
+   "Definition": "Gun_PumpShotgun",
+   "Thing": "Thing_Gun_PumpShotgun44757"
+  },
+  {
+   "Cell": {
+    "X": 127,
+    "Z": 136
+   },
+   "Definition": "WoodLog",
+   "Thing": "Thing_WoodLog44753"
+  },
+  {
+   "Cell": {
+    "X": 125,
+    "Z": 136
+   },
+   "Definition": "WoodLog",
+   "Thing": "Thing_WoodLog44754"
+  },
+  {
+   "Cell": {
+    "X": 127,
+    "Z": 132
+   },
+   "Definition": "WoodLog",
+   "Thing": "Thing_WoodLog44755"
+  }
+ ]
+}
