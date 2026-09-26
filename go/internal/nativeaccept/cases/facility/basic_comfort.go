@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -40,7 +41,10 @@ func init() {
 	cases.Register(cases.Case{
 		Name:  "facility/basic-comfort",
 		Scope: "EnsureBasicComfort furnishes the roofed starter hut at foothold priority (one table, one seat, one recreation source, whatever room role the hut scores) and colonists then eat at the table: no AteWithoutTable memory is gained after it stands (#232).",
-		Start: cases.Fixture{Op: "test/basic_comfort_prepare"},
+		// The hut is sited on the committed tribal baseline, whose open
+		// ground near the colonists is audited: an unpinned debug start draws
+		// a fresh world each run and may offer none (#674).
+		Start: cases.Fixture{Op: "test/basic_comfort_prepare", On: cases.Save{Name: sustained.BaselineSave}},
 		// The meal that proves the point and the pin's use need Food and
 		// Joy live.
 		Keep:   []string{string(na.NeedFood), string(na.NeedJoy)},
