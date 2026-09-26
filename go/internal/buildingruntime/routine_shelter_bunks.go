@@ -156,8 +156,12 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		}
 	}
 	grid, _ := layoutAlignment(s.facts)
+	sites, err := r.shellRuinHolds(call, s, shellSiteCells(s.facts, free))
+	if err != nil {
+		return nil, none, "", nil, err
+	}
 	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
-		return policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef})
+		return policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef})
 	}
 	layouts, err := search(layoutAnchor(s.facts, r.district()))
 	if err != nil {
@@ -306,6 +310,34 @@ func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s
 	}
 	clockSchedulerLog("%s: %s: %d rock cells reason=%s", r.goal, shelterMineMethod, len(actions), result.Reason)
 	return result, result.Reason == BuildingMethodAdmitted, nil
+}
+
+// shellRuinHolds stamps the site cells with the clearance census holds the
+// shelter-clear rung honours (#718), so the search never sites a ring on a
+// ruin the rung would leave standing. Without ruins on the site, a census
+// source or a known census, the cells are returned unchanged: the rung then
+// clears nothing either, and adoption waits as before.
+func (r *RoutineBuildingPlanner) shellRuinHolds(call context.Context, s shelterSite, cells []policy.SiteCell) ([]policy.SiteCell, error) {
+	ruins := false
+	for _, c := range cells {
+		ruins = ruins || positiveFact(c.Ruin)
+	}
+	source, ok := r.native.(observation.ClearanceSource)
+	if !ruins || !ok {
+		return cells, nil
+	}
+	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.check(); err != nil {
+		return nil, err
+	}
+	census, known := read.Value()
+	if !known {
+		return cells, nil
+	}
+	return policy.ShellRuinHolds(census.Targets, cells), nil
 }
 
 // shellClaimReader refreshes a claimable building's CAS token.

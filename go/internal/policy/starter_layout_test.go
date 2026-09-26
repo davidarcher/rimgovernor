@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -632,5 +633,53 @@ func TestStarterShellClaimsRuinWallsOfItsKind(t *testing.T) {
 		if p.X != 16 {
 			t.Fatalf("claimed %v", p)
 		}
+	}
+}
+
+// #718: the search and the shelter-clear rung agree. Stamped with the census
+// holds, a ring clears only ruins ShellRuins would designate and claims only
+// ruins ShellClaims would claim: a roof-bearing ruin column may be claimed
+// but never cleared, a casket column neither.
+func TestStarterShellHonoursClearanceHolds(t *testing.T) {
+	r := standingColumns(func(c *SiteCell) {
+		c.Ruin = domain.Known(true)
+		c.ClaimableRuin = domain.Known("Wall")
+	})
+	r.WallDef = "Wall"
+	var rows []ClearanceTarget
+	for i, c := range r.Cells {
+		if !positive(c.Ruin) {
+			continue
+		}
+		row := ClearanceTarget{EntityID: "r" + strconv.Itoa(1000+i), Minimum: c.Cell, Maximum: c.Cell, Deconstructible: true}
+		switch c.Cell.X {
+		case 16:
+			row.RoofBlocker = "roof"
+		case 24:
+			row.Class = "ancient_casket"
+		}
+		rows = append(rows, row)
+	}
+	r.Cells = ShellRuinHolds(rows, r.Cells)
+	layouts, err := StarterLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range layouts {
+		if n := len(ShellRuins(rows, l.Cleared)); n != len(l.Cleared) {
+			t.Fatalf("search clears %d ruins the rung designates %d of: %+v", len(l.Cleared), n, l)
+		}
+		if n := len(ShellClaims(rows, l.Claimed)); n != len(l.Claimed) {
+			t.Fatalf("search claims %d ruins the rung claims %d of: %+v", len(l.Claimed), n, l)
+		}
+		for _, p := range append(append([]domain.Cell(nil), l.Cleared...), l.Claimed...) {
+			if p.X == 24 {
+				t.Fatalf("ring counts the casket at %v: %+v", p, l)
+			}
+		}
+	}
+	unheld := standingColumns(func(c *SiteCell) { c.Ruin = domain.Known(true) })
+	if got := ShellRuinHolds(nil, unheld.Cells); len(got) != len(unheld.Cells) || got[0].RuinHold != "" {
+		t.Fatal("holds stamped without a census row")
 	}
 }

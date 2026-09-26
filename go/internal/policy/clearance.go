@@ -212,12 +212,7 @@ func SelectChunkDump(rows []ClearanceChunk, sites []domain.Cell, protected []dom
 func ShellRuins(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
 	var out []ClearanceTarget
 	for _, row := range rows {
-		if !coversAny(row, cells) {
-			continue
-		}
-		held := row
-		held.InHome = true
-		if ClearanceHoldReason(held) == "" {
+		if coversAny(row, cells) && shellRuinHold(row) == "" {
 			out = append(out, row)
 		}
 	}
@@ -231,12 +226,51 @@ func ShellRuins(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
 func ShellClaims(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
 	var out []ClearanceTarget
 	for _, row := range rows {
-		if row.AncientDanger || row.Class == "ancient_casket" || !coversAny(row, cells) {
+		if claimHold(shellRuinHold(row)) || !coversAny(row, cells) {
 			continue
 		}
 		out = append(out, row)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].EntityID < out[j].EntityID })
+	return out
+}
+
+// shellRuinHold is the census hold a starter ring's clear rung honours: every
+// hold but lying outside Home, with the holds that also refuse a claim named
+// first so claimHold sees them.
+func shellRuinHold(row ClearanceTarget) string {
+	switch {
+	case row.AncientDanger:
+		return "ancient_danger"
+	case row.Class == "ancient_casket":
+		return "casket"
+	}
+	row.InHome = true
+	return ClearanceHoldReason(row)
+}
+
+// claimHold reports a shell hold that refuses a claim as well as a clearing.
+func claimHold(hold string) bool { return hold == "ancient_danger" || hold == "casket" }
+
+// ShellRuinHolds stamps each site cell a census building covers with that
+// building's shell hold (#718), so the site search counts a ruin cleared or
+// claimed exactly where ShellRuins and ShellClaims would act on it. A cell
+// under several buildings keeps a claim-refusing hold over any other, and
+// otherwise the first in identity order.
+func ShellRuinHolds(rows []ClearanceTarget, cells []SiteCell) []SiteCell {
+	ordered := append([]ClearanceTarget(nil), rows...)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].EntityID < ordered[j].EntityID })
+	out := append([]SiteCell(nil), cells...)
+	for i := range out {
+		for _, row := range ordered {
+			if !coversAny(row, []domain.Cell{out[i].Cell}) {
+				continue
+			}
+			if hold := shellRuinHold(row); hold != "" && (out[i].RuinHold == "" || claimHold(hold) && !claimHold(out[i].RuinHold)) {
+				out[i].RuinHold = hold
+			}
+		}
+	}
 	return out
 }
 

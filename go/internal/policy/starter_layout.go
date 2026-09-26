@@ -37,6 +37,10 @@ type SiteCell struct {
 	// empty for none (#718): a ring of that wall kind claims it and keeps
 	// it as wall instead of clearing it.
 	ClaimableRuin domain.Fact[string]
+	// RuinHold is the clearance census hold on the ruin covering the cell,
+	// empty for none (#718): the search counts a ruin cleared or claimed
+	// only where the shelter-clear rung would act on it (ShellRuinHolds).
+	RuinHold string
 }
 
 // ShelterStyle selects the starter shell's shape family. The rectangle is
@@ -399,14 +403,14 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	}
 	ruin := func(p domain.Cell) bool {
 		c, exists := cells[p]
-		return exists && !protected[p] && positive(c.Ruin) && positive(c.SupportsLight) && positive(measured(c.Zone, func(v bool) bool { return !v }))
+		return exists && !protected[p] && c.RuinHold == "" && positive(c.Ruin) && positive(c.SupportsLight) && positive(measured(c.Zone, func(v bool) bool { return !v }))
 	}
 	// claim is a ruin wall of the ring's kind the player may claim (#718):
 	// kept as wall, so its ground need bear nothing new.
 	claim := func(p domain.Cell) bool {
 		c, exists := cells[p]
 		def, known := c.ClaimableRuin.Value()
-		return exists && known && r.WallDef != "" && def == r.WallDef && !protected[p] && positive(c.Ruin) && positive(measured(c.Zone, func(v bool) bool { return !v }))
+		return exists && known && r.WallDef != "" && def == r.WallDef && !protected[p] && !claimHold(c.RuinHold) && positive(c.Ruin) && positive(measured(c.Zone, func(v bool) bool { return !v }))
 	}
 	size := r.Size
 	if size == 0 {
