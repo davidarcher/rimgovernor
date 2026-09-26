@@ -250,6 +250,9 @@ func reconcileColonyExtent(ctx context.Context, tx *sql.Tx, s domain.GenerationS
 			if err = discardColonyPlan(ctx, tx, s, tick); err != nil {
 				return report, err
 			}
+			if err = discardLayoutPlan(ctx, tx, s, tick); err != nil {
+				return report, err
+			}
 			if err = discardLayoutTidies(ctx, tx, s, tick); err != nil {
 				return report, err
 			}

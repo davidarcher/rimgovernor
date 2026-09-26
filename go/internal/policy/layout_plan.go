@@ -1,0 +1,136 @@
+package policy
+
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
+
+// Layout plan v2 (#771, A1) replaces the module grid with a spine of
+// hallways, concrete rooms hung off it, whole-map zones and reserved
+// infrastructure sites. MasterPlan keeps working beside it until D1.
+
+// SpineWidth is a spine hallway's width in cells.
+const SpineWidth int32 = 3
+
+// SpineSegment is one straight hallway run SpineWidth wide: From and To
+// are the centre line's end cells (same X or same Z).
+type SpineSegment struct {
+	From, To domain.Cell
+}
+
+// LayoutRoom is one planned room.
+type LayoutRoom struct {
+	Role ModuleRole
+	// Interior is the room's floor, walls excluded.
+	Interior Rectangle
+	Door     domain.Cell
+	DoorRot  domain.Rotation
+	// Dug is a room mined out of natural rock.
+	Dug bool
+}
+
+// ZoneKind is a whole-map zone's use.
+type ZoneKind string
+
+const (
+	ZoneField   ZoneKind = "field"
+	ZonePasture ZoneKind = "pasture"
+	ZoneMining  ZoneKind = "mining"
+	ZoneWood    ZoneKind = "wood"
+	ZoneNoGo    ZoneKind = "no_go"
+)
+
+// RowRun is the cells X..X+Length-1 on row Z.
+type RowRun struct {
+	Z, X, Length int32
+}
+
+// LayoutZone is one zone as row runs over the whole map.
+type LayoutZone struct {
+	Kind ZoneKind
+	Runs []RowRun
+}
+
+// ReservationKind is an infrastructure site the plan holds.
+type ReservationKind string
+
+const (
+	ReserveBatteryRoom ReservationKind = "battery_room"
+	ReserveTurbine     ReservationKind = "turbine"
+	ReserveTurbineLane ReservationKind = "turbine_lane"
+	ReserveSolar       ReservationKind = "solar"
+	ReserveGeothermal  ReservationKind = "geothermal"
+	ReservePerimeter   ReservationKind = "perimeter_wall"
+	ReserveGate        ReservationKind = "gate"
+	ReserveKillbox     ReservationKind = "killbox"
+	ReserveMortar      ReservationKind = "mortar"
+	ReserveCoverClear  ReservationKind = "cover_clear"
+)
+
+// LayoutReservation is one reserved site; Pair groups a turbine pair with
+// its lanes (0 for every other kind).
+type LayoutReservation struct {
+	Kind ReservationKind
+	Area Rectangle
+	Pair int32 `json:",omitempty"`
+}
+
+// LayoutPlan is the v2 colony layout.
+type LayoutPlan struct {
+	Spine        []SpineSegment
+	Rooms        []LayoutRoom
+	Zones        []LayoutZone
+	Reservations []LayoutReservation
+}
+
+// Anchor has MasterPlan.Anchor's contract: the interior centre of the
+// first room for want that free accepts (every one when free is nil), in
+// plan order (the planner lists rooms nearest the spine's start first). A
+// full role falls back to reserve rooms; false means the plan holds no
+// slot.
+func (p LayoutPlan) Anchor(want ModuleRole, free func(room Rectangle) bool) (domain.Cell, bool) {
+	for _, role := range []ModuleRole{want, ModuleReserve} {
+		for _, r := range p.Rooms {
+			if r.Role == role && (free == nil || free(r.Interior)) {
+				return domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}, true
+			}
+		}
+	}
+	return domain.Cell{}, false
+}
+
+// Valid reports a plan a store may persist: at least one room, straight
+// spine segments, non-empty rectangles and runs, and a real door rotation.
+func (p LayoutPlan) Valid() bool {
+	if len(p.Rooms) == 0 {
+		return false
+	}
+	for _, s := range p.Spine {
+		if s.From.X != s.To.X && s.From.Z != s.To.Z {
+			return false
+		}
+	}
+	for _, r := range p.Rooms {
+		if r.Role == "" || r.Interior.Width < 1 || r.Interior.Height < 1 {
+			return false
+		}
+		switch r.DoorRot {
+		case domain.North, domain.East, domain.South, domain.West:
+		default:
+			return false
+		}
+	}
+	for _, z := range p.Zones {
+		if z.Kind == "" {
+			return false
+		}
+		for _, run := range z.Runs {
+			if run.Length < 1 {
+				return false
+			}
+		}
+	}
+	for _, r := range p.Reservations {
+		if r.Kind == "" || r.Area.Width < 1 || r.Area.Height < 1 {
+			return false
+		}
+	}
+	return true
+}
