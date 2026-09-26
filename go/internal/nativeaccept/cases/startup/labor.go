@@ -36,9 +36,9 @@ const (
 	// TicksEnv overrides the observation window in game ticks.
 	TicksEnv = "RIMGOVERNOR_ACCEPT_STARTUP_LABOR_TICKS"
 	// LimitsEnv turns on comparison mode: a comma-separated list of
-	// explicit --routine-project-limit values (for example "2,4,8"), each
+	// --routine-project-limit values (for example "2,4,8,auto"), each
 	// replayed over the same fixture and seed. Unset runs one window at
-	// the service default.
+	// the service default, auto (#655).
 	LimitsEnv = "RIMGOVERNOR_ACCEPT_STARTUP_LABOR_LIMITS"
 )
 
@@ -87,7 +87,7 @@ func window() domain.Tick {
 }
 
 // limits are the project limits comparison mode replays, or a single
-// unset limit (the service default) in the ordinary run.
+// unset limit (the service default, auto) in the ordinary run; 0 is auto.
 func limits() ([]int, error) {
 	raw := strings.TrimSpace(os.Getenv(LimitsEnv))
 	if raw == "" {
@@ -95,9 +95,13 @@ func limits() ([]int, error) {
 	}
 	var out []int
 	for _, field := range strings.Split(raw, ",") {
+		if strings.TrimSpace(field) == "auto" {
+			out = append(out, 0)
+			continue
+		}
 		n, err := strconv.Atoi(strings.TrimSpace(field))
 		if err != nil || n < 1 || n > 8 {
-			return nil, fmt.Errorf("%s=%q: each limit is 1..8", LimitsEnv, raw)
+			return nil, fmt.Errorf("%s=%q: each limit is 1..8 or auto", LimitsEnv, raw)
 		}
 		out = append(out, n)
 	}

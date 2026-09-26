@@ -21,9 +21,11 @@ labor contention and observed outdoor risk. Each goal declares the native work t
 that can serve it; admission is bounded by both the project limit and free pawns of
 those types. Accepted work keeps its identity as capacity changes; unavailable methods
 yield to other candidates.
-`--routine-project-limit N` (1..8, default 2) is the count of concurrent optional
-projects (routine development goals and player projects) holding a slot; the stage
-adds one at Development. `--routine-project-limit auto` bounds slots only at eight
+`--routine-project-limit` defaults to `auto` (#655). An explicit `N` (1..8) is the
+count of concurrent optional projects (routine development goals and player projects)
+holding a slot, and the stage adds one at Development; it is the rollback to fixed
+slots and a safety ceiling an operator can set, not a substitute for worker
+accounting. `auto` bounds slots only at eight
 (planner cost) and admits every project a distinct observed worker can take
 (`policy.DevelopmentCensus` matched by the worker allocator): a pawn enabled for
 three work types is one worker, open startup and survival work holds its worker

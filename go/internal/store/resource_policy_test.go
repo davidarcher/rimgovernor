@@ -161,7 +161,7 @@ func TestResourcePolicyCoexistsWithAutopilotProductionPolicy(t *testing.T) {
 	}
 	r := routineRequest()
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"Plasteel": 50}
-	r.Policy.MaxDevelopmentProjects = 8
+	r.Policy.SetProjectLimit(8)
 	r.Facts.Workers = domain.Known(8)
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.ProductionPolicy)

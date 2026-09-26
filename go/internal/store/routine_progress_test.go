@@ -28,7 +28,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 4
+	r.Policy.SetProjectLimit(4)
 	r.Facts.Workers = domain.Known(3)
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(2)), domain.Known(int64(3))

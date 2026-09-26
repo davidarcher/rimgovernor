@@ -272,8 +272,10 @@ use bounded native deficit fractions. Accepted player projects and unresolved
 optional methods consume capacity across shared plans; admission rechecks new
 commitments in the same transaction as the method. Manual clears selections;
 world changes or tick rewinds reset age. Unknown worker counts admit no
-optional work. Configure `serve --routine-project-limit 1` to
-limit optional concurrency (1–8, default 2), also bounded by observed workers.
+optional work. Optional concurrency defaults to `auto`: every project a distinct
+observed worker can take, at most eight. Configure `serve --routine-project-limit N`
+(1–8) to fix the slot count instead, also bounded by observed workers; that is the
+rollback to the pre-auto behaviour.
 Accepted work remains tracked when capacity falls. Persisted ranking does not
 create missing action families or replace native resource/placement admission.
 

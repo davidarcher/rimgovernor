@@ -12,7 +12,7 @@ func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 	db := open(t, memoryPath(t))
 	defer db.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 2
+	r.Policy.SetProjectLimit(2)
 	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
 	admit := func(index int, pawn domain.PawnID, item string) error {

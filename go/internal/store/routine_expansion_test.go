@@ -13,7 +13,7 @@ func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	r.Facts.Colonists = domain.Known(int64(3))
 	r.Facts.BedCapacity = domain.Known(int64(3))
 	r.Facts.IndoorCapacity = domain.Known(int64(3))
@@ -67,7 +67,7 @@ func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	r.Facts.Colonists = domain.Known(int64(3))
 	r.Facts.BedCapacity = domain.Known(int64(3))
 	r.Facts.IndoorCapacity = domain.Known(int64(3))

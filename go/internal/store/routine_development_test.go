@@ -26,7 +26,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	first := reviewRoutine(t, s, &r)
 	row := developmentRow(t, first.Review, policy.MaintainWood)
 	if !row.Selected || row.Deficit == nil || *row.Deficit <= 0 || first.Review.Development.Workers == nil || *first.Review.Development.Workers != 2 {
@@ -159,7 +159,7 @@ func TestRoutineDevelopmentCountsCancelledUncertainPlayerWork(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	request := submissionRequest(t, "uncertain")
 	sub, _, err := s.SubmitBuilding(ctx, request)
 	if err != nil {
@@ -199,7 +199,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	r.Policy.ResearchTarget = "Stonecutting"
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
@@ -295,7 +295,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 4
+	r.Policy.SetProjectLimit(4)
 	r.Policy.ResearchTarget = "Stonecutting"
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)
@@ -402,7 +402,7 @@ func TestRoutineDevelopmentIdleSelectionRotates(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	r.Policy.ResearchTarget = "Stonecutting"
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
@@ -443,7 +443,7 @@ func TestRoutineDevelopmentYieldMovesSlotWithinReview(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	r.Policy.ResearchTarget = "Stonecutting"
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
@@ -513,7 +513,7 @@ func TestRoutineDevelopmentGrantedSelectionIsNotJudgedIdle(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	r.Policy.ResearchTarget = "Stonecutting"
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
@@ -557,7 +557,7 @@ func TestRoutineDevelopmentEquipHoldsNoSlot(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainWood)
 	if !developmentRow(t, out.Review, policy.MaintainWood).Selected {
@@ -607,7 +607,7 @@ func TestRoutineDevelopmentIdleLaborReleasesSlot(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainWood)
 	if !developmentRow(t, out.Review, policy.MaintainWood).Selected {
@@ -687,7 +687,7 @@ func TestRoutineDevelopmentIdleReleaseSurvivesRestartAndKeepsClaims(t *testing.T
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainWood)
 	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
@@ -760,7 +760,7 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	s := open(t, memoryPath(t))
 	defer s.Close()
 	r := routineRequest()
-	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
 	wood := routineGoal(t, out, policy.MaintainWood)
 	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {

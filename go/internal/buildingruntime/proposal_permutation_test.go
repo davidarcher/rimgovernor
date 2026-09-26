@@ -85,7 +85,7 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(3), Returned: proto.Uint64(3), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
 	// The fixture already holds one player Wall plan in flight; two more
 	// slots let both haul goals be selected in one review.
-	reviewer.policy.MaxDevelopmentProjects = 3
+	reviewer.policy.SetProjectLimit(3)
 	reviewer.native = &haulPairNative{routineNative: native}
 	got, err := reviewer.Step(context.Background())
 	if err != nil {

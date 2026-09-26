@@ -168,6 +168,7 @@ func TestProductionBlockedGoal(t *testing.T) {
 func TestStageRoutinePolicyBudgets(t *testing.T) {
 	t.Parallel()
 	base := DefaultRoutinePolicy()
+	base.SetProjectLimit(2)
 	for _, tc := range []struct {
 		stage   ColonyStage
 		limit   int
