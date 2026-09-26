@@ -2,6 +2,7 @@ package policy
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -122,5 +123,31 @@ func TestHoldCompromisedNeedsProof(t *testing.T) {
 	// in front of the line.
 	if HoldCompromised(firing, domain.South, []DefensiveThreatFacts{behind}) {
 		t.Fatal("south-facing line has the raider in front")
+	}
+}
+
+// TestExplainDefensivePositionsNamesTheGate pins the refusal text the
+// planner logs when it falls back to squad defense (#714).
+func TestExplainDefensivePositionsNamesTheGate(t *testing.T) {
+	firing := cells(9, 23)
+	defenders := []SquadDefenderFacts{defensiveDefender("colonist-a", true)}
+	for want, mutate := range map[string]func(*DefensiveThreatFacts){
+		"lord unknown":                func(f *DefensiveThreatFacts) { f.LordToilClass = domain.Fact[string]{} },
+		"not an edge assault":         func(f *DefensiveThreatFacts) { f.LordJobClass = domain.Known("LordJob_Siege") },
+		"engaged, nearest colonist 8": func(f *DefensiveThreatFacts) { f.NearestColonistDistance = domain.Known(8.0) },
+		"at or behind the line":       func(f *DefensiveThreatFacts) { f.Position = domain.Known(domain.Cell{X: 9, Z: 30}) },
+		"distance unknown":            func(f *DefensiveThreatFacts) { f.NearestColonistDistance = domain.Fact[float64]{} },
+	} {
+		threat := defensiveThreat("raider-1")
+		mutate(&threat)
+		if _, got := ExplainDefensivePositions(firing, domain.North, []DefensiveThreatFacts{threat}, defenders); !strings.Contains(got, want) {
+			t.Errorf("%s: %q", want, got)
+		}
+	}
+	if _, got := ExplainDefensivePositions(firing, domain.North, []DefensiveThreatFacts{defensiveThreat("raider-1")}, []SquadDefenderFacts{defensiveDefender("colonist-a", false)}); !strings.Contains(got, "no eligible ranged defender") {
+		t.Error(got)
+	}
+	if got, reason := ExplainDefensivePositions(firing, domain.North, []DefensiveThreatFacts{defensiveThreat("raider-1")}, defenders); reason != "" || len(got) != 1 {
+		t.Error(got, reason)
 	}
 }

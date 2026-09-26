@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"hash"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -442,8 +444,10 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 	for _, id := range hostileIDs {
 		threats = append(threats, defensiveThreatFacts(rows[id]))
 	}
-	positions, ok := policy.SelectDefensivePositions(layout.Firing, layout.Toward, threats, defenders)
-	if !ok {
+	positions, refusal := policy.ExplainDefensivePositions(layout.Firing, layout.Toward, threats, defenders)
+	if refusal != "" {
+		// Squad defense follows; say which gate refused the hold (#714).
+		slog.Default().InfoContext(call, "hold refused: "+refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "goal", string(goal.Goal.ID))
 		return RoutineDefenseResult{}, nil
 	}
 	defenderIDs := make([]domain.PawnID, 0, len(positions))

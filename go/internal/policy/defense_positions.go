@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -46,15 +47,27 @@ const defensiveEngagedDistance = 12.0
 // cell order, one each, and engage the lowest-ID live hostile; unarmed or
 // melee-only colonists are never positioned.
 func SelectDefensivePositions(firing []domain.Cell, toward domain.Rotation, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, bool) {
-	if len(firing) == 0 || len(threats) == 0 {
-		return nil, false
+	positions, refusal := ExplainDefensivePositions(firing, toward, threats, defenders)
+	return positions, refusal == ""
+}
+
+// ExplainDefensivePositions is SelectDefensivePositions with the reason it
+// refused the hold: empty when positions were chosen, otherwise the gate
+// that fell through and the evidence it saw (#714), so a squad fallback in
+// a run log names the hostile or defender fact that decided it.
+func ExplainDefensivePositions(firing []domain.Cell, toward domain.Rotation, threats []DefensiveThreatFacts, defenders []SquadDefenderFacts) ([]DefensivePosition, string) {
+	if len(firing) == 0 {
+		return nil, "no firing cells"
+	}
+	if len(threats) == 0 {
+		return nil, "no threats"
 	}
 	var live []DefensiveThreatFacts
 	for _, t := range threats {
 		dead, dk := t.Dead.Value()
 		downed, wk := t.Downed.Value()
 		if !dk || !wk {
-			return nil, false
+			return nil, fmt.Sprintf("hostile %s: dead/downed unknown", t.ID)
 		}
 		if dead || downed {
 			continue
@@ -64,13 +77,26 @@ func SelectDefensivePositions(firing []domain.Cell, toward domain.Rotation, thre
 		toil, tk := t.LordToilClass.Value()
 		distance, nk := t.NearestColonistDistance.Value()
 		position, pk := t.Position.Value()
-		if !hk || !humanlike || !jk || !tk || !nk || !pk || !edgeAssault(job, toil) || distance <= defensiveEngagedDistance || BehindFiringLine(firing, toward, position) {
-			return nil, false
+		switch {
+		case !hk || !humanlike:
+			return nil, fmt.Sprintf("hostile %s: not known humanlike", t.ID)
+		case !jk || !tk:
+			return nil, fmt.Sprintf("hostile %s: lord unknown (job %q known=%t, toil %q known=%t)", t.ID, job, jk, toil, tk)
+		case !edgeAssault(job, toil):
+			return nil, fmt.Sprintf("hostile %s: not an edge assault (%s/%s)", t.ID, job, toil)
+		case !nk:
+			return nil, fmt.Sprintf("hostile %s: nearest colonist distance unknown", t.ID)
+		case distance <= defensiveEngagedDistance:
+			return nil, fmt.Sprintf("hostile %s: engaged, nearest colonist %.1f cells", t.ID, distance)
+		case !pk:
+			return nil, fmt.Sprintf("hostile %s: position unknown", t.ID)
+		case BehindFiringLine(firing, toward, position):
+			return nil, fmt.Sprintf("hostile %s: at (%d,%d), at or behind the line", t.ID, position.X, position.Z)
 		}
 		live = append(live, t)
 	}
 	if len(live) == 0 {
-		return nil, false
+		return nil, "no live hostiles"
 	}
 	sort.Slice(live, func(i, j int) bool { return live[i].ID < live[j].ID })
 	var pool []SquadDefenderFacts
@@ -80,7 +106,7 @@ func SelectDefensivePositions(firing []domain.Cell, toward domain.Rotation, thre
 		}
 	}
 	if len(pool) == 0 {
-		return nil, false
+		return nil, fmt.Sprintf("no eligible ranged defender among %d", len(defenders))
 	}
 	// Shooters take the firing cells before the line holders do.
 	sort.Slice(pool, func(i, j int) bool {
@@ -98,7 +124,7 @@ func SelectDefensivePositions(firing []domain.Cell, toward domain.Rotation, thre
 		seen[cell] = true
 		out = append(out, DefensivePosition{Defender: pool[len(out)].ID, Cell: cell, Target: live[0].ID})
 	}
-	return out, len(out) > 0
+	return out, ""
 }
 
 // HoldCompromised says whether a standing hold must be abandoned for squad
