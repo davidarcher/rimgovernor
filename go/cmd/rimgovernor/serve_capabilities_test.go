@@ -56,3 +56,24 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		}
 	}
 }
+
+// DetectRoutine refuses a capability declared twice, so a serve with every
+// family and a resource target must declare each goal once (acquisition
+// and resource targets both declare MaintainResource, #728).
+func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
+	t.Parallel()
+	var c serveConfig
+	c.routineProjectLimit = 2
+	c.routineStoneBlockTarget = 10
+	for _, f := range routineFamilies(&c) {
+		*f.Enabled = true
+	}
+	_, capabilities := routineCapabilities(c)
+	seen := map[policy.GoalID]bool{}
+	for _, goal := range capabilities.Methods {
+		if seen[goal] {
+			t.Error("declared twice:", goal)
+		}
+		seen[goal] = true
+	}
+}

@@ -1392,7 +1392,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 		for _, id := range methods {
 			if !recognized[id] || available[id] {
-				return RoutineNeeds{}, errors.New("invalid routine method capability")
+				return RoutineNeeds{}, errors.New("invalid routine method capability " + string(id))
 			}
 			available[id] = true
 		}

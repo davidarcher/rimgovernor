@@ -973,7 +973,10 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.resourceTargetsConfigured() {
 		thresholds.ResourceTargets = sc.routineResourceTargets.Map()
 		thresholds.StoneBlockTarget = sc.routineStoneBlockTarget
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
+		// Acquisition already declares it (the wood floor, #728).
+		if !slices.Contains(capabilities.Methods, policy.MaintainResource) {
+			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
+		}
 	}
 	if sc.routineAnimalFeedPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
