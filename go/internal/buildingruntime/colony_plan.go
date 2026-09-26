@@ -152,7 +152,23 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 	}
 	tick := projection.Identity.Tick
 	plan, known := projection.ColonyPlan.Value()
-	if !r.layoutOverlay || !known {
+	var overlay func() policy.LayoutOverlay
+	var key string
+	// The v2 layout plan (#784) draws when one is saved; the master plan
+	// is the fallback until D1 retires it.
+	layout, haveLayout, err := r.layoutPlan(ctx, snapshot, tick)
+	if err != nil {
+		clockSchedulerLog("layout overlay: layout plan unreadable: %v", err)
+	}
+	switch {
+	case haveLayout:
+		key = fmt.Sprint("v2@", layout.Tick)
+		overlay = func() policy.LayoutOverlay { return layout.Plan.Overlay(projection.Bounds) }
+	case known:
+		key = fmt.Sprint(plan.Grid, plan.Radius, plan.Modules)
+		overlay = func() policy.LayoutOverlay { return plan.Overlay(projection.Bounds) }
+	}
+	if !r.layoutOverlay || overlay == nil {
 		if !r.overlayCleared {
 			if _, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), policy.LayoutOverlay{}, false); err != nil {
 				clockSchedulerLog("layout overlay not cleared: %v", err)
@@ -162,11 +178,10 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 		}
 		return
 	}
-	key := fmt.Sprint(plan.Grid, plan.Radius, plan.Modules)
 	if key == r.overlayKey && tick >= r.overlayDrawn && tick-r.overlayDrawn < overlayRedrawEvery {
 		return
 	}
-	applied, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), plan.Overlay(projection.Bounds), true)
+	applied, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), overlay(), true)
 	if err != nil {
 		clockSchedulerLog("layout overlay not drawn: %v", err)
 		return
