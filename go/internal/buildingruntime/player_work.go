@@ -40,5 +40,9 @@ func (p *Player) SetWorkPreferences(ctx context.Context, q store.WorkPreferenceR
 	if err = p.current(call, epoch); err != nil {
 		return store.WorkPreferenceRecord{}, err
 	}
-	return p.journal.SetWorkPreferences(call, q)
+	record, err := p.journal.SetWorkPreferences(call, q)
+	if err == nil {
+		p.replanned()
+	}
+	return record, err
 }

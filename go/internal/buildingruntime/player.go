@@ -50,6 +50,27 @@ type Player struct {
 	// queued, when set, runs after a call has read its epoch and before it
 	// waits on the gate. Tests use it to order a queued call against Manual.
 	queued func()
+	// replan, when set, wakes the clock worker after a player write changes
+	// planner inputs: a stopped clock marks no planner due, so without it
+	// the change waits for the next full step (#666).
+	replan func()
+}
+
+// SetReplan installs the wake a planner-input write fires (the clock
+// worker's Nudge); nil leaves such writes to the next full step.
+func (p *Player) SetReplan(fn func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.replan = fn
+}
+
+func (p *Player) replanned() {
+	p.mu.Lock()
+	fn := p.replan
+	p.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 func NewPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, session *Session, worlds WorldSource) (*Player, error) {

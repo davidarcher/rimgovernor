@@ -965,6 +965,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 		advanced, windowRunning, stepTrace, validity = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace, clockWorker.Validity
+		player.SetReplan(clockWorker.Nudge)
 	}
 	breakSource, _ := client.reads.(buildingruntime.BreakResponseSource)
 	previews, _ := client.native.(buildingruntime.BuildingPreviewSource)

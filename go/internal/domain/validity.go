@@ -229,6 +229,26 @@ func FreshIn(ctx context.Context, class AgeClass, t, anchor Tick) bool {
 	return t.FreshFor(anchor)
 }
 
+// FreshAcross is FreshIn for AgeDispatch over reads that took wall: the
+// running window's pace may carry t past anchor by the ticks it covers in
+// that wall, never less than one DispatchReadWall's. A slow bridge round
+// trip under a fast window is ticks the game ran, not a stale read (#666);
+// a stopped clock (pace 0) keeps the tick-exact bound.
+func FreshAcross(ctx context.Context, wall time.Duration, t, anchor Tick) bool {
+	v, ok := ReadValidityFrom(ctx)
+	if !ok {
+		return t.FreshFor(anchor)
+	}
+	if t < anchor {
+		return false
+	}
+	drift := Tick(0)
+	if v.Pace > 0 {
+		drift = Tick(v.Pace * max(wall, DispatchReadWall).Seconds())
+	}
+	return t-anchor <= PlanningTickTolerance+drift
+}
+
 // CoversIn is ReadValidity.Covers under the context's validity, or the
 // shim Tick.Covers.
 func CoversIn(ctx context.Context, class AgeClass, t, anchor Tick) bool {

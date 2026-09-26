@@ -39,3 +39,32 @@ func TestPlayerWorkPreferenceReplayDoesNotReadOrEnableNativeControl(t *testing.T
 		t.Fatal(got, err)
 	}
 }
+
+// A lifted override must reach the planners under a stopped clock, where no
+// planner falls due on its own: only an applied change wakes them (#666).
+func TestPlayerWorkPreferenceChangeWakesPlanners(t *testing.T) {
+	t.Parallel()
+	p, _, _, _ := playerFixture(t)
+	sub, _, err := p.Submit(context.Background(), playerSubmission())
+	if err != nil {
+		t.Fatal(err)
+	}
+	woken := 0
+	p.SetReplan(func() { woken++ })
+	q := store.WorkPreferenceRequest{RequestID: "revoke", Plan: sub.Plan, World: sub.Request.World, Overrides: []policy.WorkOverride{{Pawn: "pawn", Work: "Hauling", Priority: 0}}}
+	first, err := p.SetWorkPreferences(context.Background(), q)
+	if err != nil || woken != 1 {
+		t.Fatal(woken, err)
+	}
+	if _, err = p.SetWorkPreferences(context.Background(), q); err != nil || woken != 1 {
+		t.Fatal("a replay woke the planners", woken, err)
+	}
+	restore := store.WorkPreferenceRequest{RequestID: "restore", Plan: sub.Plan, World: sub.Request.World, ExpectedRevision: first.Preferences.Revision, Overrides: []policy.WorkOverride{}}
+	if _, err = p.SetWorkPreferences(context.Background(), restore); err != nil || woken != 2 {
+		t.Fatal(woken, err)
+	}
+	restore.RequestID = "stale"
+	if _, err = p.SetWorkPreferences(context.Background(), restore); !errors.Is(err, store.ErrConflict) || woken != 2 {
+		t.Fatal("a refused change woke the planners", woken, err)
+	}
+}

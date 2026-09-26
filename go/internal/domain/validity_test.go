@@ -88,3 +88,21 @@ func TestReadValidityContextHelpers(t *testing.T) {
 		t.Fatal("shim widens every class the same way")
 	}
 }
+
+// A dispatch's reads that took a second under a 2000 ticks/s window may
+// straddle the ticks that second ran; a fast round trip keeps the
+// DispatchReadWall floor, and a stopped clock stays tick-exact (#666).
+func TestFreshAcrossWidensByTheReadsOwnWall(t *testing.T) {
+	scope := ReadScope{Colony: "c", Map: 1, Load: "l", Native: 1}
+	live := WithReadValidity(context.Background(), ReadValidity{Scope: scope, Tick: 100, Pace: 2000, Wall: time.Second})
+	if FreshIn(live, AgeDispatch, 2100, 100) || !FreshAcross(live, time.Second, 2100, 100) || FreshAcross(live, time.Second, 2400, 100) {
+		t.Fatal("the reads' wall widens the dispatch bound")
+	}
+	if !FreshAcross(live, 0, 850, 100) || FreshAcross(live, 0, 851, 100) || FreshAcross(live, time.Second, 99, 100) {
+		t.Fatal("floor and direction")
+	}
+	stopped := WithReadValidity(context.Background(), ReadValidity{Scope: scope, Tick: 100, Wall: time.Second})
+	if !FreshAcross(stopped, time.Minute, 350, 100) || FreshAcross(stopped, time.Minute, 351, 100) {
+		t.Fatal("a stopped clock keeps the tick-exact bound")
+	}
+}
