@@ -323,7 +323,8 @@ func KitchenSeparation(rooms domain.Fact[RoomObservation]) domain.Fact[[]Separat
 
 // SeparationProtectedCells returns every cell of every room holding the
 // benches in set (cooking rooms for a butcher placement, butcher rooms for
-// a cooking placement), so a placement search never proposes a site that
+// a cooking placement; a butcher also avoids any room the game already
+// scores a Kitchen, #805), so a placement search never proposes a site that
 // would co-locate the two. Unknown room facts protect nothing: the
 // placement's own native preview still owns legality.
 func SeparationProtectedCells(rooms domain.Fact[RoomObservation], butcherPlacement bool) []domain.Cell {
@@ -337,7 +338,8 @@ func SeparationProtectedCells(rooms domain.Fact[RoomObservation], butcherPlaceme
 	}
 	var cells []domain.Cell
 	for _, room := range census.Rooms {
-		if roomHolds(room, set) {
+		role, _ := room.Role.Value()
+		if roomHolds(room, set) || butcherPlacement && role == RoomRoleKitchen {
 			cells = append(cells, room.Cells...)
 		}
 	}
