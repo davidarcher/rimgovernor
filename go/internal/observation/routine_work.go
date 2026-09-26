@@ -93,7 +93,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		case hasIssue(j.Issues, "current_job") && j.DefName == nil:
 			w.Job = domain.Known(policy.PawnJob{})
 		case !hasIssue(j.Issues, "current_job") && j.DefName != nil:
-			w.Job = domain.Known(policy.PawnJob{Def: j.GetDefName(), Work: policy.WorkType(j.GetWorkTypeDefName())})
+			w.Job = domain.Known(policy.PawnJob{Def: j.GetDefName(), Work: policy.WorkType(j.GetWorkTypeDefName()), Target: jobTarget(j.TargetA)})
 		}
 	}
 	if b := row.Biography; b != nil {
@@ -140,4 +140,28 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		}
 	}
 	return w
+}
+
+// jobTarget reads a job's targetA (#643). An absent field is an older
+// producer (unknown); an unavailable target is a job with none.
+func jobTarget(t *o.TargetRef) domain.Fact[policy.JobTarget] {
+	switch {
+	case t == nil:
+		return domain.Unknown[policy.JobTarget]()
+	case t.GetEntity() != nil:
+		e := t.GetEntity()
+		target := policy.JobTarget{Thing: e.GetId()}
+		if c := e.GetPosition(); c != nil && c.X != nil && c.Z != nil {
+			target.Cell = domain.Known(domain.Cell{X: c.GetX(), Z: c.GetZ()})
+		}
+		if _, cell := target.Cell.Value(); target.Thing == "" && !cell {
+			return domain.Unknown[policy.JobTarget]()
+		}
+		return domain.Known(target)
+	case t.GetCell() != nil && t.GetCell().X != nil && t.GetCell().Z != nil:
+		return domain.Known(policy.JobTarget{Cell: domain.Known(domain.Cell{X: t.GetCell().GetX(), Z: t.GetCell().GetZ()})})
+	case t.GetUnavailable() != nil:
+		return domain.Known(policy.JobTarget{})
+	}
+	return domain.Unknown[policy.JobTarget]()
 }

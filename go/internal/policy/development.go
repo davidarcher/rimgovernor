@@ -85,6 +85,9 @@ type Commitment struct {
 	// caller knows it; a pending effect older than DevelopmentStallTicks is
 	// a stalled commitment and holds no capacity or labor.
 	Dispatched domain.Fact[domain.Tick]
+	// Targets are the open action's work targets (ActionWorkTargets);
+	// unknown keeps the work-type labor evidence.
+	Targets domain.Fact[WorkTargets]
 }
 
 // DevelopmentStallTicks: one game day. colony-6 held a development slot for
@@ -164,6 +167,9 @@ type DevelopmentRow struct {
 	// work found its labor idle (laborIdle), carried while it stays idle;
 	// unknown while the work is picked up or the goal holds no open work.
 	LaborIdleSince domain.Fact[domain.Tick]
+	// LaborEvidence is this review's evidence for the goal's open work
+	// (CommitmentLabor): attributed if any commitment's work is attended.
+	LaborEvidence LaborEvidence
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -265,6 +271,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	committed := map[GoalID]bool{}
 	released := map[GoalID]bool{}
 	idleSince := map[GoalID]domain.Tick{}
+	evidence := map[GoalID]LaborEvidence{}
 	seenActions := map[domain.ActionID]bool{}
 	for _, c := range r.Commitments {
 		v := c.Progress.View()
@@ -284,14 +291,24 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			// Labor idle across reviews for DevelopmentIdleTicks releases
 			// the slot without closing the work: nobody is picking the
 			// work up, so the goal's row reads labor_idle until they do.
-			if laborIdle(r.LaborUse, c.Labor) {
+			// The evidence is target-linked (#643): a haul for a third
+			// goal is not activity on this one. Unknown evidence (a
+			// sleeping colony, an unattributable job) carries the
+			// deadline without starting, resetting or completing it.
+			e := CommitmentLabor(r.LaborUse, c.Labor, c.Targets)
+			if evidenceRank(e) > evidenceRank(evidence[c.Goal]) {
+				evidence[c.Goal] = e
+			}
+			since, carried := old[c.Goal].LaborIdleSince.Value()
+			carried = carried && since <= r.Tick
+			if e.Idle() || e == LaborUnknown && carried {
 				if _, seen := idleSince[c.Goal]; !seen {
 					idleSince[c.Goal] = r.Tick
-					if since, known := old[c.Goal].LaborIdleSince.Value(); known && since <= r.Tick {
+					if carried {
 						idleSince[c.Goal] = since
 					}
 				}
-				if r.Tick-idleSince[c.Goal] >= DevelopmentIdleTicks {
+				if e.Idle() && r.Tick-idleSince[c.Goal] >= DevelopmentIdleTicks {
 					released[c.Goal] = true
 					continue
 				}
@@ -304,6 +321,11 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	}
 	for id := range committed {
 		delete(released, id)
+	}
+	for id, e := range evidence {
+		if e.Active() {
+			delete(idleSince, id)
+		}
 	}
 	for id := range committed {
 		result.Committed = append(result.Committed, id)
@@ -353,6 +375,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle}
 		if since, seen := idleSince[g.ID]; seen && (committed[g.ID] || released[g.ID]) {
 			row.LaborIdleSince = domain.Known(since)
+		}
+		if committed[g.ID] || released[g.ID] {
+			row.LaborEvidence = evidence[g.ID]
 		}
 		switch {
 		case g.Cancelled:

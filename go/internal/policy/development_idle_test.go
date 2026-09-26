@@ -59,12 +59,13 @@ func TestIdleLaborReleasesCommitmentAcrossReviews(t *testing.T) {
 		t.Fatal("work picked up takes the slot back and clears the idle age", row)
 	}
 	// Unknown use, or a colony asleep (nobody busy, nobody idle), is no
-	// evidence: the commitment holds through the bound.
+	// evidence: the commitment holds through the bound, and carries the idle
+	// age rather than resetting it (#643).
 	for _, use := range []domain.Fact[LaborUse]{domain.Unknown[LaborUse](), domain.Known(LaborUse{Busy: map[WorkType]int{}, Idle: map[WorkType]int{}})} {
 		r.Previous = first
 		r.Tick = first.Tick + 2*DevelopmentIdleTicks
 		r.LaborUse = use
-		if row := s.row(rank(t, r), "wood"); row.Reason != DevelopmentCommitted || row.LaborIdleSince != domain.Unknown[domain.Tick]() {
+		if row := s.row(rank(t, r), "wood"); row.Reason != DevelopmentCommitted || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) || row.LaborEvidence != LaborUnknown {
 			t.Fatal("no evidence released a commitment", use, row)
 		}
 	}

@@ -285,6 +285,19 @@ namespace HomeBridge.BridgeTools
                 // (a forced order, rest, a meal, wandering) carries none.
                 var workType = job.workGiverDef?.workType?.defName;
                 if (workType != null) row.WorkTypeDefName = Identifier(workType);
+                // targetA attributes the job to the thing or cell it works
+                // (#643): a haul for one goal is no evidence for another.
+                // Lean entity (id and cell only); an invalid target reads
+                // unavailable, so an absent field means an older producer.
+                // A delivery (HaulToContainer) carries its material as
+                // targetA and works for the frame or bench in targetB.
+                var target = job.def == JobDefOf.HaulToContainer && job.targetB.HasThing ? job.targetB : job.targetA;
+                if (target.HasThing) {
+                    var entity = new Obs.EntityRef { Id = Identifier(target.Thing.GetUniqueLoadID()) };
+                    if (target.Thing.Spawned) entity.Position = Cell(target.Thing.Position.x, target.Thing.Position.z);
+                    row.TargetA = new Obs.TargetRef { Entity = entity };
+                } else if (target.IsValid) row.TargetA = new Obs.TargetRef { Cell = Cell(target.Cell.x, target.Cell.z) };
+                else row.TargetA = new Obs.TargetRef { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } };
             } else row.Issues.Add(Issue("current_job", Common.UnavailableReason.NotApplicable, "Pawn has no current job."));
             return row;
         }

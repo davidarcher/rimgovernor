@@ -71,7 +71,13 @@ func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open, Labor: labor, Dispatched: dispatched})
+		targets := domain.Unknown[policy.WorkTargets]()
+		for _, a := range plan.Spec.Actions() {
+			if a.ID() == open.View().Action {
+				targets = policy.ActionWorkTargets(a)
+			}
+		}
+		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open, Labor: labor, Dispatched: dispatched, Targets: targets})
 	}
 	return result, nil
 }

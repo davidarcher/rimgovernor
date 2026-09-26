@@ -40,6 +40,9 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		if since, k := row.LaborIdleSince.Value(); k && (since < 0 || since > s.Tick) {
 			return errors.New("invalid development idle age")
 		}
+		if !validLaborEvidence(row.LaborEvidence) {
+			return errors.New("invalid development labor evidence")
+		}
 		if !validResource(Resource(row.Goal)) || seen[row.Goal] || row.WaitingSince < 0 || row.WaitingSince > s.Tick || math.IsNaN(row.Score) || math.IsInf(row.Score, 0) || row.Score < 0 || k && (math.IsNaN(deficit) || math.IsInf(deficit, 0) || deficit < 0 || deficit > 1) || row.Committed != committed[row.Goal] {
 			return errors.New("invalid development row")
 		}

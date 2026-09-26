@@ -52,6 +52,10 @@ type WorkPawn struct {
 type PawnJob struct {
 	Def  string
 	Work WorkType
+	// Target is the thing or cell the job works (#643); unknown from a
+	// producer that carried none, a known zero JobTarget for a job with no
+	// target.
+	Target domain.Fact[JobTarget]
 }
 type WorkRequirement struct {
 	Work    WorkType

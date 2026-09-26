@@ -109,6 +109,9 @@ func RoutineLabor(pawns []WorkPawn) domain.Fact[map[WorkType]int] {
 // neither, so a colony asleep is no evidence about any commitment.
 type LaborUse struct {
 	Busy, Idle map[WorkType]int
+	// Jobs are the jobs Busy counts, one per pawn, so a commitment can tell
+	// work on its own targets from the same work type elsewhere (#643).
+	Jobs []PawnJob
 }
 
 // idleJob reports a job that is no work at all: the job tracker found
@@ -131,6 +134,7 @@ func RoutineLaborUse(pawns []WorkPawn) domain.Fact[LaborUse] {
 		job, jobKnown := p.Job.Value()
 		if jobKnown && job.Work != "" {
 			use.Busy[job.Work]++
+			use.Jobs = append(use.Jobs, job)
 		}
 		available, known := p.Available.Value()
 		applies, appliesKnown := p.Applies.Value()
