@@ -72,7 +72,37 @@ func sleepingRequest(facts observation.ColonyProjection, review store.RoutineRev
 	for _, d := range facts.Definitions {
 		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available, NeedsPower: d.NeedsPower, ConstructionSkill: d.ConstructionSkill})
 	}
-	return policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions}, nil
+	request := policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Traits: sleepingTraits(facts)}
+	if obs, known := facts.Facts.Sleeping.Value(); known {
+		tier, _ := facts.BuildTier.Value()
+		request.RoomTargets = policy.RoomQualityTargets(obs, request.Traits, tier)
+	}
+	return request, nil
+}
+
+// sleepingTraits is each colonist's trait effects from the work census,
+// nil while it is unknown (#813).
+func sleepingTraits(facts observation.ColonyProjection) map[policy.PawnID]policy.TraitEffects {
+	pawns, known := facts.WorkPawns.Value()
+	if !known {
+		return nil
+	}
+	out := make(map[policy.PawnID]policy.TraitEffects, len(pawns))
+	for _, p := range pawns {
+		out[p.ID] = policy.BuildProfile(p).Effects
+	}
+	return out
+}
+
+// bedroomSwap is the next room quality swap (#813): a jealous colonist into
+// the best solo bedroom, an ascetic into the plainest.
+func bedroomSwap(facts observation.ColonyProjection) (policy.BedroomSwap, bool) {
+	obs, known := facts.Facts.Sleeping.Value()
+	traits := sleepingTraits(facts)
+	if !known || traits == nil {
+		return policy.BedroomSwap{}, false
+	}
+	return policy.NextBedroomSwap(obs, traits)
 }
 
 // selectSleeping resolves the building ladder's definition and site from
@@ -276,7 +306,11 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		case policy.BedroomShell:
 			return r.shellBedroom(call, epoch, state, review, goal, reading, step)
 		default:
-			return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
+			swap, ok := bedroomSwap(facts)
+			if !ok {
+				return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
+			}
+			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: swap.Pawn, Bed: swap.Bed, PreviousBed: swap.PreviousBed}
 		}
 	case policy.SleepingUnavailable:
 		return RoutineBuildingResult{Reason: BuildingSleepingUnavailable}, nil

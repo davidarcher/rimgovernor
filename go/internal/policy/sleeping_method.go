@@ -40,6 +40,60 @@ type SleepingRequest struct {
 	Sleeping    domain.Fact[SleepingObservation]
 	Rooms       domain.Fact[RoomObservation]
 	Definitions []BenchDefinition
+	// RoomTargets (RoomQualityTargets, keyed by room) and Traits order the
+	// beds an assignment offers (#813): a room marked NeverUpgrade is never
+	// left for a more impressive one, and an ascetic takes the plainest bed.
+	// Nil leaves the lowest-bed-ID order.
+	RoomTargets map[string]RoomTarget
+	Traits      map[PawnID]TraitEffects
+}
+
+// sleepingBedOrder filters and orders the vacant beds offered to t.
+func sleepingBedOrder(r SleepingRequest, t SleepingTarget, beds []string) []string {
+	sleeping, known := r.Sleeping.Value()
+	if !known || (r.RoomTargets == nil && r.Traits == nil) {
+		return beds
+	}
+	impressiveness := map[string]float64{}
+	if rooms, ok := sleeping.Rooms.Value(); ok {
+		for _, room := range rooms {
+			if q, ok := room.Quality.Value(); ok {
+				impressiveness[room.ID] = q.Impressiveness
+			}
+		}
+	}
+	quality := map[string]float64{}
+	roomOf := map[string]string{}
+	for _, b := range sleeping.Beds {
+		if room, ok := b.Room.Value(); ok {
+			roomOf[b.ID] = room
+			if v, ok := impressiveness[room]; ok {
+				quality[b.ID] = v
+			}
+		}
+	}
+	if target, ok := r.RoomTargets[roomOf[t.PreviousBed]]; ok && t.PreviousBed != "" && target.NeverUpgrade {
+		current, ck := quality[t.PreviousBed]
+		kept := []string{}
+		for _, bed := range beds {
+			v, vk := quality[bed]
+			if vk && (target.Max <= 0 || v < target.Max) && (!ck || v <= current) {
+				kept = append(kept, bed)
+			}
+		}
+		beds = kept
+	}
+	if r.Traits[t.Pawn].Ascetic {
+		sort.SliceStable(beds, func(i, j int) bool {
+			a, ak := quality[beds[i]]
+			b, bk := quality[beds[j]]
+			if ak != bk {
+				return ak
+			}
+			return ak && a < b
+		})
+	}
+	return beds
 }
 
 type SleepingChoice struct {
@@ -93,6 +147,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		}
 		beds := append([]string{}, t.Available...)
 		sort.Strings(beds)
+		beds = sleepingBedOrder(r, t, beds)
 		for _, bed := range beds {
 			if bed != t.PreviousBed {
 				choice.Method, choice.Pawn, choice.Bed, choice.PreviousBed = SleepingAssign, t.Pawn, bed, t.PreviousBed
