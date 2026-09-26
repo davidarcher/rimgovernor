@@ -118,6 +118,7 @@ type Mirror struct {
 	tables    map[string]any
 	refreshes map[string]int
 	resync    map[string]bool
+	recorder  Recorder
 }
 
 func New() *Mirror {
@@ -339,6 +340,9 @@ func commit[K comparable, R any](m *Mirror, scope Scope, name string, rows map[K
 	t := Table[K, R]{Rows: rows, AsOf: asOf, Version: m.version}
 	if m.scope == scope {
 		m.tables[name] = t
+		if m.recorder != nil {
+			m.recorder(Published{Scope: scope, Section: name, Version: t.Version, AsOf: asOf, Rows: rows})
+		}
 		if answered {
 			delete(m.resync, name)
 		}

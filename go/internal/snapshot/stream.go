@@ -38,12 +38,18 @@ import (
 // keyframe, so materialising a review replays at most KeyEvery-1 patches.
 const KeyEvery = 20
 
-// streamLine is one recorded review in a stream.
+// streamLine is one line of a stream: a review (Key or Patch), a mirror
+// section's table (Section, mirror.go) or a planner step read (Step,
+// step.go). Mirror names the bound sections a review or step line left out
+// of its tree, by the section version that rebuilds them.
 type streamLine struct {
-	Tick  domain.Tick
-	Seq   int
-	Key   json.RawMessage `json:",omitempty"`
-	Patch json.RawMessage `json:",omitempty"`
+	Tick    domain.Tick
+	Seq     int
+	Key     json.RawMessage   `json:",omitempty"`
+	Patch   json.RawMessage   `json:",omitempty"`
+	Mirror  map[string]uint64 `json:",omitempty"`
+	Section *sectionFrame     `json:",omitempty"`
+	Step    *stepFrame        `json:",omitempty"`
 }
 
 // streamWriter is one serve's open stream in a directory.
@@ -53,6 +59,10 @@ type streamWriter struct {
 	lines int
 	last  domain.Tick
 	seq   int
+	// sections are the mirror sections as last recorded (mirror.go).
+	sections map[string]*recSection
+	// steps numbers the step reads per planner, goal and tick.
+	steps map[string]int
 }
 
 var (
@@ -60,36 +70,22 @@ var (
 	streams   = map[string]*streamWriter{}
 )
 
-// Record appends r to this process's stream in dir, opening it on the first
-// review: a keyframe, then a patch against the previous review.
-func Record(dir string, r Routine) error {
-	tree, err := encodeTree(r)
-	if err != nil {
-		return err
-	}
-	streamsMu.Lock()
-	defer streamsMu.Unlock()
+// openStream is this process's stream in dir, opened (named after tick)
+// by its first line. streamsMu is held.
+func openStream(dir string, tick domain.Tick) (*streamWriter, error) {
 	rec := streams[dir]
 	if rec == nil {
-		if err = os.MkdirAll(dir, 0o755); err != nil {
-			return err
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
 		}
-		rec = &streamWriter{path: filepath.Join(dir, fmt.Sprintf("routine-stream-%d-%d.jsonl", r.Tick, os.Getpid()))}
+		rec = &streamWriter{path: filepath.Join(dir, fmt.Sprintf("routine-stream-%d-%d.jsonl", tick, os.Getpid())), sections: map[string]*recSection{}, steps: map[string]int{}}
 		streams[dir] = rec
 	}
-	line := streamLine{Tick: r.Tick, Seq: 1}
-	if rec.lines > 0 && rec.last == r.Tick {
-		line.Seq = rec.seq + 1
-	}
-	if rec.lines%KeyEvery == 0 {
-		line.Key, err = json.Marshal(tree)
-	} else {
-		patch, _ := diffTree(rec.prev, tree)
-		line.Patch, err = json.Marshal(patch)
-	}
-	if err != nil {
-		return err
-	}
+	return rec, nil
+}
+
+// append writes one line. A failed write may leave it torn.
+func (rec *streamWriter) append(line streamLine) error {
 	data, err := json.Marshal(line)
 	if err != nil {
 		return err
@@ -99,7 +95,39 @@ func Record(dir string, r Routine) error {
 		return err
 	}
 	_, err = f.Write(append(data, '\n'))
-	if err = errors.Join(err, f.Close()); err != nil {
+	return errors.Join(err, f.Close())
+}
+
+// Record appends r to this process's stream in dir, opening it on the first
+// line: a keyframe, then a patch against the previous review. A bound
+// field the mirror sections recorded in the stream materialise exactly is
+// left to them (mirror.go).
+func Record(dir string, r Routine) error {
+	tree, err := encodeTree(r)
+	if err != nil {
+		return err
+	}
+	streamsMu.Lock()
+	defer streamsMu.Unlock()
+	rec, err := openStream(dir, r.Tick)
+	if err != nil {
+		return err
+	}
+	line := streamLine{Tick: r.Tick, Seq: 1}
+	if rec.lines > 0 && rec.last == r.Tick {
+		line.Seq = rec.seq + 1
+	}
+	tree, line.Mirror = elide(tree, rec.sections)
+	if rec.lines%KeyEvery == 0 {
+		line.Key, err = json.Marshal(tree)
+	} else {
+		patch, _ := diffTree(rec.prev, tree)
+		line.Patch, err = json.Marshal(patch)
+	}
+	if err != nil {
+		return err
+	}
+	if err = rec.append(line); err != nil {
 		// The line may be torn: the next review restarts with a keyframe.
 		rec.lines = 0
 		return err
@@ -361,6 +389,36 @@ func (r Review) String() string { return fmt.Sprintf("%d-%d", r.Tick, r.Seq) }
 // review that want accepts (nil accepts all) until fn returns false. Only
 // accepted reviews are decoded; the rest are patched as trees.
 func Replay(path string, want func(Review) bool, fn func(Review, Routine) (bool, error)) error {
+	return walk(path, func(line streamLine, st *replayState) (bool, error) {
+		if line.Section != nil || line.Step != nil {
+			return true, nil
+		}
+		at := Review{line.Tick, line.Seq}
+		if want != nil && !want(at) {
+			return true, nil
+		}
+		tree, err := restore(st.tree, line.Mirror, st.sections)
+		if err != nil {
+			return false, err
+		}
+		r, err := treeRoutine(tree)
+		if err != nil {
+			return false, err
+		}
+		return fn(at, r)
+	})
+}
+
+// replayState is a stream replayed through one line: the last review's
+// tree (bound fields left out) and the mirror sections.
+type replayState struct {
+	tree     any
+	sections map[string]*recSection
+}
+
+// walk replays the stream at path line by line, calling visit after each
+// line is applied until it returns false.
+func walk(path string, visit func(streamLine, *replayState) (bool, error)) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -375,7 +433,7 @@ func Replay(path string, want func(Review) bool, fn func(Review, Routine) (bool,
 		in = bytes.NewReader(data)
 	}
 	lines := bufio.NewReader(in)
-	var tree any
+	st := &replayState{sections: map[string]*recSection{}}
 	for n := 1; ; n++ {
 		raw, err := lines.ReadBytes('\n')
 		if len(bytes.TrimSpace(raw)) == 0 {
@@ -395,30 +453,33 @@ func Replay(path string, want func(Review) bool, fn func(Review, Routine) (bool,
 			return fmt.Errorf("%s:%d: %w", path, n, jerr)
 		}
 		switch {
+		case line.Section != nil:
+			var s *recSection
+			if s, err = st.sections[line.Section.Name].apply(*line.Section); err == nil {
+				st.sections[line.Section.Name] = s
+			}
+		case line.Step != nil:
+			// A step read leaves the review and the sections as they are.
 		case line.Key != nil:
-			tree, err = parseTree(line.Key)
-		case tree == nil:
+			st.tree, err = parseTree(line.Key)
+		case st.tree == nil:
 			err = errors.New("patch before any keyframe")
 		default:
 			var node any
 			if node, err = parseTree(line.Patch); err == nil {
 				patch, _ := node.(map[string]any)
-				tree, err = applyPatch(tree, patch)
+				st.tree, err = applyPatch(st.tree, patch)
 			}
 		}
 		if err != nil {
 			return fmt.Errorf("%s:%d: %w", path, n, err)
 		}
-		at := Review{line.Tick, line.Seq}
-		if want == nil || want(at) {
-			r, err := treeRoutine(tree)
-			if err != nil {
-				return fmt.Errorf("%s:%d: %w", path, n, err)
-			}
-			more, err := fn(at, r)
-			if err != nil || !more {
-				return err
-			}
+		more, err := visit(line, st)
+		if err != nil {
+			return fmt.Errorf("%s:%d: %w", path, n, err)
+		}
+		if !more {
+			return nil
 		}
 	}
 }

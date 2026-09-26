@@ -46,7 +46,7 @@ func newClockFacts(cache *bridge.FactCache, store *facts.Store) *clockFacts {
 	if store == nil {
 		store = facts.NewStore()
 	}
-	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: mirror.New(), definitions: observation.NewDefinitionPool()}
+	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: recordedMirror(), definitions: observation.NewDefinitionPool()}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is

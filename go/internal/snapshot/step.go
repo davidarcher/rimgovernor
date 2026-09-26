@@ -1,11 +1,9 @@
 package snapshot
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -28,8 +26,50 @@ type Step struct {
 	Projection observation.ColonyProjection
 }
 
-// RecordStep writes goal's step read into dir as
-// step-<planner>-<goal>-<tick>-<seq>.json, seq the first from 1 not already taken.
+// stepFrame is a step read as a stream line records it (#795 step 4): the
+// step's tree as a patch against the last review line's projection (its
+// Facts folded back in), so the line carries the planner's extras and
+// whatever moved since the review, not a second projection. A bound field
+// the mirror sections materialise is left to them, as in a review line.
+type stepFrame struct {
+	Planner string
+	Goal    policy.GoalID
+	Patch   json.RawMessage
+}
+
+// StepRead names one step read in a stream, as the per-step files were
+// named before #795 step 4: step-<planner>-<goal>-<tick>-<seq>.
+type StepRead struct {
+	Planner string
+	Goal    policy.GoalID
+	Tick    domain.Tick
+	Seq     int
+}
+
+func (s StepRead) String() string {
+	return fmt.Sprintf("step-%s-%s-%d-%d", s.Planner, s.Goal, s.Tick, s.Seq)
+}
+
+// stepBase is the tree a step line patches: the review tree's projection
+// with the review's Facts, the part of a Step a review line holds.
+func stepBase(review any) any {
+	r, _ := review.(map[string]any)
+	proj, ok := r["Projection"].(map[string]any)
+	if !ok {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(proj)+1)
+	for k, v := range proj {
+		out[k] = v
+	}
+	if f, ok := r["Facts"]; ok {
+		out["Facts"] = f
+	}
+	return map[string]any{"Projection": out}
+}
+
+// RecordStep appends goal's step read to this process's stream in dir,
+// numbered from 1 per planner, goal and tick.
 func RecordStep(dir, planner string, goal policy.GoalID, current domain.GenerationSnapshot, reading observation.ColonyProjection) error {
 	var none observation.ColonyProjection
 	reading.Zones, reading.Window = none.Zones, none.Window
@@ -41,23 +81,90 @@ func RecordStep(dir, planner string, goal policy.GoalID, current domain.Generati
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(dir, 0o755); err != nil {
+	tree, err := parseTree(data)
+	if err != nil {
 		return err
 	}
-	for seq := 1; ; seq++ {
-		f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("step-%s-%s-%d-%d.json", planner, goal, tick, seq)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-		if errors.Is(err, fs.ErrExist) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		_, err = f.Write(data)
-		return errors.Join(err, f.Close())
+	streamsMu.Lock()
+	defer streamsMu.Unlock()
+	rec, err := openStream(dir, tick)
+	if err != nil {
+		return err
 	}
+	line := streamLine{Tick: tick, Step: &stepFrame{Planner: planner, Goal: goal}}
+	tree, line.Mirror = elide(tree, rec.sections)
+	patch, changed := diffTree(stepBase(rec.prev), tree)
+	if !changed {
+		patch = map[string]any{"~": map[string]any{}}
+	}
+	if line.Step.Patch, err = json.Marshal(patch); err != nil {
+		return err
+	}
+	name := StepRead{Planner: planner, Goal: goal, Tick: tick}.String()
+	line.Seq = rec.steps[name] + 1
+	if err = rec.append(line); err != nil {
+		return err
+	}
+	rec.steps[name] = line.Seq
+	return nil
 }
 
-// LoadStep reads a recorded planner step read.
+// Steps lists the step reads a stream recorded, in order.
+func Steps(path string) ([]StepRead, error) {
+	var out []StepRead
+	err := walk(path, func(line streamLine, _ *replayState) (bool, error) {
+		if line.Step != nil {
+			out = append(out, StepRead{Planner: line.Step.Planner, Goal: line.Step.Goal, Tick: line.Tick, Seq: line.Seq})
+		}
+		return true, nil
+	})
+	return out, err
+}
+
+// LoadStreamStep materialises the step read name (StepRead.String) of the
+// stream at path.
+func LoadStreamStep(path, name string) (Step, error) {
+	var out Step
+	found := false
+	err := walk(path, func(line streamLine, st *replayState) (bool, error) {
+		if line.Step == nil || (StepRead{Planner: line.Step.Planner, Goal: line.Step.Goal, Tick: line.Tick, Seq: line.Seq}).String() != name {
+			return true, nil
+		}
+		node, err := parseTree(line.Step.Patch)
+		if err != nil {
+			return false, err
+		}
+		patch, _ := node.(map[string]any)
+		tree, err := applyPatch(stepBase(st.tree), patch)
+		if err != nil {
+			return false, err
+		}
+		if tree, err = restore(tree, line.Mirror, st.sections); err != nil {
+			return false, err
+		}
+		data, err := json.Marshal(tree)
+		if err != nil {
+			return false, err
+		}
+		found = true
+		return false, Decode(data, &out)
+	})
+	if err != nil || found {
+		return out, err
+	}
+	steps, err := Steps(path)
+	if err != nil {
+		return Step{}, err
+	}
+	names := make([]string, 0, len(steps))
+	for _, s := range steps {
+		names = append(names, s.String())
+	}
+	return Step{}, fmt.Errorf("%s: no %s; recorded %s", path, name, strings.Join(names, " "))
+}
+
+// LoadStep reads a recorded planner step read: committed testdata, or a
+// per-step file recorded before #795 step 4.
 func LoadStep(path string) (Step, error) {
 	data, err := readFile(path)
 	if err != nil {

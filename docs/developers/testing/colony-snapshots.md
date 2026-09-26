@@ -38,7 +38,16 @@ Each serve appends every enabled review to one stream there,
 `routine-stream-<first tick>-<pid>.jsonl` (#756): a keyframe holding the
 whole review, then a field-level patch per review against the previous one
 (objects patched key by key, slices by index or replaced whole), with a
-fresh keyframe every 20 reviews to bound a replay. Reviews are named
+fresh keyframe every 20 reviews to bound a replay. The colony mirror's
+sections (#795: planning cells, zones, buildings, bills, and any section
+that joins the mirror later) ride the same stream as section lines, taken
+from the mirror as it publishes them: a keyframe per section, then the
+rows it upserted and the keys it dropped, stamped with the section's
+watermark and version (`internal/snapshot/mirror.go`). A review whose site
+cells are exactly the mirror's leaves them out and names the section
+version instead; replay puts them back, so a review materialises exactly
+what it read either way. `snapshot.MirrorAt` gives every section as held
+at one review. Reviews are named
 `<tick>-<seq>`, `<seq>` counting from 1 for several at one paused tick;
 a failed write is
 a `[routine] colony snapshot not recorded` service-log line, never a review
@@ -104,10 +113,14 @@ recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.
 The building and bill planners decide from their own colony read at step
 time, which carries what the review's read lacks: rooms, the step's own
 definitions (every policy lamp for lighting), fresh benches. With the
-recording variable set, each such step also writes
-`step-<building|bill>-<goal>-<tick>-<seq>.json` (`snapshot.Step`, #794):
-the projection it read, Facts included. `trim` recognises the `step-`
-prefix and drops the site cells unless `-keep-cells` (a lighting or
+recording variable set, each such step also appends its read to the
+serve's stream (`snapshot.Step`, #794, #795): the projection it read,
+Facts included, as a patch against the last review's projection, its site
+cells left to the mirror section when they match. `trim -list` names the
+step reads `step-<building|bill>-<goal>-<tick>-<seq>`, and
+`trim -step <name> <stream> testdata/<name>.json.gz` materialises one
+(a `step-*.json` file recorded before the stream carried them trims as
+before), dropping the site cells unless `-keep-cells` (a lighting or
 placement test needs them). A test loads it with `loadStep` in
 `internal/buildingruntime/routine_snapshot_test.go` and calls the
 selector on `step.Projection`, taking the policy and latches from the

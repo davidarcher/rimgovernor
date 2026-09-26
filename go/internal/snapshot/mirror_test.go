@@ -1,0 +1,143 @@
+package snapshot
+
+import (
+	"bufio"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+)
+
+func siteCells(rows map[domain.Cell]policy.SiteCell) []policy.SiteCell {
+	var out []policy.SiteCell
+	for z := int32(0); z < 4; z++ {
+		for x := int32(0); x < 4; x++ {
+			if row, ok := rows[domain.Cell{X: x, Z: z}]; ok {
+				out = append(out, row)
+			}
+		}
+	}
+	return out
+}
+
+// The mirror's tables ride the stream as section lines, and a review or
+// step read whose cells the mirror holds leaves them to it, yet every line
+// materialises exactly what was recorded (#795 step 4).
+func TestRecordStreamsMirrorSections(t *testing.T) {
+	base, err := Load(cleanFilthy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	m := mirror.New()
+	m.SetRecorder(MirrorRecorder(dir))
+	scope := mirror.Scope{Load: "l", Map: 1, Generation: 1}
+	cells := map[domain.Cell]policy.SiteCell{}
+	for z := int32(0); z < 4; z++ {
+		for x := int32(0); x < 4; x++ {
+			cells[domain.Cell{X: x, Z: z}] = policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(x != 2)}
+		}
+	}
+	name := string(facts.PlanningCells)
+	var want []Routine
+	var wantSteps []Step
+	for i := 0; i < KeyEvery+2; i++ {
+		switch i % 3 {
+		case 1: // a changed row and a dropped one
+			next := map[domain.Cell]policy.SiteCell{}
+			for k, v := range cells {
+				next[k] = v
+			}
+			next[domain.Cell{X: 1, Z: 1}] = policy.SiteCell{Cell: domain.Cell{X: 1, Z: 1}, Roofed: domain.Known(i%2 == 0)}
+			delete(next, domain.Cell{X: 3, Z: int32(i % 4)})
+			cells = next
+		case 2: // a new scope: a keyframe
+			scope.Generation++
+		}
+		mirror.Put(m, scope, name, cells, mirror.At(int64(base.Tick)+int64(i)))
+		mirror.Put(m, scope, "buildings", map[string]int{"b1": i, "b2": 2}, mirror.At(int64(base.Tick)+int64(i)))
+		v, _ := Load(cleanFilthy)
+		v.Tick = base.Tick + domain.Tick(i)
+		// A loaded review's projection carries the review's Facts.
+		v.Projection = &observation.ColonyProjection{Facts: v.Facts, Workers: domain.Known(i)}
+		v.Projection.Cells = siteCells(cells)
+		if i == 5 {
+			v.Projection.Cells = v.Projection.Cells[1:] // not the mirror's: stays inline
+		}
+		if err = Record(dir, v); err != nil {
+			t.Fatal(err)
+		}
+		want = append(want, v)
+		reading := *v.Projection
+		reading.Facts = v.Facts
+		reading.Identity.Tick = v.Tick
+		reading.Rooms = domain.Known(policy.RoomObservation{})
+		if err = RecordStep(dir, "building", policy.MaintainCleanFacilities, v.Snapshot, reading); err != nil {
+			t.Fatal(err)
+		}
+		var s Step
+		data, _ := Encode(Step{Recorded: "", Snapshot: v.Snapshot, Tick: v.Tick, Goal: policy.MaintainCleanFacilities, Planner: "building", Projection: reading})
+		if err = Decode(data, &s); err != nil {
+			t.Fatal(err)
+		}
+		wantSteps = append(wantSteps, s)
+	}
+	paths, _ := filepath.Glob(filepath.Join(dir, "routine-stream-*.jsonl"))
+	if len(paths) != 1 {
+		t.Fatal("want one stream per serve, got", paths)
+	}
+	elided := 0
+	f, _ := os.Open(paths[0])
+	lines := bufio.NewScanner(f)
+	lines.Buffer(nil, 1<<26)
+	for lines.Scan() {
+		var line streamLine
+		if err = json.Unmarshal(lines.Bytes(), &line); err != nil {
+			t.Fatal(err)
+		}
+		if line.Mirror[name] != 0 {
+			elided++
+		}
+	}
+	f.Close()
+	if elided < 2*len(want)-4 {
+		t.Error("cells elided on only", elided, "lines")
+	}
+	i := 0
+	err = Replay(paths[0], nil, func(at Review, got Routine) (bool, error) {
+		if !reflect.DeepEqual(got, want[i]) {
+			t.Errorf("review %d (%s) does not round-trip", i, at)
+		}
+		i++
+		return true, nil
+	})
+	if err != nil || i != len(want) {
+		t.Fatal(i, err)
+	}
+	last := want[len(want)-1]
+	held, err := MirrorAt(paths[0], Review{Tick: last.Tick})
+	if err != nil || len(held[name].Rows) != len(last.Projection.Cells) || string(held["buildings"].Rows[`"b1"`]) != "21" {
+		t.Fatal("mirror at the last review:", held["buildings"], err)
+	}
+	steps, err := Steps(paths[0])
+	if err != nil || len(steps) != len(want) {
+		t.Fatal(steps, err)
+	}
+	for i, s := range steps {
+		got, err := LoadStreamStep(paths[0], s.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		got.Recorded = ""
+		if !reflect.DeepEqual(got, wantSteps[i]) {
+			t.Errorf("step %s does not round-trip", s)
+		}
+	}
+}
