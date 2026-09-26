@@ -23,7 +23,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "clearance/shrine-heat", Scope: "Build a door and heaters, observe heat, open filled caskets with a doorway shot and retreat; no colonist dead.",
 		Start: cases.Save{Name: "RimGovernor-tribal8-baseline"}, RequiredOps: []string{"test/shrine_prepare", "test/shrine_audit"},
-		Serve:  &cases.ServeSpec{Families: []string{"shrine"}, Prefix: "shrine-heat", Extra: []string{"--routine-shrine-open-caskets", "--routine-shrine-heat-fallback"}},
+		Serve:  &cases.ServeSpec{Families: []string{"shrine", "fire"}, Prefix: "shrine-heat", Extra: []string{"--routine-shrine-open-caskets", "--routine-shrine-heat-fallback"}},
 		Stages: []string{"shrine-ready"}, Budget: 8 * time.Minute, Stall: 90 * time.Second,
 		Run: func(ctx context.Context, s cases.Session) error { return runShrineOpening(ctx, s, true) },
 	})

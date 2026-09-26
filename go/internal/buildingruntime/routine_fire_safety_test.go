@@ -81,13 +81,13 @@ func TestRoutineFireSafetyHoldsWithoutFirefighter(t *testing.T) {
 	}
 }
 
-// A fire ReviewUpkeep calls unsafe (size above one) is not left to native
-// firefighting either.
-func TestRoutineFireSafetyHoldsOnUnsafeFire(t *testing.T) {
+// A fire ReviewUpkeep calls unsafe (size above one) still gets bounded native
+// windows: holding the clock would freeze the emergency forever (#715).
+func TestRoutineFireSafetyTicksBoundedOnUnsafeFire(t *testing.T) {
 	t.Parallel()
 	planner, _ := fireSafetyFixture(t, 1.5, true)
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Outcome != policy.FireSafetyBlocked || result.NativeWorkTicks != 0 {
+	if err != nil || result.Outcome != policy.FireSafetyWaitingForNative || result.NativeWorkTicks != fireSafetyNativeWorkTicks {
 		t.Fatal(result, err)
 	}
 }

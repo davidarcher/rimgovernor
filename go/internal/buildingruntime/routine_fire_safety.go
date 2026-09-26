@@ -30,9 +30,9 @@ const fireSafetyNativeWorkTicks = 600
 
 // RoutineFireSafetyPlanner is MaintainFireSafety's method: no plan and no
 // order, only a decision whether the clock may run so colonists fight a
-// bounded home fire natively (policy.EvaluateFireSafety). A blocked fire
-// (no eligible firefighter, or a fire ReviewUpkeep calls unsafe) keeps the
-// emergency hold and the clock paused.
+// home fire natively (policy.EvaluateFireSafety), even one ReviewUpkeep calls
+// unsafe (#715). A blocked fire (no eligible firefighter) keeps the emergency
+// hold and the clock paused.
 type RoutineFireSafetyPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineFireSafetySource
@@ -110,10 +110,10 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	if err != nil {
 		return RoutineFireSafetyResult{}, err
 	}
-	active, known, unsafe := false, false, false
+	active, known := false, false
 	for _, need := range upkeepReview.Needs {
 		if need.Goal == policy.MaintainFireSafety {
-			active, unsafe = need.Active, need.Unsafe
+			active = need.Active
 			_, known = need.Targets.Value()
 		}
 	}
@@ -166,7 +166,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	if p.session.State() != state {
 		return RoutineFireSafetyResult{}, ErrControl
 	}
-	outcome := policy.EvaluateFireSafety(active, known, unsafe, pawns)
+	outcome := policy.EvaluateFireSafety(active, known, pawns)
 	switch outcome {
 	case policy.FireSafetyWaitingForNative:
 		return RoutineFireSafetyResult{Reason: BuildingMethodExistingWork, Outcome: outcome, NativeWorkTicks: fireSafetyNativeWorkTicks}, nil

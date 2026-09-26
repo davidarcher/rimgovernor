@@ -17,8 +17,7 @@ type FireSafetyPawnFacts struct {
 // FireSafetyOutcome names the three-way firefight branch: recovered (no
 // active fire), waiting on the
 // native, non-orderable firefighting WorkGiver because an eligible worker
-// exists and the fire is bounded, or blocked because no such worker or
-// bound exists and the emergency hold must be retained.
+// exists, or blocked because no such worker exists and the emergency hold must be retained.
 type FireSafetyOutcome string
 
 const (
@@ -35,9 +34,13 @@ const (
 // eligible-firefighter existence check paired with ReviewUpkeep's own Unsafe
 // verdict (more than three home fires, or any fire with unmeasured or >1
 // size) rather than fabricate a per-fire safety claim the native layer has
-// not itself confirmed. `active`/`known`/`unsafe` are the same fields
-// ReviewUpkeep already produces for the MaintainFireSafety UpkeepNeed.
-func EvaluateFireSafety(active, known, unsafe bool, pawns []FireSafetyPawnFacts) FireSafetyOutcome {
+// not itself confirmed. `active`/`known` are the same fields ReviewUpkeep
+// already produces for the MaintainFireSafety UpkeepNeed. An unsafe fire
+// (more than three home fires, or one bigger than size 1) still waits on
+// native firefighting when a worker is eligible: MaintainFireSafety deselects
+// development, so holding the clock there would freeze the colony forever
+// (#715); the planner's bounded windows re-evaluate between runs.
+func EvaluateFireSafety(active, known bool, pawns []FireSafetyPawnFacts) FireSafetyOutcome {
 	if !active {
 		return FireSafetyRecovered
 	}
@@ -51,7 +54,7 @@ func EvaluateFireSafety(active, known, unsafe bool, pawns []FireSafetyPawnFacts)
 			break
 		}
 	}
-	if eligible && !unsafe {
+	if eligible {
 		return FireSafetyWaitingForNative
 	}
 	return FireSafetyBlocked

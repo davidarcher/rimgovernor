@@ -13,33 +13,33 @@ func eligibleFirefighter(pawn domain.PawnID) FireSafetyPawnFacts {
 }
 
 func TestEvaluateFireSafetyRecoveredWhenInactive(t *testing.T) {
-	if got := EvaluateFireSafety(false, true, true, []FireSafetyPawnFacts{eligibleFirefighter("a")}); got != FireSafetyRecovered {
+	if got := EvaluateFireSafety(false, true, []FireSafetyPawnFacts{eligibleFirefighter("a")}); got != FireSafetyRecovered {
 		t.Fatal(got)
 	}
 }
 
 func TestEvaluateFireSafetyUnknownWhenUnobserved(t *testing.T) {
-	if got := EvaluateFireSafety(true, false, false, nil); got != FireSafetyUnknown {
+	if got := EvaluateFireSafety(true, false, nil); got != FireSafetyUnknown {
 		t.Fatal(got)
 	}
 }
 
 func TestEvaluateFireSafetyWaitsForNativeWithEligibleWorkerAndSafeFire(t *testing.T) {
-	got := EvaluateFireSafety(true, true, false, []FireSafetyPawnFacts{eligibleFirefighter("a")})
+	got := EvaluateFireSafety(true, true, []FireSafetyPawnFacts{eligibleFirefighter("a")})
 	if got != FireSafetyWaitingForNative {
 		t.Fatal(got)
 	}
 }
 
-func TestEvaluateFireSafetyBlockedWhenUnsafeEvenWithEligibleWorker(t *testing.T) {
-	got := EvaluateFireSafety(true, true, true, []FireSafetyPawnFacts{eligibleFirefighter("a")})
-	if got != FireSafetyBlocked {
+func TestEvaluateFireSafetyWaitsForNativeOnUnsafeFireWithEligibleWorker(t *testing.T) {
+	got := EvaluateFireSafety(true, true, []FireSafetyPawnFacts{eligibleFirefighter("a")})
+	if got != FireSafetyWaitingForNative {
 		t.Fatal(got)
 	}
 }
 
 func TestEvaluateFireSafetyBlockedWithoutEligibleWorker(t *testing.T) {
-	if got := EvaluateFireSafety(true, true, false, nil); got != FireSafetyBlocked {
+	if got := EvaluateFireSafety(true, true, nil); got != FireSafetyBlocked {
 		t.Fatal(got)
 	}
 	base := eligibleFirefighter("a")
@@ -55,7 +55,7 @@ func TestEvaluateFireSafetyBlockedWithoutEligibleWorker(t *testing.T) {
 	} {
 		p := base
 		mutate(&p)
-		if got := EvaluateFireSafety(true, true, false, []FireSafetyPawnFacts{p}); got != FireSafetyBlocked {
+		if got := EvaluateFireSafety(true, true, []FireSafetyPawnFacts{p}); got != FireSafetyBlocked {
 			t.Fatal("ineligible firefighter treated as eligible", p, got)
 		}
 	}
@@ -65,7 +65,7 @@ func TestFireSafetyAllowsForcedWork(t *testing.T) {
 	pawn := eligibleFirefighter("a")
 	for _, forced := range []domain.Fact[bool]{domain.Known(true), domain.Unknown[bool]()} {
 		pawn.PlayerForced = forced
-		if got := EvaluateFireSafety(true, true, false, []FireSafetyPawnFacts{pawn}); got != FireSafetyWaitingForNative {
+		if got := EvaluateFireSafety(true, true, []FireSafetyPawnFacts{pawn}); got != FireSafetyWaitingForNative {
 			t.Fatal(got)
 		}
 	}
