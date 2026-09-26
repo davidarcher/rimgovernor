@@ -867,7 +867,7 @@ namespace HomeBridge.BridgeTools
             // gone) from its replacement (a new id on the same cell).
             var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
             var cells = traps.OrderBy(t => t.thingIDNumber).Select(t => new { x = t.Position.x, z = t.Position.z }).ToList();
-            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit").OrderBy(b => b.thingIDNumber)
+            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit" || b.def.defName == "HiddenConduit").OrderBy(b => b.thingIDNumber)
                 .Select(b => new { x = b.Position.x, z = b.Position.z }).ToList();
             var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerPlant>() != null).OrderBy(b => b.thingIDNumber)
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,

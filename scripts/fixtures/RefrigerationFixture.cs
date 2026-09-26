@@ -20,7 +20,10 @@ namespace HomeBridge.BridgeTools
     // cooler placement search. Optionally spawns an existing outward-facing
     // Cooler on the west wall at a warm setpoint (the setpoint-patch path),
     // with or without a conduit run back to the generator (the "hot-weather
-    // freezer failure" power hand-off path).
+    // freezer failure" power hand-off path). A disconnected ring is
+    // HiddenConduit: energizing a plain ring is zzztt exposure the power
+    // planner upgrades away first (#405, #698), a detour that outlives the
+    // meat (#690).
     // With season, the storeroom starts settled cold and the heat waves ramp
     // in from the current tick instead of arriving fully ramped: the harness
     // runs the game through the warming (an inactive family asks for no
@@ -70,11 +73,12 @@ namespace HomeBridge.BridgeTools
                 var wallDef = DefDatabase<ThingDef>.GetNamedSilentFail("Wall");
                 var doorDef = DefDatabase<ThingDef>.GetNamedSilentFail("Door");
                 var conduitDef = DefDatabase<ThingDef>.GetNamedSilentFail("PowerConduit");
+                var hiddenConduitDef = DefDatabase<ThingDef>.GetNamedSilentFail("HiddenConduit");
                 var generatorDef = DefDatabase<ThingDef>.GetNamedSilentFail("WoodFiredGenerator");
                 var heaterDef = DefDatabase<ThingDef>.GetNamedSilentFail("Heater");
                 var meatDef = DefDatabase<ThingDef>.GetNamedSilentFail(foodDef ?? "Meat_Muffalo");
-                if (coolerDef == null || wallDef == null || doorDef == null || conduitDef == null || generatorDef == null || heaterDef == null || meatDef == null)
-                    return Refuse("Cooler, Wall, Door, PowerConduit, WoodFiredGenerator, Heater or " + foodDef + " unavailable in this ruleset.");
+                if (coolerDef == null || wallDef == null || doorDef == null || conduitDef == null || hiddenConduitDef == null || generatorDef == null || heaterDef == null || meatDef == null)
+                    return Refuse("Cooler, Wall, Door, PowerConduit, HiddenConduit, WoodFiredGenerator, Heater or " + foodDef + " unavailable in this ruleset.");
                 if (meatDef.GetCompProperties<CompProperties_Rottable>() == null) return Refuse(foodDef + " does not rot.");
                 if (!coolerDef.IsResearchFinished) return Refuse("Cooler research did not finish.");
 
@@ -120,7 +124,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var edge = cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ;
                     if (!edge) { map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed); continue; }
-                    Spawn(conduitDef, cell, Rot4.North);
+                    Spawn(disconnected ? hiddenConduitDef : conduitDef, cell, Rot4.North);
                     if (cell == At(0, 3))
                     {
                         Spawn(doorDef, cell, Rot4.North);
