@@ -398,17 +398,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if len(inner) > maxProtoBytes {
 		return Result{}, contract("oversized request")
 	}
-	// Reads ask for the binary reply form until the companion refuses it;
-	// writes only once a read has proven it (replywire.go).
-	encoding := ""
-	switch caller.binaryReplies.Load() {
-	case binaryConfirmed:
-		encoding = replyEncodingArgument
-	case binaryUnknown:
-		if nativeReadMethod(name) {
-			encoding = replyEncodingArgument
-		}
-	}
 	ctx = withRecordedReply(ctx, reply)
 	invoked := false
 	var recordCtx map[string]any
@@ -437,8 +426,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			Request  string `json:"request"`
 			Trace    string `json:"trace,omitempty"`
 			Class    string `json:"class,omitempty"`
-			Encoding string `json:"encoding,omitempty"`
-		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), encoding})
+			Encoding string `json:"encoding"`
+		}{string(inner), telemetry.TraceFrom(ctx).Wire(), string(class), replyEncodingArgument})
 		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
 		if timing := callTimingFrom(ctx); timing != nil {
 			requestRow = timing.request
@@ -461,29 +450,15 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if caller.recorder != nil && invoked {
 		// Reply decoding is the typed adapter's own cost, after the raw
 		// receipt row; it is correlated to that row by request sequence.
-		// payload_bytes is the decoded reply (ProtoJSON text or binary
-		// protobuf), wire_bytes the JSON value that carried it.
+		// payload_bytes is the decoded binary reply, wire_bytes the JSON value that carried it.
 		caller.recorder.Event("native_decode", recordCtx, false, map[string]any{"request": requestRow, "native_tool": name, "proto_decode_ms": millis(time.Since(decodeBegan)),
-			"payload_bytes": len(wire.data), "wire_bytes": wire.wire, "encoding": wire.encoding(), "ok": err == nil})
+			"payload_bytes": len(wire.data), "wire_bytes": wire.wire, "ok": err == nil})
 	}
 	if err != nil {
 		if callErr != nil {
 			return result, callErr
 		}
 		return result, contract("reply parsing: %v", err)
-	}
-	if wire.binary {
-		caller.binaryReplies.CompareAndSwap(binaryUnknown, binaryConfirmed)
-	} else if encoding != "" && refusedEncoding(reply) {
-		// A companion predating the binary form refused the argument before
-		// running anything. Reads retry once in ProtoJSON; a write never
-		// asks before a read confirmed the form, so this refusal of one
-		// stands as the reply.
-		caller.binaryReplies.Store(binaryRefused)
-		if nativeReadMethod(name) {
-			proto.Reset(reply)
-			return caller.protoCall(ctx, name, request, reply)
-		}
 	}
 	if callErr != nil {
 		typedFailure := false

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"testing"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -21,13 +20,18 @@ import (
 
 func gzipBase64(t *testing.T, data []byte) string {
 	t.Helper()
+	return packProto(data)
+}
+
+// packProto is a companion's "proto" value: base64 of gzipped bytes.
+func packProto(data []byte) string {
 	var buffer bytes.Buffer
 	w := gzip.NewWriter(&buffer)
 	if _, err := w.Write(data); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	if err := w.Close(); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return base64.StdEncoding.EncodeToString(buffer.Bytes())
 }
@@ -49,7 +53,7 @@ func TestDecodeWrapperBinaryForm(t *testing.T) {
 	}
 	raw := encode(map[string]any{"proto": gzipBase64(t, data), "timing": map[string]float64{"queueMs": 1}})
 	wire, err := decodeWrapper(raw, maxProtoBytes)
-	if err != nil || !wire.binary || wire.wire == 0 || wire.encoding() != replyEncodingArgument {
+	if err != nil || wire.wire == 0 {
 		t.Fatalf("binary wrapper: %+v %v", wire, err)
 	}
 	reply := &l.IdentityReply{}
@@ -57,14 +61,8 @@ func TestDecodeWrapperBinaryForm(t *testing.T) {
 		t.Fatalf("binary reply %v %v", reply, err)
 	}
 
-	// The ProtoJSON form is unchanged.
-	text, _ := protojson.Marshal(pbLoaded())
-	wire, err = decodeWrapper(encode(map[string]string{"payload": string(text)}), maxProtoBytes)
-	if err != nil || wire.binary || string(wire.data) != string(text) {
-		t.Fatalf("payload wrapper: %+v %v", wire, err)
-	}
-
 	for name, raw := range map[string][]byte{
+		"payload":    encode(map[string]string{"payload": "{}"}),
 		"both":       encode(map[string]string{"payload": "{}", "proto": gzipBase64(t, nil)}),
 		"neither":    []byte(`{"timing":{}}`),
 		"not base64": []byte(`{"proto":"!!"}`),
@@ -89,92 +87,46 @@ func TestBinaryReplyRefusesUnknownFields(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = unmarshalReply(replyWire{data: data, binary: true}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
+		if err = unmarshalReply(replyWire{data: data}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
 			t.Errorf("%s unknown field accepted: %v", name, err)
 		}
 	}
 }
 
-// binaryServer answers games_call_tool in the form the call asked for, or,
-// as a companion predating the binary form, refuses the encoding argument.
-type binaryServer struct {
+// encodingServer records the encoding argument each call sent.
+type encodingServer struct {
 	mu        sync.Mutex
 	encodings []string
 }
 
-func (b *binaryServer) handler(t *testing.T, old bool) func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+func (b *encodingServer) handler(t *testing.T) func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 	return func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 		var outer map[string]string
 		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
 			return nil, err
 		}
-		encoding, sent := outer["encoding"]
 		b.mu.Lock()
-		b.encodings = append(b.encodings, encoding)
+		b.encodings = append(b.encodings, outer["encoding"])
 		b.mu.Unlock()
-		switch {
-		case sent && old:
-			return pbResult(&l.IdentityReply{Outcome: &l.IdentityReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Detail: proto.String(unknownArgumentDetail)}}}), nil
-		case encoding == replyEncodingArgument:
-			return pbBinaryResult(t, pbLoaded()), nil
-		}
-		return pbResult(pbLoaded()), nil
+		return pbBinaryResult(t, pbLoaded()), nil
 	}
 }
 
-func (b *binaryServer) take() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	out := strings.Join(b.encodings, ",")
-	b.encodings = nil
-	return out
-}
-
-const writeMethod = "rimgovernor/operations_execute"
-
-func TestProtoCallAsksForBinaryReplies(t *testing.T) {
-	b := &binaryServer{}
-	client := testClient(t, &testServer{schema: protoSchema, handler: b.handler(t, false)}, testBudget)
-	// A write before any read never asks: an older companion would refuse it.
-	if _, err := client.protoCall(context.Background(), writeMethod, &l.IdentityRequest{}, &l.IdentityReply{}); err != nil {
+// Reads and writes alike always ask for the binary reply form.
+func TestProtoCallAlwaysAsksForBinaryReplies(t *testing.T) {
+	b := &encodingServer{}
+	client := testClient(t, &testServer{schema: protoSchema, handler: b.handler(t)}, testBudget)
+	if _, err := client.protoCall(context.Background(), "rimgovernor/operations_execute", &l.IdentityRequest{}, &l.IdentityReply{}); err != nil {
 		t.Fatal(err)
-	}
-	if got := b.take(); got != "" {
-		t.Fatalf("unconfirmed write asked for %q", got)
 	}
 	identity, _, err := client.Identity(context.Background())
 	if err != nil || !proto.Equal(identity, pbLoaded()) {
 		t.Fatalf("binary read %v %v", identity, err)
 	}
-	if got := b.take(); got != replyEncodingArgument {
-		t.Fatalf("read asked for %q", got)
-	}
-	if _, err = client.protoCall(context.Background(), writeMethod, &l.IdentityRequest{}, &l.IdentityReply{}); err != nil {
-		t.Fatal(err)
-	}
-	if got := b.take(); got != replyEncodingArgument {
-		t.Fatalf("confirmed write asked for %q", got)
-	}
-}
-
-func TestProtoCallFallsBackForOlderCompanion(t *testing.T) {
-	b := &binaryServer{}
-	client := testClient(t, &testServer{schema: protoSchema, handler: b.handler(t, true)}, testBudget)
-	identity, _, err := client.Identity(context.Background())
-	if err != nil || !proto.Equal(identity, pbLoaded()) {
-		t.Fatalf("fallback read %v %v", identity, err)
-	}
-	if got := b.take(); got != replyEncodingArgument+"," {
-		t.Fatalf("read did not retry once in ProtoJSON: %q", got)
-	}
-	if _, _, err = client.Identity(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = client.protoCall(context.Background(), writeMethod, &l.IdentityRequest{}, &l.IdentityReply{}); err != nil {
-		t.Fatal(err)
-	}
-	if got := b.take(); got != "," {
-		t.Fatalf("refused form asked for again: %q", got)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if got := strings.Join(b.encodings, ","); got != replyEncodingArgument+","+replyEncodingArgument {
+		t.Fatalf("calls asked for %q", got)
 	}
 }
 

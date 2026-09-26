@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -218,10 +217,6 @@ type Client struct {
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
 	transcript       *Transcript
-
-	// binaryReplies is the companion's answer to the binary reply form
-	// (binaryUnknown, binaryConfirmed, binaryRefused; replywire.go).
-	binaryReplies atomic.Int32
 }
 
 // SetRecordingContext installs a callback read once per recorded call and

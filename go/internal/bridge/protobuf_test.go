@@ -37,33 +37,33 @@ func pbBatch() *p.PlacementReply {
 	return &p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Context: pbContext(), Results: []*p.CandidateReply{{Outcome: &p.CandidateReply_Evaluated{Evaluated: &p.PlacementEvaluated{CanPlace: proto.Bool(true), MadeFromStuff: proto.Bool(false), Passability: p.Passability_PASSABILITY_IMPASSABLE.Enum(), IsDoor: proto.Bool(false), ResearchFinished: proto.Bool(true), BuildableByPlayer: proto.Bool(true), Materials: &p.PlacementMaterials{Availability: &p.PlacementMaterials_Known{Known: &p.MaterialRows{Rows: []*p.PlacementMaterialStock{{DefName: proto.String("Steel")}, {DefName: proto.String("WoodLog"), Available: proto.Int32(0)}}}}}, Rotations: []*p.PlacementRotation{{Rotation: p.Rotation_ROTATION_NORTH.Enum(), Accepted: proto.Bool(true), OccupiedCells: []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(0)}}}}}}}}}}}
 }
 func pbResult(message proto.Message) *mcp.CallToolResult {
-	inner, err := protojson.Marshal(message)
+	inner, err := proto.Marshal(message)
 	if err != nil {
 		panic(err)
 	}
 	outer := encode(struct {
-		Payload   string `json:"payload"`
+		Proto     string `json:"proto"`
 		Operation struct {
 			ID string `json:"id"`
 		} `json:"operation"`
-	}{Payload: string(inner)})
+	}{Proto: packProto(inner)})
 	return &mcp.CallToolResult{StructuredContent: outer}
 }
 
 // pbTimedResult is pbResult from a companion that reports its main-thread
 // queue wait and tool body beside the payload.
 func pbTimedResult(message proto.Message, queueMs, executeMs float64) *mcp.CallToolResult {
-	inner, err := protojson.Marshal(message)
+	inner, err := proto.Marshal(message)
 	if err != nil {
 		panic(err)
 	}
 	outer := encode(struct {
-		Payload string `json:"payload"`
-		Timing  struct {
+		Proto  string `json:"proto"`
+		Timing struct {
 			QueueMs   float64 `json:"queueMs"`
 			ExecuteMs float64 `json:"executeMs"`
 		} `json:"timing"`
-	}{Payload: string(inner), Timing: struct {
+	}{Proto: packProto(inner), Timing: struct {
 		QueueMs   float64 `json:"queueMs"`
 		ExecuteMs float64 `json:"executeMs"`
 	}{queueMs, executeMs}})

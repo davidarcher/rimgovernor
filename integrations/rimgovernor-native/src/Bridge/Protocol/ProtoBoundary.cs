@@ -26,6 +26,7 @@ namespace HomeBridge.BridgeTools
             MessageParser<T> parser, [NotNullWhen(true)] out T? value, [NotNullWhen(false)] out Common.Failure? failure) where T : class, IMessage<T>
         {
             value = null;
+            callerBinary.Value = BinaryOf(ctx);
             string? unavailable;
             var arguments = BridgeCommon.RawArguments(ctx, out unavailable);
             if (arguments == null)
@@ -111,18 +112,25 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // A caller that sends encoding=proto-gzip (the Go controller, #757)
-        // receives its reply in field "proto": base64 of the gzip-compressed
-        // binary protobuf message, instead of the ProtoJSON string in field
-        // "payload". Every other caller (acceptance cases, flight-log tools,
-        // an older controller) keeps "payload". The choice is per hop: RunHop
-        // reads the argument and a detached encode inherits it; an encode
-        // outside a hop always answers "payload".
+        // The Go controller always sends encoding=proto-gzip (#757) and accepts
+        // only field "proto": base64 of the gzip-compressed binary protobuf
+        // message; it refuses a ProtoJSON reply. ProtoJSON in field "payload"
+        // remains solely for callers that omit the argument: the acceptance
+        // harness and cases that call the companion directly and assert on
+        // that text.
+        //
+        // Every reply of a call follows its argument, including refusals
+        // encoded before or without a main-thread hop: TryParse records the
+        // form in the call's async flow (callerBinary), and a hop pins it on
+        // the thread that runs it (RunHop reads the argument, a detached
+        // encode inherits it), since the main thread and encoder workers do
+        // not share the caller's flow.
         internal const string EncodingArgument = "encoding";
         internal const string BinaryEncoding = "proto-gzip";
         internal const string PayloadField = "payload";
         internal const string ProtoField = "proto";
-        [ThreadStatic] private static bool binary;
+        [ThreadStatic] private static bool? binary;
+        private static readonly AsyncLocal<bool> callerBinary = new AsyncLocal<bool>();
 
         /// <summary>Runs encode with the binary reply form on or off for this thread.</summary>
         internal static T WithBinary<T>(bool on, Func<T> encode)
@@ -145,7 +153,7 @@ namespace HomeBridge.BridgeTools
         // envelope field that carries it; charged to the hop like Format.
         private static string Body(IMessage reply, bool compact, out string field)
         {
-            if (!binary)
+            if (!(binary ?? callerBinary.Value))
             {
                 field = PayloadField;
                 return Format(reply, compact);

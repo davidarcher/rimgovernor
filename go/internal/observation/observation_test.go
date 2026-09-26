@@ -1,7 +1,10 @@
 package observation
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -15,7 +18,6 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -153,13 +155,18 @@ func TestMain(m *testing.M) {
 					default:
 						return nil, errors.New("unreviewed tool")
 					}
-					payload, err := protojson.Marshal(message)
+					payload, err := proto.Marshal(message)
 					if err != nil {
 						return nil, err
 					}
+					// The binary reply form the bridge asks for (#757).
+					var packed bytes.Buffer
+					zip := gzip.NewWriter(&packed)
+					_, _ = zip.Write(payload)
+					_ = zip.Close()
 					raw, err = json.Marshal(struct {
-						Payload string `json:"payload"`
-					}{string(payload)})
+						Proto string `json:"proto"`
+					}{base64.StdEncoding.EncodeToString(packed.Bytes())})
 					if err != nil {
 						return nil, err
 					}

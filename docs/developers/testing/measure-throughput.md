@@ -27,7 +27,7 @@ go run ./cmd/rimgovernor serve --flight-recorder C:\path\to\run\flight-recorder.
 Every row a phase report reads:
 
 - `timing` on a native call: gate wait, GABS round trip, receipt decode and
-  ProtoJSON decode, and (when the companion carries it) its own
+  reply decode, and (when the companion carries it) its own
   main-thread queue wait and execute time. `class` is the admission class
   the call took a bridge slot under (`control`, `observation` or `media`,
   #631), `gate_wait_ms` the wait for that slot, `queue_depth` and
@@ -200,7 +200,7 @@ text report divides by `calls`):
 | `gate ms` | Waiting for the bridge gate (another call in flight: the host runs one tool at a time). |
 | `call ms` | The GABS round trip, including the native queue and execute time. |
 | `queue ms`, `exec ms` | The companion's own split for `rimgovernor/*` tools whose single main-thread hop goes through `ProtoBoundary.OnMainThread`: waiting for the main thread, then running on it. Means over the calls that carried it; `-` means absent (older companion or multi-hop media capture), not zero. |
-| `decode ms`, `proto ms` | Receipt decode and reply decode in the service. The controller asks for replies as gzipped binary protobuf (`encoding=proto-gzip`, wrapper field `proto`, #757); other callers get ProtoJSON in `payload`. `native_decode` rows carry `encoding`, `payload_bytes` (decoded reply) and `wire_bytes` (the JSON value as sent); recorded `native_response` rows keep a ProtoJSON `payload`. |
+| `decode ms`, `proto ms` | Receipt decode and reply decode in the service. The controller always asks for replies as gzipped binary protobuf (`encoding=proto-gzip`, wrapper field `proto`, #757) and refuses a ProtoJSON `payload` reply; only callers that omit the argument (acceptance cases calling the companion directly) get ProtoJSON in `payload`. `native_decode` rows carry `payload_bytes` (decoded reply) and `wire_bytes` (the JSON value as sent); recorded `native_response` rows keep a ProtoJSON `payload`. |
 | `avg KiB` | Mean response size. |
 
 Describe (`games_tool_detail`) round trips are listed separately: paid once

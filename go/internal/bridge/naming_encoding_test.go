@@ -8,6 +8,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // A generated faction name outside ASCII (#600: "Coalition of Ñoa") must
@@ -17,23 +18,22 @@ import (
 // JSON parse restores the exact name.
 func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	const faction, settlement = "Coalition of Ñoa", "Red Çanga 🏹"
-	// The native reply: ProtoJSON inside the one-field wrapper, exactly as
-	// ProtoBoundary.Encode writes it.
-	inner, err := protojson.Marshal(&o.ColonyNaming{WindowId: int32p(1), FactionName: stringp(faction), SettlementName: stringp(settlement)})
+	// The native reply: gzipped binary protobuf inside the one-field
+	// wrapper, exactly as ProtoBoundary.Encode writes it for the controller.
+	inner, err := proto.Marshal(&o.ColonyNaming{WindowId: int32p(1), FactionName: stringp(faction), SettlementName: stringp(settlement)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	wrapper, err := json.Marshal(map[string]string{"payload": string(inner)})
+	wrapper, err := json.Marshal(map[string]string{"proto": packProto(inner)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	wire, err := decodeWrapper(wrapper, maxProtoBytes)
-	payload := wire.data
 	if err != nil {
 		t.Fatal(err)
 	}
 	decoded := &o.ColonyNaming{}
-	if err = protojson.Unmarshal(payload, decoded); err != nil {
+	if err = unmarshalReply(wire, decoded); err != nil {
 		t.Fatal(err)
 	}
 	if decoded.GetFactionName() != faction || decoded.GetSettlementName() != settlement {

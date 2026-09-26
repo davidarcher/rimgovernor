@@ -8,50 +8,24 @@ import (
 	"encoding/json"
 	"io"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// The companion's reply wrapper carries the typed reply in exactly one of
-// two fields (#757): "payload", the official ProtoJSON text as a JSON
-// string, or "proto", base64 of the gzip-compressed binary protobuf
-// message. The controller asks for the binary form with the encoding
-// argument; every other caller (acceptance cases, flight-log tools) keeps
-// ProtoJSON.
-const (
-	replyEncodingArgument = "proto-gzip"
-	encodingProtoJSON     = "protojson"
-)
+// The companion answers the controller in one wrapper field (#757): "proto",
+// base64 of the gzip-compressed binary protobuf reply. Every call asks for
+// it with the encoding argument; a companion that answers ProtoJSON
+// "payload" instead is refused as a contract error. Callers that omit the
+// argument (acceptance cases reading the companion directly) still receive
+// ProtoJSON "payload", which this package never decodes.
+const replyEncodingArgument = "proto-gzip"
 
-// Per-client state of the binary reply form. An older companion refuses the
-// encoding argument outright, so a client learns it from its first read:
-// reads ask for binary until refused, writes only once a binary read has
-// succeeded, so a write is never refused (or retried) for asking.
-const (
-	binaryUnknown int32 = iota
-	binaryConfirmed
-	binaryRefused
-)
-
-// unknownArgumentDetail is ProtoBoundary.TryParse's refusal of an argument it
-// does not know, which is how a companion predating #757 answers encoding.
-const unknownArgumentDetail = "The sole caller argument must be request."
-
-// replyWire is one decoded wrapper: the reply bytes (ProtoJSON or binary),
-// which form they are, and the length of the JSON value that carried them.
+// replyWire is one decoded wrapper: the binary reply bytes and the length
+// of the JSON value that carried them.
 type replyWire struct {
-	data   []byte
-	binary bool
-	wire   int
-}
-
-func (w replyWire) encoding() string {
-	if w.binary {
-		return replyEncodingArgument
-	}
-	return encodingProtoJSON
+	data []byte
+	wire int
 }
 
 func decodeWrapper(raw []byte, limit int) (replyWire, error) {
@@ -76,7 +50,7 @@ func decodeWrapper(raw []byte, limit int) (replyWire, error) {
 		if _, ok = fields[key]; ok {
 			return replyWire{}, contract("duplicate wrapper key")
 		}
-		if key != "payload" && key != "proto" && key != "operation" && key != "timing" {
+		if key != "proto" && key != "operation" && key != "timing" {
 			return replyWire{}, contract("unknown wrapper field %s", key)
 		}
 		var value json.RawMessage
@@ -91,22 +65,11 @@ func decodeWrapper(raw []byte, limit int) (replyWire, error) {
 	if _, err = d.Token(); err != io.EOF {
 		return replyWire{}, contract("trailing wrapper data")
 	}
-	text, hasText := fields["payload"]
-	packed, hasPacked := fields["proto"]
-	switch {
-	case hasText && hasPacked:
-		return replyWire{}, contract("wrapper carries both payload and proto")
-	case hasPacked:
-		return decodePacked(packed, limit)
+	packed, ok := fields["proto"]
+	if !ok {
+		return replyWire{}, contract("wrapper carries no proto")
 	}
-	var value string
-	if len(text) == 0 || text[0] != '"' || json.Unmarshal(text, &value) != nil {
-		return replyWire{}, contract("payload must be string")
-	}
-	if len(value) > limit {
-		return replyWire{}, contract("oversized payload")
-	}
-	return replyWire{data: []byte(value), wire: len(text)}, nil
+	return decodePacked(packed, limit)
 }
 
 // decodePacked gunzips a "proto" value, refusing more than limit
@@ -131,15 +94,12 @@ func decodePacked(value json.RawMessage, limit int) (replyWire, error) {
 	if len(data) > limit {
 		return replyWire{}, contract("oversized payload")
 	}
-	return replyWire{data: data, binary: true, wire: len(value)}, nil
+	return replyWire{data: data, wire: len(value)}, nil
 }
 
-// unmarshalReply decodes either form with the same strictness: unknown
+// unmarshalReply decodes a binary reply strictly: unknown
 // fields anywhere in the tree are refused, and nesting is bounded.
 func unmarshalReply(w replyWire, reply proto.Message) error {
-	if !w.binary {
-		return protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}.Unmarshal(w.data, reply)
-	}
 	if err := (proto.UnmarshalOptions{RecursionLimit: 64}).Unmarshal(w.data, reply); err != nil {
 		return err
 	}
@@ -169,18 +129,6 @@ func refuseUnknown(m protoreflect.Message) error {
 		return err == nil
 	})
 	return err
-}
-
-// refusedEncoding reports whether reply is an older companion's refusal of
-// the encoding argument: its top-level failure names the unknown argument.
-func refusedEncoding(reply proto.Message) bool {
-	m := reply.ProtoReflect()
-	fd := m.Descriptor().Fields().ByName("failure")
-	if fd == nil || fd.Message() == nil || fd.Message().FullName() != (&c.Failure{}).ProtoReflect().Descriptor().FullName() || !m.Has(fd) {
-		return false
-	}
-	failure, ok := m.Get(fd).Message().Interface().(*c.Failure)
-	return ok && failure.GetCode() == c.FailureCode_FAILURE_CODE_INVALID_REQUEST && failure.GetDetail() == unknownArgumentDetail
 }
 
 // The reply type a protoCall decodes into rides the call's context so a
