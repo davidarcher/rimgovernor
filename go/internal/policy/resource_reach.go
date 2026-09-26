@@ -36,18 +36,18 @@ type ResourceReachDecision struct {
 // Two armed colonists support near work; six support far work. Raid points
 // above 100 per armed colonist hold outside work. Two free haulers permit far
 // work and three permit map-wide consideration, only with a quiet storyteller.
+// Readiness alone stages reach: an established extent that is known empty (a
+// colony holding no facility or claimed stockpile yet) carries no readiness
+// evidence, so it never caps the stage. Only its geometry is missing, which
+// FilterResourceReach's near margin needs and far or map work does not (#664).
 func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	base := func(reason string) ResourceReachDecision { return ResourceReachDecision{ResourceReachBase, reason} }
 	threat, tk := r.Threat.Value()
 	if tk && threat {
 		return base("threat_present")
 	}
-	e, ek := r.Extent.Value()
-	if !ek {
+	if _, ek := r.Extent.Value(); !ek {
 		return base("extent_unknown")
-	}
-	if !resourceExtentPresent(e) {
-		return base("extent_empty")
 	}
 	b, bk := r.Bounds.Value()
 	if !bk || b.Width <= 0 || b.Height <= 0 {
@@ -107,15 +107,6 @@ func ResourceReach(r ResourceReachRequest) ResourceReachDecision {
 	return ResourceReachDecision{ResourceReachMap, "ready_map"}
 }
 
-func resourceExtentPresent(e ColonyExtent) bool {
-	for _, region := range e.Regions {
-		if len(region.Cells) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
 // ResourceReachCandidate is the narrow boundary for an eligibility view (#518).
 // Eligible is its complete safety/permission verdict; RouteObservedPassable is
 // native route evidence for this candidate. Neither defaults to permission.
@@ -132,6 +123,8 @@ type ResourceReachFilterDecision struct {
 // FilterResourceReach intersects readiness, exact extent geometry and observed
 // eligibility. The near margin is 12 Chebyshev cells, never an inferred route.
 // Even base/map candidates require positive route and eligibility observations.
+// An empty extent matches no base or near candidate and so denies with the
+// stage's own reason; far and map admit a cell without extent geometry.
 func FilterResourceReach(r ResourceReachRequest, c ResourceReachCandidate) ResourceReachFilterDecision {
 	deny := func(reason string) ResourceReachFilterDecision { return ResourceReachFilterDecision{false, reason} }
 	eligible, known := c.Eligible.Value()
@@ -158,9 +151,6 @@ func FilterResourceReach(r ResourceReachRequest, c ResourceReachCandidate) Resou
 	e, known := r.Extent.Value()
 	if !known {
 		return deny("extent_unknown")
-	}
-	if !resourceExtentPresent(e) {
-		return deny("extent_empty")
 	}
 	d := ResourceReach(r)
 	for _, region := range e.Regions {

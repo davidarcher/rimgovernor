@@ -176,3 +176,34 @@ func TestLootDemandAndReachFromFacts(t *testing.T) {
 		t.Fatal(r.StorageHeadroom)
 	}
 }
+
+// Both nightly loot failures were one shape (#664): a colony whose established
+// extent is empty -- it owns no facility, or the only facility anchoring its
+// extent was the trap the case removed -- held every safe forbidden stack on
+// extent geometry, so no readiness could ever allow one.
+func TestRemoteLootEmptyExtentFollowsReadiness(t *testing.T) {
+	r := tribal8Reach()
+	r.Extent = domain.Known(ColonyExtent{})
+	r.Armed = domain.Known(int64(1))
+	row := remoteLootRow("steel-1", domain.Cell{X: 95, Z: 95}, true, true)
+	kept, holds, err := FilterLootReach(domain.Known([]LootItem{row}), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := kept.Value(); len(rows) != 0 || len(holds) != 1 || holds[0].Reason != "outside_base:insufficient_defense" {
+		t.Fatalf("kept %v holds %v", rows, holds)
+	}
+	r.Armed, r.FreeHaulers = domain.Known(int64(6)), domain.Known(int64(3))
+	kept, holds, err = FilterLootReach(domain.Known([]LootItem{row}), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := kept.Value()
+	if len(rows) != 1 || len(holds) != 0 {
+		t.Fatalf("kept %v holds %v", rows, holds)
+	}
+	next, need, err := ReviewEventLoot(kept, EventLootHistory{})
+	if err != nil || need != domain.Known(true) || len(next.Pending) != 1 || next.Pending[0].Forbid {
+		t.Fatal(next, need, err)
+	}
+}

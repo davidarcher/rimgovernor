@@ -48,7 +48,7 @@ func TestResourceReachReadiness(t *testing.T) {
 			r.StorytellerQuiet = domain.Unknown[bool]()
 		}, ResourceReachNear, "storyteller_unknown"},
 		{"unknown extent", func(r *ResourceReachRequest) { r.Extent = domain.Unknown[ColonyExtent]() }, ResourceReachBase, "extent_unknown"},
-		{"empty extent", func(r *ResourceReachRequest) { r.Extent = domain.Known(ColonyExtent{}) }, ResourceReachBase, "extent_empty"},
+		{"empty extent stages on readiness", func(r *ResourceReachRequest) { r.Extent = domain.Known(ColonyExtent{}) }, ResourceReachNear, "defense_limits_near"},
 		{"unknown threat", func(r *ResourceReachRequest) { r.Threat = domain.Unknown[bool]() }, ResourceReachBase, "threat_unknown"},
 		{"unknown armed", func(r *ResourceReachRequest) { r.Armed = domain.Unknown[int64]() }, ResourceReachBase, "armed_unknown"},
 		{"unknown raid", func(r *ResourceReachRequest) { r.RaidPoints = domain.Unknown[float64]() }, ResourceReachBase, "raid_points_unknown"},
@@ -123,6 +123,29 @@ func TestResourceReachDoesNotBridgeExtentIslands(t *testing.T) {
 	}
 	r.Extent = domain.Unknown[ColonyExtent]()
 	if got := FilterResourceReach(r, c); got.Allowed || got.Reason != "extent_unknown" {
+		t.Fatal(got)
+	}
+}
+
+// An empty established extent is a colony without facilities or claimed
+// stockpiles, not missing readiness: it must not cap the stage at base, and a
+// ready colony still reaches a distant cell it holds no geometry near (#664).
+func TestResourceReachEmptyExtentStagesOnReadiness(t *testing.T) {
+	r := tribal8Reach()
+	r.Extent = domain.Known(ColonyExtent{})
+	c := ResourceReachCandidate{Cell: domain.Cell{X: 90, Z: 90}, Eligible: domain.Known(true), RouteObservedPassable: domain.Known(true)}
+	if got := FilterResourceReach(r, c); got.Allowed || got.Reason != "outside_near:defense_limits_near" {
+		t.Fatal(got)
+	}
+	r.Armed, r.FreeHaulers = domain.Known(int64(6)), domain.Known(int64(3))
+	if got := ResourceReach(r); got.Stage != ResourceReachMap || got.Reason != "ready_map" {
+		t.Fatal(got)
+	}
+	if got := FilterResourceReach(r, c); !got.Allowed || got.Reason != "ready_map" {
+		t.Fatal(got)
+	}
+	r.Threat = domain.Known(true)
+	if got := FilterResourceReach(r, c); got.Allowed || got.Reason != "outside_base:threat_present" {
 		t.Fatal(got)
 	}
 }

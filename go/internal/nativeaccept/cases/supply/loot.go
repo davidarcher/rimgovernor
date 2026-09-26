@@ -52,14 +52,32 @@ func completedSupply(ctx context.Context, s cases.Session, thing, kind string) f
 	}
 }
 
-func runLootSafety(ctx context.Context, s cases.Session) error {
-	watch := func(until func(map[string]any) bool) error {
-		_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{WatchConfig: sustainedfood.WatchConfig{
-			Watch: 2 * time.Minute, Goal: policy.ManageSupplySafety, Until: until,
-		}})
+// watchSupplySafety samples ManageSupplySafety until the condition holds and
+// fails the case when the window ends without it. The watch itself reports no
+// error on expiry, so an unmet condition would otherwise fall through to the
+// next assertion and be diagnosed as the later state it produced (#664).
+func watchSupplySafety(ctx context.Context, s cases.Session, what string, until func(map[string]any) bool) error {
+	held := false
+	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{WatchConfig: sustainedfood.WatchConfig{
+		Watch: 2 * time.Minute, Goal: policy.ManageSupplySafety, Until: func(sample map[string]any) bool {
+			held = until(sample)
+			return held
+		},
+	}})
+	if err != nil {
 		return err
 	}
-	if err := watch(func(sample map[string]any) bool {
+	if !held {
+		return fmt.Errorf("supply safety never %s within the watch window", what)
+	}
+	return nil
+}
+
+func runLootSafety(ctx context.Context, s cases.Session) error {
+	watch := func(what string, until func(map[string]any) bool) error {
+		return watchSupplySafety(ctx, s, what, until)
+	}
+	if err := watch("reached a known need", func(sample map[string]any) bool {
 		need := na.AsString(sample["need"])
 		return need != "" && need != "unknown"
 	}); err != nil {
@@ -73,7 +91,7 @@ func runLootSafety(ctx context.Context, s cases.Session) error {
 	if ok, _ := na.AsBool(drop["success"]); !ok {
 		return fmt.Errorf("drop fixture failed: %v", drop)
 	}
-	if err = watch(completedSupply(ctx, s, na.AsString(drop["id"]), "supply_forbid")); err != nil {
+	if err = watch("forbade the dangerous loot", completedSupply(ctx, s, na.AsString(drop["id"]), "supply_forbid")); err != nil {
 		return err
 	}
 	unsafe, err := s.Harness().Call(ctx, "loot-unsafe", "test/loot_safety_control", map[string]any{})
@@ -87,7 +105,7 @@ func runLootSafety(ctx context.Context, s cases.Session) error {
 	if _, err = s.Harness().Call(ctx, "loot-remove-danger", "test/loot_safety_control", map[string]any{"removeDanger": true}); err != nil {
 		return err
 	}
-	if err = watch(completedSupply(ctx, s, na.AsString(drop["id"]), "supply_allow")); err != nil {
+	if err = watch("allowed the loot once its trap was gone", completedSupply(ctx, s, na.AsString(drop["id"]), "supply_allow")); err != nil {
 		return err
 	}
 	safe, err := s.Harness().Call(ctx, "loot-safe", "test/loot_safety_control", map[string]any{})

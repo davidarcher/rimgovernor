@@ -122,7 +122,10 @@ The routines API exposes `resourceReach.stage/reason` alongside `extent` known,
 region and cell counts. Its read-only projection uses held colony facts; complete
 extent geometry and missing readiness (hauler capacity, destination headroom,
 storyteller quietness) stay unknown until their observation producers supply them.
-Unknown extent reports `base` / `extent_unknown` and admits no candidates.
+Unknown extent reports `base` / `extent_unknown` and admits no candidates. A
+known empty extent is a colony holding no facility or claimed stockpile yet: it
+carries no readiness evidence, so readiness alone stages its reach and only its
+missing geometry denies base and near candidates (#664).
 `policy.ExtentEligibility` overlays current evidence on established history,
 without mutating that history. Per-region diagnostics retain origins and facility
 IDs, list active facilities separately, and report all holds: `threat_present`,

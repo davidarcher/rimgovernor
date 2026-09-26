@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -30,8 +29,10 @@ func init() {
 	})
 }
 
-// lootHeld reports whether the latest review holds the stack with a reach
-// or demand reason, recording the reason on the report.
+// lootHeld reports whether the latest review holds the stack with a reach-stage
+// or demand reason, recording the reason on the report. A hold from an evidence
+// gap rather than the stage (an unestablished colony extent, say) is not this
+// case's hold and does not satisfy the base-reach phase (#664).
 func lootHeld(ctx context.Context, s cases.Session, thing string) func(map[string]any) bool {
 	return func(sample map[string]any) bool {
 		journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
@@ -44,21 +45,19 @@ func lootHeld(ctx context.Context, s cases.Session, thing string) func(map[strin
 			return false
 		}
 		for _, hold := range review.EventLoot.Held {
-			if hold.Thing == thing {
-				s.Report()["hold"] = map[string]any{"reason": hold.Reason, "tick": uint64(review.Tick)}
-				return true
+			if hold.Thing != thing {
+				continue
 			}
+			s.Report()["hold"] = map[string]any{"reason": hold.Reason, "tick": uint64(review.Tick)}
+			return strings.HasPrefix(hold.Reason, "outside_") || strings.HasPrefix(hold.Reason, "demand:")
 		}
 		return false
 	}
 }
 
 func runLootRemote(ctx context.Context, s cases.Session) error {
-	watch := func(until func(map[string]any) bool) error {
-		_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{WatchConfig: sustainedfood.WatchConfig{
-			Watch: 2 * time.Minute, Goal: policy.ManageSupplySafety, Until: until,
-		}})
-		return err
+	watch := func(what string, until func(map[string]any) bool) error {
+		return watchSupplySafety(ctx, s, what, until)
 	}
 	drop, err := s.Harness().Call(ctx, "loot-remote-drop", "test/loot_remote_drop", map[string]any{})
 	if err != nil {
@@ -70,7 +69,7 @@ func runLootRemote(ctx context.Context, s cases.Session) error {
 	}
 	thing := na.AsString(drop["id"])
 	// Base reach: the safe stack is a hold with a reach reason, not an Allow.
-	if err = watch(lootHeld(ctx, s, thing)); err != nil {
+	if err = watch("held the remote stack under base reach", lootHeld(ctx, s, thing)); err != nil {
 		return err
 	}
 	held, err := s.Harness().Call(ctx, "loot-remote-held", "test/loot_remote_control", map[string]any{})
@@ -86,7 +85,7 @@ func runLootRemote(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	s.Report()["readiness"] = raised
-	if err = watch(completedSupply(ctx, s, thing, "supply_allow")); err != nil {
+	if err = watch("allowed the remote stack after readiness rose", completedSupply(ctx, s, thing, "supply_allow")); err != nil {
 		return err
 	}
 	allowed, err := s.Harness().Call(ctx, "loot-remote-allowed", "test/loot_remote_control", map[string]any{})
