@@ -121,6 +121,21 @@ func PendingChunks(rows []ClearanceChunk) []ClearanceChunk {
 	return out
 }
 
+// HaulableChunks are the unforbidden, unstored chunks a store will take (#702):
+// vanilla lists an unstored chunk as haulable only while it carries a Haul
+// designation, so a destination alone never draws a hauler. Stable by
+// identity.
+func HaulableChunks(rows []ClearanceChunk) []ClearanceChunk {
+	var out []ClearanceChunk
+	for _, row := range rows {
+		if !row.Forbidden && !row.Stored && row.Destination {
+			out = append(out, row)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].EntityID < out[j].EntityID })
+	return out
+}
+
 // Dump footprint bounds: at least a vanilla-sized corner, never more cells
 // than the native flood reports.
 const (

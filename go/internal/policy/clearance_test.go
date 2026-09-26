@@ -139,3 +139,17 @@ func TestSelectChunkDumpSizesAndConnectsFootprint(t *testing.T) {
 		t.Fatal("no free cell")
 	}
 }
+
+func TestHaulableChunksNeedADestination(t *testing.T) {
+	rows := []ClearanceChunk{
+		{EntityID: "b", Destination: true},
+		{EntityID: "pending"},
+		{EntityID: "forbidden", Forbidden: true, Destination: true},
+		{EntityID: "stored", Stored: true},
+		{EntityID: "a", Destination: true},
+	}
+	got := HaulableChunks(rows)
+	if len(got) != 2 || got[0].EntityID != "a" || got[1].EntityID != "b" {
+		t.Fatal(got)
+	}
+}

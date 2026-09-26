@@ -405,25 +405,33 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 }
 
 func checkDump(live, fixture map[string]any) error {
-	zones := na.AsSlice(live["zones"])
-	if len(zones) != 1 {
-		return fmt.Errorf("expected exactly one dumping stockpile, got %v", zones)
-	}
-	zone, _ := na.AsMap(zones[0])
-	if zone["label"] != "RimGovernor dumping" || zone["priority"] != "Low" {
-		return fmt.Errorf("incorrect dumping settings: %v", zone)
-	}
-	var allow, want []string
-	for _, raw := range na.AsSlice(zone["allow"]) {
-		allow = append(allow, na.AsString(raw))
-	}
+	var want []string
 	for _, raw := range na.AsSlice(fixture["defs"]) {
 		want = append(want, na.AsString(raw))
 	}
-	slices.Sort(allow)
 	slices.Sort(want)
-	if !slices.Equal(allow, want) {
-		return fmt.Errorf("dump allow list %v, want %v", allow, want)
+	// A stray baseline chunk of another kind earns its own dump (#702), so
+	// the fixture's dump is the one allowing exactly the fixture kinds.
+	var zone map[string]any
+	for _, raw := range na.AsSlice(live["zones"]) {
+		z, _ := na.AsMap(raw)
+		var allow []string
+		for _, def := range na.AsSlice(z["allow"]) {
+			allow = append(allow, na.AsString(def))
+		}
+		slices.Sort(allow)
+		if slices.Equal(allow, want) {
+			if zone != nil {
+				return fmt.Errorf("two dumping stockpiles allow %v", want)
+			}
+			zone = z
+		}
+	}
+	if zone == nil {
+		return fmt.Errorf("no dumping stockpile allows exactly %v: %v", want, live["zones"])
+	}
+	if zone["label"] != "RimGovernor dumping" || zone["priority"] != "Low" {
+		return fmt.Errorf("incorrect dumping settings: %v", zone)
 	}
 	cells := na.AsSlice(zone["cells"])
 	if len(cells) < 4 || len(cells) > 16 {

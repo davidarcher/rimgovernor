@@ -494,7 +494,7 @@ var plannerCatalog = []plannerEntry{
 			out.FireSafety = &method
 			return method.Reason, nil
 		}},
-	{name: "clearance", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction, domain.ZoneCreateAction}, sections: sectionsColony,
+	{name: "clearance", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction, domain.ZoneCreateAction, domain.CoverClearanceAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clearance != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Clearance.step(ctx, epoch, arbiter)

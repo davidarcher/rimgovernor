@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -173,7 +174,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 // the stacks. The method is content-addressed by cells and allow list.
 func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
 	if len(policy.PendingChunks(census.Chunks)) == 0 {
-		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+		return r.haulChunks(call, epoch, state, goal, census, started)
 	}
 	held, err := r.reviewer.player.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
@@ -195,4 +196,64 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	method := domain.MethodID(fmt.Sprintf("chunk-dump-%x", hash[:16]))
 	result, err := admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, "routine-chunk-dump", started)
 	return RoutineClearanceResult{Reason: result.Reason, Plan: result.Plan}, err
+}
+
+// maxChunkHaulBatch bounds one chunk-haul method; the next review designates
+// the rest.
+const maxChunkHaulBatch = 8
+
+// haulChunks designates the chunks a store now takes for hauling (#702): an
+// unstored chunk is haulable in vanilla only under a Haul designation, so the
+// dump alone never moves it. The method is content-addressed by the chunks
+// and their cells, so a batch is ordered once; a chunk still standing where
+// it was designated is ordinary hauling's to finish.
+func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state ControlState, goal store.GoalState, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
+	p := r.reviewer.player
+	chunks := policy.HaulableChunks(census.Chunks)
+	if len(chunks) > maxChunkHaulBatch {
+		chunks = chunks[:maxChunkHaulBatch]
+	}
+	if len(chunks) == 0 {
+		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+	}
+	var key strings.Builder
+	for _, chunk := range chunks {
+		fmt.Fprintf(&key, "%s@%d,%d;", chunk.EntityID, chunk.Cell.X, chunk.Cell.Z)
+	}
+	hash := sha256.Sum256([]byte(key.String()))
+	method := domain.MethodID(fmt.Sprintf("chunk-haul-%x", hash[:16]))
+	for _, m := range goal.Methods {
+		if m.Method == method {
+			return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+		}
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-chunk-haul-%x", digest[:16]))
+	actions := make([]domain.Action, 0, len(chunks))
+	for i, chunk := range chunks {
+		clearance, err := domain.NewCoverClearance(chunk.EntityID, chunk.DefName, domain.CoverClearanceHaul, chunk.Cell)
+		if err != nil {
+			return RoutineClearanceResult{}, err
+		}
+		action, err := domain.NewCoverClearanceAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), clearance)
+		if err != nil {
+			return RoutineClearanceResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		return RoutineClearanceResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineClearanceResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineClearanceResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineClearanceResult{}, err
+	}
+	return RoutineClearanceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }
