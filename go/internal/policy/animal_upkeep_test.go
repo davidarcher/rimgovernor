@@ -150,3 +150,39 @@ func TestAnimalFeedTargetCarriesReachableStorage(t *testing.T) {
 		t.Fatal("blank accepted definition accepted")
 	}
 }
+
+// #708: a pet the gated colony forecast reports short is fed to the target
+// even above the feed minimum.
+func TestAnimalFeedAdmitsForecastPetShortfall(t *testing.T) {
+	v := animalFixture(6) // muffalo runway 3: above the minimum 2, below target 4
+	food, _ := v.Food.Value()
+	forecast, err := ForecastFood(food, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Forecast = domain.Known(forecast)
+	if r, _ := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy()); len(mustFeed(t, r)) != 0 {
+		t.Fatal("ungated forecast admitted a pet above the minimum")
+	}
+	v.Forecast = domain.Known(forecast.GateOnColonists([]PawnID{"human"}, 3.5))
+	rows := mustFeed(t, mustReview(t, v))
+	if len(rows) != 1 || rows[0].ID != "muffalo" || rows[0].Nutrition != 1 {
+		t.Fatalf("shortfall not admitted: %+v", rows)
+	}
+}
+
+func mustReview(t *testing.T, v AnimalUpkeepObservation) AnimalUpkeepReview {
+	r, err := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func mustFeed(t *testing.T, r AnimalUpkeepReview) []AnimalFeedTarget {
+	rows, known := r.Feed.Value()
+	if !known {
+		t.Fatal("feed unknown")
+	}
+	return rows
+}

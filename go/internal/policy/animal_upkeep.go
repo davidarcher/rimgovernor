@@ -196,6 +196,12 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 			return r, nil
 		}
 	}
+	// A pet the colony forecast reports short (#708) is held to the target,
+	// like an active feed goal: the colony runway no longer carries its need.
+	short := map[PawnID]bool{}
+	for _, row := range forecast.PetShortfalls {
+		short[row.ID] = true
+	}
 	rows := map[PawnID]ConsumerFoodForecast{}
 	for _, row := range forecast.Consumers {
 		rows[row.ID] = row
@@ -208,7 +214,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 			return r, nil
 		}
 		threshold := p.FeedMinimumDays
-		if active[id] {
+		if active[id] || short[id] {
 			threshold = p.FeedTargetDays
 		}
 		if row.RunwayDays < threshold {
