@@ -321,22 +321,20 @@ func prepareProgress(root, shard, outputRoot string) (progressPlan, error) {
 			}
 		}
 	}
-	for _, role := range []string{"fixture", "production"} {
-		for _, row := range selection.Cases {
-			if !selected[row.Name] || row.Role != role {
-				continue
-			}
-			registered, ok := cases.Lookup(row.Name)
-			if !ok {
-				return p, fmt.Errorf("case unavailable in trusted registry")
-			}
-			if _, exists := p.Outputs[row.Name]; exists {
-				return p, fmt.Errorf("duplicate progress case")
-			}
-			p.Cases = append(p.Cases, row.Name)
-			dir := (cases.Options{Output: filepath.Join(outputRoot, role, "job", "out")}).CaseOutput(registered)
-			p.Outputs[row.Name] = filepath.Join(dir, "result.json")
+	for _, row := range selection.Cases {
+		if !selected[row.Name] || row.Role != "fixture" {
+			continue
 		}
+		registered, ok := cases.Lookup(row.Name)
+		if !ok {
+			return p, fmt.Errorf("case unavailable in trusted registry")
+		}
+		if _, exists := p.Outputs[row.Name]; exists {
+			return p, fmt.Errorf("duplicate progress case")
+		}
+		p.Cases = append(p.Cases, row.Name)
+		dir := (cases.Options{Output: filepath.Join(outputRoot, "fixture", "job", "out")}).CaseOutput(registered)
+		p.Outputs[row.Name] = filepath.Join(dir, "result.json")
 	}
 	if len(p.Cases) != len(selected) {
 		return p, fmt.Errorf("incomplete progress projection")

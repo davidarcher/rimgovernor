@@ -263,7 +263,7 @@ func TestProgressSweepPaginatesAndIsolatesAttempt(t *testing.T) {
 	}
 }
 
-func TestProgressPlanUsesTrustedRegistryAndRoleOrder(t *testing.T) {
+func TestProgressPlanUsesTrustedRegistry(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GITHUB_RUN_ID", "123")
 	t.Setenv("GITHUB_RUN_ATTEMPT", "2")
@@ -273,7 +273,7 @@ func TestProgressPlanUsesTrustedRegistryAndRoleOrder(t *testing.T) {
 		t.Fatal("trusted registry empty")
 	}
 	first, second := registered[0], registered[1]
-	selection := fmt.Sprintf(`{"shards":[{"id":"s7","cases":[%q,%q]}],"cases":[{"name":%q,"mod_role":"production"},{"name":%q,"mod_role":"fixture"}]}`, first.Name, second.Name, first.Name, second.Name)
+	selection := fmt.Sprintf(`{"shards":[{"id":"s7","cases":[%q,%q]}],"cases":[{"name":%q,"mod_role":"fixture"},{"name":%q,"mod_role":"fixture"}]}`, first.Name, second.Name, first.Name, second.Name)
 	writeProgressFile(t, filepath.Join(root, "selection.json"), selection)
 	writeProgressFile(t, filepath.Join(root, "run.json"), `{"tested_commit":"`+strings.Repeat("b", 40)+`"}`)
 	p, err := prepareProgress(root, "s7", root)
@@ -281,7 +281,7 @@ func TestProgressPlanUsesTrustedRegistryAndRoleOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := filepath.Join((cases.Options{Output: filepath.Join(root, "fixture", "job", "out")}).CaseOutput(second), "result.json")
-	if p.Cases[0] != second.Name || p.Outputs[second.Name] != want {
+	if len(p.Cases) != 2 || p.Cases[1] != second.Name || p.Outputs[second.Name] != want {
 		t.Fatalf("projection: %#v", p)
 	}
 	writeProgressFile(t, filepath.Join(root, "selection.json"), strings.ReplaceAll(selection, first.Name, "untrusted/name"))

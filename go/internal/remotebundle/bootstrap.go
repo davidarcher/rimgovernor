@@ -74,8 +74,7 @@ type BootstrapOptions struct {
 	Repo, Work, Cache, Manifest, ManifestSHA256, Identity string
 	Trust                                                 Trust
 	Tools                                                 Tools
-	// Role is fixture or production. A job that needs both bootstraps two
-	// distinct Work directories before starting either game.
+	// Role is fixture; plan rows carry no other mod role since #751.
 	Role string
 	Log  io.Writer
 }
@@ -112,8 +111,8 @@ func Bootstrap(ctx context.Context, c OriginClient, o BootstrapOptions) (report 
 	if runtime.GOOS != "windows" || runtime.GOARCH != "amd64" {
 		return report, fmt.Errorf("bootstrap requires Windows x64")
 	}
-	if o.Role != "fixture" && o.Role != "production" {
-		return report, fmt.Errorf("role must be fixture or production")
+	if o.Role != "fixture" {
+		return report, fmt.Errorf("role must be fixture")
 	}
 	if !filepath.IsAbs(o.Work) || len(filepath.Join(o.Work, "layout", "native-rimworld")) > 140 {
 		return report, fmt.Errorf("use a short absolute writable job directory")
@@ -184,9 +183,6 @@ func Bootstrap(ctx context.Context, c OriginClient, o BootstrapOptions) (report 
 	report.Acceptance = filepath.Join(layout, "bin", "acceptance.exe")
 	report.Controller = filepath.Join(layout, "bin", "rimgovernor.exe")
 	args := []string{"run", "./internal/nativeaccept/cmd/acceptance", "setup", "-worktree", o.Repo, "-layout", layout, "-explicit", "-rimworld", filepath.Join(tree, "game"), "-bridge", filepath.Join(tree, "bridge"), "-sdk", filepath.Join(tree, "bridge", "1.6", "Assemblies"), "-harmony-mod", filepath.Join(tree, "harmony"), "-harmony", filepath.Join(tree, "harmony", "Current", "Assemblies", "0Harmony.dll"), "-gabs", filepath.Join(tree, "gabs", "gabs.exe")}
-	if o.Role == "production" {
-		args = append(args, "-production")
-	}
 	run := func(exe string, args ...string) error {
 		cmd := exec.CommandContext(ctx, exe, args...)
 		cmd.Dir = filepath.Join(o.Repo, "go")

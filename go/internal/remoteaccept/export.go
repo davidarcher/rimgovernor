@@ -273,7 +273,7 @@ func ExportShard(root, shard string, jobs []ExportJob, secrets []string) error {
 	seen := map[string]bool{}
 	roles := map[string]bool{}
 	for _, job := range jobs {
-		if (job.Role != "fixture" && job.Role != "production") || roles[job.Role] {
+		if job.Role != "fixture" || roles[job.Role] {
 			return fmt.Errorf("invalid/duplicate role")
 		}
 		roles[job.Role] = true
