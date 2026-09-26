@@ -51,7 +51,7 @@ type ClockSchedulerConfig struct {
 	// window while readmit and observe latency hold (#635). Ignored under
 	// Start.PlayerAccelerated, whose backoff owns the pace.
 	SpeedPolicy *SpeedPolicyConfig
-	MaxAge           time.Duration
+	MaxAge      time.Duration
 	// Worker is set when a routine Worker reconciles and dispatches beside
 	// this scheduler: a review then defers admission while the Worker owes
 	// a latched outcome's reconcile or a successor's dispatch (issue #162).
