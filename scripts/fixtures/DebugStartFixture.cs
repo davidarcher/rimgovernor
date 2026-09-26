@@ -279,6 +279,51 @@ namespace HomeBridge.BridgeTools
                 return LabStart.Wipe(map, colonists);
             }, cancellationToken).ConfigureAwait(false);
         }
+
+        [Tool("test/lab_spawn", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#743): spawn one finished thing at a cell of the loaded map, the lab contract runner's single-building or single-pawn helper. def is a PawnKindDef (a generated pawn) or a ThingDef (a building, or an item stack of count). Replies the spawned thing's load id, kind and cell.")]
+        public async Task<object> Spawn(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "PawnKindDef or ThingDef name.")] string def,
+            [ToolParameter(Description = "Cell x.")] int x,
+            [ToolParameter(Description = "Cell z.")] int z,
+            [ToolParameter(Description = "Stuff ThingDef for a stuffed building; empty takes the def's default stuff.")] string stuff = "",
+            [ToolParameter(Description = "Rotation 0..3 (north, east, south, west).")] int rotation = 0,
+            [ToolParameter(Description = "Item stack count (items only, clamped to the stack limit).")] int count = 1,
+            [ToolParameter(Description = "player (default) or none: the spawned thing's faction.")] string faction = "player")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
+                if (faction != "player" && faction != "none") throw new ArgumentException("faction must be player or none.");
+                if (rotation < 0 || rotation > 3) throw new ArgumentException("rotation must be within 0..3.");
+                var cell = new IntVec3(x, 0, z);
+                if (!cell.InBounds(map)) throw new ArgumentException($"Cell {x},{z} is out of bounds.");
+                var owner = faction == "player" ? Faction.OfPlayer : null;
+                var rot = new Rot4(rotation);
+                Thing thing;
+                string kind;
+                var pawnKind = DefDatabase<PawnKindDef>.GetNamedSilentFail(def ?? "");
+                if (pawnKind != null)
+                {
+                    thing = PawnGenerator.GeneratePawn(new PawnGenerationRequest(pawnKind, owner, forceGenerateNewPawn: true, canGeneratePawnRelations: false, allowAddictions: false));
+                    kind = "pawn";
+                }
+                else
+                {
+                    var thingDef = DefDatabase<ThingDef>.GetNamedSilentFail(def ?? "") ?? throw new ArgumentException($"No PawnKindDef or ThingDef named {def}.");
+                    if (thingDef.category != ThingCategory.Building && thingDef.category != ThingCategory.Item) throw new ArgumentException($"{def} is neither a building nor an item.");
+                    ThingDef stuffDef = null;
+                    if (thingDef.MadeFromStuff)
+                        stuffDef = stuff == "" ? GenStuff.DefaultStuffFor(thingDef) : DefDatabase<ThingDef>.GetNamedSilentFail(stuff) ?? throw new ArgumentException($"No stuff named {stuff}.");
+                    if (!GenAdj.OccupiedRect(cell, rot, thingDef.size).InBounds(map)) throw new ArgumentException($"{def} at {x},{z} does not fit the map.");
+                    thing = ThingMaker.MakeThing(thingDef, stuffDef);
+                    if (thingDef.category == ThingCategory.Item) thing.stackCount = Math.Max(1, Math.Min(count, thingDef.stackLimit));
+                    else if (owner != null) thing.SetFaction(owner);
+                    kind = thingDef.category == ThingCategory.Item ? "item" : "building";
+                }
+                GenSpawn.Spawn(thing, cell, map, rot);
+                return new { success = true, id = thing.GetUniqueLoadID(), thingId = thing.ThingID, kind, def = thing.def.defName,
+                    stuff = thing.Stuff?.defName, cell = new { x = thing.Position.x, z = thing.Position.z }, stackCount = thing.stackCount };
+            }, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     public sealed class DebugStartFixture

@@ -20,6 +20,51 @@ const QuietWorldTool = "test/quiet_world"
 // (scripts/fixtures/DebugStartFixture.cs); every fixture build carries it.
 const DebugStartTool = "test/configure_debug_start"
 
+// LabStartTool wipes the loaded map to a blank Soil lab with fixture
+// colonists (#730); LabSpawnTool spawns one building, item or pawn on it
+// (#743). Both are in scripts/fixtures/DebugStartFixture.cs, so every
+// fixture build carries them.
+const (
+	LabStartTool = "test/lab_start"
+	LabSpawnTool = "test/lab_spawn"
+)
+
+// LabThing is one LabSpawn: Def names a PawnKindDef (a generated pawn) or a
+// ThingDef (a building, or an item stack of Count). Stuff empty takes the
+// def's default; Unowned spawns it factionless instead of the player's.
+type LabThing struct {
+	Def      string
+	Stuff    string
+	X, Z     int
+	Rotation int
+	Count    int
+	Unowned  bool
+}
+
+// LabSpawn spawns t through LabSpawnTool and returns the thing's load id
+// (the id observation reads key on) and the op's reply.
+func LabSpawn(ctx context.Context, h *Harness, t LabThing) (string, map[string]any, error) {
+	args := map[string]any{"def": t.Def, "x": t.X, "z": t.Z, "rotation": t.Rotation}
+	if t.Stuff != "" {
+		args["stuff"] = t.Stuff
+	}
+	if t.Count > 0 {
+		args["count"] = t.Count
+	}
+	if t.Unowned {
+		args["faction"] = "none"
+	}
+	reply, err := h.Call(ctx, "lab-spawn-"+t.Def, LabSpawnTool, args)
+	if err != nil {
+		return "", nil, fmt.Errorf("%s %s: %w", LabSpawnTool, t.Def, err)
+	}
+	id := AsString(reply["id"])
+	if ok, _ := AsBool(reply["success"]); !ok || id == "" {
+		return "", reply, fmt.Errorf("%s %s refused: %#v", LabSpawnTool, t.Def, reply)
+	}
+	return id, reply, nil
+}
+
 // The small start (issue #91): most assertions fit a 200x200 map, and a 5%
 // planet is what RimWorld's own quick test uses. MapSizeEnv and
 // PlanetCoverageEnv override the defaults for a whole run.

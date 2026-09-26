@@ -95,6 +95,26 @@ type Scenario struct {
 	Spec na.ScenarioStart
 }
 
+// Lab is the lab contract runner's start (#743): the smallest debug map
+// wiped by na.LabStartTool to bare Soil with colonists fixture colonists
+// (fixed skills, every work type, no traits), clear weather, 21 C and a
+// quiet storyteller. A lab case runs one op or read assertion against it,
+// spawning what it needs with na.LabSpawn (list na.LabSpawnTool in
+// RequiredOps), within LabBudget. Use it instead of a staged baseline save
+// when the assertion needs no history: the wipe is deterministic, so the
+// same case sees the same map every run.
+func Lab(colonists int) Fixture {
+	return Fixture{
+		Op:   na.LabStartTool,
+		Args: map[string]any{"colonists": colonists},
+		On:   DebugStart{Size: na.DebugStart{MapSize: na.MinMapSize, PlanetCoverage: na.DefaultPlanetCoverage}},
+	}
+}
+
+// LabBudget is a lab case's Budget: 10-30 s of assertion on a kept process,
+// plus a cold boot and the cached start's first generation.
+const LabBudget = 3 * time.Minute
+
 func (d DebugStart) start() {}
 func (Save) start()         {}
 func (Fixture) start()      {}

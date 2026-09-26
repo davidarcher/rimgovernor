@@ -27,6 +27,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/gear"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/hazard"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/husbandry"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lab"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/layout"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/letter"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lifecycle"

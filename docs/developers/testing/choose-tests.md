@@ -466,6 +466,10 @@ by review alone.
    tick should come within a minute of the game being ready. *Enforced:*
    `Start` is required (`Validate`), and lint refuses `Serve` on a bare
    `DebugStart`: a serve-driven case opens on a `Save` or a `Fixture`.
+   A case that needs one op or read on a known structure and no colony
+   history opens on the lab (`cases.Lab(n)`, #743): a 100x100 map wiped to
+   bare Soil with `n` fixture colonists, one `na.LabSpawn` per building,
+   item or pawn, `cases.LabBudget`; `lab/spawn` is the pattern (10 s).
 2. **Small map, tiny planet.** Take the default start (200x200, 5%
    planet); pass a larger `DebugStart{Size}` only when the assertion reasons
    about terrain beyond that, and never hardcode a map size in a fixture.
