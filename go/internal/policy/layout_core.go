@@ -83,11 +83,18 @@ func Grow(plan LayoutPlan, pawns int) LayoutPlan {
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
 	seg := plan.Spine[0]
 	for _, role := range want {
-		room, ok := g.place(&seg, rooms, role)
+		next := seg
+		room, ok := g.place(&next, rooms, role)
 		if !ok {
 			break
 		}
-		rooms = append(rooms, room)
+		// A room that makes a thoroughfare (#780) is left out; the next
+		// role tries the following slot.
+		trial := append(append([]LayoutRoom(nil), rooms...), room)
+		if _, err := CheckRoutes(LayoutPlan{Spine: []SpineSegment{next}, Rooms: trial}); err != nil {
+			continue
+		}
+		seg, rooms = next, trial
 	}
 	spine := append([]SpineSegment{seg}, plan.Spine[1:]...)
 	plan.Spine, plan.Rooms = spine, rooms
