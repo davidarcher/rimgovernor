@@ -137,6 +137,18 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 	// tolerance behind the step's first read, the bounds read here (#244):
 	// it must cover that read, and the facts bind to the preview tick the
 	// admission anchors on.
+	// Under a running window the cached row can predate the bounds read by
+	// more than that (read at the step's start, the clock ran on through the
+	// batch preview): read it live once rather than refuse the dispatch for
+	// the rest of the window (#690).
+	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(bounds.Context.GetTick())) {
+		if emergency, _, err = b.Native.ReadEmergency(bridge.WithoutStepReadCache(ctx), Identity(current)); err != nil {
+			return out, err
+		}
+		if emergencyCurrent, err = Context(emergency.Context, current); err != nil {
+			return out, err
+		}
+	}
 	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(bounds.Context.GetTick())) {
 		return out, executor.ErrEvidence
 	}

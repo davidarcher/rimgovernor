@@ -124,6 +124,15 @@ func WithStepReadCache(ctx context.Context, cache *StepReadCache) context.Contex
 	return context.WithValue(ctx, stepReadCacheKey{}, cache)
 }
 
+// WithoutStepReadCache returns ctx with no step cache: reads under it go
+// native even when an ancestor context carries one.
+func WithoutStepReadCache(ctx context.Context) context.Context {
+	if StepReadCacheFrom(ctx) == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, stepReadCacheKey{}, (*StepReadCache)(nil))
+}
+
 // StepReadCacheFrom returns the cache ctx carries, or nil.
 func StepReadCacheFrom(ctx context.Context) *StepReadCache {
 	cache, _ := ctx.Value(stepReadCacheKey{}).(*StepReadCache)

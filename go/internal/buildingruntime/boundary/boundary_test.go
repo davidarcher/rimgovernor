@@ -54,6 +54,28 @@ func TestBoundaryAcceptsACachedEmergencyReadBehindTheBoundsRead(t *testing.T) {
 	}
 }
 
+// A cached emergency row too far behind the bounds read (the clock ran on
+// through the step) is read again live rather than refusing the dispatch
+// for the rest of the window (#690).
+func TestBoundaryRereadsAnEmergencyRowTooFarBehindTheBoundsRead(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	bounds := f.Bounds.Context.GetTick() + 1200
+	f.Bounds.Context.Tick = proto.Int64(bounds)
+	f.Preview.Preview.Tick = domain.Tick(bounds + 600)
+	f.Preview.Stock.Tick = f.Preview.Preview.Tick
+	f.Emergency.Context.Tick = proto.Int64(bounds - 1200)
+	f.EmergencyHook = func() {
+		if f.Emergencies == 2 {
+			f.Emergency.Context.Tick = proto.Int64(bounds + 600)
+		}
+	}
+	out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
+	if err != nil || !out.ExternalHoldsComplete || f.Emergencies != 2 {
+		t.Fatal(err, f.Emergencies)
+	}
+}
+
 func TestBoundaryEmergencyContextRefusals(t *testing.T) {
 	t.Parallel()
 	for name, change := range map[string]func(*Fixture){

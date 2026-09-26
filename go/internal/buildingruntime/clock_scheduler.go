@@ -1060,6 +1060,17 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			// from dispatching what the last stop admitted (#598). The
 			// wave waits for the stop, one window away at most.
 			out.LivePlanning = LivePlanningSkippedPace
+			// One window away is a game day under a colony window: when
+			// the window has nothing left to simulate (its last dispatched
+			// work settled), end it now so the stop reviews at once,
+			// rather than run the day out with every planner parked (#690).
+			if done, err := s.windowWorkDone(call, state.Snapshot); err != nil {
+				return out, err
+			} else if done && status.GetRunning() != nil {
+				clockSchedulerLog("clock running at %.0f ticks/s with no window work left -> ending the window for the planner wave", s.pacePerSecond)
+				out.Cleaned = true
+				return out, s.session.CleanupClock(call)
+			}
 			clockSchedulerLog("clock running at %.0f ticks/s: the last live step (%s) covers %d ticks, over %d -> planner wave waits for the stop", s.pacePerSecond, s.liveStepWall.Round(time.Millisecond), ticks, s.livePlanningTicks())
 			return out, nil
 		}
@@ -1198,22 +1209,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if err != nil {
 			return out, err
 		}
-		for _, method := range plans {
-			if method.Spec.ID() == state.Snapshot.Plan {
-				continue
-			}
-			target := state.Snapshot
-			target.Plan, target.Revision = method.Spec.ID(), method.Spec.Revision()
-			if err := (planAuthorizer{s.player.journal, s.config.RoutineMethods}).AuthorizeRoutinePlan(call, state.Snapshot, target); err != nil {
-				continue
-			}
-			remaining, items, err := clockSchedulerWork(method, target)
-			if err != nil {
-				return out, err
-			}
-			work = work || remaining
-			fingerprint = append(fingerprint, items...)
+		remaining, items, err := s.routineWork(call, state.Snapshot, plans)
+		if err != nil {
+			return out, err
 		}
+		work = work || remaining
+		fingerprint = append(fingerprint, items...)
 	}
 	if pending := s.latched.pending(fingerprint); s.config.Worker && len(pending) > 0 {
 		// The window just stopped on a latched outcome the Worker has not
@@ -2024,6 +2025,48 @@ func (s *ClockScheduler) runningWork(call context.Context, snapshot domain.Gener
 // record for kind that a watch can observe (NativeClockWatch.cs).
 func clockWatchedKind(kind domain.ActionKind) bool {
 	return kind == domain.BuildingAction || kind == domain.HaulAction
+}
+
+// routineWork is clockSchedulerWork over the authorized routine plans of
+// the catalog (every plan but the root's own).
+func (s *ClockScheduler) routineWork(call context.Context, root domain.GenerationSnapshot, plans []store.PlanState) (bool, []clockWorkItem, error) {
+	work := false
+	var fingerprint []clockWorkItem
+	for _, method := range plans {
+		if method.Spec.ID() == root.Plan {
+			continue
+		}
+		target := root
+		target.Plan, target.Revision = method.Spec.ID(), method.Spec.Revision()
+		if err := (planAuthorizer{s.player.journal, s.config.RoutineMethods}).AuthorizeRoutinePlan(call, root, target); err != nil {
+			continue
+		}
+		remaining, items, err := clockSchedulerWork(method, target)
+		if err != nil {
+			return false, nil, err
+		}
+		work = work || remaining
+		fingerprint = append(fingerprint, items...)
+	}
+	return work, fingerprint, nil
+}
+
+// windowWorkDone reports whether no plan, the root's or a routine one,
+// has work left for the running window to simulate.
+func (s *ClockScheduler) windowWorkDone(call context.Context, root domain.GenerationSnapshot) (bool, error) {
+	plan, err := s.player.journal.LoadPlan(call, root.Plan)
+	if err != nil {
+		return false, err
+	}
+	if work, _, err := clockSchedulerWork(plan, root); err != nil || work {
+		return false, err
+	}
+	plans, err := s.player.journal.LoadPlans(call, 256)
+	if err != nil {
+		return false, err
+	}
+	work, _, err := s.routineWork(call, root, plans)
+	return !work, err
 }
 
 func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot) (bool, []clockWorkItem, error) {
