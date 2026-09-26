@@ -458,6 +458,10 @@ type RoutineFacts struct {
 	Calendar                                                    domain.Fact[Calendar]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom domain.Fact[float64]
 	Wood                                                        domain.Fact[int64]
+	// Dependencies are the live typed shortfall edges (#651) carried from the
+	// last review: an open WoodLog shortfall activates MaintainWood for the
+	// bounded difference while the wood latch is off (#711).
+	Dependencies []DevelopmentDependency
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
 	// deficit is measured at review time instead of assumed from config.
@@ -827,6 +831,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		if n, k := f.Wood.Value(); k {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(max(0, float64(p.WoodTarget-n)/float64(p.WoodTarget)))
 		}
+	} else if short := WoodShortfall(f.Dependencies); short > 0 {
+		// A shell admitted short of wood above WoodMin (#711): acquire just
+		// the shortfall; the latch stays off, so the goal drops with the edge.
+		addGoal(MaintainWood, 3)
+		if n, k := f.Wood.Value(); k {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(float64(short) / float64(max(1, n+short)))
+		}
 	}
 	if !positive(f.MedicalCareRecovered) {
 		addGoal(MaintainMedicalCare, 2)
@@ -909,7 +920,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureBasicPower, 2, g.Power)
 	addAssessment(EnsureFoodStorage, 2, g.Storage)
 	addAssessment(EnsureBasicDefense, 3, g.Defense)
-	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
+	addAssessment(MaintainWood, 3, allFacts(latchRecovered(l.Wood, wood), domain.Known(WoodShortfall(f.Dependencies) == 0)))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureBasicComfort, basicComfort.Priority(), basicComfort.Recovered())
 	addAssessment(ClearPests, 2, pestsClear)

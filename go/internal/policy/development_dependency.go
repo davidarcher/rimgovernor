@@ -268,3 +268,36 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 	})
 	return donations, blockers
 }
+
+// WoodShortfall is the open WoodLog demand of the live edges naming
+// MaintainWood: each open action's cost once, minus the freshest known
+// stock (ResolveDonations' shared demand). Edges with unknown stock add
+// nothing (#711).
+func WoodShortfall(deps []DevelopmentDependency) int64 {
+	costs := map[domain.ActionID]int64{}
+	var available int64
+	var observed domain.Tick
+	known := false
+	for _, d := range deps {
+		if d.Prerequisite != MaintainWood || d.Resource != "WoodLog" {
+			continue
+		}
+		stock, k := d.Available.Value()
+		if !k {
+			continue
+		}
+		for _, c := range d.Costs {
+			if c.Count > 0 {
+				costs[c.Action] = max(costs[c.Action], c.Count)
+			}
+		}
+		if !known || d.Observed >= observed {
+			available, observed, known = max(0, stock), d.Observed, true
+		}
+	}
+	var need int64
+	for _, c := range costs {
+		need += c
+	}
+	return max(0, need-available)
+}

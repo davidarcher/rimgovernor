@@ -467,6 +467,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		request.Facts.Mood = mood
 		request.Facts.Disaster, request.Facts.DisasterTick = disaster, request.Tick
+		if !reset {
+			if request.Facts.Dependencies, err = priorDependencies(ctx, tx, previous, request.Facts, request.Tick); err != nil {
+				return RoutineReviewResult{}, err
+			}
+		}
 		needs, err = policy.DetectRoutine(request.Facts, latches, request.Policy)
 		if err != nil {
 			return RoutineReviewResult{}, err

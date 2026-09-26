@@ -201,3 +201,26 @@ func resourceStock(f policy.RoutineFacts, resource policy.Resource) domain.Fact[
 	}
 	return domain.Unknown[int64]()
 }
+
+// priorDependencies is the last review's still-live edges against its goal
+// bindings, read before DetectRoutine so an open wood shortfall can
+// activate MaintainWood while the wood latch is off (#711).
+func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, facts policy.RoutineFacts, tick domain.Tick) ([]policy.DevelopmentDependency, error) {
+	if len(previous.Dependencies) == 0 {
+		return nil, nil
+	}
+	var bindings []RoutineGoal
+	var states []GoalState
+	for _, b := range previous.Goals {
+		g, err := loadGoal(ctx, tx, b.Goal)
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		bindings, states = append(bindings, b), append(states, g)
+	}
+	_, edges, err := routineDependencies(ctx, tx, previous.Dependencies, bindings, states, facts, tick)
+	return edges, err
+}

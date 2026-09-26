@@ -161,3 +161,37 @@ func hasBlocker(blockers []DependencyBlocker, reason string) bool {
 	}
 	return false
 }
+
+// A shell admitted short of wood above WoodMin activates MaintainWood for
+// the shortfall alone, leaves the latch off, and drops the goal once the
+// edge settles (#711).
+func TestShelterShortfallActivatesMaintainWood(t *testing.T) {
+	f := stableRoutine()
+	f.Wood = domain.Known(int64(150))
+	if r := needs(t, f, RoutineLatches{}); r.Latches.Wood || hasNeed(r, MaintainWood) {
+		t.Fatal("150 wood is above WoodMin", r)
+	}
+	f.Dependencies = []DevelopmentDependency{{Dependent: EnsureInitialShelter, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainWood, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
+	r := needs(t, f, RoutineLatches{})
+	if r.Latches.Wood || !hasNeed(r, MaintainWood) {
+		t.Fatal("shortfall did not activate MaintainWood", r)
+	}
+	for _, a := range r.Assessments {
+		if a.ID == MaintainWood && a.Need != domain.NeedDeficit {
+			t.Fatal(a)
+		}
+	}
+	if got := WoodShortfall(f.Dependencies); got != 50 {
+		t.Fatal(got)
+	}
+	f.Dependencies = nil
+	r = needs(t, f, r.Latches)
+	if hasNeed(r, MaintainWood) {
+		t.Fatal("settled edge kept MaintainWood", r)
+	}
+	for _, a := range r.Assessments {
+		if a.ID == MaintainWood && a.Need != domain.NeedRecovered {
+			t.Fatal(a)
+		}
+	}
+}
