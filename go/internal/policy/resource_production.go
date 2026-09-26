@@ -169,6 +169,9 @@ type ResourceSource struct {
 	Cell      domain.Cell
 	Token     string
 	Reachable domain.Fact[bool]
+	// Tier is the layout plan's MineTier for a mine source (0 without a
+	// plan); lower tiers are selected first.
+	Tier int
 }
 
 // SelectReachableResourceSources narrows mining to the current resource reach.
@@ -203,6 +206,9 @@ func SelectReachableResourceSources(sources []ResourceSource, target, stock int6
 				holds = append(holds, RemoteWorkHold{Kind: RemoteMining, Target: source.ThingID, Reason: reason})
 				continue
 			}
+			if plan, ok := r.Plan.Value(); ok {
+				source.Tier = plan.MineTier(source.Cell)
+			}
 		}
 		candidates = append(candidates, source)
 	}
@@ -231,6 +237,9 @@ func SelectResourceSources(sources []ResourceSource, target, stock, pending int6
 		usable = append(usable, s)
 	}
 	sort.SliceStable(usable, func(i, j int) bool {
+		if usable[i].Tier != usable[j].Tier {
+			return usable[i].Tier < usable[j].Tier
+		}
 		if usable[i].Distance != usable[j].Distance {
 			return usable[i].Distance < usable[j].Distance
 		}

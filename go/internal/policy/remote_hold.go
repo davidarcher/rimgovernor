@@ -59,6 +59,8 @@ type RemoteWorkRequest struct {
 	Reach       ResourceReachRequest
 	Demand      domain.Fact[[]ResourceDemand]
 	Competition AcquisitionCompetition
+	// Plan orders mine sources by LayoutPlan.MineTier (#792).
+	Plan domain.Fact[LayoutPlan]
 }
 
 // UrgentWorkPriority outranks every demand priority (1-100) so urgent work

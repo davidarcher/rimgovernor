@@ -568,7 +568,15 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 	if err != nil {
 		return policy.RemoteWorkRequest{}, err
 	}
-	return policy.RemoteWorkRequest{Reach: policy.LootReach(f, f.MapBounds, extent), Competition: policy.RemoteCompetition(f)}, nil
+	request := policy.RemoteWorkRequest{Reach: policy.LootReach(f, f.MapBounds, extent), Competition: policy.RemoteCompetition(f)}
+	layout, ok, err := r.reviewer.layoutPlan(ctx, state.Snapshot, expected.Tick)
+	if err != nil {
+		return policy.RemoteWorkRequest{}, err
+	}
+	if ok {
+		request.Plan = domain.Known(layout.Plan)
+	}
+	return request, nil
 }
 
 // materialStorageZoneFallback is the resource method's
