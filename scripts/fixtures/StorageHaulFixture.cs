@@ -415,12 +415,17 @@ namespace HomeBridge.BridgeTools
                     // check the census applies (#337): a wall the map's roofs
                     // lean on is a legitimate hold, not a salvage candidate.
                     salvageWall = null;
+                    // A battery's 35 steel outranks the map seed's urns and doors
+                    // under the Steel target; a steel wall's 2 never would.
+                    var battery = DefDatabase<ThingDef>.GetNamed("Battery");
                     foreach (var cell in GenRadial.RadialCellsAround(salvageCell, 20, true)) {
-                        if (!cell.InBounds(map) || !cell.Standable(map) || cell.GetEdifice(map) != null || cell.Roofed(map)
-                            || map.areaManager.Home[cell] || map.zoneManager.ZoneAt(cell) != null || !preparedHauler.CanReach(cell, PathEndMode.Touch, Danger.None)) continue;
-                        // A battery's 35 steel outranks the map seed's urns and doors
-                        // under the Steel target; a steel wall's 2 never would.
-                        var candidate = (Building)GenSpawn.Spawn(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Battery")), cell, map);
+                        // The battery is 1x2 and the remote cell hugs the map edge:
+                        // every footprint cell must qualify, or the spawn fails.
+                        if (!GenAdj.OccupiedRect(cell, Rot4.North, battery.size).Cells.All(c => c.InBounds(map) && c.Standable(map)
+                                && c.GetEdifice(map) == null && !c.Roofed(map) && !map.areaManager.Home[c] && map.zoneManager.ZoneAt(c) == null)
+                            || !preparedHauler.CanReach(cell, PathEndMode.Touch, Danger.None)) continue;
+                        var candidate = GenSpawn.Spawn(ThingMaker.MakeThing(battery), cell, map, Rot4.North) as Building;
+                        if (candidate == null) continue;
                         if (RoofSupportSafety.Blocker(candidate, out _) == null) { salvageWall = candidate; salvageCell = cell; break; }
                         candidate.Destroy(DestroyMode.Vanish);
                     }

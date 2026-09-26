@@ -918,7 +918,7 @@ held, the clearance planner admits no second method while one is open, and
 a restarted service observes the in-flight attempt through the native ledger
 instead of designating again. A designation released with a lapsed authority
 ends its plan unsuccessfully and the next review admits one replacement.
-`clearance/salvage-hold-resume` stages a hostile beside a selected ruin,
-proves the `threat_present` hold and an undesignated ruin across a restart,
-clears the threat and proves one designation and the delivered yield across a
-second restart.
+`TestPickSalvageHoldAndResume` (`internal/snapshot`) replays a recorded
+remote ruin selected, held `threat_present` with no salvage target while a
+hostile stands beside it, and selected again once it is gone;
+`clearance/salvage-remote` proves the designation and delivered yield.
