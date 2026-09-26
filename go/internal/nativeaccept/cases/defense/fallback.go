@@ -37,6 +37,10 @@ import (
 // moves and attacks to dispatch after its drafts.
 const breachGraceTicks = 600
 
+// breachRaidPoints floors the breach raid's points so several raiders walk
+// the corridor and one is still alive when the observer fires.
+const breachRaidPoints = 200
+
 // breachCell is where the intruder lands: three cells past the first firing
 // cell along the corridor direction, on the colony side of the line.
 func breachCell(layout store.DefenseLayoutRecord) domain.Cell {

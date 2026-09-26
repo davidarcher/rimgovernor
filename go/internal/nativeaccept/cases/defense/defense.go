@@ -627,6 +627,13 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		// rightly gets no hold (#681).
 		raidArgs["x"], raidArgs["z"] = int(layout.Entry.X), int(layout.Entry.Z)
 	}
+	if v.breach {
+		// The breach observer moves a raider still alive once the hold
+		// has stood drafted for breachGraceTicks. Walking the corridor, a
+		// lone storyteller-sized raider (42 points) died in the killbox
+		// before then and the breach never fired (#717): send a group.
+		raidArgs["points"] = breachRaidPoints
+	}
 	// The ring stops here: a resume replays the pre-raid audits above, and
 	// a world captured after the raid has sprung traps the repair may not
 	// have replaced yet, so every resume starts from a pre-raid entry and
