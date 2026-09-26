@@ -147,6 +147,23 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
+		// A pause or authority change between the draft and the move
+		// releases the draft; the moves riding on it and the open waiting on
+		// them can then never dispatch, and while they stay open the goal
+		// never re-plans (#707). Settle the plan's unissued work so a fresh
+		// method drafts again.
+		if len(orphanedDraftDependents(plan.Spec, plan.Progress)) > 0 {
+			for _, progress := range plan.Progress {
+				if v := progress.View(); v.Stage == domain.Pending || v.Stage == domain.Prepared {
+					if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+						return RoutineShrineResult{}, err
+					}
+				}
+			}
+			if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
+				return RoutineShrineResult{}, err
+			}
+		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineShrineResult{Reason: BuildingMethodExistingWork}, nil
 		}
