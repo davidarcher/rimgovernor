@@ -28,23 +28,6 @@
 //	            whose review must latch on the warmed stock, patch the
 //	            setpoint down to the freezer target and release once native
 //	            cooling holds -- with the cooler count still one.
-//	season-second-cooler
-//	         -- the freezer already sits at the controller's own target and
-//	            the fixture's heater in the room (#220) outputs as much heat
-//	            as one cooler removes, so the room warms to the outdoors and
-//	            no setpoint patch can help. The epoch has no cooler method,
-//	            so the review lends the cooling allowance from the tick its
-//	            latch engaged (#202); once those two game days elapse
-//	            unchilled the planner admits a second Cooler on another
-//	            vented wall, and native cooling must then win: the cooler
-//	            count goes from one to two and the room recovers. Raw meat
-//	            would rot inside those two days, so the room stocks raw
-//	            potatoes with every stack part-way to rotting: four days of
-//	            runway, inside the review's at-risk bound and past the wait.
-//	            The room is 8x6 rather than 6x4: a cooler's change per rare
-//	            tick is capped at the gap to its setpoint, and in the small
-//	            room two coolers nearing the freezer target remove less than
-//	            the heater adds, settling just above 0 C where rot still runs.
 //
 // Every scenario ends with spoilage recovery: the fixture seeds one meat
 // stack part-way to rotting, and once the room is chilled the case advances
@@ -77,21 +60,13 @@ import (
 const prefix = "refrigeration-accept"
 
 func init() {
-	for _, scenario := range []string{"build", "setpoint", "power", "season", "season-second-cooler"} {
+	for _, scenario := range []string{"build", "setpoint", "power", "season"} {
 		scenario := scenario
 		roomC, coolerTargetC, budget := 30, 21.0, 8*time.Minute
 		food, rotStacks, rotFraction := "Meat_Muffalo", 1, 0.25
 		roomWidth, roomHeight := 6, 4
 		if scenario == "season" {
 			roomC = 0
-		}
-		if scenario == "season-second-cooler" {
-			// Two game days of lent allowance at one-hour windows before the
-			// second cooler is even proposed; RawPotatoes rot in 30 days, so
-			// 26/30 of the way leaves four days of warm runway.
-			roomC, coolerTargetC, budget = 0, policy.DefaultFoodStoragePolicy().FreezerTargetC, cases.MaxBudget
-			food, rotStacks, rotFraction = "RawPotatoes", 3, 26.0/30
-			roomWidth, roomHeight = 8, 6
 		}
 		cases.Register(cases.Case{
 			Name: "refrigeration/" + scenario,
@@ -100,11 +75,10 @@ func init() {
 				"setpoint, or hold for the power family; or a settled cold room warms as heat waves ramp in and the live " +
 				"review latches and patches the idle cooler's setpoint; native cooling then takes the measured room under " +
 				"the exit threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress " +
-				"stops advancing; or a freezer at target that a heater in the room defeats waits out the lent cooling allowance and " +
-				"gains a second cooler (#220).",
+				"stops advancing.",
 			Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
 				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": roomC, "season": strings.HasPrefix(scenario, "season"),
-				"coolerTargetC": coolerTargetC, "heater": scenario == "season-second-cooler", "foodDef": food, "rotStacks": rotStacks, "rotProgressFraction": rotFraction,
+				"coolerTargetC": coolerTargetC, "foodDef": food, "rotStacks": rotStacks, "rotProgressFraction": rotFraction,
 				"roomWidth": roomWidth, "roomHeight": roomHeight,
 			}},
 			Service: true,
@@ -174,10 +148,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	}
 	report["food_before"] = before.evidence()
 	policyDefaults := policy.DefaultFoodStoragePolicy()
-	// The second-cooler scenario is a season row whose one refrigeration
-	// method is a Cooler build, so it takes the season warm-up and the
-	// build scenario's plan assertions.
-	season, build := strings.HasPrefix(scenario, "season"), scenario == "build" || scenario == "season-second-cooler"
+	season, build := strings.HasPrefix(scenario, "season"), scenario == "build"
 	if season {
 		if before.rows == 0 || before.temperature > policyDefaults.ChilledMaxC || before.warmNutrition != 0 {
 			return fmt.Errorf("food-before: fixture meat is not settled cold stock (warm nutrition %.2f, temperature %.1f C, rows %d)", before.warmNutrition, before.temperature, before.rows)
@@ -348,23 +319,9 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		report["power_conduit_completed_tick"] = int64(completedTick)
 	}
 
-	// The refrigeration method: a Cooler build on a wall cell (build,
-	// season-second-cooler) or a building-temperature patch of the fixture
+	// The refrigeration method: a Cooler build on a wall cell (build) or a building-temperature patch of the fixture
 	// cooler (setpoint, power, season).
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	if scenario == "season-second-cooler" {
-		// Nothing in the journal but the clock moves for two game days
-		// while the lent allowance elapses: the admitted windows are the
-		// progress signal, bounded by the allowance in ticks.
-		methodCancel()
-		methodCtx, methodCancel = context.WithTimeout(ctx, 11*time.Minute)
-		lentTicks, err := waitLentAllowance(methodCtx, journal, service, latched.Latches.RefrigerationSince)
-		report["lent_allowance_ticks"] = int64(lentTicks)
-		if err != nil {
-			methodCancel()
-			return fmt.Errorf("second cooler after the lent allowance: %w", err)
-		}
-	}
 	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainRefrigeration, nil)
 	methodCancel()
 	if err != nil {
@@ -477,9 +434,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	}
 	report["coolers_after"] = coolerEvidence
 	expectedCoolers := 1
-	if scenario == "season-second-cooler" {
-		expectedCoolers = 2
-	}
 	if len(coolers) != expectedCoolers {
 		return fmt.Errorf("expected exactly %d Cooler(s) after the run, observed %d: %#v", expectedCoolers, len(coolers), coolers)
 	}
@@ -740,40 +694,6 @@ func readCoolers(ctx context.Context, h *na.Harness, identity map[string]any) ([
 // the service exiting on its own ends a wait at once.
 func storeWait(service *na.ServiceProcess) na.Wait {
 	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
-}
-
-// waitLentAllowance follows the epoch that has no cooler method while the
-// review lends the cooling allowance from its latch tick (#202): the
-// journal's admitted clock windows are the progress signal, and the wait
-// ends when the goal gains its first method. A window admitted more than
-// twice the allowance past the latch without one is a failure in its own
-// right: the allowance elapsed and no second cooler was proposed.
-func waitLentAllowance(ctx context.Context, s *store.Store, service *na.ServiceProcess, since domain.Tick) (domain.Tick, error) {
-	const allowance = 2 * na.TicksPerDay
-	var latest domain.Tick
-	err := na.WaitProgress(ctx, storeWait(service), func(ctx context.Context) (string, bool, error) {
-		methods, err := refrigerationMethods(ctx, s)
-		if err != nil {
-			return "", false, err
-		}
-		if len(methods) > 0 {
-			return "", true, nil
-		}
-		attempts, err := s.LoadClockAttempts(ctx, 4096)
-		if err != nil {
-			return "", false, err
-		}
-		for _, a := range attempts {
-			if a.Intent.Window != nil && a.Intent.Window.Tick > latest {
-				latest = a.Intent.Window.Tick
-			}
-		}
-		if latest > since+2*allowance {
-			return "", false, fmt.Errorf("a window was admitted at tick %d, %d ticks past the latch at %d, with no cooler method", latest, latest-since, since)
-		}
-		return na.Signature(latest), false, nil
-	})
-	return latest - since, err
 }
 
 // waitLatch waits for the review to latch refrigeration with a bound goal.

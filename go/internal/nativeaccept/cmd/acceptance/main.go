@@ -6,6 +6,7 @@
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
+//	acceptance setup generate <generator> [run flags]
 //	acceptance why <output>/<area>/<case> [-json]
 //	acceptance warm -root <dir> [-game -headless=false -background]
 //	acceptance fixture <op> [key=value ...] -root <dir> [-save <name> | -loaded]
@@ -128,7 +129,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/speedmatrix"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/startup"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/storage"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supply"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/surgery"

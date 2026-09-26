@@ -11,11 +11,6 @@ import (
 	"strings"
 )
 
-// LabStartTool wipes the loaded map into the blank lab
-// (scripts/fixtures/DebugStartFixture.cs, #730); every fixture build
-// carries it.
-const LabStartTool = "test/lab_start"
-
 // The lab's world: a fixed seed on a temperate tile, generated at LabMapSize
 // and then wiped, so every lab is the same map.
 const (

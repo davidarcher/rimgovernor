@@ -49,8 +49,14 @@ func TestTierCasesSplitTheRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, matrix := fullSet.Cases, matrixSet.Cases
-	if len(full)+len(matrix) != len(all) {
-		t.Errorf("full (%d) + matrix (%d) != registry (%d)", len(full), len(matrix), len(all))
+	off := 0
+	for _, c := range all {
+		if offTier(c.Name) {
+			off++
+		}
+	}
+	if len(full)+len(matrix)+off != len(all) {
+		t.Errorf("full (%d) + matrix (%d) + off-tier (%d) != registry (%d)", len(full), len(matrix), off, len(all))
 	}
 	for _, c := range full {
 		if c.Matrix {
@@ -64,7 +70,7 @@ func TestTierCasesSplitTheRegistry(t *testing.T) {
 			t.Errorf("matrix tier carries %s, which does not declare Matrix", c.Name)
 		}
 	}
-	for _, want := range []string{"speedmatrix/plain", "tickbudget/boundaries"} {
+	for _, want := range []string{"tickbudget/boundaries"} {
 		if !names[want] {
 			t.Errorf("matrix tier lacks %s", want)
 		}
@@ -109,14 +115,14 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	// Four named long cases and the two campaign/* rows (#633).
-	if len(land) != len(full.Cases)-6 {
+	// Three named long cases and the two campaign/* rows (#633).
+	if len(land) != len(full.Cases)-5 {
 		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
 	}
 }
 
 func TestColonyStableNightlyOnly(t *testing.T) {
-	for _, name := range []string{"sustained/colony-stable", "mood/recreation", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery"} {
+	for _, name := range []string{"sustained/colony-stable", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery"} {
 		for _, tier := range []string{"full", "smoke", "matrix"} {
 			set, err := tierCases(tier, "", "main")
 			if err != nil {
@@ -217,10 +223,30 @@ func TestListTierPrintsTheTier(t *testing.T) {
 	if code := list([]string{"-tier", "matrix"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "speedmatrix/plain") || strings.Contains(stdout.String(), "smoke/identity") {
+	if !strings.Contains(stdout.String(), "tickbudget/boundaries") || strings.Contains(stdout.String(), "smoke/identity") {
 		t.Errorf("matrix listing:\n%s", stdout.String())
 	}
 	if code := list([]string{"-tier", "matrix", "smoke/identity"}, &stdout, &stderr); code == 0 {
 		t.Error("-tier with case names should be refused")
+	}
+}
+
+func TestOffTierCasesAreRegisteredAndGeneratorsResolve(t *testing.T) {
+	for _, name := range []string{"sustained/colony", "sustained/colony-loud", "sustained/food", "lifecycle/headless-soak",
+		"video/source-spike", "video/matrix", "medical/stable-patient", "speedmatrix/plain", "tools/defense-checkpoint"} {
+		if _, ok := cases.Lookup(name); !ok || !offTier(name) {
+			t.Errorf("%s: registered=%v offTier=%v", name, ok, offTier(name))
+		}
+	}
+	gens := generators()
+	if len(gens["variantsave-all"]) != 10 {
+		t.Errorf("variantsave-all = %v", gens["variantsave-all"])
+	}
+	for name, list := range gens {
+		for _, c := range list {
+			if _, ok := cases.Lookup(c); !ok {
+				t.Errorf("setup generate %s names unknown case %s", name, c)
+			}
+		}
 	}
 }

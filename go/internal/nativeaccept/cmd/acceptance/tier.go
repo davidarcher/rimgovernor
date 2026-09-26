@@ -58,7 +58,7 @@ type tierSet struct {
 // tierCases resolves a tier. The land tier diffs repo's working tree
 // against base.
 func tierCases(tier, repo, base string) (tierSet, error) {
-	all := cases.All()
+	all := tiered()
 	switch tier {
 	case "full":
 		var out []cases.Case
@@ -126,7 +126,7 @@ func landCases(all []cases.Case, sel affected.Selection) ([]cases.Case, error) {
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
 		// Long production and stability cases belong to the nightly full tier only.
-		if c.Matrix || nightlyOnly(c.Name) {
+		if c.Matrix || nightlyOnly(c.Name) || offTier(c.Name) {
 			continue
 		}
 		if want[c.Name] || (areas[area] && !sampled[area]) || sel.AllHarnesses {
@@ -143,7 +143,7 @@ func sampleCases(all []cases.Case, areas []string) []cases.Case {
 	pick := map[string]cases.Case{}
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
-		if c.Matrix || nightlyOnly(c.Name) || !slices.Contains(areas, area) {
+		if c.Matrix || nightlyOnly(c.Name) || offTier(c.Name) || !slices.Contains(areas, area) {
 			continue
 		}
 		best, ok := pick[area]
@@ -203,6 +203,30 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 // unassisted campaigns and fault injections are pass/fail rows of the
 // nightly bulk tier only.
 func nightlyOnly(name string) bool {
-	return name == "mood/recreation" || name == "sustained/colony-stable" || name == "production/deepdrill" || name == "production/components" ||
+	return name == "sustained/colony-stable" || name == "production/deepdrill" || name == "production/components" ||
 		strings.HasPrefix(name, "campaign/")
+}
+
+// offTier names the cases no tier runs (#739): fixture generators, which
+// `acceptance setup generate` runs, and diagnostics, which gate nothing
+// and stay runnable by hand with `acceptance run`.
+func offTier(name string) bool {
+	switch name {
+	case "sustained/colony", "sustained/colony-loud", "sustained/food", "lifecycle/headless-soak",
+		"video/source-spike", "video/matrix", "medical/stable-patient":
+		return true
+	}
+	return strings.HasPrefix(name, "tools/") || strings.HasPrefix(name, "sustained/matrix-") ||
+		strings.HasPrefix(name, "speedmatrix/")
+}
+
+// tiered is the registry less the off-tier cases, in registry order.
+func tiered() []cases.Case {
+	var out []cases.Case
+	for _, c := range cases.All() {
+		if !offTier(c.Name) {
+			out = append(out, c)
+		}
+	}
+	return out
 }

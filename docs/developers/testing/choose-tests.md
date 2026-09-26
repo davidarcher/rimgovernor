@@ -269,12 +269,12 @@ the case too slow to rerun after a fix. Reach for, in order of preference:
   `cleanliness_prepare`, `power_prepare`, `refrigeration_prepare`,
   `storage_haul_prepare`, `guarded_construction_prepare` families) that spawns
   the buildings, pawns, items and conditions the test needs in one call;
-- the `tools/variantsavegen-<save>` cases / `ScenarioStartFixture` for a
+- `acceptance setup generate variantsave-<save>` (the `tools/variantsavegen-<save>` cases) / `ScenarioStartFixture` for a
   programmatic scenario start when the stressor is map- or start-level
   (seed, biome, season, scarcity). The checked-in artifact is the manifest
   (`cases/sustained/manifests/issue-1-matrix.json`, a JSON array of
   `variantgen.Variant`), the generated `.rws` under `profile/Saves` is the
-  pre-generated world: a `tools/variantsavegen-<save>` case writes it once
+  pre-generated world: `setup generate variantsave-<save>` writes it once
   offline (about 5s a variant on a kept process), and the matching
   `sustained/matrix-<save>` case opens on that scenario start directly.
   A load takes about 3s; nothing regenerates a world per run.
@@ -709,8 +709,7 @@ A case whose assertion needs a particular kind of map sets
 `na.DebugStart.Biomes` (a comma-separated `BiomeDef` preference; the
 fixture's `biomes` parameter): the start settles a random valid tile of
 the first biome the planet offers and fails when it offers none, and the
-cached start is keyed on the preference. storage/food pins a berry-rich
-biome this way rather than leaving food to the roll (#172).
+cached start is keyed on the preference.
 Every starting colonist of a configured debug start can Construct and
 Haul: the fixture rerolls an incapable pawn in place (#152), so a stage
 that needs three such pawns (`test/throughput_prepare`) never depends on
@@ -961,14 +960,24 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
   `go/internal/buildingruntime` does not land without `-results` (the
   smoke tier suffices); `-unverified` lands it anyway, and the commit body
   names what went unverified.
-- **full** (`suite -tier full`): every case outside the matrix tier, the
+- **full** (`suite -tier full`): every tiered case outside the matrix tier, the
   nightly loop against `main` on CI (#363, #387), chained with `-baseline`
   for regression flagging; a red row opens an issue naming it and the
   day's landings.
 - **matrix** (`suite -tier matrix`): the cases that declare
-  `Case.Matrix` — `speedmatrix/`, `tickbudget/` and any DLC-save case — on
+  `Case.Matrix` — `tickbudget/` and any DLC-save case — on
   demand and whenever the clock scheduler or the native tick path changes.
   Neither land nor full runs them.
+- **off-tier** (#739): fixture generators and diagnostics no tier runs
+  (`offTier` in `cmd/acceptance/tier.go`). The generators
+  (`tools/variantsavegen-*`, `tools/defense-checkpoint`,
+  `tools/facility-checkpoint`) run through `acceptance setup generate
+  <variantsave-<save>|variantsave-all|defense-checkpoint|facility-checkpoint>`
+  followed by the usual run flags; the diagnostics (`sustained/colony`,
+  `sustained/colony-loud`, `sustained/food`, `sustained/matrix-*`,
+  `speedmatrix/*`, `lifecycle/headless-soak`, `video/source-spike`,
+  `video/matrix`, `medical/stable-patient`) gate nothing and run by hand
+  with `acceptance run`.
 - **smoke** (`suite -tier smoke`): the land tier's fixed half alone,
   `cmd/acceptance/suites/smoke.json`: runner-proving bridge-only cases over
   a kept debug game plus one short serve-driven case (`light/dark`, so the
@@ -1060,7 +1069,7 @@ Reuse does **not** reset mod static state: process-scoped statics such as
 case whose assertion depends on one of those, and any case run as static-
 state or fresh-Go-session evidence, declares `NoKeep` and runs with
 `RIMGOVERNOR_ACCEPT_KEEP_GAME=0`. Missing manifest variants are generated
-by their `tools/variantsavegen-<save>` case before the `sustained/matrix-*`
+with `acceptance setup generate variantsave-<save>` before the `sustained/matrix-*`
 case that opens on them.
 
 ## Checkpointing a slow precondition
@@ -1230,7 +1239,8 @@ report.
 
 A case whose late scenario depends on minutes of earlier play (the
 defense layout build before its raid) checkpoints the precondition as a
-prepared save instead of replaying it: `tools/defense-checkpoint` saves the
+prepared save instead of replaying it: `tools/defense-checkpoint`
+(`acceptance setup generate defense-checkpoint`) saves the
 game once the layout is built and audited, writing
 `RimGovernor-defense-layout.rws` and `.checkpoint.json` (the layout record and site the
 raid assertions need) to `root/profile/Saves` and to the committed
@@ -1242,7 +1252,7 @@ straight to the raid; the checkpoint is fixture-mod state, so rebuild it
 after fixture or save-format changes.
 
 The same shape serves a goal that ranks behind the whole startup ladder:
-`tools/facility-checkpoint` plays the tribal8 baseline under the comfort
+`tools/facility-checkpoint` (`acceptance setup generate facility-checkpoint`) plays the tribal8 baseline under the comfort
 case's families until RankDevelopment first admits `EnsureComfort` (every
 priority-0..2 goal served: shelter, campfire, storage, fields, work
 assignments), saves through the service's lifecycle save and commits
@@ -1267,9 +1277,8 @@ AteWithoutTable memory after it stood (#232). About 90 s on a quiet host.
 | Go controller logic, contracts, persistence | From `go/`: `go test ./...`, `go vet ./...`, `go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor` (also run together, with staticcheck and the test-time budget, by `task go:build && task go:test` from the [root Taskfile](../../../Taskfile.yml)) | Pin Go via [go/.go-version](../../../go/.go-version); `CGO_ENABLED=0`. Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks below. See [go/README.md](../../../go/README.md). |
 | Dashboard behavior and build | `task dashboard:build` runs `pnpm run typecheck`, `pnpm run lint` and `pnpm run build`; `task dashboard:test` runs `pnpm test` (Vitest) | Local pnpm and dashboard dependencies; native UI acceptance is separate. |
 | Shared Protobuf contracts | Official C#/Go generation `--check` for both languages (`task protobuf:build`, ~20 s) | [Generation commands](../../../contracts/schema-generation.md); native adapters additionally need gameplay acceptance. The drift check and the `tools/protobuf/go` module tests are not in the landing loop; the nightly `race` job runs both so a schema edit landed without regeneration is caught there. The C#/Go/C# exchange proof (`task protobuf:test`) proves the pinned runtime and stays manual. |
-| Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/control`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `presentation/media` (needs `-headless=false`), `quest/accept`, `quest/fulfill`, `research/reads`, `rooms/reads`, `settlement/gift`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak`; the rendered `video/stream`, `video/feeds`, `video/matrix`, `video/source-spike`; the serve-driven `dialog/pause` (#156: a force-pausing choice dialog the game opens is answered and the clock runs again); every other area is listed there too, so trust `acceptance list` over this row) | Disposable prepared colony, matching native DLLs, GABS and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe`/`gabs.exe` by image name — that ends every concurrent worktree's game (seen there as GABS's catalog emptying, `availableTotal: 0`); stop your own via `games_stop` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
+| Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/control`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `presentation/media` (needs `-headless=false`), `quest/accept`, `quest/fulfill`, `research/reads`, `rooms/reads`, `settlement/gift`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak` (off-tier); the rendered `video/stream`, `video/feeds`, `video/matrix` and `video/source-spike` (the last two off-tier); the serve-driven `dialog/pause` (#156: a force-pausing choice dialog the game opens is answered and the clock runs again); every other area is listed there too, so trust `acceptance list` over this row) | Disposable prepared colony, matching native DLLs, GABS and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe`/`gabs.exe` by image name — that ends every concurrent worktree's game (seen there as GABS's catalog emptying, `availableTotal: 0`); stop your own via `games_stop` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
 | A wild predator hunting a colonist during supervised play is answered by squad defense instead of parking the clock on `predator_hunt` / `unsafe_colony` (#157): the hunt resolves under the service through combat windows, the drafts are released and colony windows resume; natively the predator is dead, downed, gone or no longer hunting a colonist (a predator that broke off to eat wildlife is a watched nearby predator, not the goal's threat, #214) and no colonist is dead or drafted | `go run ./internal/nativeaccept/cmd/acceptance run defense/predator -root <abs root> -output <fresh dir> -rimgovernor <path to rimgovernor.exe>` from `go/` (the case opens on the committed `RimGovernor-defense-layout` checkpoint and spawns a Cougar) against a `DefenseFixture,GuardedConstructionFixture` build; `result.json` carries `predator_incident`, `combat_method` (`squad-…`), `hunt_resolution`, `defenders_released`, `clock_resumed` and `inspect_after_hunt` | Serve-driven on the committed layout checkpoint; the fixture spawns the predator inside the band already on the game's own `PredatorHunt` job (no combat outcome injected). About 5 minutes. Rerun when `routine_defense.go`, `squad_defense.go`, `squad_facts.go` or the emergency threat census changes. |
-| A wild alphabeaver pack (factionless, never hostile, ignored by the emergency census) is hunted down by `ClearPests` through the hunt method until none remain on the map (#247): the goal opens on the wild-animal census, plans one `pest-hunt-*` per beaver within the two-hunt budget, each hunt following its beaver wherever it forages (#321), and recovers when the census counts none; natively every staged beaver is dead or gone, no wild alphabeaver remains, a colonist was armed and given Hunting by the equip and work families, and no colonist died | `acceptance run animals/alphabeavers -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against a `PestFixture` build (`test/pest_prepare` spawns two Alphabeaver about 40 cells from the colonists on the tribal8 baseline, `test/pest_inspect` reads their native state and why the hunt census would not offer one); `result.json` carries `fixture` (the staged pack, the eligible hunters and the loose ordinary ranged weapons), the `ClearPests` timeline, `settle_steps` (native-only steps a beaver already designated when the watch ended was given) and `pest_inspect` | Serve-driven on the tribal8 baseline under `acquisition,equip,work,supply,defense,tend,rescue` (the baseline starts with the bows in the drop pile; the equip family arms the shooters and the work family gives them Hunting, the fixture stages nobody); a wounded beaver turns manhunter half the time, which the defense family answers before the survivors are offered again; beavers forage across the whole map and each hunt follows its beaver. Up to 15 minutes. Rerun when `NativeHuntAcquisition.cs`, `policy/pest.go`, `routine_acquisition.go` or the wild-animal census changes. |
 | The native per-cell change grid behind `GetCellsRequest.changed_since_tick` (#357): after a full `observations_get_cells` read of a clear 8x8 site, a wall, roof, growing zone, loose stack and floor laid directly by the fixture come back from a read since the first read's tick, `unchanged` counts the rest to the exact area, the delta merged over the first read equals a fresh full read (drift 0), and after one game tick a read since the newer tick omits the older round | `acceptance run cells/changed-since -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against a `CellsFixture` build (`test/cells_prepare` picks the site near a colonist, `test/cells_mutate` mutates it in phases `first`, `second` and `cleanup`); `result.json` carries `first_round`/`second_round` (touched, listed, unchanged) and `drift` | Paused and synchronous; a few seconds. The store's own merge, resync cadence and drift count are Go unit tests (`buildingruntime/clock_planning_window_test.go`). Rerun when `CellTracking.cs`, the `GetCells` handler, `bridge/planning_window.go` or `clock_planning_window.go` changes. |
 | The planning-window view's dirty-chunk refresh (#652): a bundle view of three eight-row bands around the clear 8x8 site, read twice at one paused tick, reuses every band and reads no cell the second time; after each `test/cells_mutate` round (`first`, then `second` a tick later) the next bundle's view equals a compact planning `observations_get_cells` read of the region row for row, room ids and indoors included (only glow in a band validated before the tick is excused) | `acceptance run cells/planning-view-refresh -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against a `CellsFixture` build; `result.json` carries `before`/`stable`/`first`/`second`, each the hop's `timing.observation.planningView` account (chunks, reused, validated, rebuilt, dirty and topology chunks, tiles and cells scanned, cells read, age, retained bytes, resync) plus `drift` | Paused and synchronous; a few seconds. Region/mask changes, reload, rewind, overflow, the scheduled scan and out-of-order publication are the `native-planning-window-view` probe. Rerun when `CellTracking.cs`, `PlanningViewLedger.cs` or `PlanningWindowViewCapture.cs` changes. |
 | A hostile building near the colony -- an insect hive (`defense/hive`) or a crashed ship part (`defense/shippart`) -- is answered by squad defense (#246, #327): the census lists it under `hostileBuildings`, the planner targets the building itself (`defense/shippart` arms every colonist with a rifle first and requires a ranged attack from a defender with a line of fire, planned and dispatched; `defense/hive` accepts either mode), the fight runs under combat windows, the ActiveCombat goal recovers, the drafts are released and colony windows resume; natively the building is destroyed, no pawn of its faction is on the map and no colonist is dead or drafted | `go run ./internal/nativeaccept/cmd/acceptance run defense/hive -root <abs root> -output <fresh dir> -rimgovernor <path to rimgovernor.exe>` (or `defense/shippart`) from `go/` against a `DefenseFixture,GuardedConstructionFixture` build; `result.json` carries `healed_before_building`, `hostile_building_incident`, `combat_method` (`squad-…`), `building_resolution`, `building_attacks` (`dispatched` > 0: a melee attack on the building ran natively, so the building did not merely decay), `defenders_released`, `clock_resumed` and `inspect_after_building` | Serve-driven on the committed layout checkpoint; the colony is healed first (the checkpoint carries a wound that creeps into a CriticalMedical hold), then the fixture spawns the building in the open with its pawn and child-hive spawning off and the hive's maintenance decay parked, so the building is the only threat and only the colonists' damage can destroy it (no combat outcome injected). About 5 minutes for the hive; the 1200-hit-point ship part takes longer under tribal melee. Rerun when `routine_defense.go`, `squad_defense.go`, the melee boundary, `NativeCombatOperations.cs` or the emergency threat census changes. |

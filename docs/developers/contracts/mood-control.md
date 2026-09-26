@@ -145,14 +145,6 @@ contents and default assignment match, so drift replans the assignment.
 Recreation relief itself still excludes ingestible joy; RimWorld chooses ordinary
 drug use. `takeover/drug-policy` proves the ownership rules directly.
 
-The nightly full tier includes `mood/recreation`: the baseline colony runs ten
-quiet game days with live needs and every routine family. At the end, every
-colonist must have readable current thoughts with no `NeedJoy` offset below -5.
-When Brewing is complete, every colonist must have the social drug policy
-assigned. Missing research, incomplete colonist reads and stale thoughts fail the
-case. Its fixed 600,000-tick window exceeds the smoke budget and is excluded from
-smoke, land and matrix tiers; diagnostic window overrides cannot shorten it.
-
 ## Active mental-state observation
 
 The colonist status and pawn list reads carry the active mental state's native

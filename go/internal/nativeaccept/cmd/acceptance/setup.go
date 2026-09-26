@@ -7,14 +7,17 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/setup"
 )
 
 const setupUsage = `  acceptance setup [-worktree <dir>] [-rimworld <RimWorld dir>] [-harmony <0Harmony.dll>] [-gabs <gabs.exe>]
                    [-fixture A,B | -production] [-rebuild] [-skip-mod] [-skip-binaries]
+  acceptance setup generate <variantsave-<save>|variantsave-all|defense-checkpoint|facility-checkpoint> [run flags]
 `
 
 // setupOptions are the parsed setup flags.
@@ -29,7 +32,7 @@ type setupOptions struct {
 // enclosing the working directory unless -worktree names one) and the
 // discovery overrides. -fixture narrows the mod build to the named
 // classes (every class the build script accepts by default); -production
-// builds no fixtures at all (the build storage/food cases need).
+// builds no fixtures at all.
 func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -85,6 +88,9 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 // runSetup discovers the inputs and runs the setup, printing the summary
 // and the run command a first case needs.
 func runSetup(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "generate" {
+		return runGenerate(ctx, args[1:], stdout, stderr)
+	}
 	o, err := parseSetup(args, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
@@ -127,4 +133,42 @@ func fixtureSummary(fixtures []string) string {
 		return "none (production build)"
 	}
 	return fmt.Sprintf("%d classes", len(fixtures))
+}
+
+// generators maps a `setup generate` name to the registry case that
+// writes the fixture (#739): the variant saves the sustained/matrix-*
+// diagnostics load and the committed defense and facility checkpoints.
+// They stay registry cases so the runner hosts them, but no tier runs them.
+func generators() map[string][]string {
+	out := map[string][]string{
+		"defense-checkpoint":  {"tools/defense-checkpoint"},
+		"facility-checkpoint": {"tools/facility-checkpoint"},
+	}
+	for _, c := range cases.All() {
+		if short, ok := strings.CutPrefix(c.Name, "tools/variantsavegen-"); ok {
+			out["variantsave-"+short] = []string{c.Name}
+			out["variantsave-all"] = append(out["variantsave-all"], c.Name)
+		}
+	}
+	return out
+}
+
+// runGenerate runs a generator's cases with the run flags that follow it.
+func runGenerate(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	gens := generators()
+	if len(args) == 0 || gens[args[0]] == nil {
+		names := make([]string, 0, len(gens))
+		for name := range gens {
+			names = append(names, name)
+		}
+		slices.Sort(names)
+		fmt.Fprintf(stderr, "setup generate takes one of: %s\n", strings.Join(names, ", "))
+		return 2
+	}
+	selected, opts, err := parseRun(append(slices.Clone(gens[args[0]]), args[1:]...), stderr)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
+	return runCases(ctx, selected, opts, stdout)
 }

@@ -68,7 +68,7 @@ skips the mod build when the installed manifest already matches the
 worktree's native sources and fixture set, and refuses to install while a
 game runs from the copy. `-fixture A,B` narrows the build (every class
 `build_native_mod.ps1` accepts by default), `-production` builds without
-fixtures (what the storage/food cases need), `-rebuild` forces a build,
+fixtures, `-rebuild` forces a build,
 `-skip-mod`/`-skip-binaries` leave those parts alone. Keep the worktree
 under `.claude/worktrees/`: RimWorld cannot open its own Defs from a copy
 whose path passes ~140 characters (`setup` refuses one).

@@ -210,26 +210,19 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 	for _, v := range sustained.Variants {
 		suffix := sustained.Short(v.Save)
 		generator, consumer := "tools/variantsavegen-"+suffix, "sustained/matrix-"+suffix
-		found := false
-		for _, shard := range p.Shards {
-			if i := slices.Index(shard.Cases, consumer); i >= 0 {
-				found = true
-				if j := slices.Index(shard.Cases, generator); j < 0 || j >= i {
-					t.Fatalf("%s must follow %s on %s: %v", consumer, generator, shard.ID, shard.Cases)
-				}
-				// The executor reorders by process tier; that must also keep
-				// the generator ahead of its serve-driven consumer.
-				g, _ := cases.Lookup(generator)
-				c, _ := cases.Lookup(consumer)
-				queue := []entry{{Name: consumer, registered: &c}, {Name: generator, registered: &g}}
-				schedule(queue, nil)
-				if queue[0].Name != generator {
-					t.Fatal("suite scheduling reverses dependency")
-				}
-			}
+		// Both are off-tier (#739): the full plan carries neither, but a
+		// hand-picked selection still pairs them.
+		if seen[consumer]+seen[generator] != 0 {
+			t.Fatalf("full plan carries off-tier %s or %s", consumer, generator)
 		}
-		if !found {
-			t.Fatalf("missing manifest consumer %s", consumer)
+		// The executor reorders by process tier; that must also keep
+		// the generator ahead of its serve-driven consumer.
+		g, _ := cases.Lookup(generator)
+		c, _ := cases.Lookup(consumer)
+		queue := []entry{{Name: consumer, registered: &c}, {Name: generator, registered: &g}}
+		schedule(queue, nil)
+		if queue[0].Name != generator {
+			t.Fatal("suite scheduling reverses dependency")
 		}
 		if _, err := remoteaccept.PlanShards([]string{consumer}, 32, p.Algorithm, nil); err == nil || !strings.Contains(err.Error(), generator) {
 			t.Fatalf("missing generator did not fail planning: %v", err)
@@ -303,7 +296,7 @@ func TestRemoteRenderedAreasAreSkipped(t *testing.T) {
 			}
 		}
 	}
-	for _, name := range []string{"presentation/media", "video/feeds", "video/matrix", "video/source-spike", "video/stream"} {
+	for _, name := range []string{"presentation/media", "video/feeds", "video/stream"} {
 		i := slices.IndexFunc(p.Cases, func(c plannedCase) bool { return c.Name == name })
 		skipped := slices.IndexFunc(p.Skipped, func(c remoteaccept.SkippedCase) bool { return c.Name == name && c.Reason == "rendered" })
 		if i >= 0 || skipped < 0 {

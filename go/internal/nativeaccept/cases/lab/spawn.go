@@ -15,7 +15,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:        "lab/spawn",
 		Scope:       "Lab runner: test/lab_start hands the case a blank lab with its colonists, and a building and a pawn spawned by test/lab_spawn read back through the typed observations.",
-		Start:       cases.Lab(2),
+		Start:       cases.Lab{Colonists: 2},
 		RequiredOps: []string{na.LabSpawnTool},
 		QuietWorld:  true,
 		Budget:      cases.LabBudget,

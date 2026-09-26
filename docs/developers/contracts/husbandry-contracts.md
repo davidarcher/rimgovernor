@@ -157,7 +157,3 @@ budgets one offered animal as a hunt-kind channel with a `slaughter:` ID and
 husbandry action. Ordinary butchering and hauling must still produce edible food.
 The opt-in is checked again at method selection. Operator ceiling removal keeps
 its existing release preference.
-
-`food/milk-eggs` starts from `EmptyChannels`, adds a ready cow and four hens,
-and verifies native products and positive runway without fields, plus the live
-plan's derived cow-floor explanation. It is part of the nightly full tier.

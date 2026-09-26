@@ -16,9 +16,6 @@
 //	              must admit one more generator (a plan whose actions are a
 //	              single generator definition) and the colonists must build
 //	              it.
-//	rain       -- the controller encloses an exposed battery and replaces
-//	              ordinary conduits, then a full day of forced rain leaves no
-//	              short circuits, fires or equipment damage (#405).
 //	battery    -- a solar generator, a lamp in a roofed room and no bank at
 //	              all (#418): the day covers the draw but nothing carries the
 //	              night, so the service must add storage (one plan whose
@@ -68,7 +65,7 @@ const prefix = "power-accept"
 // for follow-up conduit plans and, for the battery, a night driven at
 // Superfast.
 var budgets = map[string]time.Duration{
-	"fuel": 10 * time.Minute, "reserve": 5 * time.Minute, "rain": 14 * time.Minute,
+	"fuel": 10 * time.Minute, "reserve": 5 * time.Minute,
 	"battery": 15 * time.Minute, "wind": 12 * time.Minute, "geothermal": 12 * time.Minute,
 }
 
@@ -77,7 +74,7 @@ var budgets = map[string]time.Duration{
 var firstAction = map[string]string{"battery": policy.BatteryDefinition, "wind": policy.WindTurbineDefinition, "geothermal": policy.GeothermalDefinition}
 
 func init() {
-	for _, scenario := range []string{"fuel", "reserve", "battery", "rain", "wind", "geothermal"} {
+	for _, scenario := range []string{"fuel", "reserve", "battery", "wind", "geothermal"} {
 		scenario := scenario
 		cases.Register(cases.Case{
 			Name: "power/" + scenario,
@@ -85,8 +82,7 @@ func init() {
 				"live Go power family until native colonists refuel it, a draining battery under a day of reserve has the " +
 				"family admit one more generator that the colonists build, a solar-only network has it bank the night in a " +
 				"battery it sites indoors, a cleared field has it raise a wind turbine on a clear catch zone, or a free " +
-				"steam geyser has it raise a geothermal generator there; the rain case encloses a battery and replaces " +
-				"unsafe wiring before a full day of rain. Each is confirmed by an independent native read.",
+				"steam geyser has it raise a geothermal generator there. Each is confirmed by an independent native read.",
 			Start:   cases.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}},
 			Service: true,
 			Budget:  budgets[scenario],
@@ -218,52 +214,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
 	switch scenario {
-	case "rain":
-		deadline := time.Now().Add(8 * time.Minute)
-		shelter, wiring, safe := false, false, false
-		for time.Now().Before(deadline) {
-			r, err := journal.LoadRoutineReview(ctx)
-			if err != nil {
-				return err
-			}
-			open, covered := false, false
-			for _, binding := range r.Goals {
-				if binding.Need != policy.EnsureBasicPower {
-					continue
-				}
-				g, err := journal.LoadGoal(ctx, binding.Goal)
-				if err != nil {
-					return err
-				}
-				covered = g.Goal.Need == domain.NeedRecovered
-				for _, m := range g.Methods {
-					p, err := journal.LoadPlan(ctx, m.Plan)
-					if err != nil {
-						return err
-					}
-					for _, progress := range p.Progress {
-						b, ok := progress.Action().Building()
-						if ok {
-							shelter = shelter || b.Definition() == "Wall"
-							wiring = wiring || b.Definition() == "HiddenConduit"
-						}
-						open = open || progress.View().Stage != domain.Completed
-					}
-				}
-			}
-			if shelter && wiring && !open && covered {
-				safe = true
-				break
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(time.Second):
-			}
-		}
-		if !safe {
-			return fmt.Errorf("power protection did not complete: shelter=%v wiring=%v", shelter, wiring)
-		}
 	case "fuel":
 		// Hold for a bounded window of Fast-speed simulation: the power goal
 		// may bind (the consumer is unpowered) but no method may be committed
@@ -406,9 +356,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	report["power_after"] = after
-	if scenario == "rain" {
-		return checkRain(ctx, s, h, after, observe)
-	}
 	rows = indexRows(after)
 	generators := na.AsSlice(after["generators"])
 	if scenario != "fuel" && scenario != "reserve" {

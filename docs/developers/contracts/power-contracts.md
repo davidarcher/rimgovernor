@@ -114,6 +114,4 @@ powered), a
 wind turbine raised in a cleared field on a catch zone the native read
 confirms unobstructed, and a geothermal generator raised on the fixture's
 free geyser ahead of every other generator; each followed by the conduit
-plans that connect the new building. `power/rain` proves enclosure and
-conduit replacement followed by a full day of rain without short circuits,
-fires or equipment damage.
+plans that connect the new building.

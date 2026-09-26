@@ -142,7 +142,7 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	var opts suiteOptions
 	var all bool
 	var names, suite, base string
-	fs.BoolVar(&all, "all", false, "run every registered case")
+	fs.BoolVar(&all, "all", false, "run every tiered case (off-tier generators and diagnostics excluded)")
 	fs.StringVar(&names, "cases", "", "comma-separated registry case names")
 	fs.StringVar(&suite, "suite", "", "JSON suite file: array of {name, acceptance}; names are registry cases")
 	fs.StringVar(&opts.Tier, "tier", "", "run a tier: land, full, matrix or smoke")
@@ -200,7 +200,7 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	var list []entry
 	switch {
 	case all:
-		for _, c := range cases.All() {
+		for _, c := range tiered() {
 			list = append(list, entry{Name: c.Name})
 		}
 	case names != "":
