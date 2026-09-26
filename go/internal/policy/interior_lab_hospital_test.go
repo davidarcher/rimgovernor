@@ -28,7 +28,7 @@ func TestLaboratoryLayoutRepeatsAndFacesTheFloor(t *testing.T) {
 			}
 		}
 	}
-	if _, ok := PlanInterior(interiorRoomsAround(RoomRoleLaboratory, 5, 3, 1)[0]); ok {
+	if _, ok := PlanInterior(interiorRoomsAround(RoomRoleLaboratory, 5, 3, 1)[0], InteriorPieceDef{}); ok {
 		t.Error("a 3-deep lab has no interaction row")
 	}
 }
@@ -46,6 +46,12 @@ func TestHospitalBedsShareAdjacentMonitors(t *testing.T) {
 		}
 		if len(beds) == 0 || len(beds) != 2*len(monitors) {
 			t.Fatalf("%v: %d beds, %d monitors", size, len(beds), len(monitors))
+		}
+		for _, b := range plan.Canonical {
+			// A bed's head is its anchor (BedUtility.GetSlotPos): on the back wall.
+			if b.Def != vitalsMonitorDefinition && (b.Rot != domain.South || b.Anchor().Z != plan.Frame.Depth-1) {
+				t.Errorf("%v: %s head %v at %s, want South on the back wall", size, b.Slot, b.Anchor(), b.Rot)
+			}
 		}
 		for _, b := range beds {
 			linked := 0

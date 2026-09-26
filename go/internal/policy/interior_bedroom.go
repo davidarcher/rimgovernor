@@ -33,7 +33,7 @@ var (
 	standLampSize = domain.Cell{X: 1, Z: 1}
 )
 
-func planBedroom(f InteriorFrame) ([]InteriorPiece, bool) {
+func planBedroom(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
 	return planBedroomWith(f, "Bed", bedSize)
 }
 

@@ -26,6 +26,13 @@ type InteriorRoom struct {
 	Role     RoomRole
 	Interior Rectangle
 	Doors    []domain.Cell
+	// InnerDoors are the doors among Doors that open onto another room;
+	// the frame faces a door onto a hallway or outdoors when it has one.
+	InnerDoors []domain.Cell
+	// Standing are the definitions of the player buildings standing on the
+	// floor, sorted; a bench row's pitch widens to the widest standing
+	// member of its family.
+	Standing []string
 }
 
 // InteriorFrame is the canonical view of a room a template plans in.
@@ -34,6 +41,8 @@ type InteriorFrame struct {
 	// Entrance is the u of the door the frame faces; its inside cell is
 	// (Entrance, 0).
 	Entrance int32
+	// Standing are the shapes of the room's standing definitions.
+	Standing []InteriorPieceDef
 	// Doors are every door of the room in canonical cells, the entrance
 	// included; each lies one cell outside the frame.
 	Doors []domain.Cell
@@ -71,11 +80,13 @@ func (p InteriorPiece) Interaction() (domain.Cell, bool) {
 	return domain.Cell{X: a.X + o.X, Z: a.Z + o.Z}, true
 }
 
-// InteriorTemplate plans one role's room; Plan returns false when the
-// frame does not fit the template.
+// InteriorTemplate plans one role's room for the piece being placed (#820):
+// a template whose family holds the piece plans its slots for that
+// definition's footprint, and any other piece gets the template's default
+// layout. Plan returns false when the frame does not fit the template.
 type InteriorTemplate struct {
 	Name string
-	Plan func(InteriorFrame) ([]InteriorPiece, bool)
+	Plan func(InteriorFrame, InteriorPieceDef) ([]InteriorPiece, bool)
 }
 
 var interiorTemplates = map[RoomRole]InteriorTemplate{}
@@ -108,10 +119,11 @@ type InteriorPlan struct {
 	Pieces []InteriorPiece
 }
 
-// PlanInterior derives the room's plan from its role's template. It is
-// false when no template is registered, the room has no door, the template
-// does not fit, or the template's output is malformed.
-func PlanInterior(room InteriorRoom) (InteriorPlan, bool) {
+// PlanInterior derives the room's plan from its role's template for the
+// piece being placed (InteriorPieceDefFor). It is false when no template is
+// registered, the room has no door, the template does not fit, or the
+// template's output is malformed.
+func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool) {
 	t, ok := InteriorTemplateFor(room.Role)
 	if !ok {
 		return InteriorPlan{}, false
@@ -121,7 +133,10 @@ func PlanInterior(room InteriorRoom) (InteriorPlan, bool) {
 		return InteriorPlan{}, false
 	}
 	frame := x.frame()
-	pieces, ok := t.Plan(frame)
+	for _, d := range room.Standing {
+		frame.Standing = append(frame.Standing, InteriorPieceDefFor(d))
+	}
+	pieces, ok := t.Plan(frame, piece)
 	if !ok || ValidateInteriorPieces(frame, pieces) != nil {
 		return InteriorPlan{}, false
 	}
@@ -322,15 +337,27 @@ type interiorTransform struct {
 	depth  int32
 }
 
-// newInteriorTransform faces the frame to the room's first door (in cell
-// order) and mirrors it so that door sits on the wall's left half.
+// newInteriorTransform faces the frame to the room's entrance and mirrors
+// it so the entrance sits on the wall's left half. The entrance is the
+// first door in cell order that opens onto a hallway or outdoors (#820),
+// or the first door when every door leads into another room; the frame
+// lists it first, the other doors after it in cell order.
 func newInteriorTransform(room InteriorRoom) (interiorTransform, bool) {
 	r := room.Interior
 	if r.Width <= 0 || r.Height <= 0 || len(room.Doors) == 0 {
 		return interiorTransform{}, false
 	}
+	inner := map[domain.Cell]bool{}
+	for _, d := range room.InnerDoors {
+		inner[d] = true
+	}
 	doors := append([]domain.Cell(nil), room.Doors...)
-	sort.Slice(doors, func(i, j int) bool { return cellLess(doors[i], doors[j]) })
+	sort.SliceStable(doors, func(i, j int) bool {
+		if inner[doors[i]] != inner[doors[j]] {
+			return !inner[doors[i]]
+		}
+		return cellLess(doors[i], doors[j])
+	})
 	side, ok := doorSide(r, doors[0])
 	if !ok {
 		return interiorTransform{}, false
@@ -414,9 +441,26 @@ func (x interiorTransform) piece(p InteriorPiece) InteriorPiece {
 // the role its new furniture gives it; any other room keeps its role.
 func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []SiteCell) []InteriorRoom {
 	var doorways []domain.Cell
+	edifice := map[domain.Cell]string{}
 	for _, c := range cells {
 		if positive(c.Doorway) {
 			doorways = append(doorways, c.Cell)
+		}
+		if d, known := c.PlayerEdifice.Value(); known && d != "" {
+			edifice[c.Cell] = d
+		}
+	}
+	// A door leads into another room when the cell past it lies in an
+	// enclosed room with a purpose; a hallway or an unfurnished room reads
+	// None or Room, and outdoors is in no enclosed room.
+	purposed := map[domain.Cell]string{}
+	for _, room := range rooms.Rooms {
+		role, known := room.Role.Value()
+		enclosed, _ := room.Enclosed.Value()
+		if known && enclosed && role != RoomRoleNone && role != RoomRoleRoom {
+			for _, c := range room.Cells {
+				purposed[c] = room.ID
+			}
 		}
 	}
 	var out []InteriorRoom
@@ -428,9 +472,26 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 		if role == RoomRoleRoom || role == RoomRoleNone {
 			role = f.Role
 		}
-		if r, ok := InteriorRoomFromCensus(room, role, doorways); ok {
-			out = append(out, r)
+		r, ok := InteriorRoomFromCensus(room, role, doorways)
+		if !ok {
+			continue
 		}
+		for _, d := range r.Doors {
+			side, _ := doorSide(r.Interior, d)
+			step := rotateOffset(domain.Cell{X: 0, Z: 1}, side)
+			if id, ok := purposed[domain.Cell{X: d.X + step.X, Z: d.Z + step.Z}]; ok && id != room.ID {
+				r.InnerDoors = append(r.InnerDoors, d)
+			}
+		}
+		standing := map[string]bool{}
+		for _, c := range room.Cells {
+			if d, ok := edifice[c]; ok && !standing[d] {
+				standing[d] = true
+				r.Standing = append(r.Standing, d)
+			}
+		}
+		sort.Strings(r.Standing)
+		out = append(out, r)
 	}
 	return out
 }

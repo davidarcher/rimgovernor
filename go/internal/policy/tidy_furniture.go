@@ -75,7 +75,7 @@ func TidyFurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells
 		if !ok {
 			continue
 		}
-		if _, ok := PlanInterior(input); !ok {
+		if _, ok := PlanInterior(input, InteriorPieceDef{}); !ok {
 			continue
 		}
 		t := TidyRoom{ID: room.ID, Room: input}
@@ -150,7 +150,7 @@ func tidyFurnitureFinal(moves []TidyMove) int {
 // slot order, takes the nearest untidied off-plan piece of its definition
 // and size. Pieces the plan has no slot for stay where they are.
 func tidyFurnitureMatch(room TidyRoom, tidied map[string]bool) []TidyMove {
-	plan, ok := PlanInterior(room.Room)
+	plan, ok := PlanInterior(room.Room, InteriorPieceDef{})
 	if !ok {
 		return nil
 	}
@@ -215,7 +215,7 @@ func tidyFurnitureOrder(room TidyRoom, wanted []TidyMove) []TidyMove {
 			slotCells[c] = true
 		}
 	}
-	if plan, ok := PlanInterior(room.Room); ok {
+	if plan, ok := PlanInterior(room.Room, InteriorPieceDef{}); ok {
 		for _, p := range plan.Pieces {
 			for _, c := range rectCells(p.Rect) {
 				slotCells[c] = true

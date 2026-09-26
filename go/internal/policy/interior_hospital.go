@@ -10,7 +10,9 @@ import (
 // wall, in pairs that share a vitals monitor between their heads. A
 // VitalsMonitor must stand adjacent to the bed it serves (mustBePlacedAdjacent
 // in Buildings_Misc.xml) and one monitor links every adjacent bed, so each
-// pair is bed, monitor, bed with one free cell before the next pair. The
+// pair is bed, monitor, bed with one free cell before the next pair. A
+// bed's head is its anchor cell (BedUtility.GetSlotPos), so the beds face
+// South: anchor and head on the back wall, feet toward the entrance. The
 // sterile floor is the flooring policy's clean tier (flooring.go).
 
 func init() {
@@ -19,7 +21,7 @@ func init() {
 
 const vitalsMonitorDefinition = "VitalsMonitor"
 
-func planHospital(f InteriorFrame) ([]InteriorPiece, bool) {
+func planHospital(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
 	// Bed (two rows) and at least the entrance row in front of it.
 	if f.Depth < 3 {
 		return nil, false
@@ -32,7 +34,7 @@ func planHospital(f InteriorFrame) ([]InteriorPiece, bool) {
 	bedDef := HospitalBedDefinitions[0]
 	var out []InteriorPiece
 	for i, u := range beds {
-		bed := NewInteriorPiece(fmt.Sprintf("bed.%d", i+1), bedDef, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: u, Z: f.Depth - 2})
+		bed := NewInteriorPiece(fmt.Sprintf("bed.%d", i+1), bedDef, domain.Cell{X: 1, Z: 2}, domain.South, domain.Cell{X: u, Z: f.Depth - 2})
 		bed.Row = "beds"
 		out = append(out, bed)
 		if i%2 == 0 {

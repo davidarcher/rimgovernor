@@ -13,7 +13,7 @@ import (
 var tidyTestSlots []InteriorPiece
 
 func init() {
-	RegisterInteriorTemplate(RoomRoleTomb, InteriorTemplate{Name: "tidy-test", Plan: func(InteriorFrame) ([]InteriorPiece, bool) {
+	RegisterInteriorTemplate(RoomRoleTomb, InteriorTemplate{Name: "tidy-test", Plan: func(InteriorFrame, InteriorPieceDef) ([]InteriorPiece, bool) {
 		return append([]InteriorPiece(nil), tidyTestSlots...), len(tidyTestSlots) > 0
 	}})
 }

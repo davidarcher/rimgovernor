@@ -8,8 +8,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // row lines the wall holding that door, anchored to the corner beyond it:
 // the cook steps from the freezer straight to the stoves. A kitchen with
 // only its entrance lines the back wall, centred. The frame takes the door
-// first in cell order as the entrance, so of two doors either may read as
-// the freezer's; v2 layout kitchens have one door (freezer beside it on
+// onto a hallway or outdoors as the entrance (#820), so a door into the
+// freezer reads as the freezer's; v2 layout kitchens have one door (freezer beside it on
 // the spine) and get the back row. Butchering never comes
 // here: SeparationProtectedCells keeps butcher placement out of kitchens.
 
@@ -28,17 +28,18 @@ func init() {
 	RegisterInteriorTemplate(RoomRoleKitchen, InteriorTemplate{Name: "kitchen", Plan: planKitchen})
 }
 
-func planKitchen(f InteriorFrame) ([]InteriorPiece, bool) {
+func planKitchen(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
+	def := BenchRowDef(piece, pieceFamilyStove, KitchenStoveDefinition).Def
 	for _, d := range f.Doors {
-		if pieces, ok := kitchenRowBeside(f, d); ok {
+		if pieces, ok := kitchenRowBeside(f, d, def); ok {
 			return pieces, true
 		}
 	}
-	return kitchenBackRow(f)
+	return kitchenBackRow(f, def)
 }
 
-func kitchenStove(i int, rot domain.Rotation, corner domain.Cell) InteriorPiece {
-	p := NewInteriorPiece("stove."+string(rune('1'+i)), KitchenStoveDefinition, kitchenStoveSize, rot, corner)
+func kitchenStove(def string, i int, rot domain.Rotation, corner domain.Cell) InteriorPiece {
+	p := NewInteriorPiece("stove."+string(rune('1'+i)), def, kitchenStoveSize, rot, corner)
 	off := kitchenStoveInteraction
 	p.InteractionOffset, p.Row = &off, "stoves"
 	return p
@@ -46,7 +47,7 @@ func kitchenStove(i int, rot domain.Rotation, corner domain.Cell) InteriorPiece 
 
 // kitchenBackRow centres the stoves on the back wall, facing the entrance.
 // The back row must leave a free row in front of it.
-func kitchenBackRow(f InteriorFrame) ([]InteriorPiece, bool) {
+func kitchenBackRow(f InteriorFrame, def string) ([]InteriorPiece, bool) {
 	if f.Depth < 3 {
 		return nil, false
 	}
@@ -57,14 +58,14 @@ func kitchenBackRow(f InteriorFrame) ([]InteriorPiece, bool) {
 	}
 	var out []InteriorPiece
 	for i, u := range starts {
-		out = append(out, kitchenStove(i, domain.North, domain.Cell{X: u, Z: f.Depth - 1}))
+		out = append(out, kitchenStove(def, i, domain.North, domain.Cell{X: u, Z: f.Depth - 1}))
 	}
 	return out, true
 }
 
 // kitchenRowBeside lines the wall holding a non-entrance door with stoves,
 // on the longer side of the door and anchored to that side's corner.
-func kitchenRowBeside(f InteriorFrame, d domain.Cell) ([]InteriorPiece, bool) {
+func kitchenRowBeside(f InteriorFrame, d domain.Cell, def string) ([]InteriorPiece, bool) {
 	var rot domain.Rotation
 	var along, at, length int32 // door position along the wall, the row's fixed coordinate, the wall length
 	vertical := true
@@ -102,7 +103,7 @@ func kitchenRowBeside(f InteriorFrame, d domain.Cell) ([]InteriorPiece, bool) {
 		if vertical {
 			c = domain.Cell{X: at, Z: start + i*span}
 		}
-		out = append(out, kitchenStove(int(i), rot, c))
+		out = append(out, kitchenStove(def, int(i), rot, c))
 	}
 	return out, true
 }

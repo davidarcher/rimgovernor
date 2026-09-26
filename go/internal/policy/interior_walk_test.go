@@ -34,11 +34,11 @@ func TestInteriorPlanWalkable(t *testing.T) {
 
 func TestPlanInteriorRefusesAPlanThatBlocksADoor(t *testing.T) {
 	corridor := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 1, Height: 3}, Doors: []domain.Cell{{X: 0, Z: -1}}}
-	if _, ok := PlanInterior(corridor); !ok {
+	if _, ok := PlanInterior(corridor, InteriorPieceDef{}); !ok {
 		t.Fatal("a one-door 1x3 room does not take a bed")
 	}
 	corridor.Doors = append(corridor.Doors, domain.Cell{X: 0, Z: 3})
-	if plan, ok := PlanInterior(corridor); ok {
+	if plan, ok := PlanInterior(corridor, InteriorPieceDef{}); ok {
 		t.Fatalf("a bed blocks the second door: %+v", plan.Pieces)
 	}
 }

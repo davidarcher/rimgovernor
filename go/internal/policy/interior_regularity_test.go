@@ -126,13 +126,13 @@ func interiorRoomsAround(role RoomRole, width, depth, entrance int32) []Interior
 func assertInteriorRepeatable(t *testing.T, role RoomRole, width, depth, entrance int32) InteriorPlan {
 	t.Helper()
 	rooms := interiorRoomsAround(role, width, depth, entrance)
-	first, ok := PlanInterior(rooms[0])
+	first, ok := PlanInterior(rooms[0], InteriorPieceDef{})
 	if !ok {
 		t.Fatalf("%s %dx%d door %d: no plan", role, width, depth, entrance)
 	}
 	assertInteriorRegular(t, first)
 	for _, room := range rooms[1:] {
-		plan, ok := PlanInterior(room)
+		plan, ok := PlanInterior(room, InteriorPieceDef{})
 		if !ok {
 			t.Fatalf("%+v: no plan", room)
 		}

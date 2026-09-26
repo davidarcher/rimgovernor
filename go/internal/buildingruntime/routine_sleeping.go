@@ -1155,7 +1155,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		var anchors []domain.Cell
 		for _, room := range interiorRooms {
 			anchors = append(anchors, policy.InteriorSnapAnchors(room, occupied)...)
-			plan, ok := policy.PlanInterior(room)
+			plan, ok := policy.PlanInterior(room, policy.InteriorPieceDefFor(r.definition))
 			if !ok {
 				continue
 			}

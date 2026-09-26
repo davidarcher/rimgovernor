@@ -187,7 +187,7 @@ func tidyFurniture(ctx context.Context, s cases.Session) error {
 	}
 	// Regularity: the bed stands exactly on its plan slot, with the plan's
 	// rotation, in the plan derived from the room as it stands now.
-	plan, ok := policy.PlanInterior(policy.InteriorRoom{Role: policy.RoomRoleBedroom, Interior: interior, Doors: doors})
+	plan, ok := policy.PlanInterior(policy.InteriorRoom{Role: policy.RoomRoleBedroom, Interior: interior, Doors: doors}, policy.InteriorPieceDef{})
 	if !ok {
 		return fmt.Errorf("no bedroom plan for interior %+v with doors %v", interior, doors)
 	}

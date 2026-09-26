@@ -24,8 +24,8 @@ const (
 )
 
 func init() {
-	RegisterInteriorTemplate(RoomRoleDiningRoom, InteriorTemplate{Name: "dining", Plan: func(f InteriorFrame) ([]InteriorPiece, bool) { return planDiningRec(f, false) }})
-	RegisterInteriorTemplate(RoomRoleRecRoom, InteriorTemplate{Name: "rec", Plan: func(f InteriorFrame) ([]InteriorPiece, bool) { return planDiningRec(f, true) }})
+	RegisterInteriorTemplate(RoomRoleDiningRoom, InteriorTemplate{Name: "dining", Plan: func(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) { return planDiningRec(f, false) }})
+	RegisterInteriorTemplate(RoomRoleRecRoom, InteriorTemplate{Name: "rec", Plan: func(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) { return planDiningRec(f, true) }})
 }
 
 func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {

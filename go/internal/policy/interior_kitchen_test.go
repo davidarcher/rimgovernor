@@ -30,7 +30,7 @@ func TestKitchenStovesBesideTheFreezerDoor(t *testing.T) {
 		{domain.Cell{X: 16, Z: 20}, domain.East, func(r Rectangle) bool { return r.X == 15 && r.Z >= 21 }},
 		{domain.Cell{X: 15, Z: 25}, domain.North, func(r Rectangle) bool { return r.Z == 24 && r.X+r.Width <= 15 }},
 	} {
-		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleKitchen, Interior: room, Doors: []domain.Cell{entrance, c.freezer}})
+		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleKitchen, Interior: room, Doors: []domain.Cell{entrance, c.freezer}}, InteriorPieceDef{})
 		if !ok || len(plan.Pieces) == 0 {
 			t.Fatalf("freezer door %v: no plan", c.freezer)
 		}

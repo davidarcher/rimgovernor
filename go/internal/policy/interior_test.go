@@ -50,7 +50,7 @@ func TestBedroomBedHeadAgainstTheFarWall(t *testing.T) {
 		{domain.Cell{X: 9, Z: 21}, Rectangle{X: 13, Z: 21, Width: 2, Height: 1}, domain.West, domain.Cell{X: 14, Z: 21}},
 	}
 	for _, c := range cases {
-		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleBedroom, Interior: room, Doors: []domain.Cell{c.door}})
+		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleBedroom, Interior: room, Doors: []domain.Cell{c.door}}, InteriorPieceDef{})
 		if !ok || len(plan.Pieces) == 0 || plan.Pieces[0].Slot != "bed" {
 			t.Fatalf("door %+v: plan %+v %v", c.door, plan, ok)
 		}
@@ -63,15 +63,15 @@ func TestBedroomBedHeadAgainstTheFarWall(t *testing.T) {
 
 func TestPlanInteriorRefusesUnfitRooms(t *testing.T) {
 	shallow := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}
-	if _, ok := PlanInterior(shallow); ok {
+	if _, ok := PlanInterior(shallow, InteriorPieceDef{}); ok {
 		t.Error("a two-deep room fits the bedroom template")
 	}
 	doorless := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}}
-	if _, ok := PlanInterior(doorless); ok {
+	if _, ok := PlanInterior(doorless, InteriorPieceDef{}); ok {
 		t.Error("a doorless room planned")
 	}
 	untemplated := InteriorRoom{Role: RoomRoleTomb, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
-	if _, ok := PlanInterior(untemplated); ok {
+	if _, ok := PlanInterior(untemplated, InteriorPieceDef{}); ok {
 		t.Error("a role without a template planned")
 	}
 }
@@ -98,7 +98,7 @@ func TestInteriorRoomFromLayout(t *testing.T) {
 	if !ok || room.Role != RoomRoleBedroom {
 		t.Fatalf("room %+v %v", room, ok)
 	}
-	if _, ok := PlanInterior(room); !ok {
+	if _, ok := PlanInterior(room, InteriorPieceDef{}); !ok {
 		t.Error("a v2 bedroom does not plan")
 	}
 }

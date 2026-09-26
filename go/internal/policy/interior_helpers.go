@@ -111,6 +111,51 @@ func NewInteriorPiece(slot, def string, size domain.Cell, rot domain.Rotation, c
 	return InteriorPiece{Slot: slot, Def: def, Size: size, Rot: rot, Rect: Rectangle{X: corner.X, Z: corner.Z, Width: w, Height: h}}
 }
 
+// BenchRowDef is the definition a family's template plans: the piece being
+// placed when the family holds it, else the family's default.
+func BenchRowDef(piece InteriorPieceDef, family, fallback string) InteriorPieceDef {
+	if piece.Family == family {
+		return piece
+	}
+	return InteriorPieceDefFor(fallback)
+}
+
+// BenchRow lays def's benches in one centred row against the back wall,
+// facing the entrance, with their interaction cells on the floor in front
+// (#820). Every slot is pitch wide, the widest of def and the family
+// members standing in the room, and each bench stands centred in its slot,
+// so a room holding mixed widths keeps one back line, one rotation and
+// even spacing. The row needs its interaction row and one open row before
+// the entrance; limit caps the count (0 for none). It returns the benches
+// and each slot's start and the pitch.
+func BenchRow(f InteriorFrame, def InteriorPieceDef, gap, limit int32, slot func(i int) string) ([]InteriorPiece, []int32, int32, bool) {
+	if def.Interaction == nil || f.Depth < def.Size.Z+2 {
+		return nil, nil, 0, false
+	}
+	pitch := def.Size.X
+	for _, s := range f.Standing {
+		if s.Family == def.Family {
+			pitch = max(pitch, s.Size.X)
+		}
+	}
+	n := RowCapacity(f.Width, pitch, gap)
+	if limit > 0 {
+		n = min(n, limit)
+	}
+	starts, ok := RowStarts(f.Width, pitch, gap, n, RowCentred)
+	if !ok {
+		return nil, nil, 0, false
+	}
+	var out []InteriorPiece
+	for i, u := range starts {
+		off := *def.Interaction
+		p := NewInteriorPiece(slot(i), def.Def, def.Size, domain.North, domain.Cell{X: u + (pitch-def.Size.X)/2, Z: f.Depth - def.Size.Z})
+		p.InteractionOffset = &off
+		out = append(out, p)
+	}
+	return out, starts, pitch, true
+}
+
 // MirrorPiece is a piece's mirror image across the frame's centre line,
 // under a new slot name.
 func (f InteriorFrame) MirrorPiece(p InteriorPiece, slot string) InteriorPiece {

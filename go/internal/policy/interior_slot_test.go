@@ -1,6 +1,10 @@
 package policy
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 func TestInteriorSlotAcceptsFamily(t *testing.T) {
 	stove := InteriorPiece{Def: KitchenStoveDefinition}
@@ -18,11 +22,109 @@ func TestInteriorSlotAcceptsFamily(t *testing.T) {
 		{bench, "HandTailoringBench", true},
 		{bench, "ElectricStove", false},
 		{bench, "TableButcher", false},
+		{bench, "FabricationBench", false},
+		{InteriorPiece{Def: ResearchBenchDefinition}, "HiTechResearchBench", false},
 		{InteriorPiece{Def: "Bed"}, "DoubleBed", false},
 	}
 	for _, c := range cases {
 		if got := c.slot.Accepts(c.def); got != c.want {
 			t.Errorf("%s slot accepts %s = %v, want %v", c.slot.Def, c.def, got, c.want)
 		}
+	}
+}
+
+// A wide requested bench gets its own slots, regular and repeatable.
+func TestWideBenchesGetSlots(t *testing.T) {
+	for _, c := range []struct {
+		role RoomRole
+		def  string
+	}{{RoomRoleWorkshop, "FabricationBench"}, {RoomRoleLaboratory, "HiTechResearchBench"}} {
+		piece := InteriorPieceDefFor(c.def)
+		rooms := interiorRoomsAround(c.role, 11, 5, 1)
+		first, ok := PlanInterior(rooms[0], piece)
+		if !ok {
+			t.Fatalf("%s: no plan", c.def)
+		}
+		assertInteriorRegular(t, first)
+		n := 0
+		for _, p := range first.Canonical {
+			if p.Def == c.def {
+				n++
+				if p.Rect.Width != 5 || p.Rect.Height != 2 || p.Rect.Z+p.Rect.Height != first.Frame.Depth || !p.Accepts(c.def) {
+					t.Errorf("%s: slot %+v", c.def, p)
+				}
+			}
+		}
+		if n != 2 {
+			t.Errorf("%s: %d slots, want 2", c.def, n)
+		}
+		for _, room := range rooms[1:] {
+			if plan, ok := PlanInterior(room, piece); !ok || len(plan.Canonical) != len(first.Canonical) {
+				t.Errorf("%s: %+v plans differently", c.def, room)
+			}
+		}
+	}
+}
+
+// A room with a wide bench standing plans narrow benches at the wide pitch,
+// centred in the same slots, so the row stays one line with even spacing.
+func TestMixedBenchWidthsShareOneRow(t *testing.T) {
+	room := interiorRoomsAround(RoomRoleWorkshop, 11, 5, 1)[0]
+	wide, _ := PlanInterior(room, InteriorPieceDefFor("FabricationBench"))
+	room.Standing = []string{"FabricationBench"}
+	narrow, ok := PlanInterior(room, InteriorPieceDefFor("ElectricSmithy"))
+	if !ok {
+		t.Fatal("no plan")
+	}
+	assertInteriorRegular(t, narrow)
+	centres := func(plan InteriorPlan, def string) []int32 {
+		var out []int32
+		for _, p := range plan.Canonical {
+			if p.Def == def {
+				out = append(out, 2*p.Rect.X+p.Rect.Width)
+			}
+		}
+		return out
+	}
+	w, n := centres(wide, "FabricationBench"), centres(narrow, "ElectricSmithy")
+	if len(w) == 0 || len(w) != len(n) {
+		t.Fatalf("wide %v narrow %v", w, n)
+	}
+	for i := range w {
+		if w[i] != n[i] {
+			t.Errorf("slot %d: centre %d, wide %d", i, n[i], w[i])
+		}
+	}
+}
+
+// The entrance is the door onto a hallway, whatever the cell order.
+func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
+	interior := Rectangle{X: 0, Z: 0, Width: 5, Height: 4}
+	inner, hall := domain.Cell{X: -1, Z: 1}, domain.Cell{X: 2, Z: -1}
+	room := InteriorRoom{Role: RoomRoleBedroom, Interior: interior, Doors: []domain.Cell{inner, hall}, InnerDoors: []domain.Cell{inner}}
+	plan, ok := PlanInterior(room, InteriorPieceDef{})
+	if !ok {
+		t.Fatal("no plan")
+	}
+	if bed := plan.Pieces[0]; bed.Rect.Z+bed.Rect.Height != 4 || bed.Rot != domain.South {
+		t.Errorf("bed %+v not against the wall facing the hallway door", bed.Rect)
+	}
+
+	// Census: a freezer (Storeroom) west, a hallway (None) south.
+	floor := rectCells(interior)
+	var freezer, hallway []domain.Cell
+	for x := int32(0); x < 5; x++ {
+		freezer = append(freezer, domain.Cell{X: -2, Z: x})
+		hallway = append(hallway, domain.Cell{X: x, Z: -2})
+	}
+	rooms := RoomObservation{Rooms: []Room{
+		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cells: floor},
+		{ID: "f", Role: domain.Known(RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: freezer},
+		{ID: "h", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: hallway},
+	}}
+	cells := []SiteCell{{Cell: inner, Doorway: domain.Known(true)}, {Cell: hall, Doorway: domain.Known(true)}, {Cell: domain.Cell{X: 1, Z: 3}, PlayerEdifice: domain.Known("FueledStove")}}
+	got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleKitchen}, rooms, cells)
+	if len(got) != 1 || len(got[0].InnerDoors) != 1 || got[0].InnerDoors[0] != inner || len(got[0].Standing) != 1 || got[0].Standing[0] != "FueledStove" {
+		t.Fatalf("rooms %+v", got)
 	}
 }
