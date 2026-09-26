@@ -37,6 +37,34 @@ type routineCensusStore struct {
 	foodPlan            domain.Fact[policy.FoodPlan]
 	foodGeneration      uint64
 	foodMin, foodTarget float64
+	// grid is the colony grid the latest review served for gridScope (#667):
+	// a planner whose read misses the census plans on it too, so a fresh
+	// read never drops the grid the review already fixed.
+	grid      domain.Fact[policy.ColonyGrid]
+	gridScope observation.Identity
+}
+
+// rememberGrid keeps the grid the review served under its identity.
+func (s *routineCensusStore) rememberGrid(identity observation.Identity, grid domain.Fact[policy.ColonyGrid]) {
+	s.mu.Lock()
+	s.grid, s.gridScope = grid, identity
+	s.mu.Unlock()
+}
+
+// serveGrid sets the remembered grid on a fresh projection of the same
+// colony, map and load; the grid never moves once established, so a later
+// tick of the same load plans on it as the review did.
+func (s *routineCensusStore) serveGrid(projection *observation.ColonyProjection) {
+	if _, known := projection.ColonyGrid.Value(); known {
+		return
+	}
+	s.mu.Lock()
+	grid, scope := s.grid, s.gridScope
+	s.mu.Unlock()
+	id := projection.Identity
+	if _, known := grid.Value(); known && scope.Colony == id.Colony && scope.Map == id.Map && scope.Load == id.Load {
+		projection.ColonyGrid = grid
+	}
 }
 
 func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bool, claims domain.Fact[[]policy.ConstructionClaim]) {
@@ -118,6 +146,7 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 	}
 	reading, err := observation.ObserveRoutineOwned(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
+		r.census.serveGrid(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
@@ -133,6 +162,7 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 	}
 	reading, err := observation.ObserveRoutineRooms(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
+		r.census.serveGrid(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
@@ -149,6 +179,7 @@ func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.
 	}
 	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true, definitions)
 	if err == nil {
+		r.census.serveGrid(&reading.Projection)
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
