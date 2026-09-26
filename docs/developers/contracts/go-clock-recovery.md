@@ -582,13 +582,13 @@ in `unchanged` (a cell changed at that tick is re-sent, since the harness
 applies at the tick it reads); `len(cells) + filtered + unchanged` must
 equal the area, and `unchanged` without an ask, or without `as_of_tick`,
 is a contract fault. `planningWindow` merges the delta over the held rows
-by cell (`mergePlanningCells`: changed rows replace, fogged cells leave)
-and files the merge with the reply's tick; an older native answers in
+through the colony mirror (below; keyed by cell, changed rows replace,
+fogged cells are the tombstones) and files the merge with the reply's tick; an older native answers in
 full and the merge is skipped. A whole-section invalidation keeps an
 incremental section too, marked `Stale.All` (`Section.Incremental`), as a
 narrowed one marks its rectangle, so the next refresh is a delta rather
 than a full read. The backstop is a full read beside the
-delta every eighth refresh (`planningWindowResyncEvery`) and on the first
+delta every eighth refresh (`mirror.ResyncEvery`) and on the first
 refresh after a native-refused dispatch of a map-consuming kind
 (`facts.Store.RequestResync`, from the worker): when both reads share a
 tick the rows that differ are counted and logged as
@@ -633,15 +633,34 @@ come back in `removed_ids`. Tombstones live 2500 ticks
 `Unavailable STALE` (`bridge.ErrDeltaExpired`) and the reader falls back
 to a full read. The store holds `zones`, `buildings` and `bills` as
 incremental sections keyed by id (`buildingruntime.EntitySection`):
-`refreshEntitySections` runs in the clock step after the planning window
-and, for each section, reads in full when nothing is held or the scope
-moved, skips a fresh section, and otherwise asks a delta since
-`held.AsOf` and merges it (`bridge.MergeEntities`: listed rows replace,
-`removed_ids` delete) so an `ObservationInvalidated` for the colony
-family costs a delta, not a full read; every eighth refresh
-(`entitySectionsResyncEvery`) and after `RequestResync` a full read
-beside the merge counts the differing rows as `[facts] <section> resync
-drift=<n>` (event `<section>_resync`) and replaces the merge. Research
+`refreshEntitySections` (and `zoneRefresher` for the policy zone census)
+runs on every review step after the bundle and refreshes each section
+through the colony mirror: a delta since the mirror's watermark, merged,
+even while the section is fresh, so the watermark stays inside the
+tombstone window and an unchanged review costs a few bytes per section; a
+full read when nothing is held, the scope moved or the watermark has left
+the window. The review bundle carries these sections whole only in those
+keyframe cases (`bundleStepFamilies`). Every eighth refresh and after
+`RequestResync` a full read beside the merge counts the differing rows as
+`[facts] <section> resync drift=<n>` (event `<section>_resync`) and
+replaces the merge.
+
+The colony mirror (`go/internal/mirror`, #795) is the row store under
+these refreshers: per section, keyed rows and the watermark they are
+complete through (`mirror.Watermark`: a tick and a seq ordering changes
+within that tick; the #357/#358 reads stamp ticks only, seq 0), refreshed by `mirror.Refresh` (keyframe, delta with
+upserts and tombstones, expiry fallback, resync backstop and drift
+count). Its scope is the load, map and native generation, so a reload, a
+map change or an authority generation flip makes the next refresh of
+every section a keyframe. Tables are immutable once published and
+`Mirror.View` is a versioned snapshot of every section. A section joins
+by implementing `mirror.Section` (a changed-since read and a row
+equality; `mirror.Windowed` when its native keeps tombstones for a bounded
+window); `buildingruntime/clock_mirror.go` adapts the cell, zone and
+entity reads. The refreshers file each table into `facts.Store`, which
+the planners read. Watermarks stay per section (`mirror.Watermarks`);
+`View.CompleteThrough` is the least of them, the one point every section
+is complete through. The review keeps its paused bracket. Research
 stays bundle-borne (its rows are defs with continuous progress, not
 entities that come and go) and areas and designations have no list read
 to page, so neither carries the fields. `entities/changed-since` proves

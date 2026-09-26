@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -26,7 +27,7 @@ func TestEntityRefreshPreservesPolicyZoneSection(t *testing.T) {
 	scope := facts.Scope{Load: "a", Generation: 1}
 	native := &policyEntityFake{entityFake: &entityFake{tick: 100}, zonesFake: &zonesFake{tick: 100}}
 	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("a"), MapId: proto.Int32(0)}
-	p := &zoneRefresher{native: native, store: f.store, scope: scope, tick: 100, refreshes: &f.zoneRefreshes}
+	p := &zoneRefresher{native: native, store: f.store, scope: scope, tick: 100, mirror: f.mirror}
 	if _, err := p.Zones(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
@@ -47,8 +48,7 @@ func TestZonesRefreshInvalidationResyncAndScope(t *testing.T) {
 	ctx := context.Background()
 	f := &zonesFake{tick: 100}
 	store := facts.NewStore()
-	refreshes := 0
-	p := &zoneRefresher{native: f, store: store, scope: facts.Scope{Load: "a", Generation: 1}, tick: 100, refreshes: &refreshes}
+	p := &zoneRefresher{native: f, store: store, mirror: mirror.New(), scope: facts.Scope{Load: "a", Generation: 1}, tick: 100}
 	id := &c.Identity{ColonyId: proto.String("c"), LoadToken: proto.String("a"), MapId: proto.Int32(0)}
 	if _, err := p.Zones(ctx, id); err != nil {
 		t.Fatal(err)

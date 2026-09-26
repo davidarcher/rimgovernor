@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
@@ -20,13 +21,10 @@ type clockFacts struct {
 	store   *facts.Store
 	mu      sync.Mutex
 	watched map[domain.ActionID]domain.ActionKind
-	// windowRefreshes counts the planning window's delta refreshes across
-	// steps for the resync cadence (planningWindow, #357).
-	windowRefreshes int
-	zoneRefreshes   int
-	// entityRefreshes counts each entity section's delta refreshes across
-	// steps for the same cadence (refreshEntitySections, #358).
-	entityRefreshes map[facts.Section]int
+	// mirror holds the mirrored sections' rows and watermarks (#795):
+	// planning cells, zones, buildings and bills, refreshed by
+	// changed-since reads and filed into store.
+	mirror *mirror.Mirror
 	// asks are the step families the last review step's planners asked
 	// for, folded into the next review bundle (#593).
 	asks bridge.BundleStepAsks
@@ -48,7 +46,7 @@ func newClockFacts(cache *bridge.FactCache, store *facts.Store) *clockFacts {
 	if store == nil {
 		store = facts.NewStore()
 	}
-	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}, definitions: observation.NewDefinitionPool()}
+	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: mirror.New(), definitions: observation.NewDefinitionPool()}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is

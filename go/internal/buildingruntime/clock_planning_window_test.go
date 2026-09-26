@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -152,10 +153,10 @@ func TestPlanningWindowMergesDelta(t *testing.T) {
 	native := &planningWindowFake{tick: 5000, delta: func(_ policy.Rectangle, since int64) bridge.PlanningWindow {
 		return bridge.PlanningWindow{Cells: []policy.SiteCell{siteCell(1, 0, false)}, Fogged: []domain.Cell{{X: 2, Z: 0}}, Unchanged: 1}
 	}}
-	refreshes := 0
-	w := &planningWindow{native: native, store: store, refreshes: &refreshes, scope: scope, tick: 5000, review: true}
+	m := mirror.New()
+	w := &planningWindow{native: native, store: store, mirror: m, scope: scope, tick: 5000, review: true}
 	held, err := w.PlanningWindow(context.Background(), identity, rect)
-	if err != nil || native.reads != 1 || native.since[0] != 100 || held.AsOf != 5000 || refreshes != 1 {
+	if err != nil || native.reads != 1 || native.since[0] != 100 || held.AsOf != 5000 {
 		t.Fatalf("%+v %v reads=%d since=%v", held, err, native.reads, native.since)
 	}
 	if want := []policy.SiteCell{siteCell(0, 0, true), siteCell(1, 0, false)}; len(held.Value.Cells) != 2 || held.Value.Cells[0] != want[0] || held.Value.Cells[1] != want[1] {
@@ -164,42 +165,24 @@ func TestPlanningWindowMergesDelta(t *testing.T) {
 	// An invalidation keeps the window and marks it stale; the next review
 	// refresh is again a delta since the merged as-of.
 	store.InvalidateFamily(bridge.FactColony)
-	w = &planningWindow{native: native, store: store, refreshes: &refreshes, scope: scope, tick: 5001, review: true}
+	w = &planningWindow{native: native, store: store, mirror: m, scope: scope, tick: 5001, review: true}
 	if held, err = w.PlanningWindow(context.Background(), identity, rect); err != nil || native.reads != 2 || native.since[1] != 5000 || len(held.Value.Cells) != 2 {
 		t.Fatalf("%+v %v reads=%d since=%v", held, err, native.reads, native.since)
 	}
 }
 
-// The resync backstop: every planningWindowResyncEvery-th refresh, and the
-// first after a requested resync, reads the whole window beside the delta
+// The resync backstop: the first refresh after a requested resync reads the whole window beside the delta
 // and files the full read; the two are compared for drift.
 func TestPlanningWindowResyncCadence(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		requested bool
-		refreshes int
-		resync    bool
-	}{
-		{"first refresh", false, 0, false},
-		{"seventh", false, 6, false},
-		{"eighth", false, 7, true},
-		{"ninth", false, 8, false},
-		{"sixteenth", false, 15, true},
-		{"requested", true, 3, true},
-	} {
-		if got := planningWindowResync(tc.requested, tc.refreshes); got != tc.resync {
-			t.Errorf("%s: resync=%v, want %v", tc.name, got, tc.resync)
-		}
-	}
 	store := facts.NewStore()
 	scope := facts.Scope{Load: "load", Generation: 1}
 	rect := policy.Rectangle{X: 0, Z: 0, Width: 2, Height: 1}
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	facts.Put(store, scope, facts.PlanningCells, facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: rect, Cells: []policy.SiteCell{siteCell(0, 0, true), siteCell(1, 0, true)}}, AsOf: 100, Complete: true})
 	native := &planningWindowFake{tick: 5000, delta: func(policy.Rectangle, int64) bridge.PlanningWindow { return bridge.PlanningWindow{Unchanged: 2} }}
-	refreshes := 0
+	m := mirror.New()
 	store.RequestResync(facts.PlanningCells)
-	w := &planningWindow{native: native, store: store, refreshes: &refreshes, scope: scope, tick: 5000, review: true}
+	w := &planningWindow{native: native, store: store, mirror: m, scope: scope, tick: 5000, review: true}
 	held, err := w.PlanningWindow(context.Background(), identity, rect)
 	// The full read (one row) replaces the merged delta (two rows).
 	if err != nil || native.reads != 2 || native.since[0] != 100 || native.since[1] != 0 || len(held.Value.Cells) != 1 || held.AsOf != 5000 {
@@ -207,20 +190,8 @@ func TestPlanningWindowResyncCadence(t *testing.T) {
 	}
 	// The request was consumed: the next stale review refresh is a delta alone.
 	store.Invalidate(facts.PlanningCells)
-	w = &planningWindow{native: native, store: store, refreshes: &refreshes, scope: scope, tick: 5001, review: true}
+	w = &planningWindow{native: native, store: store, mirror: m, scope: scope, tick: 5001, review: true}
 	if _, err = w.PlanningWindow(context.Background(), identity, rect); err != nil || native.reads != 3 || native.since[2] != 5000 {
 		t.Fatalf("%v reads=%d since=%v", err, native.reads, native.since)
-	}
-}
-
-func TestPlanningWindowDrift(t *testing.T) {
-	merged := []policy.SiteCell{siteCell(0, 0, true), siteCell(1, 0, true), siteCell(2, 0, true)}
-	if got := planningWindowDrift(merged, merged); got != 0 {
-		t.Fatal(got)
-	}
-	// One row differs, one is missing from the full read, one is extra in it.
-	full := []policy.SiteCell{siteCell(0, 0, true), siteCell(1, 0, false), siteCell(3, 0, true)}
-	if got := planningWindowDrift(merged, full); got != 3 {
-		t.Fatal(got)
 	}
 }

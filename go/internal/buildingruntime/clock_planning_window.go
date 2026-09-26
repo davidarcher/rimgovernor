@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -20,12 +21,6 @@ type PlanningWindowNative interface {
 	ReadPlanningWindow(context.Context, *c.Identity, policy.Rectangle, int64) (bridge.PlanningWindow, bridge.Result, error)
 }
 
-// planningWindowResyncEvery is the delta refresher's backstop cadence:
-// every this-many refreshes of a held window is a full read compared
-// against the delta, so a cell change the native grid missed surfaces as
-// drift instead of living on in the store.
-const planningWindowResyncEvery = 8
-
 // planningWindow is the step's refresher for the planning_cells section
 // (#356): the scheduler attaches one to each step's context
 // (observation.WithPlanningWindow) and every planning colony read in the
@@ -37,21 +32,22 @@ const planningWindowResyncEvery = 8
 // re-planned at apply (operations_preview, CAS tokens). The step's read
 // cache makes a second ask in the same step free.
 //
-// A refresh of a held window asks for the cells changed since its as-of
-// tick and merges them (#357). Every planningWindowResyncEvery-th refresh,
-// and the first after a planner's apply was refused on a map CAS token
-// (facts.Store.RequestResync), reads the whole window as well and logs
-// how many rows the delta got wrong as `[facts] planning_cells resync
-// drift=<n>`; non-zero drift is a bug against the native hook list.
+// A refresh of a held window goes through the colony mirror (#795): the
+// cells changed since its as-of tick, merged (#357). Every
+// mirror.ResyncEvery-th refresh, and the first after a planner's apply was
+// refused on a map CAS token (facts.Store.RequestResync), reads the whole
+// window as well and logs how many rows the delta got wrong as `[facts]
+// planning_cells resync drift=<n>`; non-zero drift is a bug against the
+// native hook list.
 type planningWindow struct {
 	native PlanningWindowNative
 	store  *facts.Store
-	// refreshes counts the refreshes of a held window across steps
-	// (clockFacts.windowRefreshes); the step goroutine alone touches it.
-	refreshes *int
-	scope     facts.Scope
-	tick      int64
-	review    bool
+	// mirror holds the window's rows across steps (clockFacts.mirror);
+	// the step goroutine alone refreshes it.
+	mirror *mirror.Mirror
+	scope  facts.Scope
+	tick   int64
+	review bool
 	// view is the step bundle's decoded planning window view (#650), nil
 	// when none rode or it failed to decode. A read the view serves under
 	// the step's validity fills the store from it without a native read.
@@ -88,12 +84,6 @@ func planningWindowCovers(held, region policy.Rectangle) bool {
 	return max(dx, -dx) <= planningWindowSlack && max(dz, -dz) <= planningWindowSlack
 }
 
-// planningWindowResync is whether a refresh of a held window is also a
-// full read: one was requested, or the cadence is due.
-func planningWindowResync(requested bool, refreshes int) bool {
-	return requested || refreshes%planningWindowResyncEvery == planningWindowResyncEvery-1
-}
-
 func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[observation.PlanningCells], error) {
 	held, ok := facts.Get[observation.PlanningCells](p.store, facts.PlanningCells)
 	ok = ok && planningWindowCovers(held.Value.Region, region)
@@ -113,37 +103,33 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 		}
 		return p.put(window.Region, window.Cells, window.Context.GetTick()), nil
 	}
-	refreshes := 0
-	if p.refreshes != nil {
-		refreshes = *p.refreshes
-		*p.refreshes++
+	// The held window is refreshed where it is, through the mirror (#795):
+	// a delta since its watermark merged by cell, fogged cells dropped,
+	// with the mirror's resync backstop. The step's bundle carries this
+	// very delta (#593). The mirror is kept on the held rows, which a
+	// view or a routine read may have filed without it.
+	if p.mirror == nil {
+		p.mirror = mirror.New()
 	}
-	// The held window is refreshed where it is; the step's bundle carries
-	// this very delta (#593).
 	region = held.Value.Region
-	window, _, err := p.native.ReadPlanningWindow(ctx, identity, region, held.AsOf)
-	if err != nil {
+	section := cellMirror{native: p.native, id: identity, region: region}
+	ms := mirrorScope(p.scope, identity)
+	if table, mirrored := mirror.Get[domain.Cell, policy.SiteCell](p.mirror, ms, section.Name()); !mirrored || table.AsOf != mirror.At(held.AsOf) || len(table.Rows) != len(held.Value.Cells) {
+		mirror.Put(p.mirror, ms, section.Name(), cellRows(held.Value.Cells), mirror.At(held.AsOf))
+	}
+	if requested {
+		p.mirror.RequestResync(section.Name())
+	}
+	table, out, err := mirror.Refresh(ctx, p.mirror, ms, p.tick, section)
+	mirrorEvent(ctx, facts.PlanningCells, out)
+	if err != nil && out.Kind != mirror.Delta {
 		clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)
 		return held, nil
 	}
-	cells := window.Cells
-	if window.Delta {
-		cells = mergePlanningCells(held.Value.Cells, window)
+	if err != nil {
+		clockSchedulerLog("planning window: resync read failed, keeping the delta as of %d: %v", table.AsOf.Tick, err)
 	}
-	if window.Delta && planningWindowResync(requested, refreshes) {
-		full, _, err := p.native.ReadPlanningWindow(ctx, identity, region, 0)
-		if err != nil {
-			clockSchedulerLog("planning window: resync read failed, keeping the delta as of %d: %v", window.Context.GetTick(), err)
-		} else {
-			// Drift is meaningful only when both reads describe one tick.
-			if full.Context.GetTick() == window.Context.GetTick() {
-				drift := planningWindowDrift(cells, full.Cells)
-				clockEvent(ctx, "facts", "planning_cells_resync", fmt.Sprintf("planning_cells resync drift=%d", drift), "drift", drift, "requested", requested, "since", held.AsOf, "changed", len(window.Cells)+len(window.Fogged), "unchanged", window.Unchanged)
-			}
-			window, cells = full, full.Cells
-		}
-	}
-	return p.put(window.Region, cells, window.Context.GetTick()), nil
+	return p.put(region, siteCells(table.Rows), table.AsOf.Tick), nil
 }
 
 // fromView serves the window from the step's planning window view: the
@@ -265,46 +251,6 @@ func (p *planningWindow) put(region policy.Rectangle, cells []policy.SiteCell, t
 	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: region, Cells: cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_get_cells", Region: planningRegionRect(region)}
 	facts.Put(p.store, p.scope, facts.PlanningCells, out)
 	return out
-}
-
-// mergePlanningCells lays a delta over the held rows: a listed cell
-// replaces the held row, a cell the delta names fogged leaves, and every
-// other held row stays. Rows come back in row-major order.
-func mergePlanningCells(held []policy.SiteCell, delta bridge.PlanningWindow) []policy.SiteCell {
-	rows := make(map[domain.Cell]policy.SiteCell, len(held)+len(delta.Cells))
-	for _, row := range held {
-		rows[row.Cell] = row
-	}
-	for _, row := range delta.Cells {
-		rows[row.Cell] = row
-	}
-	for _, cell := range delta.Fogged {
-		delete(rows, cell)
-	}
-	out := make([]policy.SiteCell, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, row)
-	}
-	bridge.SortSiteCells(out)
-	return out
-}
-
-// planningWindowDrift counts the cells on which a merged delta and a full
-// read of the same tick disagree: a row in one and not the other, or a
-// row whose facts differ.
-func planningWindowDrift(merged, full []policy.SiteCell) int {
-	rows := make(map[domain.Cell]policy.SiteCell, len(merged))
-	for _, row := range merged {
-		rows[row.Cell] = row
-	}
-	drift := 0
-	for _, row := range full {
-		if have, ok := rows[row.Cell]; !ok || have != row {
-			drift++
-		}
-		delete(rows, row.Cell)
-	}
-	return drift + len(rows)
 }
 
 // planningRegionRect is the inclusive cell bounds of a planning region, so

@@ -18,6 +18,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -740,11 +741,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var zones *zoneRefresher
 	reviews := s.stepReviews(reason)
 	if native, ok := s.native.(observation.ZonesNative); ok {
-		zones = &zoneRefresher{native: native, store: s.facts.store, refreshes: &s.facts.zoneRefreshes}
+		zones = &zoneRefresher{native: native, store: s.facts.store, mirror: s.facts.mirror}
 		call = observation.WithZones(call, zones)
 	}
 	if native, ok := s.native.(PlanningWindowNative); ok {
-		window = &planningWindow{native: native, store: s.facts.store, refreshes: &s.facts.windowRefreshes}
+		window = &planningWindow{native: native, store: s.facts.store, mirror: s.facts.mirror}
 		call = observation.WithPlanningWindow(call, window)
 	}
 	stepBegan := time.Now()
@@ -920,14 +921,22 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		window.view = decodePlanningWindowView(stepRequest, loaded)
 	}
 	if zones != nil {
-		zones.scope, zones.tick, zones.carried = factsScope(loaded.Context), loaded.Context.GetTick(), loaded.Zones != nil
+		zones.scope, zones.tick, zones.carried, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), loaded.Zones != nil, reviews
 	}
-	// The remaining entity sections refresh once per full review step,
-	// delta reads over what the store holds, or the full section the
-	// bundle carried (#593).
-	if native, ok := s.native.(EntityNative); ok && reviews {
-		wanted := s.sectionsWanted(s.previewSelection(reason).pick)
-		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil, wanted: wanted})
+	// Every full review step refreshes the mirrored entity sections (#795):
+	// delta reads over the mirror's rows, or the full section the bundle
+	// carried when none was usable (#593). The zone census refreshes here
+	// too, so its watermark stays inside the tombstone window whether or
+	// not a planner asks for it this step.
+	if reviews {
+		if native, ok := s.native.(EntityNative); ok {
+			refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil})
+		}
+		if zones != nil {
+			if _, err := zones.Zones(call, loaded.Context.Identity); err != nil {
+				clockSchedulerLog("zones: review refresh failed: %v", err)
+			}
+		}
 	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
@@ -1746,13 +1755,21 @@ func sectionRides(store *facts.Store, section facts.Section, tick int64, known b
 func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64, wanted map[facts.Section]bool) {
 	store := s.facts.store
 	stale := func(section facts.Section) bool { return sectionRides(store, section, tick, s.lastTickKnown, wanted) }
+	// A mirrored entity section rides whole only as a keyframe (#795):
+	// when none is held, or its watermark has left the tombstone window.
+	// Otherwise the review's refresher pulls its delta.
+	held := store.AsOf()
+	keyframe := func(section facts.Section) bool {
+		asOf, ok := held[section]
+		return !s.lastTickKnown || !ok || !mirror.Usable(entityMirror[*o.ZoneState]{}, mirror.At(asOf), tick)
+	}
 	_, entities := s.native.(EntityNative)
 	_, zones := s.native.(observation.ZonesNative)
 	if entities {
-		request.Buildings, request.Bills = proto.Bool(stale(facts.Buildings)), proto.Bool(stale(facts.Bills))
+		request.Buildings, request.Bills = proto.Bool(keyframe(facts.Buildings)), proto.Bool(keyframe(facts.Bills))
 	}
 	if entities || zones {
-		request.Zones = proto.Bool(stale(facts.Zones))
+		request.Zones = proto.Bool(keyframe(facts.Zones))
 	}
 	if _, ok := s.native.(PlanningWindowNative); ok && stale(facts.PlanningCells) {
 		if view := s.planningWindowView(); view != nil {
