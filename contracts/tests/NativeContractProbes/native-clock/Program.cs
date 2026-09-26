@@ -147,7 +147,15 @@ internal static class NativeClockProbe
         Check(page.Context.Identity.MapId == 99 && stopped.Context.Identity.Equals(original) && stopped.Context.Tick == 4, "old event borrowed current map/tick");
         Check(!Find.TickManager.Paused, "old epoch paused replacement map");
         var repeated = Events().Page; Check(repeated.Events.Last().Equals(stopped), "event context changed on read");
-        Supervisor.FixtureLegacyEvent(); Check(Events(stopped.Cursor).Failure.Code == Common.FailureCode.Unavailable, "legacy row fabricated typed context");
+        // A legacy row is lost evidence, never fabricated typed context, and
+        // never a refusal: a refusal stood for the life of the process and no
+        // later canonical read could cross the row (#661).
+        Supervisor.FixtureLegacyEvent();
+        var legacy = Events(stopped.Cursor).Page;
+        Check(legacy != null && legacy.Gap && legacy.LostCount == 1 && legacy.Events.Count == 0
+            && legacy.NextCursor == stopped.Cursor + 1, "legacy row refused the page or fabricated typed context");
+        var beyond = Events(legacy.NextCursor).Page;
+        Check(beyond != null && !beyond.Gap, "legacy row kept refusing past its own cursor");
         Check(Events(long.MaxValue).Failure.Code == Common.FailureCode.InvalidRequest, "cursor overflow accepted");
         Reset(); Start(Request());
         File.Delete(Path.Combine(GenFilePaths.SaveDataFolderPath, "RimGovernorClockEvents", "00000000000000000001.xml"));

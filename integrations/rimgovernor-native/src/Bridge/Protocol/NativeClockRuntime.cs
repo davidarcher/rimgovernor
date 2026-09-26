@@ -335,8 +335,22 @@ namespace HomeBridge.BridgeTools
                     long previous = request.AfterCursor;
                     foreach (var row in window.Rows)
                     {
+                        // A legacy (untyped) epoch's row carries no canonical
+                        // ownership or original observation context, and nothing
+                        // may fabricate one for it. It reads as cursor loss,
+                        // exactly like a damaged retained file: the page reports
+                        // the gap and advances past the row, so a controller
+                        // holds once on evidence it cannot see instead of every
+                        // read that crosses the row refusing for the life of the
+                        // process -- which disabled authority on each poll, and
+                        // no first routine review ever persisted (#661).
                         if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical))
-                            return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Retained legacy event lacks canonical ownership and original observation context.") };
+                        {
+                            page.Gap = true;
+                            page.LostCount = checked(page.LostCount + 1);
+                            previous = Convert.ToInt64(row["cursor"]);
+                            continue;
+                        }
                         var observed = Clock.Event.Parser.ParseJson(canonical);
                         if (!ValidStoredEvent(observed) || observed.Cursor <= previous
                             || observed.Cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
