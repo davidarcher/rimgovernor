@@ -143,6 +143,9 @@ func runProvision(ctx context.Context, s cases.Session) error {
 	for _, p := range state.Provision {
 		owners[p.Goal] = true
 	}
+	// The goals the fixture's staged pressures provision; any other owner read
+	// here (EnsureTemperatureSafety for a cold snap) is not the fixture's (#717).
+	staged := map[policy.GoalID]bool{policy.EnsureBasicComfort: true, policy.EnsureComfort: true, policy.EnsureInitialShelter: true}
 	if !owners[policy.EnsureBasicComfort] || !owners[policy.EnsureComfort] || !owners[policy.EnsureInitialShelter] {
 		return fmt.Errorf("target-before: expected EnsureBasicComfort, EnsureComfort and EnsureInitialShelter provisioning, got %+v", state.Provision)
 	}
@@ -191,7 +194,7 @@ func runProvision(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("clear: expected the fixture pawn's state alone, got %+v", history.States)
 	}
 	for _, p := range history.States[0].Provision {
-		if owners[p.Goal] {
+		if staged[p.Goal] {
 			return fmt.Errorf("clear: cleared pressure still provisions %v: %+v", p.Goal, history.States)
 		}
 	}
@@ -200,7 +203,7 @@ func runProvision(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["proposal_after"] = proposal
-	if proposal.Reason == policy.MoodRelief || proposal.Reason == policy.MoodProvisioned && owners[proposal.Goal] {
+	if proposal.Reason == policy.MoodRelief || proposal.Reason == policy.MoodProvisioned && staged[proposal.Goal] {
 		return fmt.Errorf("clear: pressure cleared but the review still proposes %+v", proposal)
 	}
 
