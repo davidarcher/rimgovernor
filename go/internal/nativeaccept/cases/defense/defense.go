@@ -619,10 +619,12 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		cell := dropCell(layout, siteX, siteZ)
 		raidArgs["x"], raidArgs["z"] = int(cell.X), int(cell.Z)
 	}
-	if v.turrets {
-		// The turret scenario needs the raid to come through the corridor
-		// the turrets cover: it walks in from the map edge nearest the
-		// corridor entry rather than any edge the raid worker picks.
+	if _, pinned := raidArgs["x"]; !pinned && !v.bypass {
+		// Every variant that expects hold-the-line needs the raid to come
+		// through the corridor the cover row and turrets face: it walks in
+		// from the map edge nearest the corridor entry rather than any edge
+		// the raid worker picks. A raider arriving behind the cover row
+		// rightly gets no hold (#681).
 		raidArgs["x"], raidArgs["z"] = int(layout.Entry.X), int(layout.Entry.Z)
 	}
 	// The ring stops here: a resume replays the pre-raid audits above, and
