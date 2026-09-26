@@ -127,7 +127,8 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			if err != nil {
 				return RoutineGearResult{}, err
 			}
-			if domain.GoalWorkOpen(plan.Progress) {
+			// An apparel policy write holds no development slot (#660).
+			if domain.GoalWorkOpen(plan.Progress) && !apparelPolicyPlan(plan.Spec) {
 				open++
 			}
 		}
@@ -159,6 +160,15 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		admitted = result
 	}
 	return admitted, nil
+}
+
+func apparelPolicyPlan(spec domain.PlanSpec) bool {
+	for _, action := range spec.Actions() {
+		if _, ok := action.ApparelPolicy(); !ok {
+			return false
+		}
+	}
+	return len(spec.Actions()) > 0
 }
 
 func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepArbiter) (RoutineGearResult, error) {
@@ -244,6 +254,12 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	// Configure vanilla dressing before choosing individual replacements. The
 	// shared goal and Hands executor own this settings operation like wear work.
+	// Every pawn that needs a policy is admitted in the same step: one write per
+	// development slot per round spent a whole 60k-tick window assigning eight
+	// colonists before any wear order or bill (#660). A write whose CAS token an
+	// earlier write in the batch staled is cancelled and re-admitted next round,
+	// so the batch converges in about one round per distinct role policy.
+	var policies RoutineGearResult
 	for _, pawn := range observation.Pawns {
 		if pawn.Blocked {
 			continue
@@ -280,10 +296,13 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoutineGearResult{}, ErrControl
 		}
-		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		if goal, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineGearResult{}, err
 		}
-		return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+		policies = RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}
+	}
+	if policies.Plan != "" {
+		return policies, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {

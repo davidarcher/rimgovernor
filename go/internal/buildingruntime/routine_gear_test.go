@@ -48,6 +48,63 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 	}
 }
 
+// TestGearPlannerAdmitsEveryPawnPolicyInOneStep pins #660: policy writes
+// were admitted one per development slot per round, so eight colonists took a
+// whole window to assign and no wear order or bill ever followed.
+func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
+	reviewer, db, _, _, native := routineFixture(t)
+	setGearProductionNeed(native.reply.GetObserved())
+	gear := native.reply.GetObserved().GetPlanning().GetObserved().GetGear()
+	for _, pawn := range gear.Pawns {
+		pawn.ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas-" + pawn.GetPawn().GetId()), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
+	}
+	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
+	reviewer.native = n
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	if _, err := reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineGearPlanner(reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	call, epoch, done, err := reviewer.player.enter(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.stepOne(call, epoch, newStepArbiter())
+	done()
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	review, err := db.LoadRoutineReview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pawns := map[domain.PawnID]bool{}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.MaintainEquipment {
+			continue
+		}
+		goal, err := db.LoadGoal(context.Background(), binding.Goal)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, method := range goal.Methods {
+			plan, err := db.LoadPlan(context.Background(), method.Plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if value, ok := plan.Spec.Actions()[0].ApparelPolicy(); ok {
+				pawns[value.Pawn()] = true
+			}
+		}
+	}
+	if !pawns["a"] || !pawns["b"] || len(pawns) != 2 {
+		t.Fatal("one step admitted policies for", pawns)
+	}
+}
+
 type gearProductionNative struct {
 	*gearTestNative
 	previews []domain.ProductionBill

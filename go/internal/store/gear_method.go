@@ -53,7 +53,9 @@ func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan do
 			return false, err
 		}
 		if domain.GoalWorkOpen(p.Progress) {
-			open++
+			if !developmentExemptMethod(p.Spec) {
+				open++
+			}
 			if !add(p.Spec) {
 				return false, nil
 			}
@@ -65,5 +67,7 @@ func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan do
 			occupied--
 		}
 	}
-	return open+occupied < review.Development.Capacity, nil
+	// An apparel policy write is a slotless settings write (#660): it only has
+	// to stay off the pawns the goal's open work already holds.
+	return developmentExemptMethod(plan) || open+occupied < review.Development.Capacity, nil
 }

@@ -223,7 +223,10 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 // native write, no handler work; #577: takeover/herd-removal parked on
 // no_work while MaintainHerd's cancel of a Manual slaughter flag waited
 // for a slot at maintenance priority), or a zone deletion (one native
-// write dissolving a zone the tidy already re-sited, #611). An exempt
+// write dissolving a zone the tidy already re-sited, #611), or an apparel
+// policy write (one native settings write per pawn, no pawn work; #660:
+// eight colonists waited one slot per review round for their policies and
+// MaintainEquipment spent a whole window before its first wear order). An exempt
 // method is admitted without a slot and, while open, holds none
 // (routineCommitments).
 func developmentExemptMethod(plan domain.PlanSpec) bool {
@@ -234,7 +237,7 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 	for _, action := range actions {
 		letter, isDialog := action.DialogAnswer()
 		husbandry, isHusbandry := action.Husbandry()
-		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && action.Kind() != domain.ZoneDeleteAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
+		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && action.Kind() != domain.ZoneDeleteAction && action.Kind() != domain.ApparelPolicyAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
 			return false
 		}
 	}
