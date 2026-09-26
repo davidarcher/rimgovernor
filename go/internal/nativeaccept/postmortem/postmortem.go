@@ -245,7 +245,8 @@ func launchIndex(name string) int {
 }
 
 // refusals lists the last native refusals: service log lines carrying a
-// refusal and flight-recorder native_error rows with refused text. The
+// refusal, flight-recorder native_error rows with refused text and
+// native_response rows carrying a failure code (grouped with a count). The
 // most recent come last, as in the log; distinct texts are counted so a
 // refusal repeated every window shows once with its count.
 func refusals(dir string, logs []logLine) Section {
@@ -290,8 +291,14 @@ func refusals(dir string, logs []logLine) Section {
 	for i := len(flightErrors) - 1; i >= 0 && len(s.Lines) < 2*maxLines; i-- {
 		s.Lines = append(s.Lines, flightErrors[i])
 	}
+	for _, l := range flightFailures(dir) {
+		if len(s.Lines) >= 2*maxLines {
+			break
+		}
+		s.Lines = append(s.Lines, l)
+	}
 	if len(s.Lines) == 0 {
-		s.Note = "no refused step result, refusal in service*/stderr.log or native_error row in flight.jsonl*"
+		s.Note = "no refused step result, refusal in service*/stderr.log, native_error row or native_response failure in flight.jsonl*"
 	}
 	return s
 }
@@ -882,4 +889,82 @@ func pooledJobs(logs []logLine) Section {
 func asString(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+// flightFailures scans the flight recordings for native_response rows whose
+// result carries a {"failure":{"code":...}} payload, a refusal the native
+// side answered rather than raised (#677), and groups them by tool, code and
+// detail: most recent group first, each with its count and last evidence.
+func flightFailures(dir string) []Line {
+	type group struct {
+		text     string
+		evidence string
+		last     int
+		count    int
+	}
+	var groups []*group
+	index := map[string]*group{}
+	seen := 0
+	for _, file := range flightFiles(dir) {
+		f, err := os.Open(filepath.Join(dir, file))
+		if err != nil {
+			continue
+		}
+		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 1<<20), 8<<20)
+		n := 0
+		for scanner.Scan() {
+			n++
+			line := string(scanner.Bytes())
+			if !strings.Contains(line, `"kind":"native_response"`) || !strings.Contains(line, "FAILURE_CODE_") {
+				continue
+			}
+			var row struct {
+				Sequence uint64 `json:"sequence"`
+				Payload  struct {
+					NativeTool string `json:"native_tool"`
+					Tool       string `json:"tool"`
+					Result     struct {
+						Failure struct {
+							Code   string `json:"code"`
+							Detail string `json:"detail"`
+						} `json:"failure"`
+					} `json:"result"`
+				} `json:"payload"`
+			}
+			if json.Unmarshal([]byte(line), &row) != nil || row.Payload.Result.Failure.Code == "" {
+				continue
+			}
+			tool := row.Payload.NativeTool
+			if tool == "" {
+				tool = row.Payload.Tool
+			}
+			failure := row.Payload.Result.Failure
+			text := fmt.Sprintf("native_response %s: %s", tool, failure.Code)
+			if failure.Detail != "" {
+				text += ": " + clip(failure.Detail)
+			}
+			g, ok := index[text]
+			if !ok {
+				g = &group{text: text}
+				index[text] = g
+				groups = append(groups, g)
+			}
+			seen++
+			g.count++
+			g.last = seen
+			g.evidence = fmt.Sprintf("%s:%d seq %d", file, n, row.Sequence)
+		}
+		f.Close()
+	}
+	sort.SliceStable(groups, func(i, j int) bool { return groups[i].last > groups[j].last })
+	lines := make([]Line, 0, len(groups))
+	for _, g := range groups {
+		text := g.text
+		if g.count > 1 {
+			text = fmt.Sprintf("%s (x%d)", text, g.count)
+		}
+		lines = append(lines, Line{Text: text, Evidence: g.evidence})
+	}
+	return lines
 }

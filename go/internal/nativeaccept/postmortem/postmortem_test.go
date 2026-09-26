@@ -211,3 +211,29 @@ func TestRevisionAgainstMain(t *testing.T) {
 		t.Fatalf("no comparison against main: %+v", s)
 	}
 }
+
+// A native_response row answering with a failure payload is a refusal too
+// (#677): rows group by tool, code and detail with a count, the latest
+// group first, and a success response stays out.
+func TestRefusalsReportNativeResponseFailures(t *testing.T) {
+	dir := t.TempDir()
+	rows := []string{
+		`{"version":1,"run":"r","sequence":1,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/colony_facts","result":{"failure":{"code":"FAILURE_CODE_STALE_CONTEXT","detail":"context changed"}}}}`,
+		`{"version":1,"run":"r","sequence":2,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/colony_facts","result":{"facts":{}}}}`,
+		`{"version":1,"run":"r","sequence":3,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/orders_build","result":{"failure":{"code":"FAILURE_CODE_INVALID_TARGET","detail":"blocked"}}}}`,
+		`{"version":1,"run":"r","sequence":4,"kind":"native_response","context":{},"payload":{"native_tool":"rimgovernor/colony_facts","result":{"failure":{"code":"FAILURE_CODE_STALE_CONTEXT","detail":"context changed"}}}}`,
+	}
+	if err := os.WriteFile(filepath.Join(dir, "flight.jsonl"), []byte(strings.Join(rows, "\n")+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	s := refusals(dir, nil)
+	if len(s.Lines) != 2 {
+		t.Fatalf("want two failure groups, got %+v", s)
+	}
+	if s.Lines[0] != (Line{Text: "native_response rimgovernor/colony_facts: FAILURE_CODE_STALE_CONTEXT: context changed (x2)", Evidence: "flight.jsonl:4 seq 4"}) {
+		t.Fatalf("latest group: %+v", s.Lines[0])
+	}
+	if s.Lines[1] != (Line{Text: "native_response rimgovernor/orders_build: FAILURE_CODE_INVALID_TARGET: blocked", Evidence: "flight.jsonl:3 seq 3"}) {
+		t.Fatalf("older group: %+v", s.Lines[1])
+	}
+}
