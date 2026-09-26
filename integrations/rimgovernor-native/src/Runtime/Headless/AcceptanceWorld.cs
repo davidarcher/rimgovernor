@@ -21,12 +21,46 @@ namespace HomeBridge.BridgeTools
     {
         public bool QuietWorld;
 
+        // LabTemperature is the pinned outdoor temperature of a lab start
+        // (test/lab_start, #730), NaN on every other game. The fixture's
+        // weather and temperature patches read it; nothing else does.
+        public float LabTemperature = float.NaN;
+
         public AcceptanceWorld(Game game) { }
 
         public override void ExposeData()
         {
             Scribe_Values.Look(ref QuietWorld, "rimgovernorQuietWorld", false);
+            Scribe_Values.Look(ref LabTemperature, "rimgovernorLabTemperature", float.NaN);
             if (Scribe.mode == LoadSaveMode.PostLoadInit) Invalidate();
+        }
+
+        private static Game? labGame;
+        private static float labTemperature = float.NaN;
+
+        // Lab is the loaded game's pinned temperature, NaN off the lab,
+        // cached per Game instance like Quiet.
+        public static float Lab
+        {
+            get
+            {
+                var game = Current.Game;
+                if (game == null) return float.NaN;
+                if (!ReferenceEquals(game, labGame))
+                {
+                    labGame = game;
+                    labTemperature = game.GetComponent<AcceptanceWorld>()?.LabTemperature ?? float.NaN;
+                }
+                return labTemperature;
+            }
+        }
+
+        public static void SetLab(float temperature)
+        {
+            var component = Current.Game?.GetComponent<AcceptanceWorld>();
+            if (component == null) throw new InvalidOperationException("A loaded game is required.");
+            component.LabTemperature = temperature;
+            Invalidate();
         }
 
         public static readonly bool Launched = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
@@ -53,7 +87,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        public static void Invalidate() { cachedGame = null; }
+        public static void Invalidate() { cachedGame = null; labGame = null; }
 
         public static void SetQuiet(bool quiet)
         {

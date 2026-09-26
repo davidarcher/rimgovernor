@@ -25,7 +25,7 @@ const DebugStartTool = "test/configure_debug_start"
 // PlanetCoverageEnv override the defaults for a whole run.
 const (
 	DefaultMapSize        = 200
-	MinMapSize            = 150
+	MinMapSize            = 100
 	MaxMapSize            = 400
 	DefaultPlanetCoverage = 0.05
 	MapSizeEnv            = "RIMGOVERNOR_ACCEPT_MAP_SIZE"

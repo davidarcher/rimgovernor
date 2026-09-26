@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +18,7 @@ namespace HomeBridge.BridgeTools
     // once from the main menu and the next quick start uses the knobs.
     public static class DebugStart
     {
-        public const int DefaultMapSize = 200, MinMapSize = 150, MaxMapSize = 400;
+        public const int DefaultMapSize = 200, MinMapSize = 100, MaxMapSize = 400;
         public const float DefaultPlanetCoverage = 0.05f;
 
         private static bool armed, patched;
@@ -134,11 +135,146 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // The blank lab map (#730): a fixture case spawns what it needs at known
+    // coordinates on it instead of searching a random world for a site.
+    // Wipe turns the loaded map into flat Soil with nothing on it but N
+    // fixture-made adult colonists, pins clear weather and a fixed outdoor
+    // temperature (persisted through AcceptanceWorld.LabTemperature, so a
+    // reloaded lab save keeps them), and quiets the storyteller. Every draw
+    // runs under a fixed Rand seed, so the same map in gives the same lab.
+    public static class LabStart
+    {
+        public const float Temperature = 21f;
+        public const int DefaultColonists = 3, MaxColonists = 8, SkillLevel = 8;
+        private const int Seed = 730;
+        private static bool patched;
+
+        public static void EnsurePatched()
+        {
+            if (patched) return;
+            var harmony = new Harmony("rimgovernor.test.lab-start");
+            harmony.Patch(AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.OutdoorTemp)), postfix: new HarmonyMethod(typeof(LabStart), nameof(PinTemperature)));
+            harmony.Patch(AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.SeasonalTemp)), postfix: new HarmonyMethod(typeof(LabStart), nameof(PinTemperature)));
+            harmony.Patch(AccessTools.Method(typeof(WeatherDecider), nameof(WeatherDecider.WeatherDeciderTick)), prefix: new HarmonyMethod(typeof(LabStart), nameof(SkipWeather)));
+            patched = true;
+        }
+
+        private static void PinTemperature(ref float __result)
+        {
+            var pinned = AcceptanceWorld.Lab;
+            if (!float.IsNaN(pinned)) __result = pinned;
+        }
+
+        private static bool SkipWeather() => float.IsNaN(AcceptanceWorld.Lab);
+
+        public static object Wipe(Map map, int colonists)
+        {
+            if (colonists < 1 || colonists > MaxColonists) throw new ArgumentException($"colonists must be within 1..{MaxColonists}.");
+            EnsurePatched();
+            foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList()) pawn.Destroy(DestroyMode.Vanish);
+            foreach (var thing in map.listerThings.AllThings.ToList())
+                if (!thing.Destroyed) thing.Destroy(DestroyMode.Vanish);
+            foreach (var zone in map.zoneManager.AllZones.ToList()) zone.Delete();
+            foreach (var cell in map.AllCells)
+            {
+                map.roofGrid.SetRoof(cell, null);
+                map.snowGrid.SetDepth(cell, 0f);
+                if (map.terrainGrid.foundationGrid[map.cellIndices.CellToIndex(cell)] != null) map.terrainGrid.RemoveFoundation(cell, false);
+                map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
+            }
+            map.fogGrid.ClearAllFog();
+            map.areaManager.Home.Clear();
+            foreach (var condition in map.gameConditionManager.ActiveConditions.ToList()) condition.End();
+            foreach (var condition in Find.World.gameConditionManager.ActiveConditions.ToList()) condition.End();
+            map.weatherManager.curWeather = map.weatherManager.lastWeather = WeatherDefOf.Clear;
+            map.weatherManager.curWeatherAge = 0;
+            AcceptanceWorld.SetLab(Temperature);
+            var quiet = QuietStoryteller.Apply(map);
+
+            var center = map.Center;
+            var ids = new List<string>();
+            Rand.PushState(Seed);
+            try
+            {
+                for (var i = 0; i < colonists; i++)
+                {
+                    var pawn = Colonist(i);
+                    GenSpawn.Spawn(pawn, new IntVec3(center.x - colonists + 1 + 2 * i, 0, center.z), map);
+                    ids.Add(pawn.ThingID);
+                }
+            }
+            finally
+            {
+                Rand.PopState();
+            }
+            return new { success = true, mapSize = map.Size.x, mapSizeZ = map.Size.z, center = new { x = center.x, z = center.z },
+                colonists = ids, temperatureC = Temperature, weather = map.weatherManager.curWeather.defName, quiet, digest = Digest(map) };
+        }
+
+        // An adult baseliner with every work type enabled and on, no traits,
+        // no bad hediffs and every skill at SkillLevel without passion.
+        private static Pawn Colonist(int index)
+        {
+            for (var tries = 0; tries < 50; tries++)
+            {
+                var request = new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer, PawnGenerationContext.PlayerStarter,
+                    forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true, colonistRelationChanceFactor: 0f,
+                    allowAddictions: false, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f, fixedGender: index % 2 == 0 ? Gender.Male : Gender.Female,
+                    fixedIdeo: Faction.OfPlayer.ideos?.PrimaryIdeo, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult);
+                var pawn = PawnGenerator.GeneratePawn(request);
+                foreach (var trait in pawn.story.traits.allTraits.ToList()) pawn.story.traits.RemoveTrait(trait);
+                pawn.Notify_DisabledWorkTypesChanged();
+                if (pawn.CombinedDisabledWorkTags != WorkTags.None) { Find.WorldPawns.PassToWorld(pawn, PawnDiscardDecideMode.Discard); continue; }
+                foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
+                foreach (var skill in pawn.skills.skills) { skill.Level = SkillLevel; skill.xpSinceLastLevel = 0f; skill.passion = Passion.None; }
+                pawn.workSettings.EnableAndInitialize();
+                foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading) pawn.workSettings.SetPriority(work, 3);
+                return pawn;
+            }
+            throw new InvalidOperationException($"No work-capable lab colonist {index} after 50 generations.");
+        }
+
+        // A stable hash of what makes two labs the same: terrain, roofs and
+        // every thing's def and cell, plus each colonist's name and skills.
+        public static string Digest(Map map)
+        {
+            var hash = 2166136261u;
+            void Add(string s) { foreach (var ch in s) hash = (hash ^ ch) * 16777619u; hash = (hash ^ '|') * 16777619u; }
+            Add($"{map.Size.x}x{map.Size.z}");
+            foreach (var cell in map.AllCells) Add($"{map.terrainGrid.TerrainAt(cell).defName}{map.roofGrid.RoofAt(cell)?.defName}");
+            foreach (var thing in map.listerThings.AllThings.OrderBy(t => t.Position.x).ThenBy(t => t.Position.z).ThenBy(t => t.def.defName))
+            {
+                Add($"{thing.def.defName}@{thing.Position.x},{thing.Position.z}");
+                if (thing is Pawn pawn) Add($"{pawn.Name?.ToStringFull}:{string.Join(",", pawn.skills.skills.Select(s => s.Level))}:{pawn.story.traits.allTraits.Count}");
+            }
+            return hash.ToString("x8");
+        }
+    }
+
+    public sealed class LabStartFixture
+    {
+        static LabStartFixture() { LabStart.EnsurePatched(); }
+        public LabStartFixture() { LabStart.EnsurePatched(); }
+
+        [Tool("test/lab_start", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#730): wipe the loaded map to bare Soil (no things, plants, filth, zones, roofs, snow or fog; every pawn removed), spawn N fixture-made adult colonists (fixed skills, every work type on, no traits) at the centre, lock clear weather and a 21 C outdoor temperature, and quiet the storyteller. Persists across save and reload. Replies the map size, colonist ids, centre cell and a digest of the map.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Fixture colonists to spawn, 1..8 (default 3).")] int colonists = LabStart.DefaultColonists,
+            [ToolParameter(Description = "wipe (default), or digest, which only reads the current map's digest.")] string action = "wipe")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
+                if (action == "digest") return new { success = true, mapSize = map.Size.x, lab = !float.IsNaN(AcceptanceWorld.Lab), digest = LabStart.Digest(map) };
+                if (action != "wipe") throw new ArgumentException("Unknown action.");
+                return LabStart.Wipe(map, colonists);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public sealed class DebugStartFixture
     {
         [Tool("test/configure_debug_start", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: the next rimworld/start_debug_game_ready uses this map size and planet coverage instead of the quick start's 250 and full planet. Main menu only; one start per call.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Map edge in cells, 150..400 (default 200).")] int mapSize = DebugStart.DefaultMapSize,
+            [ToolParameter(Description = "Map edge in cells, 100..400 (default 200).")] int mapSize = DebugStart.DefaultMapSize,
             [ToolParameter(Description = "Planet coverage 0.05..1 (default 0.05).")] float planetCoverage = DebugStart.DefaultPlanetCoverage,
             [ToolParameter(Description = "Optional comma-separated native BiomeDef names in preference order; the start settles a random valid tile of the first biome the planet offers, or fails when it offers none.")] string biomes = "",
             [ToolParameter(Description = "Optional world seed; the tile choice and starting pawns follow it, so the same seed reproduces the same start. Empty draws a random seed.")] string seed = "",

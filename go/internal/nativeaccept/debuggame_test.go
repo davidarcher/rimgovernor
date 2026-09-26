@@ -38,12 +38,12 @@ func TestDebugStart(t *testing.T) {
 	if d := DefaultDebugStart(); d.MapSize != 250 || d.PlanetCoverage != 0.3 {
 		t.Fatalf("env %+v", d)
 	}
-	for _, bad := range []DebugStart{{MapSize: 100, PlanetCoverage: 0.05}, {MapSize: 500, PlanetCoverage: 0.05}, {MapSize: 200, PlanetCoverage: 0.01}, {MapSize: 200, PlanetCoverage: 2}} {
+	for _, bad := range []DebugStart{{MapSize: 99, PlanetCoverage: 0.05}, {MapSize: 500, PlanetCoverage: 0.05}, {MapSize: 200, PlanetCoverage: 0.01}, {MapSize: 200, PlanetCoverage: 2}} {
 		if bad.Validate() == nil {
 			t.Fatalf("%+v validated", bad)
 		}
 	}
-	if err := (DebugStart{MapSize: 150, PlanetCoverage: 1}).Validate(); err != nil {
+	if err := (DebugStart{MapSize: 100, PlanetCoverage: 1}).Validate(); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(MapSizeEnv, "")
