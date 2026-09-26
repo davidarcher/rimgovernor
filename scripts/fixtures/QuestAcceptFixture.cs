@@ -102,6 +102,11 @@ namespace HomeBridge.BridgeTools
                 finally { difficulty.allowViolentQuests = allowViolent; }
                 if (!skipQuest && (quest == null || quest.State != QuestState.NotYetAccepted || quest.hidden))
                     return Refuse("The generated joiner quest is not a visible not-yet-accepted offer.");
+                // The offer's own window (~0.3 days) ran out while the supervised
+                // windows played the startup days before the planner accepted it
+                // (#717); the case proves the answer, not the race, so hold the
+                // offer open for thirty days.
+                if (quest != null) quest.acceptanceExpireTick = Find.TickManager.TicksGame + 30 * GenDate.TicksPerDay;
 
                 // Spare beds and food beside the first colonist: a bare
                 // sleeping spot is a humanlike, non-medical, non-prisoner bed
