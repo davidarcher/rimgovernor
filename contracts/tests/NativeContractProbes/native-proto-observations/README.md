@@ -17,8 +17,8 @@ It does not create game state or claim native pawn/threat/cell outcomes.
 
 This slice supports status summary and optional need/hediff detail. Unrequested
 sections have explicit issues; missing trackers are unavailable, not healthy zero.
-Cell reads support terrain, roof, visibility and traversal only; other requested
-fields fail Unsupported. Exact selection order is retained; rectangles use z/x
+Cell reads support terrain, roof, visibility, traversal, zone, room, growth and
+things; requested areas or designations fail Unsupported. Exact selection order is retained; rectangles use z/x
 order and report their inclusive bounding rectangle. Frozen cursors remain unsupported.
 Pawn rows expose available draft-control CAS and claims; these request/binder checks
 do not establish native hook behavior. Collection/reply overflow cannot truncate success.

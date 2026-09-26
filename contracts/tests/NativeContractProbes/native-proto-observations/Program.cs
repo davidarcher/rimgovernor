@@ -52,7 +52,7 @@ internal static class NativeProtoObservationsProbe
             Check((bool)Get(fields,"Has"+name)&&!(bool)Get(fields,name),"explicit false applied: "+name);
         var cells=(IList)tools.GetMethod("Selection",Flags)!.Invoke(null,new[]{parsed})!;
         Check(cells.Count==1,"singleton complete selection");
-        foreach(var invalid in new[]{request(""),request("\"exactCells\":{\"cells\":[]}"),request(selection.Replace("\"z\":0","\"z\":null")),request("\"exactCells\":{\"cells\":[{\"x\":0,\"z\":0},{\"x\":0,\"z\":0}]}"),request(selection+",\"fields\":{\"things\":true}"),request("\"rectangle\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":2147483647,\"z\":2147483647}}")})
+        foreach(var invalid in new[]{request(""),request("\"exactCells\":{\"cells\":[]}"),request(selection.Replace("\"z\":0","\"z\":null")),request("\"exactCells\":{\"cells\":[{\"x\":0,\"z\":0},{\"x\":0,\"z\":0}]}"),request(selection+",\"fields\":{\"areas\":true}"),request(selection+",\"fields\":{\"designations\":true}"),request("\"rectangle\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":2147483647,\"z\":2147483647}}")})
             Check(!Valid("ValidateCells","GetCellsRequest",invalid),"invalid/unsupported cells refused");
         Check(Valid("ValidateCells","GetCellsRequest",request("\"rectangle\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":15,\"z\":15}}")),"bounded rectangle accepted");
         var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
