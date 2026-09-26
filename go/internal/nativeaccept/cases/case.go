@@ -23,7 +23,7 @@ import (
 )
 
 // Start is how the runner brings the game to the case's starting state.
-// Exactly one of DebugStart, Save, Fixture and Owned.
+// Exactly one of DebugStart, Lab, Save, Scenario, Fixture and Owned.
 type Start interface {
 	// Describe is the start's summary for the report.
 	Describe() map[string]any
@@ -77,6 +77,18 @@ type Owned struct {
 	Saves []string
 }
 
+// Lab is the blank lab start (na.LabStart, #729): a fixed-seed 100x100 map
+// wiped to Soil with fixture-made colonists, locked weather and
+// temperature and a quiet storyteller, cached as a save. A fixture case
+// spawns what it needs at known offsets from the centre the op replies.
+type Lab struct {
+	Colonists int
+}
+
+// LabStart is the lab with the default three colonists, usable as
+// Fixture{Op: ..., On: LabStart()}.
+func LabStart() Lab { return Lab{} }
+
 // Scenario starts a programmatic scenario from the main menu through the
 // ScenarioStartFixture (na.ScenarioStart): how a save variant is generated.
 type Scenario struct {
@@ -88,6 +100,7 @@ func (Save) start()         {}
 func (Fixture) start()      {}
 func (Owned) start()        {}
 func (Scenario) start()     {}
+func (Lab) start()          {}
 
 func (d DebugStart) Describe() map[string]any {
 	row := map[string]any{"kind": "debug", "mapSize": d.Size.MapSize, "planetCoverage": d.Size.PlanetCoverage}
@@ -101,6 +114,9 @@ func (d DebugStart) Describe() map[string]any {
 		row["flat"] = true
 	}
 	return row
+}
+func (l Lab) Describe() map[string]any {
+	return map[string]any{"kind": "lab", "mapSize": na.LabMapSize, "colonists": l.Colonists}
 }
 func (s Save) Describe() map[string]any { return map[string]any{"kind": "save", "name": s.Name} }
 func (f Fixture) Describe() map[string]any {

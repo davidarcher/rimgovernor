@@ -171,9 +171,20 @@ namespace HomeBridge.BridgeTools
         {
             if (colonists < 1 || colonists > MaxColonists) throw new ArgumentException($"colonists must be within 1..{MaxColonists}.");
             EnsurePatched();
-            foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList()) pawn.Destroy(DestroyMode.Vanish);
-            foreach (var thing in map.listerThings.AllThings.ToList())
-                if (!thing.Destroyed) thing.Destroy(DestroyMode.Vanish);
+            // A destroyed holder (a casket, a crate) drops what it held, so
+            // the sweep repeats until nothing is left.
+            for (var pass = 0; map.listerThings.AllThings.Count > 0 || map.mapPawns.AllPawnsSpawned.Count > 0; pass++)
+            {
+                if (pass == 10) throw new InvalidOperationException($"{map.listerThings.AllThings.Count} things survived 10 wipe passes, e.g. {map.listerThings.AllThings.FirstOrDefault()?.def.defName}.");
+                foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
+                    if (!pawn.Destroyed) pawn.Destroy(DestroyMode.Vanish);
+                foreach (var thing in map.listerThings.AllThings.ToList())
+                {
+                    if (thing.Destroyed) continue;
+                    if (thing.def.destroyable) thing.Destroy(DestroyMode.Vanish);
+                    else if (thing.Spawned) thing.DeSpawn();
+                }
+            }
             foreach (var zone in map.zoneManager.AllZones.ToList()) zone.Delete();
             foreach (var cell in map.AllCells)
             {

@@ -19,8 +19,8 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name:  "smoke/identity",
-		Scope: "Runner smoke: the shared runner opens a quiet debug game, freezes needs and hands the case a loaded identity.",
-		Start: cases.DebugStart{},
+		Scope: "Runner smoke: the shared runner opens the blank lab (#731), freezes needs and hands the case a loaded identity.",
+		Start: cases.LabStart(),
 		// Boot plus a handful of reads on a kept process.
 		Budget: 5 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
@@ -51,15 +51,16 @@ func init() {
 			s.Report()["identity_again"] = again
 			// Exercise the typed read against the live game, including the
 			// complete-empty result on a fresh map. This does not admit removal.
-			// The census scopes the scan to Home (#414): a hilly debug map
-			// carries more natural-rock buildings map-wide than the old 8192
-			// bound, and the read must still answer; the fixture census in
-			// the report says whether this map exercised that.
+			// The census scopes the scan to Home (#414); on the lab it reads an
+			// empty map.
 			census, err := s.Harness().Call(ctx, "map-census", "test/debug_map_census", map[string]any{})
 			if err != nil {
 				return err
 			}
 			s.Report()["map_census"] = census
+			if cells, buildings := na.AsNumber(census["mapCells"]), na.AsNumber(census["nonPlayerBuildings"]); cells != na.LabMapSize*na.LabMapSize || buildings != 0 {
+				return fmt.Errorf("the lab is not blank: %v cells, %v non-player buildings", cells, buildings)
+			}
 			clearance, err := s.Harness().Wire(ctx, "clearance", "observations_get_clearance_targets", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 			if err != nil {
 				return err

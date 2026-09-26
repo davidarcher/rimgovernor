@@ -176,18 +176,32 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 			return applyQuiet(ctx, h, apply)
 		}
 	}
+	if err := generateDebugStart(ctx, h, names, start); err != nil {
+		return nil, err
+	}
+	if cached {
+		if err := saveCachedStart(ctx, h, name); err != nil {
+			return nil, err
+		}
+	}
+	return applyQuiet(ctx, h, apply)
+}
+
+// generateDebugStart arms start (when the build carries DebugStartTool)
+// and runs the quick start; startCache.seed records the seed it armed.
+func generateDebugStart(ctx context.Context, h *Harness, names []string, start DebugStart) error {
 	if !Contains(names, DebugStartTool) && start.Biomes != "" {
-		return nil, fmt.Errorf("%s not in discovery but the start asks for biome %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Biomes)
+		return fmt.Errorf("%s not in discovery but the start asks for biome %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Biomes)
 	}
 	if !Contains(names, DebugStartTool) && start.Seed != "" {
-		return nil, fmt.Errorf("%s not in discovery but the start pins seed %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Seed)
+		return fmt.Errorf("%s not in discovery but the start pins seed %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Seed)
 	}
 	if !Contains(names, DebugStartTool) && start.Flat {
-		return nil, fmt.Errorf("%s not in discovery but the start asks for a flat tile: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool)
+		return fmt.Errorf("%s not in discovery but the start asks for a flat tile: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool)
 	}
 	if Contains(names, DebugStartTool) {
 		if err := start.Validate(); err != nil {
-			return nil, err
+			return err
 		}
 		// The seed is drawn here, not natively, so the record knows it
 		// even when no save is written (the cached start off).
@@ -205,23 +219,18 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 		}
 		armed, err := h.Call(ctx, "debug-start", DebugStartTool, args)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", DebugStartTool, err)
+			return fmt.Errorf("%s: %w", DebugStartTool, err)
 		}
 		if ok, _ := AsBool(armed["success"]); !ok {
-			return nil, fmt.Errorf("%s refused: %#v", DebugStartTool, armed)
+			return fmt.Errorf("%s refused: %#v", DebugStartTool, armed)
 		}
 	}
 	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
 		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
 	}); err != nil {
-		return nil, err
+		return err
 	}
-	if cached {
-		if err := saveCachedStart(ctx, h, name); err != nil {
-			return nil, err
-		}
-	}
-	return applyQuiet(ctx, h, apply)
+	return nil
 }
 
 // ApplyQuietWorld sets the loaded game's quiet-world marker through

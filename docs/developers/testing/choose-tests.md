@@ -476,6 +476,12 @@ by review alone.
    the start settles a flat tile without rivers, roads or tile mutators
    when the planet offers one, cached as its own
    `RimGovernor-debug-...-flat` save.
+   A fixture case that only needs open ground starts on `cases.LabStart()`
+   (#729): a fixed-seed 100x100 map wiped to Soil by `test/lab_start`, with
+   three fixture-made colonists near the centre the op replies, clear
+   weather, 21 C and a quiet storyteller. It caches as
+   `RimGovernor-lab-100` beside a `.stamp` of the installed mod's hash, so a
+   mod or fixture rebuild regenerates it; result.json records `start.kind` `lab`.
 3. **Core-only unless the test is about DLC.** *Enforced:* the runner's
    profile is Core-only; a `Save` start (and an `Owned` case's `Saves`)
    activates the save's own `<modIds>` through `cfg.UseSaveExpansions`.

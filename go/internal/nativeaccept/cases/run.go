@@ -768,6 +768,8 @@ func nativeStart(start Start) na.Start {
 		return start.Size
 	case Save:
 		return na.Save{Name: start.Name}
+	case Lab:
+		return na.LabStart{Colonists: start.Colonists}
 	case Scenario:
 		return start.Spec
 	case Fixture:

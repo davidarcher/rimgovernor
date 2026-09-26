@@ -103,3 +103,18 @@ func TestProfileToStopEndsTheOtherProfileUnderHeadless(t *testing.T) {
 		}
 	}
 }
+
+func TestLabStartRow(t *testing.T) {
+	if got := nativeStart(LabStart()); got != (na.LabStart{}) {
+		t.Fatalf("native %#v", got)
+	}
+	if f, ok := nativeStart(Fixture{Op: "test/x", On: Lab{Colonists: 2}}).(na.Fixture); !ok || f.On != (na.LabStart{Colonists: 2}) {
+		t.Fatalf("fixture on lab %#v", f)
+	}
+	if row := LabStart().Describe(); row["kind"] != "lab" || row["mapSize"] != na.LabMapSize {
+		t.Fatalf("describe %v", row)
+	}
+	if _, err := seededStart(LabStart(), "abc"); err == nil {
+		t.Fatal("a lab took a seed")
+	}
+}
