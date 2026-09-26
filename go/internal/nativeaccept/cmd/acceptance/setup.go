@@ -16,7 +16,7 @@ import (
 )
 
 const setupUsage = `  acceptance setup [-worktree <dir>] [-rimworld <RimWorld dir>] [-harmony <0Harmony.dll>] [-gabs <gabs.exe>]
-                   [-fixture A,B | -production] [-rebuild] [-skip-mod] [-skip-binaries]
+                   [-fixture A,B] [-rebuild] [-skip-mod] [-skip-binaries]
   acceptance setup generate <variantsave-<save>|variantsave-all|defense-checkpoint> [run flags]
 `
 
@@ -31,8 +31,7 @@ type setupOptions struct {
 // parseSetup resolves the setup flags: the worktree (the checkout
 // enclosing the working directory unless -worktree names one) and the
 // discovery overrides. -fixture narrows the mod build to the named
-// classes (every class the build script accepts by default); -production
-// builds no fixtures at all.
+// classes (every class the build script accepts by default).
 func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -48,7 +47,6 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	fs.StringVar(&o.overrides.Harmony, "harmony", "", "0Harmony.dll (default: the Steam workshop item, or $"+setup.HarmonyEnv+")")
 	fs.StringVar(&o.overrides.GABS, "gabs", "", "gabs.exe to install (default: a peer worktree's, or $"+setup.GABSEnv+")")
 	fs.StringVar(&fixtures, "fixture", "", "comma-separated fixture classes for the mod build (default: all)")
-	fs.BoolVar(&o.run.Production, "production", false, "build the mod without fixtures")
 	fs.BoolVar(&o.run.Rebuild, "rebuild", false, "rebuild and reinstall the mod even when the installed build is current")
 	fs.BoolVar(&o.run.SkipMod, "skip-mod", false, "leave the installed mod alone")
 	fs.BoolVar(&o.run.SkipBinaries, "skip-binaries", false, "leave .rimgovernor/bin alone")
@@ -57,9 +55,6 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	}
 	if len(fs.Args()) > 0 {
 		return o, fmt.Errorf("setup takes no positional arguments: %v", fs.Args())
-	}
-	if fixtures != "" && o.run.Production {
-		return o, fmt.Errorf("-fixture and -production are exclusive")
 	}
 	if fixtures != "" {
 		for _, f := range strings.Split(fixtures, ",") {
@@ -129,9 +124,6 @@ func runSetup(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 }
 
 func fixtureSummary(fixtures []string) string {
-	if len(fixtures) == 0 {
-		return "none (production build)"
-	}
 	return fmt.Sprintf("%d classes", len(fixtures))
 }
 

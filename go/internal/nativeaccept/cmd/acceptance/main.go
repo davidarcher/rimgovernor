@@ -5,7 +5,7 @@
 //	acceptance resume [<case>...] -root <dir> [run flags]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
-//	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
+//	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -rebuild -skip-mod -skip-binaries]
 //	acceptance setup generate <generator> [run flags]
 //	acceptance why <output>/<area>/<case> [-json]
 //	acceptance warm -root <dir> [-game -headless=false -background]

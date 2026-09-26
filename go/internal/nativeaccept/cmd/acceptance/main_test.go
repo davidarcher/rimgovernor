@@ -177,7 +177,6 @@ func TestParseSetup(t *testing.T) {
 		t.Fatalf("fixtures = %v", o.run.Fixtures)
 	}
 	for name, args := range map[string][]string{
-		"fixture and production":  {"-worktree", repo, "-fixture", "UpkeepFixture", "-production"},
 		"positional":              {"-worktree", repo, "smoke/identity"},
 		"unknown flag":            {"-worktree", repo, "-bogus"},
 		"worktree not a checkout": {"-worktree", filepath.Join(repo, "go")},

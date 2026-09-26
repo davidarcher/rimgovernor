@@ -105,8 +105,8 @@ first fix failed. Every landing report ends with one line:
 
 Each of these fails the same way in every session; none is a judgment call.
 
-- Build the mod through `acceptance setup` (`-rebuild`, `-fixture A,B`,
-  `-production`), never `scripts/build_native_mod.ps1` by hand: the
+- Build the mod through `acceptance setup` (`-rebuild`, `-fixture A,B`),
+  never `scripts/build_native_mod.ps1` by hand: the
   harness refuses any PowerShell command carrying a `C:\Program Files`
   argument, and the script needs three Steam paths `setup` discovers itself.
 - Never `sleep N && <check>` to wait on a run; the harness blocks it. Launch

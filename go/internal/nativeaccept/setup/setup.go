@@ -50,10 +50,8 @@ type Options struct {
 	Layout Layout
 	Inputs *Inputs
 	// Fixtures are the -Fixture classes the mod build takes; nil means
-	// every class build_native_mod.ps1 accepts (AllFixtures), and
-	// Production means none (a fixture-less build).
-	Fixtures   []string
-	Production bool
+	// every class build_native_mod.ps1 accepts (AllFixtures).
+	Fixtures []string
 	// Rebuild forces a mod build even when the installed one is current.
 	Rebuild bool
 	// SkipMod leaves the installed mod alone (no build, no install).
@@ -478,15 +476,12 @@ func expectedFixtures(wanted []string) []string {
 func installMod(ctx context.Context, o Options, s *Summary, note func(string, ...any)) error {
 	l := o.Layout
 	wanted := o.Fixtures
-	if !o.Production && wanted == nil {
+	if wanted == nil {
 		all, err := AllFixtures(l.Repo)
 		if err != nil {
 			return err
 		}
 		wanted = all
-	}
-	if o.Production {
-		wanted = nil
 	}
 	s.Fixtures = expectedFixtures(wanted)
 	installed := filepath.Join(l.GameCopy, "Mods", "RimGovernor")
@@ -519,12 +514,8 @@ func installMod(ctx context.Context, o Options, s *Summary, note func(string, ..
 	if len(running) > 0 {
 		return fmt.Errorf("a game is running from %s (pid %v); stop it first (%s stop -root %s) -- a DLL must never be replaced under a running game", l.GameCopy, running, filepath.Join(l.Bin, "acceptance.exe"), l.Root)
 	}
-	role := "fixture"
-	if len(wanted) == 0 {
-		role = "production"
-	}
-	output := filepath.Join(l.Builds, fmt.Sprintf("%s-%s", role, time.Now().Format("20060102-150405")))
-	note("building the %s mod (%s) into %s", role, reason, output)
+	output := filepath.Join(l.Builds, fmt.Sprintf("fixture-%s", time.Now().Format("20060102-150405")))
+	note("building the fixture mod (%s) into %s", reason, output)
 	if err := runBuildScript(ctx, l, o.Inputs, wanted, output, o.Log); err != nil {
 		return err
 	}

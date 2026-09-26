@@ -133,15 +133,12 @@ func heal(ctx context.Context, codes, ops []string, opts cases.Options, log io.W
 	}
 	installed := filepath.Join(gameCopy, "Mods", "RimGovernor")
 	var installedFixtures []string
-	production := false
 	if manifest, err := na.ReadPackageManifest(installed); err == nil {
-		installedFixtures, production = manifest.Fixtures, manifest.Role == "production"
+		installedFixtures = manifest.Fixtures
 	}
 	fixtures := na.FixtureFlags(repo, installedFixtures, ops)
-	// A production install stays production unless the run needs a
-	// fixture; a fixture install with nothing recorded takes every class.
-	production = production && len(fixtures) == 0
-	fmt.Fprintf(log, "heal\t%s\trebuilding the mod (fixtures %v, production %v)\n", strings.Join(codes, ","), fixtures, production)
+	// An install with nothing recorded takes every class.
+	fmt.Fprintf(log, "heal\t%s\trebuilding the mod (fixtures %v)\n", strings.Join(codes, ","), fixtures)
 
 	healed := append([]string{}, codes...)
 	stopCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
@@ -168,7 +165,7 @@ func heal(ctx context.Context, codes, ops []string, opts cases.Options, log io.W
 	if err != nil {
 		return nil, err
 	}
-	s, err := setup.Run(ctx, setup.Options{Layout: layout, Inputs: inputs, Fixtures: fixtures, Production: production, SkipBinaries: true, Log: log})
+	s, err := setup.Run(ctx, setup.Options{Layout: layout, Inputs: inputs, Fixtures: fixtures, SkipBinaries: true, Log: log})
 	if err != nil {
 		return nil, err
 	}

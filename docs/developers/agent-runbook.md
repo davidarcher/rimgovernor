@@ -67,8 +67,7 @@ checkout, then its sibling worktrees)
 skips the mod build when the installed manifest already matches the
 worktree's native sources and fixture set, and refuses to install while a
 game runs from the copy. `-fixture A,B` narrows the build (every class
-`build_native_mod.ps1` accepts by default), `-production` builds without
-fixtures, `-rebuild` forces a build,
+`build_native_mod.ps1` accepts by default), `-rebuild` forces a build,
 `-skip-mod`/`-skip-binaries` leave those parts alone. Keep the worktree
 under `.claude/worktrees/`: RimWorld cannot open its own Defs from a copy
 whose path passes ~140 characters (`setup` refuses one).
@@ -91,7 +90,7 @@ What it produces:
 - **The mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
   `scripts/build_native_mod.ps1`, installed over the copy's
   `Mods/RimGovernor`. Always go through `acceptance setup -rebuild
-  [-fixture A,B | -production]`: it supplies the script's three Steam
+  [-fixture A,B]`: it supplies the script's three Steam
   paths (`-RimWorldManagedDir`, `-HarmonyAssembly`, `-RimBridgeSdkDir`),
   calls it in-process (`pwsh -File` does not parse the fixture list), and
   refuses to install while a game of yours runs. Do not call the script
