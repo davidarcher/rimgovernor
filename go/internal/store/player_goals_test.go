@@ -41,7 +41,7 @@ func TestGoalCreateActivatesPlayerSourcedGoalAndReplays(t *testing.T) {
 		t.Fatal(replay, created, err)
 	}
 	for _, change := range []func(*GoalCreateSubmissionRequest){
-		func(v *GoalCreateSubmissionRequest) { v.Kind = domain.MaintainWoodGoal },
+		func(v *GoalCreateSubmissionRequest) { v.Kind = domain.MaintainResourceGoal },
 		func(v *GoalCreateSubmissionRequest) { v.Tick = 11 },
 		func(v *GoalCreateSubmissionRequest) { v.Snapshot.Load = "other" },
 	} {
@@ -92,7 +92,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.MaintainWoodGoal))
+	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.MaintainResourceGoal))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	if err != nil || recovered.Goal.Status != domain.GoalSatisfied || !recovered.Goal.RecoveryObserved {
 		t.Fatal(recovered, err)
 	}
-	again, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "again", Kind: domain.MaintainWoodGoal, Snapshot: scope(), Tick: 12})
+	again, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "again", Kind: domain.MaintainResourceGoal, Snapshot: scope(), Tick: 12})
 	if err != nil || !created || again.Goal != first.Goal {
 		t.Fatal("live goal not reused", again, created, err)
 	}
@@ -112,7 +112,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 	if err != nil || cancelled.Goal.Status != domain.GoalCancelled {
 		t.Fatal(cancelled, err)
 	}
-	fresh, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "fresh", Kind: domain.MaintainWoodGoal, Snapshot: scope(), Tick: 13})
+	fresh, created, err := s.SubmitGoalCreate(ctx, GoalCreateSubmissionRequest{RequestID: "fresh", Kind: domain.MaintainResourceGoal, Snapshot: scope(), Tick: 13})
 	if err != nil || !created || fresh.Goal == first.Goal {
 		t.Fatal("cancelled goal resurrected or not replaced", fresh, created, err)
 	}
@@ -125,7 +125,7 @@ func TestGoalCreateReopensLiveGoalAndReplacesCancelledOne(t *testing.T) {
 		t.Fatal(old, err)
 	}
 	bindings, err := s.PlayerGoals(ctx, fresh.Request.World())
-	if err != nil || bindings[domain.MaintainWoodGoal] != fresh.Goal {
+	if err != nil || bindings[domain.MaintainResourceGoal] != fresh.Goal {
 		t.Fatal(bindings, err)
 	}
 	// The earlier request ID still reports the identity it actually activated.

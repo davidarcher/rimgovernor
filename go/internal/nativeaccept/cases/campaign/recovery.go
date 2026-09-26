@@ -16,7 +16,7 @@ func init() {
 	cases.Register(recovery())
 }
 
-// Policy wood thresholds the breach is judged against: MaintainWood binds
+// Policy wood thresholds the breach is judged against: MaintainResource binds (the wood latch's floor, #728)
 // once stock falls under woodMin and its deficit is (WoodTarget-stock)/
 // WoodTarget, so a stock back at woodMin reads as woodRecoveredDeficit.
 const (
@@ -27,7 +27,7 @@ const (
 
 // recovery is campaign/recovery (#633): after half a day of settled play
 // the harness takes every wood log on the map (the wood-floor breach) and
-// resumes; the colony must acknowledge the breach (MaintainWood binds) and
+// resumes; the colony must acknowledge the breach (MaintainResource binds) and
 // restock to the policy floor on its own. A staged raid follows
 // (test/defense_setup, an edge walk-in at the storyteller's floor points,
 // #347's sapper-capable group maker); after a day of play the colony must
@@ -77,7 +77,7 @@ func recovery() cases.Case {
 			var breachTick, restockTick uint64
 			breached := false
 			restocked, err := c.play(ctx, "restock", playOptions{Watch: sustainedfood.WatchConfig{
-				Watch: 25 * time.Minute, Window: breachWindow, PollTicks: 2500, Goal: policy.MaintainWood, Extra: campaignGoals,
+				Watch: 25 * time.Minute, Window: breachWindow, PollTicks: 2500, Goal: policy.MaintainResource, Extra: campaignGoals,
 				FailFast: sustainedfood.FailFast{Disabled: true},
 				Until: func(sample map[string]any) bool {
 					tick, _ := sample["tick"].(uint64)
@@ -103,7 +103,7 @@ func recovery() cases.Case {
 				return restocked.Err
 			}
 			if !breached {
-				return fmt.Errorf("restock: MaintainWood never bound after the breach (%d samples)", len(restocked.Timeline))
+				return fmt.Errorf("restock: MaintainResource never bound after the breach (%d samples)", len(restocked.Timeline))
 			}
 			c.milestone("wood_breach_acknowledged", breachTick)
 			if restockTick == 0 {
@@ -150,7 +150,7 @@ func recovery() cases.Case {
 		})
 }
 
-// woodDeficit reads the MaintainWood ranking row's deficit off a sample.
+// woodDeficit reads the MaintainResource ranking row's deficit off a sample.
 func woodDeficit(sample map[string]any) (float64, bool) {
 	development, ok := sample["development"].(map[string]any)
 	if !ok {

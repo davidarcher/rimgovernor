@@ -37,9 +37,9 @@ check (bounded per review, `yield_bound`), and admission refits against commitme
 read inside its transaction, so a player project or another admission since the
 ranking is counted. The development record shows the mode, workers held by startup
 work, unused workers and the limiting reason. A goal waiting on a measured shortfall lends its ordering to the goal that acquires it 
-(`policy/development_dependency.go`, #651): a shelter shell admitted short of wood 
-records a typed edge (goal epoch, method, each open action's wood cost, the stock it 
-was measured against), and while the open costs exceed current stock MaintainWood 
+(`policy/development_dependency.go`, #651): a shelter shell admitted short of a resource 
+records a typed edge (goal epoch, method, each open action's cost per resource, the stock it 
+was measured against), and while the open costs exceed current stock MaintainResource 
 ranks ahead of unrelated optional work for the next slot and worker. The donation is 
 ordering only: the declared priority, the startup/emergency classes and the clock are 
 unchanged, an explicit project limit still holds (the row reports `project_limit`), 

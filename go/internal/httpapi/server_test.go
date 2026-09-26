@@ -463,7 +463,7 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
 	progress := []policy.GoalProgress{
 		{Goal: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + policy.DevelopmentStallTicks, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
-		{Goal: policy.MaintainWood, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
+		{Goal: policy.MaintainResource, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
 	}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
 		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {

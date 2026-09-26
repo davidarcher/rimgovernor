@@ -44,7 +44,7 @@ func TestPlayerGoalCreateReplayAndConflict(t *testing.T) {
 		t.Fatal(replay, created, err, worlds.calls)
 	}
 	changed := q
-	changed.Kind = domain.MaintainWoodGoal
+	changed.Kind = domain.MaintainResourceGoal
 	if _, _, err = p.SubmitGoalCreate(ctx, changed); !errors.Is(err, store.ErrConflict) {
 		t.Fatal(err)
 	}

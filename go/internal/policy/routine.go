@@ -23,7 +23,6 @@ const (
 	EnsureBasicPower        GoalID = "EnsureBasicPower"
 	EnsureFoodStorage       GoalID = "EnsureFoodStorage"
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
-	MaintainWood            GoalID = "MaintainWood"
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
 	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
@@ -467,9 +466,8 @@ type RoutineFacts struct {
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom domain.Fact[float64]
 	Wood                                                        domain.Fact[int64]
 	// Dependencies are the live typed shortfall edges (#651) carried from the
-	// last review: an open WoodLog shortfall activates MaintainWood for the
-	// bounded difference while the wood latch is off (#711); any other
-	// resource's raises a MaintainResource floor (#728).
+	// last review: an open shortfall raises a MaintainResource floor for
+	// the bounded difference (#711, #728).
 	Dependencies []DevelopmentDependency
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
@@ -560,6 +558,9 @@ type RoutineNeeds struct {
 	Latches     RoutineLatches
 	Goals       []DevelopmentGoal
 	Assessments []RoutineAssessment
+	// WoodFloor is the WoodLog stock floor the wood latch asks of
+	// MaintainResource, 0 while the latch is off (#728).
+	WoodFloor int64
 }
 
 // Assessments cover recovered and unknown needs as well as actionable deficits.
@@ -835,19 +836,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(max(0, float64(min(2, n)-stock)/float64(min(2, n))))
 		}
 	}
-	if l.Wood {
-		addGoal(MaintainWood, 3)
-		if n, k := f.Wood.Value(); k {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(max(0, float64(p.WoodTarget-n)/float64(p.WoodTarget)))
-		}
-	} else if short := WoodShortfall(f.Dependencies); short > 0 {
-		// A shell admitted short of wood above WoodMin (#711): acquire just
-		// the shortfall; the latch stays off, so the goal drops with the edge.
-		addGoal(MaintainWood, 3)
-		if n, k := f.Wood.Value(); k {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(float64(short) / float64(max(1, n+short)))
-		}
-	}
 	if !positive(f.MedicalCareRecovered) {
 		addGoal(MaintainMedicalCare, 2)
 		// Work assignments own disease rest priorities and restoration;
@@ -929,7 +917,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureBasicPower, 2, g.Power)
 	addAssessment(EnsureFoodStorage, 2, g.Storage)
 	addAssessment(EnsureBasicDefense, 3, g.Defense)
-	addAssessment(MaintainWood, 3, allFacts(latchRecovered(l.Wood, wood), domain.Known(WoodShortfall(f.Dependencies) == 0)))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureBasicComfort, basicComfort.Priority(), basicComfort.Recovered())
 	addAssessment(ClearPests, 2, pestsClear)
@@ -949,11 +936,14 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(MedicineResourceNeeds(ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)), DependencyResourceNeeds(f.Dependencies)))
+	// The wood latch is a WoodLog floor on MaintainResource (#728): below
+	// WoodMin it asks for WoodTarget until the latch recovers.
+	r.WoodFloor = WoodFloor(l.Wood, p)
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(ResourceGoalTargets(MedicineResourceNeeds(ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(r.WoodFloor)))
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, f.Resources)
+	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, WoodStock(f.Resources, f.Wood, resourceTargets))
 	for _, runway := range f.ResourceRunways {
 		if _, known := runway.Deficit.Value(); !known && runway.WindowDays >= 1 && positive(resourceRecovered) {
 			resourceRecovered = domain.Unknown[bool]()
@@ -967,15 +957,21 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			}
 		}
 	}
+	resourcePriority := 4
+	if l.Wood {
+		// Low wood keeps the old wood goal's standing (#728).
+		resourcePriority = 3
+	}
 	if !positive(resourceRecovered) {
-		addGoal(MaintainResource, 4)
+		addGoal(MaintainResource, resourcePriority)
 		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit
 		// The ladder's research rung: while a project the workshop recorded
 		// as gating the bench is unfinished, the goal has no method of its
 		// own and holds no slot, so EnsureResearch can take one (#4 M4).
-		r.Goals[len(r.Goals)-1].MethodUnavailable = ResearchGoalTarget("", f.ResearchNeeds, f.Research) != ""
+		// Wood and dependency floors are chopped or mined meanwhile.
+		r.Goals[len(r.Goals)-1].MethodUnavailable = ResearchGoalTarget("", f.ResearchNeeds, f.Research) != "" && r.WoodFloor == 0 && len(DependencyResourceNeeds(f.Dependencies)) == 0
 	}
-	addAssessment(MaintainResource, 4, resourceRecovered)
+	addAssessment(MaintainResource, resourcePriority, resourceRecovered)
 	// ProductionPolicy is a configuration push, not development work: it needs
 	// no pawn labor and holds no optional capacity slot, so it is assessed (and
 	// admitted) outside the development ranking. Reconciliation stays
@@ -1013,7 +1009,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		if !positive(recovered) {
 			addGoal(n.Goal, n.Priority)
 			// addGoal's Deficit defaults to RoutineDevelopmentDeficit(n.Goal, ...),
-			// which only covers EnsureExpansion/MaintainWood/EnsureBasicDefense
+			// which only covers EnsureExpansion/EnsureBasicDefense
 			// and otherwise reports Unknown -- leaving every upkeep.Needs-sourced
 			// goal (Fire/Supplies/Repairs/Cleaning/Storage) permanently
 			// DevelopmentUnknown in RankDevelopment, so it could never win a

@@ -36,7 +36,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(2)), domain.Known(int64(3))
 	first := reviewRoutine(t, s, &r)
 	d := first.Review.Development
-	for _, need := range []domain.GoalID{policy.EnsureExpansion, policy.EnsureResearch, policy.MaintainWood} {
+	for _, need := range []domain.GoalID{policy.EnsureExpansion, policy.EnsureResearch, policy.MaintainResource} {
 		if !developmentRow(t, first.Review, need).Selected {
 			t.Fatal(need, d.Rows)
 		}
@@ -68,7 +68,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	if _, err = s.CommitGoalMethod(ctx, research.Goal.ID, research.Revision, "study", plan(t, "study", "study-action")); err == nil {
 		t.Fatal("retry admitted twice")
 	}
-	wood := routineGoal(t, first, policy.MaintainWood)
+	wood := routineGoal(t, first, policy.MaintainResource)
 	if _, err = s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "cut", plan(t, "cut", "cut-action")); err != nil {
 		t.Fatal(err)
 	}

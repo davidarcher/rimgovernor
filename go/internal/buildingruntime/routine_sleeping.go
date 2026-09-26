@@ -723,7 +723,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	// A shell (the initial shelter, expansion, or a power shelter) is
 	// admitted without a stock check: RimWorld places its blueprints
 	// regardless and the frames hold natively for materials, which
-	// MaintainWood then reads as the wood deficit (#602). Furnishing and
+	// MaintainResource then reads it as the WoodLog deficit (#602). Furnishing and
 	// facility methods keep the stock budget, since their open frames would
 	// strand hauling, but admit the candidates the stock covers rather than
 	// refusing the whole method for one short of it.

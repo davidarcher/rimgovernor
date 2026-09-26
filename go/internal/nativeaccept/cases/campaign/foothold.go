@@ -21,7 +21,7 @@ func init() {
 // campaign breaches.
 var campaignGoals = []policy.GoalID{
 	policy.EnsureInitialShelter, policy.EnsureFoodStorage, policy.EnsureCooking,
-	policy.EnsureTemperatureSafety, policy.MaintainSleeping, policy.MaintainWood,
+	policy.EnsureTemperatureSafety, policy.MaintainSleeping, policy.MaintainResource,
 	policy.EnsureBasicDefense,
 }
 

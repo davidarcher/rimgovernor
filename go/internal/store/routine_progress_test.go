@@ -46,7 +46,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
 		t.Fatalf("builder diverted while the bench is owed: %+v", expansion)
 	}
-	if !developmentRow(t, first.Review, policy.MaintainWood).Selected {
+	if !developmentRow(t, first.Review, policy.MaintainResource).Selected {
 		t.Fatal(first.Review.Development.Rows)
 	}
 	for _, binding := range first.Review.Goals {
@@ -114,11 +114,11 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	defer s.Close()
 	r := routineRequest()
 	first := reviewRoutine(t, s, &r)
-	wood := progressRecord(t, first.Review, policy.MaintainWood)
+	wood := progressRecord(t, first.Review, policy.MaintainResource)
 	if wood.Blocked != policy.BlockedNoMethod || wood.Method != "assess" {
 		t.Fatalf("wood record %+v", wood)
 	}
-	g := routineGoal(t, first, policy.MaintainWood)
+	g := routineGoal(t, first, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cut-0123456789abcdef", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
@@ -136,14 +136,14 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	r.Tick += 3000
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1})
 	second := reviewRoutine(t, s, &r)
-	wood = progressRecord(t, second.Review, policy.MaintainWood)
+	wood = progressRecord(t, second.Review, policy.MaintainResource)
 	// Still Foothold: the one-hour deadline applies here too.
 	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != second.Review.Tick || wood.NextReview != second.Review.Tick+policy.DevelopmentStallTicks/24 {
 		t.Fatalf("issued cut with no plant cutter must be blocked: %+v", wood)
 	}
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})
 	third := reviewRoutine(t, s, &r)
-	if wood = progressRecord(t, third.Review, policy.MaintainWood); wood.Blocked != "" || wood.LastProgress != second.Review.Tick {
+	if wood = progressRecord(t, third.Review, policy.MaintainResource); wood.Blocked != "" || wood.LastProgress != second.Review.Tick {
 		t.Fatalf("a cutter arrived, the order is not yet progress: %+v", wood)
 	}
 }

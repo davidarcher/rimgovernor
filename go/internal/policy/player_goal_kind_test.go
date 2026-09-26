@@ -21,7 +21,6 @@ func TestPlayerGoalKindsMatchRoutineGoals(t *testing.T) {
 		domain.EnsureTemperatureSafetyGoal: EnsureTemperatureSafety,
 		domain.EnsureBasicPowerGoal:        EnsureBasicPower,
 		domain.EnsureBasicDefenseGoal:      EnsureBasicDefense,
-		domain.MaintainWoodGoal:            MaintainWood,
 		domain.MaintainResourceGoal:        MaintainResource,
 		domain.MaintainWasteGoal:           MaintainWaste,
 		domain.EnsureDefensiveLayoutGoal:   EnsureDefensiveLayout,

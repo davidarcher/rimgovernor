@@ -316,7 +316,7 @@ goal progress record (#629), never a plan count.
 
 `campaign/foothold` plays three game days (`RIMGOVERNOR_ACCEPT_CAMPAIGN_TICKS`
 overrides the window). `campaign/recovery` settles, takes every wood log
-(`test/hut_shell_fixture take`), requires MaintainWood to bind and the
+(`test/hut_shell_fixture take`), requires MaintainResource to bind on the WoodLog floor and the
 stock to return to the policy floor natively, then stages an edge walk-in
 raid (`test/defense_setup raid`) and requires no hostile standing after a
 day. The `campaign/fault-*` rows inject one failure each through

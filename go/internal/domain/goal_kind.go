@@ -34,7 +34,6 @@ const (
 	EnsureTemperatureSafetyGoal GoalKind = "EnsureTemperatureSafety"
 	EnsureBasicPowerGoal        GoalKind = "EnsureBasicPower"
 	EnsureBasicDefenseGoal      GoalKind = "EnsureBasicDefense"
-	MaintainWoodGoal            GoalKind = "MaintainWood"
 	MaintainResourceGoal        GoalKind = "MaintainResource"
 	MaintainWasteGoal           GoalKind = "MaintainWaste"
 	EnsureDefensiveLayoutGoal   GoalKind = "EnsureDefensiveLayout"
@@ -45,7 +44,7 @@ const (
 // array; it is freshly allocated per call.
 func GoalKinds() []GoalKind {
 	return []GoalKind{EnsureFoodSupplyGoal, EnsureInitialShelterGoal, EnsureFoodStorageGoal, EnsureCookingGoal,
-		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainWoodGoal, MaintainResourceGoal, MaintainWasteGoal, EnsureDefensiveLayoutGoal}
+		EnsureTemperatureSafetyGoal, EnsureBasicPowerGoal, EnsureBasicDefenseGoal, MaintainResourceGoal, MaintainWasteGoal, EnsureDefensiveLayoutGoal}
 }
 
 // NewGoalKind validates one requested kind against the whitelist.

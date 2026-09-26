@@ -16,11 +16,11 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	s := open(t, path)
 	r := routineRequest()
 	first := reviewRoutine(t, s, &r)
-	old := routineGoal(t, first, policy.MaintainWood)
+	old := routineGoal(t, first, policy.MaintainResource)
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
 		out := reviewRoutine(t, s, &r)
-		if len(out.Goals) != 50 {
+		if len(out.Goals) != 49 {
 			t.Fatal(out)
 		}
 	}
@@ -34,7 +34,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if err = s.db.QueryRowContext(ctx, "SELECT count(*),sum(retired=0) FROM goals").Scan(&history, &active); err != nil {
 		t.Fatal(err)
 	}
-	if active != 50 || history != 50*33 {
+	if active != 49 || history != 49*33 {
 		t.Fatal(active, history)
 	}
 	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit, false); err == nil {
@@ -58,7 +58,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.MaintainWood)
+	g := routineGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestRoutineGoalRetirementRetainsCompletedOwnedDraft(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.MaintainWood)
+	g := routineGoal(t, out, policy.MaintainResource)
 	draft, err := domain.NewOwnedDraft("pawn")
 	if err != nil {
 		t.Fatal(err)

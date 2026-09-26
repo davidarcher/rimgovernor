@@ -131,7 +131,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	if food.Blocked != BlockedPrerequisite(EnsureCooking) || food.Blocked.Prerequisite() != EnsureCooking {
 		t.Fatalf("prerequisite not surfaced: %+v", food)
 	}
-	withheld := WithheldLabor([]GoalProgress{food, {Goal: MaintainWood}})
+	withheld := WithheldLabor([]GoalProgress{food, {Goal: MaintainResource}})
 	if len(withheld) != 1 || withheld[0] != WorkConstruction {
 		t.Fatalf("withheld %v", withheld)
 	}
@@ -142,7 +142,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkPlantCutting: 1})
 	r.Goals = []DevelopmentGoal{
 		{ID: EnsureBasicDefense, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
-		{ID: MaintainWood, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.5), Labor: LaborProfile{WorkPlantCutting}},
+		{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.5), Labor: LaborProfile{WorkPlantCutting}},
 	}
 	r.Withheld = withheld
 	s := rank(t, r)
@@ -152,7 +152,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 			if row.Selected || row.Reason != DevelopmentLabor || row.Bottleneck != WorkConstruction {
 				t.Fatalf("builder diverted: %+v", row)
 			}
-		case MaintainWood:
+		case MaintainResource:
 			if !row.Selected {
 				t.Fatalf("wood not selected: %+v", row)
 			}

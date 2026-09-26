@@ -295,8 +295,8 @@ func ValidateColonyStage(r ColonyStageRecord, tick domain.Tick) error {
 
 // productionGoals are the goals whose blocked progress record holds the
 // colony out of Stable: the food ladder, cooking, food storage and the
-// wood and resource floors.
-var productionGoals = []GoalID{EnsureFoodSupply, EnsureCooking, EnsureFoodStorage, MaintainFoodStorage, MaintainWood, MaintainResource}
+// resource floors (wood among them).
+var productionGoals = []GoalID{EnsureFoodSupply, EnsureCooking, EnsureFoodStorage, MaintainFoodStorage, MaintainResource}
 
 // ProductionBlockedGoal is the first production goal whose progress record
 // is blocked on native evidence (no capable pawn, native refusal, every

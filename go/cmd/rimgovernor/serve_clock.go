@@ -364,10 +364,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
-			config.WoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.MaintainWood)
-			if err != nil {
-				return nil, err
-			}
 			config.PestAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.ClearPests)
 			if err != nil {
 				return nil, err
@@ -868,7 +864,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodStorage)
 	}
 	if sc.routineAcquisitionPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainWood, policy.ClearPests)
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking)

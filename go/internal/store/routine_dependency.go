@@ -216,8 +216,8 @@ func resourceStock(f policy.RoutineFacts, resource policy.Resource) domain.Fact[
 }
 
 // priorDependencies is the last review's still-live edges against its goal
-// bindings, read before DetectRoutine so an open wood shortfall can
-// activate MaintainWood while the wood latch is off (#711).
+// bindings, read before DetectRoutine so an open shortfall raises its
+// MaintainResource floor (#711, #728).
 func priorDependencies(ctx context.Context, tx *sql.Tx, previous RoutineReview, facts policy.RoutineFacts, tick domain.Tick) ([]policy.DevelopmentDependency, error) {
 	if len(previous.Dependencies) == 0 {
 		return nil, nil

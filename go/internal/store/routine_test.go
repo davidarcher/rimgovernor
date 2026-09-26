@@ -41,7 +41,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	s := open(t, path)
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
-	initial := routineGoal(t, out, policy.MaintainWood)
+	initial := routineGoal(t, out, policy.MaintainResource)
 	if initial.Goal.Need != domain.NeedDeficit || !out.Review.Latches.Wood {
 		t.Fatal(out)
 	}
@@ -53,12 +53,12 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	r.Facts.Wood = domain.Known(int64(200))
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainWood).Goal.Need != domain.NeedDeficit {
+	if routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
 		t.Fatal("restart lost recovery threshold")
 	}
 	r.Facts.Wood = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.MaintainWood)
+	g := routineGoal(t, out, policy.MaintainResource)
 	if g.Goal.Need != domain.NeedUnknown || !out.Review.Latches.Wood {
 		t.Fatal(g)
 	}
@@ -67,12 +67,12 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	r.Facts.Wood = domain.Known(int64(400))
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainWood).Goal.Status != domain.GoalSatisfied {
+	if routineGoal(t, out, policy.MaintainResource).Goal.Status != domain.GoalSatisfied {
 		t.Fatal(out)
 	}
 	r.Facts.Wood = domain.Known(int64(100))
 	out = reviewRoutine(t, s, &r)
-	g = routineGoal(t, out, policy.MaintainWood)
+	g = routineGoal(t, out, policy.MaintainResource)
 	if g.Goal.Epoch != 1 || g.Goal.ID != initial.Goal.ID || g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
@@ -86,7 +86,7 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 			s := open(t, memoryPath(t))
 			r := routineRequest()
 			out := reviewRoutine(t, s, &r)
-			g := routineGoal(t, out, policy.MaintainWood)
+			g := routineGoal(t, out, policy.MaintainResource)
 			if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 				t.Fatal(err)
 			}
@@ -136,7 +136,7 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 			r.Policy = policy.DefaultRoutinePolicy()
 			r.Facts.Wood = domain.Known(int64(100))
 			out = reviewRoutine(t, s, &r)
-			resumed := routineGoal(t, out, policy.MaintainWood)
+			resumed := routineGoal(t, out, policy.MaintainResource)
 			if change == "manual" {
 				if resumed.Goal.ID != g.Goal.ID || resumed.Goal.Status != domain.GoalActive {
 					t.Fatal("resume replaced the suspended goal", resumed)
@@ -187,13 +187,13 @@ func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.MaintainWood)
+	g := routineGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Hostiles = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainWood).Goal.Status != domain.GoalSuspended {
+	if routineGoal(t, out, policy.MaintainResource).Goal.Status != domain.GoalSuspended {
 		t.Fatal(out)
 	}
 	if _, err := s.Prepare(ctx, "p", "a", scope(), r.Tick); err == nil {
@@ -214,14 +214,14 @@ func TestRoutineDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 	r.Facts.Wood = domain.Known(int64(200))
 	r.Current.Native++
 	out := reviewRoutine(t, s, &r)
-	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainWood).Goal.Need != domain.NeedDeficit {
+	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
 		t.Fatal("direction erased known recovery target")
 	}
 	r.Enabled = false
 	reviewRoutine(t, s, &r)
 	r.Enabled = true
 	out = reviewRoutine(t, s, &r)
-	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainWood).Goal.Need != domain.NeedDeficit {
+	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
 		t.Fatal("Manual erased known recovery target")
 	}
 }

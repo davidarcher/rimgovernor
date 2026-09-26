@@ -58,7 +58,9 @@ type RoutineReview struct {
 	MedicineTarget         int64 `json:",omitempty"`
 	// DependencyNeeds are the MaintainResource floors this review's live
 	// shortfall edges raised (#728), so the resource planner stocks them.
-	DependencyNeeds  map[policy.Resource]int64 `json:",omitempty"`
+	DependencyNeeds map[policy.Resource]int64 `json:",omitempty"`
+	// WoodFloor is the wood latch's WoodLog floor (policy.RoutineNeeds).
+	WoodFloor        int64 `json:",omitempty"`
 	StartingSupplies policy.StartingSupplies
 	EventLoot        policy.EventLootHistory
 	Comfort          policy.ComfortHistory
@@ -139,6 +141,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
 		return RoutineReview{}, errors.New("invalid medicine resource target")
+	}
+	if r.WoodFloor < 0 || r.WoodFloor > 1_000_000 {
+		return RoutineReview{}, errors.New("invalid wood floor")
 	}
 	if len(r.DependencyNeeds) > maxDependencyRecords || policy.ValidateResourceTargets(r.DependencyNeeds) != nil {
 		return RoutineReview{}, errors.New("invalid dependency resource needs")
@@ -545,6 +550,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
 	r.DependencyNeeds = policy.DependencyResourceNeeds(request.Facts.Dependencies)
+	r.WoodFloor = needs.WoodFloor
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
 	if request.Enabled {

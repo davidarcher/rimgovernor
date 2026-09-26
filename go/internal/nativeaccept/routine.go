@@ -463,7 +463,7 @@ func AuditResourceRules(plan map[string]any, names []string) error {
 }
 
 var developmentGoalNames = map[string]bool{
-	"MaintainWood": true, "EnsureBasicDefense": true, "EnsureComfort": true, "EnsureExpansion": true,
+	"MaintainResource": true, "EnsureBasicDefense": true, "EnsureComfort": true, "EnsureExpansion": true,
 	"MaintainEquipment": true, "MaintainFireSafety": true, "SecureSupplies": true, "MaintainEssentialRepairs": true,
 	"MaintainCleanFacilities": true, "MaintainMedicalReserves": true, "MaintainFoodStorage": true, "MaintainAnimalContainment": true,
 	"MaintainAnimalFeed": true, "MaintainSleeping": true, "MaintainHomeCoverage": true, "MaintainStoneShell": true,

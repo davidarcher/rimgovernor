@@ -16,7 +16,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 	for i := 0; i < 260; i++ {
 		id := fmt.Sprintf("method-%03d", i)
 		p := plan(t, domain.PlanID(id), domain.ActionID(id+"-a"))
@@ -30,7 +30,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 		if i == 0 {
 			r.Tick = g.Goal.Tick
 		}
-		g = routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+		g = routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 		if i == 0 {
 			if g.Revision <= committed.Revision {
 				t.Fatal("same-tick retirement retained stale revision")
@@ -77,7 +77,7 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 				path := memoryPath(t)
 				s := open(t, path)
 				r := routineRequest()
-				g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+				g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 				q := methodRequest(t, g, "old", 100)
 				d, err := s.AdmitBuildingMethod(ctx, q)
 				if err != nil || !d.Admitted {
@@ -184,7 +184,7 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	r := routineRequest()
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "current", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, memoryPath(t))
 			r := routineRequest()
-			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 			if kind == "player" {
 				g = anotherGoal(t, s, "player-goal")
 			}

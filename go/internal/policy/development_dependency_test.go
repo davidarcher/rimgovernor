@@ -9,7 +9,7 @@ import (
 
 // woodShortage: initial shelter (priority 2, served by an admitted shell)
 // waits on wood, one worker can cut, cook or haul, and the feed and supply
-// upkeep outrank MaintainWood on deficit.
+// upkeep outrank MaintainResource on deficit.
 func woodShortage() DevelopmentRequest {
 	return DevelopmentRequest{
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
@@ -18,14 +18,14 @@ func woodShortage() DevelopmentRequest {
 		Goals: []DevelopmentGoal{
 			{ID: EnsureInitialShelter, Source: AutopilotGoal, Priority: 2, Served: true},
 			{ID: MaintainAnimalFeed, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
-			{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
-			{ID: MaintainWood, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
+			{ID: SecureSupplies, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
+			{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
 		},
 	}
 }
 
 func shelterWood(available domain.Fact[int64], costs ...DependencyCost) DevelopmentDependency {
-	return DevelopmentDependency{Dependent: EnsureInitialShelter, Goal: "routine-shelter", Epoch: 1, Method: "shell", Prerequisite: MaintainWood, Resource: "WoodLog", Costs: costs, Available: available, Observed: 90}
+	return DevelopmentDependency{Dependent: EnsureInitialShelter, Goal: "routine-shelter", Epoch: 1, Method: "shell", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: costs, Available: available, Observed: 90}
 }
 
 func rankDep(t *testing.T, r DevelopmentRequest) DevelopmentState {
@@ -40,17 +40,17 @@ func rankDep(t *testing.T, r DevelopmentRequest) DevelopmentState {
 func TestShelterWoodShortfallOrdersWoodFirst(t *testing.T) {
 	// Without the edge the lower-deficit wood acquisition is deferred.
 	base := rankDep(t, woodShortage())
-	if !rowOf(base, MaintainAnimalFeed).Selected || rowOf(base, MaintainWood).Selected {
+	if !rowOf(base, MaintainAnimalFeed).Selected || rowOf(base, MaintainResource).Selected {
 		t.Fatalf("baseline should defer wood behind feed: %+v", base.Rows)
 	}
 	r := woodShortage()
 	r.Dependencies = []DevelopmentDependency{shelterWood(domain.Known[int64](40), DependencyCost{"wall-1", 60}, DependencyCost{"wall-2", 60})}
 	s := rankDep(t, r)
-	wood := rowOf(s, MaintainWood)
+	wood := rowOf(s, MaintainResource)
 	if !wood.Selected || wood.Donation == nil || rowOf(s, MaintainAnimalFeed).Selected {
 		t.Fatalf("wood should take the worker: %+v", s.Rows)
 	}
-	want := DevelopmentDonation{Priority: 2, Chain: []GoalID{EnsureInitialShelter, MaintainWood}, Resource: "WoodLog", Shortfall: 80}
+	want := DevelopmentDonation{Priority: 2, Chain: []GoalID{EnsureInitialShelter, MaintainResource}, Resource: "WoodLog", Shortfall: 80}
 	if !reflect.DeepEqual(*wood.Donation, want) {
 		t.Fatalf("donation %+v, want %+v", *wood.Donation, want)
 	}
@@ -74,13 +74,13 @@ func TestDonationOnlyWhileShortfallOpen(t *testing.T) {
 		r := woodShortage()
 		r.Dependencies = []DevelopmentDependency{dep}
 		s := rankDep(t, r)
-		if w := rowOf(s, MaintainWood); w.Selected || w.Donation != nil {
+		if w := rowOf(s, MaintainResource); w.Selected || w.Donation != nil {
 			t.Fatalf("%s: wood kept a donation: %+v", name, w)
 		}
 	}
 	// Resource upkeep serving no dependency keeps its normal order.
 	s := rankDep(t, woodShortage())
-	if rowOf(s, MaintainWood).Donation != nil {
+	if rowOf(s, MaintainResource).Donation != nil {
 		t.Fatal("donation without an edge")
 	}
 }
@@ -92,7 +92,7 @@ func TestSharedDemandCountsEachActionOnce(t *testing.T) {
 	b.Costs = []DependencyCost{{"wall-2", 60}, {"wall-3", 30}}
 	goals := append(woodShortage().Goals, DevelopmentGoal{ID: EnsureExpansion, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)})
 	d, _ := ResolveDonations(goals, []DevelopmentDependency{a, b})
-	if got := d[MaintainWood]; got.Shortfall != 60+60+30-50 || got.Priority != 2 {
+	if got := d[MaintainResource]; got.Shortfall != 60+60+30-50 || got.Priority != 2 {
 		t.Fatalf("shared demand %+v", got)
 	}
 }
@@ -129,7 +129,7 @@ func TestDependencyCyclesDepthAndInactiveBlock(t *testing.T) {
 	r.Goals[3].MethodUnavailable = true
 	r.Dependencies = []DevelopmentDependency{shelterWood(domain.Known[int64](0), DependencyCost{"wall-1", 60})}
 	s := rankDep(t, r)
-	if rowOf(s, MaintainWood).Donation != nil || !hasBlocker(s.Blockers, DependencyInactive) || !rowOf(s, MaintainAnimalFeed).Selected {
+	if rowOf(s, MaintainResource).Donation != nil || !hasBlocker(s.Blockers, DependencyInactive) || !rowOf(s, MaintainAnimalFeed).Selected {
 		t.Fatalf("inactive prerequisite: %+v %+v", s.Rows, s.Blockers)
 	}
 }
@@ -143,35 +143,35 @@ func hasBlocker(blockers []DependencyBlocker, reason string) bool {
 	return false
 }
 
-// A shell admitted short of wood above WoodMin activates MaintainWood for
+// A shell admitted short of wood above WoodMin activates MaintainResource for
 // the shortfall alone, leaves the latch off, and drops the goal once the
 // edge settles (#711).
-func TestShelterShortfallActivatesMaintainWood(t *testing.T) {
+func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 	f := stableRoutine()
 	f.Wood = domain.Known(int64(150))
-	if r := needs(t, f, RoutineLatches{}); r.Latches.Wood || hasNeed(r, MaintainWood) {
+	if r := needs(t, f, RoutineLatches{}); r.Latches.Wood || hasNeed(r, MaintainResource) {
 		t.Fatal("150 wood is above WoodMin", r)
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: EnsureInitialShelter, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainWood, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
+	f.Dependencies = []DevelopmentDependency{{Dependent: EnsureInitialShelter, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
 	r := needs(t, f, RoutineLatches{})
-	if r.Latches.Wood || !hasNeed(r, MaintainWood) {
-		t.Fatal("shortfall did not activate MaintainWood", r)
+	if r.Latches.Wood || !hasNeed(r, MaintainResource) {
+		t.Fatal("shortfall did not activate MaintainResource", r)
 	}
 	for _, a := range r.Assessments {
-		if a.ID == MaintainWood && a.Need != domain.NeedDeficit {
+		if a.ID == MaintainResource && a.Need != domain.NeedDeficit {
 			t.Fatal(a)
 		}
 	}
-	if got := WoodShortfall(f.Dependencies); got != 50 {
+	if got := DependencyResourceNeeds(f.Dependencies)["WoodLog"]; got != 200 {
 		t.Fatal(got)
 	}
 	f.Dependencies = nil
 	r = needs(t, f, r.Latches)
-	if hasNeed(r, MaintainWood) {
-		t.Fatal("settled edge kept MaintainWood", r)
+	if hasNeed(r, MaintainResource) {
+		t.Fatal("settled edge kept MaintainResource", r)
 	}
 	for _, a := range r.Assessments {
-		if a.ID == MaintainWood && a.Need != domain.NeedRecovered {
+		if a.ID == MaintainResource && a.Need != domain.NeedRecovered {
 			t.Fatal(a)
 		}
 	}

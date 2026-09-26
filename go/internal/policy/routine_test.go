@@ -90,7 +90,7 @@ func TestRoutineUnknownNeverRecovers(t *testing.T) {
 		t.Fatal("unknown emergency facts must hold", r)
 	}
 	for _, g := range r.Goals {
-		if g.ID == MaintainWood {
+		if g.ID == MaintainResource {
 			if _, known := g.Deficit.Value(); known {
 				t.Fatal("unknown stock became zero")
 			}

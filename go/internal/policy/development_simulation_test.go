@@ -158,7 +158,7 @@ func TestDevelopmentSimulationCapacityLossAndRecovery(t *testing.T) {
 	s := newDevelopmentSim(t, 2,
 		simGoal("comfort", 0.8, GoalLabor(EnsureComfort)),
 		simGoal("research", 0.6, GoalLabor(EnsureResearch)),
-		simGoal("wood", 0.4, GoalLabor(MaintainWood)),
+		simGoal("wood", 0.4, GoalLabor(MaintainResource)),
 	)
 	s.duration = 20000
 	first := s.review()

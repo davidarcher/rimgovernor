@@ -100,7 +100,7 @@ func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 	// and stays one until it covers the gap.
 	f.Calendar = domain.Known(Calendar{Season: "Fall", DayOfYear: 40, GrowingDays: 40, GrowingDaysRemaining: 1, NonGrowingDays: 20, Sowing: true})
 	r := needs(t, f, RoutineLatches{})
-	if !r.Latches.Food || !r.Latches.Wood || !hasNeed(r, EnsureFoodSupply) || !hasNeed(r, MaintainWood) {
+	if !r.Latches.Food || !r.Latches.Wood || !hasNeed(r, EnsureFoodSupply) || !hasNeed(r, MaintainResource) {
 		t.Fatal(r)
 	}
 	f.FoodDays = domain.Known(29.0)

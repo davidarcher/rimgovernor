@@ -19,7 +19,7 @@ import (
 )
 
 // composedFamilyPlanners are the three routine planner families this file
-// composes in one process: AllowStartingSupplies (supply), MaintainWood
+// composes in one process: AllowStartingSupplies (supply), MaintainResource
 // (acquisition) and EnsureWorkAssignments (work) all attach to the same
 // RoutineReviewer/Player/journal, the way autonomous play
 // runs every implemented family together instead of one at a time.
@@ -77,7 +77,7 @@ func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *play
 	}
 	composedRoutineFacts(t, native)
 	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
-	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainWood})
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
 	snapshot := reviewer.player.State().Snapshot
 	if _, err = reviewer.player.SetWorkPreferences(ctx, store.WorkPreferenceRequest{RequestID: "composed-disable-builder", Plan: snapshot.Plan, World: playerWorld(snapshot), ExpectedRevision: 0, Overrides: []policy.WorkOverride{{Pawn: "patient", Work: "Construction", Priority: 0}}}); err != nil {
 		t.Fatal(err)
@@ -90,7 +90,7 @@ func composedRoutineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *play
 	if err != nil {
 		t.Fatal(err)
 	}
-	acquisition, err := NewRoutineAcquisitionPlanner(reviewer, policy.MaintainWood)
+	acquisition, err := NewRoutineAcquisitionPlanner(reviewer, policy.MaintainResource)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +319,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 	r1.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n1}}
-	r1.methods = domain.Known([]policy.GoalID{policy.MaintainWood})
+	r1.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
 	if _, err = r1.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +328,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	acquisitionPlanner1, err := NewRoutineAcquisitionPlanner(r1, policy.MaintainWood)
+	acquisitionPlanner1, err := NewRoutineAcquisitionPlanner(r1, policy.MaintainResource)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,7 +391,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 	r2.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n2}}
-	r2.methods = domain.Known([]policy.GoalID{policy.MaintainWood})
+	r2.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
 	if _, err = r2.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -400,7 +400,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	if err != nil {
 		t.Fatal(err)
 	}
-	acquisitionPlanner2, err := NewRoutineAcquisitionPlanner(r2, policy.MaintainWood)
+	acquisitionPlanner2, err := NewRoutineAcquisitionPlanner(r2, policy.MaintainResource)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +413,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	if err != nil || supplyResult2.Reason != BuildingMethodExistingWork {
 		t.Fatalf("restart supply reconciliation: %+v %v", supplyResult2, err)
 	}
-	// MaintainWood is a priority>=3 project: with its hold open, the resumed
+	// MaintainResource is a priority>=3 project: with its hold open, the resumed
 	// review ranks it Committed rather than Selected, so the planner refuses
 	// a fresh admission before it reaches the existing-work check.
 	acquisitionResult2, err := acquisitionPlanner2.Step(ctx)

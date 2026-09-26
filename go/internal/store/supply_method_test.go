@@ -53,7 +53,7 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 				reviewRoutine(t, s, &request)
 			}
 			if kind == "other-goal" {
-				goal = routineGoal(t, review, policy.MaintainWood)
+				goal = routineGoal(t, review, policy.MaintainResource)
 			}
 			count := 1
 			if kind == "moved" {

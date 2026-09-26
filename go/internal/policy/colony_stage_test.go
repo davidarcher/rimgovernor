@@ -101,7 +101,7 @@ func TestColonyStageHysteresisUnderOscillation(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		f := stageFacts(true, 8)
 		if i%2 == 0 {
-			f.ProductionBlocked, f.Blocked = MaintainWood, BlockedNoWorker
+			f.ProductionBlocked, f.Blocked = MaintainResource, BlockedNoWorker
 		}
 		r = ReviewColonyStage(r, f, p, 1200+2*DevelopmentStallTicks+domain.Tick(i+1)*DevelopmentStallTicks/2)
 		if r.Stage != StageStable {
@@ -136,7 +136,7 @@ func TestColonyStageHoldAndReset(t *testing.T) {
 			t.Fatal(id)
 		}
 	}
-	for _, id := range []GoalID{EnsureResearch, EnsureExpansion, MaintainResource, MaintainWood, EnsureBasicDefense} {
+	for _, id := range []GoalID{EnsureResearch, EnsureExpansion, MaintainResource, MaintainResource, EnsureBasicDefense} {
 		if StageDevelopmentGoal(id) {
 			t.Fatal(id)
 		}
@@ -153,7 +153,7 @@ func TestColonyStageHoldAndReset(t *testing.T) {
 // only: a goal between methods or reconciling a write is not stalled.
 func TestProductionBlockedGoal(t *testing.T) {
 	t.Parallel()
-	records := []GoalProgress{{Goal: EnsureComfort, Blocked: BlockedNoWorker}, {Goal: EnsureFoodSupply, Blocked: BlockedNoMethod}, {Goal: MaintainWood, Blocked: BlockedReconciling}}
+	records := []GoalProgress{{Goal: EnsureComfort, Blocked: BlockedNoWorker}, {Goal: EnsureFoodSupply, Blocked: BlockedNoMethod}, {Goal: MaintainResource, Blocked: BlockedReconciling}}
 	if goal, _ := ProductionBlockedGoal(records); goal != "" {
 		t.Fatal(goal)
 	}

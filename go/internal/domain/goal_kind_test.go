@@ -7,7 +7,7 @@ func TestGoalKindWhitelistIsStable(t *testing.T) {
 	// The exact whitelist, in order. A kind added to the dashboard or docs
 	// and not here is a silent divergence.
 	want := []string{"EnsureFoodSupply", "EnsureInitialShelter", "EnsureFoodStorage", "EnsureCooking",
-		"EnsureTemperatureSafety", "EnsureBasicPower", "EnsureBasicDefense", "MaintainWood", "MaintainResource", "MaintainWaste", "EnsureDefensiveLayout"}
+		"EnsureTemperatureSafety", "EnsureBasicPower", "EnsureBasicDefense", "MaintainResource", "MaintainWaste", "EnsureDefensiveLayout"}
 	kinds := GoalKinds()
 	if len(kinds) != len(want) {
 		t.Fatal("goal kind whitelist changed size", kinds)

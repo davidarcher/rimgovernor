@@ -16,7 +16,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 			s := open(t, memoryPath(t))
 			r := routineRequest()
 			r.Current.Native = 2
-			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 			q := methodRequest(t, g, "method", 10)
 			d, err := s.AdmitBuildingMethod(ctx, q)
 			if err != nil || !d.Admitted {
@@ -371,7 +371,7 @@ func TestRoutineExecutionAuthorizesWallRemovalBundle(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Current.Native = 2
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
 	removal, err := domain.NewWallRemoval("original-wall", "", 0, 1, 1, 0, false, false, "")
 	if err != nil {
 		t.Fatal(err)

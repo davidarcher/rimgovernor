@@ -47,7 +47,7 @@ var clubRecipe = policy.RecipeHost{Definition: "Make_MeleeWeapon_Club", Products
 func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 	planner, session, native := workshopFixture(t)
 	planner.reviewer.policy.ResourceTargets = map[policy.Resource]int64{policy.ComponentResource: 20}
-	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("ComponentIndustrial"), Units: proto.Int64(2)}}
+	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("ComponentIndustrial"), Units: proto.Int64(2)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}}
 	native.hosts = []policy.RecipeHost{{Definition: "MakeComponent", Products: []policy.Resource{policy.ComponentResource}, Available: true, Benches: []string{"FabricationBench"}, Research: []string{"Fabrication"}}}
 	ctx := context.Background()
 	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
@@ -126,7 +126,7 @@ func workshopFixture(t *testing.T) (*RoutineBuildingPlanner, *playerFakeSession,
 	base, _, session, _, native := sleepingFixture(t)
 	source := &workshopNative{sleepingNative: native, hosts: []policy.RecipeHost{clubRecipe}}
 	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
-	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}}
+	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}}
 	planner, err := NewRoutineWorkshopPlanner(base.reviewer, source)
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +147,8 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 	}{
 		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, "", append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
 		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 3, BuildingMethodNoDeficit, nil},
-		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingMethodDisabled, nil},
+		// The review's wood floor (#728) is a target even without operator ones.
+		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingMethodNoDeficit, nil},
 		{"existing bench", []bridge.GearBenchRead{{Token: "t", Bench: policy.GearBench{ID: "spot", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}, []policy.RecipeHost{clubRecipe}, nil, 0, BuildingExistingFacility, nil},
 		{"research gated", nil, []policy.RecipeHost{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: false, Benches: []string{"CraftingSpot"}, Research: []string{"Smithing"}}}, nil, 0, "", append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
 		{"no host", nil, []policy.RecipeHost{}, nil, 0, BuildingWorkshopUnavailable, nil},

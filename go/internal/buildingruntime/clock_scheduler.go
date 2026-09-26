@@ -83,8 +83,8 @@ type ClockSchedulerConfig struct {
 	// reads the shared one.
 	Store *facts.Store
 	// Routine is reviewed only after owned clock obligations have drained.
-	Routine                          *RoutineReviewer
-	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
+	Routine         *RoutineReviewer
+	FoodAcquisition *RoutineAcquisitionPlanner
 	// ResourceAcquisition chops, forages and hunts for MaintainResource (#728).
 	ResourceAcquisition *RoutineAcquisitionPlanner
 	PestAcquisition     *RoutineAcquisitionPlanner
@@ -153,64 +153,64 @@ type ClockSchedulerResult struct {
 	Decision                                                      policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
-	Window                           ClockWindowSize
-	Routine                          *store.RoutineReviewResult
-	FoodAcquisition, WoodAcquisition *RoutineAcquisitionResult
-	ResourceAcquisition              *RoutineAcquisitionResult
-	PestAcquisition                  *RoutineAcquisitionResult
-	Work                             *RoutineWorkResult
-	Supplies                         *RoutineSupplyResult
-	Blight                           *RoutineBlightResult
-	Clearance                        *RoutineClearanceResult
-	Shrine                           *RoutineShrineResult
-	Sleeping                         *RoutineBuildingResult
-	Cooking                          *RoutineBuildingResult
-	Comfort                          *RoutineBuildingResult
-	BasicComfort                     *RoutineBuildingResult
-	Workshop                         *RoutineBuildingResult
-	Hospital                         *RoutineBuildingResult
-	SleepingUpkeep                   *RoutineBuildingResult
-	Expansion                        *RoutineBuildingResult
-	Power                            *RoutineBuildingResult
-	Temperature                      *RoutineBuildingResult
-	Refrigeration                    *RoutineBuildingResult
-	Lighting                         *RoutineBuildingResult
-	Flooring                         *RoutineBuildingResult
-	Routes                           *RoutineBuildingResult
-	Defense                          *RoutineDefenseResult
-	Tend                             *RoutineTendResult
-	Rescue                           *RoutineRescueResult
-	Equip                            *RoutineEquipResult
-	SecureSupplies                   *RoutineSecureSuppliesResult
-	Repair                           *RoutineRepairResult
-	FireSafety                       *RoutineFireSafetyResult
-	Clean                            *RoutineCleanResult
-	Haul                             *RoutineHaulResult
-	Gear                             *RoutineGearResult
-	Medical                          *RoutineMedicalResult
-	FoodStorageUpkeep                *RoutineFoodStorageUpkeepResult
-	AnimalContainment                *RoutineAnimalContainmentResult
-	Recovery                         *RoutineRecoveryResult
-	Husbandry                        *RoutineHusbandryResult
-	PrisonerInteraction              *RoutinePrisonerInteractionResult
-	PopulationCustody                *RoutinePopulationCustodyResult
-	PopulationJoiner                 *RoutinePopulationJoinerResult
-	Research                         *RoutineResearchResult
-	IngredientStorage                *RoutineIngredientStorageResult
-	Resource                         *RoutineResourceResult
-	AnimalFeed                       *RoutineResourceResult
-	ProductionPolicy                 *RoutineProductionPolicyResult
-	CaravanJourney                   *CaravanJourneyResult
-	HomeCoverage                     *RoutineHomeCoverageResult
-	StoneShell                       *RoutineStoneShellResult
-	Tidy                             *RoutineTidyResult
-	DefenseLayout                    *RoutineDefenseLayoutResult
-	Waste                            *RoutineWasteResult
-	MoodRelief                       *RoutineMoodReliefResult
-	Naming                           *RoutineNamingResult
-	Dialog                           *RoutineDialogResult
-	Trade                            *RoutineTradeResult
-	Running, Reconciled, Cleaned     bool
+	Window                       ClockWindowSize
+	Routine                      *store.RoutineReviewResult
+	FoodAcquisition              *RoutineAcquisitionResult
+	ResourceAcquisition          *RoutineAcquisitionResult
+	PestAcquisition              *RoutineAcquisitionResult
+	Work                         *RoutineWorkResult
+	Supplies                     *RoutineSupplyResult
+	Blight                       *RoutineBlightResult
+	Clearance                    *RoutineClearanceResult
+	Shrine                       *RoutineShrineResult
+	Sleeping                     *RoutineBuildingResult
+	Cooking                      *RoutineBuildingResult
+	Comfort                      *RoutineBuildingResult
+	BasicComfort                 *RoutineBuildingResult
+	Workshop                     *RoutineBuildingResult
+	Hospital                     *RoutineBuildingResult
+	SleepingUpkeep               *RoutineBuildingResult
+	Expansion                    *RoutineBuildingResult
+	Power                        *RoutineBuildingResult
+	Temperature                  *RoutineBuildingResult
+	Refrigeration                *RoutineBuildingResult
+	Lighting                     *RoutineBuildingResult
+	Flooring                     *RoutineBuildingResult
+	Routes                       *RoutineBuildingResult
+	Defense                      *RoutineDefenseResult
+	Tend                         *RoutineTendResult
+	Rescue                       *RoutineRescueResult
+	Equip                        *RoutineEquipResult
+	SecureSupplies               *RoutineSecureSuppliesResult
+	Repair                       *RoutineRepairResult
+	FireSafety                   *RoutineFireSafetyResult
+	Clean                        *RoutineCleanResult
+	Haul                         *RoutineHaulResult
+	Gear                         *RoutineGearResult
+	Medical                      *RoutineMedicalResult
+	FoodStorageUpkeep            *RoutineFoodStorageUpkeepResult
+	AnimalContainment            *RoutineAnimalContainmentResult
+	Recovery                     *RoutineRecoveryResult
+	Husbandry                    *RoutineHusbandryResult
+	PrisonerInteraction          *RoutinePrisonerInteractionResult
+	PopulationCustody            *RoutinePopulationCustodyResult
+	PopulationJoiner             *RoutinePopulationJoinerResult
+	Research                     *RoutineResearchResult
+	IngredientStorage            *RoutineIngredientStorageResult
+	Resource                     *RoutineResourceResult
+	AnimalFeed                   *RoutineResourceResult
+	ProductionPolicy             *RoutineProductionPolicyResult
+	CaravanJourney               *CaravanJourneyResult
+	HomeCoverage                 *RoutineHomeCoverageResult
+	StoneShell                   *RoutineStoneShellResult
+	Tidy                         *RoutineTidyResult
+	DefenseLayout                *RoutineDefenseLayoutResult
+	Waste                        *RoutineWasteResult
+	MoodRelief                   *RoutineMoodReliefResult
+	Naming                       *RoutineNamingResult
+	Dialog                       *RoutineDialogResult
+	Trade                        *RoutineTradeResult
+	Running, Reconciled, Cleaned bool
 	// Coupled is set when a coupled order's prerequisite completed under
 	// the step's own running window (domain.ActionDependency.Coupled): the
 	// step plans live for it at once and the window runs on (#584); the
@@ -404,7 +404,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
-	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition, config.PestAcquisition, config.ResourceAcquisition} {
+	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.PestAcquisition, config.ResourceAcquisition} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
 			return nil, ErrControl
 		}

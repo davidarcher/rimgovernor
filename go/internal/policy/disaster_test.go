@@ -29,7 +29,7 @@ func TestDisasterCompoundExpiryAndRenewal(t *testing.T) {
 	if err != nil || h.Phase != DisasterDisrupted || h.Conditions[0].ID != "1" {
 		t.Fatal(h, err)
 	}
-	if h.Promote(MaintainWood, 3) != 2 || h.Promote(ActiveCombat, 0) != 0 || h.Promote(EnsureComfort, 4) != 4 {
+	if h.Promote(MaintainResource, 3) != 2 || h.Promote(ActiveCombat, 0) != 0 || h.Promote(EnsureComfort, 4) != 4 {
 		t.Fatal("priority escaped affected services")
 	}
 	first := cloneDisaster(h)
@@ -38,7 +38,7 @@ func TestDisasterCompoundExpiryAndRenewal(t *testing.T) {
 		t.Fatal(h, err)
 	}
 	h, err = ReviewDisaster(empty, buildings, disasterGates(), h, 13)
-	if err != nil || h.Phase != DisasterRestored || len(h.Affected) != 3 || h.Promote(MaintainWood, 3) != 3 {
+	if err != nil || h.Phase != DisasterRestored || len(h.Affected) != 3 || h.Promote(MaintainResource, 3) != 3 {
 		t.Fatal(h, err)
 	}
 	later, err := ReviewDisaster(empty, buildings, g, h, 14)
@@ -158,7 +158,7 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 		t.Fatal("missing assessment", id)
 		return -1
 	}
-	if priority(r, MaintainWood) != 2 || priority(r, EnsureComfort) != 4 {
+	if priority(r, MaintainResource) != 2 || priority(r, EnsureComfort) != 4 {
 		t.Fatal("incorrect disaster promotion")
 	}
 	f.Disaster = r.Disaster
@@ -166,7 +166,7 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 	f.DisasterConditions = domain.Known([]DisasterCondition{})
 	f.SleepingMin = domain.Known(22.0)
 	r, err = DetectRoutine(f, r.Latches, DefaultRoutinePolicy())
-	if err != nil || r.Disaster.Phase != DisasterRestored || priority(r, MaintainWood) != 3 {
+	if err != nil || r.Disaster.Phase != DisasterRestored || priority(r, MaintainResource) != 3 {
 		t.Fatal(r.Disaster, err)
 	}
 	for _, n := range r.Assessments {

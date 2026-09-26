@@ -9,7 +9,7 @@ import (
 )
 
 // A shelter shell admitted short of wood records a typed edge; the next
-// review orders MaintainWood by it while the shortfall stays open, and
+// review orders MaintainResource by it while the shortfall stays open, and
 // drops the edge when the shell's actions settle (#651).
 func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	t.Parallel()
@@ -41,7 +41,7 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := reviewRoutine(t, s, &r)
-	wood := developmentRow(t, second.Review, policy.MaintainWood)
+	wood := developmentRow(t, second.Review, policy.MaintainResource)
 	if wood.Donation == nil || wood.Donation.Priority != 2 || wood.Donation.Shortfall != 80 || len(second.Review.Dependencies) != 1 {
 		t.Fatalf("wood row %+v, deps %+v", wood, second.Review.Dependencies)
 	}
@@ -49,7 +49,7 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 	// frames are open.
 	r.Facts.Wood = domain.Known(int64(150))
 	third := reviewRoutine(t, s, &r)
-	if w := developmentRow(t, third.Review, policy.MaintainWood); w.Donation != nil || len(third.Review.Dependencies) != 1 {
+	if w := developmentRow(t, third.Review, policy.MaintainResource); w.Donation != nil || len(third.Review.Dependencies) != 1 {
 		t.Fatalf("covered: %+v", w)
 	}
 	// Cancelled actions settle the dependency: the record drops.
@@ -60,7 +60,7 @@ func TestShelterShortfallDonatesUntilSatisfied(t *testing.T) {
 		}
 	}
 	fourth := reviewRoutine(t, s, &r)
-	if w := developmentRow(t, fourth.Review, policy.MaintainWood); w.Donation != nil || len(fourth.Review.Dependencies) != 0 {
+	if w := developmentRow(t, fourth.Review, policy.MaintainResource); w.Donation != nil || len(fourth.Review.Dependencies) != 0 {
 		t.Fatalf("settled: %+v %+v", w, fourth.Review.Dependencies)
 	}
 }

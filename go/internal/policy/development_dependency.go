@@ -21,13 +21,9 @@ import (
 // world whose dependent goal epoch is still active, with the costs of the
 // dependent actions still open and the current usable stock.
 
-// ResourcePrerequisite is the goal that acquires resource: MaintainWood
-// for wood (until it folds into MaintainResource, #728), MaintainResource
-// for every other definition.
+// ResourcePrerequisite is the goal that acquires resource: MaintainResource
+// for every definition (#728).
 func ResourcePrerequisite(resource Resource) (GoalID, bool) {
-	if resource == "WoodLog" {
-		return MaintainWood, true
-	}
 	if validResource(resource) {
 		return MaintainResource, true
 	}
@@ -273,13 +269,6 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 	return donations, blockers
 }
 
-// WoodShortfall is the open WoodLog demand of the live edges naming
-// MaintainWood (#711).
-func WoodShortfall(deps []DevelopmentDependency) int64 {
-	d := dependencyDemands(deps, MaintainWood)["WoodLog"]
-	return max(0, d.need-d.available)
-}
-
 // DependencyResourceNeeds are the stock floors MaintainResource's live
 // shortfall edges ask for (#728): per resource, the open dependent costs,
 // each action once, wherever the freshest known stock falls short of them.
@@ -339,4 +328,45 @@ func dependencyDemands(deps []DevelopmentDependency, prerequisite GoalID) map[Re
 		out[r] = dependencyDemand{need, a.available}
 	}
 	return out
+}
+
+// WoodFloor is the WoodLog floor the wood latch asks for: WoodTarget while
+// latched, 0 otherwise.
+func WoodFloor(latched bool, p RoutinePolicy) int64 {
+	if !latched {
+		return 0
+	}
+	return p.WoodTarget
+}
+
+// WoodFloorNeeds is floor as a MaintainResource need, nil at 0.
+func WoodFloorNeeds(floor int64) map[Resource]int64 {
+	if floor <= 0 {
+		return nil
+	}
+	return map[Resource]int64{"WoodLog": floor}
+}
+
+// WoodStock is the census MaintainResource is assessed against with its
+// WoodLog row taken from the wood fact the latch reads, so the floor and
+// the latch agree. An unknown census stays unknown unless wood is the only
+// target.
+func WoodStock(resources domain.Fact[[]Amount], wood domain.Fact[int64], targets map[Resource]int64) domain.Fact[[]Amount] {
+	n, known := wood.Value()
+	if !known {
+		return resources
+	}
+	rows, rk := resources.Value()
+	if !rk {
+		if _, only := targets["WoodLog"]; !only || len(targets) != 1 {
+			return resources
+		}
+	}
+	out := make([]Amount, 0, len(rows)+1)
+	for _, row := range rows {
+		if row.Resource != "WoodLog" {
+			out = append(out, row)
+		}
+	}
+	return domain.Known(append(out, Amount{Resource: "WoodLog", Count: n}))
 }

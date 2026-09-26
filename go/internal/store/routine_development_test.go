@@ -28,7 +28,7 @@ func TestRoutineDevelopmentPersistsAge(t *testing.T) {
 	r := routineRequest()
 	r.Policy.SetProjectLimit(1)
 	first := reviewRoutine(t, s, &r)
-	row := developmentRow(t, first.Review, policy.MaintainWood)
+	row := developmentRow(t, first.Review, policy.MaintainResource)
 	if !row.Selected || row.Deficit == nil || *row.Deficit <= 0 || first.Review.Development.Workers == nil || *first.Review.Development.Workers != 2 {
 		t.Fatal(first)
 	}
@@ -39,12 +39,12 @@ func TestRoutineDevelopmentPersistsAge(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
 		t.Fatal(loaded, err)
 	}
-	g := routineGoal(t, first, policy.MaintainWood)
+	g := routineGoal(t, first, policy.MaintainResource)
 	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
 	committed := reviewRoutine(t, s, &r)
-	row = developmentRow(t, committed.Review, policy.MaintainWood)
+	row = developmentRow(t, committed.Review, policy.MaintainResource)
 	if row.Selected || !row.Committed || row.Reason != policy.DevelopmentCommitted {
 		t.Fatal(committed)
 	}
@@ -81,14 +81,14 @@ func TestRoutineDevelopmentUnknownWorkersAndReloadReset(t *testing.T) {
 	r.Facts.Workers = domain.Unknown[int]()
 	r.Tick = 2510
 	unknown := reviewRoutine(t, s, &r)
-	row := developmentRow(t, unknown.Review, policy.MaintainWood)
+	row := developmentRow(t, unknown.Review, policy.MaintainResource)
 	if row.Selected || row.Reason != policy.DevelopmentWorkersUnknown || row.WaitingSince != first.Review.Tick {
 		t.Fatal(unknown)
 	}
 	r.Facts.Workers = domain.Known(2)
 	r.Current.Load = "reloaded"
 	changed := reviewRoutine(t, s, &r)
-	row = developmentRow(t, changed.Review, policy.MaintainWood)
+	row = developmentRow(t, changed.Review, policy.MaintainResource)
 	if row.WaitingSince != changed.Review.Tick || !row.Selected {
 		t.Fatal(changed)
 	}
@@ -143,6 +143,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
+	r.Facts.Wood = domain.Known(int64(400))
 	out := reviewRoutine(t, s, &r)
 	research := developmentRow(t, out.Review, policy.EnsureResearch)
 	resource := developmentRow(t, out.Review, policy.MaintainResource)
@@ -250,7 +251,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
 		t.Fatal(expansion)
 	}
-	if !developmentRow(t, second.Review, policy.EnsureResearch).Selected || !developmentRow(t, second.Review, policy.MaintainWood).Selected {
+	if !developmentRow(t, second.Review, policy.EnsureResearch).Selected || !developmentRow(t, second.Review, policy.MaintainResource).Selected {
 		t.Fatal(second.Review.Development.Rows)
 	}
 	g := routineGoal(t, second, policy.EnsureExpansion)
@@ -304,7 +305,7 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	r := routineRequest()
 	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
-	wood := routineGoal(t, out, policy.MaintainWood)
+	wood := routineGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +330,7 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	r.Tick += 10
 	since := r.Tick
 	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+	if row := developmentRow(t, out.Review, policy.MaintainResource); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
 		t.Fatal("first idle review", out.Review.Development)
 	}
 
@@ -339,12 +340,12 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	s = open(t, path)
 	r.Tick = since + policy.DevelopmentIdleTicks/2
 	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+	if row := developmentRow(t, out.Review, policy.MaintainResource); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
 		t.Fatal("restart moved the idle deadline", out.Review.Development)
 	}
 	r.Tick = since + policy.DevelopmentIdleTicks
 	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+	if row := developmentRow(t, out.Review, policy.MaintainResource); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
 		t.Fatal("idle labor past the restored deadline released the commitment", out.Review.Development)
 	}
 	released, err := s.LoadPlan(ctx, woodPlan)
@@ -355,7 +356,7 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkPlantCutting: 1}, Idle: map[policy.WorkType]int{}})
 	r.Tick += 10
 	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince != nil {
+	if row := developmentRow(t, out.Review, policy.MaintainResource); !row.Committed || row.LaborIdleSince != nil {
 		t.Fatal("resumed work should commit again", out.Review.Development)
 	}
 	resumed, err := s.LoadPlan(ctx, woodPlan)
@@ -377,7 +378,7 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	r := routineRequest()
 	r.Policy.SetProjectLimit(1)
 	out := reviewRoutine(t, s, &r)
-	wood := routineGoal(t, out, policy.MaintainWood)
+	wood := routineGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}

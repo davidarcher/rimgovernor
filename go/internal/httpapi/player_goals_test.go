@@ -45,7 +45,7 @@ func TestPlayerGoalsHTTPActivateReplayReadAndCancel(t *testing.T) {
 	if replay.Code != 200 || replay.Body.String() != out.Body.String() {
 		t.Fatal(replay.Code, replay.Body.String())
 	}
-	conflicting := `{"requestId":"food",` + goalExpected + `,"goal":"MaintainWood","tick":10}`
+	conflicting := `{"requestId":"food",` + goalExpected + `,"goal":"MaintainResource","tick":10}`
 	if out := playerCall(s, "POST", activate, conflicting, s.playerToken); out.Code != 409 {
 		t.Fatal(out.Code, out.Body.String())
 	}

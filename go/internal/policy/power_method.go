@@ -155,7 +155,7 @@ type GeneratorRanking struct {
 // day of energy under current stock: a fuel-free generator first once a
 // battery can bank its surplus, fuel-burning generators whose stock meets
 // the floor next (list order breaks ties: wood before chemfuel, since
-// MaintainWood replenishes it), fuel-short ones after, and a renewable that
+// MaintainResource replenishes it), fuel-short ones after, and a renewable that
 // cannot serve the deficit (no battery, or a night-only shortfall) last,
 // still chosen when nothing else is available.
 func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []string {

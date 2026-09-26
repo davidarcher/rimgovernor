@@ -28,7 +28,7 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	if len(out.Emergency) != 1 || out.Emergency[0] != policy.MaintainFireSafety {
 		t.Fatal("emergency source not reported", out.Emergency)
 	}
-	if g := routineGoal(t, out, policy.MaintainWood); g.Goal.Status != domain.GoalSuspended {
+	if g := routineGoal(t, out, policy.MaintainResource); g.Goal.Status != domain.GoalSuspended {
 		t.Fatal("fire emergency left a priority-3 goal active", g)
 	}
 	r.Enabled = false

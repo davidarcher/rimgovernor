@@ -28,7 +28,7 @@ func init() {
 	for _, c := range []struct{ variant, scope string }{
 		{"wood_sufficient", "sufficient wood: the colony ends housed -- a roofed native room holding a bed per colonist -- while an upkeep goal completes work before shelter recovers, and a restart mid-construction keeps one shell and one bed rung with no lost method"},
 		{"bed_blocked", "an admitted bed rung held on forbidden wood: a shell action completes while a bed action is still open, and upkeep completes work while shelter is active"},
-		{"wood_shortage", "a measured wood shortage: MaintainWood completes acquisition while shelter is active and the shell progresses after it"},
+		{"wood_shortage", "a measured wood shortage: MaintainResource completes acquisition while shelter is active and the shell progresses after it"},
 	} {
 		cases.Register(composedCase(c.variant, c.scope))
 	}
@@ -182,7 +182,7 @@ func (c *composed) met() bool {
 		_, ok := c.wallBesideBed.Value()
 		return ok
 	case "wood_shortage":
-		wood, ok := c.upkeep[policy.MaintainWood]
+		wood, ok := c.upkeep[policy.MaintainResource]
 		from, active := c.shelterFrom.Value()
 		return ok && active && wood >= from && c.lastShellDone > wood
 	default:

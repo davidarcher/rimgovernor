@@ -16,7 +16,7 @@ func TestCheckSampleAcceptsBoundedExplainedRanking(t *testing.T) {
 	s := ranking(
 		Row{Goal: "EnsureResearch", Deficit: ptr(1.0), WaitingSince: 100, Selected: true},
 		Row{Goal: "EnsureComfort", Deficit: ptr(0.5), WaitingSince: 100, Reason: "labor_unavailable", Bottleneck: "Construction"},
-		Row{Goal: "MaintainWood", Deficit: ptr(0.3), Risk: ptr(1.0), WaitingSince: 200, Reason: "risk_deferred"},
+		Row{Goal: "MaintainResource", Deficit: ptr(0.3), Risk: ptr(1.0), WaitingSince: 200, Reason: "risk_deferred"},
 	)
 	if bad := checkSample(s, 2, "MicroelectronicsBasics"); len(bad) != 0 {
 		t.Fatal(bad)

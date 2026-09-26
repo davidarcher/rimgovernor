@@ -104,7 +104,7 @@ func TestRoutineDevelopmentRiskFromObservedHazards(t *testing.T) {
 	if RoutineDevelopmentRisk(EnsureExpansion, f, RoutineLatches{}) != domain.Known(0.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{Cold: true}) != domain.Known(0.0) {
 		t.Fatal("no hazard must be zero risk")
 	}
-	if RoutineDevelopmentRisk(EnsureComfort, f, RoutineLatches{Hot: true}) != domain.Known(0.5) || RoutineDevelopmentRisk(MaintainWood, f, RoutineLatches{Cold: true}) != domain.Known(0.5) {
+	if RoutineDevelopmentRisk(EnsureComfort, f, RoutineLatches{Hot: true}) != domain.Known(0.5) || RoutineDevelopmentRisk(MaintainResource, f, RoutineLatches{Cold: true}) != domain.Known(0.5) {
 		t.Fatal("temperature latch must halve outdoor priority")
 	}
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})

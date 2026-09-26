@@ -22,13 +22,13 @@ type RoutineAcquisitionResult struct {
 }
 
 // NewRoutineAcquisitionPlanner plans one acquisition goal: EnsureFoodSupply
-// and MaintainWood harvest and hunt toward a stock target; ClearPests
+// harvests and hunts toward its food plan; ClearPests
 // (#247) hunts every recognised pest the wild-animal census reports, one
 // hunt method per admission, until none remain; MaintainResource chops,
 // forages and hunts toward its ranked floors through the acquisition
 // catalog (#728), beside RoutineResourcePlanner's bills and mines.
 func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID) (*RoutineAcquisitionPlanner, error) {
-	if reviewer == nil || (need != policy.MaintainWood && need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
+	if reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
 		return nil, ErrControl
 	}
 	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need}, nil
@@ -219,11 +219,8 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineAcquisitionResult{}, err
 		}
 	}
-	pending := projection.PendingWoodUnits
+	pending := projection.PendingFoodNutrition
 	deficit := domain.Unknown[float64]()
-	if food {
-		pending = projection.PendingFoodNutrition
-	}
 	// A designation nobody took still counts in native's pending totals;
 	// without this the re-plan would see its own stalled yield as covering
 	// the deficit and propose nothing.
@@ -249,8 +246,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
 		clockSchedulerLog("Food acquisition: %s", plan.Explain())
-	} else if wood, known := projection.Facts.Wood.Value(); known {
-		deficit = domain.Known(max(0, float64(r.reviewer.seasonal(projection.Facts).WoodTarget)-float64(wood)))
 	}
 	held := map[string]bool{}
 	for _, plan := range plans {

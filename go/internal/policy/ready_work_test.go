@@ -189,7 +189,7 @@ func TestReadyWorkFeedAlternativesAndSharedHaulsDeduplicate(t *testing.T) {
 
 func TestReadyWorkStableBoundedAndWorldScoped(t *testing.T) {
 	trees := []string{"t1", "t2", "t3", "t4", "t5"}
-	props := WoodProposals(MaintainWood, "cut", "TreeOak", trees, domain.Known(true))
+	props := WoodProposals(MaintainResource, "cut", "TreeOak", trees, domain.Known(true))
 	bounds := ReadyBounds{Candidates: 3, PerGoal: 4, Discovery: 10}
 	a := ProjectReadyWork(ReadyRequest{Snapshot: readySnap(""), Proposals: props, Bounds: bounds})
 	rev := append([]ReadyProposal(nil), props...)
@@ -203,7 +203,7 @@ func TestReadyWorkStableBoundedAndWorldScoped(t *testing.T) {
 	if len(a.Candidates) != 3 {
 		t.Fatalf("candidates %d", len(a.Candidates))
 	}
-	want := []ReadyDeferral{{Goal: MaintainWood, Reason: ReadyDeferredCandidate, Count: 1}, {Goal: MaintainWood, Reason: ReadyDeferredPerGoal, Count: 1}}
+	want := []ReadyDeferral{{Goal: MaintainResource, Reason: ReadyDeferredCandidate, Count: 1}, {Goal: MaintainResource, Reason: ReadyDeferredPerGoal, Count: 1}}
 	if !reflect.DeepEqual(a.Deferred, want) {
 		t.Fatalf("deferred %+v", a.Deferred)
 	}

@@ -31,9 +31,6 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 		}
 		target++
 		stock, known = f.IndoorCapacity.Value()
-	case MaintainWood:
-		stock, known = f.Wood.Value()
-		target = p.WoodTarget
 	case EnsureBasicDefense:
 		var countKnown bool
 		target, countKnown = f.Colonists.Value()

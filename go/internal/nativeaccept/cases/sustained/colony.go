@@ -41,7 +41,7 @@ func ColonyWindow() uint64 {
 // others (#99).
 var colonyGoals = []policy.GoalID{
 	policy.EnsureInitialShelter, policy.EnsureFoodStorage, policy.EnsureCooking,
-	policy.EnsureTemperatureSafety, policy.MaintainSleeping, policy.MaintainWood,
+	policy.EnsureTemperatureSafety, policy.MaintainSleeping, policy.MaintainResource,
 	policy.EnsureWorkAssignments, policy.EnsureBasicDefense, policy.EnsureResearch,
 	policy.EnsureComfort, policy.MaintainStorage, policy.MaintainEssentialRepairs,
 }
