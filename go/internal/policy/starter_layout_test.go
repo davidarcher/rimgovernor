@@ -494,20 +494,23 @@ func TestStarterShellMinesRockWhereOpenGroundIsTooNarrow(t *testing.T) {
 	}
 }
 
-// Rock under a thick roof is overhead mountain: the ring may lean on it,
-// the interior never digs into it.
-func TestStarterShellNeverMinesOverheadMountain(t *testing.T) {
-	layouts, err := StarterLayouts(rockWest(starterFixture(), 16, "RoofRockThick"))
+// Overhead mountain is mined like any rock where open ground is too
+// narrow, and a room under it scores worse than the same room under a
+// thin rock roof (infestation risk).
+func TestStarterShellMinesUnderOverheadMountainAtACost(t *testing.T) {
+	thick, err := StarterLayouts(rockOutside(starterFixture(), 16, 23, "RoofRockThick"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, l := range layouts {
-		if len(l.Mined) != 0 {
-			t.Fatalf("mined overhead mountain: %+v", l)
-		}
+	thin, err := StarterLayouts(rockOutside(starterFixture(), 16, 23, "RoofRockThin"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(layouts[0].Reused) == 0 {
-		t.Fatalf("ring does not lean on the mountain: %+v", layouts[0])
+	if len(thick[0].Mined) == 0 {
+		t.Fatalf("no site mines overhead mountain: %+v", thick[0])
+	}
+	if thick[0].Room != thin[0].Room || thick[0].Score <= thin[0].Score {
+		t.Fatalf("overhead mountain not penalised: thick %+v thin %+v", thick[0], thin[0])
 	}
 }
 

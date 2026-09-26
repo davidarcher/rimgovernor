@@ -82,9 +82,13 @@ type StarterLayout struct {
 // wall not built) and shellMineCost the score one interior rock cell
 // costs to mine: in squared-distance units, so a rock-backed site beats
 // open ground a few cells nearer, and mining costs more than building.
+// shellMountainCost is the score one interior cell under overhead mountain
+// adds: infestations spawn only under a thick rock roof, and that roof can
+// never be removed, so a room clear of it wins when one is near.
 const (
-	shellReuseCredit = 6
-	shellMineCost    = 8
+	shellReuseCredit  = 6
+	shellMineCost     = 8
+	shellMountainCost = 4
 )
 
 // shellRock splits a shell's rock cells into the ring cells it reuses as
@@ -337,16 +341,15 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	// a low oval that happens to fit nearer.
 	type site = starterSite
 	// rock is unzoned, unprotected natural rock (#700): on the ring it
-	// stands as the wall already, inside the room it is mined out. Rock
-	// under a thick roof is overhead mountain, reused as wall but never
-	// mined into from a starter shell.
+	// stands as the wall already, inside the room it is mined out where
+	// it supports light, under a thick roof as under a thin one; the
+	// native support check refuses a cut that would collapse the roof.
 	rock := func(p domain.Cell) bool {
 		c, exists := cells[p]
 		return exists && !protected[p] && positive(c.NaturalRock) && positive(measured(c.Zone, func(v bool) bool { return !v }))
 	}
 	mineable := func(p domain.Cell) bool {
-		roof, _ := cells[p].Roof.Value()
-		return rock(p) && roof != "RoofRockThick" && positive(cells[p].SupportsLight)
+		return rock(p) && positive(cells[p].SupportsLight)
 	}
 	// A shell is buildable when every cell of it is free, lit ground, rock
 	// its ring reuses or rock its interior mines, its door stands on free
@@ -385,13 +388,19 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	}
 	// A site scores by its centre's distance to the anchor plus three per
 	// blocked cell in the three-row yard beyond the shell's entrance side,
-	// less the wall work rock on its ring saves and plus the labour of
-	// mining rock out of its interior (#700).
+	// less the wall work rock on its ring saves, plus the labour of
+	// mining rock out of its interior and the infestation risk of each
+	// interior cell under overhead mountain (#700).
 	score := func(shell domain.RoomFootprint) int64 {
 		b := shell.Bounds()
 		score := squaredDistance(domain.Cell{X: b.X + b.Width/2, Z: b.Z + b.Height/2}, r.Anchor)
 		reused, mined := shellRock(shell, rock, mineable)
 		score += int64(len(mined))*shellMineCost - int64(len(reused))*shellReuseCredit
+		for _, p := range shell.Interior() {
+			if roof, _ := cells[p].Roof.Value(); roof == "RoofRockThick" {
+				score += shellMountainCost
+			}
+		}
 		for _, p := range rectCells(shellYard(shell)) {
 			if !free(p) {
 				score += 3
