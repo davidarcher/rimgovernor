@@ -803,6 +803,17 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	reason := BuildingMethodRefused
 	if decision.Admitted {
 		reason = BuildingMethodAdmitted
+		// A shell admitted short of wood (#602) records the shortfall so the
+		// ranking can order the wood acquisition ahead of unrelated
+		// optional work (#651). The review keeps the edge only while these
+		// actions stay open.
+		if a.purpose == policy.Shelter {
+			if rec, short := store.ShortfallDependency(r.goal, decision.Goal.Goal, a.method, plan.ID(), a.selected, a.stock, "WoodLog", a.facts.Identity.Tick); short {
+				if err = p.journal.RecordDependency(call, a.review.Revision, rec); err != nil && !errors.Is(err, store.ErrConflict) {
+					return RoutineBuildingResult{}, err
+				}
+			}
+		}
 	}
 	return RoutineBuildingResult{Reason: reason, Decision: decision, NativeWorkTicks: stockRefusalWait(decision)}, nil
 }

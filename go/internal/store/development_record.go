@@ -25,6 +25,8 @@ type RoutineDevelopment struct {
 	Continuation string                      `json:",omitempty"`
 	Unused       *int                        `json:",omitempty"`
 	Limiting     policy.DevelopmentReason    `json:",omitempty"`
+	// Blockers are the dependency edges that donated nothing (#651).
+	Blockers []policy.DependencyBlocker `json:",omitempty"`
 }
 type RoutineDevelopmentRow struct {
 	Goal                domain.GoalID
@@ -40,11 +42,13 @@ type RoutineDevelopmentRow struct {
 	LaborIdleSince      *domain.Tick         `json:",omitempty"`
 	LaborEvidence       policy.LaborEvidence `json:",omitempty"`
 	Labor               policy.LaborProfile  `json:",omitempty"`
+	// Donation is the ordering inherited from a blocked dependent (#651).
+	Donation *policy.DevelopmentDonation `json:",omitempty"`
 }
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 	r := RoutineDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.GoalID(nil), s.Committed...), Partial: s.Partial,
-		Auto: s.Auto, Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Yields: s.Yields, Continuation: s.Continuation, Limiting: s.Limiting}
+		Auto: s.Auto, Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Yields: s.Yields, Continuation: s.Continuation, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
 	}
@@ -62,7 +66,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 		}
 	}
 	for _, row := range s.Rows {
-		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, Granted: row.Granted, LaborEvidence: row.LaborEvidence, Labor: row.Labor}
+		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, Granted: row.Granted, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
 		}
@@ -80,7 +84,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 // State rebuilds the policy ranking this record persisted.
 func (r RoutineDevelopment) State() policy.DevelopmentState {
 	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.GoalID(nil), r.Committed...), Partial: r.Partial,
-		Auto: r.Auto, Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Yields: r.Yields, Continuation: r.Continuation, Limiting: r.Limiting}
+		Auto: r.Auto, Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Yields: r.Yields, Continuation: r.Continuation, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
 	if r.Workers != nil {
 		s.Workers = domain.Known(*r.Workers)
 	}
@@ -98,7 +102,7 @@ func (r RoutineDevelopment) State() policy.DevelopmentState {
 		s.Labor = domain.Known(labor)
 	}
 	for _, row := range r.Rows {
-		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, Granted: row.Granted, LaborEvidence: row.LaborEvidence, Labor: row.Labor}
+		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, Granted: row.Granted, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
 		if row.Deficit != nil {
 			v.Deficit = domain.Known(*row.Deficit)
 		}
@@ -111,4 +115,13 @@ func (r RoutineDevelopment) State() policy.DevelopmentState {
 		s.Rows = append(s.Rows, v)
 	}
 	return s
+}
+
+func cloneDonation(d *policy.DevelopmentDonation) *policy.DevelopmentDonation {
+	if d == nil {
+		return nil
+	}
+	c := *d
+	c.Chain = append([]domain.GoalID(nil), d.Chain...)
+	return &c
 }

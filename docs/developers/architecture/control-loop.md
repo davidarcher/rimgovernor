@@ -34,7 +34,17 @@ are checked before the slot count, a yield regrants only rows that pass the same
 check (bounded per review, `yield_bound`), and admission refits against commitments
 read inside its transaction, so a player project or another admission since the
 ranking is counted. The development record shows the mode, workers held by startup
-work, unused workers and the limiting reason. Work displays the reason for deferral, including the
+work, unused workers and the limiting reason. A goal waiting on a measured shortfall lends its ordering to the goal that acquires it 
+(`policy/development_dependency.go`, #651): a shelter shell admitted short of wood 
+records a typed edge (goal epoch, method, each open action's wood cost, the stock it 
+was measured against), and while the open costs exceed current stock MaintainWood 
+ranks ahead of unrelated optional work for the next slot and worker. The donation is 
+ordering only: the declared priority, the startup/emergency classes and the clock are 
+unchanged, an explicit project limit still holds (the row reports `project_limit`), 
+shared actions count once, and the edge drops when its actions settle, the goal epoch 
+changes, the world changes or a day passes. Cycles, chains past four goals, unknown 
+stock and a prerequisite without an executable method donate nothing and are listed 
+as blockers on the development record. Work displays the reason for deferral, including the
 bottleneck work type. Worker capacity is a scheduling bound, not a completion-time
 guarantee, and waiting age alone overtakes any deficit gap within a fixed tick bound.
 Accepted work holds its slot only while it is worked: the review reads each pawn's

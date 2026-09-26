@@ -169,18 +169,22 @@ func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (doma
 	return result, rows.Err()
 }
 
-func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, limit int) (policy.DevelopmentState, policy.ReadyWorkReport, error) {
+func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, limit int, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
 	}
 	plans, err := routinePlans(ctx, tx, r.Current, bindings)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
 	commitments, err := commitmentsOf(ctx, tx, plans)
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
+	}
+	kept, dependencies, err := routineDependencies(ctx, tx, records, bindings, states, r.Facts, r.Tick)
+	if err != nil {
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
 	goals := append([]policy.DevelopmentGoal(nil), needs.Goals...)
 	for i := range goals {
@@ -193,17 +197,17 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 				// campfire plan completed and retired is served, not owed.
 				var served int
 				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE goal_id=? AND epoch=?", g.ID, strconv.FormatUint(g.Epoch, 10)).Scan(&served); err != nil {
-					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
+					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 				}
 				goals[i].Served = served > 0
 			}
 		}
 	}
-	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Auto: r.Policy.AutoDevelopment, Census: r.Facts.WorkerCensus})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld, Auto: r.Policy.AutoDevelopment, Census: r.Facts.WorkerCensus, Dependencies: dependencies})
 	if err != nil {
-		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
-	return state, readyWorkOf(r, plans, goals), nil
+	return state, readyWorkOf(r, plans, goals), kept, nil
 }
 
 // developmentExemptMethod reports a method that is no development project:

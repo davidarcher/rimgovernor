@@ -177,6 +177,9 @@ type DevelopmentRow struct {
 	// Labor is the goal's labor profile the ranking fitted; a yield and
 	// method admission refit the same profile.
 	Labor LaborProfile `json:",omitempty"`
+	// Donation is the ordering the row inherited from a blocked dependent
+	// (#651); nil when it serves none.
+	Donation *DevelopmentDonation `json:",omitempty"`
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -217,6 +220,8 @@ type DevelopmentState struct {
 	// selected or none was eligible.
 	Unused   domain.Fact[int]
 	Limiting DevelopmentReason
+	// Blockers are dependency edges that donated nothing, and why.
+	Blockers []DependencyBlocker `json:",omitempty"`
 }
 
 type DevelopmentRequest struct {
@@ -247,6 +252,19 @@ type DevelopmentRequest struct {
 	// is then the slot bound only (MaxAutoDevelopmentProjects).
 	Auto   bool
 	Census domain.Fact[[]DevelopmentWorker]
+	// Dependencies are the live prerequisite edges (#651); a prerequisite
+	// row with an open shortfall ranks ahead of undonated rows
+	// (ResolveDonations) without changing its priority.
+	Dependencies []DevelopmentDependency
+}
+
+// donatedOrder ranks an eligible donated row by its inherited priority;
+// every other row reads 5, after any class.
+func donatedOrder(row DevelopmentRow) int {
+	if row.Reason == "" && row.Donation != nil {
+		return row.Donation.Priority
+	}
+	return 5
 }
 
 func validGoal(id GoalID, source GoalSource, priority int) bool {
@@ -390,6 +408,11 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		// back for as long as any berry is near spoiling (#217).
 		startup = startup || g.Priority < 3 && !g.Served && !g.MethodUnavailable && !g.Cancelled && g.ID != MaintainRefrigeration
 	}
+	if len(r.Dependencies) > MaxDevelopmentDependencies {
+		return DevelopmentState{}, errors.New("invalid development dependencies")
+	}
+	donations, blockers := ResolveDonations(r.Goals, r.Dependencies)
+	result.Blockers = blockers
 	for _, g := range r.Goals {
 		if g.Priority < 3 {
 			continue
@@ -448,6 +471,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if row.Committed || released[g.ID] {
 			row.WaitingSince = r.Tick
 		}
+		if d, ok := donations[g.ID]; ok {
+			row.Donation = &d
+		}
 		result.Rows = append(result.Rows, row)
 	}
 	profiles := map[GoalID]LaborProfile{}
@@ -482,6 +508,11 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	}
 	sort.Slice(result.Rows, func(i, j int) bool {
 		a, b := result.Rows[i], result.Rows[j]
+		// A donated eligible row (#651) takes the next slot and worker
+		// ahead of unrelated optional work, the most urgent origin first.
+		if da, db := donatedOrder(a), donatedOrder(b); da != db {
+			return da < db
+		}
 		// An idle selection yields to every other goal before score; the
 		// tier is a total order so rows carrying a reason cannot form a
 		// cycle between an idle and a non-idle eligible row.
@@ -513,6 +544,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		sort.SliceStable(result.Rows, func(i, j int) bool {
 			a, b := result.Rows[i], result.Rows[j]
+			if da, db := donatedOrder(a), donatedOrder(b); da != db {
+				return da < db
+			}
 			if a.Score != b.Score {
 				return a.Score > b.Score
 			}
@@ -543,6 +577,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentStage
 		case free == 0:
 			row.Reason = DevelopmentCapacity
+			if row.Donation != nil && !r.Auto {
+				row.Donation.Conflict = "project_limit"
+			}
 		default:
 			chosen = append(chosen, profile)
 			row.Selected = true

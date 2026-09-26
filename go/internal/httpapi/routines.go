@@ -285,6 +285,21 @@ type routineDevelopmentRowDTO struct {
 	Committed    bool                     `json:"committed"`
 	Reason       policy.DevelopmentReason `json:"reason"`
 	Bottleneck   policy.WorkType          `json:"bottleneck"`
+	// Donation is the ordering the row inherited from a goal waiting on
+	// its shortfall (#651); absent when it serves none.
+	Donation *routineDonationDTO `json:"donation,omitempty"`
+}
+
+// routineDonationDTO: priority is the effective ordering (the goal's own
+// priority is unchanged), chain runs from the originating goal to this one,
+// shortfall is the bounded demand, conflict names an operator ceiling that
+// kept the row from a slot.
+type routineDonationDTO struct {
+	Priority  int             `json:"priority"`
+	Chain     []domain.GoalID `json:"chain"`
+	Resource  policy.Resource `json:"resource,omitempty"`
+	Shortfall int64           `json:"shortfall,omitempty"`
+	Conflict  string          `json:"conflict,omitempty"`
 }
 
 // goalProgressDTO is one goal's progress record on the wire (#629): the
@@ -434,6 +449,9 @@ func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {
 		}
 		if r, k := row.Risk.Value(); k {
 			v.Risk = &r
+		}
+		if d := row.Donation; d != nil {
+			v.Donation = &routineDonationDTO{Priority: d.Priority, Chain: append([]domain.GoalID{}, d.Chain...), Resource: d.Resource, Shortfall: d.Shortfall, Conflict: d.Conflict}
 		}
 		dto.Rows = append(dto.Rows, v)
 	}

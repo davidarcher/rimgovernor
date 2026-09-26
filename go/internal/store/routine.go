@@ -84,6 +84,9 @@ type RoutineReview struct {
 	// enabled review's plans and unserved goals, bounded by
 	// policy.DefaultReadyBounds. Diagnostics only: no admission reads it.
 	ReadyWork *policy.ReadyWorkReport `json:",omitempty"`
+	// Dependencies are the live shortfall edges (#651) planners recorded
+	// (RecordDependency); each review drops the settled or stale ones.
+	Dependencies []DependencyRecord `json:",omitempty"`
 }
 
 type RoutineReviewRequest struct {
@@ -136,6 +139,14 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return RoutineReview{}, err
+	}
+	if len(r.Dependencies) > maxDependencyRecords {
+		return RoutineReview{}, errors.New("invalid routine dependencies")
+	}
+	for _, d := range r.Dependencies {
+		if err := d.validate(); err != nil {
+			return RoutineReview{}, err
+		}
 	}
 	if err := r.moodHistory().Validate(); err != nil {
 		return RoutineReview{}, err
@@ -588,6 +599,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if !reset {
 			r.Progress = previous.Progress
 			r.Stage = previous.Stage
+			r.Dependencies = previous.Dependencies
 		}
 		for i := range r.Development.Rows {
 			if row := &r.Development.Rows[i]; row.Selected || row.Reason == "" {
@@ -656,7 +668,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.Stage = &stage
 		var development policy.DevelopmentState
 		var ready policy.ReadyWorkReport
-		development, ready, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, policy.StageDevelopmentLimit(stage.Stage, baseLimit))
+		var records []DependencyRecord
+		if !reset {
+			records = previous.Dependencies
+		}
+		development, ready, r.Dependencies, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, policy.StageDevelopmentLimit(stage.Stage, baseLimit), records)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
