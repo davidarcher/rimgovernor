@@ -63,8 +63,8 @@ func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
 		return selected[0]
 	}
 	b, _ := search(domain.Cell{X: -1, Z: -1}).Action.Building()
-	if b.Cell() != (domain.Cell{X: 2, Z: 1}) || b.Rotation() != domain.South {
-		t.Fatalf("bed at %v %s, want the template slot 2,1 south", b.Cell(), b.Rotation())
+	if b.Cell() != (domain.Cell{X: 2, Z: 0}) || b.Rotation() != domain.North {
+		t.Fatalf("bed at %v %s, want the template slot 2,0 north (head on the far wall)", b.Cell(), b.Rotation())
 	}
 	b, _ = search(domain.Cell{X: 2, Z: 0}).Action.Building()
 	snap := map[domain.Cell]bool{}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -1159,7 +1160,9 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				continue
 			}
 			for _, p := range plan.Pieces {
-				if p.Accepts(r.definition) {
+				// The search drops occupied anchors, so a slot whose
+				// anchor is taken cannot be previewed.
+				if p.Accepts(r.definition) && !slices.Contains(occupied, p.Anchor()) {
 					slots = append(slots, p)
 				}
 			}

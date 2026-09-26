@@ -43,13 +43,15 @@ func TestBedroomBedHeadAgainstTheFarWall(t *testing.T) {
 		rot    domain.Rotation
 		anchor domain.Cell
 	}{
-		{domain.Cell{X: 12, Z: 19}, Rectangle{X: 12, Z: 22, Width: 1, Height: 2}, domain.North, domain.Cell{X: 12, Z: 22}},
-		{domain.Cell{X: 12, Z: 24}, Rectangle{X: 12, Z: 20, Width: 1, Height: 2}, domain.South, domain.Cell{X: 12, Z: 21}},
-		{domain.Cell{X: 9, Z: 21}, Rectangle{X: 13, Z: 21, Width: 2, Height: 1}, domain.East, domain.Cell{X: 13, Z: 21}},
+		// The anchor is the head cell (BedUtility.GetSleepingSlotPos): on
+		// the wall opposite the door, feet toward the door.
+		{domain.Cell{X: 12, Z: 19}, Rectangle{X: 12, Z: 22, Width: 1, Height: 2}, domain.South, domain.Cell{X: 12, Z: 23}},
+		{domain.Cell{X: 12, Z: 24}, Rectangle{X: 12, Z: 20, Width: 1, Height: 2}, domain.North, domain.Cell{X: 12, Z: 20}},
+		{domain.Cell{X: 9, Z: 21}, Rectangle{X: 13, Z: 21, Width: 2, Height: 1}, domain.West, domain.Cell{X: 14, Z: 21}},
 	}
 	for _, c := range cases {
 		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleBedroom, Interior: room, Doors: []domain.Cell{c.door}})
-		if !ok || len(plan.Pieces) != 1 {
+		if !ok || len(plan.Pieces) == 0 || plan.Pieces[0].Slot != "bed" {
 			t.Fatalf("door %+v: plan %+v %v", c.door, plan, ok)
 		}
 		bed := plan.Pieces[0]
