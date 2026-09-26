@@ -530,6 +530,8 @@ message CellState {
   optional string player_edifice = 25; // Definition of a player-owned edifice on the cell: a shell ring reuses a wall of its own kind (#709).
   optional string claimable_ruin = 26; // Definition of a ruin (ruin set) the player may claim: a shell ring claims a wall of its own kind and reuses it (#718).
   optional bool supports_heavy = 27; // Foundation field: the terrain takes a wall (Heavy affordance); marsh, mud and water do not (#727).
+  optional bool resource_rock = 28; // Foundation field: the edifice is mineable ore (a resource rock) (#778).
+  optional bool tree = 29; // Foundation field: a tree grows on the cell (#778).
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; optional bool foundation = 11; }
 message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; optional uint32 unchanged = 8; optional int64 as_of_tick = 9; CompactCells compact = 10; }
@@ -543,7 +545,7 @@ message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle recta
 // roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
 // ruin, odd v the player edifice definition at string index (v-1)/2, even
 // v a claimable ruin whose definition is at string index (v-2)/2; then a
-// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy.
+// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
 // fogged; unchanged and as_of_tick retain the ordinary row delta semantics.

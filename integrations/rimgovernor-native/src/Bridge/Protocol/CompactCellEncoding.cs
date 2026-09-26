@@ -8,7 +8,7 @@ namespace HomeBridge.BridgeTools
     // Lossless planning-field encoding; the tracking grid remains the only
     // cross-read state. Tables belong to this reply, never to a client session.
     // Foundation (#727) is optional: when applied each visible cell ends
-    // with one byte, bit 0 supports_heavy.
+    // with one byte, bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree.
     internal static class CompactCellEncoding
     {
         internal const int Limit = 65536;
@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
                         glow = (uint)compact.Glow.Count; glows.Add(cell.Glow, glow); compact.Glow.Add(cell.Glow);
                     }
                     Varint(bytes, glow);
-                    if (snapshot.AppliedFields.Foundation) bytes.Add((byte)(cell.SupportsHeavy ? 1 : 0));
+                    if (snapshot.AppliedFields.Foundation) bytes.Add((byte)((cell.SupportsHeavy ? 1 : 0) | (cell.ResourceRock ? 2 : 0) | (cell.Tree ? 4 : 0)));
                     if (cell.HasFertility) compact.Fertility.Add(cell.Fertility);
                 }
                 compact.Rows.Add(ByteString.CopyFrom(bytes.ToArray()));

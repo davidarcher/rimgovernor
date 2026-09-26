@@ -112,10 +112,12 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			data = data[n:]
 			row.Glow = proto.Float64(p.Glow[index])
 			if foundation {
-				if len(data) < 1 || data[0] > 1 {
+				if len(data) < 1 || data[0] > 7 {
 					return bad()
 				}
-				row.SupportsHeavy = proto.Bool(data[0] == 1)
+				row.SupportsHeavy = proto.Bool(data[0]&1 != 0)
+				row.ResourceRock = proto.Bool(data[0]&2 != 0)
+				row.Tree = proto.Bool(data[0]&4 != 0)
 				data = data[1:]
 			}
 			if flags&1024 != 0 {

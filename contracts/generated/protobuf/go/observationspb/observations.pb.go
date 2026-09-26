@@ -10339,6 +10339,8 @@ type CellState struct {
 	PlayerEdifice *string                `protobuf:"bytes,25,opt,name=player_edifice,json=playerEdifice,proto3,oneof" json:"player_edifice,omitempty"`  // Definition of a player-owned edifice on the cell: a shell ring reuses a wall of its own kind (#709).
 	ClaimableRuin *string                `protobuf:"bytes,26,opt,name=claimable_ruin,json=claimableRuin,proto3,oneof" json:"claimable_ruin,omitempty"`  // Definition of a ruin (ruin set) the player may claim: a shell ring claims a wall of its own kind and reuses it (#718).
 	SupportsHeavy *bool                  `protobuf:"varint,27,opt,name=supports_heavy,json=supportsHeavy,proto3,oneof" json:"supports_heavy,omitempty"` // Foundation field: the terrain takes a wall (Heavy affordance); marsh, mud and water do not (#727).
+	ResourceRock  *bool                  `protobuf:"varint,28,opt,name=resource_rock,json=resourceRock,proto3,oneof" json:"resource_rock,omitempty"`    // Foundation field: the edifice is mineable ore (a resource rock) (#778).
+	Tree          *bool                  `protobuf:"varint,29,opt,name=tree,proto3,oneof" json:"tree,omitempty"`                                        // Foundation field: a tree grows on the cell (#778).
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10558,6 +10560,20 @@ func (x *CellState) GetClaimableRuin() string {
 func (x *CellState) GetSupportsHeavy() bool {
 	if x != nil && x.SupportsHeavy != nil {
 		return *x.SupportsHeavy
+	}
+	return false
+}
+
+func (x *CellState) GetResourceRock() bool {
+	if x != nil && x.ResourceRock != nil {
+		return *x.ResourceRock
+	}
+	return false
+}
+
+func (x *CellState) GetTree() bool {
+	if x != nil && x.Tree != nil {
+		return *x.Tree
 	}
 	return false
 }
@@ -10933,7 +10949,7 @@ func (*GetCellsRequest_ExactCells) isGetCellsRequest_Selection() {}
 // roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
 // ruin, odd v the player edifice definition at string index (v-1)/2, even
 // v a claimable ruin whose definition is at string index (v-2)/2; then a
-// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy.
+// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
 // fogged; unchanged and as_of_tick retain the ordinary row delta semantics.
@@ -36981,8 +36997,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\xd4\n" +
-	"\n" +
+	"\x06_frame\"\xb2\v\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aterrain\x18\x02 \x01(\tH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -37012,7 +37027,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x04ruin\x18\x18 \x01(\bH\x12R\x04ruin\x88\x01\x01\x12*\n" +
 	"\x0eplayer_edifice\x18\x19 \x01(\tH\x13R\rplayerEdifice\x88\x01\x01\x12*\n" +
 	"\x0eclaimable_ruin\x18\x1a \x01(\tH\x14R\rclaimableRuin\x88\x01\x01\x12*\n" +
-	"\x0esupports_heavy\x18\x1b \x01(\bH\x15R\rsupportsHeavy\x88\x01\x01B\n" +
+	"\x0esupports_heavy\x18\x1b \x01(\bH\x15R\rsupportsHeavy\x88\x01\x01\x12(\n" +
+	"\rresource_rock\x18\x1c \x01(\bH\x16R\fresourceRock\x88\x01\x01\x12\x17\n" +
+	"\x04tree\x18\x1d \x01(\bH\x17R\x04tree\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -37041,7 +37058,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_ruinB\x11\n" +
 	"\x0f_player_edificeB\x11\n" +
 	"\x0f_claimable_ruinB\x11\n" +
-	"\x0f_supports_heavy\"\xe5\x03\n" +
+	"\x0f_supports_heavyB\x10\n" +
+	"\x0e_resource_rockB\a\n" +
+	"\x05_tree\"\xe5\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +

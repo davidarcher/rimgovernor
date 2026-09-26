@@ -103,7 +103,12 @@ namespace HomeBridge.BridgeTools
                         if (row.Ruin && edifice is Building ruin && ruin.ClaimableBy(player)) row.ClaimableRuin = Identifier(edifice.def.defName);
                     }
                     // Heavy affordance: a wall stands here; marsh, mud and water refuse one (#727).
-                    if (fields.Foundation) row.SupportsHeavy = cell.GetTerrain(map)?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
+                    if (fields.Foundation) {
+                        row.SupportsHeavy = cell.GetTerrain(map)?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
+                        // Ore and trees for whole-map zoning (#778).
+                        row.ResourceRock = cell.GetEdifice(map)?.def.building?.isResourceRock == true;
+                        row.Tree = cell.GetPlant(map)?.def.plant?.IsTree == true;
+                    }
                     if (fields.Zone) {
                         var zone = map.zoneManager.ZoneAt(cell);
                         if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);

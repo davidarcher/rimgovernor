@@ -73,6 +73,8 @@ func SurveyCells(v *o.CellsSnapshot) []policy.SurveyCell {
 			Marsh:     !rock && row.SupportsHeavy != nil && !row.GetSupportsHeavy(),
 			ThickRoof: row.GetRoof() == thickRoof,
 			Fertility: row.GetFertility(),
+			Ore:       row.GetResourceRock(),
+			Tree:      row.GetTree(),
 		})
 	}
 	return cells

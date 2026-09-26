@@ -82,7 +82,7 @@ func TestCompactCellsRejectsMalformedCoverage(t *testing.T) {
 // #727: with foundation applied each visible cell ends with one byte, bit 0
 // supports_heavy; a walkable non-rock cell without it is marsh.
 func TestCompactCellsFoundation(t *testing.T) {
-	for heavy, marsh := range map[byte]bool{0: true, 1: false} {
+	for heavy, marsh := range map[byte]bool{0: true, 1: false, 7: false} {
 		s := compactFixture()
 		s.AppliedFields = mapSurveyFields()
 		s.Compact.Rows[0] = []byte{0xfc, 0x3f, 0, 1, 2, 0, heavy, 2, 0, 1, 0}
@@ -94,15 +94,15 @@ func TestCompactCellsFoundation(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := SurveyCells(s)
-		if len(got) != 1 || got[0].Marsh != marsh || !got[0].Walkable || got[0].Rock || !got[0].ThickRoof || got[0].Fertility != 1.23456789 {
+		if len(got) != 1 || got[0].Marsh != marsh || !got[0].Walkable || got[0].Rock || !got[0].ThickRoof || got[0].Fertility != 1.23456789 || got[0].Ore != (heavy&2 != 0) || got[0].Tree != (heavy&4 != 0) {
 			t.Fatalf("heavy %d: %+v", heavy, got)
 		}
 	}
 	s := compactFixture()
 	s.AppliedFields = mapSurveyFields()
-	s.Compact.Rows[0] = []byte{0xfc, 0x3f, 0, 1, 2, 0, 2, 2, 0, 1, 0}
+	s.Compact.Rows[0] = []byte{0xfc, 0x3f, 0, 1, 2, 0, 8, 2, 0, 1, 0}
 	if ExpandCompactCells(s) == nil {
-		t.Fatal("accepted a foundation byte past bit 0")
+		t.Fatal("accepted a foundation byte past bit 2")
 	}
 	s = compactFixture()
 	s.AppliedFields = mapSurveyFields()

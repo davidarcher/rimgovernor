@@ -28,6 +28,9 @@ type SurveyCell struct {
 	ThickRoof bool
 	// Fertility is the soil's growing multiplier (0 for rock and floors).
 	Fertility float64
+	// Ore is rock holding a mineable resource; Tree is a cell under a
+	// tree (#778).
+	Ore, Tree bool
 }
 
 // MapSurvey is the whole map, scored once at settle time.
