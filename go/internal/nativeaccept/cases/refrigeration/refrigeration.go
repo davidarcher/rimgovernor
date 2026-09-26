@@ -289,8 +289,8 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		}
 		for _, action := range plan.Spec.Actions() {
 			b, ok := action.Building()
-			if !ok || b.Definition() != "PowerConduit" {
-				return fmt.Errorf("power family committed a non-conduit action: %#v", action)
+			if !ok || b.Definition() != string(policy.PowerConnect) {
+				return fmt.Errorf("power family committed a non-%s action: id=%s kind=%s", policy.PowerConnect, action.ID(), action.Kind())
 			}
 		}
 		report["power_conduit_plan"] = string(conduit.Plan)
