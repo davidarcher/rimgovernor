@@ -120,6 +120,15 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 			err = recordErr
 		}
 	}()
+	// A pause or authority change between the draft and the move releases
+	// the draft; the moves riding on it and the open waiting on them can
+	// then never dispatch, and while they stay open the goal never re-plans
+	// and the clock holds on work that cannot run (#707). Settle every
+	// shrine plan so orphaned, including those of a goal a reload
+	// invalidated, before the active goal is read.
+	if err = r.settleOrphanedPlans(call); err != nil {
+		return RoutineShrineResult{}, err
+	}
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -135,38 +144,21 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineShrineResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	for _, method := range goal.Methods {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		if domain.GoalWorkOpen(plan.Progress) {
+			return RoutineShrineResult{Reason: BuildingMethodExistingWork}, nil
+		}
+	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.ClearAncientShrine && (row.Selected || row.Committed)
 	}
 	if !selected {
 		return RoutineShrineResult{Reason: BuildingMethodRefused}, nil
-	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineShrineResult{}, err
-		}
-		// A pause or authority change between the draft and the move
-		// releases the draft; the moves riding on it and the open waiting on
-		// them can then never dispatch, and while they stay open the goal
-		// never re-plans (#707). Settle the plan's unissued work so a fresh
-		// method drafts again.
-		if len(orphanedDraftDependents(plan.Spec, plan.Progress)) > 0 {
-			for _, progress := range plan.Progress {
-				if v := progress.View(); v.Stage == domain.Pending || v.Stage == domain.Prepared {
-					if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
-						return RoutineShrineResult{}, err
-					}
-				}
-			}
-			if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
-				return RoutineShrineResult{}, err
-			}
-		}
-		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineShrineResult{Reason: BuildingMethodExistingWork}, nil
-		}
 	}
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
@@ -504,4 +496,28 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		return RoutineShrineResult{}, err
 	}
 	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
+}
+
+// settleOrphanedPlans cancels the unissued work of every shrine plan whose
+// draft was lost (orphanedDraftDependents): the open and retreat wait on
+// the move, so the whole plan settles, not only the orders on the draft.
+func (r *RoutineShrinePlanner) settleOrphanedPlans(call context.Context) error {
+	p := r.reviewer.player
+	plans, err := p.journal.LoadPlans(call, 256)
+	if err != nil {
+		return err
+	}
+	for _, plan := range plans {
+		if !strings.HasPrefix(string(plan.Spec.ID()), "routine-shrine-") || len(orphanedDraftDependents(plan.Spec, plan.Progress)) == 0 {
+			continue
+		}
+		for _, progress := range plan.Progress {
+			if v := progress.View(); v.Stage == domain.Pending || v.Stage == domain.Prepared {
+				if _, err = p.journal.Cancel(call, plan.Spec.ID(), v.Action); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
