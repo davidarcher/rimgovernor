@@ -1272,6 +1272,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var nativeWorkTicks uint32
 	if out.Shrine != nil {
 		nativeWorkTicks = out.Shrine.NativeWorkTicks
+		clockSchedulerLog("shrine: reason=%s shrine=%s hold=%s native_work_ticks=%d", out.Shrine.Reason, out.Shrine.Shrine, out.Shrine.Hold, out.Shrine.NativeWorkTicks)
 	}
 	if out.Fields != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Fields.NativeWorkTicks)

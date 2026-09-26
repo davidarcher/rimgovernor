@@ -304,11 +304,14 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	// Owned drafts belong to this persistent controller's shared journal.
 	// Use the same complete catalog and cleanup predicate as the release sweep.
+	// A draft its plan still holds for an unfinished order (a shrine shooter
+	// between its draft and its move) is working, not stranded; counting it
+	// raised RestoreWorkers and suspended the very goal drafting it (#679).
 	cleanup := false
 	for _, plan := range plans {
 		cleanup = cleanup || idleDraftWorkOpen(plan)
 		for _, progress := range plan.Progress {
-			cleanup = cleanup || draftOutstanding(progress)
+			cleanup = cleanup || draftOutstanding(progress) && !workerPlanHoldsDraft(plan, progress.View())
 		}
 	}
 	idleDrafts, err := r.idleDrafts(ctx, state, expected.Tick, reading.Emergency, plans)

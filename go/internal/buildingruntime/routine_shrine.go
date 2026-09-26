@@ -202,6 +202,12 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
+		// Completed heat plans are retired, so a started fallback shows in
+		// the epoch's history rather than the active methods (#679).
+		history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
 		for _, shrine := range candidates {
 			caskets := opens[shrine.ID]
 			if len(caskets) == 0 {
@@ -209,7 +215,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 			}
 			lock := policy.ShrineMeleeLock(caskets, squad)
 			heatStarted := false
-			for _, method := range goal.Methods {
+			for _, method := range history {
 				heatStarted = heatStarted || method.Epoch == goal.Goal.Epoch && strings.HasPrefix(string(method.Method), "heat_") && strings.Contains(string(method.Method), "-"+shrine.ID+"-")
 			}
 			if heatStarted {

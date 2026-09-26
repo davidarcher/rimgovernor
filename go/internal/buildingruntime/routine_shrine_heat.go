@@ -68,11 +68,14 @@ func (r *RoutineShrinePlanner) heat(call, epoch context.Context, state ControlSt
 	if phase == "heat_warming" || phase == "heat_colonists_inside" {
 		// Budget starts at the first completed setpoint in this goal epoch, so
 		// a powerless heater cannot lend an endless series of clock windows.
+		// The door, heater and setpoint plans are retired once they complete,
+		// so the anchor reads the epoch's history, not the active methods (#679).
+		history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
 		var first, built domain.Tick
-		for _, method := range goal.Methods {
-			if method.Epoch != goal.Goal.Epoch {
-				continue
-			}
+		for _, method := range history {
 			plan, err := p.journal.LoadPlan(call, method.Plan)
 			if err != nil {
 				return RoutineShrineResult{}, err
@@ -94,8 +97,15 @@ func (r *RoutineShrinePlanner) heat(call, epoch context.Context, state ControlSt
 		if first == 0 {
 			first = built
 		}
-		if first > 0 && projection.Identity.Tick >= first && projection.Identity.Tick-first < 120000 {
-			held.NativeWorkTicks = min(2500, uint32(120000-(projection.Identity.Tick-first)))
+		// The colony projection may be a cached read from before the
+		// setpoint completed; a tick behind the anchor has spent nothing
+		// of the budget yet (#679).
+		var elapsed domain.Tick
+		if projection.Identity.Tick > first {
+			elapsed = projection.Identity.Tick - first
+		}
+		if first > 0 && elapsed < 120000 {
+			held.NativeWorkTicks = min(2500, uint32(120000-elapsed))
 		} else {
 			held.Hold = "heat_timeout"
 		}
@@ -105,7 +115,11 @@ func (r *RoutineShrinePlanner) heat(call, epoch context.Context, state ControlSt
 		return held, nil
 	}
 	prefix := fmt.Sprintf("%s-%s-%d-%d-", phase, shrine.ID, proposal.Cell.X, proposal.Cell.Z)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	if err != nil {
+		return RoutineShrineResult{}, err
+	}
+	attempt := medicalAttemptCount(history, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		held.Hold = "heat_attempts_exhausted"
 		return held, nil
