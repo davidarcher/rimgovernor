@@ -62,8 +62,11 @@ func DeriveGearRole(p GearRoleInput) GearRole {
 		return GearSoldier
 	}
 	priorities, _ := p.Work.Work.Value()
+	// The role with the most work types at the pawn's best priority wins;
+	// ties go worker, hunter, indoor, so a generalist whose every work type
+	// shares one priority (a fresh tribal pawn) stays a worker.
 	best := 5
-	role := GearWorker
+	var counts map[GearRole]int
 	for _, w := range priorities {
 		if w.Disabled || w.Priority <= 0 || w.Priority > 4 {
 			continue
@@ -75,8 +78,17 @@ func DeriveGearRole(p GearRoleInput) GearRole {
 		case WorkCrafting, WorkTailoring, WorkSmithing, WorkResearch, WorkArt:
 			r = GearIndoor
 		}
-		if w.Priority < best || w.Priority == best && r < role {
-			best, role = w.Priority, r
+		if w.Priority < best {
+			best, counts = w.Priority, map[GearRole]int{}
+		}
+		if w.Priority == best {
+			counts[r]++
+		}
+	}
+	role := GearWorker
+	for _, r := range []GearRole{GearHunter, GearIndoor} {
+		if counts[r] > counts[role] {
+			role = r
 		}
 	}
 	return role

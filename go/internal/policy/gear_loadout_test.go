@@ -46,6 +46,13 @@ func TestGearRoles(t *testing.T) {
 	work := func(w WorkType) GearRoleInput {
 		return GearRoleInput{Work: WorkPawn{Work: domain.Known([]WorkPriority{{Work: w, Priority: 1}})}}
 	}
+	works := func(pairs ...any) GearRoleInput {
+		var ps []WorkPriority
+		for i := 0; i < len(pairs); i += 2 {
+			ps = append(ps, WorkPriority{Work: pairs[i].(WorkType), Priority: pairs[i+1].(int)})
+		}
+		return GearRoleInput{Work: WorkPawn{Work: domain.Known(ps)}}
+	}
 	for _, tt := range []struct {
 		name  string
 		input GearRoleInput
@@ -55,6 +62,11 @@ func TestGearRoles(t *testing.T) {
 		{"soldier", GearRoleInput{DraftedSquad: true}, GearSoldier},
 		{"hunter", work(WorkHunting), GearHunter},
 		{"crafter", work(WorkCrafting), GearIndoor},
+		// #660: a tribal generalist has every work type at one priority.
+		{"generalist", works(WorkConstruction, 3, WorkGrowing, 3, WorkHunting, 3, WorkCrafting, 3, WorkTailoring, 3), GearWorker},
+		{"mostly crafter", works(WorkConstruction, 3, WorkCrafting, 3, WorkTailoring, 3), GearIndoor},
+		{"hunter over crafter tie", works(WorkHunting, 2, WorkCrafting, 2, WorkConstruction, 3), GearHunter},
+		{"best priority rules", works(WorkCrafting, 1, WorkConstruction, 2, WorkGrowing, 2), GearIndoor},
 		{"child", GearRoleInput{Child: true, DraftedSquad: true}, GearChild},
 		{"slave", GearRoleInput{Slave: true, DraftedSquad: true}, GearSlave},
 		{"noncombatant", GearRoleInput{IncapableOfViolence: true, DraftedSquad: true}, GearNonCombatant},
