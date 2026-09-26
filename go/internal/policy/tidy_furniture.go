@@ -75,10 +75,7 @@ func TidyFurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells
 		if !ok {
 			continue
 		}
-		if _, ok := PlanInterior(input, InteriorPieceDef{}); !ok {
-			continue
-		}
-		t := TidyRoom{ID: room.ID, Room: input}
+		t := TidyRoom{ID: room.ID}
 		for _, b := range census.Buildings {
 			if b.ID == "" || len(b.Cells) == 0 {
 				continue
@@ -95,6 +92,20 @@ func TidyFurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells
 			t.Pieces = append(t.Pieces, TidyPiece{Thing: b.ID, Def: b.Building.Definition(), Size: size, Rot: rot, Rect: rect})
 		}
 		sort.Slice(t.Pieces, func(i, j int) bool { return t.Pieces[i].Thing < t.Pieces[j].Thing })
+		// The plan takes the room's standing definitions, so a bedroom is
+		// planned around the bed it has (a DoubleBed stays on plan).
+		standing := map[string]bool{}
+		for _, p := range t.Pieces {
+			if !standing[p.Def] {
+				standing[p.Def] = true
+				input.Standing = append(input.Standing, p.Def)
+			}
+		}
+		sort.Strings(input.Standing)
+		if _, ok := PlanInterior(input, InteriorPieceDef{}); !ok {
+			continue
+		}
+		t.Room = input
 		out = append(out, t)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

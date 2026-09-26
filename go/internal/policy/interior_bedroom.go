@@ -33,7 +33,17 @@ var (
 	standLampSize = domain.Cell{X: 1, Z: 1}
 )
 
-func planBedroom(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
+// planBedroom plans around the requested bed, else the room's standing
+// bed, else a single Bed, each at its real size.
+func planBedroom(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
+	if piece.Family == pieceFamilyBed {
+		return planBedroomWith(f, piece.Def, piece.Size)
+	}
+	for _, d := range f.Standing {
+		if d.Family == pieceFamilyBed {
+			return planBedroomWith(f, d.Def, d.Size)
+		}
+	}
 	return planBedroomWith(f, "Bed", bedSize)
 }
 

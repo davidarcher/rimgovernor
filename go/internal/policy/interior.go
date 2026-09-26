@@ -436,6 +436,11 @@ func (x interiorTransform) piece(p InteriorPiece) InteriorPiece {
 	return p
 }
 
+// passThroughRoles are the roles a door into counts as an entrance, like
+// a hallway's: rooms colonists cross rather than rooms they work or sleep
+// in.
+var passThroughRoles = map[RoomRole]bool{RoomRoleNone: true, RoomRoleRoom: true, RoomRoleDiningRoom: true, RoomRoleRecRoom: true, RoomRoleStoreroom: true, RoomRoleThroneRoom: true, RoomRoleWorshipRoom: true}
+
 // InteriorRoomsFor lists the rectangular rooms hosting a facility as plan
 // inputs. A generic room is planned as the facility's own role, which is
 // the role its new furniture gives it; any other room keeps its role.
@@ -451,13 +456,14 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 		}
 	}
 	// A door leads into another room when the cell past it lies in an
-	// enclosed room with a purpose; a hallway or an unfurnished room reads
-	// None or Room, and outdoors is in no enclosed room.
+	// enclosed private or work room; a hallway or an unfurnished room reads
+	// None or Room, a pass-through room (dining, rec, storeroom, a hall)
+	// is hallway-like, and outdoors is in no enclosed room.
 	purposed := map[domain.Cell]string{}
 	for _, room := range rooms.Rooms {
 		role, known := room.Role.Value()
 		enclosed, _ := room.Enclosed.Value()
-		if known && enclosed && role != RoomRoleNone && role != RoomRoleRoom {
+		if known && enclosed && !passThroughRoles[role] {
 			for _, c := range room.Cells {
 				purposed[c] = room.ID
 			}

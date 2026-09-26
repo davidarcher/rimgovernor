@@ -78,7 +78,7 @@ func tidyFurnitureRows(proposal policy.TidyProposal, status store.LayoutTidyStat
 		i, seen := index[m.Thing]
 		if !seen {
 			index[m.Thing] = len(out)
-			out = append(out, store.LayoutTidy{Item: m.Thing, Kind: policy.TidyFurniture, Status: status, From: m.From, NewZone: plan, Explanation: proposal.Explanation})
+			out = append(out, store.LayoutTidy{Item: m.Thing, Kind: policy.TidyFurniture, Status: status, From: m.From, PlanID: plan, Explanation: proposal.Explanation})
 			i = len(out) - 1
 		}
 		out[i].To = m.To
@@ -104,7 +104,7 @@ func (r *RoutineTidyPlanner) finishFurniture(call context.Context, state Control
 	p := r.reviewer.player
 	var rows []store.LayoutTidy
 	for _, t := range tidies {
-		if t.Kind == policy.TidyFurniture && t.Status == store.LayoutTidyMoving && t.NewZone == planID {
+		if t.Kind == policy.TidyFurniture && t.Status == store.LayoutTidyMoving && t.PlanID == planID {
 			rows = append(rows, t)
 		}
 	}

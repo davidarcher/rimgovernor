@@ -33,8 +33,8 @@ const (
 )
 
 // LayoutTidy is one recorded re-site. A furniture row (#809) is one piece
-// by thing id; its NewZone carries the batch plan's id, which the moving
-// rows of one room share.
+// by thing id; its PlanID is the batch plan's id, which the moving rows
+// of one room share.
 type LayoutTidy struct {
 	Item        string
 	Kind        policy.TidyKind
@@ -43,17 +43,18 @@ type LayoutTidy struct {
 	To          policy.Rectangle
 	Crop        string
 	NewZone     string
+	PlanID      string
 	Explanation string
 	Tick        domain.Tick
 }
 
 func initializeLayoutTidies(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE layout_tidies(id INTEGER PRIMARY KEY, colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), item TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('field','stockpile','shell','furniture')), status TEXT NOT NULL CHECK(status IN ('moving','done','abandoned')), from_x INTEGER NOT NULL, from_z INTEGER NOT NULL, from_w INTEGER NOT NULL, from_h INTEGER NOT NULL, to_x INTEGER NOT NULL, to_z INTEGER NOT NULL, to_w INTEGER NOT NULL, to_h INTEGER NOT NULL, crop TEXT NOT NULL, new_zone TEXT NOT NULL, explanation TEXT NOT NULL) STRICT;
+	_, err := tx.ExecContext(ctx, `CREATE TABLE layout_tidies(id INTEGER PRIMARY KEY, colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), item TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('field','stockpile','shell','furniture')), status TEXT NOT NULL CHECK(status IN ('moving','done','abandoned')), from_x INTEGER NOT NULL, from_z INTEGER NOT NULL, from_w INTEGER NOT NULL, from_h INTEGER NOT NULL, to_x INTEGER NOT NULL, to_z INTEGER NOT NULL, to_w INTEGER NOT NULL, to_h INTEGER NOT NULL, crop TEXT NOT NULL, new_zone TEXT NOT NULL, plan_id TEXT NOT NULL, explanation TEXT NOT NULL) STRICT;
 CREATE INDEX layout_tidies_scope ON layout_tidies(colony,map_id,load_token,tick);`)
 	return err
 }
 func checkLayoutTidySchema(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, "SELECT id,colony,map_id,load_token,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,explanation FROM layout_tidies LIMIT 0")
+	_, err := tx.ExecContext(ctx, "SELECT id,colony,map_id,load_token,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies LIMIT 0")
 	return err
 }
 
@@ -68,7 +69,7 @@ func layoutTidyValid(t LayoutTidy) bool {
 	default:
 		return false
 	}
-	return t.Item != "" && len(t.Item) <= 256 && len(t.Crop) <= 256 && len(t.NewZone) <= 256 && len(t.Explanation) <= 1024 && t.From.Width >= 0 && t.From.Height >= 0 && t.To.Width >= 0 && t.To.Height >= 0
+	return t.Item != "" && len(t.Item) <= 256 && len(t.Crop) <= 256 && len(t.NewZone) <= 256 && len(t.PlanID) <= 256 && len(t.Explanation) <= 1024 && t.From.Width >= 0 && t.From.Height >= 0 && t.To.Width >= 0 && t.To.Height >= 0
 }
 
 // discardLayoutTidies forgets a load's tidies recorded after tick, the
@@ -89,14 +90,14 @@ func layoutTidies(ctx context.Context, tx *sql.Tx, s domain.GenerationSnapshot, 
 	// The current load's rows are read first and win; each older segment
 	// only fills items no younger segment recorded.
 	for _, segment := range lineage {
-		rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,explanation FROM layout_tidies WHERE colony=? AND map_id=? AND load_token=? AND tick<=? ORDER BY id DESC", s.Colony, s.Map, segment.load, segment.limit)
+		rows, err := tx.QueryContext(ctx, "SELECT tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation FROM layout_tidies WHERE colony=? AND map_id=? AND load_token=? AND tick<=? ORDER BY id DESC", s.Colony, s.Map, segment.load, segment.limit)
 		if err != nil {
 			return nil, err
 		}
 		for rows.Next() {
 			var t LayoutTidy
 			var kind, status string
-			if err := rows.Scan(&t.Tick, &t.Item, &kind, &status, &t.From.X, &t.From.Z, &t.From.Width, &t.From.Height, &t.To.X, &t.To.Z, &t.To.Width, &t.To.Height, &t.Crop, &t.NewZone, &t.Explanation); err != nil {
+			if err := rows.Scan(&t.Tick, &t.Item, &kind, &status, &t.From.X, &t.From.Z, &t.From.Width, &t.From.Height, &t.To.X, &t.To.Z, &t.To.Width, &t.To.Height, &t.Crop, &t.NewZone, &t.PlanID, &t.Explanation); err != nil {
 				rows.Close()
 				return nil, err
 			}
@@ -139,8 +140,8 @@ func (s *Store) RecordLayoutTidy(ctx context.Context, snapshot domain.Generation
 	if _, err = reconcileColonyExtent(ctx, tx, snapshot, tick); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,load_token,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,explanation) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-		snapshot.Colony, snapshot.Map, snapshot.Load, tick, t.Item, string(t.Kind), string(t.Status), t.From.X, t.From.Z, t.From.Width, t.From.Height, t.To.X, t.To.Z, t.To.Width, t.To.Height, t.Crop, t.NewZone, t.Explanation); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO layout_tidies(colony,map_id,load_token,tick,item,kind,status,from_x,from_z,from_w,from_h,to_x,to_z,to_w,to_h,crop,new_zone,plan_id,explanation) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+		snapshot.Colony, snapshot.Map, snapshot.Load, tick, t.Item, string(t.Kind), string(t.Status), t.From.X, t.From.Z, t.From.Width, t.From.Height, t.To.X, t.To.Z, t.To.Width, t.To.Height, t.Crop, t.NewZone, t.PlanID, t.Explanation); err != nil {
 		return err
 	}
 	return tx.Commit()

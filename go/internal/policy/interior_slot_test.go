@@ -110,7 +110,7 @@ func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
 		t.Errorf("bed %+v not against the wall facing the hallway door", bed.Rect)
 	}
 
-	// Census: a freezer (Storeroom) west, a hallway (None) south.
+	// Census: a workshop west, a hallway (None) south.
 	floor := rectCells(interior)
 	var freezer, hallway []domain.Cell
 	for x := int32(0); x < 5; x++ {
@@ -119,12 +119,20 @@ func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
 	}
 	rooms := RoomObservation{Rooms: []Room{
 		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cells: floor},
-		{ID: "f", Role: domain.Known(RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: freezer},
+		{ID: "f", Role: domain.Known(RoomRoleWorkshop), Enclosed: domain.Known(true), Cells: freezer},
 		{ID: "h", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: hallway},
 	}}
 	cells := []SiteCell{{Cell: inner, Doorway: domain.Known(true)}, {Cell: hall, Doorway: domain.Known(true)}, {Cell: domain.Cell{X: 1, Z: 3}, PlayerEdifice: domain.Known("FueledStove")}}
 	got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleKitchen}, rooms, cells)
 	if len(got) != 1 || len(got[0].InnerDoors) != 1 || got[0].InnerDoors[0] != inner || len(got[0].Standing) != 1 || got[0].Standing[0] != "FueledStove" {
 		t.Fatalf("rooms %+v", got)
+	}
+	// A pass-through room (dining, rec, storeroom) is hallway-like: its
+	// door is an entrance, not an inner door.
+	for _, role := range []RoomRole{RoomRoleDiningRoom, RoomRoleRecRoom, RoomRoleStoreroom} {
+		rooms.Rooms[1].Role = domain.Known(role)
+		if got := InteriorRoomsFor(FacilityRequirement{Role: RoomRoleKitchen}, rooms, cells); len(got) != 1 || len(got[0].InnerDoors) != 0 {
+			t.Errorf("%s: inner doors %+v", role, got)
+		}
 	}
 }

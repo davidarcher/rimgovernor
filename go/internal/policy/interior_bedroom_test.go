@@ -95,3 +95,34 @@ func TestBedroomDoubleBedLayout(t *testing.T) {
 		t.Error("a double bed planned in a one-wide room")
 	}
 }
+
+// A requested or standing double bed is planned at its 2x2 size, the end
+// table touching a head cell, and repeatably across door sides.
+func TestBedroomPlansTheRequestedBed(t *testing.T) {
+	for _, def := range []string{"DoubleBed", "RoyalBed"} {
+		for _, room := range interiorRoomsAround(RoomRoleBedroom, 6, 5, 1) {
+			plan, ok := PlanInterior(room, InteriorPieceDefFor(def))
+			if !ok {
+				t.Fatalf("%s %+v: no plan", def, room)
+			}
+			assertInteriorRegular(t, plan)
+			s := bedroomSlots(plan.Canonical)
+			bed, table := s["bed"], s["end_table"]
+			if bed.Def != def || bed.Rect.Width != 2 || bed.Rect.Height != 2 {
+				t.Fatalf("%s: bed %+v", def, bed)
+			}
+			adjacent := false
+			for _, h := range headCells(bed) {
+				adjacent = adjacent || (table.Rect.Z == h.Z && (table.Rect.X == h.X-1 || table.Rect.X == h.X+1))
+			}
+			if !adjacent {
+				t.Errorf("%s: end table %+v off the head", def, table.Rect)
+			}
+			room.Standing = []string{def}
+			standing, ok := PlanInterior(room, InteriorPieceDef{})
+			if !ok || standing.Canonical[0] != plan.Canonical[0] {
+				t.Errorf("%s: standing plan %+v", def, standing.Canonical)
+			}
+		}
+	}
+}
