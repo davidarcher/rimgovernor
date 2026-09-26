@@ -20,6 +20,9 @@ import (
 type LayoutPlanRecord struct {
 	Plan policy.LayoutPlan
 	Tick domain.Tick
+	// Invalid marks a newest saved plan that no longer decodes or passes
+	// Valid: the timeline reads as holding no plan, so the colony replans.
+	Invalid bool
 }
 
 func initializeLayoutPlan(ctx context.Context, tx *sql.Tx) error {
@@ -91,7 +94,7 @@ func (s *Store) LayoutPlan(ctx context.Context, snapshot domain.GenerationSnapsh
 			return LayoutPlanRecord{}, false, err
 		}
 		if json.Unmarshal([]byte(plan), &r.Plan) != nil || !r.Plan.Valid() {
-			return LayoutPlanRecord{}, false, errors.New("invalid persisted layout plan")
+			return LayoutPlanRecord{Tick: r.Tick, Invalid: true}, false, tx.Commit()
 		}
 		return r, true, tx.Commit()
 	}

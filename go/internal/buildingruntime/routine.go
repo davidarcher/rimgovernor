@@ -49,6 +49,8 @@ type RoutineReviewer struct {
 	// planChecked is the tick of the last master-plan terrain check this
 	// process read (#727); see reviewMasterPlan.
 	planChecked domain.Tick
+	// layoutInvalidLogged: an invalid saved layout plan is logged once.
+	layoutInvalidLogged bool
 	// layoutOverlay draws the master plan as native plans (#726); the
 	// overlay fields record the last draw. See drawLayoutOverlay.
 	layoutOverlay  bool

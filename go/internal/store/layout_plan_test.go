@@ -49,4 +49,11 @@ func TestLayoutPlanRoundTripsAndForgetsOnRewind(t *testing.T) {
 	if err := db.RecordLayoutPlan(ctx, w, 300, policy.LayoutPlan{}); err == nil {
 		t.Fatal("recorded a plan without rooms")
 	}
+	// A saved plan that no longer decodes reads as no plan (#783).
+	if _, err := db.db.ExecContext(ctx, "INSERT INTO colony_layout_plans(colony,map_id,load_token,tick,plan) VALUES(?,?,?,?,?)", w.Colony, w.Map, w.Load, 400, `{"Rooms":[{"Role":""}]}`); err != nil {
+		t.Fatal(err)
+	}
+	if r, ok, err := db.LayoutPlan(ctx, w, 450); err != nil || ok || !r.Invalid || r.Tick != 400 {
+		t.Fatal(r, ok, err)
+	}
 }

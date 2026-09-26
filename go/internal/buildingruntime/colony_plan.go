@@ -48,6 +48,9 @@ func (r *RoutineReviewer) establishMasterPlan(ctx context.Context, snapshot doma
 		return store.ColonyGridRecord{}, false, nil
 	}
 	pawns, _ := projection.Facts.Colonists.Value()
+	if err = r.deriveLayoutPlan(ctx, snapshot, projection.Identity.Tick, survey, int(pawns)); err != nil {
+		return store.ColonyGridRecord{}, false, err
+	}
 	plan, known := policy.DeriveMasterPlan(survey, int(pawns)).Value()
 	if !known {
 		clockSchedulerLog("map survey holds no sound plaza, grid from the starter shell")
@@ -95,7 +98,14 @@ func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.
 		checked = r.planChecked
 	}
 	outgrown := known && plan.Outgrown(int(pawns)) && tick-record.Tick >= masterReplanEvery
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || tick-checked >= masterTerrainCheckEvery) {
+	layout, haveLayout, err := r.layoutPlan(ctx, snapshot, tick)
+	if err != nil {
+		return err
+	}
+	layoutOutgrown := known && haveLayout && layout.Plan.LayoutOutgrown(int(pawns)) && tick-layout.Tick >= masterReplanEvery
+	layoutMissing := !haveLayout && tick-checked >= masterReplanEvery
+	quadrum := tick-checked >= masterTerrainCheckEvery
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || layoutOutgrown || layoutMissing || quadrum) {
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("master plan check deferred, map survey unavailable: %v", err)
 		} else {
@@ -106,6 +116,14 @@ func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.
 					return err
 				}
 				clockEvent(ctx, "layout", "master_replan", fmt.Sprintf("master plan replanned for %d colonists radius=%d outgrown=%t", pawns, plan.Radius, outgrown), "colonists", pawns, "radius", plan.Radius, "outgrown", outgrown)
+			}
+			if !haveLayout {
+				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns))
+			} else if layoutOutgrown || quadrum {
+				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), layoutOutgrown)
+			}
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -155,4 +173,44 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 	}
 	r.overlayKey, r.overlayDrawn, r.overlayCleared = key, tick, false
 	clockSchedulerLog("layout overlay drawn plans=%d cells=%d rooms=%d skipped=%d removed=%d", applied.GetPlans(), applied.GetCells(), applied.GetRooms(), applied.GetSkipped(), applied.GetRemoved())
+}
+
+// layoutPlan reads the v2 layout plan (#783). A saved plan that no longer
+// decodes or validates reads as none, logged once per process, so the next
+// survey derives a fresh one.
+func (r *RoutineReviewer) layoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick) (store.LayoutPlanRecord, bool, error) {
+	record, ok, err := r.player.journal.LayoutPlan(ctx, snapshot, tick)
+	if err == nil && record.Invalid && !r.layoutInvalidLogged {
+		r.layoutInvalidLogged = true
+		clockSchedulerLog("saved layout plan from tick %d is invalid, replanning", record.Tick)
+	}
+	return record, ok, err
+}
+
+// deriveLayoutPlan lays a fresh v2 plan over survey and records it.
+func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int) error {
+	plan, known := policy.DeriveLayoutPlan(survey, pawns).Value()
+	if !known {
+		clockSchedulerLog("map survey holds no core for the layout plan")
+		return nil
+	}
+	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, plan); err != nil {
+		return err
+	}
+	clockEvent(ctx, "layout", "layout_plan", fmt.Sprintf("layout plan for %d colonists %s", pawns, plan.Summary()), "colonists", pawns)
+	return nil
+}
+
+// replanLayout grows the recorded v2 plan over a fresh survey and records
+// it when it changed.
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns int, outgrown bool) error {
+	next, changed := policy.ReplanLayout(plan, survey, pawns)
+	if !changed {
+		return nil
+	}
+	if err := r.player.journal.RecordLayoutPlan(ctx, snapshot, tick, next); err != nil {
+		return err
+	}
+	clockEvent(ctx, "layout", "layout_replan", fmt.Sprintf("layout plan replanned for %d colonists outgrown=%t %s", pawns, outgrown, next.Summary()), "colonists", pawns, "outgrown", outgrown)
+	return nil
 }

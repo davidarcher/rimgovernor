@@ -63,6 +63,15 @@ func TestReviewColonyGridEstablishesTheMasterPlanFromTheSurvey(t *testing.T) {
 	if grown, _ := later.ColonyPlan.Value(); grown.Radius != plan.Radius+1 || grown.Grid != grid {
 		t.Fatalf("replan %+v", grown.Radius)
 	}
+	// The v2 layout plan (#783) is derived with the grid and grown on the
+	// same replan.
+	layout, ok, err := s.player.journal.LayoutPlan(ctx, snapshot, later.Identity.Tick)
+	if err != nil || !ok || layout.Tick != later.Identity.Tick || layout.Plan.LayoutOutgrown(3) {
+		t.Fatal(layout.Tick, ok, err)
+	}
+	if first, ok, _ := s.player.journal.LayoutPlan(ctx, snapshot, 200); !ok || first.Tick != 100 {
+		t.Fatal("no layout plan at settle", first.Tick, ok)
+	}
 }
 
 func TestReviewMasterPlanTerrainCheckReplansAQuadrumLater(t *testing.T) {
