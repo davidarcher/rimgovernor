@@ -86,3 +86,23 @@ func TestColonyStatusRejectsQueryAndBody(t *testing.T) {
 		t.Fatal(w2.Code, w2.Body.String())
 	}
 }
+
+// #708: the food plan names pets the colony runway no longer carries.
+func TestColonyStatusReportsPetShortfalls(t *testing.T) {
+	for _, test := range []struct {
+		pets []policy.ConsumerFoodForecast
+		want string
+	}{
+		{nil, `"petShortfalls":[]`},
+		{[]policy.ConsumerFoodForecast{{ID: "Thing_Cat5169", NutritionPerDay: 0.3}}, `"petShortfalls":[{"id":"Thing_Cat5169","runwayDays":0,"nutritionPerDay":0.3}]`},
+	} {
+		s, _ := playerAPI(t)
+		plan := policy.FoodPlan{Forecast: policy.FoodForecast{PetShortfalls: test.pets}}
+		s.config.ColonyStatus = &colonyStatusFixture{report: buildingruntime.ColonyStatusReport{Tick: 1, FoodPlan: domain.Known(plan)}}
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1/api/player/colony", nil))
+		if w.Code != 200 || !strings.Contains(w.Body.String(), test.want) {
+			t.Fatal(w.Code, test.want, w.Body.String())
+		}
+	}
+}

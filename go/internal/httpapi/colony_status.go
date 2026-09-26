@@ -145,6 +145,15 @@ type foodPlanDTO struct {
 	DemandPerDay    float64            `json:"demandPerDay"`
 	GapPerDay       float64            `json:"gapPerDay"`
 	Explain         string             `json:"explain"`
+	// PetShortfalls are the non-colonist consumers below the minimum runway
+	// (#708); the colony runway no longer carries their need.
+	PetShortfalls []petShortfallDTO `json:"petShortfalls"`
+}
+
+type petShortfallDTO struct {
+	ID              policy.PawnID `json:"id"`
+	RunwayDays      float64       `json:"runwayDays"`
+	NutritionPerDay float64       `json:"nutritionPerDay"`
 }
 
 type foodPlanEntryDTO struct {
@@ -171,7 +180,11 @@ func projectFoodPlan(p policy.FoodPlan) *foodPlanDTO {
 		}
 		return out
 	}
-	return &foodPlanDTO{Portfolio: project(p.Portfolio), Unknown: project(p.Unknown), DeliveredPerDay: p.DeliveredPerDay, DemandPerDay: p.DemandPerDay, GapPerDay: p.GapPerDay, Explain: p.Explain()}
+	pets := make([]petShortfallDTO, 0, len(p.Forecast.PetShortfalls))
+	for _, row := range p.Forecast.PetShortfalls {
+		pets = append(pets, petShortfallDTO{ID: row.ID, RunwayDays: row.RunwayDays, NutritionPerDay: row.NutritionPerDay})
+	}
+	return &foodPlanDTO{Portfolio: project(p.Portfolio), Unknown: project(p.Unknown), DeliveredPerDay: p.DeliveredPerDay, DemandPerDay: p.DemandPerDay, GapPerDay: p.GapPerDay, Explain: p.Explain(), PetShortfalls: pets}
 }
 
 func (s *Server) handleColonyStatus(ctx context.Context, w http.ResponseWriter, r *http.Request) {
