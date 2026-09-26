@@ -87,60 +87,62 @@ type ClockSchedulerConfig struct {
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
-	PestAcquisition                  *RoutineAcquisitionPlanner
-	Work                             *RoutineWorkPlanner
-	Supplies                         *RoutineSupplyPlanner
-	Blight                           *RoutineBlightPlanner
-	Clearance                        *RoutineClearancePlanner
-	Shrine                           *RoutineShrinePlanner
-	Sleeping                         *RoutineBuildingPlanner
-	Cooking                          *RoutineBuildingPlanner
-	Comfort                          *RoutineBuildingPlanner
-	BasicComfort                     *RoutineBuildingPlanner
-	Workshop                         *RoutineBuildingPlanner
-	Hospital                         *RoutineHospitalPlanner
-	SleepingUpkeep                   *RoutineSleepingUpkeepPlanner
-	Expansion                        *RoutineBuildingPlanner
-	Power                            *RoutineBuildingPlanner
-	Temperature                      *RoutineBuildingPlanner
-	Refrigeration                    *RoutineBuildingPlanner
-	Lighting                         *RoutineBuildingPlanner
-	Flooring                         *RoutineBuildingPlanner
-	Routes                           *RoutineBuildingPlanner
-	Defense                          *RoutineDefensePlanner
-	Tend                             *RoutineTendPlanner
-	Rescue                           *RoutineRescuePlanner
-	Equip                            *RoutineEquipPlanner
-	SecureSupplies                   *RoutineSecureSuppliesPlanner
-	Repair                           *RoutineRepairPlanner
-	FireSafety                       *RoutineFireSafetyPlanner
-	Clean                            *RoutineCleanPlanner
-	Haul                             *RoutineHaulPlanner
-	Gear                             *RoutineGearPlanner
-	Medical                          *RoutineMedicalPlanner
-	FoodStorageUpkeep                *RoutineFoodStorageUpkeepPlanner
-	AnimalContainment                *RoutineAnimalContainmentPlanner
-	Recovery                         *RoutineRecoveryPlanner
-	Husbandry                        *RoutineHusbandryPlanner
-	PrisonerInteraction              *RoutinePrisonerInteractionPlanner
-	PopulationCustody                *RoutinePopulationCustodyPlanner
-	PopulationJoiner                 *RoutinePopulationJoinerPlanner
-	Research                         *RoutineResearchPlanner
-	IngredientStorage                *RoutineIngredientStoragePlanner
-	Resource                         *RoutineResourcePlanner
-	AnimalFeed                       *RoutineAnimalFeedPlanner
-	ProductionPolicy                 *RoutineProductionPolicyPlanner
-	CaravanJourney                   *CaravanJourneyTracker
-	HomeCoverage                     *RoutineHomeCoveragePlanner
-	StoneShell                       *RoutineStoneShellPlanner
-	Tidy                             *RoutineTidyPlanner
-	DefenseLayout                    *RoutineDefenseLayoutPlanner
-	Waste                            *RoutineWastePlanner
-	MoodRelief                       *RoutineMoodReliefPlanner
-	Naming                           *RoutineNamingPlanner
-	Dialog                           *RoutineDialogPlanner
-	Trade                            *RoutineTradePlanner
-	RoutineMethods                   bool
+	// ResourceAcquisition chops, forages and hunts for MaintainResource (#728).
+	ResourceAcquisition *RoutineAcquisitionPlanner
+	PestAcquisition     *RoutineAcquisitionPlanner
+	Work                *RoutineWorkPlanner
+	Supplies            *RoutineSupplyPlanner
+	Blight              *RoutineBlightPlanner
+	Clearance           *RoutineClearancePlanner
+	Shrine              *RoutineShrinePlanner
+	Sleeping            *RoutineBuildingPlanner
+	Cooking             *RoutineBuildingPlanner
+	Comfort             *RoutineBuildingPlanner
+	BasicComfort        *RoutineBuildingPlanner
+	Workshop            *RoutineBuildingPlanner
+	Hospital            *RoutineHospitalPlanner
+	SleepingUpkeep      *RoutineSleepingUpkeepPlanner
+	Expansion           *RoutineBuildingPlanner
+	Power               *RoutineBuildingPlanner
+	Temperature         *RoutineBuildingPlanner
+	Refrigeration       *RoutineBuildingPlanner
+	Lighting            *RoutineBuildingPlanner
+	Flooring            *RoutineBuildingPlanner
+	Routes              *RoutineBuildingPlanner
+	Defense             *RoutineDefensePlanner
+	Tend                *RoutineTendPlanner
+	Rescue              *RoutineRescuePlanner
+	Equip               *RoutineEquipPlanner
+	SecureSupplies      *RoutineSecureSuppliesPlanner
+	Repair              *RoutineRepairPlanner
+	FireSafety          *RoutineFireSafetyPlanner
+	Clean               *RoutineCleanPlanner
+	Haul                *RoutineHaulPlanner
+	Gear                *RoutineGearPlanner
+	Medical             *RoutineMedicalPlanner
+	FoodStorageUpkeep   *RoutineFoodStorageUpkeepPlanner
+	AnimalContainment   *RoutineAnimalContainmentPlanner
+	Recovery            *RoutineRecoveryPlanner
+	Husbandry           *RoutineHusbandryPlanner
+	PrisonerInteraction *RoutinePrisonerInteractionPlanner
+	PopulationCustody   *RoutinePopulationCustodyPlanner
+	PopulationJoiner    *RoutinePopulationJoinerPlanner
+	Research            *RoutineResearchPlanner
+	IngredientStorage   *RoutineIngredientStoragePlanner
+	Resource            *RoutineResourcePlanner
+	AnimalFeed          *RoutineAnimalFeedPlanner
+	ProductionPolicy    *RoutineProductionPolicyPlanner
+	CaravanJourney      *CaravanJourneyTracker
+	HomeCoverage        *RoutineHomeCoveragePlanner
+	StoneShell          *RoutineStoneShellPlanner
+	Tidy                *RoutineTidyPlanner
+	DefenseLayout       *RoutineDefenseLayoutPlanner
+	Waste               *RoutineWastePlanner
+	MoodRelief          *RoutineMoodReliefPlanner
+	Naming              *RoutineNamingPlanner
+	Dialog              *RoutineDialogPlanner
+	Trade               *RoutineTradePlanner
+	RoutineMethods      bool
 }
 type ClockSchedulerResult struct {
 	// Pacing is what the step's clock status said of the pace (#627).
@@ -156,6 +158,7 @@ type ClockSchedulerResult struct {
 	Window                           ClockWindowSize
 	Routine                          *store.RoutineReviewResult
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionResult
+	ResourceAcquisition              *RoutineAcquisitionResult
 	PestAcquisition                  *RoutineAcquisitionResult
 	Work                             *RoutineWorkResult
 	Supplies                         *RoutineSupplyResult
@@ -416,7 +419,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
-	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition, config.PestAcquisition} {
+	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition, config.PestAcquisition, config.ResourceAcquisition} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
 			return nil, ErrControl
 		}

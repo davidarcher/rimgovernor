@@ -54,7 +54,7 @@ func TestClockHarvestAndStockRowsWakeTheirPlanners(t *testing.T) {
 	if !reflect.DeepEqual(stock.Sections, facts.FamilySections(bridge.FactColony)) {
 		t.Fatalf("stock sections %v", stock.Sections)
 	}
-	for _, name := range []string{"supplies", "resource", "foodAcquisition", "woodAcquisition"} {
+	for _, name := range []string{"supplies", "resource", "foodAcquisition", "woodAcquisition", "resourceAcquisition"} {
 		if !slices.Contains(stockPlanners, name) {
 			t.Fatalf("stock row did not wake %s: %v", name, stockPlanners)
 		}

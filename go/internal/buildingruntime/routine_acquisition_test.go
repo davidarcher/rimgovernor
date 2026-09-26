@@ -153,3 +153,69 @@ func TestStalledHuntActionsIgnoresResolvedAndNonHuntWork(t *testing.T) {
 		t.Fatal("resolved hunt action must not be reported as stalled", got)
 	}
 }
+
+// MaintainResource chops, forages and hunts through the acquisition
+// catalog (#728): a harvestable floor admits a bounded, nearest-first
+// acquisition method on the goal, and open work holds the next one.
+func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	reviewer, db, _, _, native := routineFixture(t)
+	submitted := playerPlan(t, db)
+	var err error
+	for _, action := range submitted.Spec.Actions() {
+		if _, err = db.Cancel(ctx, submitted.Spec.ID(), action.ID()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	v := native.reply.GetObserved()
+	v.PendingWoodUnits = proto.Float64(0)
+	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainResource})
+	v.ColonistCount = proto.Uint32(1)
+	v.WorkerCount = proto.Uint32(1)
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	v.Issues = append(v.Issues, missing("naming"))
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
+		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
+	}
+	for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
+		row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
+	}
+	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Hunting"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+
+	reviewer.policy.ResourceTargets = map[policy.Resource]int64{"Hay": 30}
+	for i := 0; i < 6; i++ {
+		id := fmt.Sprint("grass", i)
+		cell := proto.Clone(v.Center).(*c.Cell)
+		cell.X = proto.Int32(cell.GetX() + int32(i))
+		v.Acquisition = append(v.Acquisition, &o.AcquisitionFacts{Source: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Haygrass"), MapId: v.Context.Identity.MapId, Position: cell, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("Hay"), Hunt: proto.Bool(false), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)})
+	}
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineAcquisitionPlanner(reviewer, policy.MaintainResource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(ctx, result.Plan)
+	if err != nil || len(plan.Progress) != 3 {
+		t.Fatal(plan, err)
+	}
+	for i, p := range plan.Progress {
+		if a, _ := p.Action().Acquisition(); a.Thing() != fmt.Sprint("grass", i) {
+			t.Fatal("not nearest first", i, a.Thing())
+		}
+	}
+	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+		t.Fatal(next, err)
+	}
+}

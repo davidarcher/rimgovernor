@@ -372,6 +372,10 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			config.ResourceAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.MaintainResource)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if work {
 			config.Work, err = buildingruntime.NewRoutineWorkPlanner(reviewer)

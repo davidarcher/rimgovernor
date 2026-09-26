@@ -14,7 +14,7 @@ var inlinePlannerSet = []struct {
 }{
 	{"idleDrafts", plannerCritical},
 	{"work", plannerFoothold}, {"fields", plannerFoothold}, {"foodStorage", plannerFoothold}, {"foodAcquisition", plannerFoothold}, {"pestAcquisition", plannerFoothold},
-	{"woodAcquisition", plannerMaintenance}, {"supplies", plannerCritical}, {"sleeping", plannerFoothold}, {"power", plannerFoothold},
+	{"woodAcquisition", plannerMaintenance}, {"resourceAcquisition", plannerMaintenance}, {"supplies", plannerCritical}, {"sleeping", plannerFoothold}, {"power", plannerFoothold},
 	{"temperature", plannerFoothold}, {"refrigeration", plannerMaintenance}, {"lighting", plannerMaintenance}, {"flooring", plannerMaintenance},
 	{"routes", plannerMaintenance}, {"cooking", plannerFoothold}, {"butcher", plannerFoothold}, {"cookingBills", plannerFoothold},
 	{"preservationBills", plannerFoothold}, {"butcherBills", plannerFoothold}, {"cookAheadBills", plannerFoothold}, {"basicComfort", plannerFoothold}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},

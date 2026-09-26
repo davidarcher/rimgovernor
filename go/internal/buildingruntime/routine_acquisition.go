@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -23,9 +24,11 @@ type RoutineAcquisitionResult struct {
 // NewRoutineAcquisitionPlanner plans one acquisition goal: EnsureFoodSupply
 // and MaintainWood harvest and hunt toward a stock target; ClearPests
 // (#247) hunts every recognised pest the wild-animal census reports, one
-// hunt method per admission, until none remain.
+// hunt method per admission, until none remain; MaintainResource chops,
+// forages and hunts toward its ranked floors through the acquisition
+// catalog (#728), beside RoutineResourcePlanner's bills and mines.
 func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID) (*RoutineAcquisitionPlanner, error) {
-	if reviewer == nil || (need != policy.MaintainWood && need != policy.EnsureFoodSupply && need != policy.ClearPests) {
+	if reviewer == nil || (need != policy.MaintainWood && need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
 		return nil, ErrControl
 	}
 	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need}, nil
@@ -110,6 +113,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	pest := r.need == policy.ClearPests
+	stockGoal := r.need == policy.MaintainResource
 	food := r.need == policy.EnsureFoodSupply
 	huntOnly := false
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
@@ -198,6 +202,11 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		// the butcher spot and bill were placed for wait behind it, so
 		// open plant harvests leave the hunt slots plannable and the
 		// hunt-only plan is admitted over them.
+		// MaintainResource shares its goal with the bill and mine planner:
+		// any open work of either holds the next method.
+		if stockGoal && domain.GoalWorkOpen(plan.Progress) {
+			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+		}
 		if !pest && acquisitionBlockingWork(plan.Progress) {
 			if !food || !acquisitionHuntOnlyOpen(plan.Progress, huntSources) {
 				return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
@@ -274,7 +283,9 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	var selected []policy.AcquisitionSource
-	if pest {
+	if stockGoal {
+		selected, err = r.resourceSelection(call, state.Snapshot, projection, held, slots)
+	} else if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
 	} else {
 		sources := projection.Acquisition
@@ -283,7 +294,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 		selected, err = policy.SelectAcquisition(sources, deficit, pending, food, held, slots)
 	}
-	if rows, known := projection.Acquisition.Value(); known && !pest {
+	if rows, known := projection.Acquisition.Value(); known && !pest && !stockGoal {
 		hunts := 0
 		for _, row := range rows {
 			if row.Hunt {
@@ -310,6 +321,9 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		// already used (#214).
 		fmt.Fprintf(hash, "#%d\n", goal.Admitted)
 		prefix, planPrefix = "pest-hunt", "routine-pest-hunt"
+	}
+	if stockGoal {
+		prefix, planPrefix = "resource-acquire", "routine-resource-acquire"
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -345,6 +359,37 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// resourceSelection is MaintainResource's census selection: the floors
+// worst-covered first, and for the first with chop, harvest or hunt
+// sources, policy.SelectCatalogAcquisition against its deficit.
+func (r *RoutineAcquisitionPlanner) resourceSelection(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, held map[string]bool, slots domain.Fact[int]) ([]policy.AcquisitionSource, error) {
+	rows, known := projection.Acquisition.Value()
+	if !known {
+		return nil, errors.New("acquisition census unknown")
+	}
+	stock := projection.Facts.Resources
+	targets, err := r.reviewer.resourceTargets(ctx, snapshot, stock)
+	if err != nil {
+		return nil, err
+	}
+	ranked, err := policy.RankResourceTargets(targets, stock)
+	if err != nil {
+		return nil, err
+	}
+	hunts, _ := slots.Value()
+	for _, row := range ranked {
+		selected, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), projection.Center, held, hunts)
+		if err != nil {
+			return nil, err
+		}
+		clockSchedulerLog("%s: catalog %s target=%d selected=%d", r.need, row.Resource, row.Target, len(selected))
+		if len(selected) > 0 {
+			return selected, nil
+		}
+	}
+	return nil, nil
 }
 
 // Only admitted sources can start new work. Pending designations retain their

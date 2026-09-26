@@ -114,3 +114,55 @@ func AcquisitionSourceCandidates(resource Resource, sources []AcquisitionSource,
 	}
 	return out
 }
+
+// maxCatalogSelection bounds one acquisition method, matching
+// SelectResourceSources' native selection cap.
+const maxCatalogSelection = 8
+
+// SelectCatalogAcquisition picks MaintainResource's chop, harvest and hunt
+// sources for resource (#728): every undesignated, unheld census row
+// yielding it is a catalog candidate, ranked by RankResourceCandidates
+// against need less the yield already designated, and taken best first
+// until the rest of the need is covered, at most huntSlots hunts and
+// maxCatalogSelection rows.
+func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need int64, home domain.Cell, held map[string]bool, huntSlots int) ([]AcquisitionSource, error) {
+	byID := map[string]AcquisitionSource{}
+	var open []AcquisitionSource
+	for _, row := range rows {
+		if Resource(row.Resource) != resource {
+			continue
+		}
+		if row.Designated {
+			need -= int64(math.Round(row.Yield))
+			continue
+		}
+		if held[row.ID] || row.Hunt && huntSlots <= 0 {
+			continue
+		}
+		byID[row.ID] = row
+		open = append(open, row)
+	}
+	if need <= 0 || len(open) == 0 {
+		return nil, nil
+	}
+	ranked, err := RankResourceCandidates(ResourceDeficitDemand(resource, need), AcquisitionSourceCandidates(resource, open, home, domain.Known(need)), AcquisitionCompetition{})
+	if err != nil {
+		return nil, err
+	}
+	var out []AcquisitionSource
+	for _, s := range ranked {
+		row := byID[s.ID]
+		if row.Hunt {
+			if huntSlots <= 0 {
+				continue
+			}
+			huntSlots--
+		}
+		out = append(out, row)
+		need -= int64(math.Round(row.Yield))
+		if need <= 0 || len(out) == maxCatalogSelection {
+			break
+		}
+	}
+	return out, nil
+}

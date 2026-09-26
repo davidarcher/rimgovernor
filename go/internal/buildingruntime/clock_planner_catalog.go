@@ -193,6 +193,16 @@ var plannerCatalog = []plannerEntry{
 			out.WoodAcquisition = &method
 			return method.Reason, nil
 		}},
+	{name: "resourceAcquisition", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AcquisitionAction}, sections: sectionsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.ResourceAcquisition != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.ResourceAcquisition.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.ResourceAcquisition = &method
+			return method.Reason, nil
+		}},
 	{name: "supplies", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.SupplyAllowAction, domain.SupplyForbidAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Supplies != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
