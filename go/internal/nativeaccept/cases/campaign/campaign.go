@@ -3,8 +3,7 @@
 // through the player control path with one dashboard viewer polling video,
 // where the harness assists only during setup and every later hand is
 // recorded as an intervention. Two campaigns (campaign/foothold,
-// campaign/recovery) and six fault injections (campaign/fault-*) share
-// one shape: launch rimgovernor serve over the tribal8 baseline, watch a
+// campaign/recovery) share one shape: launch rimgovernor serve over the tribal8 baseline, watch a
 // tick-measured phase, stop, inject the next disturbance through a fixture
 // op, relaunch. Every assertion is native end state or an advancing
 // GoalProgress record (#629), never a plan count.
@@ -20,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -84,9 +82,6 @@ func footholdWindow() uint64 {
 	}
 	return footholdTicks
 }
-
-// dayTicks is one game day.
-const dayTicks uint64 = 60000
 
 // serveSpec is the campaign's serve process: every routine family (nil
 // Families; the supply family must be in, or ManageSupplySafety parks
@@ -243,21 +238,9 @@ func (p *phase) advanced() uint64 {
 	return p.Window.LastTick - p.Window.FirstTick
 }
 
-// playOptions shape one phase: the watch (window, goal, early exit), the
-// viewer, edits to the serve spec (a fault injection's environment, chat
-// flags) and hooks that run against the live service before the watch
-// ends (probe) and after it (audit, service still running).
+// playOptions shape one phase: the watch (window, goal, early exit).
 type playOptions struct {
-	Watch  sustainedfood.WatchConfig
-	Viewer *na.ViewerOptions
-	Spec   func(*na.ServeSpec)
-	// During runs beside the watch with the live service, for a case that
-	// acts on the service mid-phase (a viewer that disconnects, a chat
-	// request against a dead endpoint); it returns what it observed.
-	During func(ctx context.Context, service *na.ServiceProcess, viewer *na.ViewerClient) (map[string]any, error)
-	// FailFast is on by default; a phase that expects the service to stop
-	// (an injected authority loss) disables it.
-	NoFailFast bool
+	Watch sustainedfood.WatchConfig
 }
 
 // play launches the service, starts the viewer, watches the phase, then
@@ -270,20 +253,12 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	if err != nil {
 		return nil, err
 	}
-	if opts.Spec != nil {
-		opts.Spec(&spec)
-	}
 	service, err := c.s.Serve(ctx, spec)
 	if err != nil {
 		return nil, fmt.Errorf("%s: serve: %w", label, err)
 	}
 	p := &phase{Label: label}
-	var viewer *na.ViewerClient
-	viewerOpts := na.ViewerOptions{ID: "campaign-viewer"}
-	if opts.Viewer != nil {
-		viewerOpts = *opts.Viewer
-	}
-	viewer = na.StartViewerWith(ctx, service, service.Token, viewerOpts)
+	viewer := na.StartViewerWith(ctx, service, service.Token, na.ViewerOptions{ID: "campaign-viewer"})
 	stop := func() {
 		if viewer != nil {
 			p.Viewer = viewer.Stop()
@@ -300,29 +275,14 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	// re-acquisitions during the phase are hands on the colony.
 	c.record("acquire-"+label, false, map[string]any{"kind": "authority", "launch": c.launches, "restart": c.launches > 1})
 	cfg := opts.Watch
-	if opts.NoFailFast {
-		cfg.FailFast = sustainedfood.FailFast{Disabled: true}
-	}
 	if cfg.Goal == "" {
 		cfg.Goal = policy.EnsureFoodSupply
 	}
 	if cfg.Poll <= 0 {
 		cfg.Poll = 10 * time.Second
 	}
-	var during map[string]any
-	var duringErr error
-	done := make(chan struct{})
-	if opts.During != nil {
-		go func() {
-			defer close(done)
-			during, duringErr = opts.During(ctx, service, viewer)
-		}()
-	} else {
-		close(done)
-	}
 	report := na.Report{}
 	p.Timeline, p.Err = sustainedfood.Watch(ctx, c.s.Config(), service, cfg, report)
-	<-done
 	p.Window, _ = report["window"].(*sustainedfood.TickWindow)
 	if service.Exited() == nil {
 		p.Progress, _ = readProgress(service)
@@ -338,21 +298,15 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	p.Stderr = service.StderrPath()
 	row := map[string]any{"label": label, "launch": c.launches, "samples": len(p.Timeline), "window": p.Window, "mode": p.Mode, "viewer": p.Viewer,
 		"metrics": sustainedfood.DeriveMetrics(p.Timeline), "colony": sustainedfood.DeriveColonyOutcome(p.Timeline), "progress": p.Progress, "keepalive": p.Keep,
-		"clock": service.Entry()["clock"], "during": during, "events": report["events"]}
+		"clock": service.Entry()["clock"], "events": report["events"]}
 	if p.Err != nil {
 		row["error"] = p.Err.Error()
-	}
-	if duringErr != nil {
-		row["during_error"] = duringErr.Error()
 	}
 	c.phases = append(c.phases, row)
 	c.report["phases"] = c.phases
 	c.report["timeline"] = p.Timeline
 	if _, err := c.s.Reattach(ctx); err != nil {
 		return p, fmt.Errorf("%s: reattach: %w", label, err)
-	}
-	if duringErr != nil {
-		return p, fmt.Errorf("%s: %w", label, duringErr)
 	}
 	return p, nil
 }
@@ -427,23 +381,6 @@ func (p *phase) assertPlaying(window uint64) error {
 	}
 	if p.Mode != "automate" {
 		return fmt.Errorf("%s: service ended the phase in mode %q, want automate", p.Label, p.Mode)
-	}
-	return nil
-}
-
-// stoppedTicks bounds how far the tick may still move once play must
-// stop: the window native lets run out after the last admitted one, plus
-// the blind ticks a stop takes to land.
-const stoppedTicks = dayTicks + 3000
-
-// assertStopped is the "must stop" gate: the phase's window was not
-// reached and the tick moved at most one running window past the fault.
-func (p *phase) assertStopped(window uint64) error {
-	if p.Window != nil && p.Window.Reached {
-		return fmt.Errorf("%s: play continued through the whole %d-tick window (advanced %d)", p.Label, window, p.advanced())
-	}
-	if moved := p.advanced(); moved > stoppedTicks {
-		return fmt.Errorf("%s: tick advanced %d past the fault, more than one window (%d)", p.Label, moved, stoppedTicks)
 	}
 	return nil
 }
@@ -552,39 +489,4 @@ func (c *campaign) fixture(ctx context.Context, label, op string, args map[strin
 		return nil, fmt.Errorf("%s %v refused: %#v", op, args, out)
 	}
 	return out, nil
-}
-
-// flightHeldBy lists the planners the clock_step rows named under held_by.
-func flightHeldBy(rows []na.FlightRow) map[string]int {
-	held := map[string]int{}
-	for _, row := range rows {
-		if row.Kind != "clock_step" {
-			continue
-		}
-		for _, name := range na.AsSlice(row.Payload["held_by"]) {
-			held[na.AsString(name)]++
-		}
-	}
-	return held
-}
-
-// stepsAdmitted counts the clock_step rows that admitted a window (the
-// rows carrying the window's ticks).
-func stepsAdmitted(rows []na.FlightRow) int {
-	n := 0
-	for _, row := range rows {
-		if row.Kind == "clock_step" && na.AsNumber(row.Payload["window_ticks"]) > 0 {
-			n++
-		}
-	}
-	return n
-}
-
-// logLines counts the service log's lines containing needle.
-func logLines(path, needle string) int {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0
-	}
-	return strings.Count(string(data), needle)
 }

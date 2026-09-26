@@ -109,14 +109,14 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	// Four named long cases and the eight campaign/* rows (#633).
-	if len(land) != len(full.Cases)-12 {
+	// Four named long cases and the two campaign/* rows (#633).
+	if len(land) != len(full.Cases)-6 {
 		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
 	}
 }
 
 func TestColonyStableNightlyOnly(t *testing.T) {
-	for _, name := range []string{"sustained/colony-stable", "mood/recreation", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery", "campaign/fault-authority-loss"} {
+	for _, name := range []string{"sustained/colony-stable", "mood/recreation", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery"} {
 		for _, tier := range []string{"full", "smoke", "matrix"} {
 			set, err := tierCases(tier, "", "main")
 			if err != nil {

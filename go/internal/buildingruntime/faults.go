@@ -11,10 +11,10 @@ import (
 // scheduler (#633): a named catalog planner that fails every step, one
 // that never returns (blocks until its step context ends) and an epoch
 // renewal that silently does nothing so the native lease lapses. They
-// exist so the campaign/* cases can prove which failures leave safe play
-// running (an optional planner) and which stop it (a critical planner held
-// past the wall budget, authority revoked after the lease expired). Parsed
-// from FaultsEnv by serve; never set in ordinary play.
+// show which failures leave safe play running (an optional planner) and
+// which stop it (a critical planner held past the wall budget, authority
+// revoked after the lease expired); faults_test.go proves each. Parsed from
+// FaultsEnv by serve; never set in ordinary play.
 type Faults struct {
 	// FailPlanners names catalog planners whose run returns errFaultInjected
 	// at once, before any native read.

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -217,3 +218,28 @@ func TestChatHTTPRefusesGuidanceOutsideFacts(t *testing.T) {
 }
 
 func chatWorld() store.World { return store.World{Colony: "colony", Load: "load", Map: 0} }
+
+type downCompleter struct{}
+
+func (downCompleter) Complete(context.Context, model.Request) (model.Response, error) {
+	return model.Response{}, errors.New("dial tcp 127.0.0.1:1: connection refused")
+}
+
+// A chat model endpoint that is down fails the one request with a 5xx and
+// reaches no policy input; play never depends on the adviser.
+func TestChatHTTPModelDownFailsWithoutPolicyWrite(t *testing.T) {
+	s, f := playerAPI(t)
+	interp, err := interpreter.New(interpreter.Config{ContextTokens: 16384, MaxOutputTokens: 1024}, downCompleter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.EnableChat(interp, chatNative{}, f.journal)
+	w := playerCall(s, "POST", "/api/chat", chatJSON, s.playerToken)
+	var failure Failure
+	if err := json.Unmarshal(w.Body.Bytes(), &failure); err != nil || w.Code != 502 || failure.Code != string(interpreter.ModelFailure) {
+		t.Fatal(w.Code, w.Body.String(), err)
+	}
+	if f.calls != 0 {
+		t.Fatal("a failed chat reached a policy input", f.calls)
+	}
+}

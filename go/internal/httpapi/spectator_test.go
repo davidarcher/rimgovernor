@@ -180,7 +180,7 @@ func viewerAPI(t *testing.T) (*Server, *presentationMediaFake, *playerFixture, *
 	return api, media, fixture, db, session.Token
 }
 
-// A viewer connecting, watching and disconnecting must not change the
+// A viewer connecting, watching, disconnecting and reconnecting must not change the
 // simulation contract (#632): against the fake native, the whole viewer path
 // — the video lease, the presentation reads and the spectator panel — issues
 // no control operation (no speed request, no submission) and writes no
@@ -189,20 +189,24 @@ func TestViewerPathWritesNoJournalRowAndRequestsNoSpeed(t *testing.T) {
 	api, media, fixture, db, token := viewerAPI(t)
 	before := journalDigest(t, db)
 
-	if out := playerCall(api, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8}`, token); out.Code != 200 {
-		t.Fatal(out.Code, out.Body.String())
-	}
-	for _, route := range []string{"/api/presentation/render-state", "/api/presentation/camera", spectatorNowPath, "/api/state"} {
-		if out := playerCall(api, "GET", route, "", token); out.Code != 200 {
-			t.Fatal(route, out.Code, out.Body.String())
+	// Connect, watch, disconnect, then reconnect and disconnect again: a
+	// viewer dropping mid-run and coming back is the same no-op twice.
+	for range 2 {
+		if out := playerCall(api, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8}`, token); out.Code != 200 {
+			t.Fatal(out.Code, out.Body.String())
+		}
+		for _, route := range []string{"/api/presentation/render-state", "/api/presentation/camera", spectatorNowPath, "/api/state"} {
+			if out := playerCall(api, "GET", route, "", token); out.Code != 200 {
+				t.Fatal(route, out.Code, out.Body.String())
+			}
+		}
+		if out := playerCall(api, "POST", "/api/presentation/video-lease", `{"leaseSeconds":0}`, token); out.Code != 200 {
+			t.Fatal(out.Code, out.Body.String())
 		}
 	}
-	if out := playerCall(api, "POST", "/api/presentation/video-lease", `{"leaseSeconds":0}`, token); out.Code != 200 {
-		t.Fatal(out.Code, out.Body.String())
-	}
-	// Two lease operations and the reads the viewer asked for: nothing else
+	// Four lease operations and the reads the viewer asked for: nothing else
 	// reached native, and no control operation at all.
-	if media.calls != 2 {
+	if media.calls != 4 {
 		t.Fatalf("viewer lease calls: %d", media.calls)
 	}
 	if fixture.calls != 0 {

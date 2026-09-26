@@ -319,13 +319,12 @@ overrides the window). `campaign/recovery` settles, takes every wood log
 (`test/hut_shell_fixture take`), requires MaintainResource to bind on the WoodLog floor and the
 stock to return to the policy floor natively, then stages an edge walk-in
 raid (`test/defense_setup raid`) and requires no hostile standing after a
-day. The `campaign/fault-*` rows inject one failure each through
-`RIMGOVERNOR_FAULT_INJECT` (`planner:<name>=fail|hang`, `renewal=drop`; see
-`buildingruntime.Faults`), a dead chat endpoint, or the viewer: an optional
-planner failing, the LLM endpoint down, the viewer disconnecting and a
-stalled dashboard client must leave the campaign playing; a hung critical
-planner (nothing admitted, `held_by` in the flight rows) and a lapsed
-native lease (mode `manual`) must stop it within one window.
+day. The single-failure faults are Go tests against fakes, not cases:
+`buildingruntime/faults_test.go` (a failing optional planner is isolated, a
+hung critical planner admits nothing, a dropped renewal writes nothing so the
+lease lapses), `httpapi` chat and viewer tests (a dead chat model is a 502
+with no policy write, a viewer disconnecting and reconnecting or a stalled
+stream client issues no control operation).
 
 ## Late-game material production
 

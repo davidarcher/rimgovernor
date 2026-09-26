@@ -70,3 +70,17 @@ func TestClockSchedulerHangFaultOnCriticalHolds(t *testing.T) {
 		t.Fatalf("held %v", got.HeldBy)
 	}
 }
+
+// A dropped renewal (authority loss) writes nothing native and leaves the
+// owned epoch to lapse: native stops it lease_expired and revokes, so the
+// scheduler cannot keep a window running on its own.
+func TestClockRenewalDropFaultLetsLeaseLapse(t *testing.T) {
+	t.Parallel()
+	s, n, w, _ := renewalFixture(t)
+	s.config.Faults = Faults{DropRenewal: true}
+	writes := n.writes
+	r, err := s.RenewEpoch(context.Background())
+	if err != nil || r.Renewed || r.Attempt != nil || w.renews != 0 || n.writes != writes {
+		t.Fatal(r, err, w.renews, n.writes)
+	}
+}
