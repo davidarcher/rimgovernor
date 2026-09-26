@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -641,6 +642,7 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 		}
 		request.Lines = append(request.Lines, l)
 	}
+	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutTurrets, Request: request, Geometry: geometry, Record: record})
 	tier, verified, err := policy.DefenseTurrets(request, geometry)
 	clockSchedulerLog("defense-layout: turret probe candidates=%+v lines=%d buildings=%d costs=%v err=%v %s", verified, len(lines.Lines), len(tier.Buildings), tier.Costs, err, defenseTurretGates(request))
 	if err != nil || len(tier.Buildings) == 0 {
@@ -891,6 +893,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 		}
 		request.Lines = append(request.Lines, l)
 	}
+	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutPropose, Request: request})
 	layout, err = policy.DefenseLayouts(request)
 	if err != nil || !layout.LinesVerified {
 		return policy.DefenseLayout{}, nil, false, nil

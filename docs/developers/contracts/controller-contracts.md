@@ -630,9 +630,10 @@ storyteller inputs, not a prediction of the next raid.
 Defense feeds observed raid points into the turret budget: unknown or below 300
 allows two, below 800 allows four, otherwise six. Power, stock, spacing and native
 lines of fire still gate placement. Armed colonists determine firing-line size;
-wealth never lengthens it. `defense/layout-stocked` compares native and projected
-facts before and after tripling a stock bundle and requires more proposed turrets
-with the same armed roster and firing geometry.
+wealth never lengthens it. The `TestDefenseReplayStockedColonyProposesMoreTurrets`
+snapshot replay in `internal/buildingruntime` compares facts recorded before and
+after tripling a stock bundle and requires more proposed turrets with the same
+armed roster and firing geometry (#744).
 
 When the configured item-wealth share is exceeded, routine trade offers excess
 Steel, Plasteel, Gold, Uranium and Jade while retaining the greatest of the target,

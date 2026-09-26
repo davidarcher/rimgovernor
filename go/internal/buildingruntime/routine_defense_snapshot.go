@@ -1,0 +1,142 @@
+package buildingruntime
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
+)
+
+// defenseRecorder is a RoutineDefenseSource that keeps the replies one
+// defense step read, for its colony snapshot (#744).
+type defenseRecorder struct {
+	RoutineDefenseSource
+	emergency *bridge.EmergencyObservation
+	pawns     *n.ListPawnsReply
+	lines     *bridge.LinesOfFire
+}
+
+func (d *defenseRecorder) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	v, r, err := d.RoutineDefenseSource.ReadEmergency(ctx, id)
+	if err == nil {
+		d.emergency = &v
+	}
+	return v, r, err
+}
+
+func (d *defenseRecorder) ReadCombatPawns(ctx context.Context, id *c.Identity, ids []string) (*n.ListPawnsReply, bridge.Result, error) {
+	v, r, err := d.RoutineDefenseSource.ReadCombatPawns(ctx, id, ids)
+	if err == nil {
+		d.pawns = v
+	}
+	return v, r, err
+}
+
+func (d *defenseRecorder) ReadLinesOfFire(ctx context.Context, id *c.Identity, from, to []domain.Cell) (bridge.LinesOfFire, bridge.Result, error) {
+	v, r, err := d.RoutineDefenseSource.ReadLinesOfFire(ctx, id, from, to)
+	if err == nil {
+		d.lines = &v
+	}
+	return v, r, err
+}
+
+// step runs the defense decision and, when snapshot.DirEnv names a
+// directory, records every step that read the emergency census as
+// defense-<tick>-<reason>.json; a failed write is logged, never the step's error.
+func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseResult, error) {
+	dir := os.Getenv(snapshot.DirEnv)
+	if dir == "" {
+		return r.decide(call, epoch, arbiter)
+	}
+	recorder := &defenseRecorder{RoutineDefenseSource: r.native}
+	planner := *r
+	planner.native = recorder
+	result, err := planner.decide(call, epoch, arbiter)
+	if err == nil && recorder.emergency != nil {
+		d, recErr := r.defenseSnapshot(call, recorder, result)
+		if recErr == nil {
+			recErr = snapshot.RecordDefense(dir, d)
+		}
+		if recErr != nil {
+			clockEvent(call, "defense", "snapshot", "defense snapshot not recorded: "+recErr.Error())
+		}
+	}
+	return result, err
+}
+
+// recordLayoutSnapshot writes one layout decision's request when
+// snapshot.DirEnv names a directory (#744); a failed write is logged.
+func recordLayoutSnapshot(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick, l snapshot.Layout) {
+	dir := os.Getenv(snapshot.DirEnv)
+	if dir == "" {
+		return
+	}
+	l.Recorded = fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick)
+	l.Snapshot, l.Tick = current, tick
+	if err := snapshot.RecordLayout(dir, l); err != nil {
+		clockEvent(ctx, "defense-layout", "snapshot", "layout snapshot not recorded: "+err.Error())
+	}
+}
+
+func (r *RoutineDefensePlanner) defenseSnapshot(ctx context.Context, rec *defenseRecorder, result RoutineDefenseResult) (snapshot.Defense, error) {
+	p := r.reviewer.player
+	current := p.session.State().Snapshot
+	tick := domain.Tick(rec.emergency.Context.GetTick())
+	d := snapshot.Defense{
+		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick),
+		Snapshot: current, Tick: tick, Emergency: rec.emergency.Facts,
+		Reason: string(result.Reason), Plan: result.Plan,
+	}
+	var err error
+	if d.EmergencyContext, err = protojson.Marshal(rec.emergency.Context); err != nil {
+		return d, err
+	}
+	if rec.pawns != nil {
+		if d.CombatPawns, err = protojson.Marshal(rec.pawns); err != nil {
+			return d, err
+		}
+	}
+	if rec.lines != nil {
+		d.Lines = rec.lines.Lines
+		if d.LinesContext, err = protojson.Marshal(rec.lines.Context); err != nil {
+			return d, err
+		}
+	}
+	layout, ok, err := p.journal.LoadDefenseLayout(ctx, store.World{Colony: current.Colony, Load: current.Load, Map: current.Map})
+	if err != nil {
+		return d, err
+	}
+	if ok {
+		d.Layout = &layout
+	}
+	if result.Plan == "" {
+		return d, nil
+	}
+	review, err := p.journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return d, err
+	}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.ActiveCombat {
+			continue
+		}
+		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
+		if err != nil {
+			return d, err
+		}
+		for _, m := range goal.Methods {
+			if m.Plan == result.Plan {
+				d.Method = m.Method
+			}
+		}
+	}
+	return d, nil
+}

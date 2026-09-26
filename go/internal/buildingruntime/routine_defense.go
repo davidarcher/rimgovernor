@@ -49,7 +49,7 @@ func (r *RoutineDefensePlanner) Step(ctx context.Context) (RoutineDefenseResult,
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseResult, error) {
+func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {

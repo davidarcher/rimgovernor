@@ -87,3 +87,24 @@ dig-or-shell choices. Load it with `snapshot.LoadPlanner` and call the
 policy function on the recorded request. Under the acceptance harness the
 recording directory gets `<area>/<case>` appended per case. Commit
 recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.
+
+## Defense snapshots
+
+A threat response is not a routine review: `RoutineDefensePlanner` reads
+the emergency census, the combat pawn rows and (for a hostile building)
+the lines of fire itself. With the recording variable set, every defense
+step that read the emergency census also writes
+`defense-<tick>-<reason>.json` (`snapshot.Defense`): those replies
+(protobuf ones as protojson), the stored layout record and the step's
+reason and admitted method. `replayDefense` in `internal/buildingruntime`
+serves them, re-addressed to the fixture world, to a real planner over a
+fresh journal; several files replay in order on one journal, so a hold
+and its breach fallback replay as steps (#744).
+
+The defensive layout planner records its three policy decisions as
+`layout-<point>-<tick>.json` (`snapshot.Layout`): `propose` (the
+`DefenseRequest` `policy.DefenseLayouts` verified the chokepoint with),
+`turrets` (the request and geometry `policy.DefenseTurrets` probed) and
+`cover` (the request, layout record and site cells
+`policy.DefenseApproachesFor` ranked cover over). Tests call the policy
+function on the recorded request.

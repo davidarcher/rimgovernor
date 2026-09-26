@@ -514,7 +514,7 @@ func SetCheckpointState(key string, value any) {
 // CapCheckpoints stops the active ring taking any further entry, periodic
 // or named, so a resume of a later failure replays from the last entry
 // before the cap: a case calls it at a point of no return its Run body
-// cannot resume after (defense/layout at its raid, whose sprung traps fail
+// cannot resume after (defense/raid at its raid, whose sprung traps fail
 // the pre-raid audit a resume replays; #330). The failed bundle is still
 // taken. reason goes on the report. Nothing happens when no ring is active.
 func CapCheckpoints(reason string) {

@@ -85,7 +85,7 @@ func TestHarnessInputsScopeFixtures(t *testing.T) {
 	if !ok {
 		t.Skip("not in a checkout")
 	}
-	files, err := HarnessInputs(repo, "defense/layout")
+	files, err := HarnessInputs(repo, "defense/raid")
 	if err != nil {
 		t.Fatal(err)
 	}

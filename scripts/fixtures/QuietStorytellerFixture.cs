@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
         // A map-gen insect hive is a hostile building the census lists as a
         // combat target (#246) and a spawner of the very insects RemoveStrangers
         // just removed, so every hive leaves the map too (#340). A case that
-        // wants a hive spawns its own after this (defense/hive).
+        // wants a hive spawns its own after this.
         public static int RemoveHives(Map map)
         {
             var hives = map.listerThings.AllThings.OfType<Hive>().ToList();

@@ -4,55 +4,39 @@
 // chooses the chokepoint, builds every tier natively (firing line, funnel,
 // trap corridor), and the stored layout is re-verified by an independent
 // native spatial-access read with its walls and barricades blocked and by a native
-// inspection that no colonist stands on a trap. A real RaidEnemy incident
-// (chosen strategy and arrival) is then raised and the RoutineDefensePlanner
-// must respond with hold-the-line (method "hold-…") for an ordinary edge
-// assault, or with squad defense ("squad-…") when the raid bypasses the line
-// (defense/raid-bypass: ImmediateAttackSappers). In
-// defense/predator the incident is instead a wild predator the fixture
-// spawns inside the band already hunting a colonist (#157): the clock stops
-// with predator_hunt, the emergency holds the hunt as an unsafe threat, and
-// the RoutineDefensePlanner must answer it with squad defense; the run then
-// waits for the hunt to resolve under the service (the predator dead,
-// downed or gone, the ActiveCombat goal recovered, the drafts released) and
-// for the clock to resume colony windows afterwards. In defense/hive and
-// defense/shippart the incident is a hostile building (#246): the fixture
-// spawns one insect hive or one crashed ship part in the open near the
-// colony with its pawn spawning off, the census lists it under
-// hostileBuildings and holds the clock like a hostile pawn, the
-// RoutineDefensePlanner must answer it with a melee squad on the building,
-// the fight runs under combat windows until the goal recovers, the drafts
-// are released and colony windows resume, and natively the building must
-// be destroyed with no colonist dead or drafted. For the edge
-// raid the service then holds the raid itself -- the scheduler admits
-// bounded combat watch windows acknowledging the live hostiles while the
-// ActiveCombat goal has an admitted plan (#69) -- and the run waits for the
-// goal to recover, then for the aftermath (#72): the hold plan's drafts are
-// released and the layout planner re-admits every tier the raid degraded
-// (a sprung spike trap is destroyed; a breached wall is gone) until the
-// stored record is verified standing again within a bounded number of
-// ticks. The repair is the planner's own (#117): before the repair
-// service starts, the fixture switches the game's auto-rebuild off,
-// removes its pending trap blueprints and vanishes a surviving trap,
-// so every missing trap can only be replaced by a re-admitted tier
-// method. Natively the run then asserts that the raiders are dead or
-// downed, at least one trap sprung, the trap and wall counts match the
-// audited layout, the breached cell holds a trap again and no colonist is
-// left drafted.
+// inspection that no colonist stands on a trap. A real RaidEnemy edge
+// assault is then raised and the RoutineDefensePlanner must respond with
+// hold-the-line (method "hold-…"). The service then holds the raid itself
+// -- the scheduler admits bounded combat watch windows acknowledging the
+// live hostiles while the ActiveCombat goal has an admitted plan (#69) --
+// and the run waits for the goal to recover, then for the aftermath (#72):
+// the hold plan's drafts are released and the layout planner re-admits
+// every tier the raid degraded (a sprung spike trap is destroyed; a
+// breached wall is gone) until the stored record is verified standing
+// again within a bounded number of ticks. The repair is the planner's own
+// (#117): before the repair service starts, the fixture switches the
+// game's auto-rebuild off, removes its pending trap blueprints and vanishes
+// a surviving trap, so every missing trap can only be replaced by a
+// re-admitted tier method. Natively the run then asserts that the raiders
+// are dead or downed, at least one trap sprung, the trap and wall counts
+// match the audited layout, the breached cell holds a trap again and no
+// colonist is left drafted.
+//
+// The other threat responses and layout decisions (bypass, breach, siege,
+// drop, predator, hostile buildings, turrets, cover, stocked projection)
+// are go-test snapshot replays in
+// internal/buildingruntime/routine_defense_cases_test.go (#744).
 //
 // Only one GABP client may hold the game at a time: the case's fixture
 // session and the service's session are used strictly in turn.
 //
-// defense/layout builds the layout on the tribal8 baseline and plays the
-// edge raid through to the repair; tools/defense-checkpoint builds and
+// tools/defense-checkpoint builds the layout on the tribal8 baseline,
 // audits it, then saves the game as the committed checkpoint
 // (scripts/fixtures/saves/RimGovernor-defense-layout.rws plus its
 // .checkpoint.json: the layout record and the guarded-construction site).
-// defense/raid, defense/raid-bypass, defense/predator, defense/hive and
-// defense/shippart resume from that
-// checkpoint: they re-run the cheap layout audits and go straight to the
-// incident. The checkpoint is fixture-mod state, so regenerate it after
-// fixture or save-format changes.
+// defense/raid resumes from that checkpoint: it re-runs the cheap layout
+// audits and goes straight to the raid. The checkpoint is fixture-mod
+// state, so regenerate it after fixture or save-format changes.
 package defense
 
 import (
@@ -91,37 +75,14 @@ const (
 	repairTicks   = int64(60000)
 )
 
-// variant is one case's scenario: the incident staged after the layout
-// (threat "raid" with its RaidStrategyDef/PawnsArrivalModeDef, bypass when
-// the raid bypasses the line; "predator" with its PawnKindDef; or
-// "building" with the hostile building's ThingDef, #246), whether
-// the layout comes from the committed checkpoint, and whether the run ends
-// by writing that checkpoint instead of staging an incident.
+// variant is one case's scenario: the edge raid staged after the layout
+// (its RaidStrategyDef/PawnsArrivalModeDef), whether the layout comes from
+// the committed checkpoint, and whether the run ends by writing that
+// checkpoint instead of staging the raid.
 type variant struct {
-	strategy, arrival    string
-	bypass               bool
-	threat, predatorKind string
-	buildingKind         string
-	// rifles arms that many colonists with bolt-action rifles before the
-	// hostile building is staged, so the squad shoots it (#327); zero
-	// leaves the checkpoint's arms and accepts either mode.
-	rifles          int
-	fromCheckpoint  bool
-	writeCheckpoint bool
-	// turrets adds the powered turret tier (#61) before the raid and
-	// replaces the trap breach with a conduit loss and turret damage.
-	turrets bool
-	// breach arms the fixture's breach observer before the edge raid: one
-	// raider is teleported behind the held line once the hold is dispatched,
-	// and the run asserts the hold falls back to squad defense (#118).
-	breach bool
-	// squad marks a raid the layout cannot hold (siege, centre drop): the
-	// run expects squad defense from the start and plays it to the native
-	// outcome without the repair phase (#118).
-	squad bool
-	// cover stages raider cover ahead of the line and expects the layout
-	// planner to clear it (#581) instead of an incident.
-	cover bool
+	strategy, arrival, threat string
+	fromCheckpoint            bool
+	writeCheckpoint           bool
 }
 
 func init() {
@@ -141,82 +102,24 @@ func init() {
 	// can spawn beside ruins the rock band cannot close.
 	baseline := cases.Save{Name: sustained.BaselineSave}
 	checkpoint := cases.Save{Name: checkpointName, From: cases.CommittedSaves()}
-	edge := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid", predatorKind: "Cougar"}
 	register := func(name, scope string, start cases.Start, budget time.Duration, v variant) {
 		var reason string
 		if budget > cases.MaxBudget {
-			reason = "layout audit, raid answer and repair to the audited state are one native campaign; the bypass and predator variants open on the committed layout within MaxBudget"
-		}
-		serve := spec
-		if v.turrets {
-			// The turret aftermath is routine upkeep: the repair family
-			// mends the damaged turret and the power family may route the
-			// lost connection before the layout re-places its conduit.
-			serve = &cases.ServeSpec{Families: append(append([]string{}, spec.Families...), "repair", "power"), Prefix: spec.Prefix}
-			reason = "turret build, raid answer, routine restoration of a depowered, damaged turret and the rearm of an emptied barrel are one native campaign on the committed layout"
+			reason = "layout build and audit, or raid answer and repair to the audited state, are one native campaign"
 		}
 		cases.Register(cases.Case{
-			Name: name, Scope: scope, Start: start, Serve: serve, Budget: budget, Reason: reason,
+			Name: name, Scope: scope, Start: start, Serve: spec, Budget: budget, Reason: reason,
 			Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
 		})
 	}
 	const audit = "the routine planner chooses the corridor chokepoint on a fixture-constrained site, builds every tier natively, " +
 		"the layout is re-verified by independent spatial-access and trap-cell reads"
-	register("defense/layout", "Native defensive layout vertical (#5 M4): "+audit+", a real RaidEnemy edge assault is answered with hold-the-line, "+
-		"and afterwards the defenders are undrafted and the layout is repaired to its audited state (#72).", baseline, 45*time.Minute, edge)
 	register("tools/defense-checkpoint", "Checkpoint generation: "+audit+", then the game is saved as the committed "+checkpointName+
-		" checkpoint the defense/raid* and defense/predator cases resume from.", baseline, 30*time.Minute,
+		" checkpoint defense/raid resumes from.", baseline, 30*time.Minute,
 		variant{threat: "raid", writeCheckpoint: true})
-	fromCheckpoint := edge
-	fromCheckpoint.fromCheckpoint = true
 	register("defense/raid", "Native defensive layout vertical (#5 M4) from the committed layout checkpoint: the saved layout is re-audited, "+
 		"a real RaidEnemy edge assault is answered with hold-the-line, and afterwards the defenders are undrafted and the layout is repaired to its audited state (#72).",
-		checkpoint, 30*time.Minute, fromCheckpoint)
-	bypass := fromCheckpoint
-	bypass.strategy, bypass.bypass = "ImmediateAttackSappers", true
-	register("defense/raid-bypass", "Native defensive layout vertical (#5 M4) from the committed layout checkpoint: a sapper raid that bypasses the line "+
-		"is answered with squad defense, never a line position.", checkpoint, 15*time.Minute, bypass)
-	turrets := fromCheckpoint
-	turrets.turrets = true
-	register("defense/turrets", "Powered turret tier (#61) on the committed layout checkpoint: with turret research, a fuelled network and steel observed, "+
-		"the planner adds turrets behind the firing line with their own conduit chain and builds them natively; a powered turret is observed firing on an edge raid "+
-		"entering the kill zone, and afterwards a depowered, damaged turret is restored through routine upkeep and an emptied barrel with the game's auto-refuel off is rearmed by the layout's own refuel order (#205).",
-		checkpoint, 50*time.Minute, turrets)
-	breach := fromCheckpoint
-	breach.breach = true
-	register("defense/raid-breach", "Breach fallback (#118) from the committed layout checkpoint: an edge assault is held from the firing line, "+
-		"one raider is then staged behind the line, the planner cancels the hold and answers with squad defense at the threat, the raid resolves and the drafts are released.",
-		checkpoint, 20*time.Minute, breach)
-	siege := fromCheckpoint
-	siege.strategy, siege.squad = "Siege", true
-	register("defense/siege", "Siege fallback (#118) from the committed layout checkpoint: a real Siege raid that never enters the corridor is answered with a squad sortie on the besiegers, "+
-		"never a line position; the attacks reach native dispatch and the fight resolves or costs the besiegers a pawn within the budget.",
-		checkpoint, 20*time.Minute, siege)
-	drop := fromCheckpoint
-	drop.arrival, drop.squad = "CenterDrop", true
-	register("defense/drop", "Drop-pod fallback (#118) from the committed layout checkpoint: a real centre-drop assault lands beside the colony, the layout is irrelevant, "+
-		"squad defense engages at the threat with no defender routed to a firing cell, the raid resolves and the drafts are released.",
-		checkpoint, 15*time.Minute, drop)
-	predator := fromCheckpoint
-	predator.threat = "predator"
-	register("defense/predator", "A wild predator hunting a colonist during supervised play (#157) is answered with squad defense from the committed layout checkpoint: "+
-		"the hunt resolves under the service through combat windows, the drafts are released and colony windows resume.",
-		checkpoint, 15*time.Minute, predator)
-	hive := fromCheckpoint
-	hive.threat, hive.buildingKind = "building", "Hive"
-	register("defense/hive", "An insect hive near the colony (#246) is answered from the committed layout checkpoint: the census lists the hostile building, "+
-		"squad defense targets it (melee, or ranged from a line of fire) under colony windows, the hive is destroyed natively and the drafts are released.",
-		checkpoint, 15*time.Minute, hive)
-	cover := fromCheckpoint
-	cover.threat, cover.cover = "", true
-	register("defense/cover", "Raider cover clearance (#581, #620) from the committed layout checkpoint: trees, chunks, a lone rock and a ruin wall staged on the approach inside the firing line's engagement zone, "+
-		"then a ground raid fought from the line; the raid's crossing ranks a sector, the census identifies every staged thing, the layout planner orders it cleared through the game's own cut, haul, mine and deconstruct designations, and all are gone natively when the plans complete.",
-		checkpoint, 20*time.Minute, cover)
-	shipPart := fromCheckpoint
-	shipPart.threat, shipPart.buildingKind, shipPart.rifles = "building", "DefoliatorShipPart", 8
-	register("defense/shippart", "A crashed ship part near the colony (#246, #327) is answered from the committed layout checkpoint with every colonist armed with a rifle: the census lists the hostile building, "+
-		"squad defense targets it with a ranged attack from a defender with a line of fire, the ship part is destroyed natively and the drafts are released.",
-		checkpoint, 15*time.Minute, shipPart)
+		checkpoint, 30*time.Minute, variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid", fromCheckpoint: true})
 }
 
 // layoutCheckpoint is what a raid-only run needs besides the save itself:
@@ -278,7 +181,7 @@ func (s *service) wait(budget time.Duration) na.Wait {
 func run(ctx context.Context, s cases.Session, v variant) error {
 	report, h, identity := s.Report(), s.Harness(), s.Identity()
 	root, output := s.Config().Root, s.Config().Output
-	report["raid"] = map[string]any{"strategy": v.strategy, "arrival": v.arrival, "bypass": v.bypass, "threat": v.threat}
+	report["raid"] = map[string]any{"strategy": v.strategy, "arrival": v.arrival, "threat": v.threat}
 	// Releasing the harness before a launch is the service's own business:
 	// Session.Serve first answers any colony-naming dialog through the
 	// harness (a released one reads "bridge closed"), then na.Serve frees
@@ -520,149 +423,43 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return nil
 	}
 
-	// The fixture closure reads h; reopening must rebind it here.
-	reopenFixture := func() error {
-		var err error
-		h, err = reopenHarness()
+	// Scenario 2/3: a real edge raid.
+	// The checkpoint was saved with the colonists parked inside the
+	// corridor they had been building. A hold plan drafts and moves
+	// them one action per window, so a raider reaching the corridor
+	// first bounced authority on a colonist-health stop and settled
+	// the plan before dispatch (#222). The line is held from the
+	// firing positions, so stand the defenders there before the raid;
+	// the plan's own drafts and moves are still what the run asserts.
+	cells := make([]string, 0, len(layout.Firing))
+	for _, f := range layout.Firing {
+		cells = append(cells, fmt.Sprintf("%d,%d", f.X, f.Z))
+	}
+	mustered, err := fixture("muster", map[string]any{"op": "muster", "cells": strings.Join(cells, ";")})
+	if err != nil {
 		return err
 	}
-	if v.cover {
-		return runCover(ctx, closeClient, reopenFixture, fixture, launch, layout, report)
-	}
-	if v.threat == "predator" {
-		return runPredator(ctx, closeClient, reopenFixture, fixture, launch, layout, v, report)
-	}
-	if v.threat == "building" {
-		return runHostileBuilding(ctx, closeClient, reopenFixture, fixture, launch, layout, v, report)
-	}
-	if v.turrets {
-		// Scenario T1: the observed gates open and the planner adds the
-		// turret tier to the stored layout and builds it natively.
-		anchor := turretGeneratorAnchor(layout)
-		power, err := fixture("power", map[string]any{"op": "power", "x": int(anchor.X), "z": int(anchor.Z)})
-		if err != nil {
-			return err
-		}
-		report["power"] = power
-		if err := closeClient(); err != nil {
-			return err
-		}
-		svc, err = launch("turrets")
-		if err != nil {
-			return err
-		}
-		defer svc.stop()
-		layout, err = waitTurretTier(ctx, svc.store, world, svc.wait(turretTimeout), report)
-		if err != nil {
-			return fmt.Errorf("turret tier: %w", err)
-		}
-		svc.stop()
-		report["turret_authority"] = svc.keepAlive.snapshot()
-		if err := reopenFixture(); err != nil {
-			return err
-		}
-		built, err := fixture("inspect-after-turrets", map[string]any{"op": "inspect"})
-		if err != nil {
-			return err
-		}
-		report["inspect_after_turrets"] = built
-		// The clock's watch latches on the last tier build completing, so
-		// the service stops the game on the tick the turret joined the net,
-		// before PowerNetTick has switched it on; a turret that reads
-		// unpowered is given a few seconds of game time and read again
-		// before it is judged (the power case does the same for a fresh
-		// refuel).
-		for attempt := 1; attempt <= 3 && assertTurretsPowered(built, layout) != nil; attempt++ {
-			if _, err := h.Call(ctx, fmt.Sprintf("resume-after-turrets-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
-				return err
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(5 * time.Second):
-			}
-			if _, err := h.Call(ctx, fmt.Sprintf("pause-after-turrets-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-				return err
-			}
-			if built, err = fixture(fmt.Sprintf("inspect-after-turrets-%d", attempt), map[string]any{"op": "inspect"}); err != nil {
-				return err
-			}
-			report["inspect_after_turrets"] = built
-		}
-		if err := assertTurretsPowered(built, layout); err != nil {
-			return fmt.Errorf("after the turret tier: %w", err)
-		}
-	}
-	// Scenario 2/3: a real raid.
-	if v.fromCheckpoint && !v.bypass && !v.squad {
-		// The checkpoint was saved with the colonists parked inside the
-		// corridor they had been building. A hold plan drafts and moves
-		// them one action per window, so a raider reaching the corridor
-		// first bounced authority on a colonist-health stop and settled
-		// the plan before dispatch (#222). The line is held from the
-		// firing positions, so stand the defenders there before the raid;
-		// the plan's own drafts and moves are still what the run asserts.
-		cells := make([]string, 0, len(layout.Firing))
-		for _, f := range layout.Firing {
-			cells = append(cells, fmt.Sprintf("%d,%d", f.X, f.Z))
-		}
-		mustered, err := fixture("muster", map[string]any{"op": "muster", "cells": strings.Join(cells, ";")})
-		if err != nil {
-			return err
-		}
-		report["muster"] = mustered
-	}
-	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival}
-	if v.squad && strings.Contains(v.arrival, "Drop") {
-		// The pods land beside the colony, inside the band the corridor
-		// guards.
-		cell := dropCell(layout, siteX, siteZ)
-		raidArgs["x"], raidArgs["z"] = int(cell.X), int(cell.Z)
-	}
-	if _, pinned := raidArgs["x"]; !pinned && !v.bypass {
-		// Every variant that expects hold-the-line needs the raid to come
-		// through the corridor the cover row and turrets face: it walks in
-		// from the map edge nearest the corridor entry rather than any edge
-		// the raid worker picks. A raider arriving behind the cover row
-		// rightly gets no hold (#681).
-		raidArgs["x"], raidArgs["z"] = int(layout.Entry.X), int(layout.Entry.Z)
-		// The nearest edge to the entry can be a flank one cell closer
-		// than the edge the corridor faces; a raider walking in from the
-		// side crosses the cover row far off the line and rightly gets no
-		// hold (#714), so pin the edge the corridor faces: Toward runs from
-		// that edge toward Home.
-		raidArgs["side"] = edgeSide(layout.Toward)
-	}
-	if v.breach {
-		// The breach observer moves a raider still alive once the hold
-		// has stood drafted for breachGraceTicks. Walking the corridor, a
-		// lone storyteller-sized raider (42 points) died in the killbox
-		// before then and the breach never fired (#717): send a group.
-		raidArgs["points"] = breachRaidPoints
-	}
+	report["muster"] = mustered
+	// Hold-the-line needs the raid to come through the corridor the cover
+	// row faces: it walks in from the map edge nearest the corridor entry
+	// rather than any edge the raid worker picks. A raider arriving behind
+	// the cover row rightly gets no hold (#681). The nearest edge to the
+	// entry can be a flank one cell closer than the edge the corridor
+	// faces; a raider walking in from the side crosses the cover row far
+	// off the line and rightly gets no hold (#714), so pin the edge the
+	// corridor faces: Toward runs from that edge toward Home.
+	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival,
+		"x": int(layout.Entry.X), "z": int(layout.Entry.Z), "side": edgeSide(layout.Toward)}
 	// The ring stops here: a resume replays the pre-raid audits above, and
 	// a world captured after the raid has sprung traps the repair may not
 	// have replaced yet, so every resume starts from a pre-raid entry and
 	// stages the raid again (#330).
 	na.CapCheckpoints("raid staged; a resume replays the pre-raid audits, so no entry is taken after this point (#330)")
-	if v.breach {
-		// Armed after the ring is capped so no checkpoint save carries the
-		// observer; it fires while the service holds the game.
-		cell := breachCell(layout)
-		armed, err := fixture("intrude", map[string]any{"op": "intrude", "x": int(cell.X), "z": int(cell.Z), "grace": breachGraceTicks})
-		if err != nil {
-			return err
-		}
-		report["breach_armed"] = armed
-	}
 	raid, err := fixture("raid", raidArgs)
 	if err != nil {
 		return err
 	}
 	report["raid_incident"] = raid
-	if v.squad {
-		return runSquadRaid(ctx, closeClient, reopenFixture, fixture, launch, layout, v, raid, report)
-	}
 	if err := closeClient(); err != nil {
 		return err
 	}
@@ -671,118 +468,93 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return err
 	}
 	defer svc.stop()
-	wantPrefix := "hold-"
-	if v.bypass {
-		wantPrefix = "squad-"
-	}
 	method, err := waitCombatMethod(ctx, svc.store, svc.wait(raidTimeout), report)
 	if err != nil {
 		return fmt.Errorf("combat response: %w", err)
 	}
-	if !strings.HasPrefix(string(method.Method), wantPrefix) {
-		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, wantPrefix)
+	if !strings.HasPrefix(string(method.Method), "hold-") {
+		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "hold-")
 	}
 	plan, err := svc.store.LoadPlan(ctx, method.Plan)
 	if err != nil {
 		return err
 	}
-	if wantPrefix == "hold-" {
-		if err := assertHoldPlan(plan.Spec, layout); err != nil {
-			return err
-		}
-	} else if err := assertNoLinePosition(plan.Spec, layout); err != nil {
+	if err := assertHoldPlan(plan.Spec, layout); err != nil {
 		return err
 	}
-	if !v.bypass {
-		// The service holds the raid: with the hold plan admitted the
-		// scheduler runs bounded combat windows that acknowledge the live
-		// hostiles, re-planning between them, until the ActiveCombat goal
-		// recovers. The fixture can only inspect from the harness session,
-		// so the outcome is read natively once the service is gone.
-		dispatched, err := waitHoldDispatched(ctx, svc.store, method.Plan, svc.wait(raidTimeout/2))
-		report["hold_plan_dispatch"] = dispatched
-		if err != nil {
-			return fmt.Errorf("hold dispatch: %w", err)
-		}
-		if v.breach {
-			return runBreach(ctx, svc, reopenFixture, fixture, method.Plan, raid, report)
-		}
-		resolved, err := waitRaidResolved(ctx, svc.store, method.Plan, svc.wait(raidTimeout))
-		report["raid_resolution"] = resolved
-		if err != nil {
-			return fmt.Errorf("raid resolution: %w", err)
-		}
-		// Scenario 4: retreat and repair. The recovered goal no longer
-		// authorizes the hold plan, so its drafts are released; the layout
-		// planner re-verifies the record after the combat epoch, re-opens
-		// every tier that lost a building and rebuilds it.
-		resolvedTick, _ := resolved["resolved_tick"].(int64)
-		released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "hold-", svc.wait(repairTimeout))
-		report["defenders_released"] = released
-		if err != nil {
-			return fmt.Errorf("draft release after raid: %w", err)
-		}
-		if v.turrets {
-			// Scenario T2/T3: firing evidence, then the staged loss and the
-			// routine restoration under a fresh service with the upkeep
-			// families.
-			svc.stop()
-			report["raid_authority"] = svc.keepAlive.snapshot()
-			return runTurretUpkeep(ctx, closeClient, reopenFixture, fixture, launch, layout, world, int64(na.AsNumber(raid["tick"])), report)
-		}
-		// The wounded are staged healed before the repair phase: a
-		// CriticalMedical hold suspends every routine goal, the controller's
-		// tend order has no native preview yet, and the fixture colony has no
-		// bed for the game's own doctors to use. Fixture ops need the harness
-		// session, so the repair phase runs under a fresh service on the
-		// same journal.
-		svc.stop()
-		report["raid_authority"] = svc.keepAlive.snapshot()
-		h, err = reopenHarness()
-		if err != nil {
-			return err
-		}
-		healed, err := fixture("heal-after-raid", map[string]any{"op": "heal"})
-		if err != nil {
-			return err
-		}
-		report["healed_after_raid"] = healed
-		// The game's auto-rebuild must not repair the corridor for the
-		// planner: its pending trap blueprints are removed and one more
-		// trap vanishes (when any survived), so the traps missing now are
-		// the planner's to replace.
-		breach, err := fixture("breach-after-raid", map[string]any{"op": "breach"})
-		if err != nil {
-			return err
-		}
-		report["breach_after_raid"] = breach
-		missingTraps := int(na.AsNumber(after["traps"])) - int(na.AsNumber(breach["standing"]))
-		if missingTraps < 1 {
-			return fmt.Errorf("breach left no trap missing: %#v", breach)
-		}
-		if err := closeClient(); err != nil {
-			return err
-		}
-		svc, err = launch("repair")
-		if err != nil {
-			return err
-		}
-		defer svc.stop()
-		repaired, err := waitLayoutRepaired(ctx, svc.store, world, resolvedTick, repairTicks, svc.wait(repairTimeout))
-		report["layout_repair"] = repaired
-		if err != nil {
-			return fmt.Errorf("layout repair after raid: %w", err)
-		}
-		if rebuilt, _ := repaired["traps_rebuilt"].(int); rebuilt < missingTraps {
-			return fmt.Errorf("planner rebuilt %d traps in its repair methods, %d were missing after the breach: %#v", rebuilt, missingTraps, repaired)
-		}
+	// The service holds the raid: with the hold plan admitted the
+	// scheduler runs bounded combat windows that acknowledge the live
+	// hostiles, re-planning between them, until the ActiveCombat goal
+	// recovers. The fixture can only inspect from the harness session,
+	// so the outcome is read natively once the service is gone.
+	dispatched, err := waitHoldDispatched(ctx, svc.store, method.Plan, svc.wait(raidTimeout/2))
+	report["hold_plan_dispatch"] = dispatched
+	if err != nil {
+		return fmt.Errorf("hold dispatch: %w", err)
+	}
+	resolved, err := waitRaidResolved(ctx, svc.store, method.Plan, svc.wait(raidTimeout))
+	report["raid_resolution"] = resolved
+	if err != nil {
+		return fmt.Errorf("raid resolution: %w", err)
+	}
+	// Scenario 4: retreat and repair. The recovered goal no longer
+	// authorizes the hold plan, so its drafts are released; the layout
+	// planner re-verifies the record after the combat epoch, re-opens
+	// every tier that lost a building and rebuilds it.
+	resolvedTick, _ := resolved["resolved_tick"].(int64)
+	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "hold-", svc.wait(repairTimeout))
+	report["defenders_released"] = released
+	if err != nil {
+		return fmt.Errorf("draft release after raid: %w", err)
+	}
+	// The wounded are staged healed before the repair phase: a
+	// CriticalMedical hold suspends every routine goal, the controller's
+	// tend order has no native preview yet, and the fixture colony has no
+	// bed for the game's own doctors to use. Fixture ops need the harness
+	// session, so the repair phase runs under a fresh service on the
+	// same journal.
+	svc.stop()
+	report["raid_authority"] = svc.keepAlive.snapshot()
+	h, err = reopenHarness()
+	if err != nil {
+		return err
+	}
+	healed, err := fixture("heal-after-raid", map[string]any{"op": "heal"})
+	if err != nil {
+		return err
+	}
+	report["healed_after_raid"] = healed
+	// The game's auto-rebuild must not repair the corridor for the
+	// planner: its pending trap blueprints are removed and one more
+	// trap vanishes (when any survived), so the traps missing now are
+	// the planner's to replace.
+	breach, err := fixture("breach-after-raid", map[string]any{"op": "breach"})
+	if err != nil {
+		return err
+	}
+	report["breach_after_raid"] = breach
+	missingTraps := int(na.AsNumber(after["traps"])) - int(na.AsNumber(breach["standing"]))
+	if missingTraps < 1 {
+		return fmt.Errorf("breach left no trap missing: %#v", breach)
+	}
+	if err := closeClient(); err != nil {
+		return err
+	}
+	svc, err = launch("repair")
+	if err != nil {
+		return err
+	}
+	defer svc.stop()
+	repaired, err := waitLayoutRepaired(ctx, svc.store, world, resolvedTick, repairTicks, svc.wait(repairTimeout))
+	report["layout_repair"] = repaired
+	if err != nil {
+		return fmt.Errorf("layout repair after raid: %w", err)
+	}
+	if rebuilt, _ := repaired["traps_rebuilt"].(int); rebuilt < missingTraps {
+		return fmt.Errorf("planner rebuilt %d traps in its repair methods, %d were missing after the breach: %#v", rebuilt, missingTraps, repaired)
 	}
 	svc.stop()
-	if v.bypass {
-		report["raid_authority"] = svc.keepAlive.snapshot()
-	} else {
-		report["repair_authority"] = svc.keepAlive.snapshot()
-	}
+	report["repair_authority"] = svc.keepAlive.snapshot()
 
 	h, err = reopenHarness()
 	if err != nil {
@@ -796,57 +568,70 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	if on := na.AsSlice(final["colonistsOnTraps"]); len(on) != 0 {
 		return fmt.Errorf("colonists standing on trap cells after raid: %v", on)
 	}
-	if !v.bypass {
-		// A spike trap is trapDestroyOnSpring: springing destroys it, so a
-		// trap id from the layout audit that is gone now was sprung, and an
-		// id that is new now is its replacement (the planner's re-admitted
-		// tier: the breach removed the game's own auto-rearm blueprints);
-		// the fixture's armed-state count only covers rearmable traps.
-		sprung, rebuilt := trapIDDelta(after, final)
-		report["traps_sprung"] = len(sprung) + int(na.AsNumber(final["sprung"]))
-		report["traps_sprung_ids"] = sprung
-		report["traps_rebuilt_ids"] = rebuilt
-		if len(sprung)+int(na.AsNumber(final["sprung"])) == 0 {
-			return fmt.Errorf("no trap sprung during the edge raid: %#v", final)
-		}
-		// The repaired layout matches the audited one natively (every
-		// sprung trap replaced, no wall missing), and nobody is left
-		// drafted once the raid is over.
-		if len(rebuilt) < len(sprung) {
-			return fmt.Errorf("%d traps sprung (%v) but %d rebuilt (%v)", len(sprung), sprung, len(rebuilt), rebuilt)
-		}
-		if traps, want := int(na.AsNumber(final["traps"])), int(na.AsNumber(after["traps"])); traps < want {
-			return fmt.Errorf("native trap count %d after repair, %d after the layout audit", traps, want)
-		}
-		breachReport, _ := na.AsMap(report["breach_after_raid"])
-		if breached, ok := na.AsMap(breachReport["breached"]); ok && !hasCell(na.AsSlice(final["trapCells"]), int(na.AsNumber(breached["x"])), int(na.AsNumber(breached["z"]))) {
-			return fmt.Errorf("breached trap cell %v holds no trap after repair: %v", breached, final["trapCells"])
-		}
-		if walls, want := len(na.AsSlice(final["walls"])), len(na.AsSlice(after["walls"])); walls < want {
-			return fmt.Errorf("native wall count %d after repair, %d after the layout audit", walls, want)
-		}
-		for _, raw := range na.AsSlice(final["colonists"]) {
-			row, _ := na.AsMap(raw)
-			if drafted, _ := na.AsBool(row["drafted"]); drafted {
-				return fmt.Errorf("colonist %s still drafted after the raid resolved", na.AsString(row["id"]))
-			}
-		}
-		neutralised := 0
-		for _, raw := range na.AsSlice(final["hostiles"]) {
-			row, _ := na.AsMap(raw)
-			if dead, _ := na.AsBool(row["dead"]); dead {
-				neutralised++
-			} else if downed, _ := na.AsBool(row["downed"]); downed {
-				neutralised++
-			}
-		}
-		raidersLeft := len(na.AsSlice(final["hostiles"]))
-		report["raid_outcome"] = map[string]any{"hostiles_on_map": raidersLeft, "dead_or_downed": neutralised}
-		if neutralised == 0 && raidersLeft == len(na.AsSlice(raid["added"])) {
-			return fmt.Errorf("raid did not resolve: no raider dead, downed or gone: %#v", final)
+	// A spike trap is trapDestroyOnSpring: springing destroys it, so a
+	// trap id from the layout audit that is gone now was sprung, and an
+	// id that is new now is its replacement (the planner's re-admitted
+	// tier: the breach removed the game's own auto-rearm blueprints);
+	// the fixture's armed-state count only covers rearmable traps.
+	sprung, rebuilt := trapIDDelta(after, final)
+	report["traps_sprung"] = len(sprung) + int(na.AsNumber(final["sprung"]))
+	report["traps_sprung_ids"] = sprung
+	report["traps_rebuilt_ids"] = rebuilt
+	if len(sprung)+int(na.AsNumber(final["sprung"])) == 0 {
+		return fmt.Errorf("no trap sprung during the edge raid: %#v", final)
+	}
+	// The repaired layout matches the audited one natively (every
+	// sprung trap replaced, no wall missing), and nobody is left
+	// drafted once the raid is over.
+	if len(rebuilt) < len(sprung) {
+		return fmt.Errorf("%d traps sprung (%v) but %d rebuilt (%v)", len(sprung), sprung, len(rebuilt), rebuilt)
+	}
+	if traps, want := int(na.AsNumber(final["traps"])), int(na.AsNumber(after["traps"])); traps < want {
+		return fmt.Errorf("native trap count %d after repair, %d after the layout audit", traps, want)
+	}
+	if breached, ok := na.AsMap(breach["breached"]); ok && !hasCell(na.AsSlice(final["trapCells"]), int(na.AsNumber(breached["x"])), int(na.AsNumber(breached["z"]))) {
+		return fmt.Errorf("breached trap cell %v holds no trap after repair: %v", breached, final["trapCells"])
+	}
+	if walls, want := len(na.AsSlice(final["walls"])), len(na.AsSlice(after["walls"])); walls < want {
+		return fmt.Errorf("native wall count %d after repair, %d after the layout audit", walls, want)
+	}
+	for _, raw := range na.AsSlice(final["colonists"]) {
+		row, _ := na.AsMap(raw)
+		if drafted, _ := na.AsBool(row["drafted"]); drafted {
+			return fmt.Errorf("colonist %s still drafted after the raid resolved", na.AsString(row["id"]))
 		}
 	}
+	neutralised := 0
+	for _, raw := range na.AsSlice(final["hostiles"]) {
+		row, _ := na.AsMap(raw)
+		if dead, _ := na.AsBool(row["dead"]); dead {
+			neutralised++
+		} else if downed, _ := na.AsBool(row["downed"]); downed {
+			neutralised++
+		}
+	}
+	raidersLeft := len(na.AsSlice(final["hostiles"]))
+	report["raid_outcome"] = map[string]any{"hostiles_on_map": raidersLeft, "dead_or_downed": neutralised}
+	if neutralised == 0 && raidersLeft == len(na.AsSlice(raid["added"])) {
+		return fmt.Errorf("raid did not resolve: no raider dead, downed or gone: %#v", final)
+	}
 	return nil
+}
+
+// edgeSide names the map side a corridor facing toward (the direction from
+// the edge toward Home) opens onto, as the fixture's raid side (#714).
+func edgeSide(toward domain.Rotation) string {
+	switch toward {
+	case domain.North:
+		return "south"
+	case domain.South:
+		return "north"
+	case domain.East:
+		return "west"
+	case domain.West:
+		return "east"
+	}
+	return ""
 }
 
 // launchService starts rimgovernor serve against the shared game (the
@@ -1195,428 +980,6 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 	return out, nil
 }
 
-// runPredator is the -threat predator scenario (#157) after the layout is in
-// place: the fixture spawns a wild predator inside the band already hunting a
-// colonist, the service must answer it with squad defense (the census lists
-// it under huntingPredators, not hostiles: the planner has to admit a
-// hunting predator on its own), fight it through bounded combat windows
-// until the ActiveCombat goal recovers, release the drafts and resume
-// colony windows. Natively the predator must be dead, downed, gone or no
-// longer hunting a colonist (the goal answers the census's hunting-predator
-// threat, not every predator on the map: one that broke off to eat wildlife
-// is a nearby predator the native supervisor watches, #214) and no colonist
-// dead or drafted.
-func runPredator(ctx context.Context, closeClient func() error, reopenHarness func() error,
-	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
-	layout store.DefenseLayoutRecord, v variant, report na.Report) error {
-	staged, err := fixture("predator", map[string]any{"op": "predator", "kind": v.predatorKind})
-	if err != nil {
-		return err
-	}
-	report["predator_incident"] = staged
-	predatorID := na.AsString(staged["predator"])
-	if predatorID == "" || na.AsString(staged["job"]) != "PredatorHunt" {
-		return fmt.Errorf("predator fixture did not stage a hunt: %#v", staged)
-	}
-	if err := closeClient(); err != nil {
-		return err
-	}
-	svc, err := launch("predator")
-	if err != nil {
-		return err
-	}
-	defer svc.stop()
-	method, err := waitCombatMethod(ctx, svc.store, svc.wait(raidTimeout), report)
-	if err != nil {
-		return fmt.Errorf("combat response: %w", err)
-	}
-	if !strings.HasPrefix(string(method.Method), "squad-") {
-		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "squad-")
-	}
-	plan, err := svc.store.LoadPlan(ctx, method.Plan)
-	if err != nil {
-		return err
-	}
-	if err := assertNoLinePosition(plan.Spec, layout); err != nil {
-		return err
-	}
-	if err := assertSquadTargets(plan.Spec, predatorID); err != nil {
-		return err
-	}
-	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(raidTimeout), true)
-	report["hunt_resolution"] = resolved
-	if err != nil {
-		return fmt.Errorf("hunt resolution: %w", err)
-	}
-	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "squad-", svc.wait(raidTimeout))
-	report["defenders_released"] = released
-	if err != nil {
-		return fmt.Errorf("draft release after hunt: %w", err)
-	}
-	resumed, err := waitClockResumed(ctx, svc.store, svc.wait(raidTimeout))
-	report["clock_resumed"] = resumed
-	if err != nil {
-		return fmt.Errorf("clock after hunt: %w", err)
-	}
-	svc.stop()
-	report["raid_authority"] = svc.keepAlive.snapshot()
-	if err := reopenHarness(); err != nil {
-		return err
-	}
-	final, err := fixture("inspect-after-hunt", map[string]any{"op": "inspect"})
-	if err != nil {
-		return err
-	}
-	report["inspect_after_hunt"] = final
-	predator, _ := na.AsMap(final["predator"])
-	if na.AsString(predator["id"]) != predatorID {
-		return fmt.Errorf("inspect lost the fixture predator: %#v", final)
-	}
-	spawned, _ := na.AsBool(predator["spawned"])
-	dead, _ := na.AsBool(predator["dead"])
-	downed, _ := na.AsBool(predator["downed"])
-	hunting, known := na.AsBool(predator["huntingColonist"])
-	if !known {
-		return fmt.Errorf("inspect did not report whether the predator hunts a colonist (stale fixture build?): %#v", predator)
-	}
-	if spawned && !dead && !downed && hunting {
-		return fmt.Errorf("predator still hunting a colonist after the hunt resolved: %#v", predator)
-	}
-	for _, raw := range na.AsSlice(final["colonists"]) {
-		row, _ := na.AsMap(raw)
-		if dead, _ := na.AsBool(row["dead"]); dead {
-			return fmt.Errorf("colonist %s died to the predator", na.AsString(row["id"]))
-		}
-		if drafted, _ := na.AsBool(row["drafted"]); drafted {
-			return fmt.Errorf("colonist %s still drafted after the hunt resolved", na.AsString(row["id"]))
-		}
-	}
-	return nil
-}
-
-// runHostileBuilding is the -threat building scenario (#246) after the
-// layout is in place: the fixture spawns one hostile building (an insect
-// hive or a crashed ship part) in the open near the colony with its pawn
-// spawning off, so the census lists it under hostileBuildings and nothing
-// else. The building holds the clock like a hostile pawn; the service must
-// answer it with squad defense on the building itself (a ranged attack
-// from a defender with a line of fire on it, melee from the rest; #327),
-// fight it under combat windows until the ActiveCombat goal recovers,
-// release the drafts and resume colony windows. With v.rifles the fixture
-// arms the colonists first and a ranged attack must be planned and
-// dispatched. Natively the building must be destroyed, no pawn of its
-// faction on the map, and no colonist dead or drafted.
-func runHostileBuilding(ctx context.Context, closeClient func() error, reopenHarness func() error,
-	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
-	layout store.DefenseLayoutRecord, v variant, report na.Report) error {
-	// The layout checkpoint carries a colonist with a known wound; a
-	// 1200-hit-point ship part outlives the wound's creep into a
-	// CriticalMedical hold that refuses every attack (the tend order has
-	// no native preview and the fixture colony no beds), so the case
-	// heals the colony before the building is staged.
-	healed, err := fixture("heal-before-building", map[string]any{"op": "heal"})
-	if err != nil {
-		return err
-	}
-	report["healed_before_building"] = healed
-	if v.rifles > 0 {
-		armed, err := fixture("ranged-before-building", map[string]any{"op": "ranged", "rifles": v.rifles})
-		if err != nil {
-			return err
-		}
-		report["armed_before_building"] = armed
-	}
-	staged, err := fixture("hostile", map[string]any{"op": "hostile", "kind": v.buildingKind})
-	if err != nil {
-		return err
-	}
-	report["hostile_building_incident"] = staged
-	buildingID := na.AsString(staged["building"])
-	if hostile, _ := na.AsBool(staged["hostile"]); buildingID == "" || !hostile {
-		return fmt.Errorf("hostile fixture did not stage a hostile building: %#v", staged)
-	}
-	if err := closeClient(); err != nil {
-		return err
-	}
-	svc, err := launch("hostile")
-	if err != nil {
-		return err
-	}
-	defer svc.stop()
-	method, err := waitCombatMethod(ctx, svc.store, svc.wait(raidTimeout), report)
-	if err != nil {
-		return fmt.Errorf("combat response: %w", err)
-	}
-	if !strings.HasPrefix(string(method.Method), "squad-") {
-		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "squad-")
-	}
-	plan, err := svc.store.LoadPlan(ctx, method.Plan)
-	if err != nil {
-		return err
-	}
-	if err := assertNoLinePosition(plan.Spec, layout); err != nil {
-		return err
-	}
-	if err := assertSquadTargets(plan.Spec, buildingID); err != nil {
-		return err
-	}
-	rangedPlanned := 0
-	for _, action := range plan.Spec.Actions() {
-		if _, ok := action.RangedAttack(); ok {
-			rangedPlanned++
-		}
-	}
-	report["ranged_attacks_planned"] = rangedPlanned
-	if v.rifles > 0 && rangedPlanned == 0 {
-		return fmt.Errorf("squad plan %s plans no ranged attack on the building although the colonists are armed and one stands in its line of sight", plan.Spec.ID())
-	}
-	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(raidTimeout), true)
-	report["building_resolution"] = resolved
-	if err != nil {
-		return fmt.Errorf("building resolution: %w", err)
-	}
-	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "squad-", svc.wait(raidTimeout))
-	report["defenders_released"] = released
-	if err != nil {
-		return fmt.Errorf("draft release after the building: %w", err)
-	}
-	resumed, err := waitClockResumed(ctx, svc.store, svc.wait(raidTimeout))
-	report["clock_resumed"] = resumed
-	if err != nil {
-		return fmt.Errorf("clock after the building: %w", err)
-	}
-	attacks, err := squadAttacksDispatched(ctx, svc.store, "squad-", buildingID, v.rifles > 0)
-	report["building_attacks"] = attacks
-	if err != nil {
-		return err
-	}
-	svc.stop()
-	report["raid_authority"] = svc.keepAlive.snapshot()
-	if err := reopenHarness(); err != nil {
-		return err
-	}
-	final, err := fixture("inspect-after-building", map[string]any{"op": "inspect"})
-	if err != nil {
-		return err
-	}
-	report["inspect_after_building"] = final
-	building, _ := na.AsMap(final["hostileBuilding"])
-	if na.AsString(building["id"]) != buildingID {
-		return fmt.Errorf("inspect lost the fixture hostile building (stale fixture build?): %#v", final)
-	}
-	if destroyed, _ := na.AsBool(building["destroyed"]); !destroyed {
-		return fmt.Errorf("hostile building still standing after the goal recovered: %#v", building)
-	}
-	if pawns := na.AsNumber(building["factionPawns"]); pawns != 0 {
-		return fmt.Errorf("%v pawns of the building's faction on the map; the fixture should have staged the building alone", pawns)
-	}
-	for _, raw := range na.AsSlice(final["colonists"]) {
-		row, _ := na.AsMap(raw)
-		if dead, _ := na.AsBool(row["dead"]); dead {
-			return fmt.Errorf("colonist %s died to the hostile building", na.AsString(row["id"]))
-		}
-		if drafted, _ := na.AsBool(row["drafted"]); drafted {
-			return fmt.Errorf("colonist %s still drafted after the building was destroyed", na.AsString(row["id"]))
-		}
-	}
-	return nil
-}
-
-// assertSquadTargets requires every attack in the squad plan to target the
-// fixture's threat: the hunting predator or the hostile building is the
-// only threat on the map.
-func assertSquadTargets(spec domain.PlanSpec, predatorID string) error {
-	attacks := 0
-	for _, action := range spec.Actions() {
-		target := ""
-		if a, ok := action.RangedAttack(); ok {
-			target = string(a.Target())
-		} else if a, ok := action.MeleeAttack(); ok {
-			target = string(a.Target())
-		} else {
-			continue
-		}
-		attacks++
-		if target != predatorID {
-			return fmt.Errorf("squad plan %s attacks %s, not the fixture threat %s", spec.ID(), target, predatorID)
-		}
-	}
-	if attacks == 0 {
-		return fmt.Errorf("squad plan %s has no attack action", spec.ID())
-	}
-	return nil
-}
-
-// squadAttacksDispatched counts the melee and ranged attacks on the target
-// that reached a native dispatch across every squad plan of the
-// ActiveCombat goal, and fails when none did: a hostile building that fell
-// without one was not destroyed by the colony (an unmaintained hive
-// deteriorates on its own). With ranged set a ranged dispatch is required.
-func squadAttacksDispatched(ctx context.Context, s *store.Store, prefix string, target string, ranged bool) (map[string]any, error) {
-	review, err := s.LoadRoutineReview(ctx)
-	if err != nil {
-		return nil, err
-	}
-	plans := map[domain.PlanID]bool{}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.ActiveCombat {
-			continue
-		}
-		goal, err := s.LoadGoal(ctx, binding.Goal)
-		if err != nil && !errors.Is(err, store.ErrNotFound) {
-			return nil, err
-		}
-		for _, m := range goal.Methods {
-			if strings.HasPrefix(string(m.Method), prefix) {
-				plans[m.Plan] = true
-			}
-		}
-	}
-	dispatched, planned, rangedDispatched := 0, 0, 0
-	stages := map[string]string{}
-	for id := range plans {
-		state, err := s.LoadPlan(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range state.Progress {
-			var pawn, attacked domain.PawnID
-			mode := "melee"
-			if attack, ok := p.Action().MeleeAttack(); ok {
-				pawn, attacked = attack.Pawn(), attack.Target()
-			} else if attack, ok := p.Action().RangedAttack(); ok {
-				pawn, attacked, mode = attack.Pawn(), attack.Target(), "ranged"
-			} else {
-				continue
-			}
-			if string(attacked) != target {
-				continue
-			}
-			planned++
-			v := p.View()
-			stages[string(id)+"/"+string(pawn)] = mode + ":" + string(v.Stage)
-			if v.Attempt > 0 {
-				dispatched++
-				if mode == "ranged" {
-					rangedDispatched++
-				}
-			}
-		}
-	}
-	out := map[string]any{"plans": len(plans), "planned": planned, "dispatched": dispatched, "ranged_dispatched": rangedDispatched, "stages": stages}
-	if dispatched == 0 {
-		return out, fmt.Errorf("no attack on %s was dispatched natively across %d squad plan(s): %v", target, len(plans), stages)
-	}
-	if ranged && rangedDispatched == 0 {
-		return out, fmt.Errorf("no ranged attack on %s was dispatched natively across %d squad plan(s): %v", target, len(plans), stages)
-	}
-	return out, nil
-}
-
-// waitHuntResolved polls the journal while the service fights the threat:
-// at least one window must have run (a combat window when combat is set),
-// and the ActiveCombat goal must have recovered or be unbound.
-func waitHuntResolved(ctx context.Context, s *store.Store, w na.Wait, combat bool) (map[string]any, error) {
-	out := map[string]any{}
-	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		combatWindows, colonyWindows, acknowledged, err := clockWindows(ctx, s)
-		if err != nil {
-			return "", false, err
-		}
-		out["combat_windows"] = combatWindows
-		out["colony_windows"] = colonyWindows
-		out["last_acknowledged_hostiles"] = acknowledged
-		review, err := s.LoadRoutineReview(ctx)
-		if err != nil {
-			return "", false, err
-		}
-		bound, need := false, ""
-		for _, binding := range review.Goals {
-			if binding.Need != policy.ActiveCombat {
-				continue
-			}
-			bound = true
-			goal, err := s.LoadGoal(ctx, binding.Goal)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", false, err
-			}
-			need = string(goal.Goal.Need)
-		}
-		out["combat_goal_bound"] = bound
-		out["combat_goal_need"] = need
-		out["resolved_tick"] = int64(review.Tick)
-		windows := combatWindows
-		if !combat {
-			windows = colonyWindows
-		}
-		if windows > 0 && (!bound || need == string(domain.NeedRecovered)) {
-			return "", true, nil
-		}
-		return na.Signature(combatWindows, colonyWindows, bound, need), false, nil
-	})
-	if err != nil {
-		return out, fmt.Errorf("hunt not resolved under the service (%#v): %w", out, err)
-	}
-	return out, nil
-}
-
-// waitClockResumed waits for a colony (non-combat) window applied after the
-// last combat window: the clock is back to routine play, not parked on the
-// hunt's hold.
-func waitClockResumed(ctx context.Context, s *store.Store, w na.Wait) (map[string]any, error) {
-	out := map[string]any{}
-	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
-		attempts, err := s.LoadClockAttempts(ctx, 4096)
-		if err != nil {
-			return "", false, err
-		}
-		lastCombat, lastColony := -1, -1
-		for i, a := range attempts {
-			start := a.Intent.Command.Start
-			if start == nil || a.Phase != store.ClockApplied {
-				continue
-			}
-			if start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT {
-				lastCombat = i
-			} else {
-				lastColony = i
-			}
-		}
-		out["last_combat_window"] = lastCombat
-		out["last_colony_window"] = lastColony
-		if lastCombat >= 0 && lastColony > lastCombat {
-			return "", true, nil
-		}
-		return na.Signature(lastCombat, lastColony), false, nil
-	})
-	if err != nil {
-		return out, fmt.Errorf("no colony window after the combat windows (%#v): %w", out, err)
-	}
-	return out, nil
-}
-
-// clockWindows counts the applied combat and colony windows in the journal
-// and returns the hostiles the last combat window acknowledged.
-func clockWindows(ctx context.Context, s *store.Store) (combat, colony int, acknowledged []string, err error) {
-	attempts, err := s.LoadClockAttempts(ctx, 4096)
-	if err != nil {
-		return 0, 0, nil, err
-	}
-	for _, a := range attempts {
-		start := a.Intent.Command.Start
-		if start == nil || a.Phase != store.ClockApplied {
-			continue
-		}
-		if start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT {
-			combat++
-			acknowledged = start.Policy.AcknowledgedHostileIds
-		} else {
-			colony++
-		}
-	}
-	return combat, colony, acknowledged, nil
-}
-
 // trapIDDelta compares the trap ids of two fixture inspects: ids only in
 // before were destroyed (sprung), ids only in after are replacements.
 func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
@@ -1902,23 +1265,6 @@ func assertHoldPlan(spec domain.PlanSpec, layout store.DefenseLayoutRecord) erro
 		}
 		if !requires[a.ID()][move] {
 			return fmt.Errorf("hold plan attack %s does not depend on move %s", a.ID(), move)
-		}
-	}
-	return nil
-}
-
-// assertNoLinePosition checks a bypass response is not a hold-the-line plan.
-// assertNoLinePosition fails when a squad plan routes a defender to a
-// firing cell: squad defense engages at the threat, and only the hold plan
-// positions the line (a squad plan may still fire ranged attacks).
-func assertNoLinePosition(spec domain.PlanSpec, layout store.DefenseLayoutRecord) error {
-	firing := map[domain.Cell]bool{}
-	for _, cell := range layout.Firing {
-		firing[cell] = true
-	}
-	for _, a := range spec.Actions() {
-		if m, ok := a.Movement(); ok && firing[m.Destination()] {
-			return fmt.Errorf("squad response %s moves %s to firing cell %v", spec.ID(), m.Pawn(), m.Destination())
 		}
 	}
 	return nil

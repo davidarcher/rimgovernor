@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -204,6 +205,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, false, err
 	}
+	recordLayoutSnapshot(call, state.Snapshot, tick, snapshot.Layout{Point: snapshot.LayoutCover, Request: request, Record: &record, Site: site.Cells})
 	approaches, err := policy.DefenseApproachesFor(request, layout)
 	if err != nil {
 		clockSchedulerLog("defense-layout: cover census refused: %v", err)
