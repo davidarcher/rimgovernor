@@ -291,22 +291,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/power_rain", Description = "UNSAFE FOR MODEL EXECUTION. Force Rain for 70000 ticks on the disposable power fixture map; no buildings or stored energy are changed.")]
-        public async Task<object> Rain(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null || !Find.TickManager.Paused) return Refuse("A paused disposable map is required.");
-                var rain = DefDatabase<WeatherDef>.GetNamed("Rain");
-                foreach (var previous in map.gameConditionManager.ActiveConditions.OfType<GameCondition_ForceWeather>().ToList()) previous.End();
-                var condition = MakeWeather(70000);
-                condition.weather = rain;
-                map.gameConditionManager.RegisterCondition(condition);
-                map.weatherManager.TransitionTo(rain);
-                return new { success = true, tick = Find.TickManager.TicksGame };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         private static GameCondition_ForceWeather MakeWeather(int duration)
         {
             const string name = "RimGovernorPowerFixtureWeather";

@@ -28,25 +28,12 @@ namespace HomeBridge.BridgeTools
     // in from the current tick instead of arriving fully ramped: the harness
     // runs the game through the warming (an inactive family asks for no
     // clock window) and the live controller then meets warm stock the
-    // settled freezer's warm setpoint no longer covers (#160). With a heater,
-    // a powered Heater inside the room outputs as much heat as one Cooler
-    // removes (21 energy/s each, before the cooler's hot-side efficiency
-    // loss), so a freezer already at the controller's target can never hold
-    // the room alone and the season turn is the heater warming it; only a
-    // second Cooler brings it back (#220). That room is larger (roomWidth x
-    // roomHeight, default 6x4): a cooler's change per rare tick is capped at
-    // the gap to its own setpoint, so in a small room two coolers nearing
-    // the freezer target remove less than the heater adds and the room
-    // settles just above freezing; spread over more cells the cap stops
-    // binding and the room settles below it. Raw meat rots in the two days
-    // that cooler waits, so that scenario stocks a longer-lived raw food
-    // (foodDef) with every stack part-way to rotting (rotStacks) inside
-    // the review's at-risk runway.
+    // settled freezer's warm setpoint no longer covers (#160).
     // Nothing here places, sets or cools anything on the controller's behalf.
     public sealed class RefrigerationFixture
     {
-        [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting; season ramps the heat waves in from now instead of arriving fully ramped; coolerTargetC is the existing cooler's setpoint; heater adds a powered Heater inside the room that one Cooler cannot beat; foodDef is the stocked raw food and rotStacks how many of its three stacks start part-way to rotting; roomWidth x roomHeight (at least 6x4) sizes the room including its walls.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false, float coolerTargetC = 21f, bool heater = false, string foodDef = "Meat_Muffalo", int rotStacks = 1, int roomWidth = 6, int roomHeight = 4, bool corpseLarder = false)
+        [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting; season ramps the heat waves in from now instead of arriving fully ramped; coolerTargetC is the existing cooler's setpoint; foodDef is the stocked raw food and rotStacks how many of its three stacks start part-way to rotting; roomWidth x roomHeight (at least 6x4) sizes the room including its walls.")]
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false, float coolerTargetC = 21f, string foodDef = "Meat_Muffalo", int rotStacks = 1, int roomWidth = 6, int roomHeight = 4, bool corpseLarder = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -75,10 +62,9 @@ namespace HomeBridge.BridgeTools
                 var conduitDef = DefDatabase<ThingDef>.GetNamedSilentFail("PowerConduit");
                 var hiddenConduitDef = DefDatabase<ThingDef>.GetNamedSilentFail("HiddenConduit");
                 var generatorDef = DefDatabase<ThingDef>.GetNamedSilentFail("WoodFiredGenerator");
-                var heaterDef = DefDatabase<ThingDef>.GetNamedSilentFail("Heater");
                 var meatDef = DefDatabase<ThingDef>.GetNamedSilentFail(foodDef ?? "Meat_Muffalo");
-                if (coolerDef == null || wallDef == null || doorDef == null || conduitDef == null || hiddenConduitDef == null || generatorDef == null || heaterDef == null || meatDef == null)
-                    return Refuse("Cooler, Wall, Door, PowerConduit, HiddenConduit, WoodFiredGenerator, Heater or " + foodDef + " unavailable in this ruleset.");
+                if (coolerDef == null || wallDef == null || doorDef == null || conduitDef == null || hiddenConduitDef == null || generatorDef == null || meatDef == null)
+                    return Refuse("Cooler, Wall, Door, PowerConduit, HiddenConduit, WoodFiredGenerator or " + foodDef + " unavailable in this ruleset.");
                 if (meatDef.GetCompProperties<CompProperties_Rottable>() == null) return Refuse(foodDef + " does not rot.");
                 if (!coolerDef.IsResearchFinished) return Refuse("Cooler research did not finish.");
 
@@ -157,19 +143,6 @@ namespace HomeBridge.BridgeTools
                         second.TryGetComp<CompTempControl>().targetTemperature = coolerTargetC;
                     }
                 }
-                // The heater sits on the interior cell farthest from the cooler's
-                // cold side and the meat, off the stockpile, wall conduits one
-                // cell away; its setpoint is far above chilled so it runs whenever
-                // the room is cooler than a warm day.
-                var heaterCell = At(roomWidth - 2, roomHeight);
-                Thing heaterThing = null;
-                if (heater)
-                {
-                    heaterThing = Spawn(heaterDef, heaterCell, Rot4.North);
-                    var control = heaterThing.TryGetComp<CompTempControl>();
-                    if (control == null) return Refuse("Fixture heater unexpectedly has no CompTempControl.");
-                    control.targetTemperature = 30f;
-                }
                 var generator = Spawn(generatorDef, At(roomWidth + 2, 3), Rot4.North);
                 var fuel = generator.TryGetComp<CompRefuelable>();
                 fuel.Refuel(fuel.Props.fuelCapacity);
@@ -182,7 +155,7 @@ namespace HomeBridge.BridgeTools
                 var interior = room.ContractedBy(1);
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                 map.zoneManager.RegisterZone(zone);
-                foreach (var cell in interior.Cells) if (heaterThing == null || cell != heaterCell) zone.AddCell(cell);
+                foreach (var cell in interior.Cells) zone.AddCell(cell);
                 // Meat only: a default stockpile would also take the leftover
                 // construction stock, and every haul through the wood door
                 // lets the heat wave into the freezer.
@@ -241,16 +214,13 @@ namespace HomeBridge.BridgeTools
                 // give the unsheltered debug colonists heatstroke, and the
                 // resulting CriticalMedical hold suspends refrigeration itself.
                 // The season scenario keeps the ramp: the outdoors warms over
-                // the first 12000 ticks and the cold room follows it up. With
-                // a heater the room warms on its own and an already warm
-                // outdoors gets no wave: every degree on the coolers' hot side
-                // costs them efficiency, and two must still beat the heater.
+                // the first 12000 ticks and the cold room follows it up.
                 var heat = DefDatabase<GameConditionDef>.GetNamedSilentFail("HeatWave");
                 var heatWaves = 0;
                 if (heat != null && !corpseLarder)
                 {
                     var outdoors = map.mapTemperature.OutdoorTemp;
-                    heatWaves = System.Math.Max(heater ? 0 : 1, System.Math.Min(3, (int)System.Math.Ceiling((16f - outdoors) / 17f)));
+                    heatWaves = System.Math.Max(1, System.Math.Min(3, (int)System.Math.Ceiling((16f - outdoors) / 17f)));
                     for (var i = 0; i < heatWaves; i++)
                     {
                         var wave = GameConditionMaker.MakeCondition(heat, 4 * 60000 + 12000);
@@ -302,7 +272,6 @@ namespace HomeBridge.BridgeTools
                     walls, door = new { x = At(0, 3).x, z = At(0, 3).z },
                     cooler = cooler?.GetUniqueLoadID(), coolerCell = existingCooler ? new { x = coolerCell.x, z = coolerCell.z } : null,
                     generator = generator.GetUniqueLoadID(), disconnected, season, foodDef = meatDef.defName, meat, rotting, stock,
-                    heater = heaterThing?.GetUniqueLoadID(), heaterCell = heaterThing != null ? new { x = heaterCell.x, z = heaterCell.z } : null,
                     spareCell = new { x = At(width - 1, 0).x, z = At(width - 1, 0).z },
                     setup = "Test-only enclosed roofed stockpile room with warm raw meat, wall-ring conduits, fuelled generator, Cooler research, forced hot room and heat wave; cooler placement, setpoint and cooling remain the controller's and native simulation's.",
                 };

@@ -22,9 +22,8 @@ import (
 // opens on the power fixture's rain scenario (a debug colony with an
 // unroofed battery, PowerFixture.cs): stage one serves the power family,
 // whose shelter method walls the battery into a wood room the game roofs
-// (power/rain proves that enclosure; here it is only the fixture for the
-// walls the controller then owns). Stage two stocks the granite blocks a
-// replacement costs and serves the stone-shell family over the same
+// (the walls the controller then owns). Stage two stocks the granite
+// blocks a replacement costs and serves the stone-shell family over the same
 // journal: the goal must open on the deficit and its first bundle (three
 // stone backups, the original's demolition, the stone replacement, the
 // backups' removal) must complete by controller order. The independent
