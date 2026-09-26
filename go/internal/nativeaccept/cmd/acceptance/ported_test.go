@@ -27,8 +27,8 @@ func TestPortedLoudLifecycleVideoCases(t *testing.T) {
 		"lifecycle/runtime-fault": {noKeep: true},
 		"lifecycle/reuse":         {noKeep: true, owned: true},
 		"lifecycle/headless-soak": {noKeep: true, owned: true},
-		"video/stream":            {quiet: na.QuietIfAvailable, rendered: true},
-		"video/feeds":             {quiet: na.QuietIfAvailable, rendered: true},
+		"video/stream":            {rendered: true},
+		"video/feeds":             {rendered: true},
 		"video/matrix":            {rendered: true},
 		"video/source-spike":      {rendered: true},
 	} {

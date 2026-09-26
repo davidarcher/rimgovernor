@@ -66,7 +66,7 @@ func runWarm(ctx context.Context, s cases.Session) error {
 	phase1 := map[string]any{"reused": killed.Reused}
 	report["phase1_killed_controller"] = phase1
 	h := na.NewHarness(killed.Client, output)
-	identity, err := warmStage(ctx, h, "p1")
+	identity, err := warmStage(ctx, cfg, h, "p1")
 	if err != nil {
 		killed.Close(report)
 		return err
@@ -139,7 +139,7 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 		return fmt.Errorf("phase 2 launched a fresh process instead of attaching to the kept one")
 	}
 	h := na.NewHarness(next.Client, output)
-	identity, err := warmStage(ctx, h, "p2")
+	identity, err := warmStage(ctx, cfg, h, "p2")
 	if err != nil {
 		return err
 	}
@@ -225,9 +225,9 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 	return na.CheckStartupLog(string(logData), cfg.Headless)
 }
 
-// warmStage loads the cached debug start, pauses it and returns its identity.
-func warmStage(ctx context.Context, h *na.Harness, prefix string) (map[string]any, error) {
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
+// warmStage loads the lab (#751), pauses it and returns its identity.
+func warmStage(ctx context.Context, cfg *na.Config, h *na.Harness, prefix string) (map[string]any, error) {
+	if _, err := na.StartLab(ctx, cfg, h); err != nil {
 		return nil, err
 	}
 	if _, err := h.Call(ctx, prefix+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

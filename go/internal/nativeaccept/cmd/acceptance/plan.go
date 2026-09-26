@@ -328,9 +328,6 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 			return p, fmt.Errorf("%s requires a separate matrix selection; selection cannot be truncated", c.Name)
 		}
 		row := plannedCase{Name: c.Name, BudgetNS: int64(c.Budget), Reasons: []string{}, FixtureOps: append([]string{}, c.FixtureOps()...), Roles: []string{"bridge"}, ModRole: "fixture", Rendered: c.Rendered}
-		if c.Production {
-			row.ModRole = "production"
-		}
 		if serveDriven(c) {
 			row.Roles = append(row.Roles, "controller")
 		}

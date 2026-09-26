@@ -18,9 +18,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "presentation/roster",
 		Scope:  "presentation_colonists with include_dossier attaches each colonist's own PawnState (mood, health summary, skills, equipment present; settings absent) and the plain roster names the same colonists with no dossier.",
-		Start:  cases.DebugStart{},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "a read-only presentation roster that also runs on a production build",
+		Start:  cases.LabStart(),
 		Budget: 3 * time.Minute,
 		Run:    runRoster,
 	})

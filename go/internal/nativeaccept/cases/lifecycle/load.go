@@ -24,9 +24,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "lifecycle/load",
 		Scope:  "Trusted native rimgovernor/lifecycle_load: a setup checkpoint save, an async MAP-readiness load of that save polled via rimgovernor/lifecycle_read_load to LoadCompleted with map_ready and a fresh load token, a second VISUAL-readiness load of the same save reaching a completed VISUAL outcome, and an unknown-request-id rejection. No reconnect/competing-viewer capability exercised.",
-		Start:  cases.DebugStart{},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "lifecycle_load is a production tool; the case also runs on a production build, which carries no quiet fixture",
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    runLoad,
 	})

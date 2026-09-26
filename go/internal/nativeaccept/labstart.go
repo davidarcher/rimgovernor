@@ -189,3 +189,22 @@ func (l LabStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[st
 	s.Report["quiet"] = h.quiet
 	return row, nil
 }
+
+// StartLab loads the default lab into an Owned case's own game (#751):
+// the same cached save and stamp a Lab start uses.
+func StartLab(ctx context.Context, cfg *Config, h *Harness) (map[string]any, error) {
+	game, err := cfg.GameSection()
+	if err != nil {
+		return nil, err
+	}
+	files, err := PackageFiles(fmt.Sprint(game["workingDir"]))
+	if err != nil {
+		return nil, err
+	}
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s := &Session{Config: cfg, Harness: h, Names: names, Report: Report{"package_files": files}}
+	return LabStart{}.load(ctx, s, QuietRequired)
+}

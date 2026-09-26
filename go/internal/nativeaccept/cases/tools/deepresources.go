@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"time"
@@ -15,7 +14,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "tools/deepresources", Scope: "Seeded deep resource lumps aggregate by connected definition, both scanner types expose native state, and drills report exact deposit, depletion and controller ownership (#482, #538).",
-		Start: cases.Fixture{Op: "test/deep_resources_seed", On: cases.Save{Name: sustained.BaselineSave, From: cases.CommittedSaves()}}, Budget: 3 * time.Minute,
+		Start: cases.Fixture{Op: "test/deep_resources_seed", On: cases.LabStart()}, Budget: 3 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()
 			data, err := json.Marshal(s.Prepared())

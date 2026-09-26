@@ -58,7 +58,10 @@ namespace HomeBridge.BridgeTools
             var result = authority.Check(pre.ExpectedGeneration);
             if (result.Success && TypedHooksReadyThisFrame()) return false;
             var reason = result.Snapshot.Reason;
-            var kind = reason == NativeControlRevocationReason.IdentityChanged ? "session_changed"
+            // Shutdown is the old game unloading under a load: the session
+            // changed, not a pause (#751; a small map's fast frames reach this
+            // check before the swapped game does).
+            var kind = reason == NativeControlRevocationReason.IdentityChanged || reason == NativeControlRevocationReason.Shutdown ? "session_changed"
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
                     || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? "unavailable" : "external_pause";
             var detail = result.Snapshot.Detail;

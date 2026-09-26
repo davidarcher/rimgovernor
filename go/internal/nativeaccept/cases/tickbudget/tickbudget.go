@@ -25,8 +25,6 @@ func randomOwner() string {
 	return "rimgovernor-" + hex.EncodeToString(buf)
 }
 
-const baselineSave = "RimGovernor-tribal8-baseline"
-
 var speeds = []string{"Normal", "Fast", "Superfast"}
 var budgets = []uint64{1, 37, 600}
 
@@ -34,9 +32,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "tickbudget/boundaries",
 		Scope:  "Verify exact native execution boundaries and external clock ownership in a private game.",
-		Start:  cases.Save{Name: baselineSave},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "also runs against the production mod build, which has no quiet-storyteller fixture; the assertions are about the clock, not events",
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Matrix: true,
 		Run:    run,
@@ -46,12 +42,17 @@ func init() {
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
-	// load reloads the baseline and returns a typed clock, holding Auto, on
+	// load reloads the lab and returns a typed clock, holding Auto, on
 	// the fresh load's identity: a load changes the identity and the
 	// authority generation, so neither carries across.
+	start, _ := na.AsMap(report["start"])
+	labSave := na.AsString(start["save"])
+	if labSave == "" {
+		return fmt.Errorf("lab start recorded no cached save to reload: %v", report["start"])
+	}
 	load := func(label string) (*na.ScenarioClock, error) {
 		if _, err := h.Call(ctx, label, "rimworld/load_game_ready", map[string]any{
-			"saveName": baselineSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
+			"saveName": labSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 		}); err != nil {
 			return nil, err
 		}

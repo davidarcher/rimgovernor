@@ -110,31 +110,6 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	}
 }
 
-func TestRemotePlanPackageRoles(t *testing.T) {
-	r := examplePlanRun(t)
-	r.Tier = "land"
-	r.Limits.Shards = 32
-	r.Limits.Attempts = 1
-	p, err := buildSelection(r, planReference{}, nil, affected.Selection{Cases: []string{"rooms", "supplies"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"rooms/reads", "supplies/reads"} {
-		found := false
-		for _, c := range p.Cases {
-			if c.Name == name {
-				found = true
-				if c.ModRole != "production" {
-					t.Fatal(c)
-				}
-			}
-		}
-		if !found {
-			t.Fatalf("missing %s", name)
-		}
-	}
-}
-
 func TestRemotePlanUsesAffectedEntryPointAndHarnessRules(t *testing.T) {
 	// Exercise real Go discovery on a small module; the rules do not need
 	// the production repository's dependency closure or external modules.

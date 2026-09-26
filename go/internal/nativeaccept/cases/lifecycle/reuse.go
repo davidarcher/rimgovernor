@@ -34,8 +34,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const baselineSave = "RimGovernor-tribal8-baseline"
-
 // reloads is how many clean baseline reloads run before the negative
 // case; at least two so a second load token is compared against the first.
 const reloads = 3
@@ -43,12 +41,12 @@ const reloads = 3
 func init() {
 	cases.Register(cases.Case{
 		Name: "lifecycle/reuse",
-		Scope: fmt.Sprintf("Reusable game (issue #22): one launch, %d baseline reloads each taking authority, "+
+		Scope: fmt.Sprintf("Reusable game (issue #22): one launch, %d lab reloads each taking authority, "+
 			"drafting and releasing a colonist, revoking authority and running a per-case controller; "+
 			"every reload verified against the reset contract; a final unclean case must retire the game. "+
 			"No mod static-state reset is claimed.", reloads),
-		Start:  cases.Owned{Saves: []string{baselineSave}},
-		Reason: "the assertion is the reusable-game lifecycle itself: the case launches the process, reloads the baseline into it and must see it retired (games_stop) after an unclean case",
+		Start:  cases.Owned{},
+		Reason: "the assertion is the reusable-game lifecycle itself: the case launches the process, reloads the lab into it and must see it retired (games_stop) after an unclean case",
 		// The per-reload controller is hosted by the case itself over its
 		// own game, so the suite passes -rimgovernor and schedules it last.
 		Service: true,
@@ -101,6 +99,13 @@ func runReuse(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["discovery"] = names
+	// The lab (#751) is the reload target: load it once so its cached
+	// save exists and is fresh.
+	lab, err := na.StartLab(ctx, cfg, h)
+	if err != nil {
+		return err
+	}
+	labSave := na.AsString(lab["save"])
 	for _, tool := range []string{"rimgovernor/lifecycle_read_identity", "rimgovernor/authority_control",
 		"rimgovernor/observations_list_pawns", "rimgovernor/observations_read_colony_facts", "rimgovernor/operations_execute",
 		"rimgovernor/operations_release_owned_draft"} {
@@ -112,7 +117,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 	var tokens []string
 	for i := 1; i <= reloads; i++ {
 		name := fmt.Sprintf("case-%d", i)
-		c, err := reuse.BeginCase(ctx, name, baselineSave, filepath.Join(cfg.Output, name))
+		c, err := reuse.BeginCase(ctx, name, labSave, filepath.Join(cfg.Output, name))
 		if err != nil {
 			return fmt.Errorf("%s: begin: %w", name, err)
 		}
@@ -135,7 +140,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 	report["load_tokens"] = tokens
 
 	// Negative case: leave an owned draft behind. EndCase must retire.
-	c, err := reuse.BeginCase(ctx, "case-unclean", baselineSave, filepath.Join(cfg.Output, "case-unclean"))
+	c, err := reuse.BeginCase(ctx, "case-unclean", labSave, filepath.Join(cfg.Output, "case-unclean"))
 	if err != nil {
 		return fmt.Errorf("case-unclean: begin: %w", err)
 	}
@@ -152,7 +157,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("case-unclean: lifecycle does not report retirement")
 	}
 	report["unclean_case_retired"] = reason
-	if _, err := reuse.BeginCase(ctx, "after-retire", baselineSave, filepath.Join(cfg.Output, "after-retire")); !errors.Is(err, na.ErrReuseRetired) {
+	if _, err := reuse.BeginCase(ctx, "after-retire", labSave, filepath.Join(cfg.Output, "after-retire")); !errors.Is(err, na.ErrReuseRetired) {
 		return fmt.Errorf("BeginCase after retirement should refuse with ErrReuseRetired, got %v", err)
 	}
 

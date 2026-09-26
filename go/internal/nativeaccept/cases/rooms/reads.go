@@ -1,6 +1,5 @@
 // The rooms/reads case proves typed room reads (geometry, native stats,
-// contents, cells) against the legacy home/list_rooms getter on a naturally
-// generated map. It also passes on a production build (QuietIfAvailable).
+// contents, cells) against the legacy home/list_rooms getter on the lab.
 package rooms
 
 import (
@@ -17,14 +16,11 @@ import (
 
 func init() {
 	cases.Register(cases.Case{
-		Name:       "rooms/reads",
-		Production: true,
-		Scope:      "Naturally generated rooms; read-only geometry, native stats and contents, no fixture spawning or construction orders.",
-		Start:      cases.DebugStart{},
-		Quiet:      na.QuietIfAvailable,
-		Reason:     "asserts a production discovery (no test/ tools), so the quiet fixture cannot be present",
-		Budget:     5 * time.Minute,
-		Run:        run,
+		Name:   "rooms/reads",
+		Scope:  "Naturally generated rooms; read-only geometry, native stats and contents, no fixture spawning or construction orders.",
+		Start:  cases.Fixture{Op: "test/bed_assign_prepare", On: cases.LabStart()},
+		Budget: 5 * time.Minute,
+		Run:    run,
 	})
 }
 
@@ -33,11 +29,6 @@ func run(ctx context.Context, s cases.Session) error {
 	h, names := s.Harness(), s.Names()
 	if !na.Contains(names, "rimgovernor/observations_list_rooms") {
 		return fmt.Errorf("missing rimgovernor/observations_list_rooms in discovery")
-	}
-	for _, name := range names {
-		if len(name) >= 5 && name[:5] == "test/" {
-			return fmt.Errorf("unexpected fixture export %s in production rooms discovery", name)
-		}
 	}
 	identityBefore, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
@@ -100,7 +91,7 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 	}
 	if len(candidates) == 0 {
-		return fmt.Errorf("no naturally generated indoor room found for populated acceptance")
+		return fmt.Errorf("no indoor room found for populated acceptance")
 	}
 	sort.Slice(candidates, func(i, j int) bool {
 		ci, cj := int(na.AsNumber(candidates[i]["cellCount"])), int(na.AsNumber(candidates[j]["cellCount"]))

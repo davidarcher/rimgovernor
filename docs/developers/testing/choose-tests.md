@@ -469,19 +469,11 @@ by review alone.
    map wiped to bare Soil with `n` fixture colonists, the `test/lab_start`
    reply (centre, colonist ids) as `Prepared`, one `na.LabSpawn` per
    building, item or pawn, `cases.LabBudget`; `lab/spawn` is the pattern
-   (10 s). Every op/read contract case opens on the lab (#751) except
+   (10 s). An `Owned` case loads it with `na.StartLab` (`authority/warm`,
+   `lifecycle/reuse`). Every op/read contract case opens on the lab (#751) except
    these, which cannot:
-   - *Production discovery* (`QuietIfAvailable`, also run on a production
-     build, which has no `test/lab_start`): `pawn/reads`, `rooms/reads`,
-     `supplies/reads`, `presentation/media`, `presentation/roster`,
-     `lifecycle/checkpoint`, `lifecycle/load`, `video/feeds`,
-     `video/stream`, `tickbudget/boundaries`.
-   - *Process lifecycle* (`Owned`: the assertion is the launch, restart or
-     reuse of a game process across saves): `authority/warm`,
-     `lifecycle/reuse`, `service/restart`.
    - *The save is the subject* (they measure a committed save's size or
-     content): `tools/saveheadroom-*`, `tools/foodchannels`,
-     `tools/deepresources`.
+     content): `tools/saveheadroom-*`, `tools/foodchannels`.
    - *The wild map is the subject* (mature wild plants, prey, natural
      rock to mine): `apply/refusal`, `animals/hunt-withdrawal`.
    - *Failed on the lab, not yet diagnosed* (#760-#763, stay on

@@ -58,9 +58,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:     "video/stream",
 		Scope:    "LeaseVideo start against a real rendered game, multiple ReadFrame polls proving strictly increasing sequence and updated frame bytes, the same source read out of shared memory at a materially higher rate with matching geometry, AcknowledgeFrame success, and LeaseVideo stop reflected by a subsequent ReadFrame refusal and a quiet shared buffer. CaptureScreenshot and the whole PlayerPresentation service are out of scope. The WebSocket relay is verified separately with a fake bridge client.",
-		Start:    cases.DebugStart{},
-		Quiet:    na.QuietIfAvailable,
-		Reason:   "also runs against a production build, which carries no quiet op",
+		Start:    cases.LabStart(),
 		Rendered: true,
 		Budget:   6 * time.Minute,
 		Run:      runStream,
@@ -68,9 +66,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:     "video/feeds",
 		Scope:    "LeaseVideo with pawn and map sources beside the screen source: three concurrent buffers, per-source cadence and geometry read from shared memory, ReadFrame by source id, invalid-source typed failures, stopping one source leaves the others publishing, stopping all is quiet, and two viewers of one source hold it independently.",
-		Start:    cases.DebugStart{},
-		Quiet:    na.QuietIfAvailable,
-		Reason:   "also runs against a production build, which carries no quiet op",
+		Start:    cases.LabStart(),
 		Rendered: true,
 		Budget:   6 * time.Minute,
 		Run:      runFeeds,
@@ -78,7 +74,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:     "video/matrix",
 		Scope:    "Live feed matrix: varied colonists each render in their feed, feeds + map + screen publish concurrently, a removed pawn ends its feed and is refused on re-lease, a native load ends map-bound feeds and the pawn re-leases on the new map, and per-configuration frame-time and tick cost is measured.",
-		Start:    cases.DebugStart{},
+		Start:    cases.LabStart(),
 		Rendered: true,
 		Budget:   10 * time.Minute,
 		Run:      runMatrix,
@@ -86,7 +82,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:     "video/source-spike",
 		Scope:    "Stage B spike evidence: second-camera colonist feed at near and far main zoom, whole-map frame, and per-frame draw cost for baseline, pawn feeds and whole-map culling while paused and at Normal speed.",
-		Start:    cases.DebugStart{},
+		Start:    cases.LabStart(),
 		Rendered: true,
 		Budget:   6 * time.Minute,
 		Run:      runSourceSpike,
@@ -363,7 +359,7 @@ func runFeeds(ctx context.Context, s cases.Session) error {
 	}
 	colonists := na.AsSlice(roster["colonists"])
 	if len(colonists) == 0 {
-		return fmt.Errorf("colonists: fresh debug game has no spawned colonists")
+		return fmt.Errorf("colonists: lab has no spawned colonists")
 	}
 	first, _ := na.AsMap(colonists[0])
 	pawnID := na.AsString(first["pawnId"])
@@ -371,6 +367,16 @@ func runFeeds(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("colonists: first colonist has no pawnId")
 	}
 	report["pawn_id"] = pawnID
+	// Bare lab Soil renders as one flat colour: lay a granite wall row so the
+	// whole-map frame has detail for the blank-frame check.
+	c := na.LabMapSize / 2
+	for dz := 6; dz < 7; dz++ {
+		for dx := -12; dx <= 12; dx++ {
+			if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "Wall", Stuff: "BlocksGranite", X: c + dx, Z: c + dz}); err != nil {
+				return err
+			}
+		}
+	}
 
 	lease := func(label string, source map[string]any, seconds int) (map[string]any, error) {
 		start := map[string]any{"viewer": viewer, "leaseSeconds": seconds}
@@ -510,14 +516,14 @@ func runFeeds(ctx context.Context, s cases.Session) error {
 	}
 	for _, f := range feeds[1:] {
 		frame := f.frames[len(f.frames)-1]
-		spread, err := savePNG(filepath.Join(output, f.label+".png"), frame)
+		spread, lumRange, err := savePNG(filepath.Join(output, f.label+".png"), frame)
 		if err != nil {
 			return err
 		}
 		report["case_"+f.label+"_pixel_spread"] = spread
 		// A blank (unrendered) target has no variation at all.
-		if spread < 1.5 {
-			return fmt.Errorf("%s: frame looks blank (pixel spread %.1f)", f.label, spread)
+		if blankFrame(spread, lumRange) {
+			return fmt.Errorf("%s: frame looks blank (pixel spread %.1f, range %.0f)", f.label, spread, lumRange)
 		}
 		report["case_"+f.label+"_readback_ms"] = frame.ReadbackMs
 	}
@@ -878,7 +884,7 @@ func runMatrix(ctx context.Context, s cases.Session) error {
 		if frame.Width != 320 || frame.Height != 200 || len(frame.Data) != 320*200*4 {
 			return fmt.Errorf("%s: frame is %dx%d/%d bytes", f.label, frame.Width, frame.Height, len(frame.Data))
 		}
-		spread, err := savePNG(filepath.Join(output, fmt.Sprintf("pawn%d-%s.png", i, na.AsString(pawns[i]["bodyType"]))), frame)
+		spread, lumRange, err := savePNG(filepath.Join(output, fmt.Sprintf("pawn%d-%s.png", i, na.AsString(pawns[i]["bodyType"]))), frame)
 		if err != nil {
 			return err
 		}
@@ -887,8 +893,8 @@ func runMatrix(ctx context.Context, s cases.Session) error {
 			"bodyType": pawns[i]["bodyType"], "apparel": pawns[i]["apparel"], "weapon": pawns[i]["weapon"],
 			"pixelSpread": spread, "centreContrast": centre, "readbackMs": frame.ReadbackMs,
 		}
-		if spread < 1.5 {
-			return fmt.Errorf("%s: frame looks blank (pixel spread %.1f)", f.label, spread)
+		if blankFrame(spread, lumRange) {
+			return fmt.Errorf("%s: frame looks blank (pixel spread %.1f, range %.0f)", f.label, spread, lumRange)
 		}
 		// The pawn stands in the centre of its feed; a centre patch of bare
 		// terrain would be as flat as the frame's border.
@@ -946,7 +952,7 @@ func runMatrix(ctx context.Context, s cases.Session) error {
 	}
 	if mapFrame := mapFeed.frames[len(mapFeed.frames)-1]; mapFrame.Height != 400 {
 		return fmt.Errorf("map: frame is %dx%d", mapFrame.Width, mapFrame.Height)
-	} else if _, err := savePNG(filepath.Join(output, "map.png"), mapFrame); err != nil {
+	} else if _, _, err := savePNG(filepath.Join(output, "map.png"), mapFrame); err != nil {
 		return err
 	}
 	baseTPS, allTPS := na.AsNumber(baseline["ticksPerSecond"]), na.AsNumber(everything["ticksPerSecond"])
@@ -1098,7 +1104,7 @@ func runMatrix(ctx context.Context, s cases.Session) error {
 	if afterRates["pawn1-after-load"] < 6 || afterRates["map-after-load"] < 2 {
 		return fmt.Errorf("after load: pawn %.1f fps, map %.1f fps", afterRates["pawn1-after-load"], afterRates["map-after-load"])
 	}
-	if _, err := savePNG(filepath.Join(output, "pawn1-after-load.png"), reborn.frames[len(reborn.frames)-1]); err != nil {
+	if _, _, err := savePNG(filepath.Join(output, "pawn1-after-load.png"), reborn.frames[len(reborn.frames)-1]); err != nil {
 		return err
 	}
 	if err := stopAll("stop-all"); err != nil {
@@ -1184,9 +1190,14 @@ func meanAbsDiff(a, b videoshm.Frame) float64 {
 
 // savePNG writes a bottom-up RGBA32 frame as a PNG and returns the mean
 // absolute deviation of its luminance, a cheap blank-frame detector.
-func savePNG(path string, frame videoshm.Frame) (float64, error) {
+// savePNG writes frame and returns its luminance spread: the mean absolute
+// deviation, and the brightest-to-darkest range. A blank capture is flat on
+// both; a mostly-uniform scene (the lab's bare Soil) has a low deviation but
+// still a wide range where its few things stand.
+func savePNG(path string, frame videoshm.Frame) (float64, float64, error) {
 	img := image.NewRGBA(image.Rect(0, 0, frame.Width, frame.Height))
 	var sum float64
+	lo, hi := 255.0, 0.0
 	lum := make([]float64, 0, frame.Width*frame.Height)
 	for y := 0; y < frame.Height; y++ {
 		row := frame.Data[(frame.Height-1-y)*frame.Width*4:]
@@ -1196,6 +1207,7 @@ func savePNG(path string, frame videoshm.Frame) (float64, error) {
 			l := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
 			lum = append(lum, l)
 			sum += l
+			lo, hi = math.Min(lo, l), math.Max(hi, l)
 		}
 	}
 	mean := sum / float64(len(lum))
@@ -1205,13 +1217,18 @@ func savePNG(path string, frame videoshm.Frame) (float64, error) {
 	}
 	file, err := os.Create(path)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	defer file.Close()
 	if err := png.Encode(file, img); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return dev / float64(len(lum)), nil
+	return dev / float64(len(lum)), hi - lo, nil
+}
+
+// blankFrame reports a capture with no content: flat deviation and range.
+func blankFrame(spread, lumRange float64) bool {
+	return spread < 1.5 && lumRange < 64
 }
 
 func runSourceSpike(ctx context.Context, s cases.Session) error {

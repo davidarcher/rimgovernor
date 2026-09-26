@@ -17,9 +17,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "pawn/reads",
 		Scope:  "Fresh native pawn read facts, exact filters, explicit detail presence, bounded refusals and paused identity/tick invariance. Draft-control snapshot/claim read validation only; no pawn operation or health/settings CAS acceptance.",
-		Start:  cases.DebugStart{},
-		Quiet:  nativeaccept.QuietIfAvailable,
-		Reason: "a read-only census that also runs on a production build, which carries no quiet fixture",
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})
@@ -28,6 +26,12 @@ func init() {
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
+	// The lab holds only its colonists: add an animal so the census reads a
+	// non-colonist pawn too.
+	c := nativeaccept.LabMapSize / 2
+	if _, _, err := nativeaccept.LabSpawn(ctx, h, nativeaccept.LabThing{Def: "Muffalo", X: c + 4, Z: c, Unowned: true}); err != nil {
+		return err
+	}
 	if !nativeaccept.Contains(s.Names(), "rimgovernor/observations_list_pawns") {
 		return fmt.Errorf("missing rimgovernor/observations_list_pawns in discovery")
 	}

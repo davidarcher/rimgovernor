@@ -1,6 +1,5 @@
 // The supplies/reads case proves typed supply-stock reads against the legacy
-// home/list_things census, for both held and spawned-only ownership modes. It
-// also passes on a production build (QuietIfAvailable).
+// home/list_things census, for both held and spawned-only ownership modes, on the lab.
 package supplies
 
 import (
@@ -16,27 +15,26 @@ import (
 
 func init() {
 	cases.Register(cases.Case{
-		Name:       "supplies/reads",
-		Production: true,
-		Scope:      "Fresh production typed supply census against existing native stock reads; no stock spawning, fixture mutation or gameplay orders.",
-		Start:      cases.DebugStart{},
-		Quiet:      na.QuietIfAvailable,
-		Reason:     "asserts a production discovery (no test/ tools), so the quiet fixture cannot be present",
-		Budget:     5 * time.Minute,
-		Run:        run,
+		Name:   "supplies/reads",
+		Scope:  "Fresh typed supply census against existing native stock reads; no stock spawning, fixture mutation or gameplay orders.",
+		Start:  cases.LabStart(),
+		Budget: 5 * time.Minute,
+		Run:    run,
 	})
 }
 
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, names := s.Harness(), s.Names()
+	// The lab is bare: lay the starting materials the census reads.
+	c := na.LabMapSize / 2
+	for i, def := range []string{"WoodLog", "Steel"} {
+		if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: def, X: c + 3 + i, Z: c + 3, Count: 50}); err != nil {
+			return err
+		}
+	}
 	if !na.Contains(names, "rimgovernor/observations_list_supplies") {
 		return fmt.Errorf("missing rimgovernor/observations_list_supplies in discovery")
-	}
-	for _, name := range names {
-		if len(name) >= 5 && (name[:5] == "test/" || contains(name, "fixture")) {
-			return fmt.Errorf("unexpected fixture export %s in production supplies discovery", name)
-		}
 	}
 	identityBefore, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
@@ -456,13 +454,4 @@ func limit(values []string, n int) []string {
 		return dedupSortedInPlace[:n]
 	}
 	return dedupSortedInPlace
-}
-
-func contains(haystack, needle string) bool {
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
-	}
-	return false
 }

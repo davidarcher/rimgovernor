@@ -60,6 +60,9 @@ func TestLabStampInvalidatesOnRebuild(t *testing.T) {
 	if fresh, err := labCacheFresh(name, stamp); err != nil || fresh {
 		t.Fatalf("stale stamp: %v %v", fresh, err)
 	}
+	if err := os.WriteFile(labReplyPath(name), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(labStampPath(name), []byte(stamp+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

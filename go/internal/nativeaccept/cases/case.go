@@ -248,9 +248,6 @@ type Case struct {
 	// Expansions explicitly selects a DLC profile for a programmatic fixture.
 	// Such a case owns a fresh process; the profile writer adds knownExpansions.
 	Expansions []string
-	// Production requires a fixture-free native package. Remote executors
-	// must switch private package layouts between production and fixture rows.
-	Production bool
 	// Name is "<area>/<case>", unique across the registry.
 	Name string
 	// Scope is the report's one-line description of what passing proves.

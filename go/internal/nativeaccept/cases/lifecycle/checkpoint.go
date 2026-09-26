@@ -23,9 +23,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "lifecycle/checkpoint",
 		Scope:  "Trusted native rimgovernor/lifecycle_save checkpoint: paused happy-path completed save with identity/tick/direction/pause verification, unpaused refusal, and wrong-expected-tick uncertain outcome; plus rimgovernor/lifecycle_read_save replaying the happy-path outcome by request_id and refusing an unknown request_id. No reconnect/competing-viewer capability exercised.",
-		Start:  cases.DebugStart{},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "lifecycle_save is a production tool; the case also runs on a production build, which carries no quiet fixture",
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    runCheckpoint,
 	})
