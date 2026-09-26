@@ -366,7 +366,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	if err := check(); err != nil {
 		return nil, policy.StockObservation{}, "", false, err
 	}
-	if !census.Tick.FreshFor(facts.Identity.Tick) || census.Generation != uint64(snapshot.Native) {
+	if !routineCachedFresh(bridge.FactColony, census.Tick, facts.Identity.Tick) || census.Generation != uint64(snapshot.Native) {
 		return nil, policy.StockObservation{}, "", false, ErrControl
 	}
 	standing := make(map[domain.Cell]string, len(census.Structures))

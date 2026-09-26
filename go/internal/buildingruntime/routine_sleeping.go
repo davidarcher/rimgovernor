@@ -242,6 +242,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		// ErrControl alone reads as a lost writer gate in the diagnosis
+		// (#662); name the boundary that actually failed.
+		clockSchedulerLog("%s: ErrControl identity boundary observed=%+v tick=%d review tick=%d snapshot=%+v", r.goal, expected, expected.Tick, review.Tick, state.Snapshot)
 		return RoutineBuildingResult{}, ErrControl
 	}
 	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
@@ -1106,9 +1109,35 @@ func routineScope(ctx context.Context, native observation.ColonySource) (observa
 	return observation.DecodeIdentity(reply)
 }
 
+// routineBuildingBoundary is the scope every routine planner checks its own
+// identity read against: the reviewed world and native generation, at a
+// tick that still describes the review's anchor (routineBuildingFresh).
 func routineBuildingBoundary(actual observation.Identity, expected domain.GenerationSnapshot, tick domain.Tick) bool {
 	generation, generationKnown := actual.NativeGeneration.Value()
-	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && actual.Tick.FreshFor(tick) && generationKnown && generation == expected.Native
+	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && routineBuildingFresh(actual.Tick, tick) && generationKnown && generation == expected.Native
+}
+
+// routineBuildingFresh is Tick.FreshFor widened for an identity read the
+// step's fact cache may serve: the identity row is seeded at the tick the
+// step opened on, while the anchor is the colony read the review made after
+// it, so under a running window the row lawfully sits *behind* the anchor
+// (#306, #662) by exactly what the cache serves it under
+// (bridge.FactIdentity.Fresh, the identity family's zero tolerance widened
+// by the window's live drift). Under a stopped clock the drift is zero and
+// this is tick-exact equality, as before.
+func routineBuildingFresh(actual, anchor domain.Tick) bool {
+	return routineCachedFresh(bridge.FactIdentity, actual, anchor)
+}
+
+// routineCachedFresh is Tick.FreshFor for an observation the step's fact
+// cache may have served: past the anchor within the planning tolerance as
+// usual, or behind it by no more than the row's own family serves it under
+// (bridge.FactFamily.Fresh). A planner that anchors a cached read on the
+// review's colony tick must use this rather than the bare FreshFor: the
+// review read after the step's cached rows, so under a running window they
+// sit behind its anchor by design and are not a changed world (#306, #662).
+func routineCachedFresh(family bridge.FactFamily, actual, anchor domain.Tick) bool {
+	return actual.FreshFor(anchor) || family.Fresh(int64(actual), int64(anchor))
 }
 
 // initialShelterOwed reports whether the review binds an active

@@ -26,6 +26,10 @@ type routineNative struct {
 	pawnReply *o.ListPawnsReply
 	// pawnReads and populationReads count the held-section reads (#625).
 	pawnReads, populationReads int
+	// identityTick, when set, pins the identity read behind the colony
+	// reply's tick the way the step's fact cache serves it under a running
+	// window (#662).
+	identityTick *int64
 }
 
 // Translate the legacy colony fixture's zone data at the new list boundary.
@@ -64,7 +68,11 @@ func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridg
 }
 
 func (n *routineNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
-	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}, bridge.Result{}, ctx.Err()
+	observed := proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext)
+	if n.identityTick != nil {
+		observed.Tick = proto.Int64(*n.identityTick)
+	}
+	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: observed, Paused: proto.Bool(true)}}}, bridge.Result{}, ctx.Err()
 }
 func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
 	n.reads++
