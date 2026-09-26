@@ -16,14 +16,13 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 )
 
 func init() {
 	cases.Register(cases.Case{
 		Name:  "service/restart",
 		Scope: "Kill-and-restart: serve --resume runs the bot for the observed world with no HTTP write, is killed, and a restarted controller on the same state resumes autonomous play for the same world and advances the routine review, again with no player step.",
-		Start: cases.Save{Name: sustained.BaselineSave},
+		Start: cases.LabStart(),
 		// "work" is the lightest family that still produces a routine review
 		// with a bound goal; the point is autonomy, not any particular
 		// planner.
@@ -41,7 +40,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	firstPID := service.PID
-	// The baseline save loads with pending letters that hold the clock; the
+	// A pending letter would hold the clock; the
 	// keep-alive acknowledges them so the resumed controller plays (#166).
 	service.KeepAuthority(ctx)
 	journal, err := service.Store(ctx)
