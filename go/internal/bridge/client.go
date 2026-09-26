@@ -57,12 +57,73 @@ type Result struct {
 }
 
 type Refusal struct {
-	Tool   string
+	Tool string
+	// Cause is the refusal's own account of itself, lifted out of the
+	// structured result: the native reason a fixture op reports, or the
+	// first line of the exception the game threw. A refusal whose result
+	// says nothing leaves it empty. The tool name alone identified only
+	// the wrapper (games_call_tool on every native read), so nine nightly
+	// cases reported a transport-shaped error for a named native refusal
+	// nobody could read without the evidence tree (#663).
+	Cause  string
 	Result Result
 }
 
-func (e *Refusal) Error() string { return "bridge read refused: " + e.Tool }
+func (e *Refusal) Error() string {
+	if e.Cause == "" {
+		return "bridge read refused: " + e.Tool
+	}
+	return "bridge read refused: " + e.Tool + ": " + e.Cause
+}
 func (e *Refusal) Unwrap() error { return ErrRefused }
+
+// refusalCauseBytes bounds a lifted cause. A native exception carries its
+// whole managed stack trace; the first line names the failure and the rest
+// belongs in the recorded receipt, not in every error string that wraps it.
+const refusalCauseBytes = 240
+
+// refusalCause lifts the refusal's own account out of a structured result.
+// The native side reports either a reviewed refusal reason or, when the
+// game threw, an exception whose first line is the message. Only the first
+// line is taken, and it is bounded: callers put this in an error string.
+func refusalCause(structured json.RawMessage) string {
+	if len(structured) == 0 {
+		return ""
+	}
+	var wire struct {
+		Reason    string `json:"reason"`
+		Exception string `json:"exception"`
+		Error     string `json:"error"`
+		Message   string `json:"message"`
+	}
+	if json.Unmarshal(structured, &wire) != nil {
+		return ""
+	}
+	for _, candidate := range []string{wire.Reason, wire.Exception, wire.Error, wire.Message} {
+		if cause := firstLine(candidate); cause != "" {
+			return cause
+		}
+	}
+	return ""
+}
+
+// firstLine is candidate's first line, bounded to refusalCauseBytes. The
+// native payload escapes its own backslashes to forward slashes, so a
+// managed stack trace arrives with literal "/r/n" separators as well as
+// real newlines; both end the line.
+func firstLine(candidate string) string {
+	line := candidate
+	for _, separator := range []string{"\r", "\n", "/r/n", "/n", "/r"} {
+		if i := strings.Index(line, separator); i >= 0 {
+			line = line[:i]
+		}
+	}
+	line = strings.TrimSpace(line)
+	if len(line) > refusalCauseBytes {
+		line = strings.TrimSpace(line[:refusalCauseBytes]) + "..."
+	}
+	return line
+}
 
 type Tool struct {
 	Name        string
@@ -226,6 +287,52 @@ func (c *Client) Close() error {
 	c.lifecycle <- struct{}{}
 	defer func() { <-c.lifecycle }()
 	return c.closeLive()
+}
+
+type callTimeoutKey struct{}
+
+// MaxCallTimeout bounds what WithCallTimeout may ask for. It is generous
+// because the calls that need it are the lifecycle ones: generating a fresh
+// debug world or loading a save can legitimately take minutes on a loaded
+// CI runner, and the native tool takes its own timeoutMs for exactly that
+// wait. Any read that runs this long is a hang, and the harness budget
+// ends the case well before the bound.
+const MaxCallTimeout = 10 * time.Minute
+
+// WithCallTimeout raises this call's deadline above the session's Timeout.
+// A session timeout that bounds every read cannot also cover a native call
+// the caller explicitly asked to wait longer for: food/fishing spent its
+// 60s session budget waiting on a start_debug_game_ready it had given
+// 120s, and reported the cut as "bridge transport failure: games_call_tool:
+// context deadline exceeded" (#663). A caller passing a native timeoutMs
+// must pass the matching deadline here. Lowering the deadline is not this
+// function's job: a shorter timeout than the session's is ignored, so a
+// caller cannot accidentally tighten a read.
+func WithCallTimeout(ctx context.Context, timeout time.Duration) context.Context {
+	if timeout <= 0 {
+		return ctx
+	}
+	if timeout > MaxCallTimeout {
+		timeout = MaxCallTimeout
+	}
+	return context.WithValue(ctx, callTimeoutKey{}, timeout)
+}
+
+// CallTimeoutFrom is the raised deadline ctx carries, if any. A caller that
+// assembles arguments and the matching deadline in different places uses it
+// to check its own work.
+func CallTimeoutFrom(ctx context.Context) (time.Duration, bool) {
+	timeout, ok := ctx.Value(callTimeoutKey{}).(time.Duration)
+	return timeout, ok
+}
+
+// callTimeout is the deadline this call runs under: the session's Timeout,
+// or the longer one the caller asked for.
+func (c *Client) callTimeout(ctx context.Context) time.Duration {
+	if timeout, ok := ctx.Value(callTimeoutKey{}).(time.Duration); ok && timeout > c.timeout {
+		return timeout
+	}
+	return c.timeout
 }
 
 func (c *Client) Reconnect(ctx context.Context) error {
@@ -404,7 +511,7 @@ func discover(ctx context.Context, session *mcp.ClientSession) (Discovery, error
 // operation admits one call under class (the class of the native tool it
 // will reach; see admissionClassOf) and runs it against the live session.
 func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(context.Context, *liveSession) (Result, error)) (Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	ctx, cancel := context.WithTimeout(ctx, c.callTimeout(ctx))
 	defer cancel()
 	c.mu.Lock()
 	live, closed := c.live, c.closed
@@ -622,7 +729,7 @@ func decodeReceipt(name string, envelope json.RawMessage, result *mcp.CallToolRe
 	}
 	unknown := string(flags.Unknown)
 	if result.IsError || len(result.InputRequests) > 0 || flags.Success != nil && !*flags.Success || flags.Refused || unknown != "" && unknown != "null" && unknown != "[]" && unknown != "{}" {
-		return raw, &Refusal{Tool: name, Result: raw}
+		return raw, &Refusal{Tool: name, Cause: refusalCause(raw.Structured), Result: raw}
 	}
 	return raw, nil
 }

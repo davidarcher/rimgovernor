@@ -71,6 +71,9 @@ func runMealTiers(ctx context.Context, s cases.Session) error {
 		if e != nil {
 			return e
 		}
+		if e = pauseForProbe(ctx, h, "meal-"+recipe); e != nil {
+			return e
+		}
 		probe, e := h.Call(ctx, "meal-"+recipe, "test/meal_tiers_probe", map[string]any{"drain": recipe == "CookMealFine"})
 		if e != nil {
 			return e

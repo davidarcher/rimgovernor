@@ -615,3 +615,90 @@ func TestRuntimePublishRaceRetried(t *testing.T) {
 		t.Fatalf("expected no retry for a non-race refusal, got %d calls", len(other.calls))
 	}
 }
+
+// A refusal names its own cause. The tool name alone identified only the
+// wrapper, so every native refusal read as "bridge read refused:
+// games_call_tool" and nine nightly cases looked like transport faults
+// (#663).
+func TestRefusalNamesItsNativeCause(t *testing.T) {
+	for _, tc := range []struct{ structured, want string }{
+		{`{"reason":"No open reachable area for the fixture hut.","success":false}`,
+			"bridge read refused: games_call_tool: No open reachable area for the fixture hut."},
+		{`{"exception":"System.InvalidOperationException: Pause before drain\r\n  at HomeBridge","success":false}`,
+			"bridge read refused: games_call_tool: System.InvalidOperationException: Pause before drain"},
+		{`{"exception":"System.InvalidOperationException: Pause before drain/r/n  at HomeBridge","success":false}`,
+			"bridge read refused: games_call_tool: System.InvalidOperationException: Pause before drain"},
+		{`{"error":"stale token","success":false}`, "bridge read refused: games_call_tool: stale token"},
+		{`{"success":false}`, "bridge read refused: games_call_tool"},
+	} {
+		s := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			return structured(tc.structured), nil
+		}}
+		ctx, cancel := context.WithTimeout(context.Background(), testBudget)
+		_, err := testNativeRead(testClient(t, s, testBudget), ctx)
+		cancel()
+		if !errors.Is(err, ErrRefused) || err.Error() != tc.want {
+			t.Fatalf("refusal of %s = %v, wanted %q", tc.structured, err, tc.want)
+		}
+	}
+	// A whole managed stack trace on one line is bounded, not pasted into
+	// every error string that wraps it.
+	long := strings.Repeat("x", 4096)
+	s := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return structured(`{"reason":"` + long + `","success":false}`), nil
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), testBudget)
+	defer cancel()
+	_, err := testNativeRead(testClient(t, s, testBudget), ctx)
+	var refusal *Refusal
+	if !errors.As(err, &refusal) || len(refusal.Cause) > refusalCauseBytes+3 || !strings.HasSuffix(refusal.Cause, "...") {
+		t.Fatalf("unbounded cause (%d bytes): %v", len(refusal.Cause), err)
+	}
+}
+
+// A caller that asked the native side to wait longer than the session's
+// timeout gets the deadline it asked for: food/fishing spent its 60s session
+// budget on a start_debug_game_ready it had given 120s and reported the cut
+// as a transport failure (#663).
+func TestWithCallTimeoutCoversALongNativeWait(t *testing.T) {
+	released := make(chan struct{})
+	s := &testServer{handler: func(ctx context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+		select {
+		case <-released:
+			return structured(`{"success":true}`), nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}}
+	client := testClient(t, s, 150*time.Millisecond)
+	// Without the raised deadline the session timeout cuts the call.
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, ErrTransport) {
+		t.Fatalf("the session timeout did not cut the call: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := testNativeRead(client, WithCallTimeout(context.Background(), testBudget))
+		done <- err
+	}()
+	time.Sleep(400 * time.Millisecond)
+	close(released)
+	if err := <-done; err != nil {
+		t.Fatalf("the raised deadline did not cover the wait: %v", err)
+	}
+}
+
+func TestWithCallTimeoutNeverTightensAReadOrOutrunsTheBound(t *testing.T) {
+	c := &Client{timeout: time.Minute}
+	if got := c.callTimeout(WithCallTimeout(context.Background(), time.Second)); got != time.Minute {
+		t.Fatalf("a shorter call timeout tightened the read: %v", got)
+	}
+	if got := c.callTimeout(WithCallTimeout(context.Background(), 0)); got != time.Minute {
+		t.Fatalf("a zero call timeout changed the read: %v", got)
+	}
+	if got := c.callTimeout(WithCallTimeout(context.Background(), 10*time.Hour)); got != MaxCallTimeout {
+		t.Fatalf("call timeout outran its bound: %v", got)
+	}
+	if got := c.callTimeout(context.Background()); got != time.Minute {
+		t.Fatalf("plain context did not take the session timeout: %v", got)
+	}
+}

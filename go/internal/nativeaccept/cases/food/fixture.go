@@ -95,3 +95,17 @@ func checkEmpty(audit, observed, prepared map[string]any, units int) error {
 	}
 	return nil
 }
+
+// pauseForProbe pauses the game before a fixture channel probe. The probes
+// that drain a channel refuse on an unpaused game ("Pause before drain"):
+// a drain mutates the map, so it runs on a still game or it races the very
+// simulation it is measuring. Stopping a service does not leave the game
+// paused -- the service's own clock window was running -- so a case that
+// reattaches and probes must pause first. food/meal-tiers and food/reserve
+// did not, and the refused probe reported itself as "bridge read refused:
+// games_call_tool" with the fixture exception only in the evidence tree
+// (#663).
+func pauseForProbe(ctx context.Context, h *na.Harness, label string) error {
+	_, err := h.Call(ctx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false})
+	return err
+}

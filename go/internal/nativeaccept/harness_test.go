@@ -1,9 +1,13 @@
 package nativeaccept
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
 func TestValidateDiscoveryAcceptsExactProductionAndFixtures(t *testing.T) {
@@ -140,5 +144,34 @@ func TestOutcomeRequiresExactlyOneNamedCase(t *testing.T) {
 				t.Fatalf("expected an error for %s", name)
 			}
 		})
+	}
+}
+
+// A lifecycle call's own timeoutMs sizes the bridge deadline: loading a save
+// or generating a world legitimately outlasts an ordinary read, and cutting
+// it at the session timeout reported a bounded wait as a transport failure
+// (#663).
+func TestCoverNativeWaitRaisesTheDeadlineToTheRequestedWait(t *testing.T) {
+	for _, tc := range []struct {
+		args string
+		want time.Duration
+	}{
+		{`{"readiness":"visual","timeoutMs":120000}`, 120*time.Second + nativeWaitMargin},
+		{`{"timeoutMs":180000}`, 180*time.Second + nativeWaitMargin},
+		{`{}`, 0},
+		{`{"timeoutMs":0}`, 0},
+		{`{"timeoutMs":"soon"}`, 0},
+		{`not json`, 0},
+	} {
+		got, raised := bridge.CallTimeoutFrom(coverNativeWait(context.Background(), []byte(tc.args)))
+		if tc.want == 0 {
+			if raised {
+				t.Fatalf("coverNativeWait(%s) raised the deadline to %v", tc.args, got)
+			}
+			continue
+		}
+		if got != tc.want {
+			t.Fatalf("coverNativeWait(%s) = %v, wanted %v", tc.args, got, tc.want)
+		}
 	}
 }

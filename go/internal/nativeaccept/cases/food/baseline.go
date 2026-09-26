@@ -141,9 +141,20 @@ func ledgerBaseline(ctx context.Context, s cases.Session) error {
 			return "", false, err
 		}
 		s.Report()["colony_status"] = body
+		// 503 is the service saying the read raced the world it was reading
+		// (observation.ErrChanged): the identity, generation or anchor moved
+		// under it. That is what a running colony does between two polls, so
+		// it is a sample to take again, not a verdict. Failing the poll on it
+		// ended the case on a transport-shaped error (#663); the Wait's own
+		// stall and ceiling still end a 503 that never clears.
+		if code == 503 {
+			s.Report()["last_colony_status_unavailable"] = body
+			return "colony status unavailable", false, nil
+		}
 		if code != 200 {
 			return "", false, fmt.Errorf("colony status HTTP %d: %v", code, body)
 		}
+		delete(s.Report(), "last_colony_status_unavailable")
 		raw, err := json.Marshal(body)
 		if err != nil {
 			return "", false, err

@@ -16,6 +16,13 @@ type Failure struct {
 
 // Parse reads the result envelope, not a step's outer transport error. Successful
 // receipts and malformed evidence are not classified as native refusals.
+//
+// A refusal does not have to arrive as an MCP error. A fixture op that
+// declines reports a successful receipt carrying "success": false and its
+// own reason, and a fixture whose game threw reports the exception the same
+// way; requiring isError left both as a bare "bridge read refused:
+// games_call_tool" with the cause only in the evidence tree (#663). The gate
+// here matches the one the bridge itself refuses on.
 func Parse(raw json.RawMessage) (Failure, bool) {
 	var result struct {
 		IsError bool `json:"isError"`
@@ -26,9 +33,18 @@ func Parse(raw json.RawMessage) (Failure, bool) {
 			Exception   string `json:"exception"`
 			AttentionID string `json:"attentionId"`
 			Summary     string `json:"summary"`
+			Reason      string `json:"reason"`
+			Success     *bool  `json:"success"`
+			Refused     bool   `json:"refused"`
 		} `json:"structuredContent"`
 	}
-	if json.Unmarshal(raw, &result) != nil || !result.IsError {
+	if json.Unmarshal(raw, &result) != nil {
+		return Failure{}, false
+	}
+	// An exception alone is not a failure: a successful reply may report one
+	// it handled. The refusal flags are what the bridge itself refuses on.
+	declined := result.Structured.Success != nil && !*result.Structured.Success
+	if !result.IsError && !declined && !result.Structured.Refused {
 		return Failure{}, false
 	}
 	var texts []string
@@ -39,6 +55,11 @@ func Parse(raw json.RawMessage) (Failure, bool) {
 	}
 	f := Failure{Kind: "refusal", Detail: strings.Join(texts, "\n")}
 	f.Summary = firstLine(f.Detail)
+	// A declined op's single text block is the whole reply JSON, which says
+	// nothing on one line; its structured "reason" is the refusal itself.
+	if result.Structured.Reason != "" {
+		f.Summary = firstLine(result.Structured.Reason)
+	}
 	if result.Structured.Exception != "" {
 		f.Kind = "native exception"
 		f.Summary = firstLine(result.Structured.Exception)
@@ -70,7 +91,14 @@ func Parse(raw json.RawMessage) (Failure, bool) {
 	return f, true
 }
 
+// firstLine is text's first line. A managed stack trace reaches us with its
+// own backslashes escaped to forward slashes, so the line separators arrive
+// as the literal "/r/n" rather than as newlines; both end the line, or the
+// summary carries the whole trace.
 func firstLine(text string) string {
-	line, _, _ := strings.Cut(strings.TrimSpace(text), "\n")
+	line := strings.TrimSpace(text)
+	for _, separator := range []string{"\n", "/r/n", "/n", "/r"} {
+		line, _, _ = strings.Cut(line, separator)
+	}
 	return strings.TrimSpace(line)
 }

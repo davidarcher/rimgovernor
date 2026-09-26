@@ -69,17 +69,11 @@ func runBerserk(ctx context.Context, s cases.Session) error {
 			if err := audit.observeEvent(event); err != nil {
 				return "", false, err
 			}
-			if event.Kind == "native_request" {
-				args, _ := na.AsMap(event.Payload["arguments"])
-				if na.AsString(args["tool"]) != "rimgovernor/operations_execute" {
-					continue
-				}
-				inner, _ := na.AsMap(args["arguments"])
-				var request map[string]any
-				if err := json.Unmarshal([]byte(na.AsString(inner["request"])), &request); err != nil {
-					return "", false, err
-				}
-				operation, _ := na.AsMap(request["operation"])
+			operation, dispatched, err := dispatchedOperation(event)
+			if err != nil {
+				return "", false, err
+			}
+			if dispatched {
 				if err := audit.dispatch(operation); err != nil {
 					return "", false, err
 				}
@@ -265,4 +259,31 @@ func (a *berserkDispatch) observeEvent(event na.FlightRow) error {
 	}
 	a.observe(reply)
 	return nil
+}
+
+// dispatchedOperation is the operation a flight row dispatched, when the row
+// is one: a native_request through games_call_tool whose inner tool is
+// operations_execute.
+//
+// The wrapper is part of the match, not only the tool the arguments name. A
+// games_tool_detail row names the very same native tool while carrying no
+// inner request at all, so matching on the inner tool alone unmarshalled an
+// empty string and failed the case with a bare "unexpected end of JSON
+// input" the first time the session described operations_execute -- once per
+// fresh session, which is every nightly run (#663).
+func dispatchedOperation(event na.FlightRow) (map[string]any, bool, error) {
+	if event.Kind != "native_request" || na.AsString(event.Payload["tool"]) != "games_call_tool" {
+		return nil, false, nil
+	}
+	args, _ := na.AsMap(event.Payload["arguments"])
+	if na.AsString(args["tool"]) != "rimgovernor/operations_execute" {
+		return nil, false, nil
+	}
+	inner, _ := na.AsMap(args["arguments"])
+	var request map[string]any
+	if err := json.Unmarshal([]byte(na.AsString(inner["request"])), &request); err != nil {
+		return nil, false, fmt.Errorf("operations_execute request of flight row %d: %w", event.Sequence, err)
+	}
+	operation, _ := na.AsMap(request["operation"])
+	return operation, true, nil
 }

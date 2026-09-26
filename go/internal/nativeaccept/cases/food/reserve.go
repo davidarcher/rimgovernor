@@ -115,6 +115,9 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 		if h, e = s.Reattach(ctx); e != nil {
 			return nil, e
 		}
+		if e = pauseForProbe(ctx, h, prefix+"-probe"); e != nil {
+			return nil, e
+		}
 		probe, e := h.Call(ctx, prefix+"-probe", reserveProbeOp, args)
 		if e != nil {
 			return nil, e

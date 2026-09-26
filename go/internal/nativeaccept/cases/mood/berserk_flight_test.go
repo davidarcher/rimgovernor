@@ -48,3 +48,39 @@ func TestBerserkPawnFlightResponses(t *testing.T) {
 		})
 	}
 }
+
+// The first thing a fresh session does with operations_execute is describe
+// it, and a games_tool_detail row names that very tool while carrying no
+// inner request. Matching on the inner tool alone unmarshalled an empty
+// string and failed the case with "unexpected end of JSON input" (#663).
+func TestDispatchedOperationSkipsTheSchemaDetailRow(t *testing.T) {
+	execute := `{"operation":{"setDrafted":{"pawn":{"entityId":"Thing_Human726"},"drafted":true}}}`
+	for _, tc := range []struct {
+		name            string
+		row             na.FlightRow
+		want, wantError bool
+	}{
+		{"schema detail", na.FlightRow{Kind: "native_request", Sequence: 351, Payload: map[string]any{
+			"tool": "games_tool_detail", "arguments": map[string]any{"gameId": "rimgovernor-trial", "tool": "rimgovernor/operations_execute"}}}, false, false},
+		{"dispatch", na.FlightRow{Kind: "native_request", Payload: map[string]any{
+			"tool": "games_call_tool", "arguments": map[string]any{"tool": "rimgovernor/operations_execute", "arguments": map[string]any{"request": execute}}}}, true, false},
+		{"other native tool", na.FlightRow{Kind: "native_request", Payload: map[string]any{
+			"tool": "games_call_tool", "arguments": map[string]any{"tool": "rimgovernor/observations_list_pawns", "arguments": map[string]any{"request": "{}"}}}}, false, false},
+		{"response", na.FlightRow{Kind: "native_response", Payload: map[string]any{
+			"tool": "games_call_tool", "arguments": map[string]any{"tool": "rimgovernor/operations_execute"}}}, false, false},
+		{"malformed request", na.FlightRow{Kind: "native_request", Sequence: 7, Payload: map[string]any{
+			"tool": "games_call_tool", "arguments": map[string]any{"tool": "rimgovernor/operations_execute", "arguments": map[string]any{"request": "{"}}}}, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			operation, dispatched, err := dispatchedOperation(tc.row)
+			if (err != nil) != tc.wantError || dispatched != tc.want {
+				t.Fatalf("dispatchedOperation = %v, %v, %v", operation, dispatched, err)
+			}
+			if tc.want {
+				if _, ok := operation["setDrafted"]; !ok {
+					t.Fatalf("operation = %v", operation)
+				}
+			}
+		})
+	}
+}

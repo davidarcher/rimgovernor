@@ -39,6 +39,17 @@ type ScenarioInterrupted struct{ Reason string }
 
 func (e *ScenarioInterrupted) Error() string { return "scenario interrupted: " + e.Reason }
 
+// namedStopReason is a clock stopReason as it belongs in an error message.
+// The native reply omits the field entirely when it has no reason to report,
+// and an empty quotation reads as a missing message rather than a missing
+// reason.
+func namedStopReason(reason string) string {
+	if reason == "" {
+		return "an unreported reason"
+	}
+	return reason
+}
+
 // ScenarioInteger decodes a ProtoJSON integer (number, uint64 or decimal string)
 // as a non-negative integer.
 func ScenarioInteger(value any) (uint64, error) { return scenarioInteger(value) }
@@ -961,7 +972,12 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 				}
 				continue
 			}
-			if err := require(stopReason == "letter_pause", "Unexpected native interruption"); err != nil {
+			// The reason belongs in the message: a case that dies here
+			// reported only "Unexpected native interruption", so nine
+			// nightly rows could not be told apart without the evidence
+			// tree, and two of them turned out to be different stops
+			// (#663, #572).
+			if err := require(stopReason == "letter_pause", "Unexpected native interruption: clock stopped on "+namedStopReason(stopReason)); err != nil {
 				return err
 			}
 			for {

@@ -52,6 +52,7 @@ func (h *Harness) call(ctx context.Context, label, tool string, arguments any, r
 	if arguments == nil {
 		args = []byte("{}")
 	}
+	ctx = coverNativeWait(ctx, args)
 	sequence := nextEvidenceSequence(h.Output)
 	sent := time.Now()
 	// The evidence label is the call's phase in a recorded transcript.
@@ -77,6 +78,17 @@ func (h *Harness) call(ctx context.Context, label, tool string, arguments any, r
 		}
 	}
 	if callErr != nil {
+		if errors.Is(callErr, bridge.ErrClosed) {
+			// A harness bridge session is only ever closed by Release (a
+			// service is taking the sole GABP slot) or by Close. So a call
+			// through a closed one is a case still holding the Harness from
+			// before its Serve: shelter/bunks-first called a fixture op
+			// mid-service and failed with a bare "bridge closed", which
+			// reads as a transport fault (#663, and #597 for the same
+			// staleness in ScenarioRuntime).
+			callErr = &toolFailure{cause: callErr, message: fmt.Sprintf(
+				"%s: %s: this harness session was released to a service; Reattach after the service stops, and take the Harness the case's Reattach returns", bridge.ErrClosed, tool)}
+		}
 		if failure, ok := stepresult.Parse(result.Envelope); ok && errors.Is(callErr, bridge.ErrRefused) && row["attention"] == nil {
 			kind := failure.Kind
 			if kind == "native exception" && strings.HasPrefix(tool, "test/") {
@@ -376,4 +388,28 @@ func CheckStartupLog(log string, headless bool) error {
 		return fmt.Errorf("headless initialization disagrees with launch mode")
 	}
 	return nil
+}
+
+// nativeWaitMargin is how much longer than the wait it asked for a call is
+// given: the native side has to receive the request, run the work to its own
+// timeoutMs and report the timeout back, and the reply crosses the bridge
+// after that.
+const nativeWaitMargin = 30 * time.Second
+
+// coverNativeWait raises the call's bridge deadline to cover a native wait
+// the arguments asked for. The lifecycle tools (load_game_ready,
+// start_debug_game_ready) take a timeoutMs the caller sized for the work:
+// loading a save or generating a fresh world takes longer than an ordinary
+// read, and up to three minutes on a loaded CI runner. Cutting the call at
+// the session timeout instead reported a real, bounded wait as a transport
+// failure and failed the case (#663). The native timeout stays the one that
+// decides the outcome; this only stops the bridge from ending the call first.
+func coverNativeWait(ctx context.Context, args []byte) context.Context {
+	var wire struct {
+		TimeoutMs int64 `json:"timeoutMs"`
+	}
+	if json.Unmarshal(args, &wire) != nil || wire.TimeoutMs <= 0 {
+		return ctx
+	}
+	return bridge.WithCallTimeout(ctx, time.Duration(wire.TimeoutMs)*time.Millisecond+nativeWaitMargin)
 }

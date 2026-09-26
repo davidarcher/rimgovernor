@@ -614,3 +614,18 @@ func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
 		t.Fatalf("expected the event reads to start after cursor 10, got %#v", reads)
 	}
 }
+
+// The stop reason belongs in the message. Nine nightly rows reported only
+// "Unexpected native interruption", and two of them turned out to be
+// different stops -- "hostile" and "notification_batch" (#663, #572).
+func TestNamedStopReasonNamesTheStop(t *testing.T) {
+	for reason, want := range map[string]string{
+		"hostile":            "hostile",
+		"notification_batch": "notification_batch",
+		"":                   "an unreported reason",
+	} {
+		if got := namedStopReason(reason); got != want {
+			t.Fatalf("namedStopReason(%q) = %q, wanted %q", reason, got, want)
+		}
+	}
+}
