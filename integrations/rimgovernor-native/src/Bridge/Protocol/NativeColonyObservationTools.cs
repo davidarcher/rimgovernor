@@ -38,6 +38,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
                 try {
                     var reply = new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) };
+                    Bound(reply.Observed);
                     if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Colony facts exceed1MiB; largest sections (wire bytes): " + LargestSections(reply.Observed) + ".");
                     return ProtoBoundary.Encode(reply, compact: true);
                 }
@@ -45,6 +46,10 @@ namespace HomeBridge.BridgeTools
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
+
+        // Encoder-side bounds of a captured snapshot (#683): the comfort joy
+        // matrix keeps its own 64 KiB bound apart from the 1 MiB envelope.
+        internal static void Bound(Obs.ColonyFactsSnapshot? snapshot) => ComfortFacts.BoundJoy(snapshot?.Upkeep?.Observed?.Comfort?.Observed);
 
         // The colony facts as a bundle section (issue #180): the same facts the
         // tool answers, or false for any read failure the bundle then omits.

@@ -201,6 +201,7 @@ namespace HomeBridge.BridgeTools
             var observed = capture.Reply.Observed;
             if (observed == null) return ProtoBoundary.Encode(capture.Reply);
             if (observed.ClockStatus != null) observed.ClockStatus = NativeClockTools.Bounded(observed.ClockStatus, observed.Context);
+            NativeColonyObservationTools.Bound(observed.ColonyFacts);
             var drops = new List<Func<int>>(2);
             if (capture.Step) drops.Add(() => DropStepFamilies(observed));
             if (capture.Families) drops.Add(() => DropFamilies(observed));

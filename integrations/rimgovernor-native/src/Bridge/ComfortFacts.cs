@@ -110,6 +110,7 @@ namespace HomeBridge.BridgeTools
 
         // Keep the optional matrix small independently of the whole-colony
         // 1 MiB envelope. No truncated matrix may masquerade as complete.
+        // Captured unbounded; BoundJoy applies the size bound on the encoder.
         private static Obs.RecreationCensus? ReadJoy(System.Collections.Generic.List<Pawn> people,
             System.Collections.Generic.List<Building> play)
         {
@@ -136,7 +137,17 @@ namespace HomeBridge.BridgeTools
                 result.Methods.Add(new Obs.JoyBuildingMethod { Definition = Id(name), Kind = Id(def.building.joyKind.defName),
                     PowerW = Math.Max(0, def.GetCompProperties<CompProperties_Power>()?.PowerConsumption ?? 0) });
             }
-            return Encoding.UTF8.GetByteCount(ProtoBoundary.Format(result, compact: true)) <= 64 * 1024 ? result : null;
+            return result;
+        }
+
+        // The 64 KiB joy bound, applied off the game thread by the encoder
+        // (#683) since it formats: an oversized matrix is dropped, never cut.
+        internal static void BoundJoy(Obs.ComfortFacts? facts)
+        {
+            if (facts?.Joy == null) return;
+            try { if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(facts.Joy, compact: true)) <= 64 * 1024) return; }
+            catch (Exception) { }
+            facts.Joy = null;
         }
     }
 }
