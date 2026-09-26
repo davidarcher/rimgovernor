@@ -9,6 +9,7 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const bundleMethod = "rimgovernor/observations_read_bundle"
@@ -199,16 +200,46 @@ func (client *Client) seedBundle(ctx context.Context, request *o.BundleRequest, 
 	if v.ColonyFacts != nil {
 		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, true, nil), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v.ColonyFacts}})
 	}
-	if v.Population != nil {
+	if v.Population != nil && maskServes(request.GetPopulationFields(), seededPopulationFields) {
 		seed("rimgovernor/observations_read_population", populationRequest(identity), &o.PopulationReply{Outcome: &o.PopulationReply_Observed{Observed: v.Population}})
 	}
-	if v.Research != nil {
+	if v.Research != nil && maskServes(request.GetResearchFields(), seededResearchFields) {
 		seed("rimgovernor/observations_read_research", researchRequest(identity), &o.ResearchReply{Outcome: &o.ResearchReply_Observed{Observed: v.Research}})
 	}
-	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 {
+	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 && maskServes(request.GetColonistPawnFields(), seededPawnFields) {
 		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
 	}
 	client.seedBundleStepFamilies(ctx, request, v, seed)
+}
+
+// The optional blocks (#360) the consumers of each seeded key decode: every
+// reader behind ReadRoutinePopulation/ReadPrisonerInteractionTarget,
+// ReadResearch and ReadRoutinePawns. None reads a masked block today, so the
+// routine bundle's slim families stand in for the dedicated reads. A consumer
+// that starts decoding a block adds its flag here; a bundle whose mask omits
+// it then stops seeding that key (#648), and the dedicated read serves the
+// whole family instead of a slim copy passing for it.
+var (
+	seededPawnFields       = &o.PawnFields{}
+	seededPopulationFields = &o.PopulationFields{}
+	seededResearchFields   = &o.ResearchFields{}
+)
+
+// maskServes reports whether a family answered under mask carries every
+// optional block need sets. An absent mask is the whole family.
+func maskServes(mask, need proto.Message) bool {
+	if mask == nil || !mask.ProtoReflect().IsValid() {
+		return true
+	}
+	have := mask.ProtoReflect()
+	served := true
+	need.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if value.Bool() && !have.Get(field).Bool() {
+			served = false
+		}
+		return served
+	})
+	return served
 }
 
 // routinePawnIDs lists the colonists the routine census reads pawn detail

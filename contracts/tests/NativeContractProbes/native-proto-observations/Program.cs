@@ -23,6 +23,7 @@ internal static class NativeProtoObservationsProbe
         AppDomain.CurrentDomain.AssemblyResolve+=(_,e)=>{var path=directories.Select(d=>Path.Combine(d,new AssemblyName(e.Name).Name+".dll")).FirstOrDefault(File.Exists);return path==null?null:Assembly.LoadFrom(path);};
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
         tools=bridge.GetType("HomeBridge.BridgeTools.NativeObservationTools",true)!;
+        BundleMaskProof.Run(bridge,Check);
         foreach (var queued in new[] { 0, 2, 256 }) {
             var idle=tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,queued})!;
             Check((bool)Get(idle,"HasPlayerForced") && !(bool)Get(idle,"PlayerForced"),"idle current job is known not player forced");

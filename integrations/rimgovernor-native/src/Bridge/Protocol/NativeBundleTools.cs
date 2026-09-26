@@ -31,9 +31,9 @@ namespace HomeBridge.BridgeTools
     /// families push the reply past the envelope they are all omitted, so the
     /// dedicated reads then serve them as before and the bundle itself never
     /// fails on their account. A family's field mask (issue #360:
-    /// colonist_pawn_fields, population_fields, research_fields) drops the
-    /// sub-blocks it does not include from the bundle's copy of the family
-    /// (NativeBundleMasks); an absent mask keeps the family whole.
+    /// colonist_pawn_fields, population_fields, research_fields) is handed to
+    /// the family's reader, which skips the sub-blocks it does not include at
+    /// source (#648, NativeBundleMasks); an absent mask keeps the family whole.
     /// </summary>
     public sealed class NativeBundleTools
     {
@@ -246,16 +246,16 @@ namespace HomeBridge.BridgeTools
             if (request.HasPopulation && request.Population)
             {
                 var began = Now();
-                var read = NativePopulationObservation.TryRead(map, new Obs.PopulationRequest { Scope = Scope() }, context, out var population);
+                var read = NativePopulationObservation.TryRead(map, new Obs.PopulationRequest { Scope = Scope() }, context, request.PopulationFields, out var population);
                 ObservationWork.Captured("population", Now() - began, read ? population!.Persons.Count : 0);
-                if (read) { observed.Population = NativeBundleMasks.Apply(population!, request.PopulationFields); added = true; }
+                if (read) { observed.Population = population; added = true; }
             }
             if (request.HasResearch && request.Research)
             {
                 var began = Now();
-                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } }, context, out var research);
+                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } }, context, request.ResearchFields, out var research);
                 ObservationWork.Captured("research", Now() - began, read ? research!.Projects.Count : 0);
-                if (read) { observed.Research = NativeBundleMasks.Apply(research!, request.ResearchFields); added = true; }
+                if (read) { observed.Research = research; added = true; }
             }
             if (request.HasColonistPawns && request.ColonistPawns && observed.Emergency?.Colonists != null
                 && observed.Emergency.Colonists.Completeness?.Page?.Complete == true && observed.Emergency.Colonists.Pawns.Count > 0)
@@ -268,11 +268,11 @@ namespace HomeBridge.BridgeTools
                 };
                 foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);
                 var began = Now();
-                var read = NativePawnObservationTools.TryRead(map, pawns, context, out var detail);
+                var read = NativePawnObservationTools.TryRead(map, pawns, context, request.ColonistPawnFields, out var detail);
                 // The colonists asked for are the candidates; the detail rows
                 // returned are what the section produced.
                 ObservationWork.Captured("colonistPawns", Now() - began, read ? detail!.Pawns.Count : 0, pawns.Filter.Ids.Count);
-                if (read) { observed.ColonistPawns = NativeBundleMasks.Apply(detail!, request.ColonistPawnFields); added = true; }
+                if (read) { observed.ColonistPawns = detail; added = true; }
             }
             return added;
         }

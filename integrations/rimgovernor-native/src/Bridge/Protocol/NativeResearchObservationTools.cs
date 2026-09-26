@@ -45,7 +45,11 @@ namespace HomeBridge.BridgeTools
 
         // The research state as a bundle section (issue #180): the same page
         // the tool answers, or false for any read failure the bundle then omits.
+        // A present field mask (#648) skips the optional blocks it excludes at
+        // source; null is the dedicated tool's whole page.
         internal static bool TryRead(Map map, Obs.ResearchRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ResearchSnapshot? snapshot)
+            => TryRead(map, request, context, null, out snapshot);
+        internal static bool TryRead(Map map, Obs.ResearchRequest request, Common.ObservationContext context, Obs.ResearchFields? fields, [NotNullWhen(true)] out Obs.ResearchSnapshot? snapshot)
         {
             snapshot = null;
             try
@@ -53,7 +57,7 @@ namespace HomeBridge.BridgeTools
                 var manager = Find.ResearchManager;
                 var player = Faction.OfPlayerSilentFail;
                 if (manager == null || player?.def == null) return false;
-                snapshot = Read(request, context, map, manager, player);
+                snapshot = Read(request, context, map, manager, player, fields);
                 return true;
             }
             catch (Exception) { return false; }
@@ -91,8 +95,11 @@ namespace HomeBridge.BridgeTools
             return Math.Min(1, progress / cost);
         }
 
-        private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, Map map, ResearchManager manager, Faction player)
+        private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, Map map, ResearchManager manager, Faction player, Obs.ResearchFields? fields = null)
         {
+            bool costs = NativeBundleMasks.Costs(fields), facilities = NativeBundleMasks.Facilities(fields);
+            // The snapshot token hashes progress whether or not the costs block is returned.
+            var points = new Dictionary<string, double>(StringComparer.Ordinal);
             var progress = Backing<Dictionary<ResearchProjectDef, float>>(manager, "progress");
             var knowledge = Backing<Dictionary<ResearchProjectDef, float>>(manager, "anomalyKnowledge");
             var anomaly = ModsConfig.AnomalyActive;
@@ -126,16 +133,17 @@ namespace HomeBridge.BridgeTools
             var built = new List<Obs.ResearchProject>();
             foreach (var def in definitions.OrderBy(d => d.defName, StringComparer.Ordinal))
             {
-                var points = Progress(def, progress, knowledge, anomaly);
+                var reached = Progress(def, progress, knowledge, anomaly);
                 var cost = def.Cost;
-                var finished = Finished(points, cost);
+                var finished = Finished(reached, cost);
                 var hidden = !finished && anomaly && Find.EntityCodex.Hidden(def);
                 if (hidden || finished && !request.IncludeFinished || request.HasNameContains && request.NameContains.Length != 0
                     && def.defName.IndexOf(request.NameContains, StringComparison.OrdinalIgnoreCase) < 0
                     && (def.label ?? "").IndexOf(request.NameContains, StringComparison.OrdinalIgnoreCase) < 0) { filtered++; continue; }
-                var row = Project(def, manager, progress, knowledge, anomaly, player, points, cost, finished, selected.Contains(def));
+                var row = Project(def, manager, progress, knowledge, anomaly, player, reached, cost, finished, selected.Contains(def), costs, facilities);
+                points[def.defName] = reached;
                 if (!finished && !row.CanStart && !request.IncludeLocked) { filtered++; continue; }
-                if (request.IncludeUnlocks)
+                if (request.IncludeUnlocks && NativeBundleMasks.Unlocks(fields))
                 {
                     var unlocks = def.UnlockedDefs; Bound(unlocks.Count);
                     foreach (var unlocked in unlocks)
@@ -165,18 +173,22 @@ namespace HomeBridge.BridgeTools
             snapshot.Completeness.Page.Complete = !truncated;
             if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Project.DefName);
             if (request.IncludeCapability) Capability(snapshot, map);
-            snapshot.Snapshot = Token(context, snapshot);
+            snapshot.Snapshot = Token(context, snapshot, points);
             return snapshot;
         }
 
         private static Obs.ResearchProject Project(ResearchProjectDef def, ResearchManager manager,
             IDictionary<ResearchProjectDef, float> progress, IDictionary<ResearchProjectDef, float> knowledge,
-            bool anomaly, Faction player, float points, float cost, bool finished, bool current)
+            bool anomaly, Faction player, float points, float cost, bool finished, bool current, bool costs = true, bool facilities = true)
         {
-            var factor = def.CostFactor(player.def.techLevel); Number(factor); Number(cost * factor); Number(def.baseCost);
-            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = Id(def.techLevel.ToString()),
-                BaseCost = def.baseCost, ApparentCost = cost * factor, CostFactor = factor, Progress = points, Finished = finished, Current = current };
-            if (cost > 0) row.ProgressFraction = Fraction(points, cost);
+            var row = new Obs.ResearchProject { Project = Definition(def), TechLevel = Id(def.techLevel.ToString()), Finished = finished, Current = current };
+            if (costs)
+            {
+                var factor = def.CostFactor(player.def.techLevel); Number(factor); Number(cost * factor); Number(def.baseCost);
+                row.BaseCost = def.baseCost; row.ApparentCost = cost * factor; row.CostFactor = factor; row.Progress = points;
+            }
+            if (!costs) { }
+            else if (cost > 0) row.ProgressFraction = Fraction(points, cost);
             else row.Issues.Add(Issue("progress_fraction", "Zero-cost project has no finite native progress fraction."));
             if (def.tab != null) row.Tab = Id(def.tab.defName);
             if (def.knowledgeCategory != null) row.Category = Id(def.knowledgeCategory.defName);
@@ -193,14 +205,14 @@ namespace HomeBridge.BridgeTools
             Bound(row.Prerequisites.Count); Bound(row.HiddenPrerequisites.Count);
             var applied = manager.GetTechprints(def); var needed = def.TechprintCount;
             if (applied < 0 || needed < 0) throw new InvalidOperationException();
-            row.TechprintsApplied = (uint)applied; row.TechprintsNeeded = (uint)needed;
+            if (costs) { row.TechprintsApplied = (uint)applied; row.TechprintsNeeded = (uint)needed; }
             if (applied < needed) row.LockReasons.Add("techprints");
             if (def.requiredResearchBuilding != null) row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
             // Native CanStartNow only demands a bench for a project that names
             // one, yet no project progresses without a bench the researcher can
             // work at: the lock is reported whenever none stands (#254).
             if (!def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
-            foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
+            if (facilities) foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
             Bound(row.RequiredFacilities.Count);
             if (!def.PlayerMechanitorRequirementMet) row.LockReasons.Add("mechanitor");
             if (!def.AnalyzedThingsRequirementsMet) row.LockReasons.Add("analysis");
@@ -277,12 +289,12 @@ namespace HomeBridge.BridgeTools
             request.IncludeLocked, request.IncludeFinished, request.IncludeUnlocks, request.IncludeCapability, request.NameContains ?? "");
         // Stateless hash over the fields this reply actually returned; recomputed
         // fresh each call, same pattern as NativeObservationSnapshot's other tokens.
-        private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot)
+        private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot, IDictionary<string, double> points)
             => NativeObservationSnapshot.Snapshot("research", context, "research-manager", w => {
                 w.Write(snapshot.AnomalyActive); w.Write(snapshot.PlayerTechLevel ?? "");
                 foreach (var slot in snapshot.Slots) { w.Write(slot.Category ?? ""); w.Write(slot.CurrentProject ?? ""); }
                 foreach (var project in snapshot.Projects.OrderBy(p => p.Project.DefName, StringComparer.Ordinal))
-                { w.Write(project.Project.DefName); w.Write(project.Progress); w.Write(project.Finished); w.Write(project.Current); }
+                { w.Write(project.Project.DefName); w.Write(points[project.Project.DefName]); w.Write(project.Finished); w.Write(project.Current); }
             });
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
         private sealed class StaleCursor : Exception { }

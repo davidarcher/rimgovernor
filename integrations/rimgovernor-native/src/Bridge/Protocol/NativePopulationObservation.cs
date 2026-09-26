@@ -45,10 +45,14 @@ namespace HomeBridge.BridgeTools
 
         // The population as a bundle section (issue #180): the same rows the
         // tool answers, or false for any read failure the bundle then omits.
+        // A present field mask (#648) skips the optional blocks it excludes at
+        // source; null is the dedicated tool's whole census.
         internal static bool TryRead(Map map, Obs.PopulationRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.PopulationSnapshot? snapshot)
+            => TryRead(map, request, context, null, out snapshot);
+        internal static bool TryRead(Map map, Obs.PopulationRequest request, Common.ObservationContext context, Obs.PopulationFields? fields, [NotNullWhen(true)] out Obs.PopulationSnapshot? snapshot)
         {
             snapshot = null;
-            try { snapshot = Population(map, request, context); return true; }
+            try { snapshot = Population(map, request, context, fields); return true; }
             catch (Exception) { return false; }
         }
 
@@ -60,8 +64,9 @@ namespace HomeBridge.BridgeTools
             return page == null || (!page.HasLimit || page.Limit >= 1 && page.Limit <= 256) && (!page.HasCursor || page.Cursor.Length == 0);
         }
 
-        private static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context)
+        private static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context, Obs.PopulationFields? fields = null)
         {
+            bool bed = NativeBundleMasks.OwnedBed(fields), nutrition = NativeBundleMasks.Nutrition(fields);
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).OrderBy(p => p.thingIDNumber).ToList();
             var limit = request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
@@ -83,15 +88,15 @@ namespace HomeBridge.BridgeTools
                     // unbroken" clock. Only a current prisoner carries it.
                     if (p.IsPrisoner && p.records != null) person.PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner);
                 }
-                if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
-                if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
+                if (bed && p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
+                if (nutrition && p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
                 // The prisoner-interaction settings token: what SetPrisonerInteraction
                 // compares expected_snapshot_token against.
                 row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) };
                 snapshot.Persons.Add(person);
             }
             // The installed subset of the modes SetPrisonerInteraction accepts.
-            foreach (var name in new[] { "AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release", "Enslave", "Convert" })
+            foreach (var name in NativeBundleMasks.SupportedInteractions(fields) ? new[] { "AttemptRecruit", "MaintainOnly", "ReduceResistance", "Release", "Enslave", "Convert" } : new string[0])
             {
                 var def = DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
                 if (def != null) snapshot.SupportedInteractions.Add(new Obs.DefinitionRef { DefName = NativePawnObservationTools.Id(def.defName), Label = NativePawnObservationTools.Text(def.label) });

@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
+        internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context,Obs.PawnFields? fields=null)
         {
             var d=Defaults(requested);
             if(d.Needs) {
@@ -79,14 +79,14 @@ namespace HomeBridge.BridgeTools
                 if(pawn.needs?.rest!=null) needs.Rest=Number(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Missing("rest"));
                 if(pawn.needs?.joy!=null) needs.Joy=Number(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Missing("joy"));
             } else {row.Needs=null;row.Issues.Add(Skipped("needs"));}
-            if(d.Health && row.Health!=null) Health(pawn,row.Health,d.VisibleHediffsOnly,context);
+            if(d.Health && row.Health!=null) Health(pawn,row.Health,d.VisibleHediffsOnly,context,fields);
             else if(!d.Health) {
                 row.Health=null;
                 foreach(var issue in row.Issues.Where(i=>i.Field=="health").ToArray()) row.Issues.Remove(issue);
                 row.Issues.Add(Skipped("health"));
             }
-            if(d.Equipment) row.Equipment=Equipment(pawn); else row.Issues.Add(Skipped("equipment"));
-            if(d.Biography) row.Biography=Biography(pawn); else row.Issues.Add(Skipped("biography"));
+            if(d.Equipment) row.Equipment=Equipment(pawn,fields); else row.Issues.Add(Skipped("equipment"));
+            if(d.Biography) row.Biography=Biography(pawn,fields); else row.Issues.Add(Skipped("biography"));
             if(d.Settings || d.Work || d.Schedule) {
                 row.Settings=new Obs.PawnSettings();
                 // The bridge contract (go/internal/bridge/work_pawns.go's
@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
                 if(d.Work) { Work(pawn,row.Settings); AllowedArea(pawn,row.Settings); row.Settings.FoodRestriction=NativeFoodPolicy.Read(pawn); row.Settings.DrugPolicyWritable=NativeDrugPolicy.Writable(pawn); row.Settings.DrugPolicyName=NativeDrugPolicy.Name(pawn); }
                 if(d.Schedule) Schedule(pawn,row.Settings);
             } else row.Issues.Add(Skipped("settings"));
-            if(d.Social) row.Social=Social(pawn,colonists);
+            if(d.Social) row.Social=Social(pawn,colonists,fields);
             else row.Issues.Add(Skipped("social"));
             if(!d.Tend) row.Issues.Add(Skipped("tend_doctor"));
             if(!d.Animals) row.Issues.Add(Skipped("animal_state"));
@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
             else row.AnimalState=Animal(pawn);
         }
 
-        private static void Health(Pawn pawn,Obs.PawnHealth row,bool visibleOnly,Common.ObservationContext context)
+        private static void Health(Pawn pawn,Obs.PawnHealth row,bool visibleOnly,Common.ObservationContext context,Obs.PawnFields? fields)
         {
             row.Issues.Clear();
             var set=pawn.health.hediffSet;
@@ -130,7 +130,8 @@ namespace HomeBridge.BridgeTools
                 if(ticks>0 && ticks<int.MaxValue) row.HoursUntilDeathFromBloodLoss=ticks/2500.0;
                 else row.Issues.Add(Issue("hours_until_death_from_blood_loss",Common.UnavailableReason.NotApplicable,"No finite native bleed-out estimate."));
             } else row.Issues.Add(Issue("hours_until_death_from_blood_loss",Common.UnavailableReason.NotApplicable,"No living bleeding pawn."));
-            if(pawn.Dead) row.Issues.Add(Issue("capacities",Common.UnavailableReason.NotApplicable,"Capacities are not evaluated for dead pawns."));
+            if(!NativeBundleMasks.Capacities(fields)) {}
+            else if(pawn.Dead) row.Issues.Add(Issue("capacities",Common.UnavailableReason.NotApplicable,"Capacities are not evaluated for dead pawns."));
             else if(pawn.health.capacities==null) row.Issues.Add(Missing("capacities"));
             else {
                 var defs=DefDatabase<PawnCapacityDef>.AllDefsListForReading; Require(defs.Count);
@@ -167,8 +168,9 @@ namespace HomeBridge.BridgeTools
                 row.Hediffs.Add(item);
             }
             row.HediffCompleteness=Complete(visible.Count,all.Count-visible.Count);
-            var bills=pawn.BillStack?.Bills;
-            if(bills==null) row.Issues.Add(Missing("surgery_bills"));
+            var bills=NativeBundleMasks.SurgeryBills(fields) ? pawn.BillStack?.Bills : null;
+            if(!NativeBundleMasks.SurgeryBills(fields)) {}
+            else if(bills==null) row.Issues.Add(Missing("surgery_bills"));
             else {
                 Require(bills.Count);
                 foreach(var bill in bills) {
@@ -193,31 +195,34 @@ namespace HomeBridge.BridgeTools
             });
         }
 
-        private static Obs.PawnEquipment Equipment(Pawn pawn)
+        private static Obs.PawnEquipment Equipment(Pawn pawn,Obs.PawnFields? fields)
         {
             var row=new Obs.PawnEquipment();
+            var detail=NativeBundleMasks.GearDetail(fields); var inventory=NativeBundleMasks.Inventory(fields);
             if(pawn.equipment==null) {
                 row.Issues.Add(Missing("equipped"));row.Issues.Add(Missing("primary_id"));row.Issues.Add(Missing("armed"));
             }
             else {
                 var list=pawn.equipment.AllEquipmentListForReading; Require(list.Count);
-                foreach(var thing in list) row.Equipped.Add(Gear(thing));
+                foreach(var thing in list) row.Equipped.Add(Gear(thing,detail));
                 row.Armed=pawn.equipment.Primary!=null;
                 if(pawn.equipment.Primary!=null) row.PrimaryId=Id(pawn.equipment.Primary.GetUniqueLoadID());
                 else row.Issues.Add(Issue("primary_id",Common.UnavailableReason.NotApplicable,"No equipped primary weapon."));
             }
             if(pawn.apparel==null) row.Issues.Add(Missing("apparel"));
-            else {Require(pawn.apparel.WornApparel.Count);foreach(var thing in pawn.apparel.WornApparel) row.Apparel.Add(Gear(thing));}
-            if(pawn.inventory?.innerContainer==null) {row.Issues.Add(Missing("inventory_weapons"));row.Issues.Add(Missing("inventory_item_count"));}
+            else {Require(pawn.apparel.WornApparel.Count);foreach(var thing in pawn.apparel.WornApparel) row.Apparel.Add(Gear(thing,detail));}
+            if(!inventory) {}
+            else if(pawn.inventory?.innerContainer==null) {row.Issues.Add(Missing("inventory_weapons"));row.Issues.Add(Missing("inventory_item_count"));}
             else {
                 var list=pawn.inventory.innerContainer; Require(list.Count);row.InventoryItemCount=checked((uint)list.Count);
-                for(var i=0;i<list.Count;i++) if(list[i].def.IsWeapon) row.InventoryWeapons.Add(Gear(list[i]));
+                for(var i=0;i<list.Count;i++) if(list[i].def.IsWeapon) row.InventoryWeapons.Add(Gear(list[i],detail));
             }
-            if(pawn.carryTracker==null) row.Issues.Add(Missing("carried_thing_id"));
+            if(!inventory) {}
+            else if(pawn.carryTracker==null) row.Issues.Add(Missing("carried_thing_id"));
             else if(pawn.carryTracker.CarriedThing!=null) row.CarriedThingId=Id(pawn.carryTracker.CarriedThing.GetUniqueLoadID());
             else row.Issues.Add(Issue("carried_thing_id",Common.UnavailableReason.NotApplicable,"Pawn is carrying no thing."));
-            foreach(var collection in new[]{"equipped","apparel","inventory_weapons"})
-                foreach(var field in new[]{"forced","locked","armor_sharp","armor_blunt","insulation_cold","insulation_heat"})
+            foreach(var collection in new[]{"equipped","apparel","inventory_weapons"}.Where(c=>inventory || c!="inventory_weapons"))
+                foreach(var field in new[]{"forced","locked","armor_sharp","armor_blunt","insulation_cold","insulation_heat"}.Where(f=>detail || f=="forced" || f=="locked"))
                     row.Issues.Add(Unsupported(collection+"."+field,"Gear ownership and protection stats are not projected."));
             return row;
         }
@@ -231,41 +236,52 @@ namespace HomeBridge.BridgeTools
             if(verb==null || float.IsNaN(verb.range) || float.IsInfinity(verb.range)) return null;
             return verb.range;
         }
-        private static Obs.GearItem Gear(Thing thing)
+        // Without detail (#648) the stuff, quality, hit point and layer
+        // fields are skipped; hit points are still read for the condition.
+        private static Obs.GearItem Gear(Thing thing,bool detail)
         {
             var row=new Obs.GearItem {Thing=Entity(thing),Weapon=thing.def.IsWeapon,Apparel=thing.def.IsApparel,Ranged=thing.def.IsRangedWeapon,Melee=thing.def.IsMeleeWeapon};
             NativeGearFacts.Biocode(thing, row);
-            if(thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
+            if(detail && thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
             var range=WeaponRange(thing); if(range.HasValue) row.Range=range.Value;
-            if(thing.TryGetQuality(out var quality)) row.Quality=quality.ToString();
+            if(detail && thing.TryGetQuality(out var quality)) row.Quality=quality.ToString();
             if(thing.def.useHitPoints) {
                 if(thing.MaxHitPoints<=0 || thing.HitPoints<0) throw new InvalidOperationException("Invalid native hit points.");
-                row.HitPoints=thing.HitPoints;row.MaxHitPoints=thing.MaxHitPoints;row.ConditionFraction=Number((double)thing.HitPoints/thing.MaxHitPoints);
+                if(detail) {row.HitPoints=thing.HitPoints;row.MaxHitPoints=thing.MaxHitPoints;}
+                row.ConditionFraction=Number((double)thing.HitPoints/thing.MaxHitPoints);
             }
             if(thing.def.apparel!=null) {
-                Require(thing.def.apparel.layers.Count);Require(thing.def.apparel.bodyPartGroups.Count);
-                row.ApparelLayers.Add(thing.def.apparel.layers.Select(d=>Id(d.defName)));
+                Require(thing.def.apparel.bodyPartGroups.Count);
+                if(detail) {Require(thing.def.apparel.layers.Count);row.ApparelLayers.Add(thing.def.apparel.layers.Select(d=>Id(d.defName)));}
                 row.BodyPartGroups.Add(thing.def.apparel.bodyPartGroups.Select(d=>Id(d.defName)));
             }
             return row;
         }
 
-        private static Obs.PawnBiography Biography(Pawn pawn)
+        private static Obs.PawnBiography Biography(Pawn pawn,Obs.PawnFields? fields)
         {
             var row=new Obs.PawnBiography();
-            if(pawn.ageTracker!=null) {row.BiologicalAgeYears=Number(pawn.ageTracker.AgeBiologicalYearsFloat);row.ChronologicalAgeYears=Number(pawn.ageTracker.AgeChronologicalYearsFloat);}
+            var backstory=NativeBundleMasks.Backstory(fields); var traits=NativeBundleMasks.Traits(fields);
+            if(!backstory) {}
+            else if(pawn.ageTracker!=null) {row.BiologicalAgeYears=Number(pawn.ageTracker.AgeBiologicalYearsFloat);row.ChronologicalAgeYears=Number(pawn.ageTracker.AgeChronologicalYearsFloat);}
             else {row.Issues.Add(Missing("biological_age_years"));row.Issues.Add(Missing("chronological_age_years"));}
-            if(pawn.story==null) {row.Issues.Add(Missing("childhood"));row.Issues.Add(Missing("adulthood"));row.Issues.Add(Missing("traits"));}
+            if(pawn.story==null) {
+                if(backstory) {row.Issues.Add(Missing("childhood"));row.Issues.Add(Missing("adulthood"));}
+                if(traits) row.Issues.Add(Missing("traits"));
+            }
             else {
-                if(pawn.story.Childhood!=null) {
+                if(!backstory) {}
+                else if(pawn.story.Childhood!=null) {
                     row.Childhood=DefinitionLabel(pawn.story.Childhood.defName,pawn.story.Childhood.TitleCapFor(pawn.gender));
                     if(!row.Childhood.HasLabel) row.Issues.Add(Issue("childhood.label",Common.UnavailableReason.NotApplicable,"Native backstory supplies no title."));
                 } else row.Issues.Add(Issue("childhood",Common.UnavailableReason.NotApplicable,"No childhood backstory."));
-                if(pawn.story.Adulthood!=null) {
+                if(!backstory) {}
+                else if(pawn.story.Adulthood!=null) {
                     row.Adulthood=DefinitionLabel(pawn.story.Adulthood.defName,pawn.story.Adulthood.TitleCapFor(pawn.gender));
                     if(!row.Adulthood.HasLabel) row.Issues.Add(Issue("adulthood.label",Common.UnavailableReason.NotApplicable,"Native backstory supplies no title."));
                 } else row.Issues.Add(Issue("adulthood",Common.UnavailableReason.NotApplicable,"No adulthood backstory."));
-                if(pawn.story.traits==null) row.Issues.Add(Missing("traits"));
+                if(!traits) {}
+                else if(pawn.story.traits==null) row.Issues.Add(Missing("traits"));
                 else {Require(pawn.story.traits.allTraits.Count);foreach(var trait in pawn.story.traits.allTraits) row.Traits.Add(new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree});}
             }
             if(pawn.skills==null) row.Issues.Add(Missing("skills"));
@@ -282,8 +298,10 @@ namespace HomeBridge.BridgeTools
             var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading; Require(defs.Count);
             foreach(var def in defs) if(pawn.WorkTypeIsDisabled(def)) row.IncapableWorkTypes.Add(Id(def.defName));
             row.Issues.Add(Unsupported("incapable_sources","Individual incapability sources are not projected."));
-            row.Issues.Add(Unsupported("title","Royal, role and story title selection is not projected."));
-            row.Issues.Add(Unsupported("title_source","Title source is not projected."));
+            if(backstory) {
+                row.Issues.Add(Unsupported("title","Royal, role and story title selection is not projected."));
+                row.Issues.Add(Unsupported("title_source","Title source is not projected."));
+            }
             return row;
         }
 
@@ -379,7 +397,7 @@ namespace HomeBridge.BridgeTools
         // recalculates situational social thoughts -- see PawnConfigTool's class
         // remarks for why (Thought_Situational.Notify_BecameActive deletes memories
         // of the def it produces). Ported from PawnSettingsRead.RelationsBlock/OpinionRow.
-        private static Obs.PawnSocial Social(Pawn pawn,System.Collections.Generic.List<Pawn> colonists)
+        private static Obs.PawnSocial Social(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnFields? fields)
         {
             var row=new Obs.PawnSocial();
             var high=DefDatabase<ExpectationDef>.GetNamedSilentFail("High");
@@ -396,6 +414,7 @@ namespace HomeBridge.BridgeTools
             if(stale.HasValue) row.SituationalCacheStale=stale.Value;
             else row.Issues.Add(Missing("situational_cache_stale"));
 
+            if(!NativeBundleMasks.Relations(fields)) return row;
             var direct=PawnSettingsRead.DirectRelationTargets(pawn);
             foreach(var other in colonists) {
                 if(other==pawn) continue;

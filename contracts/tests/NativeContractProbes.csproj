@@ -132,6 +132,7 @@
     <Compile Include="NativeContractProbes/native-pawn-observations/ZoneProof.cs" />
     <Compile Include="NativeContractProbes/native-proto-buildings/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-observations/Program.cs" />
+    <Compile Include="NativeContractProbes/native-proto-observations/BundleMaskProof.cs" />
     <Compile Include="NativeContractProbes/native-proto-placement/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-presentation/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-research/Program.cs" />

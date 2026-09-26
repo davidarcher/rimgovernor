@@ -479,3 +479,32 @@ func TestBundleReadAcceptsMaskedFamilies(t *testing.T) {
 		t.Fatal("masked families crossed the bridge", n)
 	}
 }
+
+// TestBundleMaskServesOnlyItsConsumers (#648): a masked family seeds a
+// dedicated read's key only when the mask carries every block that key's
+// consumers decode, so a slim copy never passes for detail it omits.
+func TestBundleMaskServesOnlyItsConsumers(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		mask, need proto.Message
+		want       bool
+	}{
+		{"absent mask is whole", (*o.PawnFields)(nil), &o.PawnFields{IncludeTraits: proto.Bool(true)}, true},
+		{"slim serves no need", &o.PawnFields{}, &o.PawnFields{}, true},
+		{"slim lacks a needed block", &o.PawnFields{}, &o.PawnFields{IncludeTraits: proto.Bool(true)}, false},
+		{"explicit false lacks it", &o.PopulationFields{IncludeOwnedBed: proto.Bool(false)}, &o.PopulationFields{IncludeOwnedBed: proto.Bool(true)}, false},
+		{"selective bit serves it", &o.ResearchFields{IncludeCosts: proto.Bool(true)}, &o.ResearchFields{IncludeCosts: proto.Bool(true)}, true},
+		{"other bit does not", &o.ResearchFields{IncludeUnlocks: proto.Bool(true)}, &o.ResearchFields{IncludeCosts: proto.Bool(true)}, false},
+	} {
+		if got := maskServes(tc.mask, tc.need); got != tc.want {
+			t.Errorf("%s: maskServes = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	// The routine bundle's slim masks (bundleMasks in buildingruntime) serve
+	// every seeded key today; TestBundleReadAcceptsMaskedFamilies proves the hit.
+	for _, need := range []proto.Message{seededPawnFields, seededPopulationFields, seededResearchFields} {
+		if !maskServes(need.ProtoReflect().New().Interface(), need) {
+			t.Fatal("an empty mask no longer serves a seeded key; the routine bundle would read twice", need)
+		}
+	}
+}
