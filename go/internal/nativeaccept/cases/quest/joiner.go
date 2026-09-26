@@ -51,7 +51,7 @@ func init() {
 		// The building families keep supervised windows running; the joiner
 		// planner alone never advances the clock.
 		Serve: &cases.ServeSpec{
-			Families: []string{"population-joiner", "supply", "shelter"}, NativeTimeout: 15 * time.Second, Prefix: "quest-joiner",
+			Families: []string{"population-joiner", "supply", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "quest-joiner",
 		},
 		Budget: 15 * time.Minute,
 		Run:    runJoiner,

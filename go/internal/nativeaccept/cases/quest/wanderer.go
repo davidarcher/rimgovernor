@@ -16,7 +16,7 @@ func init() {
 		Name:   "quest/wanderer",
 		Scope:  "A native WandererJoin incident leaves its AcceptJoiner letter unanswered without population capacity; MaintainPopulation answers it under authority once capacity is declared, and the exact offered pawn arrives as a free colonist.",
 		Start:  cases.Fixture{Op: joinerPrepareTool, Args: map[string]any{"skipQuest": true}, On: cases.Save{Name: joinerBaseline}},
-		Serve:  &cases.ServeSpec{Families: []string{"population-joiner", "supply", "shelter"}, NativeTimeout: 15 * time.Second, Prefix: "quest-wanderer"},
+		Serve:  &cases.ServeSpec{Families: []string{"population-joiner", "supply", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "quest-wanderer"},
 		Budget: 10 * time.Minute,
 		Run:    runWanderer,
 	})
@@ -24,7 +24,7 @@ func init() {
 		Name:   "quest/wanderer-defense",
 		Scope:  "An enabled raid threshold leaves the stocked colony's wanderer letter unanswered without a built defense tier; after native firing cover is built and recorded, the exact offered pawn joins.",
 		Start:  cases.Fixture{Op: joinerPrepareTool, Args: map[string]any{"skipQuest": true}, On: cases.Save{Name: joinerBaseline}},
-		Serve:  &cases.ServeSpec{Families: []string{"population-joiner", "supply", "shelter"}, NativeTimeout: 15 * time.Second, Prefix: "quest-wanderer-defense"},
+		Serve:  &cases.ServeSpec{Families: []string{"population-joiner", "supply", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "quest-wanderer-defense"},
 		Budget: 10 * time.Minute,
 		Run:    func(ctx context.Context, s cases.Session) error { return runWandererCapacity(ctx, s, true) },
 	})
