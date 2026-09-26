@@ -46,6 +46,9 @@ type RoutineReviewer struct {
 	// bids is MaintainResource's joint ranking across its two planners
 	// (#728); see acquisitionBoard.
 	bids acquisitionBoard
+	// planChecked is the tick of the last master-plan terrain check this
+	// process read (#727); see reviewMasterPlan.
+	planChecked domain.Tick
 }
 
 // staged is the configured policy with its goal budgets set by the colony

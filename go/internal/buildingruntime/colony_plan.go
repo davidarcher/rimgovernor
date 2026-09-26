@@ -17,6 +17,12 @@ import (
 // the whole map every review.
 const masterReplanEvery domain.Tick = 60000
 
+// masterTerrainCheckEvery is the fallback terrain check (#727): once a
+// quadrum (15 days) a review re-reads the survey and replans when a
+// reserved room module is no longer buildable (marsh, water, the edge).
+// Mining never trips it: a mined-out module stays sound.
+const masterTerrainCheckEvery domain.Tick = 15 * 60000
+
 // MapSurveyNative is the optional native whole-map read behind the master
 // layout plan (#727, bridge.Client.ReadMapSurvey). A reviewer whose native
 // lacks it, or refuses the foundation field, keeps the starter-shell grid.
@@ -60,8 +66,9 @@ func (r *RoutineReviewer) establishMasterPlan(ctx context.Context, snapshot doma
 }
 
 // reviewMasterPlan serves the recorded plan on the projection and replans
-// on the one trigger a review can see cheaply: more colonists than the
-// housing modules hold. A replan re-reads the survey, keeps the grid and
+// on two triggers: more colonists than the housing modules hold (at
+// most once a day), and a reserved module gone unbuildable (checked once
+// a quadrum). A replan re-reads the survey, keeps the grid and
 // every sound slot, and records the new module set.
 func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	grid, _ := projection.ColonyGrid.Value()
@@ -75,15 +82,26 @@ func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.
 	}
 	plan := policy.MasterPlan{Grid: grid, Radius: record.Radius, Modules: record.Modules}
 	pawns, known := projection.Facts.Colonists.Value()
-	if native, ok := r.native.(MapSurveyNative); ok && known && plan.Outgrown(int(pawns)) && tick-record.Tick >= masterReplanEvery {
+	// The last terrain check is the newer of the last replan and the last
+	// survey this process read; a rewind past it or a restart falls back
+	// to the replan's tick.
+	checked := record.Tick
+	if r.planChecked > checked && r.planChecked <= tick {
+		checked = r.planChecked
+	}
+	outgrown := known && plan.Outgrown(int(pawns)) && tick-record.Tick >= masterReplanEvery
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || tick-checked >= masterTerrainCheckEvery) {
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
-			clockSchedulerLog("master plan replan deferred, map survey unavailable: %v", err)
+			clockSchedulerLog("master plan check deferred, map survey unavailable: %v", err)
 		} else {
-			plan = plan.Replan(survey, int(pawns))
-			if err = r.player.journal.RecordColonyPlan(ctx, snapshot, tick, plan.Radius, plan.Modules); err != nil {
-				return err
+			r.planChecked = tick
+			if outgrown || plan.ReplanNeeded(survey, int(pawns)) {
+				plan = plan.Replan(survey, int(pawns))
+				if err = r.player.journal.RecordColonyPlan(ctx, snapshot, tick, plan.Radius, plan.Modules); err != nil {
+					return err
+				}
+				clockEvent(ctx, "layout", "master_replan", fmt.Sprintf("master plan replanned for %d colonists radius=%d outgrown=%t", pawns, plan.Radius, outgrown), "colonists", pawns, "radius", plan.Radius, "outgrown", outgrown)
 			}
-			clockEvent(ctx, "layout", "master_replan", fmt.Sprintf("master plan replanned for %d colonists radius=%d", pawns, plan.Radius), "colonists", pawns, "radius", plan.Radius)
 		}
 	}
 	projection.ColonyPlan = domain.Known(plan)
