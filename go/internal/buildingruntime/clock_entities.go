@@ -29,15 +29,14 @@ type EntitySection[T proto.Message] map[string]T
 // refreshEntitySections is the review step's refresher for the zones,
 // buildings and bills sections (#358), mirrored (#795). It runs once per
 // full review step after the bundle has fixed the step's scope and tick.
-// A section the bundle carried in full (#593: none is held, or its
-// watermark has left the tombstone window) is filed as that keyframe;
-// every other one is refreshed through the mirror, a delta since its
-// watermark merged by id with removed ids dropped (a keyframe when
-// nothing is held or the native refuses the delta as expired), with the
-// mirror's resync backstop compared and logged as `[facts] <section>
-// resync drift=<n>`. Refreshing every review, not only once a section
-// passes its cadence, keeps the watermark inside the tombstone window, so
-// a routine review costs the rows that changed rather than whole sections.
+// A section the bundle carried in full (#593: none is held) is filed as
+// that keyframe; every other one is refreshed through the mirror, a delta
+// since its watermark merged by id with removed ids dropped (replaced
+// outright when the native answers the ask in full because its one-day
+// tombstones no longer reach it, #795), with the mirror's resync backstop
+// compared and logged as `[facts] <section> resync drift=<n>`. Refreshing
+// every review, not only once a section passes its cadence, keeps a
+// routine review's cost to the rows that changed.
 // A section already complete through the step's tick is left alone. A
 // failed read keeps the held section: a plan may reason over stale
 // state, apply refuses stale intent.
@@ -99,9 +98,6 @@ func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, s
 		f.mirror.RequestResync(name)
 	}
 	table, out, err := mirror.Refresh(ctx, f.mirror, ms, tick, entityMirror[T]{section: section, read: read})
-	if out.Expired {
-		clockSchedulerLog("%s: delta since %d expired, read in full", section, out.Since.Tick)
-	}
 	mirrorEvent(ctx, section, out)
 	if err != nil {
 		if out.Kind != mirror.Delta {

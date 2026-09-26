@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
                         if (wall != null) { touched.Add(wall.GetUniqueLoadID()); if (wall.Spawned) wall.Destroy(); wall = null; }
                         break;
                     case "expire":
-                        Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + 2501);
+                        Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + 60001);
                         break;
                     case "cleanup":
                         if (zone != null) { zone.Delete(); zone = null; }

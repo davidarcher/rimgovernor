@@ -17,7 +17,7 @@ import (
 
 // The mirrored sections (#795): each adapts one changed-since read to a
 // mirror.Section. The mirror keeps the rows and their watermark and does
-// the merge, tombstones, expiry fallback and resync backstop; the
+// the merge, tombstones and resync backstop; the
 // refreshers file its tables into the facts store the planners read.
 
 // mirrorScope is the mirror scope of a step: the facts scope plus the map,
@@ -45,7 +45,6 @@ type entityMirror[T proto.Message] struct {
 }
 
 func (e entityMirror[T]) Name() string      { return string(e.section) }
-func (e entityMirror[T]) Window() int64     { return bridge.EntityTombstoneWindow }
 func (e entityMirror[T]) Equal(a, b T) bool { return proto.Equal(a, b) }
 func (e entityMirror[T]) Read(_ context.Context, since mirror.Watermark) (mirror.Read[string, T], error) {
 	rows, err := e.read(since.Tick)
@@ -66,8 +65,7 @@ type zoneMirror struct {
 	last bridge.ZonesRead
 }
 
-func (z *zoneMirror) Name() string  { return string(facts.Zones) }
-func (z *zoneMirror) Window() int64 { return bridge.EntityTombstoneWindow }
+func (z *zoneMirror) Name() string { return string(facts.Zones) }
 
 // Equal compares facts, excluding the CAS context stamp: an unchanged row
 // keeps the tick it was last emitted at (bridge.ZoneDrift).
@@ -93,7 +91,7 @@ func (z *zoneMirror) Read(ctx context.Context, since mirror.Watermark) (mirror.R
 // census is the table as the zone census the planners read, rows in id
 // order under the last read's header.
 func (z *zoneMirror) census(table mirror.Table[string, *o.ZoneState]) bridge.ZonesRead {
-	out := bridge.ZonesRead{Context: z.last.Context, MapSnapshot: z.last.MapSnapshot, AsOf: table.AsOf.Tick, Fallback: z.last.Fallback}
+	out := bridge.ZonesRead{Context: z.last.Context, MapSnapshot: z.last.MapSnapshot, AsOf: table.AsOf.Tick}
 	out.Rows = make([]*o.ZoneState, 0, len(table.Rows))
 	for _, row := range table.Rows {
 		out.Rows = append(out.Rows, row)

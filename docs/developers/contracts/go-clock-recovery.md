@@ -618,9 +618,8 @@ facts, so onset lags one step) rooms get `MaxAge` 0 and are read every
 review. What a policy decides is unchanged: it sees the same decoded
 values, at most one cadence older.
 
-The entity list reads follow the same pattern per row (#358). Every
-`list_zones`, `list_buildings` and `read_bills` reply stamps `as_of_tick`
-(the context tick) and an unfiltered read (no ids, name, region, status,
+The entity list reads follow the same pattern per row (#358). An
+unfiltered `list_zones`, `list_buildings` or `read_bills` read (no ids, name, region, status,
 damage or `bench_id` filter) may ask `changed_since_tick`: the native
 keeps a per-map, per-query-shape shadow (`EntityTracking.cs`) of each
 row's digest (FNV-1a over the row bytes with every CAS snapshot's context
@@ -628,19 +627,22 @@ stripped) and last-changed tick, compared at read time rather than hooked,
 so a changed row is one whose projection differs and the delta costs the
 same projection a full read does while sending only the changed rows;
 the rest are counted in `unchanged`, and the ids swept out since the ask
-come back in `removed_ids`. Tombstones live 2500 ticks
-(`bridge.EntityTombstoneWindow`); an ask older than that is refused
-`Unavailable STALE` (`bridge.ErrDeltaExpired`) and the reader falls back
-to a full read. The store holds `zones`, `buildings` and `bills` as
+come back in `removed_ids`. A delta reply stamps `as_of_tick` (the
+context tick); a full reply omits it. Tombstones live one game day
+(60000 ticks) and at most 4096 per tracker (`EntityTracking.TombstoneWindow`,
+`MaxTombstones`: a heavy building day retires a few hundred to a thousand
+blueprint and frame ids, and 4096 keeps a tracker near 0.5 MB). An ask the
+tombstones cannot answer (older than the window, or than a tombstone the
+cap dropped) gets the full reply inline, in the same round trip, and the
+reader replaces what it holds (#795). The store holds `zones`, `buildings` and `bills` as
 incremental sections keyed by id (`buildingruntime.EntitySection`):
 `refreshEntitySections` (and `zoneRefresher` for the policy zone census)
 runs on every review step after the bundle and refreshes each section
 through the colony mirror: a delta since the mirror's watermark, merged,
-even while the section is fresh, so the watermark stays inside the
-tombstone window and an unchanged review costs a few bytes per section; a
-full read when nothing is held, the scope moved or the watermark has left
-the window. The review bundle carries these sections whole only in those
-keyframe cases (`bundleStepFamilies`). Every eighth refresh and after
+even while the section is fresh, so an unchanged review costs a few bytes
+per section; a full read when nothing is held or the scope moved. The
+review bundle carries these sections whole only in those keyframe cases
+(`bundleStepFamilies`). Every eighth refresh and after
 `RequestResync` a full read beside the merge counts the differing rows as
 `[facts] <section> resync drift=<n>` (event `<section>_resync`) and
 replaces the merge.
@@ -649,14 +651,13 @@ The colony mirror (`go/internal/mirror`, #795) is the row store under
 these refreshers: per section, keyed rows and the watermark they are
 complete through (`mirror.Watermark`: a tick and a seq ordering changes
 within that tick; the #357/#358 reads stamp ticks only, seq 0), refreshed by `mirror.Refresh` (keyframe, delta with
-upserts and tombstones, expiry fallback, resync backstop and drift
-count). Its scope is the load, map and native generation, so a reload, a
+upserts and tombstones, a full reply replacing the section, resync
+backstop and drift count). Its scope is the load, map and native generation, so a reload, a
 map change or an authority generation flip makes the next refresh of
 every section a keyframe. Tables are immutable once published and
 `Mirror.View` is a versioned snapshot of every section. A section joins
-by implementing `mirror.Section` (a changed-since read and a row
-equality; `mirror.Windowed` when its native keeps tombstones for a bounded
-window); `buildingruntime/clock_mirror.go` adapts the cell, zone and
+by implementing `mirror.Section` (a changed-since read, answered as a
+delta or in full, and a row equality); `buildingruntime/clock_mirror.go` adapts the cell, zone and
 entity reads. The refreshers file each table into `facts.Store`, which
 the planners read. Watermarks stay per section (`mirror.Watermarks`);
 `View.CompleteThrough` is the least of them, the one point every section
@@ -664,7 +665,8 @@ is complete through. The review keeps its paused bracket. Research
 stays bundle-borne (its rows are defs with continuous progress, not
 entities that come and go) and areas and designations have no list read
 to page, so neither carries the fields. `entities/changed-since` proves
-add, change, remove, tombstone, expiry and the fallback natively.
+add, change, remove, tombstone and the inline full reply past the window
+natively.
 
 ## Independent clock workers
 
@@ -847,20 +849,19 @@ lower bounds, food-stockpile suitability and the guarded zone-map token.
 retained captures. Routine policy and zone creation read the zone section.
 
 `observations_list_zones` accepts an inclusive `changed_since_tick` for an
-unfiltered census. Each reply carries `as_of_tick`, `unchanged`, `removed_ids`
-and `map_snapshot`; each growing row carries `farm`, and each zone carries
+unfiltered census. A delta reply carries `as_of_tick`, `unchanged` and
+`removed_ids`; every reply carries `map_snapshot`; each growing row carries `farm`, and each zone carries
 `food_storage`. The per-map zone tracker starts with the cell tracker,
 records registration, removal and cell edits through Harmony postfixes,
-and retains tombstones for 2500 ticks. Read-time comparisons also catch
+and retains tombstones as the entity lists do (one game day, 4096 ids). Read-time comparisons also catch
 settings, crop growth, diet and room-enclosure changes without a per-tick
 scan. Those continuous farm measurements can cause a growing row to be
 emitted on each refresh; they are not treated as static zone configuration.
 
 A stale colony invalidation retains the zone baseline for merging by id.
-A scope change reads in full. An expired cursor returns STALE with detail
-`entity_tombstone_window_expired`; a cursor predating tracking returns
-`entity_tracking_not_available`. The Go reader replaces its census with a
-full read for either refusal. Every eighth refresh also reads in full and
+A scope change reads in full. An ask older than the tombstones reach or
+than the tracker itself gets the full census inline (no `as_of_tick`),
+which replaces the held census. Every eighth refresh also reads in full and
 logs `[facts] zones resync drift=<n>` when both reads describe the same tick.
 `zone/changed-since` and `zone/tombstone-expiry` cover native mutation,
-omission, deletion, expiry/fallback and the absence of aggregate zone fields.
+omission, deletion, the inline full reply past the window and the absence of aggregate zone fields.

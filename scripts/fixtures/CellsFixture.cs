@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<IntVec3, TerrainDef> terrain = new Dictionary<IntVec3, TerrainDef>();
         private static readonly List<IntVec3> roofed = new List<IntVec3>();
 
-        [Tool("test/zones_delta_mutate", Description = "UNSAFE FOR MODEL EXECUTION. Disposable zone delta fixture: add, resize, crop, remove, or advance 2501 real ticks for retention expiry.")]
+        [Tool("test/zones_delta_mutate", Description = "UNSAFE FOR MODEL EXECUTION. Disposable zone delta fixture: add, resize, crop, remove, or move the tick past the 60000-tick tombstone window.")]
         public async Task<object> ZonesDelta(IRimBridgeContext ctx, CancellationToken cancellationToken, int originX, int originZ, string phase)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
                         break;
                     case "tick": Find.TickManager.DoSingleTick(); break;
                     case "expire":
-                        for (var i = 0; i < 2501; i++) Find.TickManager.DoSingleTick();
+                        Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + 60001); // past the tombstone window
                         break;
                     default: return Refuse("Unknown zone delta phase.");
                 }

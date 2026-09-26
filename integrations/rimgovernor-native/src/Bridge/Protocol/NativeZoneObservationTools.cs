@@ -47,9 +47,8 @@ namespace HomeBridge.BridgeTools
             {
                 var tracking = ZoneTracking.For(map);
                 var since = parsed.HasChangedSinceTick ? parsed.ChangedSinceTick : 0;
-                var refusal = tracking.Refusal(since);
-                if (refusal != null)
-                    return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, refusal) };
+                // An ask the tombstones cannot answer is read in full (#795).
+                if (since > 0 && !tracking.Covers(since)) since = 0;
                 var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
                 var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                 var filtered = source.Count - matched.Count;
@@ -70,8 +69,8 @@ namespace HomeBridge.BridgeTools
                 Require(page.Count <= MaxPage, "Matched zone collection exceeds page limit; narrow filters.");
                 var truncated = afterCursor.Count > page.Count;
                 var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(page.Count, filtered),
-                    AsOfTick = context.Tick, Unchanged = (uint)unchanged, MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
-                if (since > 0) snapshot.RemovedIds.Add(tracking.Removed(since));
+                    MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
+                if (since > 0) { snapshot.AsOfTick = context.Tick; snapshot.Unchanged = (uint)unchanged; snapshot.RemovedIds.Add(tracking.Removed(since)); }
                 snapshot.Completeness.Page.Complete = !truncated;
                 if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
                 foreach (var zone in page) snapshot.Zones.Add(rows[zone]);

@@ -8,8 +8,8 @@
 // first read reproducing a fresh full read row for row (drift 0). The
 // fixture then deletes the zone and destroys the bench and the wall, and a
 // read since the same tick names each in removed_ids. Finally the game
-// tick is moved past the tombstone window and the same ask is refused as
-// STALE while a full read still answers.
+// tick is moved past the one-day tombstone window and the same ask is
+// answered in full inline: no as_of_tick, no removed ids, every live row.
 package entities
 
 import (
@@ -30,7 +30,7 @@ func init() {
 			"observations_read_bills reads, a relabelled and grown stockpile zone, a bench with a new bill and a spawned wall " +
 			"come back from reads with changed_since_tick set to the first reads' tick, unchanged counts the rest, the delta " +
 			"merged over the first read equals a fresh full read (drift 0), the deleted zone and destroyed bench and wall are " +
-			"named in removed_ids, and an ask older than the 2500-tick tombstone window is refused as STALE while a full read answers.",
+			"named in removed_ids, and an ask older than the 60000-tick tombstone window is answered by a full reply inline (no as_of_tick).",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/entities_prepare"},
 		Budget: 3 * time.Minute,
 		Run:    run,
@@ -91,9 +91,9 @@ func run(ctx context.Context, s cases.Session) error {
 			request: func() map[string]any { return map[string]any{"scope": scope, "page": map[string]any{"limit": 256}} }},
 	}
 
-	// read pages one family to the end; since 0 is a full read. A STALE
-	// unavailability comes back as stale.
-	read := func(label string, f family, since int64) (out listing, stale bool, err error) {
+	// read pages one family to the end; since 0 is a full read. delta is
+	// whether the reply answered as a delta (as_of_tick set).
+	read := func(label string, f family, since int64) (out listing, delta bool, err error) {
 		out.rows = map[string]string{}
 		cursor := ""
 		for page := 0; ; page++ {
@@ -108,20 +108,15 @@ func run(ctx context.Context, s cases.Session) error {
 			if err != nil {
 				return out, false, err
 			}
-			kind, observed, err := na.Outcome(reply, "observed", "unavailable")
+			_, observed, err := na.Outcome(reply, "observed")
 			if err != nil {
 				return out, false, err
 			}
-			if kind == "unavailable" {
-				if reason, _ := observed["reason"].(string); reason == "UNAVAILABLE_REASON_STALE" && since > 0 {
-					return out, true, nil
-				}
-				return out, false, fmt.Errorf("%s %s: unavailable: %#v", label, f.name, observed)
-			}
 			obsContext, _ := na.AsMap(observed["context"])
 			tick := int64(na.AsNumber(obsContext["tick"]))
-			if observed["asOfTick"] == nil || int64(na.AsNumber(observed["asOfTick"])) != tick {
-				return out, false, fmt.Errorf("%s %s: as_of_tick %v is not the context tick %d", label, f.name, observed["asOfTick"], tick)
+			delta = observed["asOfTick"] != nil
+			if delta && (since == 0 || int64(na.AsNumber(observed["asOfTick"])) != tick) {
+				return out, false, fmt.Errorf("%s %s: as_of_tick %v on a full read or off the context tick %d", label, f.name, observed["asOfTick"], tick)
 			}
 			if page == 0 {
 				out.tick = tick
@@ -151,7 +146,7 @@ func run(ctx context.Context, s cases.Session) error {
 			completeness, _ := na.AsMap(observed["completeness"])
 			pageInfo, _ := na.AsMap(completeness["page"])
 			if complete, _ := na.AsBool(pageInfo["complete"]); complete {
-				return out, false, nil
+				return out, delta, nil
 			}
 			cursor, _ = pageInfo["nextCursor"].(string)
 			if cursor == "" || page > 64 {
@@ -227,9 +222,9 @@ func run(ctx context.Context, s cases.Session) error {
 	want := map[string][]string{"zones": {zoneID}, "buildings": {wallID}, "bills": {benchID}}
 	drift := map[string]int{}
 	for _, f := range families {
-		delta, stale, err := read("delta-since-before", f, tick0)
-		if err != nil || stale {
-			return fmt.Errorf("delta %s since %d: stale=%v err=%v", f.name, tick0, stale, err)
+		delta, isDelta, err := read("delta-since-before", f, tick0)
+		if err != nil || !isDelta {
+			return fmt.Errorf("delta %s since %d: delta=%v err=%v", f.name, tick0, isDelta, err)
 		}
 		// The bench's own row may relist alongside the wall (its bill
 		// stack is not in the buildings row, but any changed field would
@@ -285,9 +280,9 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	removedWant := map[string][]string{"zones": {zoneID}, "buildings": {benchID, wallID}, "bills": {benchID}}
 	for _, f := range families {
-		delta, stale, err := read("delta-after-removal", f, tick0)
-		if err != nil || stale {
-			return fmt.Errorf("delta %s after removal: stale=%v err=%v", f.name, stale, err)
+		delta, isDelta, err := read("delta-after-removal", f, tick0)
+		if err != nil || !isDelta {
+			return fmt.Errorf("delta %s after removal: delta=%v err=%v", f.name, isDelta, err)
 		}
 		for _, id := range removedWant[f.name] {
 			if !na.Contains(delta.removed, id) {
@@ -300,23 +295,19 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["second_round"] = map[string]any{"touched": second}
 
-	// Past the tombstone window the same ask is refused; a full read answers.
+	// Past the tombstone window the same ask is answered in full inline.
 	if _, tickExpired, err := mutate("expire", "expire"); err != nil {
 		return err
-	} else if tickExpired-tick0 <= 2500 {
+	} else if tickExpired-tick0 <= 60000 {
 		return fmt.Errorf("expire moved the tick to %d, within the window of %d", tickExpired, tick0)
 	}
 	for _, f := range families {
-		_, stale, err := read("delta-expired", f, tick0)
+		full2, isDelta, err := read("delta-expired", f, tick0)
 		if err != nil {
 			return err
 		}
-		if !stale {
-			return fmt.Errorf("delta %s since %d past the tombstone window was not refused as STALE", f.name, tick0)
-		}
-		full2, _, err := read("full-fallback", f, 0)
-		if err != nil {
-			return err
+		if isDelta || len(full2.removed) != 0 || full2.unchanged != 0 {
+			return fmt.Errorf("delta %s since %d past the tombstone window was not answered in full: removed %v unchanged %d", f.name, tick0, full2.removed, full2.unchanged)
 		}
 		for _, id := range removedWant[f.name] {
 			if _, listed := full2.rows[id]; listed {

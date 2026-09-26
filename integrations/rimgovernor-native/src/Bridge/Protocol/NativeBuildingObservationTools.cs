@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     {
         private const string ToolName = "rimgovernor/observations_list_buildings";
 
-        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet. changed_since_tick (reads without ids, def_names, statuses, damaged_below_fraction or region) lists the buildings whose row changed at or after that tick, counts the rest in unchanged and names the buildings removed since in removed_ids; an ask older than 2500 ticks is STALE and needs a full read. as_of_tick is always the context tick.")]
+        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet. changed_since_tick (reads without ids, def_names, statuses, damaged_below_fraction or region) lists the buildings whose row changed at or after that tick, counts the rest in unchanged and names the buildings removed since in removed_ids; an ask older than the tombstone window (60000 ticks, 4096 ids) gets a full reply instead. as_of_tick, the context tick, marks a delta reply; a full reply omits it.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
         public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
@@ -50,13 +50,14 @@ namespace HomeBridge.BridgeTools
                 // read: a full one primes the shadow and sweeps the
                 // removed, a changed_since one lists only the changed.
                 var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.PlayerOnly + (parsed.Category ?? "")) : null;
-                if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
-                    return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") };
-                var snapshot = new Obs.BuildingsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0,
+                // An ask the tombstones cannot answer is read in full (#795).
+                var delta = parsed.HasChangedSinceTick && tracking!.Covers(parsed.ChangedSinceTick);
+                var snapshot = new Obs.BuildingsSnapshot { Context = context,
                     NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
                 var rows = new Dictionary<string, Obs.BuildingState>();
+                if (delta) { snapshot.AsOfTick = context.Tick; snapshot.Unchanged = 0; }
                 var listed = matched;
-                if (parsed.HasChangedSinceTick)
+                if (delta)
                 {
                     listed = new List<Thing>();
                     foreach (var thing in matched)
@@ -69,7 +70,7 @@ namespace HomeBridge.BridgeTools
                 if (tracking != null)
                 {
                     tracking.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
-                    if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                    if (delta) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
                 }
                 var afterCursor = listed;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)

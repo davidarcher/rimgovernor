@@ -210,12 +210,7 @@ namespace HomeBridge.BridgeTools
             if (capture.ViewRequest != null)
                 observed.PlanningWindowView = PlanningWindowViewProjection.Serve(PlanningWindowViewPublisher.Shared, capture.View.Root, capture.View.Pending, capture.View.Refreshing, capture.ViewRequest, observed.Context);
             NativeColonyObservationTools.Bound(observed.ColonyFacts);
-            if (capture.DeltaShape != null)
-            {
-                observed.Delta = SectionDelta.Apply(capture.DeltaShape, capture.DeltaAsk, observed, observed.Context);
-                if (observed.Delta == null) return ProtoBoundary.Encode(new Obs.BundleReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Stale,
-                    Detail = "Bundle changed-since watermark is older than the tombstone window; read in full." } });
-            }
+            if (capture.DeltaShape != null) observed.Delta = SectionDelta.Apply(capture.DeltaShape, capture.DeltaAsk, observed, observed.Context);
             var drops = new List<Func<int>>(2);
             if (capture.Step) drops.Add(() => DropStepFamilies(observed));
             if (capture.Families) drops.Add(() => DropFamilies(observed));

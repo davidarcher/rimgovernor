@@ -15,18 +15,8 @@ package mirror
 
 import (
 	"context"
-	"errors"
 	"sync"
-
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
-
-// ErrExpired is a delta the native refused because the watermark is older
-// than its tombstone window: the section is read as a keyframe instead.
-var ErrExpired = bridge.ErrDeltaExpired
-
-// TombstoneWindow is the entity sections' Window (bridge.EntityTombstoneWindow).
-const TombstoneWindow = bridge.EntityTombstoneWindow
 
 // ResyncEvery is the backstop cadence: every this-many delta refreshes of
 // a section is also a keyframe read, and the delta's rows are compared
@@ -82,16 +72,10 @@ type Read[K comparable, R any] struct {
 	Counted   bool
 }
 
-// Windowed is a Section whose native keeps tombstones for a bounded
-// window: a watermark older than Window ticks is read as a keyframe
-// rather than asked as a delta the native would only refuse.
-type Windowed interface {
-	Window() int64
-}
-
 // Section is one mirrored section's change source. Read answers since 0
 // with a keyframe and a positive since with a delta (or a keyframe, when
-// the native keeps no tracking for it); ErrExpired asks for a keyframe.
+// the native cannot answer it as a delta: its tombstones no longer reach
+// since, or it keeps no tracking for it, #795).
 // Equal compares two rows' facts for the resync drift count. A section
 // joins the mirror by implementing this (#773: pawns, gear, acquisition,
 // upkeep).
@@ -168,14 +152,6 @@ func Get[K comparable, R any](m *Mirror, scope Scope, name string) (Table[K, R],
 func Put[K comparable, R any](m *Mirror, scope Scope, name string, rows map[K]R, asOf Watermark) Table[K, R] {
 	m.Rescope(scope)
 	return commit(m, scope, name, rows, asOf, false)
-}
-
-// Usable reports whether a table of section s held at asOf can still be
-// refreshed at tick by a delta: always, unless s keeps tombstones for a
-// bounded Window the watermark has fallen behind.
-func Usable(s any, asOf Watermark, tick int64) bool {
-	w, ok := s.(Windowed)
-	return !ok || tick-asOf.Tick <= w.Window()
 }
 
 // View is every section at one mirror version.
@@ -261,15 +237,12 @@ type Outcome struct {
 	Checked   bool
 	Drift     int
 	Requested bool
-	// Expired is a delta the native refused, answered by a keyframe.
-	Expired bool
 }
 
-// Refresh brings one section current at tick. Nothing held, or a table
-// whose watermark the tombstone window has outrun, reads a keyframe; a
-// held table is refreshed by a delta since its watermark (a keyframe when
-// the native refuses it as expired), merged by key with tombstones
-// dropped. Every ResyncEvery-th delta, the first after RequestResync, and
+// Refresh brings one section current at tick. Nothing held reads a
+// keyframe; a held table is refreshed by a delta since its watermark,
+// merged by key with tombstones dropped, or replaced when the native
+// answers the ask in full. Every ResyncEvery-th delta, the first after RequestResync, and
 // a delta whose counts do not cover the held rows also read a keyframe,
 // count the drift and keep the keyframe. A failed read leaves the held
 // table and returns it with the error. Whether a section needs refreshing
@@ -289,15 +262,11 @@ func Refresh[K comparable, R any](ctx context.Context, m *Mirror, scope Scope, t
 		out.Kind, out.Changed = Keyframe, len(read.Rows)
 		return commit(m, scope, name, read.Rows, read.AsOf, requested), out, nil
 	}
-	if !ok || !Usable(s, held.AsOf, tick) {
+	if !ok {
 		return keyframe(Outcome{})
 	}
 	out := Outcome{Since: held.AsOf, Requested: requested}
 	read, err := s.Read(ctx, held.AsOf)
-	if errors.Is(err, ErrExpired) {
-		out.Expired = true
-		return keyframe(out)
-	}
 	if err != nil {
 		return held, out, err
 	}

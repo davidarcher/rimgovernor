@@ -1,10 +1,14 @@
 package bridge
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -119,5 +123,62 @@ func TestDeltaKeyIgnoresMovingParts(t *testing.T) {
 	}
 	if deltaKey("m", a) == deltaKey("m", &o.BundleRequest{Population: proto.Bool(true)}) {
 		t.Fatal("sections do not shape the key")
+	}
+}
+
+// A delta ask the native cannot answer comes back as a full reply, without
+// since, in the same round trip (#795): readCall keeps it as the new base
+// and never reads again. A delta it cannot complete (here a reply naming
+// another tracker) is a genuine error, re-read in full.
+func TestReadCallInlineFullReplyAndGenuineFallback(t *testing.T) {
+	type scripted struct {
+		facts *o.ColonyFactsSnapshot
+		delta *o.SectionDelta
+	}
+	mark := func(tick int64) *o.Watermark { return &o.Watermark{Tick: proto.Int64(tick), Seq: proto.Uint64(1)} }
+	var script []scripted
+	var asks []*o.SectionDeltaAsk
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+			t.Fatal(err)
+		}
+		q := &o.ColonyFactsRequest{}
+		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
+			t.Fatal(err)
+		}
+		asks = append(asks, q.ChangedSince)
+		next := script[0]
+		script = script[1:]
+		snapshot := proto.Clone(next.facts).(*o.ColonyFactsSnapshot)
+		snapshot.Delta = next.delta
+		return pbResult(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: snapshot}}), nil
+	}}, testBudget)
+	read := func() *o.ColonyFactsSnapshot {
+		t.Helper()
+		reply := &o.ColonyFactsReply{}
+		if _, err := client.readCall(context.Background(), "rimgovernor/observations_read_colony_facts", &o.ColonyFactsRequest{Planning: proto.Bool(true)}, reply); err != nil {
+			t.Fatal(err)
+		}
+		return reply.GetObserved()
+	}
+	script = []scripted{{deltaFacts(100, 10), &o.SectionDelta{Tracker: proto.String("a"), AsOf: mark(100)}}}
+	read()
+	// A day and more later: the native answers the ask in full, no since.
+	later := deltaFacts(70200, 12)
+	script = []scripted{{later, &o.SectionDelta{Tracker: proto.String("a"), AsOf: mark(70200)}}}
+	if got := read(); len(asks) != 2 || asks[1].GetSince().GetTick() != 100 || !proto.Equal(got, later) {
+		t.Fatalf("inline full: asks=%v got=%v", asks, got)
+	}
+	// The kept base is the inline reply: the next ask is since it. A delta
+	// against a base readCall does not hold is re-read in full.
+	script = []scripted{
+		{deltaFacts(70300, 12), &o.SectionDelta{Tracker: proto.String("b"), AsOf: mark(70300), Since: mark(70200), Held: []string{"3"}}},
+		{deltaFacts(70300, 13), &o.SectionDelta{Tracker: proto.String("b"), AsOf: mark(70301)}},
+	}
+	if got := read(); len(asks) != 4 || asks[2].GetSince().GetTick() != 70200 || asks[2].GetTracker() != "a" || asks[3] != nil || !proto.Equal(got, deltaFacts(70300, 13)) {
+		t.Fatalf("genuine fallback: asks=%v got=%v", asks, got)
 	}
 }

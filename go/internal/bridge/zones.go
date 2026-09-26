@@ -9,11 +9,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const ZoneDeltaExpired = "entity_tombstone_window_expired"
-const ZoneTrackingUnavailable = "entity_tracking_not_available"
-
-// ZonesRead is the complete zone census or its inclusive-tick delta.
-// Rows are immutable after publication to the facts store.
+// ZonesRead is the complete zone census or its inclusive-tick delta. An
+// ask the native's tombstones cannot answer (#795) comes back as the
+// complete census (Delta false). Rows are immutable after publication to
+// the facts store.
 type ZonesRead struct {
 	Context     *c.ObservationContext
 	Rows        []*o.ZoneState
@@ -21,7 +20,6 @@ type ZonesRead struct {
 	Unchanged   uint32
 	AsOf        int64
 	Delta       bool
-	Fallback    bool
 	MapSnapshot *o.SnapshotRef
 }
 
@@ -38,8 +36,8 @@ func zoneSectionRequest(identity *c.Identity, since int64, cursor string) *o.Lis
 	return q
 }
 
-// ReadZoneSection falls back only for the native's explicit retention/startup
-// refusals. Other failures never silently replace a held census.
+// ReadZoneSection reads the census, or its delta since a positive tick.
+// A failure never silently replaces a held census.
 func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity, since int64) (ZonesRead, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return ZonesRead{}, Result{}, err
@@ -63,19 +61,9 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity,
 			return ZonesRead{}, raw, err
 		}
 		if f := reply.GetFailure(); f != nil {
-			if since > 0 && f.GetCode() == c.FailureCode_FAILURE_CODE_UNAVAILABLE && (f.GetDetail() == ZoneDeltaExpired || f.GetDetail() == ZoneTrackingUnavailable) {
-				full, result, err := client.ReadZoneSection(ctx, identity, 0)
-				full.Fallback = err == nil
-				return full, result, err
-			}
 			return ZonesRead{}, raw, failure(f, raw)
 		}
 		if u := reply.GetUnavailable(); u != nil {
-			if since > 0 && u.GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_STALE && (u.GetDetail() == ZoneDeltaExpired || u.GetDetail() == ZoneTrackingUnavailable) {
-				full, result, err := client.ReadZoneSection(ctx, identity, 0)
-				full.Fallback = err == nil
-				return full, result, err
-			}
 			return ZonesRead{}, raw, unavailable(u, raw)
 		}
 		v := reply.GetObserved()
@@ -174,7 +162,7 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity, since int64) err
 }
 
 // MergeZones replaces changed rows and applies tombstones. It never mutates
-// the old value; a full read (including refusal fallback) replaces it.
+// the old value; a full read (asked in full or answered so) replaces it.
 func MergeZones(held ZonesRead, read ZonesRead) ZonesRead {
 	if !read.Delta {
 		return read

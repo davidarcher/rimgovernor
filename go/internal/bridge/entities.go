@@ -2,30 +2,22 @@ package bridge
 
 import (
 	"context"
-	"errors"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-// ErrDeltaExpired is a delta read the native refused because the since
-// tick is older than its tombstone window (#358): the caller reads in
-// full instead.
-var ErrDeltaExpired = errors.New("entity delta expired")
-
-// EntityTombstoneWindow is how long the native keeps a removed entity's
-// id (ticks): a delta asked since an older tick is refused as expired.
-const EntityTombstoneWindow int64 = 2500
-
 // EntityRows is one entity list read (zones, buildings or bill stacks)
 // keyed by entity id, with the tick the reply described. A read asked with
 // a since tick is a delta when Delta is set: Rows lists only the entities
 // changed at or after that tick, Removed the ids the native removed since
-// it (kept for EntityTombstoneWindow ticks) and Unchanged counts the rest,
-// so the caller merges Rows over what it holds and drops Removed. A native
-// without entity tracking ignores the ask and answers in full (Delta
-// false).
+// it and Unchanged counts the rest,
+// so the caller merges Rows over what it holds and drops Removed. An ask
+// the native's tombstones cannot answer (older than one game day or its
+// count cap, #795) is answered in full inline, as is every ask to a native
+// without entity tracking: Delta false, and the caller replaces what it
+// holds.
 type EntityRows[T proto.Message] struct {
 	Context   *c.ObservationContext
 	Rows      map[string]T
@@ -189,8 +181,8 @@ type entityPageReply[T proto.Message] struct {
 // into EntityRows. Every page must describe the same context; a delta's
 // as_of_tick is that context's tick, unchanged and removed ids are
 // admitted only in a delta the read asked for, ids are valid and unique
-// across pages, and a removed id is never also listed. A STALE
-// unavailability on a delta is ErrDeltaExpired.
+// across pages, and a removed id is never also listed. A reply without
+// as_of_tick is a full one, whether or not a delta was asked.
 func readEntities[T proto.Message](ctx context.Context, client *Client, identity *c.Identity, since int64, method string, request func(cursor string) proto.Message, reply func() proto.Message, decode func(proto.Message) (entityPageReply[T], error)) (EntityRows[T], Result, error) {
 	if err := authorityIdentity(identity); err != nil {
 		return EntityRows[T]{}, Result{}, err
@@ -223,11 +215,7 @@ func readEntities[T proto.Message](ctx context.Context, client *Client, identity
 		case page.failure != nil:
 			return EntityRows[T]{}, raw, failure(page.failure, raw)
 		case page.unavailable != nil:
-			err = unavailable(page.unavailable, raw)
-			if since > 0 && page.unavailable.GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_STALE {
-				err = errors.Join(ErrDeltaExpired, err)
-			}
-			return EntityRows[T]{}, raw, err
+			return EntityRows[T]{}, raw, unavailable(page.unavailable, raw)
 		}
 		if err = ValidateContext(page.context); err != nil {
 			return EntityRows[T]{}, raw, err

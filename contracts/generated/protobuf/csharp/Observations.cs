@@ -3604,12 +3604,13 @@ namespace RimGovernor.Protocol.Observations {
   /// held singular field or whole repeated field is absent from the reply; a
   /// held element stays in place as a stub carrying only its key, so ranked
   /// lists keep their native order. removed lists the keyed elements that left
-  /// their list since the watermark (tombstones), kept 2500 ticks as for the
-  /// entity lists (#358); an ask older than that is refused as STALE and the
-  /// caller reads in full. Every ObservationContext inside a held part that
-  /// equalled the root context then equals the root context now. An ask naming
-  /// a tracker the native no longer has (reload, restart, eviction) gets a
-  /// full reply.
+  /// their list since the watermark (tombstones), kept as for the entity lists
+  /// (#358): one game day (60000 ticks), at most 4096 per tracker. Every
+  /// ObservationContext inside a held part that equalled the root context then
+  /// equals the root context now. A reply is a delta exactly when its since is
+  /// set. An ask the native cannot answer (a tracker it no longer has after a
+  /// reload, restart or eviction; older than the tombstones reach) gets a full
+  /// reply inline, without since, which replaces what the caller holds (#795).
   /// A watermark orders reads: the tick, then seq within that tick.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]

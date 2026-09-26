@@ -14,7 +14,9 @@ import (
 
 // entityFake answers the three entity reads: every full ask lists full,
 // every delta ask (since > 0) answers delta the way a native with entity
-// tracking does, or expired when set. since records every ask per section.
+// tracking does, or in full inline when expired is set or the ask is
+// older than the native's one-day tombstone window (#795). since records
+// every ask per section.
 type entityFake struct {
 	tick    int64
 	since   map[facts.Section][]int64
@@ -37,15 +39,12 @@ func (f *entityFake) ReadZones(_ context.Context, _ *c.Identity, since int64) (b
 		return bridge.EntityRows[*o.ZoneState]{}, bridge.Result{}, f.err
 	}
 	context := &c.ObservationContext{Tick: proto.Int64(f.tick)}
-	if since > 0 {
-		if f.expired {
-			f.expired = false
-			return bridge.EntityRows[*o.ZoneState]{}, bridge.Result{}, errors.Join(bridge.ErrDeltaExpired, bridge.ErrUnavailable)
-		}
+	if since > 0 && !f.expired && f.tick-since <= 60000 {
 		out := f.delta
 		out.Context, out.Delta = context, true
 		return out, bridge.Result{}, nil
 	}
+	f.expired = false
 	return bridge.EntityRows[*o.ZoneState]{Context: context, Rows: f.full}, bridge.Result{}, nil
 }
 
@@ -95,40 +94,42 @@ func TestRefreshEntitySectionsFullThenDelta(t *testing.T) {
 	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[1] != 100 {
 		t.Fatal(native.since)
 	}
-	// Stale by cadence, past the tombstone window: a full read.
-	native.tick = 5000
+	// Past the one-day tombstone window the delta ask is answered in full
+	// inline (#795): one read, and the full rows replace the section.
+	native.tick = 60300
 	native.full = map[string]*o.ZoneState{"Zone_2": zoneState("Zone_2", "renamed"), "Zone_3": zoneState("Zone_3", "c")}
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5000, entitySectionsCarried{})
+	refreshEntitySections(context.Background(), native, f, identity, scope, 60300, entitySectionsCarried{})
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if asks := native.since[facts.Zones]; len(asks) != 3 || asks[2] != 0 || held.AsOf != 5000 || len(held.Value) != 2 || held.Value["Zone_1"] != nil {
+	if asks := native.since[facts.Zones]; len(asks) != 3 || asks[2] != 100 || held.AsOf != 60300 || len(held.Value) != 2 || held.Value["Zone_1"] != nil {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	// A colony invalidation keeps the section and marks it stale (#358
 	// point 5): the next review refresh is a delta since the full read,
 	// merged by id, removed ids dropped.
 	f.store.InvalidateFamily(bridge.FactColony)
-	native.tick = 5001
+	native.tick = 60301
 	native.delta = bridge.EntityRows[*o.ZoneState]{Rows: map[string]*o.ZoneState{"Zone_2": zoneState("Zone_2", "again"), "Zone_4": zoneState("Zone_4", "d")}, Removed: []string{"Zone_3"}, Unchanged: 0}
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5001, entitySectionsCarried{})
+	refreshEntitySections(context.Background(), native, f, identity, scope, 60301, entitySectionsCarried{})
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if asks := native.since[facts.Zones]; len(asks) != 4 || asks[3] != 5000 || held.AsOf != 5001 || len(held.Value) != 2 || held.Value["Zone_2"].GetLabel() != "again" || held.Value["Zone_4"] == nil || held.Value["Zone_3"] != nil || !f.store.Fresh(facts.Zones, 5001) {
+	if asks := native.since[facts.Zones]; len(asks) != 4 || asks[3] != 60300 || held.AsOf != 60301 || len(held.Value) != 2 || held.Value["Zone_2"].GetLabel() != "again" || held.Value["Zone_4"] == nil || held.Value["Zone_3"] != nil || !f.store.Fresh(facts.Zones, 60301) {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	// A section the bundle carried in full is read in full, whatever the
 	// held as-of tick (#593); the others still read their deltas.
 	f.store.InvalidateFamily(bridge.FactColony)
-	native.tick = 5002
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5002, entitySectionsCarried{zones: true})
+	native.tick = 60302
+	refreshEntitySections(context.Background(), native, f, identity, scope, 60302, entitySectionsCarried{zones: true})
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
 	buildings := native.since[facts.Buildings]
-	if asks := native.since[facts.Zones]; len(asks) != 5 || asks[4] != 0 || held.AsOf != 5002 || len(held.Value) != 2 || held.Value["Zone_3"] == nil || buildings[len(buildings)-1] != 5001 {
+	if asks := native.since[facts.Zones]; len(asks) != 5 || asks[4] != 0 || held.AsOf != 60302 || len(held.Value) != 2 || held.Value["Zone_3"] == nil || buildings[len(buildings)-1] != 60301 {
 		t.Fatalf("%+v since=%v", held.Value, native.since)
 	}
 }
 
-// An expired delta falls back to a full read; a failed read keeps the
-// held section; a scope change reads in full.
-func TestRefreshEntitySectionsExpiryFailureAndScope(t *testing.T) {
+// A delta the native answers in full inline replaces the section in one
+// read (#795); a failed read keeps the held section; a scope change reads
+// in full.
+func TestRefreshEntitySectionsFullReplyFailureAndScope(t *testing.T) {
 	f := newClockFacts(nil, nil)
 	scope := facts.Scope{Load: "load", Generation: 1}
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
@@ -137,7 +138,7 @@ func TestRefreshEntitySectionsExpiryFailureAndScope(t *testing.T) {
 	native := &entityFake{tick: 2000, expired: true, full: map[string]*o.ZoneState{"Zone_5": zoneState("Zone_5", "e")}}
 	refreshEntitySections(context.Background(), native, f, identity, scope, 2000, entitySectionsCarried{})
 	held, _ := facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[0] != 100 || asks[1] != 0 || len(held.Value) != 1 || held.Value["Zone_5"] == nil || held.AsOf != 2000 {
+	if asks := native.since[facts.Zones]; len(asks) != 1 || asks[0] != 100 || len(held.Value) != 1 || held.Value["Zone_5"] == nil || held.AsOf != 2000 {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	native.err = errors.New("transport")

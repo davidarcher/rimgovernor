@@ -38,8 +38,12 @@ namespace HomeBridge.BridgeTools
     // copy from another tracker (another shape, or one evicted) is never
     // held against. Contexts equal to the root's are stripped before
     // digesting, so a part that says the same thing at a later tick is
-    // unchanged; the caller restamps them. Tombstones and the STALE bound
-    // follow the entity lists' rule (EntityTracking, #358).
+    // unchanged; the caller restamps them. Tombstones follow the entity
+    // lists' bounds (EntityTracking: one game day, a count cap). An ask this
+    // tracker cannot answer (another tracker's, older than the window or a
+    // dropped tombstone, or not before this read) gets a full reply inline,
+    // without since, so the caller replaces its copy in one round trip
+    // (#795).
     internal sealed class SectionDelta
     {
         private const int MinBlock = 96;
@@ -65,6 +69,7 @@ namespace HomeBridge.BridgeTools
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
         private readonly Dictionary<string, HashSet<string>> members = new Dictionary<string, HashSet<string>>();
         private readonly Dictionary<string, Mark> removed = new Dictionary<string, Mark>();
+        private Mark forgot = new Mark { Tick = long.MinValue }; // newest tombstone the cap dropped
         private int visits; // this tracker's own read count, for continuity
         private Mark now;
         private long used;
@@ -79,13 +84,12 @@ namespace HomeBridge.BridgeTools
 
         // Apply tracks root (a snapshot about to be encoded) under shape and,
         // when ask names this tracker, strips the parts unchanged since its
-        // watermark. It returns null for an ask older than the tombstone
-        // window: the read is refused as STALE. Safe on any thread: the
+        // watermark; since is set exactly when it did (a delta). Safe on any
+        // thread: the
         // snapshot must be detached from the game.
-        internal static Obs.SectionDelta? Apply(string shape, Obs.SectionDeltaAsk? ask, IMessage root, Common.ObservationContext context)
+        internal static Obs.SectionDelta Apply(string shape, Obs.SectionDeltaAsk? ask, IMessage root, Common.ObservationContext context)
         {
             var watch = Stopwatch.StartNew();
-            if (ask?.Since != null && context.Tick - ask.Since.Tick > EntityTracking.TombstoneWindow) return null;
             SectionDelta tracker;
             Mark mark;
             lock (Trackers)
@@ -101,7 +105,6 @@ namespace HomeBridge.BridgeTools
                 tracker.used = Stopwatch.GetTimestamp();
             }
             var delta = new Obs.SectionDelta { Tracker = tracker.id, AsOf = new Obs.Watermark { Tick = mark.Tick, Seq = mark.Seq } };
-            if (ask?.Since != null) delta.Since = ask.Since.Clone();
             lock (tracker)
             {
                 var stripped = new List<KeyValuePair<IMessage, FieldDescriptor>>();
@@ -109,18 +112,25 @@ namespace HomeBridge.BridgeTools
                 tracker.visits++;
                 tracker.now = mark;
                 tracker.Visit(root, "", 0);
+                foreach (var gone in tracker.removed.Where(pair => mark.Tick - pair.Value.Tick > EntityTracking.TombstoneWindow).Select(pair => pair.Key).ToList()) tracker.removed.Remove(gone);
+                if (tracker.removed.Count > EntityTracking.MaxTombstones)
+                    foreach (var pair in tracker.removed.OrderBy(pair => pair.Value.Tick).ThenBy(pair => pair.Value.Seq).Take(tracker.removed.Count - EntityTracking.MaxTombstones).ToList())
+                    {
+                        tracker.removed.Remove(pair.Key);
+                        if (pair.Value.CompareTo(tracker.forgot) > 0) tracker.forgot = pair.Value;
+                    }
                 if (ask != null && ask.Tracker == tracker.id && ask.Since != null)
                 {
                     var since = new Mark { Tick = ask.Since.Tick, Seq = ask.Since.Seq };
-                    if (since.CompareTo(mark) < 0)
+                    if (since.CompareTo(mark) < 0 && mark.Tick - since.Tick <= EntityTracking.TombstoneWindow && since.CompareTo(tracker.forgot) > 0)
                     {
+                        delta.Since = ask.Since.Clone();
                         tracker.Hold(root, "", 0, since, delta.Held);
                         delta.Removed.Add(tracker.removed.Where(pair => pair.Value.CompareTo(since) > 0).Select(pair => pair.Key).OrderBy(key => key, System.StringComparer.Ordinal));
                     }
                 }
                 foreach (var pair in stripped) pair.Value.Accessor.SetValue(pair.Key, context.Clone());
                 foreach (var gone in tracker.entries.Where(pair => tracker.visits - pair.Value.Seen > ForgetAfter).Select(pair => pair.Key).ToList()) tracker.entries.Remove(gone);
-                foreach (var gone in tracker.removed.Where(pair => mark.Tick - pair.Value.Tick > EntityTracking.TombstoneWindow).Select(pair => pair.Key).ToList()) tracker.removed.Remove(gone);
                 delta.Tracked = (uint)tracker.entries.Count;
             }
             delta.DigestMs = watch.Elapsed.TotalMilliseconds;

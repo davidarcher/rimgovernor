@@ -18,7 +18,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -1756,12 +1755,12 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 	store := s.facts.store
 	stale := func(section facts.Section) bool { return sectionRides(store, section, tick, s.lastTickKnown, wanted) }
 	// A mirrored entity section rides whole only as a keyframe (#795):
-	// when none is held, or its watermark has left the tombstone window.
-	// Otherwise the review's refresher pulls its delta.
+	// when none is held. Otherwise the review's refresher pulls its delta,
+	// which the native answers in full when its tombstones cannot.
 	held := store.AsOf()
 	keyframe := func(section facts.Section) bool {
-		asOf, ok := held[section]
-		return !s.lastTickKnown || !ok || !mirror.Usable(entityMirror[*o.ZoneState]{}, mirror.At(asOf), tick)
+		_, ok := held[section]
+		return !s.lastTickKnown || !ok
 	}
 	_, entities := s.native.(EntityNative)
 	_, zones := s.native.(observation.ZonesNative)

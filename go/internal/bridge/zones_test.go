@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
-	"time"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -20,9 +20,12 @@ func zoneTestPage() *o.ZonesSnapshot {
 	return &o.ZonesSnapshot{Context: ctx, AsOfTick: proto.Int64(3000), Zones: []*o.ZoneState{{Id: proto.String("Zone_1"), FoodStorage: proto.Bool(true), Snapshot: &o.SnapshotRef{Context: ctx, EntityId: proto.String("Zone_1"), Token: proto.String("z")}}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Returned: proto.Uint64(1), Matched: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
 }
 
-func TestZoneRefusalFallsBackExactlyOnce(t *testing.T) {
-	for _, reason := range []string{ZoneDeltaExpired, ZoneTrackingUnavailable, "other"} {
-		t.Run(reason, func(t *testing.T) {
+// An ask the native's tombstones cannot answer comes back as the full
+// census inline (#795): one round trip, Delta false, so the held census is
+// replaced. A refusal is a genuine error and is never retried in full.
+func TestZoneUnanswerableAskIsAFullReplyInline(t *testing.T) {
+	for _, refuse := range []bool{false, true} {
+		t.Run(fmt.Sprint("refuse=", refuse), func(t *testing.T) {
 			var asks []int64
 			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 				var outer struct {
@@ -36,26 +39,26 @@ func TestZoneRefusalFallsBackExactlyOnce(t *testing.T) {
 					t.Fatal(err)
 				}
 				asks = append(asks, q.GetChangedSinceTick())
-				if len(asks) == 1 {
-					if reason != "other" {
-						return pbResult(&o.ListZonesReply{Outcome: &o.ListZonesReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_STALE.Enum(), Detail: proto.String(reason)}}}), nil
-					}
-					return pbResult(&o.ListZonesReply{Outcome: &o.ListZonesReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum(), Detail: proto.String(reason)}}}), nil
+				if refuse {
+					return pbResult(&o.ListZonesReply{Outcome: &o.ListZonesReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_STALE.Enum()}}}), nil
 				}
-				if q.ChangedSinceTick != nil {
-					t.Fatal("fallback retained delta tick")
-				}
-				return pbResult(&o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: zoneTestPage()}}), nil
-			}}, time.Second)
+				page := zoneTestPage()
+				page.AsOfTick = nil
+				return pbResult(&o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: page}}), nil
+			}}, testBudget)
 			got, _, err := client.ReadZoneSection(context.Background(), pbIdentity(), 10)
-			if reason == "other" {
-				if !errors.Is(err, ErrRefused) || len(asks) != 1 {
+			if refuse {
+				if !errors.Is(err, ErrUnavailable) || len(asks) != 1 {
 					t.Fatal(asks, err)
 				}
 				return
 			}
-			if err != nil || len(asks) != 2 || asks[1] != 0 || !got.Fallback || got.Delta || got.AsOf != 3000 || len(got.Rows) != 1 {
+			if err != nil || len(asks) != 1 || asks[0] != 10 || got.Delta || got.AsOf != 3000 || len(got.Rows) != 1 {
 				t.Fatal(asks, got, err)
+			}
+			held := ZonesRead{AsOf: 5, Rows: []*o.ZoneState{{Id: proto.String("Zone_gone")}}}
+			if merged := MergeZones(held, got); len(merged.Rows) != 1 || merged.Rows[0].GetId() != "Zone_1" {
+				t.Fatal("full reply did not replace the held census", merged)
 			}
 		})
 	}
@@ -75,8 +78,8 @@ func TestZonesMergeTombstonesAndDrift(t *testing.T) {
 	if ZoneDrift(held, full) != 3 {
 		t.Fatal("missing added removed or changed drift")
 	}
-	if got := MergeZones(held, ZonesRead{AsOf: 30, Fallback: true}); len(got.Rows) != 0 || got.AsOf != 30 {
-		t.Fatal("full fallback did not replace", got)
+	if got := MergeZones(held, ZonesRead{AsOf: 30}); len(got.Rows) != 0 || got.AsOf != 30 {
+		t.Fatal("full read did not replace", got)
 	}
 }
 

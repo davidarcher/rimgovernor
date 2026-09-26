@@ -9,34 +9,40 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Stateless, inclusive tick deltas. Only removals need retention; a
-    // caller older than that retention must replace its held census.
+    // Stateless, inclusive tick deltas. Only removals need retention:
+    // tombstones are kept EntityTracking.TombstoneWindow ticks and at most
+    // EntityTracking.MaxTombstones ids (#795). An ask they cannot answer
+    // (older than the window, than a tombstone the cap dropped, or than the
+    // tracker itself) is read in full inline.
     internal sealed class ZoneTracking
     {
-        internal const int Window = 2500;
-        internal const string Expired = "entity_tombstone_window_expired";
-        internal const string BeforeTracking = "entity_tracking_not_available";
         private static readonly ConditionalWeakTable<Map, ZoneTracking> Maps = new ConditionalWeakTable<Map, ZoneTracking>();
         private static bool installed;
         private readonly Dictionary<string, int> lastChangedByEntityId = new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly LinkedList<(string id, int removedTick)> tombstones = new LinkedList<(string, int)>();
         private readonly Dictionary<string, Obs.ZoneState> shadows = new Dictionary<string, Obs.ZoneState>(StringComparer.Ordinal);
+        private int forgotThrough = int.MinValue; // newest tombstone the cap dropped
         internal readonly int Since;
 
         private ZoneTracking(int since) { Since = since; Install(); }
         internal static void Initialize(Map map, int since) => Maps.GetValue(map, _ => new ZoneTracking(since));
         internal static ZoneTracking For(Map map) { CellTracking.For(map); return Maps.GetValue(map, _ => new ZoneTracking(Find.TickManager.TicksGame - 1)); }
-        internal string? Refusal(long since)
+
+        // Covers reports whether a positive since can be answered as a delta.
+        internal bool Covers(long since)
         {
             Prune();
-            if (since <= 0) return null;
-            if (since < Find.TickManager.TicksGame - Window) return Expired;
-            return since < Since ? BeforeTracking : null;
+            return since >= Find.TickManager.TicksGame - EntityTracking.TombstoneWindow && since >= Since && since > forgotThrough;
         }
         private void Prune()
         {
-            while (tombstones.First != null && tombstones.First.Value.removedTick < Find.TickManager.TicksGame - Window)
+            while (tombstones.First != null && tombstones.First.Value.removedTick < Find.TickManager.TicksGame - EntityTracking.TombstoneWindow)
                 tombstones.RemoveFirst();
+            while (tombstones.Count > EntityTracking.MaxTombstones)
+            {
+                if (tombstones.First!.Value.removedTick > forgotThrough) forgotThrough = tombstones.First.Value.removedTick;
+                tombstones.RemoveFirst();
+            }
         }
         private void Bump(Zone zone) => lastChangedByEntityId[zone.GetUniqueLoadID()] = Find.TickManager.TicksGame;
         private void Remove(Zone zone)
@@ -44,7 +50,6 @@ namespace HomeBridge.BridgeTools
             var id = zone.GetUniqueLoadID();
             lastChangedByEntityId.Remove(id);
             shadows.Remove(id);
-            Prune();
             tombstones.AddLast((id, Find.TickManager.TicksGame));
         }
         internal IEnumerable<string> Removed(long since) => tombstones.Where(t => t.removedTick >= since && !lastChangedByEntityId.ContainsKey(t.id)).Select(t => t.id).Distinct();

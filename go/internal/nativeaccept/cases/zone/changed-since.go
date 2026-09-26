@@ -16,7 +16,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "zone/changed-since", Scope: "Zone add, cell add/remove, crop change and removal return deltas and tombstones; merged facts equal a full census, and the colony aggregate omits farms, food_storage and zone_map_snapshot.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, false) }})
-	cases.Register(cases.Case{Name: "zone/tombstone-expiry", Scope: "After 2501 actual ticks a removed zone's delta cursor is refused with entity_tombstone_window_expired; the production Go reader falls back to a full census without resurrecting the zone.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, true) }})
+	cases.Register(cases.Case{Name: "zone/tombstone-expiry", Scope: "Past the 60000-tick tombstone window a removed zone's delta ask is answered by the full census inline (no as_of_tick, #795) in one round trip, without resurrecting the zone.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, true) }})
 }
 
 func zoneDelta(ctx context.Context, s cases.Session, expire bool) error {
@@ -136,22 +136,21 @@ func zoneDelta(ctx context.Context, s cases.Session, expire bool) error {
 		if err != nil {
 			return err
 		}
-		_, failure, err := na.Outcome(reply, "unavailable")
+		_, observed, err := na.Outcome(reply, "observed")
 		if err != nil {
 			return err
 		}
-		if failure["detail"] != bridge.ZoneDeltaExpired {
-			return fmt.Errorf("wrong expiry refusal: %v", failure)
+		if _, delta := observed["asOfTick"]; delta {
+			return fmt.Errorf("an ask past the window came back as a delta: %v", observed)
 		}
-		fallback, err := read(full.AsOf)
+		inline, err := read(full.AsOf)
 		if err != nil {
 			return err
 		}
-		if !fallback.Fallback || fallback.Delta || find(fallback) != nil {
-			return fmt.Errorf("expired zone delta failed to resync")
+		if inline.Delta || find(inline) != nil || len(inline.Removed) != 0 {
+			return fmt.Errorf("expired zone delta was not answered by the full census")
 		}
-		s.Report()["refusal"] = failure["detail"]
-		s.Report()["fallback"] = fallback.Fallback
+		s.Report()["inline_full_rows"] = len(inline.Rows)
 	}
 	aggregate, err := h.Wire(ctx, "aggregate-without-zones", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}, "planning": true})
 	if err != nil {

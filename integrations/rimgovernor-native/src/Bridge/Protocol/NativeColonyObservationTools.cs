@@ -61,7 +61,6 @@ namespace HomeBridge.BridgeTools
                 Bound(reply.Observed);
                 var shape = parsed.Clone(); shape.ChangedSince = null;
                 reply.Observed.Delta = SectionDelta.Apply(SectionDelta.Shape(ToolName, reply.Observed.Context.Identity, shape), parsed.ChangedSince, reply.Observed, reply.Observed.Context);
-                if (reply.Observed.Delta == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "Colony facts changed-since watermark is older than the tombstone window; read in full.") });
                 if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Colony facts exceed1MiB; largest sections (wire bytes): " + LargestSections(reply.Observed) + ".");
                 return ProtoBoundary.Encode(reply, compact: true);
             }

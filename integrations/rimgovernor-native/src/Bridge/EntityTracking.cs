@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     // (map, query shape) remembers, for every entity the shape lists, a
     // digest of the row it last emitted and the tick that digest last
     // changed, plus the ids it stopped listing with the tick they went,
-    // kept for TombstoneWindow ticks.
+    // kept for TombstoneWindow ticks and at most MaxTombstones ids.
     //
     // Change detection is by digest at read time rather than by hooks: a
     // list read projects every entity anyway (the rows are what it
@@ -33,12 +33,21 @@ namespace HomeBridge.BridgeTools
     //
     // A removed entity is one a complete enumeration no longer lists;
     // reads narrowed by ids, a region, a name or a bench never enumerate
-    // completely and refuse the ask. An ask older than the tombstone
-    // window is refused as STALE (the tombstones it needs may be gone) and
-    // the controller reads in full.
+    // completely and refuse the ask. An ask the tombstones cannot answer
+    // (older than the window, or than a tombstone the count cap dropped)
+    // gets a full reply inline, without as_of_tick, so the caller replaces
+    // what it holds in the same round trip (#795).
     internal sealed class EntityTracking
     {
-        internal const int TombstoneWindow = 2500;
+        // One game day: a controller that reviews at least daily always
+        // gets a delta.
+        internal const int TombstoneWindow = 60000;
+
+        // The count bound on one tracker's tombstones. A building placement
+        // retires a blueprint and a frame id, so a heavy building day is a
+        // few hundred to a thousand tombstones; 4096 ids of ~40 bytes keep
+        // a tracker under ~0.5 MB while leaving that day several times over.
+        internal const int MaxTombstones = 4096;
 
         private static readonly ConditionalWeakTable<Map, Dictionary<string, EntityTracking>> Maps = new ConditionalWeakTable<Map, Dictionary<string, EntityTracking>>();
 
@@ -46,6 +55,7 @@ namespace HomeBridge.BridgeTools
 
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
         private readonly Dictionary<string, int> removed = new Dictionary<string, int>();
+        private int forgotThrough = int.MinValue; // newest tombstone the cap dropped
 
         // For is the tracker of one query shape on map (the tool name plus
         // the options that shape its rows), created on first use.
@@ -56,9 +66,19 @@ namespace HomeBridge.BridgeTools
             return tracking;
         }
 
-        // Expired reports an ask the tombstones cannot answer: older than
-        // the window before now.
-        internal static bool Expired(long since) => Find.TickManager.TicksGame - since > TombstoneWindow;
+        // Covers reports an ask the tombstones can answer: within the
+        // window before now and newer than any tombstone the cap dropped.
+        // It enforces the cap first, so the answer holds for this read.
+        internal bool Covers(long since)
+        {
+            if (removed.Count > MaxTombstones)
+                foreach (var pair in removed.OrderBy(pair => pair.Value).Take(removed.Count - MaxTombstones).ToList())
+                {
+                    removed.Remove(pair.Key);
+                    if (pair.Value > forgotThrough) forgotThrough = pair.Value;
+                }
+            return Find.TickManager.TicksGame - since <= TombstoneWindow && since > forgotThrough;
+        }
 
         // Note records row as the entity's current state and returns the
         // tick it last changed: now when the entity is new to the tracker
@@ -75,7 +95,7 @@ namespace HomeBridge.BridgeTools
 
         // Sweep, after a complete enumeration, marks every tracked entity
         // the enumeration did not list as removed now, and forgets the
-        // tombstones older than the window.
+        // tombstones older than the window (the count cap is Covers').
         internal void Sweep(HashSet<string> listed)
         {
             int now = Find.TickManager.TicksGame;

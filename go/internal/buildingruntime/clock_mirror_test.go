@@ -15,8 +15,8 @@ import (
 
 // trackingNative answers the entity reads the way a native with entity
 // tracking does (#358): a delta lists the rows changed at or after the
-// since tick and the ids removed since, refusing a since older than the
-// tombstone window. Buildings and bills carry the same rows as zones.
+// since tick and the ids removed since, answering a since older than the
+// one-day tombstone window in full inline (#795). Buildings and bills carry the same rows as zones.
 type trackingNative struct {
 	tick    int64
 	rows    map[string]*o.ZoneState
@@ -27,8 +27,8 @@ type trackingNative struct {
 
 func (n *trackingNative) read(since int64) (bridge.EntityRows[*o.ZoneState], error) {
 	n.asks = append(n.asks, since)
-	if since > 0 && n.tick-since > bridge.EntityTombstoneWindow {
-		return bridge.EntityRows[*o.ZoneState]{}, bridge.ErrDeltaExpired
+	if since > 0 && n.tick-since > 60000 {
+		since = 0
 	}
 	out := bridge.EntityRows[*o.ZoneState]{Context: &c.ObservationContext{Tick: proto.Int64(n.tick)}, Rows: map[string]*o.ZoneState{}, Delta: since > 0}
 	for id, row := range n.rows {

@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal const string RecipesToolName = "rimgovernor/observations_read_recipes";
         private const int MaxRows = 256;
 
-        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes. changed_since_tick (reads without bench_id) lists the benches whose stack changed at or after that tick, counts the rest in unchanged and names the benches removed since in removed_ids; an ask older than 2500 ticks is STALE and needs a full read. as_of_tick is always the context tick.")]
+        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes. changed_since_tick (reads without bench_id) lists the benches whose stack changed at or after that tick, counts the rest in unchanged and names the benches removed since in removed_ids; an ask older than the tombstone window (60000 ticks, 4096 ids) gets a full reply instead. as_of_tick, the context tick, marks a delta reply; a full reply omits it.")]
         [ToolResponse("payload", "string", "Official ProtoJSON BillsReply.", Always = true)]
         public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)
@@ -57,12 +57,13 @@ namespace HomeBridge.BridgeTools
                 // benches: a full one primes the shadow and sweeps the
                 // removed, a changed_since one lists only the changed.
                 var tracking = parsed.HasBenchId ? null : EntityTracking.For(map, BillsToolName + parsed.AllFactions);
-                if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
-                    return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") };
-                var snapshot = new Obs.BillsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0 };
+                // An ask the tombstones cannot answer is read in full (#795).
+                var delta = parsed.HasChangedSinceTick && tracking!.Covers(parsed.ChangedSinceTick);
+                var snapshot = new Obs.BillsSnapshot { Context = context };
                 var rows = new Dictionary<string, Obs.BillStack>();
+                if (delta) { snapshot.AsOfTick = context.Tick; snapshot.Unchanged = 0; }
                 var listed = benches;
-                if (parsed.HasChangedSinceTick)
+                if (delta)
                 {
                     listed = new List<Thing>();
                     foreach (var bench in benches)
@@ -75,7 +76,7 @@ namespace HomeBridge.BridgeTools
                 if (tracking != null)
                 {
                     tracking.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
-                    if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                    if (delta) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
                 }
                 var afterCursor = listed;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)

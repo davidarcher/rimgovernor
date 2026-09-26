@@ -103,10 +103,10 @@ func TestReadZonesRefusalsAndContractFaults(t *testing.T) {
 		reply func() *o.ListZonesReply
 		want  []error
 	}{
-		"expired delta": {40, func() *o.ListZonesReply {
-			return &o.ListZonesReply{Outcome: &o.ListZonesReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_STALE.Enum(), Detail: proto.String("changed_since_tick is older than the tombstone window.")}}}
-		}, []error{ErrDeltaExpired, ErrUnavailable}},
-		"stale on a full read is not expiry": {0, func() *o.ListZonesReply {
+		"stale on a delta is a genuine error": {40, func() *o.ListZonesReply {
+			return &o.ListZonesReply{Outcome: &o.ListZonesReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_STALE.Enum()}}}
+		}, []error{ErrUnavailable}},
+		"stale on a full read": {0, func() *o.ListZonesReply {
 			return &o.ListZonesReply{Outcome: &o.ListZonesReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_STALE.Enum()}}}
 		}, []error{ErrUnavailable}},
 		"refused": {0, func() *o.ListZonesReply {

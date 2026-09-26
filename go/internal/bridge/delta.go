@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -19,11 +18,14 @@ import (
 // them, the native omits every part unchanged since and lists it as held,
 // and readCall restores each held part from the reply it holds for that
 // watermark before any caller sees it. Callers, the step cache and
-// validators see exactly the full reply the native would have sent. A full
-// read happens every deltaResyncEvery-th read of a request (the backstop),
-// after a STALE refusal (the ask outlived the tombstone window, #358), and
-// after a delta that cannot be completed (its base is gone, a held path
-// does not resolve, or a tombstoned element is still listed).
+// validators see exactly the full reply the native would have sent. A
+// reply is a delta exactly when its delta names since; an ask the native
+// cannot answer (another tracker, or older than its one-day tombstone
+// window or count cap, #795) comes back full, in the same round trip, and
+// replaces what is held. A full read happens every deltaResyncEvery-th
+// read of a request (the backstop), and after a delta that cannot be
+// completed (its base is gone, a held path does not resolve, or a
+// tombstoned element is still listed): a genuine error.
 
 // deltaResyncEvery is the backstop cadence: every this-many reads of one
 // request go without an ask.
@@ -126,19 +128,16 @@ func (caller *Client) readCall(ctx context.Context, name string, request, reply 
 		return result, err
 	}
 	snapshot, delta := trackedSnapshot(reply)
-	if ask == nil {
+	if ask == nil || snapshot == nil || delta.GetSince() == nil {
+		// A full reply, asked or not.
 		if len(delta.GetHeld()) != 0 || len(delta.GetRemoved()) != 0 {
 			return result, contract("full read held parts")
 		}
-		caller.deltaKeep(ctx, name, key, snapshot, delta)
+		caller.deltaKeep(ctx, name, key, snapshot, delta, ask != nil)
 		return result, nil
 	}
 	failure := ""
 	switch {
-	case staleRefusal(reply):
-		failure = "stale"
-	case snapshot == nil:
-		return result, nil
 	case len(delta.GetHeld()) != 0 || len(delta.GetRemoved()) != 0:
 		base := caller.deltas.base(key, deltaMark(delta.GetTracker(), delta.GetSince()))
 		switch {
@@ -165,7 +164,7 @@ func (caller *Client) readCall(ctx context.Context, name string, request, reply 
 			return result, contract("full read held parts")
 		}
 	}
-	caller.deltaKeep(ctx, name, key, snapshot, delta)
+	caller.deltaKeep(ctx, name, key, snapshot, delta, false)
 	return result, nil
 }
 
@@ -179,20 +178,10 @@ func (caller *Client) deltaCall(ctx context.Context, name string, request, reply
 	return caller.protoCall(ctx, name, asked, reply)
 }
 
-// staleRefusal is a reply the native refused as STALE.
-func staleRefusal(reply proto.Message) bool {
-	message := reply.ProtoReflect()
-	field := message.Descriptor().Fields().ByName("unavailable")
-	if field == nil || !message.Has(field) {
-		return false
-	}
-	unavailable, _ := message.Get(field).Message().Interface().(*c.Unavailable)
-	return unavailable.GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_STALE
-}
-
 // deltaKeep stores a complete observed snapshot under its watermark and
 // removes the delta field, so the reply is the one a full read returns.
-func (caller *Client) deltaKeep(ctx context.Context, name, key string, snapshot protoreflect.Message, delta *o.SectionDelta) {
+// inline marks a full reply to a delta ask.
+func (caller *Client) deltaKeep(ctx context.Context, name, key string, snapshot protoreflect.Message, delta *o.SectionDelta, inline bool) {
 	if snapshot == nil {
 		return
 	}
@@ -201,11 +190,13 @@ func (caller *Client) deltaKeep(ctx context.Context, name, key string, snapshot 
 		return
 	}
 	caller.deltas.put(key, delta, proto.Clone(snapshot.Interface()))
-	outcome := "full"
-	if len(delta.GetHeld()) > 0 {
+	outcome, detail := "full", ""
+	if delta.GetSince() != nil {
 		outcome = "delta"
+	} else if inline {
+		detail = "inline"
 	}
-	caller.recordDelta(ctx, name, delta, outcome, "")
+	caller.recordDelta(ctx, name, delta, outcome, detail)
 }
 
 func (caller *Client) recordDelta(ctx context.Context, name string, delta *o.SectionDelta, outcome, detail string) {

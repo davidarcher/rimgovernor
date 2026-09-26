@@ -8,8 +8,13 @@ import (
 	"testing"
 )
 
+// window is the native tombstone window (EntityTracking.TombstoneWindow,
+// one game day, #795).
+const window = 60000
+
 // world is a native section with change tracking: rows stamped with the
-// tick they last changed, tombstones kept for TombstoneWindow ticks.
+// tick they last changed, tombstones kept for window ticks; an older ask
+// is answered in full inline.
 type world struct {
 	tick    int64
 	rows    map[string]string
@@ -41,14 +46,13 @@ func (w *world) drop(id string) {
 	w.removed[id] = w.tick
 }
 
-func (w *world) Window() int64          { return TombstoneWindow }
 func (w *world) Name() string           { return "things" }
 func (w *world) Equal(a, b string) bool { return a == b }
 func (w *world) Read(_ context.Context, mark Watermark) (Read[string, string], error) {
 	since := mark.Tick
 	w.reads = append(w.reads, since)
-	if since > 0 && w.tick-since > TombstoneWindow {
-		return Read[string, string]{}, ErrExpired
+	if since > 0 && w.tick-since > window {
+		since = 0
 	}
 	out := Read[string, string]{AsOf: At(w.tick), Delta: since > 0, Rows: map[string]string{}, Counted: since > 0}
 	for id, value := range w.rows {
@@ -118,8 +122,18 @@ func TestMirrorRefreshKinds(t *testing.T) {
 	refresh() // keyframe
 	w.tick = 20
 	refresh() // delta
-	w.tick = 20 + TombstoneWindow + 1
-	refresh() // keyframe: the window was outrun
+	w.tick = 20 + 2501
+	refresh() // delta: the old 2500-tick bound no longer applies
+	w.drop("a")
+	w.tick = 2521 + window + 1
+	reads := len(w.reads)
+	refresh() // keyframe: the window was outrun and the native answered in full
+	if len(w.reads) != reads+1 {
+		t.Fatalf("an outrun window took %d reads, want 1", len(w.reads)-reads)
+	}
+	if table, _ := Get[string, string](m, scope, "things"); len(table.Rows) != 0 || table.AsOf != At(w.tick) {
+		t.Fatalf("inline full reply did not replace the section: %+v", table)
+	}
 	w.tick++
 	w.miss = true
 	w.set("b", "2")
@@ -129,7 +143,7 @@ func TestMirrorRefreshKinds(t *testing.T) {
 	}
 	scope.Generation = 2
 	refresh() // keyframe: generation flip
-	want := []Kind{Keyframe, Delta, Keyframe, Resync, Keyframe}
+	want := []Kind{Keyframe, Delta, Delta, Keyframe, Resync, Keyframe}
 	if fmt.Sprint(kinds) != fmt.Sprint(want) {
 		t.Fatalf("kinds %v, want %v", kinds, want)
 	}
