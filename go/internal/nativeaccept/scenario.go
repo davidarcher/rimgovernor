@@ -747,6 +747,38 @@ func (rt *ScenarioRuntime) identityNow(ctx context.Context) (map[string]any, err
 // healthDropFraction per window, so this many is a colonist near downing.
 const combatHealthStopsPerAdvance = 8
 
+// pacingStopsPerAdvance bounds the pacing stops (continuableStop) one
+// AdvanceGame call continues past, per reason. Each is a clean stop that
+// consumed game time, so a healthy window sees a handful; a watch that
+// re-fires every tick would otherwise spin the tick budget out one stop at a
+// time until the timeout, with the reason buried in the evidence.
+const pacingStopsPerAdvance = 64
+
+// continuableStop reports whether a clock stop is pacing rather than an
+// interruption (#675). The set is global, not a cases.Case field beside
+// Letters: notification_batch is the native batching a pending notification,
+// which says nothing about the window in any case, and hostile is the threat
+// watch firing, which is the situation under test exactly when the window
+// commits combat targets and an unexpected threat everywhere else. Letters is
+// per-case because which letters are expected is; which stop reasons are
+// pacing is not.
+func continuableStop(reason string, combat bool) bool {
+	switch reason {
+	case "notification_batch":
+		return true
+	case "hostile":
+		return combat
+	}
+	return false
+}
+
+// countPacingStop records one continuable stop and reports whether reason is
+// still within pacingStopsPerAdvance for the advance.
+func countPacingStop(counts map[string]int, reason string) bool {
+	counts[reason]++
+	return counts[reason] <= pacingStopsPerAdvance
+}
+
 // AdvanceOption configures one AdvanceGame call.
 type AdvanceOption func(*advanceOptions)
 
@@ -840,6 +872,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 	remaining := ticks
 	seen := map[string]bool{}
 	healthStops := 0
+	pacingStops := map[string]int{}
 
 	runErr := func() error {
 		for remaining > 0 {
@@ -968,6 +1001,15 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 					}
 				}
 				if err := require(standing, "Colonist downed under the combat health guard"); err != nil {
+					return err
+				}
+				continue
+			}
+			if continuableStop(stopReason, len(options.combatTargets) > 0) {
+				// A pacing stop invalidates nothing: record it and run the
+				// rest of the window (#675).
+				detail["pacing"] = true
+				if err := require(countPacingStop(pacingStops, stopReason), "Pacing stops exhausted: clock stopped on "+stopReason+" past the per-advance bound"); err != nil {
 					return err
 				}
 				continue
