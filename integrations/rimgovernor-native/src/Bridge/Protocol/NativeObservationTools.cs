@@ -299,6 +299,9 @@ namespace HomeBridge.BridgeTools
                 Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid,
                 Predator=pawn.RaceProps.predator, ManhunterOnDamageChance=Finite(pawn.RaceProps.manhunterOnDamageChance) };
             if (pawn.Faction != null) row.FactionId=Identifier(pawn.Faction.GetUniqueLoadID());
+            // Fog is the discovery fact, not a guess at reachability: a hostile
+            // the colony has never seen is no emergency (#659).
+            row.Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map);
             var mental = pawn.MentalState;
             if (mental != null) {
                 row.MentalState=Identifier(mental.def.defName);

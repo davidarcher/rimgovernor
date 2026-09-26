@@ -4664,7 +4664,12 @@ type PawnState struct {
 	// Doctor-side tend gates, mirroring NativeTendOperations.Prepare so the
 	// controller never proposes a pair the native gate refuses (#657). Present
 	// only when PawnDetails.tend is requested.
-	TendDoctor    *PawnTendDoctor `protobuf:"bytes,42,opt,name=tend_doctor,json=tendDoctor,proto3" json:"tend_doctor,omitempty"`
+	TendDoctor *PawnTendDoctor `protobuf:"bytes,42,opt,name=tend_doctor,json=tendDoctor,proto3" json:"tend_doctor,omitempty"`
+	// Verse.IntVec3.Fogged: the pawn stands in fog the colony has not
+	// discovered. A fogged hostile is undiscovered, unreachable and no
+	// emergency -- the ancient-danger mechanoid behind a sealed wall held
+	// every window and deselected every development goal for good (#659).
+	Fogged        *bool `protobuf:"varint,43,opt,name=fogged,proto3,oneof" json:"fogged,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4991,6 +4996,13 @@ func (x *PawnState) GetTendDoctor() *PawnTendDoctor {
 		return x.TendDoctor
 	}
 	return nil
+}
+
+func (x *PawnState) GetFogged() bool {
+	if x != nil && x.Fogged != nil {
+		return *x.Fogged
+	}
+	return false
 }
 
 type PawnTendDoctor struct {
@@ -35696,7 +35708,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\v\n" +
 	"\t_obedientB\x19\n" +
-	"\x17_supports_allowed_areas\"\xe1\x13\n" +
+	"\x17_supports_allowed_areas\"\x89\x14\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +
@@ -35746,7 +35758,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"raid_armor\x18) \x01(\x01H\x1bR\traidArmor\x88\x01\x01\x12L\n" +
 	"\vtend_doctor\x18* \x01(\v2+.rimgovernor.observations.v1.PawnTendDoctorR\n" +
-	"tendDoctorB\x10\n" +
+	"tendDoctor\x12\x1b\n" +
+	"\x06fogged\x18+ \x01(\bH\x1cR\x06fogged\x88\x01\x01B\x10\n" +
 	"\x0e_kind_def_nameB\r\n" +
 	"\v_faction_idB\v\n" +
 	"\t_colonistB\x10\n" +
@@ -35779,7 +35792,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_lord_toil_classB\x18\n" +
 	"\x16_mental_state_is_aggroB\x15\n" +
 	"\x13_mental_state_ticksB\r\n" +
-	"\v_raid_armor\"\xef\x03\n" +
+	"\v_raid_armorB\t\n" +
+	"\a_fogged\"\xef\x03\n" +
 	"\x0ePawnTendDoctor\x12.\n" +
 	"\x10control_eligible\x18\x01 \x01(\bH\x00R\x0fcontrolEligible\x88\x01\x01\x12\x1d\n" +
 	"\aspawned\x18\x02 \x01(\bH\x01R\aspawned\x88\x01\x01\x12$\n" +

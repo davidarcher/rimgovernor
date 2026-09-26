@@ -107,6 +107,43 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 		t.Fatal("downed untended pawn cleared")
 	}
 }
+
+// A hostile the colony has not discovered is no emergency: the ancient-danger
+// mechanoid sealed behind a shrine wall held the clock on unsafe_colony and
+// deselected every development goal, the ClearAncientShrine breach that would
+// have released it included (#659).
+func TestEmergencyUndiscoveredThreatNeitherHoldsNorCounts(t *testing.T) {
+	for _, kind := range []ThreatKind{Hostile, HuntingPredator, HostileBuilding} {
+		f := completeEmergency()
+		row := EmergencyThreat{ID: "guard", Kind: kind, Dead: domain.Known(false), Downed: domain.Known(false), Fogged: domain.Known(true)}
+		if kind == HostileBuilding {
+			row.SnapshotToken, row.Definition, row.Cells = "token", "Hive", []domain.Cell{{X: 1, Z: 1}}
+		}
+		f.Threats = []EmergencyThreat{row}
+		if !evaluateEmergency(t, f).Clear {
+			t.Fatalf("fogged %v held", kind)
+		}
+		snapshot, err := NewEmergencySnapshot(emergencyScope(), 10, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hostiles, _ := EmergencyNeeds(snapshot, emergencyScope(), 10); !reflect.DeepEqual(hostiles, domain.Known(int64(0))) {
+			t.Fatalf("fogged %v counted as a hostile: %v", kind, hostiles)
+		}
+		// Unread health behind fog is nothing to hold for either.
+		f.Threats[0].Dead, f.Threats[0].Downed = domain.Unknown[bool](), domain.Unknown[bool]()
+		if !evaluateEmergency(t, f).Clear {
+			t.Fatalf("fogged %v with unread health held", kind)
+		}
+		// Unknown or false fog is a discovered threat and still holds.
+		for _, fog := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
+			f.Threats[0].Dead, f.Threats[0].Downed, f.Threats[0].Fogged = domain.Known(false), domain.Known(false), fog
+			if !hasEmergencyHold(evaluateEmergency(t, f), EmergencyUnsafeThreat, "guard") {
+				t.Fatalf("discovered %v cleared under fog %v", kind, fog)
+			}
+		}
+	}
+}
 func TestEmergencyThreatCategoriesAndContradictions(t *testing.T) {
 	for _, kind := range []ThreatKind{Hostile, HuntingPredator, IgnoredHunter, NearbyPredator, NearbyDowned} {
 		f := completeEmergency()

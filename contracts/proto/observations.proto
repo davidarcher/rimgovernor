@@ -312,6 +312,11 @@ message PawnState {
   // controller never proposes a pair the native gate refuses (#657). Present
   // only when PawnDetails.tend is requested.
   PawnTendDoctor tend_doctor = 42;
+  // Verse.IntVec3.Fogged: the pawn stands in fog the colony has not
+  // discovered. A fogged hostile is undiscovered, unreachable and no
+  // emergency -- the ancient-danger mechanoid behind a sealed wall held
+  // every window and deselected every development goal for good (#659).
+  optional bool fogged = 43;
 }
 message PawnTendDoctor {
   // NativePawnControlState eligibility: a drafter exists, the pawn is spawned,

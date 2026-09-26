@@ -91,7 +91,13 @@ namespace HomeBridge.BridgeTools
                         p.Notify_Teleported();
                         if (p.skills != null) p.skills.GetSkill(SkillDefOf.Shooting).Level = 16;
                     }
-                    if ((sealedBreach || heat) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) {
+                    // Every variant needs a builder on the clock, not only the
+                    // ones that deconstruct or build: ClearAncientShrine is
+                    // profiled as Construction labor and the startup
+                    // prerequisites withhold the baseline's only free
+                    // construction pawn, so the casket opening was never
+                    // selected at all (labor_unavailable, #659).
+                    if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) {
                         p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                         p.skills.GetSkill(SkillDefOf.Construction).Level = 16;
                     }

@@ -67,6 +67,9 @@ type EmergencyThreat struct {
 	// defender needs a line of fire to (#327).
 	SnapshotToken, Definition string
 	Cells                     []domain.Cell
+	// Fogged is the native discovery fact: the pawn stands in fog the colony
+	// has not explored. Unknown counts as discovered.
+	Fogged domain.Fact[bool]
 }
 
 // Building reports whether the row is a hostile building rather than a pawn.
@@ -88,6 +91,34 @@ func (t EmergencyThreat) DistantThreat() bool {
 	animal, ak := t.Animal.Value()
 	distance, dk := t.Distance.Value()
 	return (t.Building() || ak && animal) && dk && distance >= DistantThreatCells
+}
+
+// Undiscovered reports a threat the colony has not found: a hostile standing
+// in fog can neither reach a colonist nor be reached by one, so it is watched
+// like a distant animal rather than held. The ancient-danger mechanoid sealed
+// behind a shrine wall is the case that matters: holding for it parked the
+// clock on unsafe_colony and deselected every development goal, including the
+// ClearAncientShrine goal whose breach is the only thing that could ever
+// clear it (#659, the #340 shape).
+func (t EmergencyThreat) Undiscovered() bool {
+	fogged, known := t.Fogged.Value()
+	return known && fogged
+}
+
+// ThreatHolds reports whether one census row is an emergency the colony must
+// answer before anything else: a live, standing hostile, hunting predator or
+// hostile building it has discovered and that is not distant. A nearby wild
+// predator or downed animal is a watch row, never a hold.
+func ThreatHolds(t EmergencyThreat) bool {
+	if t.Kind != Hostile && t.Kind != HuntingPredator && t.Kind != HostileBuilding {
+		return false
+	}
+	dead, dk := t.Dead.Value()
+	downed, wk := t.Downed.Value()
+	if dk && dead || wk && downed {
+		return false
+	}
+	return !t.DistantThreat() && !t.Undiscovered()
 }
 
 type EmergencyFacts struct {
@@ -233,6 +264,11 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		if (deadKnown && dead) || (downedKnown && downed) {
 			continue
 		}
+		// A threat the colony has not discovered is nobody's deficit, and its
+		// unread health is nothing to hold for either (#659).
+		if threat.Undiscovered() {
+			continue
+		}
 		if !deadKnown || !downedKnown {
 			hold(EmergencyUnknownFacts, threat.ID)
 		}
@@ -240,7 +276,7 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		// not held: no planner answers a manhunter or a hunting predator a
 		// hundred cells out, and holding for one parked the clock for good;
 		// nor is a hostile building that far out (#340).
-		if (threat.Kind == Hostile || threat.Kind == HuntingPredator || threat.Kind == HostileBuilding) && !threat.DistantThreat() {
+		if ThreatHolds(threat) {
 			hold(EmergencyUnsafeThreat, threat.ID)
 		}
 	}

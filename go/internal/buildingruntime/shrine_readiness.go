@@ -39,13 +39,16 @@ type ShrineReadinessReport struct {
 	Standing, Traps []domain.Cell
 }
 
-// emergencyActive reports whether the emergency census lists a threat that
-// still stands; dormant shrine guards are not listed until they wake.
+// emergencyActive reports whether the emergency census lists a threat the
+// colony owes a fight, on the emergency decision's own rule (policy.
+// ThreatHolds): a live, standing, discovered hostile, hunting predator or
+// hostile building that is not distant. The census also carries watch rows --
+// a wild boar fifteen cells out, a downed animal, an ignored hunt -- and a
+// sealed shrine's own undiscovered guard, none of which a breach waits on
+// (#659).
 func emergencyActive(facts policy.EmergencyFacts) bool {
 	for _, threat := range facts.Threats {
-		dead, dk := threat.Dead.Value()
-		downed, wk := threat.Downed.Value()
-		if !(dk && dead) && !(wk && downed) {
+		if policy.ThreatHolds(threat) {
 			return true
 		}
 	}

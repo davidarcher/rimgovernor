@@ -71,12 +71,25 @@ func TestShrineReadinessReadsOnlyForBreachableShrines(t *testing.T) {
 	if r := got[0].Readiness; !r.Ready || r.Reason != "" || r.Wall.EntityID != "wall" || r.Traps != 3 || len(r.Squad) != 2 || r.Squad[0] != "a" {
 		t.Fatalf("%+v", r)
 	}
-	native.threats = []policy.EmergencyThreat{{ID: "raider", Dead: domain.Known(false), Downed: domain.Known(false)}}
+	native.threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
 	got, err = shrineReadiness(ctx, native, identity, []policy.AncientShrine{sealed}, []string{"a", "b"}, domain.Known(100.0), domain.Cell{X: 5, Z: 5}, policy.Bounds{Width: 100, Height: 100})
 	if err != nil || got[0].Readiness.Ready || got[0].Readiness.Reason != policy.ShrineHoldEmergency {
 		t.Fatalf("%+v %v", got, err)
 	}
-	native.threats = []policy.EmergencyThreat{{ID: "raider", Dead: domain.Known(true), Downed: domain.Known(false)}}
+	// The census rows a breach never waits on (#659): the shrine's own
+	// undiscovered guard, a wild predator near the colony and a downed animal.
+	for _, row := range []policy.EmergencyThreat{
+		{ID: "guard", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false), Fogged: domain.Known(true)},
+		{ID: "boar", Kind: policy.NearbyPredator, Dead: domain.Known(false), Downed: domain.Known(false)},
+		{ID: "muffalo", Kind: policy.NearbyDowned, Dead: domain.Known(false), Downed: domain.Known(false)},
+	} {
+		native.threats = []policy.EmergencyThreat{row}
+		got, err = shrineReadiness(ctx, native, identity, []policy.AncientShrine{sealed}, []string{"a", "b"}, domain.Known(100.0), domain.Cell{X: 5, Z: 5}, policy.Bounds{Width: 100, Height: 100})
+		if err != nil || !got[0].Readiness.Ready {
+			t.Fatalf("%s held the breach: %+v %v", row.ID, got, err)
+		}
+	}
+	native.threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(true), Downed: domain.Known(false)}}
 	got, err = shrineReadiness(ctx, native, identity, []policy.AncientShrine{sealed}, []string{"a", "b"}, domain.Known(100.0), domain.Cell{X: 30, Z: 95}, policy.Bounds{Width: 100, Height: 100})
 	if err != nil || !got[0].Readiness.Ready || native.regions[len(native.regions)-1].Max.Z != 43 {
 		t.Fatalf("%+v %v %+v", got, err, native.regions)

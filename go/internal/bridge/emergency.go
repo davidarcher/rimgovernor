@@ -268,7 +268,7 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			if err = observe(pawn); err != nil {
 				return EmergencyObservation{}, err
 			}
-			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Animal: emergencyBool(row.Pawn.Animal)}
+			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Animal: emergencyBool(row.Pawn.Animal), Fogged: emergencyBool(row.Pawn.Fogged)}
 			if row.Pawn.NearestColonistDistance != nil {
 				threat.Distance = domain.Known(row.Pawn.GetNearestColonistDistance())
 			}
