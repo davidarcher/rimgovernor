@@ -4,7 +4,6 @@ package domain
 import (
 	"errors"
 	"strings"
-	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -19,54 +18,6 @@ type PlanID string
 type PlanRevision uint64
 type NativeGeneration uint64
 type Tick int64
-
-// PlanningTickTolerance is how far the game may have ticked past the tick
-// a planning step's facts describe before a later observation (a preview,
-// a census, a dependency's readback) no longer belongs to the same plan.
-// It is the tightest fact family's tolerance (pawns and the emergency
-// census; bridge.FactFamily): a stopped clock never moves, and a running
-// one at Fast (180 ticks/s) crosses it in under two seconds.
-const PlanningTickTolerance Tick = 250
-
-// liveDrift is the compatibility shim for callers not yet migrated to a
-// ReadValidity on their decision context (#624): the widening the
-// scheduler measured for the running window (#345), applied by
-// Tick.FreshFor and the fact caches' tolerances. A migrated caller reads
-// its bound from the context (FreshIn, CoversIn) by age class instead.
-var liveDrift atomic.Int64
-
-// SetLiveDrift sets the shim's widening; zero (a stopped clock, an
-// unknown pace) restores the tick-exact bound. The scheduler keeps it in
-// step with the inventory drift of the validity it publishes; it is
-// removed once no un-migrated caller of Tick.FreshFor remains.
-func SetLiveDrift(ticks Tick) {
-	if ticks < 0 {
-		ticks = 0
-	}
-	liveDrift.Store(int64(ticks))
-}
-
-// LiveDrift is the shim's widening in force.
-func LiveDrift() Tick { return Tick(liveDrift.Load()) }
-
-// FreshFor reports whether an observation at t still describes anchor, the
-// tick a step's facts are bound to: never earlier than the anchor (a tick
-// rewind is another world) and past it by no more than
-// PlanningTickTolerance plus the shim's LiveDrift. A caller with a
-// decision context uses FreshIn, which judges by age class.
-func (t Tick) FreshFor(anchor Tick) bool {
-	return t >= anchor && t-anchor <= PlanningTickTolerance+LiveDrift()
-}
-
-// Covers reports whether an observation at t describes anchor: at or after
-// it, or before it by no more than PlanningTickTolerance. The fact cache
-// serves an emergency or pawn row under a step scope that far ahead of it
-// (the scope is the step's first native read), so under a running window
-// a dispatch's cached emergency read may lawfully predate the inspection's
-// first read by that much (#244).
-func (t Tick) Covers(anchor Tick) bool {
-	return t >= anchor || anchor.FreshFor(t)
-}
 
 // Fact's zero value is unknown, including for boolean and numeric observations.
 type Fact[T any] struct {

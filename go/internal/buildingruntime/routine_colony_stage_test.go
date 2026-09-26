@@ -34,10 +34,9 @@ func stampContextTicks(m protoreflect.Message, tick int64) {
 	})
 }
 
-// The colony stage gates a development proposal (#630): at Foothold with
-// the shelter unmet the stone shell's ranking row reads stage_foothold and
-// the planner's bundle is refused; once the colony climbs to Development
-// on the same fake native the same proposal is admitted.
+// The colony stage no longer gates a development proposal: at Foothold with
+// the shelter unmet the stone shell is still selected, and once the colony
+// climbs to Development on the same fake native its proposal is admitted.
 func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -66,7 +65,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 		return store.RoutineDevelopmentRow{}
 	}
 	// No indoor sleeping slot for the one colonist: the shelter gate is
-	// unmet and Foothold holds the comfort-class development.
+	// unmet and the colony sits at Foothold.
 	indoor := v.IndoorSleepingCapacity
 	v.IndoorSleepingCapacity = proto.Uint32(0)
 	if _, err := p.reviewer.Step(ctx); err != nil {
@@ -75,14 +74,10 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	if s := stage(); s.Stage != policy.StageFoothold || !s.Held || s.Blocker != policy.StageBlockerShelter {
 		t.Fatalf("foothold stage %+v", s)
 	}
-	if r := row(); r.Selected || r.Reason != policy.DevelopmentStage {
+	// The stage no longer holds development: the stone shell has work and a
+	// builder, so it is selected even at Foothold.
+	if r := row(); !r.Selected || r.Reason != "" {
 		t.Fatalf("stone shell row %+v", r)
-	}
-	if result, err := p.Step(ctx); err != nil || result.Reason != BuildingMethodRefused {
-		t.Fatal(result, err)
-	}
-	if n.previews != 1 {
-		t.Fatal("bundle not proposed", n.previews)
 	}
 	// The colony climbs: shelter for everyone, a thirty-day food runway,
 	// a wood stock over the floor and the medicine reserve take it to
@@ -117,7 +112,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 		t.Fatalf("stone shell row at Development %+v", r)
 	}
 	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 2 {
+	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 1 {
 		t.Fatal(result, err, n.previews)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

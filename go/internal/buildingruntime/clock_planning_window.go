@@ -147,9 +147,9 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 }
 
 // fromView serves the window from the step's planning window view: the
-// view covers region and its oldest chunk validation is fresh for the
-// step under the read validity the step fixed (#624), or under the
-// planning tolerance where none is carried. The store takes the view's
+// view covers region and was read in the step's world, under the read
+// validity the step fixed (#624) or the window's own scope where none is
+// carried. The store takes the view's
 // rows as of that oldest validation tick, its actual age, never the step
 // tick. The reason it cannot serve is returned instead, empty on success.
 //
@@ -169,10 +169,10 @@ func (p *planningWindow) fromView(ctx context.Context, identity *c.Identity, reg
 	}
 	validated := domain.Tick(view.Validated())
 	if validity, ok := domain.ReadValidityFrom(ctx); ok {
-		if stale := validity.Stale(domain.AgeInventory, domain.ReadObservation{Scope: viewScope(view.Context), Tick: validated}); stale != "" {
+		if stale := validity.Stale(viewScope(view.Context)); stale != "" {
 			return facts.Held[observation.PlanningCells]{}, stale
 		}
-	} else if factsScope(view.Context) != p.scope || !domain.CoversIn(ctx, domain.AgeInventory, validated, domain.Tick(p.tick)) {
+	} else if factsScope(view.Context) != p.scope {
 		return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("validated at %d, step is at %d", validated, p.tick)
 	}
 	if !covered {

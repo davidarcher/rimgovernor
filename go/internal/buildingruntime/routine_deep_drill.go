@@ -233,7 +233,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			return RoutineResourceResult{}, true, err
 		}
 		p := preview.Preview
-		if p.Action != action || !p.Snapshot.Matches(snapshot) || !p.Tick.FreshFor(f.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(f.Identity.Tick) {
+		if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return RoutineResourceResult{}, true, ErrControl
 		}
 		footprint, fk := p.Footprint.Value()
@@ -256,7 +256,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			if err != nil {
 				return RoutineResourceResult{}, true, err
 			}
-			if !held.Complete || held.Stale.Any() || !domain.Tick(held.AsOf).FreshFor(f.Identity.Tick) {
+			if !held.Complete || held.Stale.Any() {
 				return RoutineResourceResult{}, true, ErrControl
 			}
 			cells = held.Value.Cells

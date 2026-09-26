@@ -192,11 +192,8 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if err != nil {
 		return ColonyProjection{}, err
 	}
-	// The colony facts row may come from the step's fact cache, behind the
-	// expected tick by up to its family's tolerance (#306).
-	if !identity.Tick.FreshFor(expected.Tick) && !bridge.FactColony.Fresh(int64(identity.Tick), int64(expected.Tick)) {
-		return ColonyProjection{}, ErrChanged
-	}
+	// The colony facts row may come from the step's fact cache at any
+	// earlier tick (#306); only another generation changes its world.
 	if generation, known := expected.NativeGeneration.Value(); known {
 		if actual, observed := identity.NativeGeneration.Value(); observed && actual != generation {
 			return ColonyProjection{}, ErrChanged

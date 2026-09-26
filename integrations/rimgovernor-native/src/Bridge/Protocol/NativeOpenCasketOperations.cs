@@ -119,8 +119,9 @@ namespace HomeBridge.BridgeTools
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Casket is empty."); return false; }
             if (command.Kind == Operations.PawnOrderKind.OpenCasketHeat)
             {
-                if (snapshot.Claim == null || !HeatReady(pawn, casket))
-                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Heat opening needs an owned drafted shooter at the doorway of an enclosed room above 60 C, no colonists inside, and a safe direct bullet shot."); return false; }
+                var unmet = snapshot.Claim == null ? "the shooter is not an owned claim" : HeatUnmet(pawn, casket);
+                if (unmet != null)
+                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Heat opening needs an owned drafted shooter at the doorway of an enclosed room above 60 C, no colonists inside, and a safe direct bullet shot; unmet: " + unmet + "."); return false; }
                 return true;
             }
             if (!pawn.CanReach(casket, PathEndMode.InteractionCell, Danger.Some))
@@ -132,23 +133,33 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static bool HeatReady(Pawn pawn, Building_AncientCryptosleepCasket casket)
+        private static bool HeatReady(Pawn pawn, Building_AncientCryptosleepCasket casket) => HeatUnmet(pawn, casket) == null;
+
+        // HeatUnmet names the first heat-opening condition that fails, or null
+        // when the shot is ready, so a refusal says which one held it.
+        private static string? HeatUnmet(Pawn pawn, Building_AncientCryptosleepCasket casket)
         {
             var group = casket.Map.listerThings.AllThings.OfType<Building_AncientCryptosleepCasket>()
                 .Where(c => casket.groupID >= 0 ? c.groupID == casket.groupID : c == casket).ToList();
             var heat = NativeShrineHeat.Read(casket.Map, group);
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb as Verb_LaunchProjectile;
             var projectile = verb?.Projectile;
-            return heat != null && heat.Enclosed && heat.TemperatureCelsius > 60 && !heat.ColonistsInside
-                && heat.FiringCells.Any(c => c.X == pawn.Position.x && c.Z == pawn.Position.z)
-                && pawn.Drafted && !pawn.WorkTagIsDisabled(WorkTags.Violent)
-                && pawn.skills?.GetSkill(SkillDefOf.Shooting)?.TotallyDisabled == false
-                && verb != null && verb.Available() && verb.CanHitTarget(casket)
-                && NativeRangedCausality.Supports(verb, pawn, casket)
-                && projectile?.thingClass == typeof(Bullet) && projectile.projectile.explosionRadius == 0
-                && projectile.projectile.damageDef == DamageDefOf.Bullet
-                && casket.HitPoints > casket.MaxHitPoints * 0.5f
-                && projectile.projectile.GetDamageAmount(pawn.equipment!.Primary) * verb.verbProps.burstShotCount < casket.HitPoints - casket.MaxHitPoints * 0.2f;
+            if (heat == null) return "room heat unreadable";
+            if (!heat.Enclosed) return "room not enclosed";
+            if (!(heat.TemperatureCelsius > 60)) return "room at " + heat.TemperatureCelsius.ToString("F1") + " C";
+            if (heat.ColonistsInside) return "a colonist is inside";
+            if (!heat.FiringCells.Any(c => c.X == pawn.Position.x && c.Z == pawn.Position.z))
+                return "shooter at " + pawn.Position.x + "," + pawn.Position.z + ", not a firing cell (" + string.Join(" ", heat.FiringCells.Select(c => c.X + "," + c.Z)) + ")";
+            if (!pawn.Drafted) return "shooter not drafted";
+            if (pawn.WorkTagIsDisabled(WorkTags.Violent) || pawn.skills?.GetSkill(SkillDefOf.Shooting)?.TotallyDisabled != false) return "shooter incapable of shooting";
+            if (verb == null || projectile == null) return "no projectile weapon";
+            if (!verb.Available()) return "weapon verb unavailable";
+            if (!verb.CanHitTarget(casket)) return "no line of fire from " + pawn.Position.x + "," + pawn.Position.z + " to the casket at " + casket.Position.x + "," + casket.Position.z;
+            if (!NativeRangedCausality.Supports(verb, pawn, casket)) return "shot tracking unsupported for " + projectile.defName;
+            if (projectile.thingClass != typeof(Bullet) || projectile.projectile.explosionRadius != 0 || projectile.projectile.damageDef != DamageDefOf.Bullet) return "not a plain bullet";
+            if (!(casket.HitPoints > casket.MaxHitPoints * 0.5f)) return "casket below half hit points";
+            if (!(projectile.projectile.GetDamageAmount(pawn.equipment!.Primary) * verb.verbProps.burstShotCount < casket.HitPoints - casket.MaxHitPoints * 0.2f)) return "one burst could destroy the casket";
+            return null;
         }
 
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)

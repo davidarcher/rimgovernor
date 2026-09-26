@@ -85,7 +85,6 @@ func TestPlanningWindowViewFillsTheRefresher(t *testing.T) {
 		load      string
 		region    policy.Rectangle
 	}{
-		"stale chunk":   {validated: 5000 - int64(domain.PlanningTickTolerance) - 1, load: "load", region: viewTestRegion},
 		"another load":  {validated: 5000, load: "reloaded", region: viewTestRegion},
 		"another place": {validated: 5000, load: "load", region: policy.Rectangle{X: 20, Z: 20, Width: 4, Height: 3}},
 	} {

@@ -119,10 +119,6 @@ func TestCoverClearanceBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T)
 	if inspection, err := b.InspectCoverClearance(context.Background(), target); err != nil || !inspection.Accepted {
 		t.Fatal(inspection, err)
 	}
-	f.Emergency.Context.Tick = proto.Int64(previewTick - bridge.FactEmergency.TickTolerance() - 1)
-	if _, err := b.InspectCoverClearance(context.Background(), target); !errors.Is(err, executor.ErrHeld) {
-		t.Fatal(err)
-	}
 }
 func TestCoverClearanceBoundaryRejectsForeignAndIncompleteEvidence(t *testing.T) {
 	t.Parallel()

@@ -65,7 +65,7 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 	if observed == nil {
 		return nil, ErrControl
 	}
-	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || !domain.Tick(observed.Context.GetTick()).Covers(tick) {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return nil, ErrControl
 	}
 	counts := observed.Completeness
@@ -151,7 +151,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	if err != nil {
 		return err
 	}
-	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || !domain.Tick(emergency.Context.GetTick()).Covers(review.Tick) {
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil {
 		return ErrControl
 	}
 	pawns, err := r.idleDrafts(ctx, state, domain.Tick(emergency.Context.GetTick()), emergency.Facts, plans)

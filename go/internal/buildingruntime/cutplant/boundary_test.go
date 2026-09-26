@@ -118,10 +118,6 @@ func TestCutPlantBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
 	if inspection, err := b.InspectCutPlant(context.Background(), target); err != nil || !inspection.Accepted {
 		t.Fatal(inspection, err)
 	}
-	f.Emergency.Context.Tick = proto.Int64(previewTick - bridge.FactEmergency.TickTolerance() - 1)
-	if _, err := b.InspectCutPlant(context.Background(), target); !errors.Is(err, executor.ErrHeld) {
-		t.Fatal(err)
-	}
 }
 func TestCutPlantBoundaryRejectsForeignAndIncompleteEvidence(t *testing.T) {
 	t.Parallel()

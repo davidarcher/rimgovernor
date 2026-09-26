@@ -113,11 +113,8 @@ func (b *productionPolicyBoundary) InspectProductionPolicy(ctx context.Context, 
 		return out, err
 	}
 	// The read and the preview may straddle ticks under a running clock
-	// (#244): the read anchors the admission and the preview must be fresh
-	// for it.
-	if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), domain.Tick(read.Context.GetTick())) {
-		return out, executor.ErrHeld
-	}
+	// (#244): the preview.s tick anchors the admission and the read.s
+	// token binds the write to what it listed.
 	out.Facts = policy.ProductionPolicyFacts{Snapshot: current, Tick: domain.Tick(v.Context.GetTick()), Floors: domain.Known(read.Floors), Stopped: domain.Known(read.Stopped), Token: read.SnapshotToken}
 	out.Commitments, out.Drills = commitments, drills
 	out.ObservedAt = b.Clock.Now()

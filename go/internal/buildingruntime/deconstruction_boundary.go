@@ -102,9 +102,6 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 		if _, err = boundary.Context(emergency.Context, current); err != nil {
 			return out, err
 		}
-		if bridge.FactEmergency.Outrun(emergency.Context.GetTick(), observed.Context.GetTick()) {
-			return out, executor.ErrHeld
-		}
 		out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
 		if err != nil {
 			return out, err
@@ -186,9 +183,6 @@ func (b *DeconstructionBoundary) inspectBreach(ctx context.Context, target execu
 			if _, err = boundary.Context(emergency.Context, current); err != nil {
 				return out, err
 			}
-			if bridge.FactEmergency.Outrun(emergency.Context.GetTick(), observed.Context.GetTick()) {
-				return out, executor.ErrHeld
-			}
 			out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
 			if err != nil {
 				return out, err
@@ -238,9 +232,6 @@ func (b *DeconstructionBoundary) inspectDrill(ctx context.Context, target execut
 		}
 		if _, err = boundary.Context(emergency.Context, current); err != nil {
 			return out, err
-		}
-		if bridge.FactEmergency.Outrun(emergency.Context.GetTick(), observed.Context.GetTick()) {
-			return out, executor.ErrHeld
 		}
 		out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
 		if err != nil {

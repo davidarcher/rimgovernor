@@ -68,11 +68,8 @@ func (b *researchSelectBoundary) InspectResearchSelect(ctx context.Context, targ
 		return out, err
 	}
 	// The read and the preview may straddle ticks under a running clock
-	// (#244): the read anchors the admission and the preview must be fresh
-	// for it.
-	if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), domain.Tick(read.Context.GetTick())) {
-		return out, executor.ErrHeld
-	}
+	// (#244): the preview.s tick anchors the admission and the read.s
+	// token binds the write to what it listed.
 	out.Facts = policy.ResearchSelectFacts{Snapshot: current, Tick: domain.Tick(v.Context.GetTick()), Current: domain.Known(read.CurrentProject)}
 	out.Token = read.SnapshotToken
 	out.ObservedAt = b.Clock.Now()

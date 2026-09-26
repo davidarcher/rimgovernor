@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"google.golang.org/protobuf/proto"
 )
@@ -41,9 +40,9 @@ func TestBoundaryInspectionTakesAMemoizedPreviewOnce(t *testing.T) {
 	}
 }
 
-// A memoized preview bound to another authority snapshot, or one the
-// inspection's bounds read has outrun past the freshness bound, is not
-// used; the inspection reads live.
+// A memoized preview bound to another authority snapshot is not used; the
+// inspection reads live. One the bounds read has run ahead of is still
+// served.
 func TestBoundaryInspectionLeavesAStaleMemoizedPreview(t *testing.T) {
 	t.Parallel()
 	t.Run("snapshot", func(t *testing.T) {
@@ -56,24 +55,11 @@ func TestBoundaryInspectionLeavesAStaleMemoizedPreview(t *testing.T) {
 			t.Fatal(err, f.Previews, memo.Served())
 		}
 	})
-	t.Run("outrun", func(t *testing.T) {
+	t.Run("bounds read ahead", func(t *testing.T) {
 		b, f := NewFixture(t)
 		old := f.Preview
 		memo := NewPreviewMemo([]bridge.BuildingPreview{old})
-		later := int64(old.Preview.Tick) + int64(domain.PlanningTickTolerance) + 1
-		f.Bounds.Context.Tick = proto.Int64(later)
-		f.Emergency.Context.Tick = proto.Int64(later)
-		f.Preview.Preview.Tick, f.Preview.Stock.Tick = domain.Tick(later), domain.Tick(later)
-		out, err := b.Inspect(WithPreviewMemo(context.Background(), memo), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
-		if err != nil || !out.ExternalHoldsComplete || out.Tick != domain.Tick(later) || f.Previews != 1 || memo.Served() != 1 {
-			t.Fatal(err, out.Tick, f.Previews, memo.Served())
-		}
-	})
-	t.Run("within tolerance", func(t *testing.T) {
-		b, f := NewFixture(t)
-		old := f.Preview
-		memo := NewPreviewMemo([]bridge.BuildingPreview{old})
-		later := int64(old.Preview.Tick) + int64(domain.PlanningTickTolerance)
+		later := int64(old.Preview.Tick) + 250
 		f.Bounds.Context.Tick = proto.Int64(later)
 		f.Emergency.Context.Tick = proto.Int64(later)
 		out, err := b.Inspect(WithPreviewMemo(context.Background(), memo), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})

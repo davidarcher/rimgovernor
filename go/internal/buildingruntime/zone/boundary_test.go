@@ -84,15 +84,11 @@ func TestInspectZoneAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	// An emergency read from the fact cache a bounded advance behind the
-	// preview still covers it (#244); one further behind does not.
+	// preview still covers it (#244).
 	f.preview.GetEvaluated().Context.Tick = proto.Int64(1011)
 	f.read.Context.Tick = proto.Int64(1011)
 	f.emergency.Context.Tick = proto.Int64(1009)
 	if out, err := zb.InspectZone(context.Background(), target); err != nil || !out.Accepted || out.Tick != 1011 {
 		t.Fatal(err, out)
-	}
-	f.emergency.Context.Tick = proto.Int64(1011 - int64(domain.PlanningTickTolerance) - 1)
-	if _, err := zb.InspectZone(context.Background(), target); !errors.Is(err, executor.ErrHeld) {
-		t.Fatal(err)
 	}
 }

@@ -331,7 +331,7 @@ func (r *RoutineBuildingPlanner) previewShellCells(ctx context.Context, snapshot
 	placeable := make([]bool, len(previews))
 	for i, preview := range previews {
 		v := preview.Preview
-		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return nil, nil, "", ErrControl
 		}
 		stuff, known := v.MadeFromStuff.Value()

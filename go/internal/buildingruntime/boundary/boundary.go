@@ -111,17 +111,9 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 		return out, previewErr
 	}
 	boundsTick := domain.Tick(bounds.Context.GetTick())
-	if memoized && !preview.Preview.Tick.Covers(boundsTick) {
-		// The step outran its batch: this inspection reads live.
-		memoized = false
-		if preview, _, err = b.Native.PreviewBuilding(ctx, target.Action, target.Snapshot); err != nil {
-			return out, err
-		}
-	}
-	// A live preview runs after the bounds read; a memoized one covers it
-	// (at or after it, or before it within the planning tolerance and the
-	// live drift), as checked above.
-	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || !memoized && preview.Preview.Tick < boundsTick || !preview.Stock.Tick.FreshFor(preview.Preview.Tick) {
+	// A live preview runs after the bounds read; a memoized one may predate
+	// it.
+	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || !memoized && preview.Preview.Tick < boundsTick {
 		return out, executor.ErrEvidence
 	}
 	emergency, _, err := b.Native.ReadEmergency(ctx, Identity(current))
@@ -133,25 +125,8 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 		return out, err
 	}
 	// Independent live reads may advance ticks, and the emergency read may
-	// come from the step's fact cache, which serves it up to the planning
-	// tolerance behind the step's first read, the bounds read here (#244):
-	// it must cover that read, and the facts bind to the preview tick the
-	// admission anchors on.
-	// Under a running window the cached row can predate the bounds read by
-	// more than that (read at the step's start, the clock ran on through the
-	// batch preview): read it live once rather than refuse the dispatch for
-	// the rest of the window (#690).
-	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(bounds.Context.GetTick())) {
-		if emergency, _, err = b.Native.ReadEmergency(bridge.WithoutStepReadCache(ctx), Identity(current)); err != nil {
-			return out, err
-		}
-		if emergencyCurrent, err = Context(emergency.Context, current); err != nil {
-			return out, err
-		}
-	}
-	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(bounds.Context.GetTick())) {
-		return out, executor.ErrEvidence
-	}
+	// come from the step's fact cache (#244); the facts bind to the preview
+	// tick the admission anchors on.
 	// Bind native facts to captured controller authority only after
 	// validating their actual world/generation.
 	out.Emergency, err = policy.NewEmergencySnapshot(emergencyCurrent, preview.Preview.Tick, emergency.Facts)

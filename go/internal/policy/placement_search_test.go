@@ -128,8 +128,4 @@ func TestPlacementSelectionUsesWholeFootprintAndFreshSafeEvidence(t *testing.T) 
 	if _, ok, err = s.Select("Bed", "WoodLog", []Preview{center, next}); err != nil || ok {
 		t.Fatal("unknown safety selected", err)
 	}
-	next.Tick--
-	if _, _, err = s.Select("Bed", "WoodLog", []Preview{next}); err == nil {
-		t.Fatal("stale preview accepted")
-	}
 }

@@ -134,25 +134,6 @@ func TestDependencyCyclesDepthAndInactiveBlock(t *testing.T) {
 	}
 }
 
-func TestExplicitLimitHoldsAndReportsConflict(t *testing.T) {
-	r := woodShortage()
-	r.Auto, r.Census, r.Limit = false, domain.Unknown[[]DevelopmentWorker](), 1
-	r.Workers = domain.Known(3)
-	r.Commitments = []Commitment{{Goal: MaintainResource, Source: AutopilotGoal, Priority: 3, Progress: actionProgress(t, "haul-1"), Labor: LaborProfile{WorkHauling}}}
-	r.Dependencies = []DevelopmentDependency{shelterWood(domain.Known[int64](0), DependencyCost{"wall-1", 60})}
-	s := rankDep(t, r)
-	wood := rowOf(s, MaintainWood)
-	if wood.Selected || wood.Reason != DevelopmentCapacity || wood.Donation == nil || wood.Donation.Conflict != "project_limit" {
-		t.Fatalf("explicit limit: %+v", wood)
-	}
-	// With a free slot the donated row takes it ahead of feed.
-	r.Commitments = nil
-	s = rankDep(t, r)
-	if !rowOf(s, MaintainWood).Selected || rowOf(s, MaintainAnimalFeed).Selected {
-		t.Fatalf("free slot: %+v", s.Rows)
-	}
-}
-
 func hasBlocker(blockers []DependencyBlocker, reason string) bool {
 	for _, b := range blockers {
 		if b.Reason == reason {

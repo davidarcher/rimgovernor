@@ -20,7 +20,7 @@ func developmentRow(t *testing.T, r RoutineReview, id domain.GoalID) RoutineDeve
 	t.Fatal("missing development row", id)
 	return RoutineDevelopmentRow{}
 }
-func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
+func TestRoutineDevelopmentPersistsAge(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)
@@ -39,30 +39,7 @@ func TestRoutineDevelopmentPersistsAgeAndRechecksPlayerCapacity(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(loaded, first.Review) {
 		t.Fatal(loaded, err)
 	}
-	// An accepted player project consumes the slot before a new routine review.
-	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "capacity"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	g := routineGoal(t, first, policy.MaintainWood)
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal(err)
-	}
-	r.Tick = 2510
-	second := reviewRoutine(t, s, &r)
-	row = developmentRow(t, second.Review, policy.MaintainWood)
-	if row.Selected || row.Reason != policy.DevelopmentCapacity || row.WaitingSince != 10 || len(second.Review.Development.Committed) != 1 {
-		t.Fatal(second)
-	}
-	if _, err = s.Cancel(ctx, sub.Plan, sub.Action); err != nil {
-		t.Fatal(err)
-	}
-	third := reviewRoutine(t, s, &r)
-	row = developmentRow(t, third.Review, policy.MaintainWood)
-	if !row.Selected || row.WaitingSince != 10 {
-		t.Fatal(third)
-	}
-	g = routineGoal(t, third, policy.MaintainWood)
 	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
@@ -153,45 +130,6 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 	}
 }
 
-func TestRoutineDevelopmentCountsCancelledUncertainPlayerWork(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	defer s.Close()
-	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
-	request := submissionRequest(t, "uncertain")
-	sub, _, err := s.SubmitBuilding(ctx, request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	snapshot := r.Current
-	snapshot.Plan = sub.Plan
-	snapshot.Revision = sub.Revision
-	if _, err = s.ReserveAndPrepare(ctx, sub.Plan, sub.Action, Admission{Snapshot: snapshot, Tick: 10, Costs: []MaterialCost{{Definition: "WoodLog", Count: 5}}, Footprint: []domain.Cell{request.Building.Cell()}}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = s.Dispatch(ctx, sub.Plan, sub.Action, snapshot, 10); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = s.Cancel(ctx, sub.Plan, sub.Action); err != nil {
-		t.Fatal(err)
-	}
-	r.Tick = 11
-	held := reviewRoutine(t, s, &r)
-	if row := developmentRow(t, held.Review, policy.MaintainWood); row.Selected || row.Reason != policy.DevelopmentCapacity {
-		t.Fatal(held)
-	}
-	if _, err = s.Observe(ctx, sub.Plan, domain.Observation{Action: sub.Action, Attempt: 1, Snapshot: snapshot, Tick: 12, Effect: domain.EffectAbsent}, snapshot); err != nil {
-		t.Fatal(err)
-	}
-	r.Tick = 13
-	released := reviewRoutine(t, s, &r)
-	if !developmentRow(t, released.Review, policy.MaintainWood).Selected {
-		t.Fatal(released)
-	}
-}
-
 // Configured research/resource targets rank with a measured deficit, and a
 // production policy push is admitted without holding a development slot.
 func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
@@ -211,7 +149,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	if research.Deficit == nil || *research.Deficit != 1 || resource.Deficit == nil || *resource.Deficit != 0.5 {
 		t.Fatal(research, resource)
 	}
-	if !research.Selected || resource.Selected || resource.Reason != policy.DevelopmentCapacity {
+	if !research.Selected || !resource.Selected {
 		t.Fatal(research, resource)
 	}
 	for _, row := range out.Review.Development.Rows {
@@ -227,15 +165,6 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 		t.Fatal("exempt push refused", err)
 	}
 	g = routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "steel", plan(t, "steel", "steel-action")); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal("unselected resource goal admitted", err)
-	}
-	// Building admission reports the missing slot as a refusal reason, not
-	// an error the planner would retry every step (#100).
-	d, err := s.AdmitBuildingMethod(ctx, methodRequest(t, g, "sw", 10))
-	if err != nil || d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.NoDevelopmentSlot {
-		t.Fatal("unselected resource goal building admission", d, err)
-	}
 	// A method that is only a quest acceptance (#250) is a settings write
 	// with no pawn work: it is admitted without the slot the same goal's
 	// pawn-work methods still need.
@@ -345,319 +274,6 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	}
 }
 
-// The review marks a startup goal served once a method is on record, and
-// comfort's development row leaves startup_survival on the next ranking
-// (#196: EnsureComfort sat refused for two in-game days behind startup goals
-// whose fields, campfire and storage were already placed).
-func TestRoutineDevelopmentComfortFollowsServedStartupGoals(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	r := routineRequest()
-	r.Facts.Colonists, r.Facts.HousingTarget, r.Facts.BedCapacity, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(0)), domain.Known(int64(3)), domain.Known(int64(4))
-	r.Facts.GrowingCells, r.Facts.Armed = domain.Known(int64(30)), domain.Known(int64(2))
-	r.Facts.FoodDays, r.Facts.FieldCoverage, r.Facts.SleepingMin, r.Facts.SleepingMax = domain.Known(8.0), domain.Known(1.0), domain.Known(20.0), domain.Known(20.0)
-	r.Facts.SleepingRecovered, r.Facts.ForbiddenSupplies, r.Facts.WorkCoverage = domain.Known(true), domain.Known(false), domain.Known(true)
-	r.Facts.FoodStorage, r.Facts.PowerRequired, r.Facts.DisabledConsumers, r.Facts.MedicalCareRecovered = domain.Known(true), domain.Known(false), domain.Known(false), domain.Known(true)
-	r.Facts.FoodStorageUpkeep = policy.FoodStorageObservation{Stocks: domain.Known([]policy.FoodStorageStock{})}
-	r.Facts.Cooking = domain.Known(false)
-	r.Facts.Comfort = domain.Known(comfortCensus(false))
-	r.Facts.BasicComfort = domain.Known(comfortCensus(false))
-	out := reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.EnsureComfort); row.Selected || row.Reason != policy.DevelopmentStartup {
-		t.Fatal(row)
-	}
-	cooking := routineGoal(t, out, policy.EnsureCooking)
-	if cooking.Goal.Need != domain.NeedDeficit {
-		t.Fatal(cooking)
-	}
-	if _, err := s.CommitGoalMethod(ctx, cooking.Goal.ID, cooking.Revision, "campfire", plan(t, "campfire", "campfire-action")); err != nil {
-		t.Fatal(err)
-	}
-	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.EnsureComfort); !row.Selected || row.Reason != "" {
-		t.Fatal(row, out.Review.Development.Rows)
-	}
-	// A settled method retires its plan (a completed campfire leaves the
-	// active catalog) but the goal stays served.
-	if _, err := s.Cancel(ctx, "campfire", "campfire-action"); err != nil {
-		t.Fatal(err)
-	}
-	reviewRoutine(t, s, &r)
-	out = reviewRoutine(t, s, &r)
-	if cooking = routineGoal(t, out, policy.EnsureCooking); len(cooking.Methods) != 0 {
-		t.Fatal("campfire method not retired", cooking.Methods)
-	}
-	if row := developmentRow(t, out.Review, policy.EnsureComfort); !row.Selected || row.Reason != "" {
-		t.Fatal("retired startup method counted as unserved", row)
-	}
-}
-
-// A selected goal that committed nothing by the next review is recorded
-// idle and hands its slot to the next eligible goal; the flag survives the
-// review record so the ranking sees it (colony-3 held both slots for a game
-// day on goals whose planners had no method).
-func TestRoutineDevelopmentIdleSelectionRotates(t *testing.T) {
-	t.Parallel()
-	s := open(t, memoryPath(t))
-	defer s.Close()
-	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
-	r.Policy.ResearchTarget = "Stonecutting"
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
-	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
-	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
-	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
-	first := reviewRoutine(t, s, &r)
-	var selected, waiting []domain.GoalID
-	for _, row := range first.Review.Development.Rows {
-		switch {
-		case row.Selected:
-			selected = append(selected, row.Goal)
-		case row.Reason == policy.DevelopmentCapacity:
-			waiting = append(waiting, row.Goal)
-		}
-	}
-	if len(selected) == 0 || len(waiting) == 0 {
-		t.Fatal("fixture needs a selected goal and one waiting on capacity", first.Review.Development.Rows)
-	}
-	second := reviewRoutine(t, s, &r)
-	for _, goal := range selected {
-		row := developmentRow(t, second.Review, goal)
-		if row.Selected || !row.Idle || row.WaitingSince != first.Review.Tick {
-			t.Fatalf("%s should be idle with its age intact: %+v", goal, row)
-		}
-	}
-	if row := developmentRow(t, second.Review, waiting[0]); !row.Selected {
-		t.Fatalf("%s should take the idle slot: %+v", waiting[0], second.Review.Development.Rows)
-	}
-	loaded, err := s.LoadRoutineReview(context.Background())
-	if err != nil || !developmentRow(t, loaded, selected[0]).Idle {
-		t.Fatal("idle flag not persisted", err)
-	}
-}
-
-func TestRoutineDevelopmentYieldMovesSlotWithinReview(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	defer s.Close()
-	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
-	r.Policy.ResearchTarget = "Stonecutting"
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
-	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
-	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
-	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
-	first := reviewRoutine(t, s, &r)
-	var selected, waiting []domain.GoalID
-	for _, row := range first.Review.Development.Rows {
-		switch {
-		case row.Selected:
-			selected = append(selected, row.Goal)
-		case row.Reason == policy.DevelopmentCapacity:
-			waiting = append(waiting, row.Goal)
-		}
-	}
-	if len(selected) != 1 || len(waiting) == 0 {
-		t.Fatal("fixture needs one selected goal and one waiting on capacity", first.Review.Development.Rows)
-	}
-	// A stale revision cannot rewrite the current review.
-	if _, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision+1, selected[0]); !errors.Is(err, ErrConflict) {
-		t.Fatal(err)
-	}
-	yielded, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision, selected[0])
-	if err != nil || yielded.Revision != first.Review.Revision {
-		t.Fatal(yielded, err)
-	}
-	if row := developmentRow(t, yielded, selected[0]); row.Selected || row.Reason != policy.DevelopmentMethodUnavailable || !row.Idle || row.WaitingSince != first.Review.Tick {
-		t.Fatalf("yielder should read method_unavailable, idle, age intact: %+v", row)
-	}
-	if row := developmentRow(t, yielded, waiting[0]); !row.Selected || !row.Granted || row.Reason != "" {
-		t.Fatalf("%s should take the yielded slot: %+v", waiting[0], yielded.Development.Rows)
-	}
-	loaded, err := s.LoadRoutineReview(ctx)
-	if err != nil || !reflect.DeepEqual(loaded, yielded) {
-		t.Fatal("yield not persisted", err)
-	}
-	// The recipient's method admits under the yielded selection; the
-	// yielder's no longer does.
-	recipient := routineGoal(t, first, waiting[0])
-	if _, err = s.CommitGoalMethod(ctx, recipient.Goal.ID, recipient.Revision, "granted", plan(t, "granted", "granted-action")); err != nil {
-		t.Fatal(err)
-	}
-	yielder := routineGoal(t, first, selected[0])
-	if _, err = s.CommitGoalMethod(ctx, yielder.Goal.ID, yielder.Revision, "yielded", plan(t, "yielded", "yielded-action")); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal(err)
-	}
-	// Yielding again is a no-op: the goal is no longer selected.
-	again, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision, selected[0])
-	if err != nil || !reflect.DeepEqual(again, yielded) {
-		t.Fatal(again, err)
-	}
-	// The next review keeps the recipient committed and ranks the yielder
-	// idle rather than re-selecting it on hysteresis.
-	r.Tick += 10
-	second := reviewRoutine(t, s, &r)
-	if row := developmentRow(t, second.Review, waiting[0]); !row.Committed || row.Granted {
-		t.Fatalf("recipient should be committed: %+v", row)
-	}
-	if row := developmentRow(t, second.Review, selected[0]); row.Selected || !row.Idle || row.WaitingSince != first.Review.Tick {
-		t.Fatalf("yielder should be idle with its age intact: %+v", row)
-	}
-}
-
-func TestRoutineDevelopmentGrantedSelectionIsNotJudgedIdle(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	defer s.Close()
-	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
-	r.Policy.ResearchTarget = "Stonecutting"
-	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
-	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
-	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
-	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
-	first := reviewRoutine(t, s, &r)
-	var selected, waiting []domain.GoalID
-	for _, row := range first.Review.Development.Rows {
-		switch {
-		case row.Selected:
-			selected = append(selected, row.Goal)
-		case row.Reason == policy.DevelopmentCapacity:
-			waiting = append(waiting, row.Goal)
-		}
-	}
-	if len(selected) != 1 || len(waiting) == 0 {
-		t.Fatal("fixture needs one selected goal and one waiting on capacity", first.Review.Development.Rows)
-	}
-	if _, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision, selected[0]); err != nil {
-		t.Fatal(err)
-	}
-	// The recipient's planner may never have run under the grant: the next
-	// review keeps it selected (hysteresis) instead of demoting it idle.
-	r.Tick += 10
-	second := reviewRoutine(t, s, &r)
-	if row := developmentRow(t, second.Review, waiting[0]); !row.Selected || row.Idle || row.Granted {
-		t.Fatalf("granted goal should hold its slot through the next review: %+v", row)
-	}
-	if row := developmentRow(t, second.Review, selected[0]); row.Selected || !row.Idle {
-		t.Fatalf("yielder should be idle: %+v", row)
-	}
-}
-
-// An Equip of a weapon the colony already owns is no development project
-// (#411): with both slots held by MaintainWood and MaintainMedicalReserves,
-// EnsureBasicDefense's equip method is admitted anyway, and the open equip
-// plan holds no slot of its own, while a building method of the same goal
-// still needs the slot.
-func TestRoutineDevelopmentEquipHoldsNoSlot(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
-	out := reviewRoutine(t, s, &r)
-	wood := routineGoal(t, out, policy.MaintainWood)
-	if !developmentRow(t, out.Review, policy.MaintainWood).Selected {
-		t.Fatal(out.Review.Development)
-	}
-	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
-		t.Fatal(err)
-	}
-	// The defense deficit appears while the wood method holds the only slot.
-	r.Facts.Colonists = domain.Known(int64(3))
-	r.Facts.Armed = domain.Known(int64(0))
-	out = reviewRoutine(t, s, &r)
-	row := developmentRow(t, out.Review, policy.EnsureBasicDefense)
-	if row.Selected || row.Reason != policy.DevelopmentCapacity || len(out.Review.Development.Committed) != 1 {
-		t.Fatal(out.Review.Development)
-	}
-	defense := routineGoal(t, out, policy.EnsureBasicDefense)
-	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "sandbags", plan(t, "sandbags", "sandbags-action")); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal("unselected defense building method admitted", err)
-	}
-	equip, _ := domain.NewEquip("unarmed", "Thing_Bow_Short5164", "Bow_Short", domain.Cell{X: 108, Z: 121})
-	equipAction, err := domain.NewEquipAction("equip-action", equip)
-	if err != nil {
-		t.Fatal(err)
-	}
-	equipPlan, err := domain.NewPlan("equip", 1, []domain.Action{equipAction})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "equip", equipPlan); err != nil {
-		t.Fatal("equip refused for a development slot", err)
-	}
-	out = reviewRoutine(t, s, &r)
-	row = developmentRow(t, out.Review, policy.EnsureBasicDefense)
-	if row.Committed || row.Reason != policy.DevelopmentCapacity || len(out.Review.Development.Committed) != 1 || out.Review.Development.Committed[0] != policy.MaintainWood {
-		t.Fatal("open equip plan counted as a commitment", out.Review.Development)
-	}
-}
-
-// A wood method whose plant cutters idle across reviews for
-// DevelopmentIdleTicks releases its slot to the waiting defense goal, whose
-// method then admits; the released row persists its idle age and reads
-// labor_idle until a cutter is on the work again (#445).
-func TestRoutineDevelopmentIdleLaborReleasesSlot(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	s := open(t, memoryPath(t))
-	defer s.Close()
-	r := routineRequest()
-	r.Policy.SetProjectLimit(1)
-	out := reviewRoutine(t, s, &r)
-	wood := routineGoal(t, out, policy.MaintainWood)
-	if !developmentRow(t, out.Review, policy.MaintainWood).Selected {
-		t.Fatal(out.Review.Development)
-	}
-	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
-		t.Fatal(err)
-	}
-	r.Facts.Colonists = domain.Known(int64(3))
-	r.Facts.Armed = domain.Known(int64(0))
-	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkConstruction: 1}, Idle: map[policy.WorkType]int{policy.WorkPlantCutting: 2}})
-	r.Tick += 10
-	since := r.Tick
-	out = reviewRoutine(t, s, &r)
-	row := developmentRow(t, out.Review, policy.MaintainWood)
-	if !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since || developmentRow(t, out.Review, policy.EnsureBasicDefense).Reason != policy.DevelopmentCapacity {
-		t.Fatal("first idle review keeps the slot", out.Review.Development)
-	}
-	defense := routineGoal(t, out, policy.EnsureBasicDefense)
-	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "sandbags", plan(t, "sandbags", "sandbags-action")); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal("defense admitted against a held slot", err)
-	}
-	r.Tick = since + policy.DevelopmentIdleTicks
-	out = reviewRoutine(t, s, &r)
-	row = developmentRow(t, out.Review, policy.MaintainWood)
-	if row.Committed || row.Selected || row.Reason != policy.DevelopmentLaborIdle || row.LaborIdleSince == nil || *row.LaborIdleSince != since || len(out.Review.Development.Committed) != 0 {
-		t.Fatal("idle past the bound should release the slot", out.Review.Development)
-	}
-	if !developmentRow(t, out.Review, policy.EnsureBasicDefense).Selected {
-		t.Fatal(out.Review.Development)
-	}
-	loaded, err := s.LoadRoutineReview(ctx)
-	if err != nil || !reflect.DeepEqual(loaded, out.Review) {
-		t.Fatal(loaded, err)
-	}
-	defense = routineGoal(t, out, policy.EnsureBasicDefense)
-	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "sandbags", plan(t, "sandbags", "sandbags-action")); err != nil {
-		t.Fatal("released slot refused the waiting goal", err)
-	}
-	// A cutter back on the work takes the slot back beside the defense
-	// commitment; the idle age clears.
-	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkPlantCutting: 1}, Idle: map[policy.WorkType]int{}})
-	r.Tick += 10
-	out = reviewRoutine(t, s, &r)
-	row = developmentRow(t, out.Review, policy.MaintainWood)
-	if !row.Committed || row.LaborIdleSince != nil || len(out.Review.Development.Committed) != 2 {
-		t.Fatal("resumed work should commit again", out.Review.Development)
-	}
-}
-
 // A husbandry designation cancel is a settings write and holds no
 // development slot (#577); a tame puts a handler to work and does.
 func TestDevelopmentExemptHusbandrySettingsWrite(t *testing.T) {
@@ -677,11 +293,10 @@ func TestDevelopmentExemptHusbandrySettingsWrite(t *testing.T) {
 }
 
 // The labor-idle deadline is durable game-tick history: it survives a store
-// restart and still releases on time. Release frees only the slot: the
-// dispatched action keeps its admission (material and cell claims) and its
-// progress, and when labor returns the same attempt takes the slot back
-// with no second dispatch (#643).
-func TestRoutineDevelopmentIdleReleaseSurvivesRestartAndKeepsClaims(t *testing.T) {
+// restart. Idle labor never releases the commitment: the dispatched action
+// keeps its admission (material and cell claims) and its progress, and when
+// labor returns the idle age clears with no second dispatch (#643).
+func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)
@@ -729,12 +344,12 @@ func TestRoutineDevelopmentIdleReleaseSurvivesRestartAndKeepsClaims(t *testing.T
 	}
 	r.Tick = since + policy.DevelopmentIdleTicks
 	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.MaintainWood); row.Committed || row.Reason != policy.DevelopmentLaborIdle || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
-		t.Fatal("the restored deadline did not release on time", out.Review.Development)
+	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+		t.Fatal("idle labor past the restored deadline released the commitment", out.Review.Development)
 	}
 	released, err := s.LoadPlan(ctx, woodPlan)
 	if err != nil || !reflect.DeepEqual(before, released) {
-		t.Fatal("releasing the slot touched the action's progress or claims", err)
+		t.Fatal("an idle review touched the action's progress or claims", err)
 	}
 
 	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkPlantCutting: 1}, Idle: map[policy.WorkType]int{}})
@@ -769,7 +384,7 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	r.Facts.Colonists = domain.Known(int64(3))
 	r.Facts.Armed = domain.Known(int64(0))
 	out = reviewRoutine(t, s, &r)
-	if len(out.Review.Development.Committed) != 1 || developmentRow(t, out.Review, policy.EnsureBasicDefense).Reason != policy.DevelopmentCapacity {
+	if len(out.Review.Development.Committed) != 1 || !developmentRow(t, out.Review, policy.EnsureBasicDefense).Selected {
 		t.Fatal("slot work admitted at priority 3 holds the slot", out.Review.Development)
 	}
 	if _, err := s.db.ExecContext(ctx, "UPDATE goal_methods SET priority=2 WHERE plan_id='wood'"); err != nil {

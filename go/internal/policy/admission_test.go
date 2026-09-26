@@ -34,7 +34,7 @@ func candidate(t *testing.T, id domain.ActionID, x int32, count int64) Candidate
 	return Candidate{Action: a, Progress: p, Purpose: Routine, Preview: Preview{Action: a, Snapshot: current(), Tick: 20, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]Amount{{"Steel", count}})}}
 }
 func request(c ...Candidate) Request {
-	return Request{Current: current(), CurrentTick: 20, Bounds: domain.Known(Bounds{100, 100}), Candidates: c, Stock: StockObservation{Snapshot: current(), Tick: 20, Values: []Stock{{"Steel", domain.Known(int64(100))}}}}
+	return Request{Current: current(), CurrentTick: 20, Bounds: domain.Known(Bounds{100, 100}), Candidates: c, Stock: StockObservation{Snapshot: current(), Tick: 20, Values: []Stock{{"Steel", domain.Known(int64(101))}}}, Rules: []ResourceRule{{"Steel", 1, Allow}}}
 }
 func decide(t *testing.T, r Request) Decision {
 	t.Helper()
@@ -99,7 +99,7 @@ func TestUnknownUnsafeAndStaleFactsRefuse(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) { r := request(candidate(t, "a", 1, 10)); change(&r); reason(t, r, UnknownFacts) })
 	}
-	for _, change := range []func(*Request){func(r *Request) { r.Stock.Tick-- }, func(r *Request) { r.Candidates[0].Preview.Tick-- }, func(r *Request) { r.Candidates[0].Preview.Snapshot.Native++ }, func(r *Request) { r.Stock.Snapshot.Load = "other" }, func(r *Request) { r.Candidates[0].Preview.Action = candidate(t, "other", 1, 10).Action }} {
+	for _, change := range []func(*Request){func(r *Request) { r.Candidates[0].Preview.Snapshot.Native++ }, func(r *Request) { r.Stock.Snapshot.Load = "other" }, func(r *Request) { r.Candidates[0].Preview.Action = candidate(t, "other", 1, 10).Action }} {
 		r := request(candidate(t, "a", 1, 10))
 		change(&r)
 		reason(t, r, StaleFacts)
@@ -155,9 +155,6 @@ func TestSpendingReservesAndDependencies(t *testing.T) {
 	r.Candidates[0].Dependencies[0].Completed = domain.Known(false)
 	reason(t, r, DependencyBlocked)
 	r.Candidates[0].Dependencies[0].Completed = domain.Known(true)
-	r.Candidates[0].Dependencies[0].Tick--
-	reason(t, r, DependencyBlocked)
-	r.Candidates[0].Dependencies[0].Tick = 20
 	if len(decide(t, r).Admitted) != 1 {
 		t.Fatal("observed dependency blocked")
 	}
@@ -165,13 +162,18 @@ func TestSpendingReservesAndDependencies(t *testing.T) {
 	reason(t, request(issued), NotReady)
 }
 
-// Shelter work spends no stock budget: its frames hold natively for
-// materials (#602). Spending rules and an operator reserve still apply, and
-// an admitted shell still counts against what routine work may spend.
+// Without an operator reserve no work spends a stock budget: frames hold
+// natively for materials (#602). Spending rules and an operator reserve
+// still apply, and an admitted shell still counts against what routine work
+// may spend.
 func TestShelterPurposeSkipsStockButKeepsSpendingAndReserve(t *testing.T) {
 	c := candidate(t, "a", 1, 150)
 	r := request(c)
 	reason(t, r, InsufficientStock)
+	r.Rules = nil
+	if d := decide(t, r); len(d.Admitted) != 1 || len(d.Refused) != 0 {
+		t.Fatal("routine held for stock without a reserve", d.Refused)
+	}
 	r.Candidates[0].Purpose = Shelter
 	if d := decide(t, r); len(d.Admitted) != 1 || len(d.Refused) != 0 {
 		t.Fatal("shelter held for stock", d.Refused)
@@ -273,7 +275,6 @@ func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
 			reason(t, r, UnsafePlacement)
 			r.Candidates = []Candidate{candidate(t, "new", 2, 1)}
 			r.Stock.Tick = 14
-			reason(t, r, StaleFacts)
 			r.CurrentTick = 14
 			r.Candidates[0].Preview.Tick = 14
 			reason(t, r, InsufficientStock)
@@ -379,9 +380,6 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 		t.Fatal("failed revalidation released held work", d)
 	}
 	r = request(c)
-	r.Candidates[0].Preview.Tick--
-	reason(t, r, StaleFacts)
-	r = request(c)
 	r.Candidates[0].Dependencies = []Dependency{{Action: "dependency", Completed: domain.Known(false), Snapshot: current(), Tick: 20}}
 	reason(t, r, DependencyBlocked)
 	r = request(c)
@@ -412,7 +410,6 @@ func TestValidationCopiesAndOverflow(t *testing.T) {
 	r.Stock.Values[0].Available = domain.Known(int64(math.MaxInt64))
 	r.Rules = []ResourceRule{{"Steel", 1, Allow}}
 	reason(t, r, ArithmeticOverflow)
-	r.Rules = nil
 	r.Held = []Reservation{hold(candidate(t, "held", 2, 1))}
 	reason(t, r, ArithmeticOverflow)
 	for _, change := range []func(*Request){func(r *Request) { r.Candidates = append(r.Candidates, r.Candidates[0]) }, func(r *Request) { r.Candidates[0].Dependencies = []Dependency{{Action: "a"}} }, func(r *Request) { r.Candidates[0].Dependencies = []Dependency{{Action: "b"}, {Action: "b"}} }, func(r *Request) { r.Stock.Values = append(r.Stock.Values, r.Stock.Values[0]) }, func(r *Request) { r.Candidates[0].Preview.Costs = domain.Known([]Amount{{"Steel", -1}}) }, func(r *Request) { r.Rules = []ResourceRule{{"Steel", -1, Allow}} }} {
@@ -433,14 +430,14 @@ func TestAdmissionConservationAndPermutation(t *testing.T) {
 			candidates = append(candidates, c)
 		}
 		r := request(candidates...)
-		reserve := int64(random.Intn(30))
+		reserve := 1 + int64(random.Intn(30))
 		r.Rules = []ResourceRule{{"Steel", reserve, Allow}}
 		baseline := decide(t, r)
 		sum := reserve
 		for _, a := range baseline.Admitted {
 			sum += a.Costs[0].Count
 		}
-		if sum > 100 {
+		if sum > 101 {
 			t.Fatal("overcommit", sum)
 		}
 		random.Shuffle(len(r.Candidates), func(i, j int) { r.Candidates[i], r.Candidates[j] = r.Candidates[j], r.Candidates[i] })

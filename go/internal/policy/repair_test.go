@@ -51,8 +51,6 @@ func TestRepairDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *RepairRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *RepairRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *RepairRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *RepairRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *RepairRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *RepairRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *RepairRequest) { r.Current.Native = 0 }},
 		{"native", func(r *RepairRequest) { r.Current.Native++ }},

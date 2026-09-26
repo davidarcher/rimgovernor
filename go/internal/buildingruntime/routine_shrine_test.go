@@ -322,6 +322,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	t.Run("melee", func(t *testing.T) { testRoutineShrineOpening(t, false) })
 	t.Run("heat fallback", func(t *testing.T) { testRoutineShrineOpening(t, true) })
+	t.Run("heat install", func(t *testing.T) { testRoutineShrineOpening(t, true, "install") })
 }
 
 func (s *routineShrineNative) ReadBuildingTemperatureTarget(ctx context.Context, id *c.Identity, thing string) (bridge.BuildingTemperatureTarget, bridge.Result, error) {
@@ -332,7 +333,8 @@ func (s *routineShrineNative) PreviewBuilding(ctx context.Context, a domain.Acti
 	return (&sleepingNative{routineNative: s.routineNative}).PreviewBuilding(ctx, a, snapshot)
 }
 
-func testRoutineShrineOpening(t *testing.T, heat bool) {
+func testRoutineShrineOpening(t *testing.T, heat bool, variant ...string) {
+	install := len(variant) > 0 && variant[0] == "install"
 	reviewer, db, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(3)
@@ -355,6 +357,12 @@ func testRoutineShrineOpening(t *testing.T, heat bool) {
 	reviewer.native = source
 	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearAncientShrine})
 	reviewer.policy.Shrine.OpenCaskets = true
+	if install {
+		builder := native.pawnReply.GetObserved().Pawns[0]
+		builder.Biography.Skills = append(builder.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String("Construction")}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
+		builder.Settings.Work = append(builder.Settings.Work, &o.WorkSetting{DefName: proto.String("Construction"), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
+		v.Planning.GetObserved().Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Heater")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}}
+	}
 	ctx := context.Background()
 	review, err := reviewer.Step(ctx)
 	if err != nil {
@@ -375,6 +383,12 @@ func testRoutineShrineOpening(t *testing.T, heat bool) {
 		reviewer.policy.Shrine.HeatFallback = true
 		cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 		opened.Heat = &o.ShrineHeat{TemperatureCelsius: proto.Float64(65), OutdoorTemperatureCelsius: proto.Float64(20), CellCount: proto.Uint32(15), BoundaryCells: proto.Uint32(16), Enclosed: proto.Bool(true), ColonistsInside: proto.Bool(false), FiringCells: []*c.Cell{cell(33, 30)}, RetreatCells: []*c.Cell{cell(33, 29)}, Heaters: []*o.EntityRef{{Id: proto.String("h1"), DefName: proto.String("Heater"), Position: cell(31, 31)}, {Id: proto.String("h2"), DefName: proto.String("Heater"), Position: cell(32, 31)}, {Id: proto.String("h3"), DefName: proto.String("Heater"), Position: cell(33, 31)}}}
+		if install {
+			// One heater stands; the two missing ones are built by one plan
+			// (#712), not one plan per planner pass.
+			opened.Heat.Heaters = opened.Heat.Heaters[:1]
+			opened.Heat.HeaterSites = []*c.Cell{cell(32, 31), cell(33, 31), cell(34, 31)}
+		}
 	} else {
 		source.melee = true
 	}
@@ -382,6 +396,18 @@ func testRoutineShrineOpening(t *testing.T, heat bool) {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
+	if install {
+		if err != nil || len(plan.Progress) != 2 {
+			t.Fatal(plan, err)
+		}
+		for i, want := range []domain.Cell{{X: 32, Z: 31}, {X: 33, Z: 31}} {
+			building, ok := plan.Spec.Actions()[i].Building()
+			if !ok || building.Definition() != "Heater" || building.Cell() != want {
+				t.Fatal(plan.Spec.Actions())
+			}
+		}
+		return
+	}
 	if heat {
 		if err != nil || len(plan.Progress) != 4 {
 			t.Fatal(plan, err)

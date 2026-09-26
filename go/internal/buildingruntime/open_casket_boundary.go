@@ -99,12 +99,8 @@ func (b *OpenCasketBoundary) InspectOpenCasket(ctx context.Context, target execu
 	if _, err = boundary.Context(casket.Context, current); err != nil {
 		return out, err
 	}
-	// Both target reads may come from the step's fact cache, up to the
-	// family's tick tolerance behind the pawn read (#306, #323); the casket
-	// token still binds the order to what was listed.
-	if bridge.FactColony.Outrun(casket.Context.GetTick(), observed.Context.GetTick()) {
-		return out, executor.ErrEvidence
-	}
+	// Both target reads may come from the step's fact cache (#306, #323); the
+	// casket token still binds the order to what was listed.
 	shrines, _, err := b.native.ReadAncientShrines(ctx, boundary.Identity(current))
 	if err != nil {
 		return out, err
@@ -115,9 +111,6 @@ func (b *OpenCasketBoundary) InspectOpenCasket(ctx context.Context, target execu
 	}
 	if _, err = boundary.Context(census.Context, current); err != nil {
 		return out, err
-	}
-	if bridge.FactColony.Outrun(census.Context.GetTick(), observed.Context.GetTick()) {
-		return out, executor.ErrEvidence
 	}
 	// A casket the census no longer lists as filled has nothing left to
 	// open; one it does not list at all is no longer a shrine casket.

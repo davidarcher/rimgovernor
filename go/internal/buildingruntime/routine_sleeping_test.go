@@ -133,7 +133,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 
 func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"space", "unsafe", "direction", "tick", "age", "prerequisite", "unknown-room"} {
+	for _, change := range []string{"space", "unsafe", "direction", "age", "prerequisite", "unknown-room"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, session, _, n := sleepingFixture(t)
 			switch change {
@@ -156,8 +156,6 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 						session.mu.Lock()
 						session.state.Snapshot.Native++
 						session.mu.Unlock()
-					case "tick":
-						n.reply.GetObserved().Context.Tick = proto.Int64(n.reply.GetObserved().Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 					case "age":
 						r.reviewer.clock.(*testkit.ManualClock).Advance(time.Second)
 					}
@@ -181,8 +179,10 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 // candidate refusing both (#602). With nothing covered the method is refused.
 func TestRoutineSleepingAdmitsAffordablePrefix(t *testing.T) {
 	t.Parallel()
-	for _, available := range []int64{50, 20} {
+	// Stock is a spending budget only under an operator reserve.
+	for _, available := range []int64{51, 21} {
 		r, db, _, _, n := sleepingFixture(t)
+		r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
 		n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
 			v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 50}})
 			v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(available)}}
@@ -195,7 +195,7 @@ func TestRoutineSleepingAdmitsAffordablePrefix(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if available == 20 {
+		if available == 21 {
 			if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 2 || len(plans) != 2 || result.NativeWorkTicks != stockWaitTicks {
 				t.Fatal("uncovered method admitted", result, len(plans))
 			}

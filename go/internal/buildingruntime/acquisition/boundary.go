@@ -87,15 +87,7 @@ func (b *AcquisitionBoundary) InspectAcquisition(ctx context.Context, target exe
 		return out, err
 	}
 	// The three reads may straddle ticks under a running clock (#243); the
-	// preview's tick anchors the admission and the others must be fresh for
-	// it: the preview within the ticks the window ran across these reads
-	// (#666), the cached census within the step's (#624).
-	if !domain.FreshAcross(ctx, b.Clock.Now().Sub(out.StartedAt), domain.Tick(v.Context.GetTick()), domain.Tick(read.Context.GetTick())) || !domain.CoversIn(ctx, domain.AgeInventory, domain.Tick(emergency.Context.GetTick()), domain.Tick(read.Context.GetTick())) {
-		out.Tick = domain.Tick(v.Context.GetTick())
-		// A retry must not inherit the census that the preview just outran.
-		bridge.StepReadCacheFrom(ctx).Invalidate()
-		return out, executor.ErrAcquisitionStale
-	}
+	// preview's tick anchors the admission.
 	out.Current, out.Tick, out.Acquisition, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), acquisition, selected.Token, true
 	out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()

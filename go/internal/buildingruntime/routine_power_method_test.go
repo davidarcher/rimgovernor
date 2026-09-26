@@ -169,6 +169,7 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 						preview.Preview.SafeToPlace = domain.Unknown[bool]()
 					case "stock":
 						preview.Stock.Values[0].Available = domain.Known(int64(2))
+						p.reviewer.rules = []policy.ResourceRule{{Resource: "Steel", Reserve: 1, Spending: policy.Allow}}
 					case "cancelled":
 						p.reviewer.player.session.(*playerFakeSession).mu.Lock()
 						p.reviewer.player.session.(*playerFakeSession).state.Snapshot.Native++
@@ -196,6 +197,8 @@ func TestRoutinePowerMissingNativeComponentsPreventsGeneration(t *testing.T) {
 		original(ctx, preview)
 		preview.Preview.Costs = domain.Known([]policy.Amount{{Resource: "Steel", Count: 100}, {Resource: "ComponentIndustrial", Count: 2}})
 		preview.Stock.Values = append(preview.Stock.Values, policy.Stock{Resource: "ComponentIndustrial", Available: domain.Known(int64(0))})
+		// Stock is a spending budget only under an operator reserve.
+		p.reviewer.rules = []policy.ResourceRule{{Resource: "ComponentIndustrial", Reserve: 1, Spending: policy.Allow}}
 	}
 	result, err := p.Step(context.Background())
 	// The stock refusal lends the bounded stock wait: the components may be

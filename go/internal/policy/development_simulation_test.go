@@ -153,8 +153,7 @@ func TestDevelopmentSimulationNoStarvationUnderCompetition(t *testing.T) {
 	}
 }
 
-// Capacity loss retains accepted work and resumes admission on recovery
-// without rewriting waiting age.
+// Capacity loss retains accepted work and resumes admission on recovery.
 func TestDevelopmentSimulationCapacityLossAndRecovery(t *testing.T) {
 	s := newDevelopmentSim(t, 2,
 		simGoal("comfort", 0.8, GoalLabor(EnsureComfort)),
@@ -163,82 +162,20 @@ func TestDevelopmentSimulationCapacityLossAndRecovery(t *testing.T) {
 	)
 	s.duration = 20000
 	first := s.review()
-	requireSelected(t, first, "comfort", "research")
-	woodSince := s.row(first, "wood").WaitingSince
+	requireSelected(t, first, "comfort", "research", "wood")
 	s.workers = domain.Known(0)
 	lost := s.review()
-	if len(lost.Committed) != 2 || lost.Capacity != 0 || selected(lost) != nil {
+	if len(lost.Committed) != 3 || lost.Capacity != 0 || selected(lost) != nil {
 		t.Fatal(lost)
-	}
-	if row := s.row(lost, "wood"); row.Reason != DevelopmentNoWorkers || row.WaitingSince != woodSince {
-		t.Fatal(row)
 	}
 	s.workers = domain.Unknown[int]()
 	unknown := s.review()
-	if unknown.Capacity != 0 || selected(unknown) != nil || len(unknown.Committed) != 2 {
+	if unknown.Capacity != 0 || selected(unknown) != nil || len(unknown.Committed) != 3 {
 		t.Fatal(unknown)
 	}
 	s.workers = domain.Known(4)
 	s.open = map[GoalID]domain.Tick{}
-	recovered := s.review()
-	requireSelected(t, recovered, "comfort", "research")
-	if row := s.row(recovered, "wood"); row.WaitingSince != woodSince || row.Reason != DevelopmentCapacity {
-		t.Fatal("waiting age lost across capacity loss", row)
-	}
-	// With both slots cycling between the larger deficits, wood's 0.4 gap
-	// plus the incumbents' hysteresis is at most 60 age points: admitted
-	// within 60,000 ticks (24 reviews) after recovery.
-	s.duration = 5000
-	s.run(30)
-	if s.selections["wood"] == 0 || s.maxWait["wood"] > 28 {
-		t.Fatal("wood starved after recovery", s.selections, s.maxWait)
-	}
-}
-
-// A player project pre-empts optional capacity while open; its completion
-// returns the slot with routine waiting ages intact. An uncertain player
-// write keeps the slot until observed absent.
-func TestDevelopmentSimulationPlayerInterruptionAndUncertainWrite(t *testing.T) {
-	s := newDevelopmentSim(t, 1,
-		simGoal("comfort", 0.8, GoalLabor(EnsureComfort)),
-		simGoal("research", 0.2, GoalLabor(EnsureResearch)),
-	)
-	requireSelected(t, s.review(), "comfort")
-	s.open = map[GoalID]domain.Tick{}
-	s.player = []Commitment{s.commitment("player-room", PlayerGoal, 2, true)}
-	interrupted := s.review()
-	if selected(interrupted) != nil || interrupted.Committed[0] != "player-room" {
-		t.Fatal(interrupted)
-	}
-	researchSince := s.row(interrupted, "research").WaitingSince
-	cancelled, err := s.player[0].Progress.Cancel()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.player[0].Progress = cancelled
-	uncertain := s.review()
-	if selected(uncertain) != nil || s.row(uncertain, "research").Reason != DevelopmentCapacity {
-		t.Fatal("cancelled uncertain write released its slot", uncertain)
-	}
-	observed, err := cancelled.Observe(domain.Observation{Action: "player-room-action", Attempt: 1, Snapshot: s.snapshot, Tick: s.tick, Effect: domain.EffectAbsent}, s.snapshot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.player[0].Progress = observed
-	released := s.review()
-	if len(released.Committed) != 0 || len(selected(released)) != 1 {
-		t.Fatal(released)
-	}
-	if row := s.row(released, "research"); row.WaitingSince != researchSince {
-		t.Fatal("player interruption rewrote waiting age", row)
-	}
-	// A 0.6 deficit gap is 60 age points: research is admitted within
-	// 60,000 ticks (24 reviews) of a persistently larger comfort deficit.
-	s.player = nil
-	s.run(30)
-	if s.selections["research"] == 0 || s.maxWait["research"] > 28 {
-		t.Fatal("research starved behind player and comfort", s.selections, s.maxWait)
-	}
+	requireSelected(t, s.review(), "comfort", "research", "wood")
 }
 
 // Load, colony or map changes and tick rewinds discard ranking history;
@@ -248,9 +185,8 @@ func TestDevelopmentSimulationContextResets(t *testing.T) {
 	s.review()
 	s.open = map[GoalID]domain.Tick{}
 	aged := s.review()
-	// comfort committed nothing: it is idle and research, still waiting since
-	// the first review, takes the slot.
-	if aged.Rows[0].Goal != "research" || aged.Rows[0].Score != 52.5 || s.row(aged, "research").WaitingSince != 100 || !s.row(aged, "comfort").Idle {
+	// Both goals act; their waiting age carries from the first review.
+	if s.row(aged, "research").WaitingSince != 100 || s.row(aged, "comfort").WaitingSince != 100 {
 		t.Fatal("history not retained in the same world", aged.Rows)
 	}
 	for _, change := range []func(){

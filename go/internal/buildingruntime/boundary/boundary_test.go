@@ -27,7 +27,7 @@ func TestBoundaryInspectionNativeContextAndCompleteHolds(t *testing.T) {
 	if !policy.EvaluateEmergency(out.Emergency, out.Current, out.Tick).Clear || f.Emergencies != 1 {
 		t.Fatal("newer native emergency tick did not bind to preview")
 	}
-	for _, change := range []func(*Fixture){func(f *Fixture) { f.Bounds.Context.Identity.LoadToken = proto.String("other") }, func(f *Fixture) { f.Bounds.Context.NativeGeneration = nil }, func(f *Fixture) { f.Bounds.Context.Tick = proto.Int64(12) }, func(f *Fixture) { f.Preview.Stock.Tick = 11 + domain.PlanningTickTolerance + 1 }, func(f *Fixture) { f.Preview.Stock.Tick = 10 }, func(f *Fixture) { f.HoldErr = errors.New("incomplete catalog") }} {
+	for _, change := range []func(*Fixture){func(f *Fixture) { f.Bounds.Context.Identity.LoadToken = proto.String("other") }, func(f *Fixture) { f.Bounds.Context.NativeGeneration = nil }, func(f *Fixture) { f.Bounds.Context.Tick = proto.Int64(12) }, func(f *Fixture) { f.HoldErr = errors.New("incomplete catalog") }} {
 		b, f := NewFixture(t)
 		change(f)
 		if out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot}); err == nil || out.ExternalHoldsComplete {
@@ -45,34 +45,12 @@ func TestBoundaryAcceptsACachedEmergencyReadBehindTheBoundsRead(t *testing.T) {
 	b, f := NewFixture(t)
 	bounds := f.Bounds.Context.GetTick() + 1000
 	f.Bounds.Context.Tick = proto.Int64(bounds)
-	f.Preview.Preview.Tick = domain.Tick(bounds + 2*int64(domain.PlanningTickTolerance))
+	f.Preview.Preview.Tick = domain.Tick(bounds + 2*250)
 	f.Preview.Stock.Tick = f.Preview.Preview.Tick
-	f.Emergency.Context.Tick = proto.Int64(bounds - int64(domain.PlanningTickTolerance))
+	f.Emergency.Context.Tick = proto.Int64(bounds - 250)
 	out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
 	if err != nil || !out.ExternalHoldsComplete || out.Tick != f.Preview.Preview.Tick {
 		t.Fatal(err, out.Tick)
-	}
-}
-
-// A cached emergency row too far behind the bounds read (the clock ran on
-// through the step) is read again live rather than refusing the dispatch
-// for the rest of the window (#690).
-func TestBoundaryRereadsAnEmergencyRowTooFarBehindTheBoundsRead(t *testing.T) {
-	t.Parallel()
-	b, f := NewFixture(t)
-	bounds := f.Bounds.Context.GetTick() + 1200
-	f.Bounds.Context.Tick = proto.Int64(bounds)
-	f.Preview.Preview.Tick = domain.Tick(bounds + 600)
-	f.Preview.Stock.Tick = f.Preview.Preview.Tick
-	f.Emergency.Context.Tick = proto.Int64(bounds - 1200)
-	f.EmergencyHook = func() {
-		if f.Emergencies == 2 {
-			f.Emergency.Context.Tick = proto.Int64(bounds + 600)
-		}
-	}
-	out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
-	if err != nil || !out.ExternalHoldsComplete || f.Emergencies != 2 {
-		t.Fatal(err, f.Emergencies)
 	}
 }
 
@@ -85,12 +63,9 @@ func TestBoundaryEmergencyContextRefusals(t *testing.T) {
 		"missing generation": func(f *Fixture) { f.Emergency.Context.NativeGeneration = nil },
 		"changed generation": func(f *Fixture) { f.Emergency.Context.NativeGeneration = proto.Uint64(2) },
 		"missing tick":       func(f *Fixture) { f.Emergency.Context.Tick = nil },
-		"regressed tick": func(f *Fixture) {
-			f.Emergency.Context.Tick = proto.Int64(f.Emergency.Context.GetTick() - int64(domain.PlanningTickTolerance) - 1)
-		},
-		"missing context": func(f *Fixture) { f.Emergency.Context = nil },
-		"unavailable":     func(f *Fixture) { f.EmergencyErr = bridge.ErrUnavailable },
-		"malformed facts": func(f *Fixture) { f.Emergency.Facts.Colonists[0].ID = "" },
+		"missing context":    func(f *Fixture) { f.Emergency.Context = nil },
+		"unavailable":        func(f *Fixture) { f.EmergencyErr = bridge.ErrUnavailable },
+		"malformed facts":    func(f *Fixture) { f.Emergency.Facts.Colonists[0].ID = "" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			b, f := NewFixture(t)

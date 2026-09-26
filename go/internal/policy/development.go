@@ -26,10 +26,7 @@ type DevelopmentGoal struct {
 	Cancelled, Blocked, Comfort bool
 	MethodUnavailable           bool
 	// Served: the goal has a method on record (an active plan under any of
-	// its epochs). A startup-survival goal (priority class 0-2) holds comfort
-	// back only until it is served or declared monitoring-only, so a colony
-	// whose fields are planted and campfire lit may furnish a table while
-	// the food latch is still open.
+	// its epochs).
 	Served bool
 	// Labor is the goal's profile (GoalLabor); nil means no pawn work.
 	Labor LaborProfile
@@ -345,13 +342,10 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			continue
 		}
 		if v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation {
-			// Labor idle across reviews for DevelopmentIdleTicks releases
-			// the slot without closing the work: nobody is picking the
-			// work up, so the goal's row reads labor_idle until they do.
-			// The evidence is target-linked (#643): a haul for a third
-			// goal is not activity on this one. Unknown evidence (a
-			// sleeping colony, an unattributable job) carries the
-			// deadline without starting, resetting or completing it.
+			// Idle labor is recorded (LaborIdleSince) but never releases
+			// the goal: work nobody has picked up yet is still the goal's
+			// work. The evidence is target-linked (#643): a haul for a
+			// third goal is not activity on this one.
 			e := CommitmentLabor(r.LaborUse, c.Labor, c.Targets)
 			if evidenceRank(e) > evidenceRank(evidence[c.Goal]) {
 				evidence[c.Goal] = e
@@ -364,10 +358,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 					if carried {
 						idleSince[c.Goal] = since
 					}
-				}
-				if e.Idle() && r.Tick-idleSince[c.Goal] >= DevelopmentIdleTicks {
-					released[c.Goal] = true
-					continue
 				}
 			}
 			if !committed[c.Goal] {
@@ -389,7 +379,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	}
 	result.Holds = CommitmentHolds(r.Commitments, r.Tick, released, r.Auto, r.Withheld)
 	sort.Slice(result.Committed, func(i, j int) bool { return result.Committed[i] < result.Committed[j] })
-	emergency, startup := false, false
+	emergency := false
 	seen := map[GoalID]bool{}
 	for _, g := range r.Goals {
 		fraction, known := g.Deficit.Value()
@@ -401,12 +391,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		// A mental break's mood goal is priority 1 but not an emergency: it
 		// ends only as ticks pass, so it must not freeze development.
 		emergency = emergency || g.Priority < 2 && !IsMoodGoal(g.ID)
-		// MaintainRefrigeration sits at priority 2 only to bypass the ranked
-		// queue (a cooler queued behind the project limit arrives after the
-		// food is gone); it is upkeep, not a startup need, and a tribal
-		// colony with no way to cool a room would otherwise hold comfort
-		// back for as long as any berry is near spoiling (#217).
-		startup = startup || g.Priority < 3 && !g.Served && !g.MethodUnavailable && !g.Cancelled && g.ID != MaintainRefrigeration
 	}
 	if len(r.Dependencies) > MaxDevelopmentDependencies {
 		return DevelopmentState{}, errors.New("invalid development dependencies")
@@ -449,8 +433,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentAdviser
 		case emergency:
 			row.Reason = DevelopmentEmergency
-		case g.Comfort && startup:
-			row.Reason = DevelopmentStartup
 		case g.Blocked:
 			row.Reason = DevelopmentBlocked
 		case row.Committed:
@@ -524,7 +506,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		return a.Goal < b.Goal
 	})
-	free := max(0, result.Capacity-slotHolds(result.Holds))
 	// A round ends once every eligible goal has been idle: the flags clear
 	// and score order restarts.
 	eligible, idle := 0, 0
@@ -564,27 +545,16 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentOvercommitted
 			continue
 		}
-		// Labor and the stage are decided before the slot count, so a
-		// capacity-deferred row is one a freed slot could take as it is
-		// (YieldDevelopment). The Foothold hold (#630): a held project
-		// still names the labor it lacks, and never claims labor.
+		// A goal with work and a pawn able to do it acts: no project
+		// limit, stage or startup hold defers it.
 		profile := profiles[row.Goal]
 		fits, bottlenecks, _ := holdsFit(result, append(chosen[:len(chosen):len(chosen)], profile))
-		switch last := len(fits) - 1; {
-		case !fits[last]:
+		if last := len(fits) - 1; !fits[last] {
 			row.Reason, row.Bottleneck = DevelopmentLabor, bottlenecks[last]
-		case r.Stage.HoldsDevelopment() && StageDevelopmentGoal(row.Goal):
-			row.Reason = DevelopmentStage
-		case free == 0:
-			row.Reason = DevelopmentCapacity
-			if row.Donation != nil && !r.Auto {
-				row.Donation.Conflict = "project_limit"
-			}
-		default:
-			chosen = append(chosen, profile)
-			row.Selected = true
-			free--
+			continue
 		}
+		chosen = append(chosen, profile)
+		row.Selected = true
 	}
 	summarizeDevelopment(&result)
 	return result, nil

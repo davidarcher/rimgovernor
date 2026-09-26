@@ -137,7 +137,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
-		selected = selected || row.Goal == policy.ClearAncientShrine && row.Selected
+		selected = selected || row.Goal == policy.ClearAncientShrine && (row.Selected || row.Committed)
 	}
 	if !selected {
 		return RoutineShrineResult{Reason: BuildingMethodRefused}, nil

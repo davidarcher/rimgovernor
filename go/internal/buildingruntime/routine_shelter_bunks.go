@@ -512,7 +512,7 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 	unpaid := 0
 	for i, preview := range previews {
 		v := preview.Preview
-		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(s.facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(s.facts.Identity.Tick) {
+		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return RoutineBuildingResult{}, false, ErrControl
 		}
 		made, known := v.MadeFromStuff.Value()

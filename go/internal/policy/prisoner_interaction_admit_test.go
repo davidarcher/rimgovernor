@@ -66,8 +66,6 @@ func TestPrisonerInteractionDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *PrisonerInteractionRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *PrisonerInteractionRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *PrisonerInteractionRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *PrisonerInteractionRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *PrisonerInteractionRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *PrisonerInteractionRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *PrisonerInteractionRequest) { r.Current.Native = 0 }},
 		{"native", func(r *PrisonerInteractionRequest) { r.Current.Native++ }},

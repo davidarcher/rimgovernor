@@ -402,7 +402,7 @@ func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, s
 			return nil, nil, policy.StockObservation{}, "", err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return nil, nil, policy.StockObservation{}, "", ErrControl
 		}
 		made, madeKnown := v.MadeFromStuff.Value()
@@ -476,7 +476,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 			return RoutineAnimalContainmentResult{}, err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return RoutineAnimalContainmentResult{}, ErrControl
 		}
 		made, mk := v.MadeFromStuff.Value()

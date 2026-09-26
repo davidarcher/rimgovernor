@@ -1049,7 +1049,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			if err = check(); err != nil {
 				return nil, policy.StockObservation{}, "", err
 			}
-			if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+			if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) {
 				return nil, policy.StockObservation{}, "", ErrControl
 			}
 			made, known := preview.Preview.MadeFromStuff.Value()
@@ -1150,27 +1150,19 @@ func routineBuildingBoundary(actual observation.Identity, expected domain.Genera
 	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && routineBuildingFresh(actual.Tick, tick) && generationKnown && generation == expected.Native
 }
 
-// routineBuildingFresh is Tick.FreshFor widened for an identity read the
-// step's fact cache may serve: the identity row is seeded at the tick the
-// step opened on, while the anchor is the colony read the review made after
-// it, so under a running window the row lawfully sits *behind* the anchor
-// (#306, #662) by exactly what the cache serves it under
-// (bridge.FactIdentity.Fresh, the identity family's zero tolerance widened
-// by the window's live drift). Under a stopped clock the drift is zero and
-// this is tick-exact equality, as before.
+// routineBuildingFresh accepts an identity read the step's fact cache may
+// serve: seeded at the tick the step opened on, it sits behind the review's
+// colony anchor under a running window and is not a changed world (#306,
+// #662).
 func routineBuildingFresh(actual, anchor domain.Tick) bool {
 	return routineCachedFresh(bridge.FactIdentity, actual, anchor)
 }
 
-// routineCachedFresh is Tick.FreshFor for an observation the step's fact
-// cache may have served: past the anchor within the planning tolerance as
-// usual, or behind it by no more than the row's own family serves it under
-// (bridge.FactFamily.Fresh). A planner that anchors a cached read on the
-// review's colony tick must use this rather than the bare FreshFor: the
-// review read after the step's cached rows, so under a running window they
-// sit behind its anchor by design and are not a changed world (#306, #662).
+// routineCachedFresh accepts any observation the step's fact cache may
+// have served: a read's tick never makes it stale, only another world does,
+// and that is checked beside it (#306, #662).
 func routineCachedFresh(family bridge.FactFamily, actual, anchor domain.Tick) bool {
-	return actual.FreshFor(anchor) || family.Fresh(int64(actual), int64(anchor))
+	return true
 }
 
 // initialShelterOwed reports whether the review binds an active

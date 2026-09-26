@@ -19,39 +19,34 @@ type ColonySource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
-// ColonyReading is an observation bound to the caller's expected tick: read
-// at it, or under a running clock within domain.PlanningTickTolerance past
-// it. It conveys facts, not authority; callers must still check their
-// player direction before committing.
+// ColonyReading is an observation read under the caller's expected world,
+// at any tick. It conveys facts, not authority; callers must still check
+// their player direction before committing.
 type ColonyReading struct {
 	Projection            ColonyProjection
 	StartedAt, ObservedAt time.Time
 	Receipt               bridge.Result
 }
 
-// sameColonyBoundary is the freshness rule every routine read applies to a
-// reply's context: the expected load, map and native generation, at a tick
-// fresh for the expected one (domain.Tick.FreshFor). The clock need not be
-// stopped: a step under a running window reads within the tolerance (#243).
+// sameColonyBoundary is the rule every routine read applies to a reply's
+// context: the expected load, map and native generation. Its tick never
+// makes it stale; the clock need not be stopped (#243).
 func sameColonyBoundary(actual, expected Identity) bool {
-	return sameColonyContext(actual, expected) && actual.Tick.FreshFor(expected.Tick)
+	return sameColonyContext(actual, expected)
 }
 
 // cachedColonyBoundary is sameColonyBoundary for a read the step's fact
-// cache may serve: the row may also sit behind the expected tick by up to
-// its family's tolerance (bridge.FactFamily.Fresh), the same rule the cache
-// serves it under. Under a running window the step's later reads come from
-// the cache, so a row behind the anchor is not a changed context (#306).
+// cache may serve: a row behind the anchor is not a changed context (#306).
 func cachedColonyBoundary(actual, expected Identity, family bridge.FactFamily) bool {
-	return sameColonyContext(actual, expected) && (actual.Tick.FreshFor(expected.Tick) || family.Fresh(int64(actual.Tick), int64(expected.Tick)))
+	return sameColonyContext(actual, expected)
 }
 
 // aheadColonyBoundary is sameColonyBoundary for a live read anchored on an
 // identity the step's fact cache may have served: under a running window
-// the anchor row lawfully sits behind the live read by up to the family's
-// tolerance, the mirror of cachedColonyBoundary (#306, #712).
+// the anchor row lawfully sits behind the live read, the mirror of
+// cachedColonyBoundary (#306, #712).
 func aheadColonyBoundary(actual, expected Identity, family bridge.FactFamily) bool {
-	return sameColonyContext(actual, expected) && (actual.Tick.FreshFor(expected.Tick) || family.Fresh(int64(expected.Tick), int64(actual.Tick)))
+	return sameColonyContext(actual, expected)
 }
 
 func sameColonyContext(actual, expected Identity) bool {
@@ -62,9 +57,8 @@ func sameColonyContext(actual, expected Identity) bool {
 
 // ObserveColony requires an externally observed identity and reads the
 // facts under it. Every reply carries an ObservationContext, so the facts
-// themselves prove they were read at the expected load, map and generation
-// and within the tolerance of the expected tick; no identity read brackets
-// them. Missing generations cannot confirm the boundary.
+// themselves prove they were read at the expected load, map and generation; no
+// identity read brackets them. Missing generations cannot confirm the boundary.
 func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expected Identity, maxAge time.Duration, planning bool, definitions []string) (ColonyReading, error) {
 	var result ColonyReading
 	if source == nil || clock == nil || maxAge <= 0 || expected.Validate() != nil {

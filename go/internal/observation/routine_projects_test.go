@@ -65,7 +65,7 @@ func (s *projectSource) ReadRoutinePawns(context.Context, *c.Identity, []string)
 }
 
 func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
-	for _, phase := range []string{"supplement", "default-only", "changed-tick", "expired", "cancelled", "unrequested"} {
+	for _, phase := range []string{"supplement", "default-only", "expired", "cancelled", "unrequested"} {
 		t.Run(phase, func(t *testing.T) {
 			data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 			if err != nil {
@@ -92,9 +92,6 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			switch phase {
 			case "default-only":
 				names = []string{"Wall"}
-			case "changed-tick":
-				s.extra.GetObserved().Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
-				s.extra.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
 			case "expired":
 				s.onExtra = func() { clock.Advance(2 * time.Second) }
 			case "cancelled":

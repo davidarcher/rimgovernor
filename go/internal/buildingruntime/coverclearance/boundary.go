@@ -96,12 +96,8 @@ func (b *CoverClearanceBoundary) InspectCoverClearance(ctx context.Context, targ
 	// The three reads need only be ordered, not simultaneous: the thing's
 	// snapshot token already binds the designation to the thing the census
 	// listed, so a tick that advanced between them is a running clock, not
-	// stale evidence (the supply family's #120 rule). The emergency read may
-	// come from the step's fact cache under a running window (#243), so it
-	// may predate the preview by the emergency family's tick tolerance and
-	// no more; the work is designated, not ordered, so a threat that far
-	// back is the clock scheduler's to stop on.
-	if v.Context.GetTick() < read.Context.GetTick() || bridge.FactEmergency.Outrun(emergency.Context.GetTick(), v.Context.GetTick()) {
+	// stale evidence (the supply family's #120 rule).
+	if v.Context.GetTick() < read.Context.GetTick() {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Clearance, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), clearance, selected.Token, true

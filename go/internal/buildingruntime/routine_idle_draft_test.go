@@ -26,7 +26,7 @@ func (n *idleDraftNative) ReadEmergency(ctx context.Context, id *c.Identity) (br
 
 func TestIdleDraftObservationGuards(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"idle", "owned", "unknown-claim", "undrafted", "downed", "mental", "forced", "queued", "unknown-job", "hostile", "unknown-threats", "held", "stale-generation", "stale-world", "stale-tick", "bad-token"} {
+	for _, scenario := range []string{"idle", "owned", "unknown-claim", "undrafted", "downed", "mental", "forced", "queued", "unknown-job", "hostile", "unknown-threats", "held", "stale-generation", "stale-world", "bad-token"} {
 		t.Run(scenario, func(t *testing.T) {
 			r, db, session, _, native := routineFixture(t)
 			ctx := context.Background()
@@ -80,9 +80,6 @@ func TestIdleDraftObservationGuards(t *testing.T) {
 				wantErr = true
 			case "stale-world":
 				context.Identity.LoadToken = proto.String("other")
-				wantErr = true
-			case "stale-tick":
-				tick += domain.PlanningTickTolerance + domain.LiveDrift() + 1
 				wantErr = true
 			case "bad-token":
 				row.Pawn.Snapshot.Token = nil

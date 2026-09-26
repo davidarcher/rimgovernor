@@ -103,14 +103,9 @@ func (b *WasteBoundary) InspectWaste(ctx context.Context, target executor.Target
 	if _, err = boundary.Context(item.Context, current); err != nil {
 		return out, err
 	}
-	// The target read may come from the step's fact cache under a running
-	// window, up to its family's tick tolerance behind the pawn read, the
-	// step's first native read (#306, #323); its snapshot token still binds
-	// the order to what it listed, so native refuses a stale one at dispatch.
-	// Only a read the pawn read has outrun is wrong evidence.
-	if bridge.FactColony.Outrun(item.Context.GetTick(), observed.Context.GetTick()) {
-		return out, executor.ErrEvidence
-	}
+	// The target read may come from the step's fact cache (#306, #323); its
+	// snapshot token binds the order to what it listed, so native refuses a
+	// stale one at dispatch.
 	itemToken := item.Token
 	preview, _, err := b.native.PreviewWaste(ctx, boundary.Identity(current), string(waste.Pawn()), pawnToken, waste.Target(), itemToken, nil, nil)
 	if err != nil {

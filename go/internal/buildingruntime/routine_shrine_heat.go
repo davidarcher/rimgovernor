@@ -141,26 +141,48 @@ func (r *RoutineShrinePlanner) heat(call, epoch context.Context, state ControlSt
 			held.Hold = "heat_builder_unavailable"
 			return held, nil
 		}
-		value, err := domain.NewBuilding(definition, proposal.Cell, domain.North, stuff)
-		if err != nil {
-			return RoutineShrineResult{}, err
+		// Every missing heater goes into one plan: one planner pass per heater
+		// left the colony idle for the rest of each clock window (#712).
+		cells := proposal.Cells
+		if len(cells) == 0 {
+			cells = []domain.Cell{proposal.Cell}
 		}
-		action, err := domain.NewBuildingAction(domain.ActionID(string(id)+"-build"), value)
-		if err != nil {
-			return RoutineShrineResult{}, err
-		}
-		preview, _, err := native.PreviewBuilding(call, action, snapshot)
-		if err != nil {
-			return RoutineShrineResult{}, err
+		var previews []policy.Preview
+		var stock policy.StockObservation
+		for i, cell := range cells {
+			value, err := domain.NewBuilding(definition, cell, domain.North, stuff)
+			if err != nil {
+				return RoutineShrineResult{}, err
+			}
+			actionID := domain.ActionID(string(id) + "-build")
+			if i > 0 {
+				actionID = domain.ActionID(fmt.Sprintf("%s-build-%d", id, i))
+			}
+			action, err := domain.NewBuildingAction(actionID, value)
+			if err != nil {
+				return RoutineShrineResult{}, err
+			}
+			preview, _, err := native.PreviewBuilding(call, action, snapshot)
+			if err != nil {
+				return RoutineShrineResult{}, err
+			}
+			actions = append(actions, action)
+			previews = append(previews, preview.Preview)
+			if i == 0 {
+				stock.Snapshot, stock.Tick = preview.Stock.Snapshot, preview.Stock.Tick
+			}
+			if err = mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
+				return RoutineShrineResult{}, err
+			}
 		}
 		if err = check(); err != nil {
 			return RoutineShrineResult{}, err
 		}
-		plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+		plan, err := domain.NewPlan(id, 1, actions)
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
-		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: preview.Stock, Rules: r.reviewer.rules, Previews: []policy.Preview{preview.Preview}, Purpose: policy.Routine})
+		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}

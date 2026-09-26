@@ -123,13 +123,9 @@ func TestCleanDispatchesUnderRunningWindow(t *testing.T) {
 	}
 }
 
-// The fresh campaign's first running window has no measured live drift.
 // Native accepted the exact pawn/filth tokens after more than 250 ticks;
 // admission must use that preview rather than stall on the pawn read's age.
 func TestCleanDispatchesBeforeRunningPaceIsKnown(t *testing.T) {
-	previous := domain.LiveDrift()
-	domain.SetLiveDrift(0)
-	t.Cleanup(func() { domain.SetLiveDrift(previous) })
 	f, n := cleanFixture(t)
 	n.tick = 103805
 	n.running = true

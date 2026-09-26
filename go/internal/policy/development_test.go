@@ -45,36 +45,23 @@ func requireSelected(t *testing.T, s DevelopmentState, ids ...GoalID) {
 func TestDevelopmentCapacityAndYield(t *testing.T) {
 	r := developmentFixture()
 	s := rank(t, r)
-	requireSelected(t, s, "storage")
+	requireSelected(t, s, "storage", "defense", "wood")
 	next := YieldDevelopment(s, "storage")
-	requireSelected(t, next, "defense")
-	requireSelected(t, s, "storage")
-	if next.Rows[0].Goal != "storage" || next.Rows[0].Reason != DevelopmentMethodUnavailable || !next.Rows[0].Idle || next.Rows[0].Granted || !next.Rows[1].Granted {
-		t.Fatalf("yield should mark the yielder unavailable and idle and the recipient granted: %+v", next.Rows)
+	requireSelected(t, next, "defense", "wood")
+	requireSelected(t, s, "storage", "defense", "wood")
+	if next.Rows[0].Goal != "storage" || next.Rows[0].Reason != DevelopmentMethodUnavailable || !next.Rows[0].Idle || next.Rows[0].Granted {
+		t.Fatalf("yield should mark the yielder unavailable and idle: %+v", next.Rows)
 	}
 	if ValidateDevelopmentState(next) != nil {
 		t.Fatal(next)
 	}
-	// The recipient's planner may not have run under the grant: the next
-	// review keeps its hysteresis and does not judge it idle, while the
-	// yielder ranks behind it as an unused selection would.
-	r.Previous = next
-	r.Tick = 110
-	after := rank(t, r)
-	requireSelected(t, after, "defense")
-	if after.Rows[0].Idle || after.Rows[0].Granted || !after.Rows[len(after.Rows)-1].Idle || after.Rows[len(after.Rows)-1].Goal != "storage" {
-		t.Fatalf("granted recipient should keep the slot and the yielder should be idle: %+v", after.Rows)
-	}
-	r.Previous, r.Tick = DevelopmentState{}, 100
-	next = YieldDevelopment(next, "defense")
-	requireSelected(t, next, "wood")
 	// Yielding an unselected goal changes nothing.
 	if y := YieldDevelopment(next, "storage"); !reflect.DeepEqual(y, next) {
 		t.Fatal(y)
 	}
 	r.Workers = domain.Known(1)
 	r.Limit = 8
-	requireSelected(t, rank(t, r), "storage")
+	requireSelected(t, rank(t, r), "storage", "defense", "wood")
 	r.Workers = domain.Known(0)
 	requireSelected(t, rank(t, r))
 	r.Workers = domain.Unknown[int]()
@@ -89,82 +76,16 @@ func TestUnavailableMethodDoesNotStarveExecutableDevelopment(t *testing.T) {
 	r := developmentFixture()
 	r.Goals[0].MethodUnavailable = true
 	s := rank(t, r)
-	requireSelected(t, s, "defense")
+	requireSelected(t, s, "defense", "wood")
 	if s.Rows[0].Reason != DevelopmentMethodUnavailable || s.Rows[0].Deficit != domain.Known(1.0) {
 		t.Fatal(s)
 	}
-	// defense held the slot through a review without committing: it is idle
-	// and wood takes the slot; the review after that, wood is idle and
-	// defense returns.
-	r.Previous = s
-	r.Tick += 25000
-	s = rank(t, r)
-	requireSelected(t, s, "wood")
-	if row := s.Rows[2]; row.Goal != "defense" || !row.Idle || row.WaitingSince != 100 || row.Score != 50+25 {
-		t.Fatal("idle defense lost its age or kept hysteresis", s.Rows)
-	}
-	// Both idle: the round restarts on score and defense returns.
-	r.Previous = s
-	r.Tick += 2500
-	requireSelected(t, rank(t, r), "defense")
 	r.Goals[0].MethodUnavailable = false
-	requireSelected(t, rank(t, r), "storage")
+	requireSelected(t, rank(t, r), "storage", "defense", "wood")
 }
 
-// A selected goal whose planner commits nothing hands the slot on at the
-// next review instead of holding it on hysteresis and age (colony-3 held
-// both slots for a game day on EnsureDefensiveLayout and MaintainAnimalFeed
-// while EnsureBasicDefense waited on capacity). Committed work keeps its
-// hysteresis, and an idle goal still takes a slot nobody else wants.
-func TestIdleSelectionYieldsCapacity(t *testing.T) {
-	r := developmentFixture()
-	s := rank(t, r)
-	requireSelected(t, s, "storage")
-	r.Previous, r.Tick = s, r.Tick+2500
-	s = rank(t, r)
-	requireSelected(t, s, "defense")
-	if row := s.Rows[len(s.Rows)-1]; row.Goal != "storage" || !row.Idle || row.Reason != DevelopmentCapacity || row.Score != 102.5 {
-		t.Fatal("idle storage should rank last with deficit and age alone", s.Rows)
-	}
-	// storage stays idle while defense and wood take their turns, then the
-	// round restarts on score.
-	r.Previous, r.Tick = s, r.Tick+2500
-	s = rank(t, r)
-	requireSelected(t, s, "wood")
-	if row := s.Rows[1]; row.Goal != "storage" || !row.Idle {
-		t.Fatal("storage should stay idle until the round ends", s.Rows)
-	}
-	r.Previous, r.Tick = s, r.Tick+2500
-	s = rank(t, r)
-	requireSelected(t, s, "storage")
-	if row := s.Rows[0]; row.Idle || row.Score != 107.5 || row.WaitingSince != 100 {
-		t.Fatal("a new round ranks on score with waiting age intact", s.Rows)
-	}
-	// Committed work keeps its slot's hysteresis once the work completes.
-	committed := s
-	for i := range committed.Rows {
-		if committed.Rows[i].Goal == "storage" {
-			committed.Rows[i].Committed = true
-		}
-	}
-	r.Previous, r.Tick = committed, r.Tick+2500
-	s = rank(t, r)
-	requireSelected(t, s, "storage")
-	if row := s.Rows[0]; row.Idle || row.Score <= 100 {
-		t.Fatal("completed work lost its hysteresis", s.Rows)
-	}
-	// With nothing else eligible an idle goal still takes the slot: the
-	// round restarts at once and its flag clears.
-	r.Goals = r.Goals[:1]
-	r.Previous, r.Tick = rank(t, r), r.Tick+2500
-	s = rank(t, r)
-	requireSelected(t, s, "storage")
-	if s.Rows[0].Idle {
-		t.Fatal(s.Rows)
-	}
-}
 func TestDevelopmentHolds(t *testing.T) {
-	for _, kind := range []string{"emergency", "unknown", "cancelled", "adviser", "blocked", "comfort"} {
+	for _, kind := range []string{"emergency", "unknown", "cancelled", "adviser", "blocked"} {
 		t.Run(kind, func(t *testing.T) {
 			r := developmentFixture()
 			r.Goals = r.Goals[:1]
@@ -179,9 +100,6 @@ func TestDevelopmentHolds(t *testing.T) {
 				r.Goals[0].Source = AdviserGoal
 			case "blocked":
 				r.Goals[0].Blocked = true
-			case "comfort":
-				r.Goals[0].Comfort = true
-				r.Goals = append(r.Goals, DevelopmentGoal{ID: "food", Source: AutopilotGoal, Priority: 2})
 			}
 			s := rank(t, r)
 			requireSelected(t, s)
@@ -192,30 +110,18 @@ func TestDevelopmentHolds(t *testing.T) {
 	}
 }
 
-// Comfort waits for the startup ladder only until every startup-survival
-// goal is served (a method on record) or monitoring-only; a food latch that
-// stays open for a season while the fields grow must not hold a table back
-// (#196). An unserved startup goal still holds it.
-func TestDevelopmentComfortWaitsForUnservedStartupGoalsOnly(t *testing.T) {
+// A startup goal no longer holds comfort back: a comfort goal with work acts.
+func TestDevelopmentComfortActsBesideUnservedStartupGoals(t *testing.T) {
 	r := developmentFixture()
 	r.Goals = r.Goals[:1]
 	r.Goals[0].Comfort = true
-	r.Goals = append(r.Goals,
-		DevelopmentGoal{ID: "food", Source: AutopilotGoal, Priority: 2, Served: true},
-		DevelopmentGoal{ID: "medical", Source: AutopilotGoal, Priority: 2, MethodUnavailable: true})
-	requireSelected(t, rank(t, r), "storage")
 	r.Goals = append(r.Goals, DevelopmentGoal{ID: "cooking", Source: AutopilotGoal, Priority: 2})
 	s := rank(t, r)
-	requireSelected(t, s)
-	if s.Rows[0].Reason != DevelopmentStartup {
-		t.Fatal(s)
+	for _, row := range s.Rows {
+		if row.Goal == "storage" && !row.Selected {
+			t.Fatal("comfort held behind an unserved startup goal", s.Rows)
+		}
 	}
-	r.Goals[3].Served = true
-	requireSelected(t, rank(t, r), "storage")
-	// The refrigeration latch is priority 2 to bypass the ranked queue,
-	// not a startup need: unserved, it does not hold comfort (#217).
-	r.Goals = append(r.Goals, DevelopmentGoal{ID: MaintainRefrigeration, Source: AutopilotGoal, Priority: 2})
-	requireSelected(t, rank(t, r), "storage")
 }
 
 // A mental break's mood goal is priority 1 yet not an emergency: it ends
@@ -229,7 +135,7 @@ func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 	r := developmentFixture()
 	r.Goals[2].Source = PlayerGoal
 	s := rank(t, r)
-	requireSelected(t, s, "wood")
+	requireSelected(t, s, "wood", "storage", "defense")
 	for range 20 {
 		r.Previous = s
 		s = rank(t, r)
@@ -244,10 +150,10 @@ func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 	// Committed work resets only its own waiting age.
 	r.Commitments = []Commitment{{Goal: "wood", Source: PlayerGoal, Priority: 3, Progress: developmentProgress(t)}}
 	s = rank(t, r)
-	requireSelected(t, s)
+	requireSelected(t, s, "storage", "defense")
 	r.Previous = s
 	r.Commitments = nil
-	requireSelected(t, rank(t, r), "storage")
+	requireSelected(t, rank(t, r), "wood", "storage", "defense")
 	for _, change := range []string{"load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
 			q := r
@@ -305,7 +211,7 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 	for _, p := range []domain.Progress{pending, prepared, dispatched, cancelled} {
 		r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: p}}
 		s := rank(t, r)
-		requireSelected(t, s)
+		requireSelected(t, s, "storage", "defense", "wood")
 		if !reflect.DeepEqual(s.Committed, []GoalID{"player-room"}) {
 			t.Fatal(s)
 		}
@@ -316,7 +222,7 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 			t.Fatal(err)
 		}
 		r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: observed}}
-		requireSelected(t, rank(t, r), "storage")
+		requireSelected(t, rank(t, r), "storage", "defense", "wood")
 	}
 }
 func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
@@ -367,7 +273,16 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 		previous.Rows = append(previous.Rows, row)
 	}
 	r.Previous = previous
-	requireSelected(t, rank(t, r), "MaintainFlooring")
+	// Every eligible goal acts; the non-idle one still ranks first.
+	s := rank(t, r)
+	for _, row := range s.Rows {
+		if row.Selected {
+			if row.Goal != "MaintainFlooring" {
+				t.Fatalf("first selected row %s, want MaintainFlooring: %+v", row.Goal, s.Rows)
+			}
+			break
+		}
+	}
 }
 
 // A wake step runs only the planners it names, so a goal selected by that
@@ -377,19 +292,17 @@ func TestPartialPlannerPassDoesNotIdleSelection(t *testing.T) {
 	r := developmentFixture()
 	r.Partial = true
 	s := rank(t, r)
-	requireSelected(t, s, "storage")
+	requireSelected(t, s, "storage", "defense", "wood")
 	if !s.Partial {
 		t.Fatal("partial pass not recorded", s)
 	}
 	r.Partial = false
 	r.Previous, r.Tick = s, r.Tick+2500
 	s = rank(t, r)
-	requireSelected(t, s, "storage")
+	requireSelected(t, s, "storage", "defense", "wood")
 	if s.Rows[0].Idle || s.Rows[0].Score != 100+2.5+20 {
-		t.Fatal("selection after a partial pass keeps its slot and hysteresis", s.Rows)
+		t.Fatal("selection after a partial pass keeps its hysteresis", s.Rows)
 	}
-	r.Previous, r.Tick = s, r.Tick+2500
-	requireSelected(t, rank(t, r), "defense")
 }
 
 // A dispatched commitment whose effect stays pending for a game day is
@@ -417,14 +330,14 @@ func TestStalledCommitmentReleasesCapacity(t *testing.T) {
 	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: 5000 + DevelopmentStallTicks, Workers: s.workers, Limit: 1, Goals: s.goals}
 	r.Commitments = []Commitment{observe(r.Tick)}
 	fresh := rank(t, r)
-	requireSelected(t, fresh)
+	requireSelected(t, fresh, "defense")
 	if fresh.Committed[0] != "storage" || s.row(fresh, "storage").Reason != DevelopmentCommitted {
 		t.Fatal("a pending effect within the stall bound still commits", fresh)
 	}
 	r.Tick++
 	r.Commitments = []Commitment{observe(r.Tick)}
 	stalled := rank(t, r)
-	requireSelected(t, stalled, "storage")
+	requireSelected(t, stalled, "storage", "defense")
 	if len(stalled.Committed) != 0 || !r.Commitments[0].Stalled(r.Tick) {
 		t.Fatal("a stalled commitment should hold no slot", stalled)
 	}

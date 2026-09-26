@@ -43,6 +43,23 @@ func TestShrineHeatNeedsMeasuredHeatAndSafeEnclosure(t *testing.T) {
 	if got := SelectShrineHeat(s, caskets, nil); got.Phase != "heat_no_shooter" {
 		t.Fatal(got)
 	}
+	// Every missing heater is proposed at once, capped by the free sites.
+	f.Heaters = f.Heaters[:1]
+	f.HeaterSites = []domain.Cell{{X: 9, Z: 10}, {X: 9, Z: 11}, {X: 11, Z: 10}, {X: 11, Z: 11}}
+	s = AncientShrine{InHome: true, GuardsKnown: true, Heat: domain.Known(f)}
+	if got := SelectShrineHeat(s, caskets, squad); got.Phase != "heat_heater" || len(got.Cells) != n-1 || got.Cell != f.HeaterSites[0] {
+		t.Fatalf("%+v", got)
+	}
+	f.HeaterSites = f.HeaterSites[:1]
+	s = AncientShrine{InHome: true, GuardsKnown: true, Heat: domain.Known(f)}
+	if got := SelectShrineHeat(s, caskets, squad); len(got.Cells) != 1 {
+		t.Fatalf("%+v", got)
+	}
+	f.Heaters, f.HeaterSites = nil, nil
+	for range n {
+		f.Heaters = append(f.Heaters, ShrineHeater{ID: "heater"})
+	}
+	s = AncientShrine{InHome: true, GuardsKnown: true, Heat: domain.Known(f)}
 	caskets[0].HitPoints = 49
 	if got := SelectShrineHeat(s, caskets, squad); got.Phase != "heat_no_shooter" {
 		t.Fatal(got)

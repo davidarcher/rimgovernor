@@ -10,11 +10,10 @@ import (
 // Pending SecureSupplies and MaintainAnimalFeed commitments, neither worked,
 // while pawns haul for a third goal (one of them the very thing type the
 // supplies haul names, at another thing): the hauls are not evidence of work
-// on either commitment, so both release their slots once the lack spans
-// DevelopmentIdleTicks. A haul that turns to the supplies thing takes that
-// slot back; an older producer without job targets keeps the work-type rule
+// on either commitment, which record an idle age but keep their commitments.
+// A haul that turns to the supplies thing is attributed activity; an older producer without job targets keeps the work-type rule
 // (#643).
-func TestUnrelatedHaulingDoesNotHoldStalledCommitments(t *testing.T) {
+func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	s := newDevelopmentSim(t, 2, simGoal("supplies", 0.5, GoalLabor(SecureSupplies)), simGoal("feed", 0.5, GoalLabor(MaintainAnimalFeed)), simGoal("storage", 0.9, GoalLabor(MaintainStorage)))
 	s.tick = 5000
 	haul, err := domain.NewHaul("pawn-a", "Thing_Steel1", "Steel", domain.Cell{X: 4, Z: 4})
@@ -47,7 +46,7 @@ func TestUnrelatedHaulingDoesNotHoldStalledCommitments(t *testing.T) {
 	}
 	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 2, Goals: s.goals, Commitments: []Commitment{supplies, feed}, LaborUse: use}
 	first := rank(t, r)
-	requireSelected(t, first)
+	requireSelected(t, first, "storage")
 	r.Previous, r.Tick = first, first.Tick+DevelopmentIdleTicks/2
 	// A repeated review with no new evidence keeps the original deadline.
 	again := rank(t, r)
@@ -60,8 +59,8 @@ func TestUnrelatedHaulingDoesNotHoldStalledCommitments(t *testing.T) {
 	released := rank(t, r)
 	requireSelected(t, released, "storage")
 	for _, id := range []GoalID{"supplies", "feed"} {
-		if row := s.row(released, id); row.Reason != DevelopmentLaborIdle || row.Committed || row.LaborEvidence != LaborUnattributed {
-			t.Fatal("unrelated hauling held a stalled commitment", row)
+		if row := s.row(released, id); row.Reason != DevelopmentCommitted || !row.Committed || row.LaborEvidence != LaborUnattributed || !reflect.DeepEqual(row.LaborIdleSince, domain.Known(domain.Tick(5000))) {
+			t.Fatal("idle labor past the bound must keep the commitment and its idle age", row)
 		}
 	}
 	if err := ValidateDevelopmentState(released); err != nil {
@@ -75,8 +74,8 @@ func TestUnrelatedHaulingDoesNotHoldStalledCommitments(t *testing.T) {
 	if row := s.row(resumed, "supplies"); row.Reason != DevelopmentCommitted || row.LaborEvidence != LaborAttributed || row.LaborIdleSince != domain.Unknown[domain.Tick]() {
 		t.Fatal("matched work did not retain its commitment", row)
 	}
-	if row := s.row(resumed, "feed"); row.Reason != DevelopmentLaborIdle {
-		t.Fatal("another goal's matched haul held feed", row)
+	if row := s.row(resumed, "feed"); row.LaborEvidence != LaborUnattributed {
+		t.Fatal("another goal's matched haul counted for feed", row)
 	}
 
 	// An older producer carries no job targets: the work-type rule holds.
@@ -145,7 +144,7 @@ func TestMatchedButStuckActivityFollowsTheStallBound(t *testing.T) {
 	if row := s.row(state, "supplies"); row.Committed || len(state.Committed) != 0 {
 		t.Fatal("matched-but-stuck activity held the slot past the stall bound", row)
 	}
-	requireSelected(t, state, "storage")
+	requireSelected(t, state, "supplies", "storage")
 }
 
 // The idle deadline is game-tick history: a rewind or a world change

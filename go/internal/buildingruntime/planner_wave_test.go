@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -188,13 +187,12 @@ func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
 	arbiter.late = s.late
 	arbiter.close()
 	arbiter.propose("lighting", PlanResult{Kind: PlanProposed, Proposal: late("generation", stale, tick)}, nil)
-	arbiter.propose("lighting", PlanResult{Kind: PlanProposed, Proposal: late("tick", current, tick-domain.Tick(bridge.PlanningTickTolerance())-1)}, nil)
 	arbiter.propose("lighting", PlanResult{Kind: PlanProposed, Proposal: late("valid", current, tick)}, nil)
 	got, err := s.Step(context.Background())
 	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied {
 		t.Fatal(got, err)
 	}
-	if len(got.Proposals) != 3 || committed != 1 {
+	if len(got.Proposals) != 2 || committed != 1 {
 		t.Fatalf("proposals %+v committed %d", got.Proposals, committed)
 	}
 	byID := map[string]ProposalOutcome{}
@@ -203,9 +201,6 @@ func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
 	}
 	if o := byID["generation"]; o.Admitted || o.Reason != BuildingMethodExpired || o.Stale != fmt.Sprintf("native generation %d, step is %d", stale.Native, current.Native) {
 		t.Fatalf("stale generation: %+v", o)
-	}
-	if o := byID["tick"]; o.Admitted || o.Reason != BuildingMethodExpired || o.Stale == "" {
-		t.Fatalf("stale tick: %+v", o)
 	}
 	if o := byID["valid"]; !o.Admitted || o.Plan != "plan-valid" || o.Stale != "" {
 		t.Fatalf("valid proposal must commit: %+v", o)

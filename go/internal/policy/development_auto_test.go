@@ -82,15 +82,6 @@ func TestAutoDevelopmentAdmitsPastTwoWithOpenGoals(t *testing.T) {
 	if err := ValidateDevelopmentState(s); err != nil {
 		t.Fatal(err)
 	}
-	// An explicit limit of two is the documented slot count: both open
-	// goals fill it.
-	explicit := r
-	explicit.Auto, explicit.Limit = false, 2
-	s = rank(t, explicit)
-	requireSelected(t, s)
-	if rowOf(s, "build").Reason != DevelopmentCapacity {
-		t.Fatal(rowOf(s, "build"))
-	}
 	// Without the open goals, automatic mode fills every compatible worker.
 	r.Commitments = nil
 	s = rank(t, r)

@@ -61,8 +61,6 @@ func TestTendDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *TendRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *TendRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *TendRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *TendRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *TendRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *TendRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *TendRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *TendRequest) { r.Current.Native = 0 }},

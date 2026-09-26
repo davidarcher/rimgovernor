@@ -111,16 +111,12 @@ func TestSupplyBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	// An emergency read from the fact cache a bounded advance behind the
-	// preview still covers it (#244); one further behind does not.
+	// preview still covers it (#244).
 	f.Emergency.Context.Tick = proto.Int64(previewTick + 999)
 	f.Receipt.AdmittedContext.Tick = proto.Int64(previewTick + 1000)
 	f.read.Context.Tick = proto.Int64(previewTick + 1000)
 	if inspection, err := b.InspectSupply(context.Background(), target); err != nil || !inspection.Accepted || inspection.Tick != domain.Tick(previewTick+1000) {
 		t.Fatal(inspection, err)
-	}
-	f.Emergency.Context.Tick = proto.Int64(previewTick + 1000 - int64(domain.PlanningTickTolerance) - 1)
-	if _, err := b.InspectSupply(context.Background(), target); !errors.Is(err, executor.ErrHeld) {
-		t.Fatal(err)
 	}
 }
 func TestSupplyBoundaryRejectsForeignAndIncompleteEvidence(t *testing.T) {

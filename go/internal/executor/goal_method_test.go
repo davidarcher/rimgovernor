@@ -74,7 +74,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	f.env.tick = 102
-	f.env.stock = 10
+	f.env.stock = 11
 	result, err = f.executor.Run(ctx, plan.ID(), "finish")
 	if err != nil || !result.NativeCalled {
 		t.Fatal("observed dependency did not release successor", result, err)

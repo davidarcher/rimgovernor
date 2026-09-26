@@ -38,6 +38,10 @@ type ShrineHeatProposal struct {
 	Retreat domain.Cell
 	Phase   string
 	Cell    domain.Cell
+	// Cells are every heater site a heat_heater proposal installs at once, so
+	// the colony hauls and builds the missing heaters in one plan instead of
+	// one plan per planner pass. Cell is Cells[0].
+	Cells   []domain.Cell
 	Pawn    domain.PawnID
 	Casket  ShrineCasket
 	Heaters int
@@ -69,7 +73,8 @@ func SelectShrineHeat(shrine AncientShrine, caskets []ShrineCasket, squad []Shri
 		if len(f.HeaterSites) == 0 {
 			return hold("heat_no_space")
 		}
-		return ShrineHeatProposal{Phase: "heat_heater", Cell: f.HeaterSites[0], Heaters: count}
+		cells := append([]domain.Cell(nil), f.HeaterSites[:min(count-len(f.Heaters), len(f.HeaterSites))]...)
+		return ShrineHeatProposal{Phase: "heat_heater", Cell: cells[0], Cells: cells, Heaters: count}
 	}
 	if f.ColonistsInside {
 		return hold("heat_colonists_inside")

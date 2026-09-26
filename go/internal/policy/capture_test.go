@@ -60,8 +60,6 @@ func TestCaptureDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *CaptureRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *CaptureRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *CaptureRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *CaptureRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *CaptureRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *CaptureRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *CaptureRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *CaptureRequest) { r.Current.Native = 0 }},

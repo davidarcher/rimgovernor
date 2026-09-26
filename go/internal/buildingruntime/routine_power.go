@@ -214,7 +214,7 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 			return nil, stock, "", err
 		}
 		v := p.Preview
-		if v.Action != a || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !p.Stock.Snapshot.Matches(snapshot) || !p.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if v.Action != a || !v.Snapshot.Matches(snapshot) || !p.Stock.Snapshot.Matches(snapshot) {
 			return nil, stock, "", ErrControl
 		}
 		footprint, fk := v.Footprint.Value()
@@ -296,7 +296,7 @@ func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot 
 		return nil, stock, "", err
 	}
 	p := preview.Preview
-	if p.Action != action || !p.Snapshot.Matches(snapshot) || !p.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+	if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 		return nil, stock, "", ErrControl
 	}
 	footprint, fk := p.Footprint.Value()
@@ -360,7 +360,7 @@ func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot
 			return nil, stock, "", err
 		}
 		p := preview.Preview
-		if p.Action != action || !p.Snapshot.Matches(snapshot) || !p.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return nil, stock, "", ErrControl
 		}
 		footprint, fk := p.Footprint.Value()

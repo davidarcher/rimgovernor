@@ -309,7 +309,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 // proposal is the planner's Proposal for plan id under goal: the wave's
 // foothold priority, the goal's own urgency, and the claims given.
 func (r *RoutineSecureSuppliesPlanner) proposal(ctx context.Context, id domain.PlanID, goal store.GoalState, state ControlState, tick domain.Tick, actions []domain.Action, claims ResourceClaims) *Proposal {
-	return &Proposal{ID: "secureSupplies/" + string(id), Planner: "secureSupplies", Goal: goal.Goal.ID, Priority: plannerFoothold, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsBuilding, Claims: claims, ValidTick: tick, Versions: proposalVersions(ctx, factsBuilding), Actions: actions}
+	return &Proposal{ID: "secureSupplies/" + string(id), Planner: "secureSupplies", Goal: goal.Goal.ID, Priority: plannerFoothold, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsBuilding, Claims: claims, ValidTick: tick, Actions: actions}
 }
 
 // previewClaims sums the previews' known costs into quantity claims.
@@ -665,7 +665,7 @@ func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Contex
 			return nil, nil, policy.StockObservation{}, "", err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return nil, nil, policy.StockObservation{}, "", ErrControl
 		}
 		made, madeKnown := v.MadeFromStuff.Value()

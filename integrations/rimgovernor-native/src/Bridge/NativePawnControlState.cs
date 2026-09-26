@@ -198,6 +198,9 @@ namespace HomeBridge.BridgeTools
                 Add(harmony, AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob", new[] { typeof(Job), typeof(JobTag?), typeof(bool) }), null, nameof(Ordered));
                 Add(harmony, AccessTools.PropertySetter(typeof(Current), "Game"), nameof(BeforeGame), nameof(AfterGame));
                 Add(harmony, AccessTools.PropertySetter(typeof(Game), "CurrentMap"), nameof(BeforeMap), nameof(AfterMap));
+                // Vanilla auto-undraft would drop a pawn the bot drafted and
+                // revoke authority as a player undraft; a claimed pawn stays.
+                Add(harmony, AccessTools.Method(typeof(AutoUndrafter), "AutoUndraftTickInterval"), nameof(AutoUndraft), null);
                 initialized = true;
             }
             catch { initialized = false; }
@@ -215,7 +218,7 @@ namespace HomeBridge.BridgeTools
             get
             {
                 if (!initialized) return false;
-                try { return DraftOwnership.Healthy && NativeAuthorityHooks.Health.Ready && Targets.Count == 3 && Targets.All(target => {
+                try { return DraftOwnership.Healthy && NativeAuthorityHooks.Health.Ready && Targets.Count == 4 && Targets.All(target => {
                     var patch = Harmony.GetPatchInfo(target.Item1);
                     return patch != null && (target.Item2 == null || patch.Prefixes.Any(p => p.owner == HookOwner && p.PatchMethod == target.Item2))
                         && (target.Item3 == null || patch.Postfixes.Any(p => p.owner == HookOwner && p.PatchMethod == target.Item3)); }); }
@@ -228,6 +231,8 @@ namespace HomeBridge.BridgeTools
             bool causallyOwned = record.Claim != null && CausallyOwned(Current.Game);
             try { record.Ordered(causallyOwned); } catch { game.Exhausted = true; }
         }
+        private static bool AutoUndraft(Pawn ___pawn) => Current.Game == null || !Games.TryGetValue(Current.Game, out var game)
+            || !game.Pawns.TryGetValue(___pawn, out var record) || record.Claim == null;
         private static void BeforeGame(out Game? __state) => __state = Current.Game;
         private static void AfterGame(Game? __state) { if (!ReferenceEquals(__state,Current.Game)) Invalidate(__state); }
         private static void BeforeMap(Game __instance, out Map? __state) => __state = __instance.CurrentMap;

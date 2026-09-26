@@ -31,7 +31,7 @@ func (n *inspectionNative) ReadEmergency(context.Context, *c.Identity) (bridge.E
 	return n.emergency, bridge.Result{}, nil
 }
 
-func TestStaleAcquisitionInspectionInvalidatesCachedFacts(t *testing.T) {
+func TestAcquisitionInspectionAcceptsAPreviewAheadOfItsCensus(t *testing.T) {
 	base, f := boundary.NewFixture(t)
 	plant, _ := domain.NewAcquisition("healroot", "MedicineHerbal", domain.Cell{X: 125, Z: 128})
 	action, _ := domain.NewAcquisitionAction("harvest", plant)
@@ -49,18 +49,15 @@ func TestStaleAcquisitionInspectionInvalidatesCachedFacts(t *testing.T) {
 	parent := bridge.NewFactCache()
 	cache := bridge.NewChildReadCache(parent)
 	ctx := bridge.WithStepReadCache(context.Background(), cache)
+	// A preview hundreds of ticks past its census still dispatches: native
+	// revalidates the harvest when it applies. An absent source remains a
+	// world-condition hold and does not flush the cache.
 	inspection, err := b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot})
-	if !errors.Is(err, executor.ErrAcquisitionStale) || inspection.Tick != 195426 || parent.Stats().Invalidations != 1 {
-		t.Fatal("stale accepted preview must refresh and retry", inspection, err, parent.Stats())
-	}
-	// A new census at the preview tick can dispatch; an absent source remains
-	// a world-condition hold and does not repeatedly flush the cache.
-	n.read.Context.Tick = proto.Int64(195426)
-	if inspection, err = b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot}); err != nil || !inspection.Accepted {
-		t.Fatal(inspection, err)
+	if err != nil || !inspection.Accepted || inspection.Tick != 195426 || parent.Stats().Invalidations != 0 {
+		t.Fatal(inspection, err, parent.Stats())
 	}
 	n.read.Targets = nil
-	if _, err = b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot}); !errors.Is(err, executor.ErrHeld) || errors.Is(err, executor.ErrAcquisitionStale) || parent.Stats().Invalidations != 1 {
+	if _, err = b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot}); !errors.Is(err, executor.ErrHeld) || errors.Is(err, executor.ErrAcquisitionStale) || parent.Stats().Invalidations != 0 {
 		t.Fatal("target absence is not stale facts", err, parent.Stats())
 	}
 }

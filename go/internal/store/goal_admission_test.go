@@ -32,7 +32,9 @@ func methodRequest(t *testing.T, g GoalState, id string, costs ...int64) Buildin
 	s.Plan = p.ID()
 	s.Revision = p.Revision()
 	r := BuildingMethodRequest{Goal: g.Goal.ID, Revision: g.Revision, Method: "build", Plan: p, Current: s, Tick: g.Goal.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
-		Stock: policy.StockObservation{Snapshot: s, Tick: g.Goal.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(100))}}}}
+		Stock: policy.StockObservation{Snapshot: s, Tick: g.Goal.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}},
+		// Stock is a spending budget only under an operator reserve.
+		Rules: []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}}
 	for i, a := range actions {
 		b, _ := a.Building()
 		r.Previews = append(r.Previews, policy.Preview{Action: a, Snapshot: s, Tick: r.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: costs[i]}})})
@@ -67,7 +69,7 @@ func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
 	if _, e = s.LoadPlan(ctx, r.Plan.ID()); !errors.Is(e, ErrNotFound) {
 		t.Fatal("partial method persisted", e)
 	}
-	r.Stock.Values[0].Available = domain.Known(int64(120))
+	r.Stock.Values[0].Available = domain.Known(int64(121))
 	d, e = s.AdmitBuildingMethod(ctx, r)
 	if e != nil || !d.Admitted {
 		t.Fatal(d, e)
@@ -143,6 +145,7 @@ func TestBuildingMethodRecordsPurpose(t *testing.T) {
 	s, path, g := goalFixture(t)
 	r := methodRequest(t, g, "shell", 60, 60, 60)
 	r.Purpose = policy.Shelter
+	r.Rules = nil
 	if d, e := s.AdmitBuildingMethod(ctx, r); e != nil || !d.Admitted || len(d.Refused) != 0 {
 		t.Fatal("shelter held for stock", d, e)
 	}

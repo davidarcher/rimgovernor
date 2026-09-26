@@ -64,12 +64,6 @@ type ClockSchedulerConfig struct {
 	// FullStepEvery bounds how long timer steps without a tick advance may
 	// skip the planners; zero means DefaultFullStepEvery.
 	FullStepEvery time.Duration
-	// LivePlanningTicks bounds the live planner wave by pace (#598): when
-	// the previous live step's wall time covers more ticks than this at the
-	// running window's measured pace, a running-window step admits,
-	// reconciles and leaves the Worker's dispatch, and the wave waits for
-	// the stop. Zero means DefaultLivePlanningTicks.
-	LivePlanningTicks domain.Tick
 	// PlayerQuiet is how long after the last Manual authority bump (the
 	// player pressing a speed key) a step waits before it re-takes a clock
 	// the player runs by hand under a stopped epoch (#601). Zero means
@@ -288,10 +282,6 @@ type ClockSchedulerResult struct {
 	// NativeWorkTicks is the native-work window the planners asked for,
 	// the largest of their NativeWorkTicks, before the budget bounds it.
 	NativeWorkTicks uint32
-	// LivePlanning is LivePlanningSkippedPace when a running-window step
-	// that would have planned live left the wave to the stop (#598); empty
-	// otherwise. The scheduler_step row reports it as live_planning.
-	LivePlanning string
 	// Reason is the step reason applied, with TickAdvanced resolved and a
 	// timer promoted to full by FullStepEvery.
 	Reason StepReason
@@ -333,23 +323,18 @@ type ClockScheduler struct {
 	paceAt    time.Time
 	paceKnown bool
 	// pacePerSecond is the last pace livePace measured under a running
-	// window, kept across stops so the next window starts with a drift
+	// window, kept across stops so the next window starts with a pace
 	// (seedLiveDrift) instead of the stopped clock's zero.
 	pacePerSecond float64
 	// speed is the speed policy's state (#635), under the player gate.
 	speed speedPolicy
-	// livePaceTicks is the pace the running window widens the step's
-	// bounds by (domain.ReadValidity.Pace): pacePerSecond while a window
-	// runs, zero under a stopped clock. Touched only under the player gate.
+	// livePaceTicks is the pace a step projects the tick by (drift):
+	// pacePerSecond while a window runs, zero under a stopped clock. Touched only under the player gate.
 	livePaceTicks float64
 	// validity is the read validity of the latest step whose scope was
 	// fixed (#624): what the Worker's dispatches under that step's window
 	// judge their reads by (Validity).
 	validity *atomic.Pointer[domain.ReadValidity]
-	// liveStepWall is the wall time of the last live step (StepLive): what
-	// a live planner wave costs under this process, measured against the
-	// pace (livePlanningPaced, #598). Touched only under the player gate.
-	liveStepWall time.Duration
 	// manualAt is the wall time (unix nanoseconds, zero for none) of the
 	// last Manual authority change a committed page carried: the player
 	// pressing a speed key. Written under the poll gate, read under the
@@ -384,9 +369,6 @@ type ClockScheduler struct {
 	// between full steps, and the waits it skips. Touched only under the
 	// player gate.
 	queue *plannerQueue
-	// lastLive is when the last timer-driven live wave ran under a running
-	// window (DefaultLiveWaveEvery); touched only under the player gate.
-	lastLive time.Time
 	// late carries proposals that reached a step's arbiter after its
 	// cutoff to the next step's coordinator (#623).
 	late *lateProposals
@@ -402,9 +384,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Start.Policy == nil {
 		return nil, ErrControl
 	}
-	// The shim drift is process-wide state this scheduler owns (livePace,
-	// seedLiveDrift): a new scheduler starts from the stopped clock's bound.
-	domain.SetLiveDrift(0)
 	if config.Routine != nil && config.Routine.player != player {
 		return nil, ErrControl
 	}
@@ -645,8 +624,7 @@ func clockDebug() bool {
 func (s *ClockScheduler) WindowRunning() bool { return s.running.Load() }
 
 // Validity is the read validity of the latest step whose scope was fixed
-// (#624): the scope and tick its facts describe, the pace its bounds
-// widen by and the fact store's section versions then. The Worker carries
+// (#624): the scope and tick its facts describe. The Worker carries
 // it on each dispatch's context; false before any step fixed one.
 func (s *ClockScheduler) Validity() (domain.ReadValidity, bool) {
 	v := s.validity.Load()
@@ -656,31 +634,18 @@ func (s *ClockScheduler) Validity() (domain.ReadValidity, bool) {
 	return *v, true
 }
 
-// readValidity fixes the step's validity once its scope, tick and pace
-// are known (#624) and publishes it for the Worker. The shim drift for
-// un-migrated callers follows the inventory bound of the same validity.
+// readValidity fixes the step's validity once its scope and tick
+// are known (#624) and publishes it for the Worker.
 func (s *ClockScheduler) readValidity(snapshot domain.GenerationSnapshot, tick int64) domain.ReadValidity {
 	v := domain.ValidityOf(snapshot, domain.Tick(tick))
-	v.Pace, v.Wall, v.Versions = s.livePaceTicks, s.config.MaxAge, s.facts.store.Versions()
 	s.validity.Store(&v)
-	s.setShimDrift(v.Drift(domain.AgeInventory))
 	return v
 }
 
-// drift is the ticks the running window's pace covers in the step's wall
-// (the inventory bound's widening): what a step expects the tick to have
-// moved by since its predecessor.
+// drift is the ticks the running window's pace covers in the step's wall:
+// what a step expects the tick to have moved by since its predecessor.
 func (s *ClockScheduler) drift() domain.Tick {
-	return domain.ReadValidity{Pace: s.livePaceTicks, Wall: s.config.MaxAge}.Drift(domain.AgeInventory)
-}
-
-// setShimDrift keeps domain.SetLiveDrift, the compatibility shim for
-// callers not yet carrying a validity, in step with the scheduler's pace.
-func (s *ClockScheduler) setShimDrift(drift domain.Tick) {
-	if drift != domain.LiveDrift() {
-		clockSchedulerLog("live drift %d -> %d ticks (pace %.0f ticks/s)", domain.LiveDrift(), drift, s.livePaceTicks)
-	}
-	domain.SetLiveDrift(drift)
+	return domain.Tick(s.livePaceTicks * s.config.MaxAge.Seconds())
 }
 
 // clockSchedulerLog is the clock trace (serve --debug): which Step()
@@ -804,12 +769,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			extra["gate_wait_ms"] = float64(gateWait) / float64(time.Millisecond)
 		}
 		extra["journal_ms"] = float64(journal.total) / float64(time.Millisecond)
-		if cause == StepLive {
-			s.liveStepWall = elapsed
-		}
-		if out.LivePlanning != "" {
-			extra["live_planning"] = out.LivePlanning
-		}
 		if len(out.Waiting) > 0 {
 			extra["waiting"] = out.Waiting
 		}
@@ -1083,46 +1042,20 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 				return out, err
 			}
 		}
-		// A coupled order ready under the window is planned live whatever
-		// the wave's own cadence says (#584): it is the work the stop used
-		// to be spent on, and it waits for no timer and no pace.
-		coupledDue := out.Coupled && sel.planners
-		if status.GetStopping() != nil || !coupledDue && !s.livePlanningDue(reason, sel) {
-			clockSchedulerLog("clock already running under our own epoch -> no planners this step")
+		// The window runs whatever planners the due queue selected; a
+		// running window never waits for the stop to plan.
+		if status.GetStopping() != nil || s.config.Routine == nil || !sel.planners {
+			clockSchedulerLog("clock already running under our own epoch -> no planners due")
 			out.Waiting = sel.waiting
-			return out, nil
-		}
-		if ticks, paced := s.livePlanningPaced(); paced && !coupledDue {
-			// The game outruns the wave: the facts it would plan on go
-			// stale by a fraction of a day before its planners commit,
-			// and the player gate it holds meanwhile keeps the Worker
-			// from dispatching what the last stop admitted (#598). The
-			// wave waits for the stop, one window away at most.
-			out.LivePlanning = LivePlanningSkippedPace
-			// One window away is a game day under a colony window: when
-			// the window has nothing left to simulate (its last dispatched
-			// work settled), end it now so the stop reviews at once,
-			// rather than run the day out with every planner parked (#690).
-			if done, err := s.windowWorkDone(call, state.Snapshot); err != nil {
-				return out, err
-			} else if done && status.GetRunning() != nil {
-				clockSchedulerLog("clock running at %.0f ticks/s with no window work left -> ending the window for the planner wave", s.pacePerSecond)
-				out.Cleaned = true
-				return out, s.session.CleanupClock(call)
-			}
-			clockSchedulerLog("clock running at %.0f ticks/s: the last live step (%s) covers %d ticks, over %d -> planner wave waits for the stop", s.pacePerSecond, s.liveStepWall.Round(time.Millisecond), ticks, s.livePlanningTicks())
 			return out, nil
 		}
 		// The window runs on; plan against the bundle's snapshot (one
 		// main-thread hop, so its sections describe one tick) and let the
-		// Worker dispatch live. Nothing is admitted: the window is already
-		// running, and the stop that ends it reviews and admits as before.
+		// Worker dispatch live. Planners admit their methods as at a stop; only
+		// the clock window itself is left to the stop that ends it.
 		if err = s.player.current(call, epoch); err != nil {
 			clockSchedulerLog("step exit: player epoch replaced before the live review: %v", err)
 			return out, err
-		}
-		if reason.Cause == StepTimer {
-			s.lastLive = s.clock.Now()
 		}
 		reason.Cause = StepLive
 		out.Reason = reason
@@ -1170,13 +1103,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		clockSchedulerLog("step exit: player epoch replaced before the review: %v", err)
 		return out, err
 	}
-	// The tick the planner facts describe: this step's, when it plans, else
-	// the last planning step's. Admission holds when it predates the
-	// admitted tick by more than the planning tolerance.
-	factsTick := domain.Unknown[domain.Tick]()
-	if s.plannedTickKnown {
-		factsTick = domain.Known(domain.Tick(s.plannedTick))
-	}
 	sel, err := s.selectPlanners(call, reason, status.Context.GetTick())
 	if err != nil {
 		return out, err
@@ -1195,7 +1121,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", []string{"critical_wave_budget"}, "held_by", out.HeldBy, "wall_budget_ms", float64(s.config.Budget.wall())/float64(time.Millisecond))
 			return out, executor.ErrHeld
 		}
-		factsTick = domain.Known(domain.Tick(status.Context.GetTick()))
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
 		if sel.pick == nil {
 			s.lastFull = s.clock.Now()
@@ -1361,7 +1286,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if status.GetStopped() != nil {
 		clockState = policy.ClockStopped
 	}
-	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), FactsTick: factsTick, FactsTolerance: domain.Tick(bridge.PlanningTickTolerance()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan), SquadUnanswered: squadUnanswered}
+	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan), SquadUnanswered: squadUnanswered}
 	if status.NewestCursor != nil {
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
@@ -1471,29 +1396,18 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	return out, err
 }
 
-// seedLiveDrift sets the drift for the window this step just started from
+// seedLiveDrift sets the pace for the window this step just started from
 // the last pace livePace measured in this process, and restarts the pace
 // measurement at the start tick: the step's own status read predates the
 // start, and a pace measured from it would count the stop as running time.
-// Before this every window began under the stopped clock's zero drift and
-// the Worker's dispatches under it, whose cached emergency read predates
-// the inspection's first read by one round trip, held on the tick-exact
-// bound until the next step measured the pace -- at boosted Ultrafast every
-// dispatch of the window's first seconds (#410). The first window of a
-// process, with no pace measured yet, still starts at zero.
+// The first window of a process, with no pace measured yet, starts at zero.
 func (s *ClockScheduler) seedLiveDrift(startTick int64) {
 	s.paceTick, s.paceAt, s.paceKnown = startTick, s.clock.Now(), true
 	if s.pacePerSecond <= 0 {
 		return
 	}
 	s.livePaceTicks = s.pacePerSecond
-	if v := s.validity.Load(); v != nil {
-		started := *v
-		started.Pace = s.livePaceTicks
-		s.validity.Store(&started)
-	}
-	clockSchedulerLog("window started: pace %.0f ticks/s widens the step's bounds", s.pacePerSecond)
-	s.setShimDrift(s.drift())
+	clockSchedulerLog("window started: pace %.0f ticks/s", s.pacePerSecond)
 }
 
 // nativeWorkBudget is the most ticks a step lends as a native-work window
@@ -1715,28 +1629,7 @@ func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 		}
 	}
 	s.livePaceTicks = pace
-	s.setShimDrift(s.drift())
 	s.paceTick, s.paceAt, s.paceKnown = tick, readAt, true
-}
-
-// livePlanningDue reports whether a step that found its own window running
-// plans under it (#243): a wake or full step at once, a timer step when
-// the full-step safety net is due, so a running window costs one planner
-// wave per FullStepEvery rather than one per step. Whether the pace lets
-// the wave run is livePlanningPaced.
-func (s *ClockScheduler) livePlanningDue(reason StepReason, sel plannerSelectionResult) bool {
-	if s.config.Routine == nil || !sel.planners {
-		return false
-	}
-	if reason.Cause == StepTimer {
-		return s.liveWaveDue()
-	}
-	return true
-}
-
-// liveWaveDue spaces the timer-driven live waves (DefaultLiveWaveEvery).
-func (s *ClockScheduler) liveWaveDue() bool {
-	return s.lastLive.IsZero() || s.clock.Now().Sub(s.lastLive) >= DefaultLiveWaveEvery
 }
 
 // selectPlanners is the step's selection over the due queue at tick
@@ -1775,28 +1668,6 @@ func (s *ClockScheduler) previewSelection(reason StepReason) plannerSelectionRes
 		reason.Cause = StepFull
 	}
 	return plannerSelection(reason, s.facts.kindOf, s.queue, s.lastTick+int64(s.drift()))
-}
-
-// livePlanningPaced reports whether the running window outruns a live
-// planner wave (#598): the ticks the measured pace covers in the previous
-// live step's wall time, and whether they exceed LivePlanningTicks. It
-// keys on that ratio, not the speed, so a capped Ultrafast (900 ticks/s
-// over a 5 s step is 4.5k ticks) plans live as before, while an uncapped
-// game at 1000+ ticks/s under a 10 s wave does not. Unmeasured (no pace,
-// no live step yet) never skips.
-func (s *ClockScheduler) livePlanningPaced() (domain.Tick, bool) {
-	if s.pacePerSecond <= 0 || s.liveStepWall <= 0 {
-		return 0, false
-	}
-	ticks := domain.Tick(s.pacePerSecond * s.liveStepWall.Seconds())
-	return ticks, ticks > s.livePlanningTicks()
-}
-
-func (s *ClockScheduler) livePlanningTicks() domain.Tick {
-	if s.config.LivePlanningTicks > 0 {
-		return s.config.LivePlanningTicks
-	}
-	return DefaultLivePlanningTicks
 }
 
 // bundleRequest is the step's first bundle: the clock status and the
@@ -1970,18 +1841,6 @@ func (s *ClockScheduler) stepReviews(reason StepReason) bool {
 	if s.config.Routine == nil {
 		return false
 	}
-	if s.running.Load() {
-		// Under a window believed running the review is the live wave,
-		// which the pace may hold for the stop (#598): the bundle then
-		// stays the light status read. A window that turns out stopped
-		// reviews on dedicated reads, a heavier step, never a wrong fact.
-		if _, paced := s.livePlanningPaced(); paced {
-			return false
-		}
-	}
-	if reason.Cause == StepTimer && s.running.Load() && !s.liveWaveDue() && !s.fullStepDue() {
-		return false
-	}
 	return s.previewSelection(reason).planners
 }
 
@@ -2080,17 +1939,10 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		// autonomous play. The break stays visible through the pawn's mood
 		// goal and the native hazard supervisor keeps its authority.
 		if stage := review.Review.Stage; stage != nil && stage.HoldsDevelopment() {
-			// The Foothold hold (#630): the comfort-class planners of the
-			// optional wave are not eligible while the shelter is unmet,
-			// so the wave spends nothing evaluating proposals the ranking
-			// would refuse. The same hold makes the shelter's own planner
-			// critical for this step (#658): it is what the stage waits for,
-			// and its siting reads outlast the optional grace.
-			clockSchedulerLog("colony stage %s holds the comfort-class planners and makes the startup planners critical: %s", stage.Stage, stage.Reason)
-			inner := pick
-			pick = func(entry plannerEntry) bool {
-				return entry.priority != plannerComfort && (inner == nil || inner(entry))
-			}
+			// Foothold (#630): the shelter's planner is critical for this
+			// step (#658), its siting reads outlasting the optional grace.
+			// Every other planner still runs.
+			clockSchedulerLog("colony stage %s makes the startup planners critical: %s", stage.Stage, stage.Reason)
 			startup = true
 		}
 	}
@@ -2196,24 +2048,6 @@ func (s *ClockScheduler) routineWork(call context.Context, root domain.Generatio
 		fingerprint = append(fingerprint, items...)
 	}
 	return work, fingerprint, nil
-}
-
-// windowWorkDone reports whether no plan, the root's or a routine one,
-// has work left for the running window to simulate.
-func (s *ClockScheduler) windowWorkDone(call context.Context, root domain.GenerationSnapshot) (bool, error) {
-	plan, err := s.player.journal.LoadPlan(call, root.Plan)
-	if err != nil {
-		return false, err
-	}
-	if work, _, err := clockSchedulerWork(plan, root); err != nil || work {
-		return false, err
-	}
-	plans, err := s.player.journal.LoadPlans(call, 256)
-	if err != nil {
-		return false, err
-	}
-	work, _, err := s.routineWork(call, root, plans)
-	return !work, err
 }
 
 func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot) (bool, []clockWorkItem, error) {

@@ -103,6 +103,11 @@ func TestRecordedShelterPurposeSpendsWithoutStockAtDispatch(t *testing.T) {
 	if _, err := f.store.ReserveAndPrepare(ctx, f.plan.ID(), f.action.ID(), own); err != nil {
 		t.Fatal(err)
 	}
+	// Without an operator reserve the stock is no spending budget.
+	f.env.onInspect = func(_ int, in Inspection) Inspection {
+		in.Rules = nil
+		return in
+	}
 	reopenExecutor(t, f)
 	result, err := f.run()
 	if err != nil || !result.NativeCalled || len(result.Refused) != 0 {

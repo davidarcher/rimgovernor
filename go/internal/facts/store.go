@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -277,7 +276,7 @@ func sectionFresh(section Section, rowTick, scopeTick, maxAge int64) bool {
 	if maxAge != bridge.FactTickUnbounded && (tolerance == bridge.FactTickUnbounded || maxAge < tolerance) {
 		tolerance = maxAge
 	}
-	return tolerance == bridge.FactTickUnbounded || advance <= tolerance+int64(domain.LiveDrift())
+	return tolerance == bridge.FactTickUnbounded || advance <= tolerance
 }
 
 // Scope is the scope the held rows belong to.

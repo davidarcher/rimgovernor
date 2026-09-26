@@ -13,9 +13,8 @@ import (
 // cost one placement_preview hop instead of one each. An inspection takes
 // its action's preview once and drops it, so the inspection after durable
 // preparation, and every later one, reads natively; a preview bound to
-// another authority snapshot, or one the inspection's own bounds read has
-// outrun past the planning tolerance and the live drift, is left unused
-// and the inspection reads live. A batch preview is a paused-world fact
+// another authority snapshot is left unused and the inspection reads
+// live. A batch preview is a paused-world fact
 // like any the step cache serves: the live second inspection is what
 // guards the dispatch against what the step's earlier writes changed.
 type PreviewMemo struct {

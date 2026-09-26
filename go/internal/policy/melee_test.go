@@ -75,20 +75,19 @@ func TestMeleeDefenseAdmission(t *testing.T) {
 }
 
 // Under a running combat window the executor's second inspection may read
-// the pawn from the step's fact cache, up to PlanningTickTolerance behind
-// the preview that anchors the admission (#244, #246, #306): the cached
-// read is fresh evidence for the preview and the attack goes on to
-// dispatch; a pawn row the preview has outrun by more is stale, as is a
-// preview behind the minimum tick.
+// the pawn from the step's fact cache, behind the preview that
+// anchors the admission (#244, #246, #306): the cached read is evidence for
+// the preview and the attack goes on to dispatch; a preview behind the
+// minimum tick is stale.
 func TestMeleeDefenseToleratesACachedPawnReadBehindTheAdmittedTick(t *testing.T) {
 	r := meleeRequest(t)
 	var err error
-	r.Progress, err = r.Progress.Prepare(r.Current, 12+domain.PlanningTickTolerance)
+	r.Progress, err = r.Progress.Prepare(r.Current, 12+250)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.MinimumTick = 12 + domain.PlanningTickTolerance
-	r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance
+	r.MinimumTick = 12 + 250
+	r.Facts.PreviewTick = 12 + 250
 	r.Facts.Emergency.tick = r.Facts.PreviewTick
 	if d := EvaluateMeleeDefense(r); !d.Admitted || len(d.Refused) != 0 {
 		t.Fatalf("cached pawn read within tolerance refused: %v", d)
@@ -96,12 +95,6 @@ func TestMeleeDefenseToleratesACachedPawnReadBehindTheAdmittedTick(t *testing.T)
 	r.MinimumTick++
 	if d := EvaluateMeleeDefense(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != StaleFacts {
 		t.Fatalf("preview behind the minimum admitted: %v", d)
-	}
-	r.MinimumTick--
-	r.Facts.PreviewTick++
-	r.Facts.Emergency.tick = r.Facts.PreviewTick
-	if d := EvaluateMeleeDefense(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != StaleFacts {
-		t.Fatalf("pawn read beyond tolerance admitted: %v", d)
 	}
 }
 
@@ -130,9 +123,8 @@ func TestMeleeDefenseHolds(t *testing.T) {
 		{"zero action", func(r *MeleeDefenseRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *MeleeDefenseRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *MeleeDefenseRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *MeleeDefenseRequest) { r.MinimumTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"minimum", func(r *MeleeDefenseRequest) { r.MinimumTick = 12 + 250 + 1 }},
 		{"negative minimum", func(r *MeleeDefenseRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *MeleeDefenseRequest) { r.Facts.PreviewTick = 11 }},
 		{"old emergency", func(r *MeleeDefenseRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *MeleeDefenseRequest) { r.Current.Native = 0 }},
 		{"native", func(r *MeleeDefenseRequest) { r.Current.Native++ }},

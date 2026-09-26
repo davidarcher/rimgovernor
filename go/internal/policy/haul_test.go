@@ -50,8 +50,6 @@ func TestHaulDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *HaulRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *HaulRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *HaulRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *HaulRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *HaulRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *HaulRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *HaulRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HaulRequest) { r.Current.Native++ }},

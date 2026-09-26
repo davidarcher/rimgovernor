@@ -50,8 +50,6 @@ func TestEquipDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *EquipRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *EquipRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *EquipRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *EquipRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *EquipRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *EquipRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *EquipRequest) { r.Current.Native = 0 }},
 		{"native", func(r *EquipRequest) { r.Current.Native++ }},

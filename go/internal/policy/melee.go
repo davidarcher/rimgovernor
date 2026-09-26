@@ -26,15 +26,10 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	}
 	v, d := r.Progress.View(), r.DraftProgress.View()
 	f := r.Facts
-	// The pawn read may be served from the step's fact cache, up to
-	// PlanningTickTolerance behind the tick the executor already admitted
-	// (the first preview under a running combat window); it must cover
-	// that tick, as a draft's cached emergency read covers its first read
-	// (#244, #246).
 	// The admission anchors on the preview tick, the inspection's one live
-	// read; the pawn row may come from the step's fact cache up to the
-	// planning tolerance behind it under a running window (#306, #323).
-	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PreviewTick < r.MinimumTick || !f.PreviewTick.FreshFor(f.PawnTick) {
+	// read; the pawn row may come from the step's fact cache at an earlier
+	// tick (#306, #323).
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PreviewTick < r.MinimumTick {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {

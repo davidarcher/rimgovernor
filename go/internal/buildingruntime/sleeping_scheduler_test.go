@@ -68,7 +68,7 @@ func TestSchedulerFailedSleepingPreviewIsIsolated(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
-	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) { p.Preview.Tick-- }
+	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) { p.Preview.Snapshot.Native++ }
 	result, err := s.Step(context.Background())
 	if err != nil || result.Routine == nil || result.Sleeping != nil || f.writes != 1 {
 		t.Fatal(result, err, f.writes)

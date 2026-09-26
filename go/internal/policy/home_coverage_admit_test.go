@@ -59,8 +59,6 @@ func TestHomeCoverageDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *HomeCoverageRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *HomeCoverageRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *HomeCoverageRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *HomeCoverageRequest) { r.Facts.PreviewTick = 11 }},
-		{"observation row outrun", func(r *HomeCoverageRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *HomeCoverageRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *HomeCoverageRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HomeCoverageRequest) { r.Current.Native++ }},

@@ -329,7 +329,7 @@ func (r *RoutineStoneShellPlanner) previewWall(ctx context.Context, action domai
 		return bridge.BuildingPreview{}, false, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(tick) {
+	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 		return bridge.BuildingPreview{}, false, ErrControl
 	}
 	footprint, fk := v.Footprint.Value()

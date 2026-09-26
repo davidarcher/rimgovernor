@@ -509,7 +509,7 @@ func (r *RoutineBuildingPlanner) admitExcavationDoor(call, epoch context.Context
 		return RoutineBuildingResult{}, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(s.facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(s.facts.Identity.Tick) {
+	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 		return RoutineBuildingResult{}, ErrControl
 	}
 	stuff, known := v.MadeFromStuff.Value()

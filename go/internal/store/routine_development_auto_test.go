@@ -76,14 +76,15 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Switching to an explicit limit of one keeps the two admitted projects
-	// open; nothing new is selected.
+	// open; the limit no longer caps selection, so the freed builder takes
+	// expansion.
 	r.Policy.MaxDevelopmentProjects, r.Policy.AutoDevelopment = 1, false
 	r.Tick += 10
 	explicit := reviewRoutine(t, s, &r)
 	if len(explicit.Review.Development.Committed) != 2 || explicit.Review.Development.Auto {
 		t.Fatalf("%+v", explicit.Review.Development)
 	}
-	if row := developmentRow(t, explicit.Review, policy.EnsureExpansion); row.Selected || row.Reason != policy.DevelopmentCapacity {
+	if row := developmentRow(t, explicit.Review, policy.EnsureExpansion); !row.Selected {
 		t.Fatal(row)
 	}
 	// A reviewed goal from another load is refused on the snapshot.

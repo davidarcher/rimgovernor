@@ -545,6 +545,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		kind, known := candidate.kind, !candidate.cleanup
 		cache.SetWriteFamilies(func() (bool, []bridge.FactFamily) { return operationFamilies(kind, known) })
 		run, tally := bridge.WithReadTally(telemetry.WithTrace(call, stepTrace.Child()))
+		if v.Stage == domain.AwaitingObservation {
+			// A reconcile proves an outcome against its live progress read;
+			// a cached row predates that read and is refused as evidence.
+			run = bridge.WithoutStepReadCache(run)
+		}
 		if err == nil {
 			if candidate.cleanup {
 				result, err = w.session.CleanupDraft(run, v.Plan, v.Action)
@@ -813,8 +818,8 @@ func workerMapConsumingKind(kind domain.ActionKind) bool {
 	return false
 }
 
-// workerHeldStale reports a run held before dispatch on facts from a
-// generation or tick the current one has outrun: the executor's stale_facts
+// workerHeldStale reports a run held before dispatch on facts from another
+// world or generation, or a tick behind what was admitted: the executor's stale_facts
 // refusal, or an emergency hold recorded for the same reason. Such a hold is
 // expected to clear on the next observation, unlike a refusal that names a
 // world condition (stock, geometry, an unavailable pawn).

@@ -50,8 +50,6 @@ func TestGearReplaceDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *GearReplaceRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *GearReplaceRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *GearReplaceRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *GearReplaceRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *GearReplaceRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *GearReplaceRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *GearReplaceRequest) { r.Current.Native = 0 }},
 		{"native", func(r *GearReplaceRequest) { r.Current.Native++ }},

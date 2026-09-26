@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
+func TestExpansionDurableRenewalAndUnknown(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)
@@ -22,13 +22,6 @@ func TestExpansionDurableRenewalUnknownAndPlayerCapacity(t *testing.T) {
 	first := routineGoal(t, out, policy.EnsureExpansion)
 	if first.Goal.Need != domain.NeedDeficit || !developmentRow(t, out.Review, policy.EnsureExpansion).Selected {
 		t.Fatal(out)
-	}
-	if _, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "expansion-competition")); err != nil {
-		t.Fatal(err)
-	}
-	out = reviewRoutine(t, s, &r)
-	if row := developmentRow(t, out.Review, policy.EnsureExpansion); row.Selected || row.Reason != policy.DevelopmentCapacity {
-		t.Fatal(row)
 	}
 	r.Facts.IndoorCapacity = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)

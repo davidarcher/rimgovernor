@@ -61,8 +61,6 @@ func TestRescueDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *RescueRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *RescueRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *RescueRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *RescueRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *RescueRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *RescueRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *RescueRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *RescueRequest) { r.Current.Native = 0 }},

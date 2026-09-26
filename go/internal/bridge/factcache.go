@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -51,22 +50,9 @@ const (
 	FactTickToleranceResearch  int64 = 60000
 	FactTickToleranceColony    int64 = 2500
 	FactTickToleranceRooms     int64 = 2500
-	FactTickTolerancePawns     int64 = int64(domain.PlanningTickTolerance)
-	FactTickToleranceEmergency int64 = int64(domain.PlanningTickTolerance)
+	FactTickTolerancePawns     int64 = 250
+	FactTickToleranceEmergency int64 = 250
 )
-
-// PlanningTickTolerance is how far a planning step's facts may predate the
-// tick a window is admitted at: the tightest bounded family, since a plan
-// is only as fresh as the pawn and emergency facts it read.
-func PlanningTickTolerance() int64 {
-	tolerance := FactTickUnbounded
-	for _, family := range FactFamilies() {
-		if t := family.TickTolerance(); t != FactTickUnbounded && t > 0 && (tolerance == FactTickUnbounded || t < tolerance) {
-			tolerance = t
-		}
-	}
-	return tolerance
-}
 
 // TickTolerance is the greatest tick advance a row of the family stays
 // valid across, or FactTickUnbounded.
@@ -92,26 +78,14 @@ func (f FactFamily) TickTolerance() int64 {
 
 // Fresh reports whether a row of the family read at rowTick still serves a
 // scope at scopeTick: the scope is never behind the row (a tick rewind is a
-// new world) and not ahead of it by more than the tolerance, widened by
-// the running window's domain.LiveDrift (#345).
+// new world) and not ahead of it by more than the tolerance.
 func (f FactFamily) Fresh(rowTick, scopeTick int64) bool {
 	advance := scopeTick - rowTick
 	if advance < 0 {
 		return false
 	}
 	tolerance := f.TickTolerance()
-	return tolerance == FactTickUnbounded || advance <= tolerance+int64(domain.LiveDrift())
-}
-
-// Outrun reports whether a later read at laterTick has left a row of the
-// family read at rowTick behind by more than Fresh tolerates: the row is
-// wrong evidence beside the later read. A boundary that pairs a cached
-// family read with a fresher one applies this rather than the bare
-// TickTolerance, so a running window's drift widens both the same way
-// (#345, #328).
-func (f FactFamily) Outrun(rowTick, laterTick int64) bool {
-	tolerance := f.TickTolerance()
-	return tolerance != FactTickUnbounded && rowTick+tolerance+int64(domain.LiveDrift()) < laterTick
+	return tolerance == FactTickUnbounded || advance <= tolerance
 }
 
 // FactFamilyOf names the family of a cacheable read (cacheableRead) and

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -24,7 +23,7 @@ type zoneRefresher struct {
 
 func (p *zoneRefresher) Zones(ctx context.Context, id *c.Identity) (facts.Held[bridge.ZonesRead], error) {
 	held, ok := facts.Get[bridge.ZonesRead](p.store, facts.Zones)
-	ok = ok && p.store.Scope() == p.scope && held.Value.Context.GetIdentity().GetColonyId() == id.GetColonyId() && held.Value.Context.GetIdentity().GetMapId() == id.GetMapId() && (held.AsOf <= p.tick || domain.Tick(held.AsOf).FreshFor(domain.Tick(p.tick)))
+	ok = ok && p.store.Scope() == p.scope && held.Value.Context.GetIdentity().GetColonyId() == id.GetColonyId() && held.Value.Context.GetIdentity().GetMapId() == id.GetMapId()
 	if ok && p.store.Fresh(facts.Zones, max(p.tick, held.AsOf)) {
 		return held, nil
 	}

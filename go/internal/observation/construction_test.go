@@ -33,7 +33,7 @@ func (s *constructionSource) ReadConstructionBuildings(_ context.Context, _ *c.I
 }
 
 func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
-	for _, phase := range []string{"stable", "no-stuff", "unknown-stuff", "unknown-claims", "empty-claims", "changed-tick", "changed-generation", "expired", "cancelled"} {
+	for _, phase := range []string{"stable", "no-stuff", "unknown-stuff", "unknown-claims", "empty-claims", "changed-generation", "expired", "cancelled"} {
 		t.Run(phase, func(t *testing.T) {
 			data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 			if err != nil {
@@ -68,8 +68,6 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 				claims = domain.Unknown[[]policy.ConstructionClaim]()
 			case "empty-claims":
 				claims = domain.Known([]policy.ConstructionClaim{})
-			case "changed-tick":
-				snapshot.Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
 			case "changed-generation":
 				snapshot.Context.NativeGeneration = proto.Uint64(snapshot.Context.GetNativeGeneration() + 1)
 			case "expired":
@@ -78,7 +76,7 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 				s.onBuildings = cancel
 			}
 			got, err := ObserveRoutineOwned(ctx, s, clock, expected, time.Second, claims)
-			bad := phase == "changed-tick" || phase == "changed-generation" || phase == "expired" || phase == "cancelled"
+			bad := phase == "changed-generation" || phase == "expired" || phase == "cancelled"
 			if (err != nil) != bad {
 				t.Fatal(phase, err)
 			}

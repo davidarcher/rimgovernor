@@ -26,12 +26,12 @@ type Stock struct {
 type Bounds struct{ Width, Height int32 }
 
 // Purpose is the spending class a building candidate is admitted under.
-// Routine work spends stock it can see; Defense work may spend under a
-// DefenseOnly rule; Shelter work is a shell whose frames RimWorld places
-// regardless of stock and holds natively for materials, so InsufficientStock
-// is not a refusal for it (#602): only a Stop/DefenseOnly spending rule or an
-// operator reserve on the resource keeps its walls unadmitted. The purpose
-// is recorded with the admission and applied again at dispatch.
+// Defense work may spend under a DefenseOnly rule. RimWorld places every
+// frame regardless of stock and holds it natively for materials, so
+// InsufficientStock is a refusal only where the operator reserved some of
+// the resource (#602): otherwise the game settles materials when the work
+// happens. The purpose is recorded with the admission and applied again
+// at dispatch.
 type Purpose string
 
 const (
@@ -401,7 +401,7 @@ func Admit(input Input) Decision {
 		return candidates[i].Action.ID() < candidates[j].Action.ID()
 	})
 	bounds, boundsKnown := r.Bounds.Value()
-	stockFresh := r.Stock.Snapshot.Matches(r.Current) && r.Stock.Tick.FreshFor(r.CurrentTick)
+	stockFresh := r.Stock.Snapshot.Matches(r.Current)
 	stock := map[Resource]domain.Fact[int64]{}
 	for _, s := range r.Stock.Values {
 		stock[s.Resource] = s.Available
@@ -527,7 +527,7 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 		return heldProblem, ""
 	}
 	p := c.Preview
-	if !p.Snapshot.Matches(r.Current) || !p.Tick.FreshFor(r.CurrentTick) || !stockFresh {
+	if !p.Snapshot.Matches(r.Current) || !stockFresh {
 		return StaleFacts, ""
 	}
 	if p.Action != c.Action {
@@ -535,7 +535,7 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 	}
 	for _, dep := range c.Dependencies {
 		complete, known := dep.Completed.Value()
-		if !known || !complete || !dep.Snapshot.Matches(r.Current) || !dep.Tick.FreshFor(r.CurrentTick) {
+		if !known || !complete || !dep.Snapshot.Matches(r.Current) {
 			return DependencyBlocked, ""
 		}
 	}
@@ -576,9 +576,9 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 		if rule.Spending == Stop || rule.Spending == DefenseOnly && c.Purpose != Defense {
 			return SpendingBlocked, cost.Resource
 		}
-		// A shell's frames wait natively for materials; its stock is a
-		// spending budget only where the operator reserved some of it.
-		if c.Purpose == Shelter && rule.Reserve == 0 {
+		// Frames wait natively for materials; stock is a spending budget
+		// only where the operator reserved some of it.
+		if rule.Reserve == 0 {
 			continue
 		}
 		available, known := stock[cost.Resource].Value()

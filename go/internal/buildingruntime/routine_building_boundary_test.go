@@ -17,33 +17,25 @@ import (
 // building planner with ErrControl ("writer authority unavailable") for
 // hundreds of consecutive steps (#662).
 func TestRoutineBuildingBoundaryAcceptsAnIdentityReadBehindTheReviewAnchor(t *testing.T) {
-	drift := domain.LiveDrift()
-	t.Cleanup(func() { domain.SetLiveDrift(drift) })
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: "plan"}
 	identity := func(tick domain.Tick) observation.Identity {
 		return observation.Identity{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map, Tick: tick, NativeGeneration: domain.Known(snapshot.Native)}
 	}
 	for _, v := range []struct {
 		name         string
-		live         domain.Tick
 		actual, tick domain.Tick
 		want         bool
 	}{
-		{name: "paused exact", actual: 7, tick: 7, want: true},
-		{name: "paused behind", actual: 7, tick: 107, want: false},
-		{name: "live behind", live: 5000, actual: 7, tick: 507, want: true},
-		{name: "live behind past the drift", live: 100, actual: 7, tick: 507, want: false},
-		{name: "live ahead within the tolerance", live: 5000, actual: 507, tick: 7, want: true},
-		{name: "rewind past the drift", live: 100, actual: 7, tick: 5007, want: false},
+		{name: "exact", actual: 7, tick: 7, want: true},
+		{name: "behind", actual: 7, tick: 5007, want: true},
+		{name: "ahead", actual: 5007, tick: 7, want: true},
 	} {
 		t.Run(v.name, func(t *testing.T) {
-			domain.SetLiveDrift(v.live)
 			if got := routineBuildingBoundary(identity(v.actual), snapshot, v.tick); got != v.want {
-				t.Fatalf("boundary(actual %d, anchor %d, drift %d) = %v", v.actual, v.tick, v.live, got)
+				t.Fatalf("boundary(actual %d, anchor %d) = %v", v.actual, v.tick, got)
 			}
 		})
 	}
-	domain.SetLiveDrift(5000)
 	if routineBuildingBoundary(identity(7), domain.GenerationSnapshot{Colony: "colony", Load: "load", Native: 2, Plan: "plan"}, 507) {
 		t.Fatal("a behind-anchor row crossed a generation flip")
 	}
@@ -53,13 +45,9 @@ func TestRoutineBuildingBoundaryAcceptsAnIdentityReadBehindTheReviewAnchor(t *te
 // read the running window advanced past the step's identity row, and the
 // planner must still produce its method instead of failing the step.
 func TestRoutineSleepingPlansUnderAReviewAnchorAheadOfTheIdentityRead(t *testing.T) {
-	drift := domain.LiveDrift()
-	domain.SetLiveDrift(5000)
-	t.Cleanup(func() { domain.SetLiveDrift(drift) })
 	reviewer, _, _, _, n := routineFixture(t)
 	sleepingFacts(n)
-	// The review reads the colony 500 ticks after the step opened, inside
-	// the running window's drift.
+	// The review reads the colony 500 ticks after the step opened.
 	const opened, reviewed = 7, 507
 	observed := n.reply.GetObserved()
 	observed.Context.Tick = proto.Int64(reviewed)

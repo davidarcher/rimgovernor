@@ -70,7 +70,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	// never labor-gated.
 	r.Commitments = nil
 	r.Labor = domain.Unknown[map[WorkType]int]()
-	requireSelected(t, rank(t, r), "comfort", "expansion", "research")
+	requireSelected(t, rank(t, r), "comfort", "expansion", "research", "resource")
 	r.Labor = domain.Known(map[WorkType]int{})
 	r.Goals = append(r.Goals, DevelopmentGoal{ID: "monitor", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.1)})
 	s = rank(t, r)

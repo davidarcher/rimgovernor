@@ -103,8 +103,6 @@ func TestHusbandryDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *HusbandryRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *HusbandryRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *HusbandryRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *HusbandryRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *HusbandryRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *HusbandryRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *HusbandryRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HusbandryRequest) { r.Current.Native++ }},

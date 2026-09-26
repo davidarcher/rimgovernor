@@ -95,15 +95,9 @@ func (b *WorkBoundary) InspectWork(ctx context.Context, t executor.Target) (exec
 	if _, err = boundary.Context(emergency.Context, t.Snapshot); err != nil {
 		return out, err
 	}
-	// The reads need only be ordered within the dispatch's own bound, not
-	// simultaneous: the before-token binds the write to the settings the
-	// read listed, and the emergency read may come from the fact cache a
-	// bounded advance behind the work read, the step's first, under the
-	// step's inventory bound (domain.CoversIn, #244, #624); its freshness
-	// never certifies the preview.
-	if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), tick) || !domain.CoversIn(ctx, domain.AgeInventory, domain.Tick(emergency.Context.GetTick()), tick) {
-		return out, executor.ErrHeld
-	}
+	// The reads need not be simultaneous: the before-token binds the write
+	// to the settings the read listed, and the emergency read may come from
+	// the step's fact cache (#244, #624).
 	tick = domain.Tick(v.Context.GetTick())
 	out.Current, out.Tick, out.Work, out.SnapshotToken, out.Accepted = t.Snapshot, tick, w, w.BeforeToken(), true
 	out.Emergency, err = policy.NewEmergencySnapshot(t.Snapshot, tick, emergency.Facts)
@@ -171,11 +165,11 @@ func (b *WorkBoundary) ObserveWork(ctx context.Context, p executor.Placement, cu
 		out.ObservedAt = b.Clock.Now()
 		return out, nil
 	}
-	settings, tick, err := b.readWork(ctx, wanted.Work, current)
+	settings, _, err := b.readWork(ctx, wanted.Work, current)
 	if err != nil {
 		return out, err
 	}
-	if !tick.Covers(domain.Tick(v.Context.GetTick())) || !v.GetCompleteInspection() {
+	if !v.GetCompleteInspection() {
 		return out, executor.ErrEvidence
 	}
 	values := map[string]int32{}

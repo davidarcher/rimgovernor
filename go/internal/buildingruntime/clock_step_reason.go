@@ -43,32 +43,12 @@ const (
 // due at the game tick (plannerEntry.reviewEvery) or dirtied by a wake.
 const DefaultFullStepEvery = 2 * time.Minute
 
-// DefaultLiveWaveEvery spaces the timer-driven planner waves under a
-// running window (#243) in wall time whatever the game speed: the due
-// queue is keyed by game tick, so at Ultrafast every planner falls due
-// within seconds and the waves would otherwise run back to back, each
-// holding the player gate the Worker dispatches under. A wake still plans
-// live at once (livePlanningPaced bounds the outrun).
-const DefaultLiveWaveEvery = 30 * time.Second
-
-// DefaultLivePlanningTicks is the most ticks a running window may cover in
-// the wall time of one live planner wave before the wave waits for the
-// stop instead (#598): a tenth of a game day, 24 PlanningTickTolerances.
-// Capped Ultrafast (900 ticks/s) over a 5 s step covers 4.5k and plans
-// live; an uncapped game at 1000 ticks/s over a 10 s step covers 10k and
-// waits.
-const DefaultLivePlanningTicks domain.Tick = 6000
-
 // DefaultPlayerQuiet is how long after the player's last speed-key press (a
 // Manual authority change) a step waits before it re-takes a clock the
 // player runs by hand under a stopped epoch (#601): long enough not to
 // fight a player still pressing keys, short enough that the next window
 // and the test-acceleration boost return within a few seconds.
 const DefaultPlayerQuiet = 3 * time.Second
-
-// LivePlanningSkippedPace is ClockSchedulerResult.LivePlanning when the
-// live wave waited for the stop because the game outran it (#598).
-const LivePlanningSkippedPace = "skipped_pace"
 
 // StepReason is the evidence one step acts on. The worker fills Cause and
 // the wake fields; the scheduler fills TickAdvanced from its status read and

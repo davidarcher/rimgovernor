@@ -279,15 +279,11 @@ func TestRoutineReviewerDisabledStepRetiresReviewWithoutReacquiring(t *testing.T
 
 type routineMedicalNative struct {
 	*routineNative
-	stale   bool
 	unknown bool
 }
 
 func (n *routineMedicalNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	v, receipt, err := n.routineNative.ReadEmergency(ctx, id)
-	if n.stale {
-		v.Context.Tick = proto.Int64(v.Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
-	}
 	pawn := policy.EmergencyPawn{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}
 	if n.unknown {
 		pawn.NeedsTend = domain.Unknown[bool]()
@@ -297,21 +293,11 @@ func (n *routineMedicalNative) ReadEmergency(ctx context.Context, id *c.Identity
 }
 func TestRoutineReviewerUsesSameTickMedicalCensus(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"needs_tend", "unknown", "stale"} {
+	for _, kind := range []string{"needs_tend", "unknown"} {
 		t.Run(kind, func(t *testing.T) {
 			r, db, _, _, n := routineFixture(t)
-			r.native = &routineMedicalNative{routineNative: n, stale: kind == "stale", unknown: kind == "unknown"}
+			r.native = &routineMedicalNative{routineNative: n, unknown: kind == "unknown"}
 			got, err := r.Step(context.Background())
-			if kind == "stale" {
-				if err == nil {
-					t.Fatal("mixed ticks committed")
-				}
-				stored, e := db.LoadRoutineReview(context.Background())
-				if e != nil || stored.Revision != 0 {
-					t.Fatal(stored, e)
-				}
-				return
-			}
 			if err != nil {
 				t.Fatal(err)
 			}

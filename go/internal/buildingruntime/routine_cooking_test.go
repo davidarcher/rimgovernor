@@ -84,6 +84,7 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 				native.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {
 					old(ctx, preview)
 					preview.Stock.Values[0].Available = domain.Known(int64(4))
+					p.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
 				}
 			case "definition":
 				want = BuildingMethodUnknown
@@ -100,6 +101,8 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 func TestRoutineCookingCannotSpendPlayerReservation(t *testing.T) {
 	t.Parallel()
 	p, db, _ := cookingFixture(t)
+	// The held stock is a spending budget under an operator reserve.
+	p.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
 	ctx := context.Background()
 	root := p.reviewer.player.State().Snapshot
 	plan := playerPlan(t, db)

@@ -2,13 +2,11 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -210,47 +208,31 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 }
 
 func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
-	// Scheduler tests change the process-wide drift in parallel. Keep this
-	// boundary test serial so the allowance cannot change during a review.
-	drift := domain.LiveDrift()
-	t.Cleanup(func() { domain.SetLiveDrift(drift) })
-	for _, live := range []domain.Tick{0, 1000} {
-		t.Run(map[domain.Tick]string{0: "paused", 1000: "live"}[live], func(t *testing.T) {
-			domain.SetLiveDrift(live)
-			p, db, n, _ := temperatureFixture(t, false)
-			ctx := context.Background()
-			anchor := n.reply.GetObserved().Context.GetTick()
-			limit := anchor + int64(domain.PlanningTickTolerance+live)
-			for _, tick := range []int64{anchor, limit, limit + 1, limit + 1, anchor} {
-				before, err := db.LoadRoutineReview(ctx)
-				if err != nil {
-					t.Fatal(err)
-				}
-				reads := n.roomReads
-				n.rooms.GetObserved().Context.Tick = proto.Int64(tick)
-				_, err = p.reviewer.Step(ctx)
-				if tick > limit {
-					if !errors.Is(err, observation.ErrChanged) {
-						t.Fatalf("tick %d beyond %d: want changed observation, got %v", tick, limit, err)
-					}
-				} else if err != nil {
-					t.Fatalf("tick %d within %d: %v", tick, limit, err)
-				}
-				if n.roomReads != reads+1 {
-					t.Fatal("repeated review reused the retained room census")
-				}
-				after, err := db.LoadRoutineReview(ctx)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if tick > limit && after.Revision != before.Revision {
-					t.Fatal("stale room census published a review")
-				}
-				if tick <= limit && after.Revision <= before.Revision {
-					t.Fatal("valid room census did not publish a review")
-				}
-			}
-		})
+	t.Parallel()
+	p, db, n, _ := temperatureFixture(t, false)
+	ctx := context.Background()
+	anchor := n.reply.GetObserved().Context.GetTick()
+	// A room census at any tick of the same world publishes a review.
+	for _, tick := range []int64{anchor, anchor + 250, anchor + 5000, anchor} {
+		before, err := db.LoadRoutineReview(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reads := n.roomReads
+		n.rooms.GetObserved().Context.Tick = proto.Int64(tick)
+		if _, err = p.reviewer.Step(ctx); err != nil {
+			t.Fatalf("tick %d: %v", tick, err)
+		}
+		if n.roomReads != reads+1 {
+			t.Fatal("repeated review reused the retained room census")
+		}
+		after, err := db.LoadRoutineReview(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if after.Revision <= before.Revision {
+			t.Fatal("valid room census did not publish a review")
+		}
 	}
 }
 
@@ -283,6 +265,8 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 				n.onPreview = func(ctx context.Context, preview *bridge.BuildingPreview) {
 					original(ctx, preview)
 					preview.Stock.Values[0].Available = domain.Known(int64(0))
+					// Stock is a spending budget only under an operator reserve.
+					p.reviewer.rules = []policy.ResourceRule{{Resource: preview.Stock.Values[0].Resource, Reserve: 1, Spending: policy.Allow}}
 				}
 			}
 			// Planners plan from the review's census, so the review must

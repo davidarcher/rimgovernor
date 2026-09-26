@@ -73,8 +73,6 @@ func TestMovementHolds(t *testing.T) {
 		{"cancelled", func(r *MovementRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *MovementRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *MovementRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *MovementRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *MovementRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *MovementRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *MovementRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *MovementRequest) { r.Current.Native = 0 }},

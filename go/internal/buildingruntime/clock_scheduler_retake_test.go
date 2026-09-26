@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -117,23 +116,22 @@ func TestClockPollNotesManualBumps(t *testing.T) {
 
 // TestClockSchedulerLivePaceMeasuresThePlayer: livePace measures the pace
 // under a stopped clock the player runs the same way it does under a
-// running window, but only the window widens the drift.
+// running window.
 func TestClockSchedulerLivePaceMeasuresThePlayer(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
-	t.Cleanup(func() { domain.SetLiveDrift(0) })
 	retakePlayerRuns(f, 1000)
 	at := time.Unix(200, 0)
 	s.livePace(f.status, at)
 	f.status.Context.Tick = proto.Int64(3000)
 	s.livePace(f.status, at.Add(2*time.Second))
-	if s.pacePerSecond != 1000 || domain.LiveDrift() != 0 {
-		t.Fatal(s.pacePerSecond, domain.LiveDrift())
+	if s.pacePerSecond != 1000 {
+		t.Fatal(s.pacePerSecond)
 	}
 	f.status.ActualPaused = proto.Bool(true)
 	f.status.Context.Tick = proto.Int64(5000)
 	s.livePace(f.status, at.Add(4*time.Second))
-	if s.pacePerSecond != 1000 || domain.LiveDrift() != 0 {
-		t.Fatal("a paused stop must neither measure nor widen", s.pacePerSecond, domain.LiveDrift())
+	if s.pacePerSecond != 1000 {
+		t.Fatal("a paused stop must not measure", s.pacePerSecond)
 	}
 }

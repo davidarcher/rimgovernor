@@ -68,7 +68,7 @@ func (r *RoutineBuildingPlanner) previewPaste(ctx context.Context, snapshot doma
 		legal, lk := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		cells, ck := v.Footprint.Value()
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(p.Identity.Tick) {
+		if v.Action != action || !v.Snapshot.Matches(snapshot) {
 			return nil, stock, "", ErrControl
 		}
 		if !lk || !sk || !ck || !legal || !safe || len(cells) == 0 {

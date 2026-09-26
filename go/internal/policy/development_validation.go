@@ -49,7 +49,6 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		committed[id] = true
 	}
 	seen := map[GoalID]bool{}
-	selected := 0
 	for _, row := range s.Rows {
 		deficit, k := row.Deficit.Value()
 		if risk, rk := row.Risk.Value(); rk && (math.IsNaN(risk) || risk < 0 || risk > 1) {
@@ -78,16 +77,12 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 			return errors.New("invalid development reason")
 		}
 		if row.Selected {
-			selected++
 			if row.Reason != "" || row.Committed || !k {
 				return errors.New("invalid development selection")
 			}
 		} else if row.Granted {
 			return errors.New("invalid development grant")
 		}
-	}
-	if selected > max(0, s.Capacity-len(s.Committed)) {
-		return errors.New("development capacity exceeded")
 	}
 	return nil
 }

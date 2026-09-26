@@ -98,12 +98,8 @@ func (b *ExcavationBoundary) InspectExcavation(ctx context.Context, target execu
 		if _, err = boundary.Context(v.Context, current); err != nil {
 			return out, err
 		}
-		// The reads may straddle ticks under a running clock (#244): the
-		// site read anchors the admission and the preview must be fresh
-		// for it.
-		if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), out.Tick) {
-			return out, executor.ErrHeld
-		}
+		// The reads may straddle ticks under a running clock (#244); the
+		// site token binds the designation to what the read listed.
 		out.SnapshotToken = token
 	}
 	emergency, _, err := b.capabilities.Native.ReadEmergency(ctx, boundary.Identity(current))
@@ -112,9 +108,6 @@ func (b *ExcavationBoundary) InspectExcavation(ctx context.Context, target execu
 	}
 	if _, err = boundary.Context(emergency.Context, current); err != nil {
 		return out, err
-	}
-	if !domain.Tick(emergency.Context.GetTick()).Covers(out.Tick) {
-		return out, executor.ErrHeld
 	}
 	out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()

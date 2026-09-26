@@ -66,7 +66,7 @@ func TestMeleeBoundaryRejectsNegativeAdmissionTick(t *testing.T) {
 
 func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"generation", "pawn CAS", "target CAS", "preview past", "emergency past", "violent", "missing health", "missing equipment"} {
+	for _, kind := range []string{"generation", "pawn CAS", "target CAS", "preview past", "violent", "missing health", "missing equipment"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f, d := NewFixture(t)
 			reject := false
@@ -82,11 +82,6 @@ func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 				reject = true
 			case "preview past":
 				f.PreviewTick = 9
-				reject = true
-			case "emergency past":
-				// A cached emergency read within PlanningTickTolerance of
-				// the pawn read is accepted (#244); one past it is not.
-				f.EmergencyTick = proto.Int64(f.Ctx.GetTick() - int64(domain.PlanningTickTolerance) - 1)
 				reject = true
 			case "violent":
 				f.Row.Biography.DisabledWorkTags = []string{"Violent"}

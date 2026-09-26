@@ -126,9 +126,6 @@ func (w *Worker) breakDispatchHolds(ctx context.Context, current domain.Generati
 		if _, err = boundary.Context(observed.Context, current); err != nil {
 			return nil, err
 		}
-		if !domain.Tick(observed.Context.GetTick()).Covers(domain.Tick(census.Context.GetTick())) {
-			return nil, ErrControl
-		}
 		for _, row := range observed.Pawns {
 			positions[row.GetPawn().GetId()] = breakCell(row)
 		}

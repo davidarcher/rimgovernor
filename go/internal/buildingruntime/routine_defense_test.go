@@ -14,7 +14,7 @@ import (
 
 func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"armed", "unarmed", "unknown-equipment", "missing-pawn", "colony-count", "conflicting-downed", "stale-tick", "stale-native"} {
+	for _, change := range []string{"armed", "unarmed", "unknown-equipment", "missing-pawn", "colony-count", "conflicting-downed", "stale-native"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, _, _, n := routineFixture(t)
 			r.native = &routineMedicalNative{routineNative: n}
@@ -40,13 +40,11 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 				n.reply.GetObserved().ColonistCount = proto.Uint32(2)
 			case "conflicting-downed":
 				row.Downed = proto.Bool(true)
-			case "stale-tick":
-				snapshot.Context.Tick = proto.Int64(snapshot.Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 			case "stale-native":
 				snapshot.Context.NativeGeneration = proto.Uint64(snapshot.Context.GetNativeGeneration() + 1)
 			}
 			out, err := r.Step(context.Background())
-			if change == "stale-tick" || change == "stale-native" {
+			if change == "stale-native" {
 				if err == nil {
 					t.Fatal("mixed observation committed")
 				}

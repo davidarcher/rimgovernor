@@ -83,8 +83,6 @@ func TestRangedDefenseHolds(t *testing.T) {
 		{"cancelled", func(r *RangedDefenseRequest) { r.Progress, _ = r.Progress.Cancel() }},
 		{"minimum", func(r *RangedDefenseRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *RangedDefenseRequest) { r.MinimumTick = -1 }},
-		{"reversed interval", func(r *RangedDefenseRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *RangedDefenseRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"prepared past preview", func(r *RangedDefenseRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *RangedDefenseRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *RangedDefenseRequest) { r.Current.Native = 0 }},

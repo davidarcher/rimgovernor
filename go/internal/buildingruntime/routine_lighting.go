@@ -111,7 +111,7 @@ func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot d
 			return nil, stock, "", err
 		}
 		p := preview.Preview
-		if p.Action != action || !p.Snapshot.Matches(snapshot) || !p.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
 			return nil, stock, "", ErrControl
 		}
 		footprint, fk := p.Footprint.Value()
