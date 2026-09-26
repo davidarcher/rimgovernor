@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -129,7 +130,7 @@ func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal st
 // readExcavationSite reads the target under the current observation and
 // insists the reply belongs to the same generation and tick as the colony
 // facts the stage was planned from.
-func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, cells []domain.Cell, access domain.Cell, check func() error) (bridge.ExcavationSite, error) {
+func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, purpose string, target policy.ExcavationTarget, cells []domain.Cell, access domain.Cell, check func() error) (bridge.ExcavationSite, error) {
 	if err := check(); err != nil {
 		return bridge.ExcavationSite{}, err
 	}
@@ -144,6 +145,7 @@ func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapsh
 	if err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) != tick {
 		return bridge.ExcavationSite{}, ErrControl
 	}
+	snap.NoteSite(call, purpose, target, cells, site)
 	return site, nil
 }
 
@@ -167,7 +169,9 @@ func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snaps
 			return previous, nil
 		}
 	}
-	targets, err := policy.ExcavationSites(policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Shapes: excavationShapes(facts), MinCorridor: 2, MaxCorridor: 4})
+	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Shapes: excavationShapes(facts), MinCorridor: 2, MaxCorridor: 4}
+	snap.NoteExcavation(call, request)
+	targets, err := policy.ExcavationSites(request)
 	if err != nil {
 		return nil, err
 	}
@@ -232,20 +236,29 @@ func (r *RoutineBuildingPlanner) previousExcavation(call context.Context) (*poli
 // resumed project may be fully cleared (its door is still owed); a fresh
 // candidate is only proposed by geometry that saw rock.
 func (r *RoutineBuildingPlanner) verifyExcavation(call context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, target policy.ExcavationTarget, resumed bool, check func() error) (bool, error) {
-	site, err := r.readExcavationSite(call, snapshot, tick, target.Cells(), target.Access, check)
+	purpose := "verify"
+	if resumed {
+		purpose = "verify-resumed"
+	}
+	site, err := r.readExcavationSite(call, snapshot, tick, purpose, target, target.Cells(), target.Access, check)
 	if err != nil {
 		return false, err
 	}
+	return excavationVerified(target, resumed, site), nil
+}
+
+// excavationVerified is verifyExcavation's judgement of one site read.
+func excavationVerified(target policy.ExcavationTarget, resumed bool, site bridge.ExcavationSite) bool {
 	if site.Support == policy.ExcavationSupportUnsupported && !site.CollapsePending || !site.AccessReachable || !resumed && !site.WorkerAvailable {
 		clockSchedulerLog("excavation target %s rejected: support=%d (%s) worker=%v access=%v", target.Key(), site.Support, site.SupportBlocker, site.WorkerAvailable, site.AccessReachable)
-		return false, nil
+		return false
 	}
 	review := policy.ReviewExcavation(target, excavationStates(site), excavationStageLimit)
 	if !resumed && len(review.Kept) > 0 || !review.Corridor {
 		clockSchedulerLog("excavation target %s rejected: kept=%v corridor=%v", target.Key(), review.Kept, review.Corridor)
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 // previewShelter chooses between the open-site starter shell and an
@@ -264,7 +277,9 @@ func (r *RoutineBuildingPlanner) previewShelter(call context.Context, snapshot d
 	if reason == "" {
 		shell = &policy.StarterLayout{Room: previewRectangle(selected)}
 	}
-	if policy.ChooseExcavation(facts.Center, shell, target) {
+	excavate := policy.ChooseExcavation(facts.Center, shell, target)
+	snap.NoteChoice(call, snap.ExcavationChoice{Anchor: facts.Center, Shell: shell, Target: target, Excavate: excavate})
+	if excavate {
 		return nil, policy.StockObservation{}, "", target, nil
 	}
 	return selected, stock, reason, nil, nil
@@ -375,7 +390,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	}
 	snapshot := s.state.Snapshot
 	snapshot.Revision = 1
-	site, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, s.target.Cells(), s.target.Access, check)
+	site, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, "stage", s.target, s.target.Cells(), s.target.Access, check)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -383,29 +398,20 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	for _, cell := range site.Cells {
 		definitions[cell.Cell] = cell.Definition
 	}
-	review := policy.ReviewExcavation(s.target, excavationStates(site), excavationStageLimit)
+	review, reason, door := excavationNext(s.target, site)
 	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
-	if site.CollapsePending {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
-	}
-	if !review.Corridor || !site.AccessReachable {
-		return RoutineBuildingResult{Reason: BuildingExcavationBlocked}, nil
-	}
-	if review.Complete {
+	if door {
 		snapshot.Plan = excavationPlanID(s.goal, s.target, "door")
 		return r.admitExcavationDoor(call, epoch, s, snapshot, check)
 	}
-	if site.Support == policy.ExcavationSupportUnsupported {
-		return RoutineBuildingResult{Reason: BuildingExcavationBlocked}, nil
+	if reason != "" {
+		return RoutineBuildingResult{Reason: reason}, nil
 	}
 	next := review.Stage
-	if len(next) == 0 {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
-	}
 	if site.Support != policy.ExcavationSupportSupported {
 		// The whole remaining target may run past visible geometry; the
 		// stage itself must be supported outright.
-		stageSite, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, next, s.target.Access, check)
+		stageSite, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, "stage-support", s.target, next, s.target.Access, check)
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
@@ -442,6 +448,27 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 		return RoutineBuildingResult{}, err
 	}
 	return r.admitExcavation(call, epoch, s, snapshot, excavationStageMethod(stage), plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, check)
+}
+
+// excavationNext is stepExcavation's judgement of the project's site read:
+// the door once the room is complete, a reason that holds or ends the
+// project, or neither, when review.Stage is the next stage to designate
+// (its own support still to be read unless the whole site is supported).
+func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) (policy.ExcavationReview, RoutineBuildingReason, bool) {
+	review := policy.ReviewExcavation(target, excavationStates(site), excavationStageLimit)
+	switch {
+	case site.CollapsePending:
+		return review, BuildingMethodUnknown, false
+	case !review.Corridor || !site.AccessReachable:
+		return review, BuildingExcavationBlocked, false
+	case review.Complete:
+		return review, "", true
+	case site.Support == policy.ExcavationSupportUnsupported:
+		return review, BuildingExcavationBlocked, false
+	case len(review.Stage) == 0:
+		return review, BuildingMethodUnknown, false
+	}
+	return review, "", false
 }
 
 // cancelStalledExcavation cancels the stage actions of the goal's open

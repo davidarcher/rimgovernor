@@ -66,3 +66,15 @@ instead of hand-building a whole fixture.
 
 A snapshot proves decisions over recorded facts, never native behaviour:
 the facts are whatever the native read returned at that tick.
+
+## Planner steps
+
+The shelter planner's own decisions read the colony at step time, not
+from the review's facts, so they record separately (#745): with the
+recording variable set, each shelter planner step writes
+`planner-<goal>-<tick>.json` (`snapshot.Planner`) holding its starter
+searches, dig search, native excavation site reads by purpose and
+dig-or-shell choices. Load it with `snapshot.LoadPlanner` and call the
+policy function on the recorded request. Under the acceptance harness the
+recording directory gets `<area>/<case>` appended per case. Commit
+recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.

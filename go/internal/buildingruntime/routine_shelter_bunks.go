@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -161,7 +162,9 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		return nil, none, "", nil, err
 	}
 	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
-		return policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef})
+		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef}
+		snap.NoteShelter(call, request)
+		return policy.StarterLayouts(request)
 	}
 	layouts, err := search(layoutAnchor(s.facts, r.district()))
 	if err != nil {
@@ -193,7 +196,9 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		if len(layouts) > 0 {
 			shell = &layouts[0]
 		}
-		if policy.ChooseExcavation(s.facts.Center, shell, target) {
+		excavate := policy.ChooseExcavation(s.facts.Center, shell, target)
+		snap.NoteChoice(call, snap.ExcavationChoice{Anchor: s.facts.Center, Shell: shell, Target: target, Excavate: excavate})
+		if excavate {
 			result, err := r.stepExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, target: *target})
 			return nil, none, "", &result, err
 		}
@@ -271,7 +276,7 @@ func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s
 	}
 	snapshot := s.state.Snapshot
 	snapshot.Revision = 1
-	site, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, layout.Mined, layout.Shell.Threshold(), s.check)
+	site, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, "shell-mine", policy.ExcavationTarget{}, layout.Mined, layout.Shell.Threshold(), s.check)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}

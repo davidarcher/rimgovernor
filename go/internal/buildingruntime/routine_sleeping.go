@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -696,6 +697,16 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	var selected []policy.Preview
 	var stock policy.StockObservation
+	if r.shelter {
+		// The shelter's siting and dig decisions, recorded for replay (#745).
+		var finish func(domain.GenerationSnapshot, domain.Tick) error
+		call, finish = snap.StartPlanner(call, r.goal)
+		defer func() {
+			if err := finish(snapshot, facts.Identity.Tick); err != nil {
+				clockSchedulerLog("%s: planner snapshot not recorded: %v", r.goal, err)
+			}
+		}()
+	}
 	if r.shelter && r.goal == policy.EnsureInitialShelter {
 		// The starter shell is raised around its bunks (#612): the sleeping
 		// spots and then the beds are placed on the site first, each a rung

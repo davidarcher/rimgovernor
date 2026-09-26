@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -284,6 +285,11 @@ func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, 
 	cmd := exec.CommandContext(ctx, spec.Binary, argv...)
 	childproc.HideConsole(cmd)
 	cmd.Env = append(os.Environ(), spec.Env...)
+	if dir := os.Getenv(snapshot.DirEnv); dir != "" {
+		// Each case records into its own <area>/<case> directory, so a
+		// suite's workers never write one another's tick files (#745).
+		cmd.Env = append(cmd.Env, snapshot.DirEnv+"="+filepath.Join(dir, filepath.Base(filepath.Dir(output)), filepath.Base(output)))
+	}
 	if spec.Families != nil {
 		families := strings.Join(spec.Families, ",")
 		cmd.Env = append(cmd.Env, "RIMGOVERNOR_ROUTINE_FAMILIES="+families)

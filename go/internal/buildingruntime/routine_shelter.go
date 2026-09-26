@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -159,7 +160,9 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 		return selected, stock, reason, err
 	}
 	grid, _ := layoutAlignment(facts)
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(facts), WallDef: shellStyle(facts).WallDef})
+	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(facts), WallDef: shellStyle(facts).WallDef}
+	snap.NoteShelter(ctx, request)
+	layouts, err := policy.StarterLayouts(request)
 	if err != nil {
 		return nil, policy.StockObservation{}, "", err
 	}

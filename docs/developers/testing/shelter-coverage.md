@@ -33,18 +33,14 @@ documented radius in the test itself.
 | Case | What only a real game proves | Staged |
 | --- | --- | --- |
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
-| `shelter/hut` | Oval or grown geometry observed as one enclosed roofed room; adoption across a controller restart with exactly one cancelled wall reissued | ring, but a few load-bearing cells |
-| `shelter/hut-corridor` | The same for a grown irregular shell confined to a five-cell corridor | as above |
-| `shelter/hut-shortage` | A shell plan held through a material shortage with no second shell or order, then completed | as above |
-| `shelter/hut-oval`, `shelter/hut-low-oval` | Strip terrain selection rules: the medium and low east-west ovals, with their doors on ground the game agrees is open | as above |
-| `shelter/hut-concave`, `shelter/hut-connector` | Room, roof and passage observation for the composite templates: an L wrapping an obstacle and two chambers joined by one cell | as above |
-| `shelter/excavation-hazard`, `-reroute`, `-breach` | Digging the room into mountain rock and reacting to what the dig uncovers | see each case |
 
-The footprint variants are kept because each one is a different failure
-mechanism in the game's own room, roof, doorway and access handling, not a
-different planner branch: the planner branches are the table rows above.
-Policy selection, restart and shortage are exercised on one footprint each
-rather than on every footprint.
+The hut variants, `shelter/excavation-{breach,hazard,reroute,round}` and the
+`startup/composed-*` cases were converted to colony snapshot tests (#745):
+`buildingruntime.TestShelterSitingSnapshots` replays each terrain's recorded
+starter search, the `TestExcavationSnapshot*` tests replay the round dig's
+site reads (edited for the hazard, sealed-corridor and breach variants),
+and `snapshot.TestReplay*Shelter*` replays which goals open beside the
+initial shelter. Shell adoption through a wood shortage is not replayed.
 
 ## Composition and the shortage fixture
 
@@ -56,11 +52,6 @@ days, asserting indoor sleeping capacity for every colonist. Keep that pair
 together -- a shelter change that passes here and fails there is a
 composition defect, not a planner defect.
 
-`shelter/hut-shortage` takes only WoodLog, which is a true shortage rather
-than a preference: RimWorld's frames demand the stuff their blueprint was
-placed with, so stone, steel or chunks elsewhere on the map cannot finish a
-wooden wall and no alternative material shortens the hold.
-
-Nothing has been retired. Retiring a native check needs the replacement
+Retiring a native check needs the replacement
 assertion landed first, a note of where each assertion went, and a negative
 control showing the replacement fails for the behaviour the old case caught.

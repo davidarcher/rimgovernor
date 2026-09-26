@@ -1,10 +1,14 @@
 package snapshot
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -60,9 +64,24 @@ func Record(dir string, r Routine) error {
 	return os.WriteFile(filepath.Join(dir, fmt.Sprintf("routine-%d.json", r.Tick)), data, 0o644)
 }
 
+// readFile reads a recording, gunzipping one named *.gz: a colony's cell
+// census runs to megabytes of JSON, so committed testdata is compressed.
+func readFile(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.HasSuffix(path, ".gz") {
+		return data, err
+	}
+	z, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer z.Close()
+	return io.ReadAll(z)
+}
+
 // Load reads a recorded routine snapshot.
 func Load(path string) (Routine, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFile(path)
 	if err != nil {
 		return Routine{}, err
 	}

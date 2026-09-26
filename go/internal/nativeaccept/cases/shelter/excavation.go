@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -33,11 +32,9 @@ import (
 // left them, so the planner binds the same target through its sunk-work
 // credit and the run's own stages dig only the columns left standing.
 //
-// Two colonies run it (#64, #116): the debug quick-start (Industrial) digs
-// the 7x7 rectangle; the tribal8 baseline (Neolithic) digs the radius-4
-// round room, whose 49 cells are the ellipse target key
-// "...e.4.4.north_south" every stage plan and the paired restart must
-// rebuild.
+// The debug quick-start (Industrial) digs the 7x7 rectangle (#64). The
+// round room a Neolithic colony digs, and the hazard, reroute and breach
+// variants, are snapshot tests in buildingruntime (#745).
 func init() {
 	register := func(name, colony string, start cases.Start, shape excavationShape, stall time.Duration) {
 		prefix := strings.TrimPrefix(name, "shelter/")
@@ -71,8 +68,6 @@ func init() {
 		})
 	}
 	register("shelter/excavation", "Industrial debug colony", rectangle.fixture(nil), rectangle, 0)
-	// The tribal miners hold a stage's signature up to 83s in passing runs (#353).
-	register("shelter/excavation-round", "Neolithic "+sustained.BaselineSave, round.fixture(cases.Save{Name: sustained.BaselineSave}), round, 2*time.Minute)
 }
 
 // excavationShape is the room the colony's tech level makes the planner dig
@@ -89,25 +84,11 @@ type excavationShape struct {
 	predig   int
 }
 
-var (
-	// The 7x7 rectangle: 5 of 7 columns staged, 14 cells left.
-	rectangle = excavationShape{name: "rectangle", describe: "7x7 room", kind: policy.ExcavationRectangle, interior: 49, predig: 5}
-	// The radius-4 round room: 6 of 9 columns staged, 13 cells (7+5+1) left.
-	round = excavationShape{name: "round", describe: "radius-4 round room", kind: policy.ExcavationEllipse, suffix: ".e.4.4." + string(domain.EllipseNorthSouth), interior: 49, predig: 6}
-)
+// The 7x7 rectangle: 5 of 7 columns staged, 14 cells left.
+var rectangle = excavationShape{name: "rectangle", describe: "7x7 room", kind: policy.ExcavationRectangle, interior: 49, predig: 5}
 
 func (e excavationShape) fixture(on cases.Start) cases.Start {
 	return cases.Fixture{Op: "test/mountain_fixture", Args: map[string]any{"action": "setup", "predig": e.predig, "shape": e.name}, On: on}
-}
-
-// excavationStart is the staged rectangle fixture with extra setup
-// arguments for the mid-project scenarios (#63).
-func excavationStart(extra map[string]any) cases.Fixture {
-	f := rectangle.fixture(nil).(cases.Fixture)
-	for k, v := range extra {
-		f.Args[k] = v
-	}
-	return f
 }
 
 // excavationRun is the live excavation project every excavation case
@@ -265,35 +246,6 @@ func (run *excavationRun) bindTarget(plan domain.PlanID, label string) error {
 		return fmt.Errorf("access cell %v lies inside the block", t.Access)
 	}
 	return nil
-}
-
-// change stops the service, applies one fixture change to the running game
-// through a reattached bridge session, and restarts the service on the same
-// durable state: what a player does to a dig in progress, seen by the
-// controller as changed geometry on its next review.
-func (run *excavationRun) change(ctx context.Context, label string, args map[string]any) (map[string]any, error) {
-	run.store.Close()
-	run.svc.Stop()
-	h, err := run.s.Reattach(ctx)
-	if err != nil {
-		return nil, err
-	}
-	reply, err := h.Call(ctx, label, "test/mountain_fixture", args)
-	if err != nil {
-		return nil, err
-	}
-	run.report[label] = reply
-	if err := run.s.Release(); err != nil {
-		return nil, err
-	}
-	if run.svc, err = run.svc.Restart(ctx); err != nil {
-		return nil, fmt.Errorf("relaunch service after %s: %w", label, err)
-	}
-	run.svc.KeepAuthority(ctx)
-	if run.store, err = na.OpenStoreWithRetry(ctx, run.svc.StatePath); err != nil {
-		return nil, fmt.Errorf("reopen verification store: %w", err)
-	}
-	return reply, nil
 }
 
 // excavationOptions vary the staged run between the happy path and the
