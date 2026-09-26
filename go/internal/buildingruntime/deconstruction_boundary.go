@@ -338,7 +338,11 @@ func (b *DeconstructionBoundary) ObserveDeconstruction(ctx context.Context, plac
 			return out, err
 		}
 	case *r.LookupReply_Receipt:
-		if err = b.checkReceipt(v.Receipt, dispatch); err != nil {
+		// The attempt key pins the receipt to this dispatch. The placement
+		// tick is the last observation's, not the dispatch's, so it is no
+		// floor for the admitted tick: after one pending observation it
+		// refused the receipt forever (#678).
+		if err = boundary.Admission(v.Receipt, p, b.session); err != nil {
 			return out, err
 		}
 	default:

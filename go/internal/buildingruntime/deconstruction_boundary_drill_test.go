@@ -109,3 +109,51 @@ func TestDeconstructionBoundaryInspectsDrillCensus(t *testing.T) {
 func observedDrills(rows ...*n.DeepDrillState) *n.DeepResourcesSection {
 	return &n.DeepResourcesSection{Outcome: &n.DeepResourcesSection_Observed{Observed: &n.DeepResourcesFacts{Drills: rows}}}
 }
+
+// observedDeconstructionNative answers the observe path with one receipt
+// admitted at tick 100 and a pending progress at tick 200.
+type observedDeconstructionNative struct {
+	*drillBoundaryNative
+	context *c.ObservationContext
+}
+
+func (d *observedDeconstructionNative) LookupDeconstruction(_ context.Context, w bridge.DeconstructionAttempt) (*r.LookupReply, bridge.Result, error) {
+	admitted := proto.Clone(d.context).(*c.ObservationContext)
+	admitted.Tick = proto.Int64(100)
+	effect := &r.EffectEvidence{Effect: &r.EffectEvidence_Deconstruct{Deconstruct: &r.DeconstructEffect{TargetId: proto.String(w.Target), DesignationId: proto.String("deconstruct-1"), DemolitionObserved: proto.Bool(false), Site: &r.SnapshotEvidence{EntityId: proto.String(w.Target), BeforeToken: proto.String("building-1")}}}}
+	return &r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: &r.Receipt{Attempt: w.Attempt, AdmittedContext: admitted, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: effect}}}}}, bridge.Result{}, nil
+}
+func (d *observedDeconstructionNative) ObserveDeconstructionProgress(_ context.Context, w bridge.DeconstructionAttempt, _ *r.Receipt) (*r.ProgressReply, bridge.Result, error) {
+	observed := proto.Clone(d.context).(*c.ObservationContext)
+	observed.Tick = proto.Int64(200)
+	effect := &r.EffectEvidence{Effect: &r.EffectEvidence_Deconstruct{Deconstruct: &r.DeconstructEffect{TargetId: proto.String(w.Target), DesignationId: proto.String("deconstruct-1"), DemolitionObserved: proto.Bool(false), Site: &r.SnapshotEvidence{EntityId: proto.String(w.Target), BeforeToken: proto.String("building-1")}}}}
+	return &r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: &r.Progress{Attempt: w.Attempt, Context: observed, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Pending{Pending: &r.PendingEffect{Evidence: effect}}}}}, bridge.Result{}, nil
+}
+
+// A pending observation advances the placement tick past the receipt's
+// admitted tick; the next observation must still accept that receipt rather
+// than refuse it as invalid evidence forever (#678).
+func TestDeconstructionObservationAcceptsReceiptBehindLastObservation(t *testing.T) {
+	_, _, session, _, sleeping := sleepingFixture(t)
+	native := &observedDeconstructionNative{&drillBoundaryNative{&resourceNative{workshopNative: &workshopNative{sleepingNative: sleeping}}}, sleeping.reply.GetObserved().Context}
+	b, err := NewDeconstructionBoundary(native, drillBoundaryWriter{}, drillBoundaryLease{}, testkit.NewManualClock(time.Now()), "session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := session.State().Snapshot
+	value, err := domain.NewDrillDeconstruction("Thing_DeepDrill_7", "DeepDrill", domain.Cell{X: 4, Z: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewDeconstructionAction("removal-0", value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := b.ObserveDeconstruction(context.Background(), executor.Placement{Action: action, Attempt: 1, Snapshot: snapshot, Tick: 150}, snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Observation.Effect != domain.EffectPending || out.Observation.Tick != 200 {
+		t.Fatal(out)
+	}
+}
