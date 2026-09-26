@@ -14,6 +14,13 @@
     <UseRidGraph>true</UseRidGraph>
   </PropertyGroup>
 
+  <!-- This build compiles production sources against fakes, with no game and no Harmony to
+       patch, so the one production call site that installs a Harmony patch on a game boundary
+       (#642) is gated out of it. The accounting it drives is probed directly instead. -->
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);NATIVE_CONTRACT_PROBES</DefineConstants>
+  </PropertyGroup>
+
   <!-- Dispatcher preprocessor symbols mirroring the Compile/Reference gates below, so the
        dispatcher's switch can #if out cases whose probe class is excluded from this build. -->
   <PropertyGroup Condition="'$(HarmonyAssembly)' != ''">
@@ -78,6 +85,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockPauseAccounting.cs" Link="Production/ClockPauseAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockProbeAccounting.cs" Link="Production/ClockProbeAccounting.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/ObservationWorkAccounting.cs" Link="Production/ObservationWorkAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/SupervisedPlayHazards.cs" Link="Production/SupervisedPlayHazards.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />
@@ -94,6 +102,7 @@
     <Compile Include="NativeContractProbes/native-authority/Program.cs" />
     <Compile Include="NativeContractProbes/native-authority-status/Program.cs" />
     <Compile Include="NativeContractProbes/native-clock/Program.cs" />
+    <Compile Include="NativeContractProbes/native-observation-work/Program.cs" />
     <Compile Include="NativeContractProbes/native-attempt-ledger/Program.cs" />
     <Compile Include="NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs" />
     <Compile Include="NativeContractProbes/native-construction-causality/Program.cs" />

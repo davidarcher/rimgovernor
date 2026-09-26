@@ -34,6 +34,11 @@ Every row a phase report reads:
   `class_queue_depth` how many calls (of any class, of its own) were
   waiting when it asked, and `native_queue_depth` how many hops were
   pending for the game thread when the companion queued this one.
+- `timing.native_observation` and `timing.native_frames` on a native call
+  (#642): the companion's own account of where that hop's main-thread time
+  went and of the update intervals its frame recorder measured. Additive and
+  optional -- a recording written against a companion that predates them
+  carries neither, which the report shows as unknown, never as zero work.
 - `native_cache_hit`: a read the scheduler's per-step read cache served
   without a round trip.
 - `clock_step`: one row per `ClockScheduler.Step` with the round trips it
@@ -136,6 +141,13 @@ records 4211 (gaps 0, untimed calls 3), wall 118.4s
 clock: 6012 ticks over 117.9s = 51.0 wall TPS (240 tick samples, 0 resets), paused 31/240 status samples
 steps: 41, reads/step mean 2.3 max 9, cache hits/step 1.8, parent hits/step 4.1, window ticks mean 150 max 600 (target up to 2.0s) over 40 sized steps, by reason full=1 timer=4 wake=36
 stops: 36 woke a step, stop->step latency mean 6.2ms max 14.0ms over 36 samples
+observation: 118 hops with a capture account, capture p50 3.1 p95 11.4 p99 24.0 max 31.2 ms over 118, format p50 0.8 p95 2.9 p99 6.1 max 7.0 ms over 118, queue p50 0.4 p95 2.2 p99 9.8 max 14.1 ms over 412, exec p50 3.9 p95 14.0 p99 28.7 max 33.9 ms over 412
+  412 formatting passes, 38.2 MiB returned, outcomes ok=117 failure=1
+  section                        hops        ms    max ms       rows candidates
+  planningWindow                   41     212.6      14.9       8104      15000
+  colonyFacts                      41      64.1       3.2       1230          -
+frames: 7012 updates over 118.1s = 59.4/s (hooked, 412 samples), max update 214.0ms, observation 4.1s (3.5% of update wall) over 118 hops, recorder 12.4ms, >16.7ms 402, >33.3ms 61, >100.0ms 4, >250.0ms 0
+  worst update 4193: 214.0ms (observation 188.2ms, tick 12450, trace 5c0e1f2a/90faecc0)
   reads/step by tool
   observations_read_bundle                              1.0
   ...
@@ -195,6 +207,37 @@ Describe (`games_tool_detail`) round trips are listed separately: paid once
 per method per GABS session, not per call. Sub-millisecond phases can read 0
 on Windows' coarse monotonic clock.
 
+Observation capture (`observation`, from each hop's `native_observation`):
+
+| Field | Meaning |
+| --- | --- |
+| `hops` | Replies that carried a capture account. `0` with a `queue`/`exec` distribution present means the recording predates the account: the split is unknown, not zero. |
+| `capture`, `format` | Where the hop's main-thread time went: reading game state, and ProtoJSON formatting plus the UTF-8 size checks that precede it. Each is a `Quantiles`: `samples`, `p50_ms`, `p95_ms`, `p99_ms`, `max_ms`, `sum_ms`, **nearest rank** -- with `n` samples sorted ascending the `q` quantile is the sample at 1-based index `ceil(q*n)`, so a small sample set names an actual observed hop rather than an interpolated one. `samples` of 0 prints `unknown`. |
+| `queue`, `exec` | The same distributions over the companion's `queueMs`/`executeMs` (#631), which every timed reply carries, so they cover more hops than `capture` does. `exec` is main-thread elapsed work; `queue` is the wait for the main thread. When the capture moves off the main thread these stay distinct: `exec` remains the main-thread leg. |
+| `format_passes`, `payload_bytes` | Formatting passes paid for (a size check that reformats counts again) and the UTF-8 bytes actually returned. |
+| `dropped_sections` | Sections the companion dropped to stay inside the 1 MiB envelope. |
+| `sections` | Per requested section: `hops`, `ms`, `max_ms`, `rows` returned and `candidates` it could have returned. `candidates` is absent (`-`) where the section has no candidate set to compare against, never 0 -- only `colonistPawns` (the ids asked for) and `planningWindow` (the requested rectangle's cells) know theirs. |
+| `outcomes` | Hops by outcome: `ok`, `failure`, `unavailable`, `error` (a hop that threw is accounted, not dropped). |
+
+Frames (`frames`, from `native_frames`, cumulative for the loaded game
+session and differenced between the recording's first and last sample):
+
+| Field | Meaning |
+| --- | --- |
+| `hooked`, `samples` | Whether the recorder installed, and how many replies carried the block. `samples` 0 omits the whole section. |
+| `updates`, `elapsed_ms`, `max_interval_ms` | Update-to-update intervals on a monotonic clock, and the widest any sample reported. **These are Unity update intervals, not GPU presentation intervals**: a stalled present or a dropped frame is not distinguishable here, and an unrendered batch-mode launch still updates. |
+| `observation_ms`, `observations` | Main-thread wall that ran observation hops inside those updates, and how many ran. `ObservationShare()` is its share of the update wall -- not of one update, since a hop can outlast one. |
+| `cancelled_hops` | Hops cancelled while queued: work never done, kept apart from work that ran. |
+| `recorder_ms` | The recorder's own measured cost, so its overhead is visible rather than assumed. |
+| `slow` | Per declared threshold (16.7, 33.3, 100, 250 ms) how many intervals exceeded it. |
+| `worst` | The widest intervals a bounded 8-entry ring kept for the session, each with its update id, the observation work charged to it, the tick and the trace of its most expensive observation -- the link from a hitch to a request. |
+
+Intentional clock pauses are **not** here: a paused game simply stops
+ticking while its updates continue. The stop time and its reasons stay in
+the clock block (`native_paused_ms`, `paused_fraction_native`) and in
+`stop_reasons`, so a wide interval is frame blocking and a large
+`paused_ms` is the governor deliberately holding the clock.
+
 ### Reading a report
 
 - Slow steps with low reads/step: look at `call ms` versus `queue ms` for
@@ -206,6 +249,15 @@ on Windows' coarse monotonic clock.
   controller; check `stops` latency and whether `reasons` is `timer`-heavy.
 - Low wall TPS with a low paused fraction: the game itself is slow at that
   speed; the controller is not the bottleneck.
+- A slow bundle: compare `capture` with `format` for the same hops. A high
+  `capture` p95 with a dominant row in `sections` is a read (that section);
+  a high `format` p95 with `format_passes` above `hops` is encoding, paid
+  twice by a size check. `queue` p95 well above `exec` is a busy main
+  thread, not an expensive observation.
+- A hitch: read `frames` `slow` counts and `worst`. An interval whose
+  `observation_ms` is most of its `interval_ms` was blocked by that hop, and
+  its `trace` names the request; an interval with little observation work is
+  the game or the renderer, and the observation path is not the cause.
 
 ## Case timeline
 
@@ -322,6 +374,98 @@ hauled or built; the `max_paused_fraction` and `min_ultrafast_tps_ratio`
 thresholds are written to the report and checked at zero, so they are
 reported, not enforced.
 
+## Observation baseline
+
+`speedmatrix/observations` (#642) is the repeatable rendered workload the
+observation-cost numbers are read against, registered in the same matrix
+tier and reusing the speed matrix's staging, rows and reporting:
+
+```bash
+go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/observations -root <abs root> -rimgovernor <abs path to rimgovernor.exe>
+```
+
+The committed `RimGovernor-tribal8-baseline` colony -- eight tribal
+colonists, the map's wildlife, its loose items and its standing buildings --
+with `test/throughput_prepare` applied on top, staged once and reloaded per
+row. It always runs windowed (`Rendered`), since update intervals are only
+a player's intervals when the game draws and the viewer row's video capture
+needs `Find.Camera`. Three rows, at one clock speed and one tick budget:
+`governor-off` (no controller attached, the ungoverned update-interval
+ceiling; its accounts come off its own tick reads' reply envelopes, since
+nothing records a flight timeline), `uncapped` (the ordinary governed run)
+and `viewer` (the same governed run with one dashboard client streaming
+video). Every row asks for the same speed and the same staged work, so the
+difference between rows is observation and viewing cost, not a different
+workload.
+
+Each row's `speed_metrics` entry carries the full `observation` and `frames`
+blocks documented above, plus flat headlines for comparing rows:
+`observation_hops`, `capture_ms`, `format_ms`, `capture_p95_ms`,
+`format_p95_ms`, `queue_p95_ms`, `execute_p95_ms`, `format_passes`,
+`payload_bytes`, `frame_updates`, `frame_updates_per_second`,
+`frame_max_interval_ms`, `frame_observation_share`, `frame_recorder_ms`,
+`frame_cancelled_hops`. The run's `provenance` block records what the
+numbers were measured on: revision, host (os, arch, cpus), the mod set the
+launch activated, the launch arguments (resolution and window mode), the
+rows, the tick budget, the stage, the camera (the save's own, never
+commanded), what the warmup excludes and what the measured interval is. The
+world seed, the save and its hash and the fixture hash are the report's own
+`world` block; the installed build's hashes are `package_files`.
+
+### Recorded baseline
+
+Revision `64a41a9d`, windowed 1280x720 on a 32-thread Windows host, four
+active mods (RimWorld, Harmony, RimBridgeServer, RimGovernor), the three
+rows at one clock speed over the same tick budget:
+
+| | governor-off | uncapped | viewer |
+| --- | --- | --- | --- |
+| wall s | 13.3 | 16.3 | 14.2 |
+| hops with a capture account | 7 | 122 | 125 |
+| capture ms / format ms | 0.0 / 0.8 | 224.5 / 20.8 | 169.0 / 18.9 |
+| capture p95 / format p95 ms | 0.00 / 0.51 | 0.79 / 0.83 | 0.50 / 0.56 |
+| queue p95 / exec p95 ms | 84.5 / 0.9 | 81.6 / 183.9 | 80.3 / 150.9 |
+| returned bytes | 1.5 KB | 411 KB | 440 KB |
+| updates (per s) | 208 (15.9) | 319 (17.6) | 276 (18.3) |
+| max update interval ms | 98.4 | **1067.7** | **825.4** |
+| observation share of update wall | 0.003% | 34.6% | 31.6% |
+| intervals >100 / >250 ms | 0 / 0 | 23 / 9 | 27 / 4 |
+| recorder overhead ms | 0.61 | 1.04 | 0.76 |
+
+Updates run at 16-18/s, not 60, because the row asks for an accelerated
+clock and each update carries roughly a hundred ticks; the intervals are
+still update-to-update wall, so they are directly comparable across rows.
+
+The reported hitch reproduces on this workload, and the account attributes
+it: the ungoverned row never blocks an update past 98 ms and charges
+essentially no observation work to any of them, while both governed rows
+block an update for most of a second with the observation work accounting
+for nearly all of that interval (1067.7 ms of which 1050.7 is observation;
+825.4 of which 762.9). The cost is a small number of very expensive hops,
+not a broad tax: `capture` p95 is under 1 ms while the `emergency` section
+alone spends 199.3 ms (uncapped) and 160.9 ms (viewer) in a single hop, and
+`exec` p95 of 184/151 ms against a `format` sum of ~20 ms places the wall in
+reading the colony rather than in encoding. The viewer row is not
+measurably worse than the plain governed row, so video streaming is not a
+contributor here.
+
+To isolate emergency-only work from a full bundle, narrow the rows with
+`RIMGOVERNOR_SPEED_MATRIX` and read the `sections` split, which already
+separates `emergency` from every other family: the normal controller ships
+no diagnostic bypass for this.
+
+Isolate the accounting itself, with no game, through the contract probe:
+
+```powershell
+dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-observation-work
+```
+
+Every clock there is supplied, so the intervals, the slow-threshold counts
+and the millisecond conversions are exact and no assertion measures the
+machine it runs on; it also pins the storage bounds (the 48-section cap per
+hop, the 8-entry worst-interval ring) and the session reset.
+
 Rerun the native check when the clock scheduler, the step cache or the
 Ultrafast/acceleration path changes; the unit check on every scheduler
-change.
+change; the observation baseline when the capture, encoding or main-thread
+admission path changes.

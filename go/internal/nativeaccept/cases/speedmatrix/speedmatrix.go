@@ -91,6 +91,19 @@ const (
 	maxLiveStepReads = 5
 )
 
+// profile is what the matrix cases differ by (#642): the stage the fixture
+// prepares, the save it is kept in, the tick budget each row runs and the
+// rows compared. speedmatrix/plain is the whole speed sweep on a quiet flat
+// debug colony; speedmatrix/observations (observations.go) is the rendered
+// observation baseline on the tribal8 colony.
+type profile struct {
+	items, segments int
+	ticks           uint64
+	save, speeds    string
+}
+
+var plainProfile = profile{items: items, segments: segments, ticks: ticks, save: stageSave, speeds: na.DefaultSpeedMatrix}
+
 func init() {
 	cases.Register(cases.Case{
 		Name: "speedmatrix/plain",
@@ -105,11 +118,12 @@ func init() {
 		Service:    true,
 		Budget:     cases.MaxBudget,
 		Matrix:     true,
-		Run:        run,
+		Run:        run(plainProfile),
 	})
 }
 
 type matrix struct {
+	p      profile
 	s      cases.Session
 	report na.Report
 	cases  []na.SpeedCase
@@ -120,21 +134,30 @@ type matrix struct {
 	outcomes       []na.SpeedOutcome
 }
 
-func run(ctx context.Context, s cases.Session) error {
+// run is the matrix body for one profile.
+func run(p profile) func(ctx context.Context, s cases.Session) error {
+	return func(ctx context.Context, s cases.Session) error { return runMatrix(ctx, s, p) }
+}
+
+func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 	// RIMGOVERNOR_SPEED_MATRIX narrows the rows for a targeted comparison
 	// (a rendered "uncapped,viewer" pair, #631); the default is every row.
 	spec := os.Getenv("RIMGOVERNOR_SPEED_MATRIX")
 	if spec == "" {
-		spec = na.DefaultSpeedMatrix
+		spec = p.speeds
 	}
 	speedCases, err := na.ParseSpeedCases(spec)
 	if err != nil {
 		return err
 	}
-	m := &matrix{s: s, report: s.Report(), cases: speedCases}
+	m := &matrix{p: p, s: s, report: s.Report(), cases: speedCases}
 	m.report["speeds_spec"] = spec
 	m.report["speeds"] = speedCases
-	m.report["tick_budget"] = ticks
+	m.report["tick_budget"] = p.ticks
+	// What the baseline was measured on (#642): the revision, the world and
+	// mod set, the host, the launch's resolution and the measured interval's
+	// bounds. A row's own wall_seconds and frames block complete it.
+	m.report["provenance"] = m.provenance()
 	m.report["tolerance"] = tolerance
 	m.report["max_paused_fraction"] = maxPausedFraction
 	m.report["max_live_step_reads"] = maxLiveStepReads
@@ -213,13 +236,13 @@ func (m *matrix) stage(ctx context.Context) error {
 		site, _ := na.AsMap(raw)
 		m.sites = append(m.sites, site)
 	}
-	if len(m.sites) != segments {
-		return fmt.Errorf("stage laid out %d wall sites, want %d", len(m.sites), segments)
+	if len(m.sites) != m.p.segments {
+		return fmt.Errorf("stage laid out %d wall sites, want %d", len(m.sites), m.p.segments)
 	}
 	// Frozen needs do not survive a reload (the op is per game), so the
 	// save carries the stage only; each case freezes again after loading.
 	started := time.Now()
-	if _, err := h.Call(ctx, "save-stage", "rimworld/save_game", map[string]any{"saveName": stageSave}); err != nil {
+	if _, err := h.Call(ctx, "save-stage", "rimworld/save_game", map[string]any{"saveName": m.p.save}); err != nil {
 		return err
 	}
 	return m.waitSaved(ctx, started)
@@ -231,8 +254,8 @@ func (m *matrix) waitSaved(ctx context.Context, started time.Time) error {
 	root := m.s.Config().Root
 	deadline := started.Add(90 * time.Second)
 	for {
-		for _, profile := range []string{"headless-profile", "profile"} {
-			candidate := filepath.Join(root, profile, "Saves", stageSave+".rws")
+		for _, dir := range []string{"headless-profile", "profile"} {
+			candidate := filepath.Join(root, dir, "Saves", m.p.save+".rws")
 			info, err := os.Stat(candidate)
 			if err == nil && info.Size() > 0 && !info.ModTime().Before(started.Add(-time.Second)) {
 				// A save the game is still writing grows; require it stable.
@@ -244,7 +267,7 @@ func (m *matrix) waitSaved(ctx context.Context, started time.Time) error {
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("stage save %s did not appear under %s within 90s", stageSave, root)
+			return fmt.Errorf("stage save %s did not appear under %s within 90s", m.p.save, root)
 		}
 		select {
 		case <-ctx.Done():
@@ -284,7 +307,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	h.Output = output
 	if _, err := h.Call(ctx, "load-stage", "rimworld/load_game_ready", map[string]any{
-		"saveName": stageSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
+		"saveName": m.p.save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	}); err != nil {
 		return outcome, err
 	}
@@ -378,7 +401,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 					lastTick = uint64(observed)
 				}
 			}
-			if lastTick >= startTick+uint64(ticks) {
+			if lastTick >= startTick+m.p.ticks {
 				return na.Signature(lastTick), true, nil
 			}
 			workDone, err = stageWorkDone(ctx, journal, review, planIDs)
@@ -394,7 +417,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 			data, _ := json.Marshal(final)
 			report["routine_review_at_failure"] = json.RawMessage(data)
 		}
-		return outcome, fmt.Errorf("tick budget wait (start %d, last %d, want +%d): %w", startTick, lastTick, ticks, waitErr)
+		return outcome, fmt.Errorf("tick budget wait (start %d, last %d, want +%d): %w", startTick, lastTick, m.p.ticks, waitErr)
 	}
 	unsuccessful, planCount, err := countUnsuccessful(ctx, journal, planIDs)
 	if err != nil {
@@ -417,6 +440,11 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	stops := na.SummarizeStops(rows, resumedAt.UnixMilli())
 	report["stops"] = stops
 	metrics := caseMetrics(c, phases, stops, startTick, lastTick, wallSeconds)
+	// The observation capture account and the frame recorder (#642), from
+	// the same recording the clock and step phases come from.
+	for key, value := range observationRow(phases.Observation, phases.Frames) {
+		metrics[key] = value
+	}
 	if viewerSummary != nil {
 		metrics["viewer"] = viewerSummary
 	}

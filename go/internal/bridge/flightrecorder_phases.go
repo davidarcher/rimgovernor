@@ -42,22 +42,37 @@ type ToolPhases struct {
 	NativeTimed     uint64  `json:"native_timed"`
 	NativeQueueMs   float64 `json:"native_queue_ms"`
 	NativeExecuteMs float64 `json:"native_execute_ms"`
+	// The companion's split of the execute leg (#642), summed over the
+	// ObservationHops whose reply carried the observation account: reading
+	// game state, then ProtoJSON formatting and its UTF-8 size checks, the
+	// formatting passes and the payload bytes they produced. Zero
+	// ObservationHops means absent, not free.
+	ObservationHops uint64  `json:"observation_hops"`
+	CaptureMs       float64 `json:"capture_ms"`
+	FormatMs        float64 `json:"format_ms"`
+	FormatPasses    uint64  `json:"format_passes"`
+	PayloadBytes    uint64  `json:"payload_bytes"`
 }
 
 // PhaseSummary is a read-only aggregation of one flight-recorder timeline:
 // per-tool phase totals plus the game-clock progress visible in observation
 // replies. It changes nothing in the game and needs no authority.
 type PhaseSummary struct {
-	Records   uint64         `json:"records"`
-	Gaps      uint64         `json:"gaps"`
-	Untimed   uint64         `json:"untimed_calls"`
-	WallSecs  float64        `json:"wall_seconds"`
-	Tools     []ToolPhases   `json:"tools"`
-	Clock     ClockSample    `json:"clock"`
-	Steps     StepSample     `json:"steps"`
-	Dispatch  DispatchSample `json:"dispatch"`
-	FirstWall float64        `json:"first_wall_time"`
-	LastWall  float64        `json:"last_wall_time"`
+	Records  uint64         `json:"records"`
+	Gaps     uint64         `json:"gaps"`
+	Untimed  uint64         `json:"untimed_calls"`
+	WallSecs float64        `json:"wall_seconds"`
+	Tools    []ToolPhases   `json:"tools"`
+	Clock    ClockSample    `json:"clock"`
+	Steps    StepSample     `json:"steps"`
+	Dispatch DispatchSample `json:"dispatch"`
+	// The observation capture account and the frame recorder (#642). Both
+	// are unknown rather than zero against a companion without them:
+	// Observation.Hops and Frames.Samples say whether anything was read.
+	Observation ObservationSample `json:"observation"`
+	Frames      FrameSample       `json:"frames"`
+	FirstWall   float64           `json:"first_wall_time"`
+	LastWall    float64           `json:"last_wall_time"`
 }
 
 // StepSample aggregates the "clock_step" rows a ClockScheduler step publishes
@@ -291,6 +306,8 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	var stopLatencyMs float64
 	var firstPause, lastPause nativePause
 	var havePause bool
+	observation := &observationAccumulator{}
+	frames := &frameAccumulator{}
 	for _, row := range records {
 		summary.Records++
 		if row.Kind == "recording_gap" {
@@ -325,7 +342,20 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				if queue, ok := number(timing["native_queue_ms"]); ok {
 					entry.NativeTimed++
 					entry.NativeQueueMs += queue
-					entry.NativeExecuteMs += field(timing, "native_execute_ms")
+					execute := field(timing, "native_execute_ms")
+					entry.NativeExecuteMs += execute
+					observation.timed(queue, execute)
+				}
+				if account, ok := readObservation(timing); ok {
+					entry.ObservationHops++
+					entry.CaptureMs += account.captureMs
+					entry.FormatMs += account.formatMs
+					entry.FormatPasses += account.formatPasses
+					entry.PayloadBytes += account.payloadBytes
+					observation.hop(account)
+				}
+				if account, ok := readFrames(timing); ok {
+					frames.sample(account)
 				}
 			}
 			if row.Kind != "native_response" || entry.Wrapper != "games_call_tool" {
@@ -498,6 +528,8 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 		summary.Clock.NativeMaxProbeTickGap = lastPause.maxProbeTickGap
 		summary.Clock.NativeHazardGaps = lastPause.hazardGaps
 	}
+	summary.Observation = observation.result()
+	summary.Frames = frames.result()
 	if summary.Steps.Stops.LatencySamples > 0 {
 		summary.Steps.Stops.MeanLatencyMs = stopLatencyMs / float64(summary.Steps.Stops.LatencySamples)
 	}
@@ -742,6 +774,7 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		}
 		fmt.Fprintln(w)
 	}
+	writeObservationReport(w, summary)
 	fmt.Fprintf(w, "%-52s %-17s %6s %6s %4s %9s %9s %9s %9s %9s %9s %9s %9s\n", "native tool", "wrapper", "calls", "cached", "err", "total ms", "gate ms", "call ms", "queue ms", "exec ms", "decode ms", "proto ms", "avg KiB")
 	for _, tool := range summary.Tools {
 		calls := float64(tool.Calls)
@@ -768,4 +801,85 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 // account reads as 0.
 func ClockStatusPausedFraction(status *k.Status) float64 {
 	return NativePausedFraction(status.GetPausedMs(), status.GetRunningMs())
+}
+
+// writeObservationReport prints the observation capture account and the
+// frame recorder (#642). Both sections are omitted entirely when the
+// recording carried none of the account, so absent never reads as zero.
+func writeObservationReport(w io.Writer, summary PhaseSummary) {
+	if obs := summary.Observation; obs.Hops > 0 || obs.Queue.Samples > 0 {
+		fmt.Fprintf(w, "observation: %d hops with a capture account", obs.Hops)
+		writeQuantiles(w, "capture", obs.Capture)
+		writeQuantiles(w, "format", obs.Format)
+		writeQuantiles(w, "queue", obs.Queue)
+		writeQuantiles(w, "exec", obs.Execute)
+		fmt.Fprintln(w)
+		if obs.Hops > 0 {
+			fmt.Fprintf(w, "  %d formatting passes, %.1f MiB returned", obs.FormatPasses, float64(obs.PayloadBytes)/(1024*1024))
+			if obs.Dropped > 0 {
+				fmt.Fprintf(w, ", %d sections dropped for the envelope bound", obs.Dropped)
+			}
+			if len(obs.Outcomes) > 0 {
+				outcomes := make([]string, 0, len(obs.Outcomes))
+				for outcome := range obs.Outcomes {
+					outcomes = append(outcomes, outcome)
+				}
+				sort.Strings(outcomes)
+				fmt.Fprint(w, ", outcomes")
+				for _, outcome := range outcomes {
+					fmt.Fprintf(w, " %s=%d", outcome, obs.Outcomes[outcome])
+				}
+			}
+			fmt.Fprintln(w)
+		}
+		if len(obs.Sections) > 0 {
+			fmt.Fprintf(w, "  %-28s %6s %9s %9s %10s %10s\n", "section", "hops", "ms", "max ms", "rows", "candidates")
+			for _, section := range obs.Sections {
+				candidates := "-"
+				if section.Candidates > 0 {
+					candidates = fmt.Sprint(section.Candidates)
+				}
+				fmt.Fprintf(w, "  %-28s %6d %9.1f %9.1f %10d %10s\n", section.Section, section.Hops, section.Ms, section.MaxMs, section.Rows, candidates)
+			}
+		}
+	}
+	frames := summary.Frames
+	if frames.Samples == 0 {
+		return
+	}
+	hooked := "no frame hook installed"
+	if frames.Hooked {
+		hooked = "hooked"
+	}
+	// Update-to-update intervals, not GPU presentation intervals.
+	fmt.Fprintf(w, "frames: %d updates over %.1fs = %.1f/s (%s, %d samples), max update %.1fms",
+		frames.Updates, frames.ElapsedMs/1000, frames.UpdatesPerSecond(), hooked, frames.Samples, frames.MaxIntervalMs)
+	if frames.ElapsedMs > 0 {
+		fmt.Fprintf(w, ", observation %.1fs (%.1f%% of update wall) over %d hops", frames.ObservationMs/1000, 100*frames.ObservationShare(), frames.Observations)
+	}
+	if frames.Cancelled > 0 {
+		fmt.Fprintf(w, ", %d cancelled before running", frames.Cancelled)
+	}
+	fmt.Fprintf(w, ", recorder %.1fms", frames.RecorderMs)
+	for _, bucket := range frames.Slow {
+		fmt.Fprintf(w, ", >%.1fms %d", bucket.ThresholdMs, bucket.Count)
+	}
+	fmt.Fprintln(w)
+	for _, worst := range frames.Worst {
+		fmt.Fprintf(w, "  worst update %d: %.1fms (observation %.1fms, tick %d", worst.Frame, worst.IntervalMs, worst.ObservationMs, worst.Tick)
+		if worst.Trace != "" {
+			fmt.Fprintf(w, ", trace %s", worst.Trace)
+		}
+		fmt.Fprintln(w, ")")
+	}
+}
+
+// writeQuantiles renders one phase's distribution, or "unknown" when the
+// recording carried no sample of it.
+func writeQuantiles(w io.Writer, name string, q Quantiles) {
+	if q.Samples == 0 {
+		fmt.Fprintf(w, ", %s unknown", name)
+		return
+	}
+	fmt.Fprintf(w, ", %s p50 %.1f p95 %.1f p99 %.1f max %.1f ms over %d", name, q.P50, q.P95, q.P99, q.Max, q.Samples)
 }

@@ -85,7 +85,16 @@ namespace HomeBridge.BridgeTools
         }
 
         // The SDK recognizes this concrete envelope; generated CLR properties are not its wire format.
+        // Every pass is charged to the open observation hop (#642), including
+        // the repeated passes a size check pays for.
         internal static string Format(IMessage reply, bool compact = false)
+        {
+            var began = Stopwatch.GetTimestamp();
+            try { return FormatPass(reply, compact); }
+            finally { ObservationWork.Formatted(Stopwatch.GetTimestamp() - began); }
+        }
+
+        private static string FormatPass(IMessage reply, bool compact)
         {
             var payload = JsonFormatter.Default.Format(reply);
             if (!compact) return payload;
@@ -104,9 +113,20 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, object?> Encode(IMessage reply, bool compact = false)
         {
             var payload = Format(reply, compact);
-            if (Utf8.GetByteCount(payload) > MaximumEnvelopeBytes)
+            if (Measure(payload) > MaximumEnvelopeBytes)
                 throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
             return new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
+        }
+
+        // The payload's UTF-8 length, charged to the open hop as the size
+        // check it is and recorded as the bytes the hop returns (#642).
+        private static int Measure(string payload)
+        {
+            var began = Stopwatch.GetTimestamp();
+            var bytes = Utf8.GetByteCount(payload);
+            ObservationWork.SizeChecked(Stopwatch.GetTimestamp() - began);
+            ObservationWork.Payload(bytes);
+            return bytes;
         }
 
         // MediaFrame replies (base64 PNG bytes) do not fit the one MiB control
@@ -118,7 +138,7 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, object?> EncodeMedia(IMessage reply, bool compact = false)
         {
             var payload = Format(reply, compact);
-            if (Utf8.GetByteCount(payload) > MaximumMediaEnvelopeBytes)
+            if (Measure(payload) > MaximumMediaEnvelopeBytes)
                 throw new InvalidOperationException("Media reply exceeds the 48 MiB media envelope limit.");
             return new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
         }
@@ -150,11 +170,30 @@ namespace HomeBridge.BridgeTools
             var task = MainThreadAdmission.Enqueue(ctx, rank, () =>
             {
                 MainThreadWatchdog.Start(hop);
+#if !NATIVE_CONTRACT_PROBES
+                // The frame boundary's patch installs on the first hop (#642):
+                // nothing runs a startup constructor in this assembly. The
+                // contract probes build has no game boundary to patch, so the
+                // install is gated out of it rather than faked.
+                ObservationFrameHook.Ensure();
+#endif
                 var started = Stopwatch.GetTimestamp();
+                var work = ObservationWork.Begin();
                 try
                 {
                     var reply = body();
-                    return WithTiming(reply, queued, started, Stopwatch.GetTimestamp(), trace, MainThreadAdmission.ClassOf(rank), depth);
+                    var finished = Stopwatch.GetTimestamp();
+                    FrameAccounting.Observed(finished - started, trace);
+                    return WithTiming(reply, queued, started, finished, trace, MainThreadAdmission.ClassOf(rank), depth, ObservationWork.End());
+                }
+                catch (Exception)
+                {
+                    // A hop that threw still spent its main-thread time and
+                    // still belongs in the account (#642).
+                    ObservationWork.Outcome("error");
+                    FrameAccounting.Observed(Stopwatch.GetTimestamp() - started, trace);
+                    ObservationWork.End();
+                    throw;
                 }
                 finally { MainThreadWatchdog.Finish(hop); }
             }, cancellationToken, out depth);
@@ -196,7 +235,8 @@ namespace HomeBridge.BridgeTools
         internal static Task<object> OnMainThreadEncoded(IRimBridgeContext ctx, Func<IMessage> body, CancellationToken cancellationToken)
             => OnMainThread(ctx, () => Encode(body()), cancellationToken);
 
-        internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null, string? cls = null, int queueDepth = -1)
+        internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null, string? cls = null, int queueDepth = -1,
+            ObservationWork.Hop? work = null)
         {
             var envelope = reply as Dictionary<string, object?>;
             if (envelope == null || !envelope.ContainsKey("payload") || envelope.ContainsKey(TimingField)) return reply;
@@ -208,6 +248,12 @@ namespace HomeBridge.BridgeTools
             if (trace != null) timing[TraceArgument] = trace;
             if (cls != null) timing[MainThreadAdmission.ClassArgument] = cls;
             if (queueDepth >= 0) timing["queueDepth"] = queueDepth;
+            // The hop's own observation account and the session's update
+            // intervals (#642); both absent when nothing recorded them.
+            var observation = ObservationWork.Report(work);
+            if (observation != null) timing["observation"] = observation;
+            var frames = FrameAccounting.Report();
+            if (frames != null) timing["frames"] = frames;
             envelope[TimingField] = timing;
             return envelope;
         }

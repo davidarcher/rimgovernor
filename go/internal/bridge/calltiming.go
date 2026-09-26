@@ -44,10 +44,17 @@ func millis(d time.Duration) float64 { return float64(d) / float64(time.Millisec
 // trace argument the call sent, echoed>, "queueDepth": <hops waiting for
 // the main thread when this one was queued>}}. trace is empty and
 // queueDepth -1 when the call sent none or the companion predates them.
+//
+// observation and frames are the observation capture account and the frame
+// recorder's session counters (#642), copied through verbatim so the phase
+// report reads the companion's own field names; both are nil when the
+// companion reported none.
 type nativeTimingReport struct {
 	queueMs, executeMs float64
 	trace              string
 	queueDepth         int
+	observation        map[string]any
+	frames             map[string]any
 }
 
 // nativeTiming reads the companion's phase report out of a reply wrapper.
@@ -63,6 +70,9 @@ func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 			ExecuteMs  *float64 `json:"executeMs"`
 			Trace      string   `json:"trace"`
 			QueueDepth *int     `json:"queueDepth"`
+			// #642, both absent on a companion without the account.
+			Observation map[string]any `json:"observation"`
+			Frames      map[string]any `json:"frames"`
 		} `json:"timing"`
 	}
 	if json.Unmarshal(structured, &wrapper) != nil || wrapper.Timing == nil || wrapper.Timing.QueueMs == nil || wrapper.Timing.ExecuteMs == nil {
@@ -75,6 +85,7 @@ func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 	if wrapper.Timing.QueueDepth != nil && *wrapper.Timing.QueueDepth >= 0 {
 		report.queueDepth = *wrapper.Timing.QueueDepth
 	}
+	report.observation, report.frames = wrapper.Timing.Observation, wrapper.Timing.Frames
 	return report, true
 }
 

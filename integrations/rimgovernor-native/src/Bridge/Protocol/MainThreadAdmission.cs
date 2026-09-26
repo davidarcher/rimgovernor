@@ -121,7 +121,9 @@ namespace HomeBridge.BridgeTools
             {
                 var hop = Take();
                 if (hop == null) return null!;
-                if (hop.Completion.Task.IsCompleted) continue; // cancelled while queued
+                // Cancelled while queued: counted so the observation report
+                // separates work never done from work that ran (#642).
+                if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
                 try
                 {
                     var reply = hop.Body();

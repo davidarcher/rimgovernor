@@ -696,6 +696,14 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 				if native.queueDepth >= 0 {
 					timing["native_queue_depth"] = native.queueDepth
 				}
+				// The companion's observation capture account and its frame
+				// recorder's session counters (#642), verbatim.
+				if native.observation != nil {
+					timing["native_observation"] = native.observation
+				}
+				if native.frames != nil {
+					timing["native_frames"] = native.frames
+				}
 			}
 			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing})
 		}
