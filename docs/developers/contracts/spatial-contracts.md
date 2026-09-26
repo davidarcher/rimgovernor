@@ -122,6 +122,30 @@ cell, so it need only be open ground, not unprotected. Without a known grid
 the style searches as the rectangle. `ModuleShellsAtDoor` is the module
 counterpart of `ShellShapesAtDoor` for adopting a ring begun earlier.
 
+Past `Masonry` a build tier also unlocks a shape family beyond the single
+module (`policy.ModuleShapeFamily`, a pure `f(tier, roomRole)`; #610, #637).
+The roles partition: the dining room and the production rooms take the
+double-module hall from `Powered`, the housing rooms paired wings from
+`Industrial`, and the plaza's own rooms the enclosed courtyard at `Spacer`;
+`Camp` and `Masonry`, storage and the fields keep the single module. The
+geometry is a pure `f(grid, module)` (`ShapeFamilyShells`):
+
+- the hall spans a module, the aisle bay and the neighbouring module along
+  one grid axis, an 11x27 interior whose own side walls support the roof, so
+  it needs no pillar row — one template per neighbouring module and side
+  (`hall-<w>x<h>-<du>,<dv>-<side>`);
+- a wing is a whole module opening onto the plaza, its twin the module
+  mirrored through the plaza (`PairedWingModule`), so housing grows as
+  symmetric pairs (`wings-11x11-<side>`);
+- the courtyard is a whole module whose central 5x5 sub-cell stays open to
+  the sky inside its own wall ring, leaving a two-wide roofed room around it
+  (`courtyard-11x11-<side>`).
+
+`ModuleShapes` offers the family's shells in a search class ahead of the
+halves and falls back to `ModuleShells`, so a module that cannot hold the
+shape is still filled; `ModuleShapesAtDoor` adopts either. The planners pass
+their room role's family (`StarterRequest.Shape`).
+
 On a fresh site the initial shelter runs three rungs under one goal epoch
 (#612): sleeping spots at the first review, one per colonist owed, on the
 chosen layout's interior; then the wooden beds (`Bed`, north-facing 1x2)

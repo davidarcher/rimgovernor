@@ -137,7 +137,7 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		}
 	}
 	grid, _ := layoutAlignment(s.facts)
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: layoutAnchor(s.facts, r.district()), Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid})
+	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: layoutAnchor(s.facts, r.district()), Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts)})
 	if err != nil {
 		return nil, none, "", nil, err
 	}

@@ -93,8 +93,10 @@ func ModuleShellsAtDoor(g ColonyGrid, door domain.Cell) []domain.RoomFootprint {
 // class with a buildable placement in it sites that module, the door
 // nearest the plaza (the origin module's centre) preferred within the
 // class so rooms open toward the colony. The class is the site's tier, so
-// a half module further out beats a quarter nearer the anchor.
-func moduleSites(g ColonyGrid, ordered []domain.Cell, buildable func(domain.RoomFootprint) bool, score func(domain.RoomFootprint) int64) []starterSite {
+// the tier's shape family (ShapeFamilyShells, class shapeFamilyClass) beats
+// a half module, and a half module further out beats a quarter nearer the
+// anchor.
+func moduleSites(g ColonyGrid, family ShapeFamily, ordered []domain.Cell, buildable func(domain.RoomFootprint) bool, score func(domain.RoomFootprint) int64) []starterSite {
 	plaza := g.cell(ColonyGridModule/2, ColonyGridModule/2)
 	seen := map[Rectangle]bool{}
 	var modules []Rectangle
@@ -110,7 +112,7 @@ func moduleSites(g ColonyGrid, ordered []domain.Cell, buildable func(domain.Room
 	})
 	var sites []starterSite
 	for _, m := range modules {
-		templates := ModuleShells(g, m)
+		templates := append(ShapeFamilyShells(g, m, family), ModuleShells(g, m)...)
 		sort.SliceStable(templates, func(i, j int) bool {
 			if templates[i].Class != templates[j].Class {
 				return templates[i].Class < templates[j].Class

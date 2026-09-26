@@ -50,6 +50,10 @@ type StarterRequest struct {
 	// Grid is the colony grid the module style places its templates on;
 	// unknown, the module style searches as the rectangle.
 	Grid domain.Fact[ColonyGrid]
+	// Shape is the tier and room role's shape family (#637), tried on each
+	// module ahead of the single-module templates; empty is the single
+	// family.
+	Shape ShapeFamily
 	// Crop, when known, replaces the bare crop facts above for farm scoring.
 	Crop domain.Fact[CropChoice]
 	// Zones lists existing growing zones so farms can extend managed ones.
@@ -326,7 +330,7 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	}
 	var sites []site
 	if grid, known := r.Grid.Value(); r.Shelter == ShelterModule && known && grid.Valid() {
-		sites = moduleSites(grid, ordered, moduleBuildable, score)
+		sites = moduleSites(grid, r.Shape, ordered, moduleBuildable, score)
 	}
 	templated := func(templates []ShellTemplate) {
 		for _, c := range ordered {

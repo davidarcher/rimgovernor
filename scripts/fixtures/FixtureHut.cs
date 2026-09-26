@@ -30,9 +30,11 @@ namespace HomeBridge.BridgeTools
 
         // Build sites a size x size ring (size-2 square inside) on heavy
         // affordance ground every housed colonist can reach, within 30 cells
-        // of the first, and furnishes it as above. Throws when the ruleset
-        // lacks the defs or the map has no room for it.
-        public static Result Build(Map map, int size)
+        // of the first, and furnishes it as above. spots caps the sleeping
+        // spots laid: negative is one per colonist, a smaller count leaves the
+        // bed deficit a capacity goal then plans against. Throws when the
+        // ruleset lacks the defs or the map has no room for it.
+        public static Result Build(Map map, int size, int spots = -1)
         {
             var player = Faction.OfPlayerSilentFail;
             if (player == null) throw new InvalidOperationException("No player faction.");
@@ -70,7 +72,8 @@ namespace HomeBridge.BridgeTools
             // A sleeping spot is a 1x2 footprint: one per cell of the south
             // row (rows 1-2), the overflow from the west end of row 3 (rows
             // 3-4), so none overlaps and the rows above stay free.
-            var spotCells = interior.Take(width).Concat(interior.Skip(2 * width)).Take(people.Count).ToList();
+            var wanted = spots < 0 ? people.Count : Math.Max(0, Math.Min(spots, people.Count));
+            var spotCells = interior.Take(width).Concat(interior.Skip(2 * width)).Take(wanted).ToList();
             foreach (var spotCell in spotCells) {
                 var spot = ThingMaker.MakeThing(spotDef);
                 spot.SetFaction(player); GenSpawn.Spawn(spot, spotCell, map, Rot4.North, WipeMode.Vanish);
@@ -81,15 +84,15 @@ namespace HomeBridge.BridgeTools
             if (room == null || !room.ProperRoom || room.TouchesMapEdge || room.OpenRoofCount > 0)
                 throw new InvalidOperationException($"Fixture hut is not an enclosed roofed room: room={room?.ID} proper={room?.ProperRoom} edge={room?.TouchesMapEdge} openRoof={room?.OpenRoofCount} cells={room?.CellCount}");
             room.Temperature = 21f;
-            var spots = map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().Count(b => b.GetRoom() == room);
-            if (spots != people.Count) throw new InvalidOperationException($"{spots} sleeping spots stand in the hut, not {people.Count}.");
+            var laid = map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().Count(b => b.GetRoom() == room);
+            if (laid != wanted) throw new InvalidOperationException($"{laid} sleeping spots stand in the hut, not {wanted}.");
             var free = interior.Skip(interior.Count - people.Count).ToList();
             for (int i = 0; i < people.Count; i++) {
                 var pawn = people[i];
                 pawn.jobs?.StopAll();
                 pawn.Position = free[i]; pawn.Notify_Teleported(true, true);
             }
-            return new Result { Origin = origin, Door = door, Room = room, Interior = interior, People = people, SleepingSpots = spots };
+            return new Result { Origin = origin, Door = door, Room = room, Interior = interior, People = people, SleepingSpots = laid };
         }
 
         // DropOutside places count of def two cells east of the door,
