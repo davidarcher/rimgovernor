@@ -566,6 +566,15 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		stale := !candidate.cleanup && workerHeldStale(after, result, err)
 		if result.NativeCalled {
+			// The decoded store drops what the byte cache's write hook
+			// dropped: otherwise only a clock events page drops it, and a
+			// paused colony with no admitted window never gets one, so the
+			// next decision replans from the rows before this write.
+			if everything, families := operationFamilies(kind, known); everything {
+				w.config.Store.InvalidateAll()
+			} else {
+				w.config.Store.InvalidateFamily(families...)
+			}
 			workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
 			if receipt, known := after.Receipt.Value(); known && receipt == domain.ReceiptRefused && workerMapConsumingKind(candidate.kind) {
 				w.config.Store.RequestResync(facts.PlanningCells)

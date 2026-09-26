@@ -140,7 +140,9 @@ func runAllowedAreas(ctx context.Context, s cases.Session) error {
 			return err
 		}
 		s.Report()[fmt.Sprintf("fed_%d", pass)] = after
-		if na.AsString(after["pawnArea"]) != "" || na.AsString(after["animalArea"]) != "" || na.AsNumber(after["pawnFood"]) <= .4 || na.AsNumber(after["animalFood"]) <= .4 {
+		// Eating is food above the manual readback: unfed it only falls. A
+		// fixed floor read the husky's meal cycle, not the takeover (#577).
+		if na.AsString(after["pawnArea"]) != "" || na.AsString(after["animalArea"]) != "" || na.AsNumber(after["pawnFood"]) <= na.AsNumber(before["pawnFood"]) || na.AsNumber(after["animalFood"]) <= na.AsNumber(before["animalFood"]) {
 			return fmt.Errorf("auto must clear restrictions and both pawns must eat, pass %d: %v", pass, after)
 		}
 	}

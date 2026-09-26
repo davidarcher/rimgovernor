@@ -397,6 +397,14 @@ namespace HomeBridge.BridgeTools
                         Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null,
                         SafeToRelease = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToRelease(p)
                     };
+                    // MaintainHerd's training deficit reads this bundle, not
+                    // husbandry_facts: without the rows no trainable is ever due.
+                    if (p.training != null)
+                        foreach (var def in DefDatabase<TrainableDef>.AllDefsListForReading)
+                        {
+                            var report = p.training.CanAssignToTrain(def, out var visible);
+                            state.Training.Add(new Obs.TrainingEntry { DefName = Id(def.defName), Learned = p.training.HasLearned(def), Wanted = p.training.GetWanted(def), Available = report.Accepted && visible });
+                        }
                     if (requiresPen) state.Contained = pen != null;
                     if (pen != null) state.PenId = Id(pen.parent.GetUniqueLoadID());
                     // Area reconciliation (#500) reads the colony bundle, not

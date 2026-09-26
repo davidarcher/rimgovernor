@@ -112,7 +112,19 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		}
 		p := row.Pawn
 		a := p.AnimalState
-		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease, AllowedAreaId: a.AllowedAreaId, SupportsAllowedAreas: a.SupportsAllowedAreas}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
+		// Training rows carry MaintainHerd's training deficit: one per
+		// trainable def, each with its own facts.
+		if len(a.Training) > 64 {
+			return contract("invalid upkeep animal training")
+		}
+		trainables := map[string]bool{}
+		for _, entry := range a.Training {
+			if entry == nil || validID(entry.GetDefName()) != nil || trainables[entry.GetDefName()] || !proto.Equal(entry, &o.TrainingEntry{DefName: entry.DefName, Learned: entry.Learned, Wanted: entry.Wanted, Available: entry.Available}) {
+				return contract("invalid upkeep animal training")
+			}
+			trainables[entry.GetDefName()] = true
+		}
+		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease, AllowedAreaId: a.AllowedAreaId, SupportsAllowedAreas: a.SupportsAllowedAreas, Training: a.Training}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
 			return contract("conflicting upkeep animal fields")
 		}
 		stocks := map[string]bool{}

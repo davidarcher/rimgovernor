@@ -51,6 +51,10 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 	if err := validateDirectUpkeep(v, size, 3); err != nil {
 		t.Fatal("release eligibility rejected", err)
 	}
+	v.Animals[0].Pawn.AnimalState.Training = []*o.TrainingEntry{{DefName: proto.String("Obedience"), Learned: proto.Bool(false), Wanted: proto.Bool(false), Available: proto.Bool(true)}}
+	if err := validateDirectUpkeep(v, size, 3); err != nil {
+		t.Fatal("training rows rejected", err)
+	}
 }
 
 func wildWire() *o.UpkeepFacts {

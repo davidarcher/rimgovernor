@@ -1795,12 +1795,20 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 // planner subset narrows which families ride instead (bundleFamilies,
 // #625), serving the rest held. Each mask is an empty message: present, so native drops
 // the blocks the controller never reads (gear detail, inventory,
-// capacities, surgery bills, backstory, traits, relations; owned beds,
-// nutrition, supported interactions; research unlocks, costs, facilities),
-// with no include flag set. A native that predates the masks returns the
+// capacities, surgery bills, relations; owned beds, nutrition, supported
+// interactions; research unlocks, costs, facilities). Traits and backstory
+// (the ages) ride: the work and schedule planners build the pawn profile
+// from them (observation.routine_work), and stripped they read as a
+// colonist with no traits. A native that predates the masks returns the
 // whole family; the decoders read the same fields either way.
 func bundleMasks() (*o.PawnFields, *o.PopulationFields, *o.ResearchFields) {
-	return &o.PawnFields{}, &o.PopulationFields{}, &o.ResearchFields{}
+	return bundlePawnMask(), &o.PopulationFields{}, &o.ResearchFields{}
+}
+
+// bundlePawnMask is the colonist mask every bundle read carries, the
+// admission warm read included, since it seeds the same rows.
+func bundlePawnMask() *o.PawnFields {
+	return &o.PawnFields{IncludeTraits: proto.Bool(true), IncludeBackstory: proto.Bool(true)}
 }
 
 // bundleFamilies decides which continuous families ride a review step's

@@ -363,7 +363,7 @@ func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
 // TestClockSchedulerBundleMasksAreConstantPerReview (#360): every review
 // step's bundle carries the same field mask per family, whatever planners
 // the step selects (the review consumes every decoded block regardless),
-// each mask present with no include flag; a step that does not review
+// each mask present with only the profile flags (traits, backstory); a step that does not review
 // (a timer between full steps, a wake no configured planner declares,
 // #625) carries none.
 func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
@@ -372,7 +372,7 @@ func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
 	schedulerRoutine(t, s, f)
 	empty := func(r *o.BundleRequest) bool {
 		return r.ColonistPawnFields != nil && r.PopulationFields != nil && r.ResearchFields != nil &&
-			proto.Equal(r.ColonistPawnFields, &o.PawnFields{}) && proto.Equal(r.PopulationFields, &o.PopulationFields{}) && proto.Equal(r.ResearchFields, &o.ResearchFields{})
+			proto.Equal(r.ColonistPawnFields, bundlePawnMask()) && proto.Equal(r.PopulationFields, &o.PopulationFields{}) && proto.Equal(r.ResearchFields, &o.ResearchFields{})
 	}
 	for _, reason := range []StepReason{
 		{Cause: StepFull},

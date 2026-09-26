@@ -26,7 +26,7 @@ func (s *ClockScheduler) warmAdmission(ctx context.Context, observed *c.Observat
 	invalidations := s.facts.cache.Stats().Invalidations
 	reply, _, err := s.native.ReadBundle(ctx, &o.BundleRequest{
 		Scope:     &o.ReadScope{ExpectedIdentity: proto.Clone(observed.Identity).(*c.Identity)},
-		Emergency: proto.Bool(true), ColonistPawns: proto.Bool(true), ColonistPawnFields: &o.PawnFields{},
+		Emergency: proto.Bool(true), ColonistPawns: proto.Bool(true), ColonistPawnFields: bundlePawnMask(),
 	})
 	if err != nil {
 		return

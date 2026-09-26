@@ -74,6 +74,10 @@ namespace HomeBridge.BridgeTools
                     ?? throw new InvalidOperationException("husbandry fixture: no spawned colonist can do Handling");
                 var removed = map.mapPawns.FreeColonistsSpawned.Where(p => p != handler).ToArray();
                 foreach (var other in removed) { other.jobs.StopAll(); other.DeSpawn(); }
+                // The herd is the fixture's alone: a debug start's own pet or
+                // livestock sorts ahead of it by ID, takes the training request
+                // and doubles the herd_removal lookups.
+                foreach (var own in map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == Faction.OfPlayer).ToList()) own.Destroy(DestroyMode.Vanish);
                 // The debug-start map is random and a natural 11x11
                 // heavy-affordance clearing is not guaranteed (#185). Take
                 // the nearest 13x11 site (enclosure plus the column the wild

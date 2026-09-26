@@ -128,6 +128,9 @@ func TestClockSchedulerHoldsOnBlockedCriticalPlanner(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("blocked critical planner never released")
 	}
+	// The 50 ms wall only has to expire on the blocked step; under a loaded
+	// suite the quick planner can miss it too and hold again.
+	s.config.Budget.Wall = time.Minute
 	s.catalog = []plannerEntry{quickPlanner("tend", classCritical)}
 	again, err := s.Step(context.Background())
 	if err != nil || again.Attempt == nil || again.Attempt.Phase != store.ClockApplied || f.writes != 1 || len(again.HeldBy) != 0 {

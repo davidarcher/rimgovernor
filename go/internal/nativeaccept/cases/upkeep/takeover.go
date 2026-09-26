@@ -38,7 +38,9 @@ func runHomeTakeover(ctx context.Context, s cases.Session, removal bool) error {
 		return err
 	}
 	h := s.Harness()
-	prepared, err := callFixture(ctx, h, s.Identity(), "test/sleeping_setup", map[string]any{})
+	// A bed for everyone: with one short the Foothold stage (#630) holds
+	// MaintainHomeCoverage behind the shelter gate and the wait never moves.
+	prepared, err := callFixture(ctx, h, s.Identity(), "test/sleeping_setup", map[string]any{"bedsForAll": true})
 	if err != nil {
 		return err
 	}

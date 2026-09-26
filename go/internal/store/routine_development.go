@@ -233,11 +233,13 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 }
 
 // husbandrySettingsWrite names the husbandry methods that change a flag on
-// the animal and nothing else; tame, train, slaughter and release put a
-// handler to work.
+// the animal and nothing else; tame, slaughter and release put a
+// handler to work. Train is the Animals tab tick box (SetWantedRecursive):
+// MaintainHerd never holds a development slot, so a slot-gated train was
+// refused forever (#697).
 func husbandrySettingsWrite(method domain.HusbandryMethod) bool {
 	switch method {
-	case domain.HusbandryCancelSlaughter, domain.HusbandryCancelRelease, domain.HusbandryAllowedArea, domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork:
+	case domain.HusbandryTrain, domain.HusbandryCancelSlaughter, domain.HusbandryCancelRelease, domain.HusbandryAllowedArea, domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork:
 		return true
 	}
 	return false

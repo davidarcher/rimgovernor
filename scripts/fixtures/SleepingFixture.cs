@@ -18,8 +18,8 @@ namespace HomeBridge.BridgeTools
         // bed in it (a one-bed shortage): MaintainSleeping must build the
         // missing bed, ownership must follow, and the goal recovers only once
         // every colonist has been observed sleeping in their own bed.
-        [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with one bed fewer than colonists, and construction wood.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false)
+        [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with one bed fewer than colonists (bedsForAll: one each), and construction wood.")]
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool bedsForAll = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {
@@ -74,12 +74,12 @@ namespace HomeBridge.BridgeTools
                         GenPlace.TryPlaceThing(extraWood, origin + new IntVec3(size / 2, 0, size - 2), map, ThingPlaceMode.Near);
                         extraWood.SetForbidden(false, false);
                     }
-                    // Beds for everyone but the fixture pawn: vertical 1x2 beds in
+                    // Beds for everyone but the fixture pawn (everyone under bedsForAll): vertical 1x2 beds in
                     // columns 1,3,5,7 and rows 1 and 4 of the 7x7 interior, which
                     // leaves free 1x2 sites for the controller's bed.
                     var owned = new System.Collections.Generic.List<object>();
                     var slots = new[] { 1, 3, 5, 7 }.SelectMany(x => new[] { 1, 4 }.Select(z => new IntVec3(origin.x + x, 0, origin.z + z))).ToList();
-                    foreach (var (pawn, index) in people.Skip(connectedRooms ? 2 : 1).Select((pawn, index) => (pawn, index))) {
+                    foreach (var (pawn, index) in people.Skip(bedsForAll ? 0 : connectedRooms ? 2 : 1).Select((pawn, index) => (pawn, index))) {
                         var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
                         bed.SetFaction(Faction.OfPlayerSilentFail);
                         GenSpawn.Spawn(bed, slots[index], map, Rot4.North);
