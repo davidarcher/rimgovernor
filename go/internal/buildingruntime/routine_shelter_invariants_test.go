@@ -221,3 +221,46 @@ func TestRoutineShelterRefusesAlreadyRoofedGround(t *testing.T) {
 		t.Fatal("a shell was sited on roofed ground", result, err)
 	}
 }
+
+// Bunks staged from one review's layout are still enclosed by the ring a
+// later review raises, though the colony centre (the pawns' mean position)
+// has drifted in between (#672).
+func TestRoutineShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, db, n := shelterSiteFixture(t)
+	n.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(n, 25, func(int32, int32) bool { return true })
+	bunks := map[domain.Cell]bool{}
+	for rung, method := range []domain.MethodID{shelterSpotsMethod, shelterBedsMethod} {
+		result, err := planner.Step(ctx)
+		if err != nil || result.Reason != BuildingMethodAdmitted {
+			t.Fatal(rung, result, err)
+		}
+		completeRoutineBuildingMethod(t, db, result)
+		plan, err := db.LoadPlan(ctx, methodPlan(t, result.Decision, method))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, action := range plan.Spec.Actions() {
+			if b, ok := action.Building(); ok {
+				for _, cell := range policy.BunkFootprint(b.Cell()) {
+					bunks[cell] = true
+				}
+			}
+		}
+		// The pawns walk off between reviews.
+		n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10 + 4*int32(rung+1)), Z: proto.Int32(10 + 3*int32(rung+1))}
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	door, ring := shellCells(t, plan)
+	checkAdmittedShell(t, n, door, ring, bunks)
+}

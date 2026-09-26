@@ -137,9 +137,24 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		}
 	}
 	grid, _ := layoutAlignment(s.facts)
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: layoutAnchor(s.facts, r.district()), Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts)})
+	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
+		return policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts)})
+	}
+	layouts, err := search(layoutAnchor(s.facts, r.district()))
 	if err != nil {
 		return nil, none, "", nil, err
+	}
+	if _, ok := policy.BunkLayout(layouts, record.beds, record.spots); len(free) > 0 && !ok {
+		// The colony centre is where the pawns stand this tick, so it drifts
+		// between reviews and can push the site the bunks stand on out of
+		// the capped candidates (#672): search again from the bunks.
+		rescue, err := search(bunkAnchor(free))
+		if err != nil {
+			return nil, none, "", nil, err
+		}
+		if _, ok := policy.BunkLayout(rescue, record.beds, record.spots); ok {
+			layouts = rescue
+		}
 	}
 	// Digging in is weighed against the best layout before anything is
 	// previewed; a layout the native previews then refuse whole yields to
@@ -308,4 +323,14 @@ func sameBunkFootprint(anchor domain.Cell, footprint []domain.Cell) bool {
 	}
 	want := policy.BunkFootprint(anchor)
 	return footprint[0] == want[0] && footprint[1] == want[1] || footprint[0] == want[1] && footprint[1] == want[0]
+}
+
+// bunkAnchor is the cell at the centre of the bunks' bounding box.
+func bunkAnchor(cells []domain.Cell) domain.Cell {
+	lo, hi := cells[0], cells[0]
+	for _, c := range cells[1:] {
+		lo.X, lo.Z = min(lo.X, c.X), min(lo.Z, c.Z)
+		hi.X, hi.Z = max(hi.X, c.X), max(hi.Z, c.Z)
+	}
+	return domain.Cell{X: (lo.X + hi.X) / 2, Z: (lo.Z + hi.Z) / 2}
 }
