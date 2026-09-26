@@ -117,7 +117,11 @@ namespace HomeBridge.BridgeTools
                 var headroom = EventLootFacts.StorageHeadroom(map, item);
                 // A yield nothing stores stays on the ground; only a yield
                 // haulers will carry home needs a safe return route.
-                if (headroom > 0) result.Safe = result.Safe && safety.SalvageReturn(building, item);
+                if (headroom > 0) {
+                    var route = safety.SalvageReturn(building, item);
+                    if (route == null) headroom = 0;
+                    else result.Safe = result.Safe && route.Value;
+                }
                 result.Yields.Add(new Obs.SalvageYield { DefName = cost.thingDef.defName, Count = count, UnitValue = item.MarketValue, StorageHeadroom = headroom });
             }
             return result;

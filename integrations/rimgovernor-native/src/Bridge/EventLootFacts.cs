@@ -175,18 +175,25 @@ namespace HomeBridge.BridgeTools
                 return reachable ? (bool?)false : null;
             }
 
-            internal bool SalvageReturn(Building source, Thing output)
+            // SalvageReturn is true when some hauler has a hazard-free route from
+            // beside the source to a store cell, false when every such route is
+            // exposed, and null when no hauler finds a store cell at all: the
+            // counted headroom is reserved by hauls in flight or out of reach,
+            // a storage shortfall rather than an unsafe route (#797).
+            internal bool? SalvageReturn(Building source, Thing output)
             {
                 output.Position = source.Position;
+                var stored = false;
                 foreach (var pawn in people.Where(p => !p.Drafted && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))) {
                     if (!pawn.CanReach(source, PathEndMode.Touch, Danger.None)) continue;
                     if (!StoreUtility.TryFindBestBetterStoreCellFor(output, pawn, map, StoragePriority.Unstored, Faction.OfPlayer, out var destination)) continue;
+                    stored = true;
                     foreach (var cell in GenAdj.CellsAdjacent8Way(source))
                         if (cell.InBounds(map) && cell.Standable(map) && !Exposed(cell) && !cell.IsForbidden(pawn)
                             && Route(pawn, pawn.Position, cell, PathEndMode.OnCell)
                             && Route(pawn, cell, destination, PathEndMode.OnCell)) return true;
                 }
-                return false;
+                return stored ? (bool?)false : null;
             }
         }
     }
