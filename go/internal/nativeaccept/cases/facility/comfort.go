@@ -29,11 +29,14 @@ import (
 // able to act. gear rides along now that its bill/recipe reads have native
 // handlers (issue #62). tend and rescue serve CriticalMedical: a colonist
 // downed by food poisoning is a priority-1 emergency that otherwise parks
-// every development slot and the clock for the rest of the run (#201). The
-// full autonomous composition is still not used: with every family on, the
+// every development slot and the clock for the rest of the run (#201).
+// naming answers the colony-naming modal the checkpoint's day count opens:
+// unanswered, ConfirmColonyNames is a priority-0 emergency that ranks every
+// development row "emergency" and stops the clock (#666). The full
+// autonomous composition is still not used: with every family on, the
 // parallel planner step exceeds its call timeout on a shared machine, so
 // the clock never starts.
-const comfortFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy,gear,tend,rescue"
+const comfortFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy,gear,tend,rescue,naming"
 
 // window is how long a facility goal gets to recover; the window ends
 // early on recovery.

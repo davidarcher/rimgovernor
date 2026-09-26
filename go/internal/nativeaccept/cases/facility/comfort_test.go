@@ -1,6 +1,8 @@
 package facility
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -41,5 +43,15 @@ func TestAuditProvision(t *testing.T) {
 		if err := auditProvision(na.Report{"timeline": timeline}); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// The comfort checkpoint's day count opens the colony-naming modal, whose
+// priority-0 goal ranks every development row "emergency" until answered;
+// the comfort composition must serve the family that answers it (#666).
+func TestComfortFamiliesServeNaming(t *testing.T) {
+	t.Parallel()
+	if !slices.Contains(strings.Split(comfortFamilies, ","), "naming") {
+		t.Fatalf("comfortFamilies %q lacks naming", comfortFamilies)
 	}
 }
