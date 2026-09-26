@@ -168,3 +168,56 @@ func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 		t.Fatal(plan.Spec.ID(), err)
 	}
 }
+
+// A bed rung admitted and still open does not hold the ring (#641): the
+// review after it admits the shell around the pending bunks, and the review
+// after that adds nothing, neither a second shell nor a second bed rung.
+func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
+	t.Parallel()
+	r, db, n := shelterSiteFixture(t)
+	ctx := context.Background()
+	spots, err := r.Step(ctx)
+	if err != nil || spots.Reason != BuildingMethodAdmitted {
+		t.Fatal(spots, err)
+	}
+	methodPlan(t, spots.Decision, shelterSpotsMethod)
+	// The spots stay open too: an interim that has not stood yet holds
+	// neither the beds nor the ring.
+	beds, err := r.Step(ctx)
+	if err != nil || beds.Reason != BuildingMethodAdmitted {
+		t.Fatal(beds, err)
+	}
+	bedPlan, err := db.LoadPlan(ctx, methodPlan(t, beds.Decision, shelterBedsMethod))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.previews, n.calls = 0, 0
+	shell, err := r.Step(ctx)
+	if err != nil || shell.Reason != BuildingMethodAdmitted {
+		t.Fatal("stalled beds held the ring", shell, err)
+	}
+	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Goal).Plan)
+	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
+		t.Fatal(plan.Spec.ID(), err)
+	}
+	wall := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, _ := action.Building()
+		wall[b.Cell()] = true
+	}
+	for _, anchor := range bunkAnchors(t, bedPlan, "Bed") {
+		for _, p := range policy.BunkFootprint(anchor) {
+			if wall[p] {
+				t.Fatal("the ring overlaps a pending bed", p)
+			}
+		}
+	}
+	again, err := r.Step(ctx)
+	if err != nil || again.Reason != BuildingMethodExistingWork {
+		t.Fatal("repeat review", again, err)
+	}
+	goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID)
+	if err != nil || len(goal.Methods) != 3 {
+		t.Fatal("methods", goal.Methods, err)
+	}
+}

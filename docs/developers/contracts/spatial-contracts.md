@@ -151,8 +151,12 @@ On a fresh site the initial shelter runs three rungs under one goal epoch
 chosen layout's interior; then the wooden beds (`Bed`, north-facing 1x2)
 as the first construction, off the ring's corner cells, the entrance aisle
 and the storage patch; then the ring around them. Each rung is one plan
-(`routine-bunks-*`, methods `shelter-spots` and `shelter-beds`) and the next
-waits for it to settle. Bunk cells are treated as free by the shell search
+(`routine-bunks-*`, methods `shelter-spots` and `shelter-beds`), admitted one
+per review, and an open rung does not hold the next (#641): the spots, the
+beds and the ring can all be open at once, so a stalled bed never keeps the
+walls and door from starting. The store admits a method beside open bunk
+rungs only when it is pure construction on no bunk cell; an open shell still
+holds the goal, and the indoor furnishing step still waits for the bunks. Bunk cells are treated as free by the shell search
 and the layout enclosing every bunk, with no bed on a corner, is preferred;
 the dig is weighed only before any bunk is placed, and a ring already
 standing is adopted without bunks. A bed rung the native previews refuse

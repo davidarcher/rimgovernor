@@ -25,10 +25,13 @@ const (
 	BuildingMethodNoReview     RoutineBuildingReason = "no_current_review"
 	BuildingMethodNoDeficit    RoutineBuildingReason = "no_active_deficit"
 	BuildingMethodExistingWork RoutineBuildingReason = "existing_work"
-	BuildingMethodUnknown      RoutineBuildingReason = "unknown_prerequisite"
-	BuildingMethodNoSpace      RoutineBuildingReason = "insufficient_verified_space"
-	BuildingMethodUsed         RoutineBuildingReason = "method_already_used"
-	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
+	// BuildingBunksOpen: the initial shelter's indoor furnishing waits on
+	// its open bunk rungs, which do not hold the ring itself (#641).
+	BuildingBunksOpen     RoutineBuildingReason = "shelter_bunks_open"
+	BuildingMethodUnknown RoutineBuildingReason = "unknown_prerequisite"
+	BuildingMethodNoSpace RoutineBuildingReason = "insufficient_verified_space"
+	BuildingMethodUsed    RoutineBuildingReason = "method_already_used"
+	BuildingMethodRefused RoutineBuildingReason = "shared_admission_refused"
 	// BuildingMethodNoSquad is the defense planner's answer when live
 	// threats remain and no eligible squad can be assigned to them (#326).
 	BuildingMethodNoSquad RoutineBuildingReason = "no_eligible_squad"
@@ -139,7 +142,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		result, err := indoor.step(call, epoch, arbiter)
 		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.goal, result.Reason, err)
-		if err != nil || result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUsed {
+		if err != nil || result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUsed && result.Reason != BuildingBunksOpen {
 			return result, err
 		}
 		roofingOnly = result.Reason == BuildingMethodUsed
@@ -213,6 +216,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, err
 		}
 	}
+	bunksOpen := false
 	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
@@ -229,9 +233,24 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 			continue
 		}
+		if r.goal == policy.EnsureInitialShelter && (m.Method == shelterSpotsMethod || m.Method == shelterBedsMethod) {
+			// An open bunk rung does not hold the ring (#641): the walls and
+			// door stand on cells the bunks never take (the ring is sited
+			// around them), and a stalled bed must not keep the colony
+			// outdoors. The rungs and the shell each stay idempotent on
+			// their own method binding. The indoor furnishing step still
+			// waits for the bunks, and says so, so the shell step runs.
+			if !r.shelter && domain.GoalWorkOpen(plan.Progress) {
+				bunksOpen = true
+			}
+			continue
+		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 		}
+	}
+	if bunksOpen {
+		return RoutineBuildingResult{Reason: BuildingBunksOpen}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {

@@ -22,9 +22,9 @@ import (
 //  2. shelter-beds: the beds, the first construction on the site, on the
 //     interior cells off the ring's corners, the entrance aisle and the
 //     starter storage patch.
-//  3. the ring itself, once the bed plan has no open work, sited around
-//     the bunks: the layout whose interior holds every bunk and whose
-//     corners hold no bed.
+//  3. the ring itself, at the next review whether or not the beds stand
+//     (#641), sited around the bunks: the layout whose interior holds every
+//     bunk and whose corners hold no bed.
 //
 // The bunks stand on ground the census then reports occupied, so the ring
 // search is given their cells as free (shellSiteCells). A ring adopted from
