@@ -53,13 +53,60 @@ const (
 	SleepingUpgrade   SleepingNeedKind = "upgrade"
 	SleepingUnsafe    SleepingNeedKind = "unsafe"
 	SleepingUseNeeded SleepingNeedKind = "use"
+	// SleepingShare: the pawn owns a suitable bed, but not one shared with
+	// its couple partner (the same bed, or a bed in the partner's room).
+	SleepingShare SleepingNeedKind = "share"
 )
+
+// SleepingDoubleBeds are the bed definitions two partners can own together.
+var SleepingDoubleBeds = map[Resource]bool{"DoubleBed": true, "RoyalBed": true}
+
+// sleepingCouples maps each pawn to its couple partner: the lowest-ID love
+// partner that names it back, both willing to share a bed. Unknown
+// willingness pairs nobody, so non-partners are never put together.
+func sleepingCouples(people []SleepingPerson) map[PawnID]PawnID {
+	byID := map[PawnID]SleepingPerson{}
+	for _, p := range people {
+		byID[p.ID] = p
+	}
+	willing := func(p SleepingPerson) bool { w, k := p.BedSharingAllowed.Value(); return k && w }
+	names := func(p SleepingPerson, id PawnID) bool {
+		for _, q := range p.Partners {
+			if q == id {
+				return true
+			}
+		}
+		return false
+	}
+	couples := map[PawnID]PawnID{}
+	for _, p := range people {
+		partners := append([]PawnID{}, p.Partners...)
+		sort.Slice(partners, func(i, j int) bool { return partners[i] < partners[j] })
+		for _, id := range partners {
+			q, ok := byID[id]
+			if ok && id != p.ID && willing(p) && willing(q) && names(q, p.ID) {
+				couples[p.ID] = id
+				break
+			}
+		}
+	}
+	// Keep only reciprocal choices (a pawn with two partners picks one).
+	for p, q := range couples {
+		if couples[q] != p {
+			delete(couples, p)
+		}
+	}
+	return couples
+}
 
 type SleepingTarget struct {
 	Pawn        PawnID
 	Kind        SleepingNeedKind
 	PreviousBed string
-	Available   []string
+	// Available lists assignable beds in preference order.
+	Available []string
+	// Partner is the pawn's couple partner, empty when single.
+	Partner PawnID
 }
 type SleepingReview struct {
 	History SleepingHistory
@@ -171,6 +218,35 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 		}
 		return false
 	}
+	couples := sleepingCouples(v.People)
+	ownedBy := map[PawnID]string{}
+	for _, p := range v.People {
+		ownedBy[p.ID], _ = p.OwnedBed.Value()
+	}
+	room := func(bed string) (string, bool) {
+		b, ok := beds[bed]
+		if !ok {
+			return "", false
+		}
+		id, known := b.Room.Value()
+		return id, known && id != ""
+	}
+	// shared: the bed holds nobody but p and its partner, and a couple
+	// sleeps together (one bed, or one room).
+	shared := func(b SleepingBed, p PawnID) bool {
+		q, coupled := couples[p]
+		for _, o := range b.Owners {
+			if o != p && (!coupled || o != q) {
+				return false
+			}
+		}
+		if !coupled || contains(b.Owners, q) {
+			return true
+		}
+		mine, mk := room(b.ID)
+		theirs, tk := room(ownedBy[q])
+		return mk && tk && mine == theirs
+	}
 	targets := []SleepingTarget{}
 	next := []SleepingUse{}
 	ordered := append([]SleepingPerson{}, v.People...)
@@ -193,7 +269,18 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 		bedID, _ := p.OwnedBed.Value()
 		owned, exists := beds[bedID]
 		kind := SleepingUpgrade
-		if exists && suitable(owned) && contains(owned.Owners, p.ID) {
+		q, coupled := couples[p.ID]
+		// A double bed only p's partner may join: p waits for the partner's
+		// assignment rather than moving out of it.
+		waiting := exists && coupled && suitable(owned) && contains(owned.Owners, p.ID) && len(owned.Owners) == 1 && SleepingDoubleBeds[owned.Definition] && !shared(owned, p.ID)
+		if exists && suitable(owned) && contains(owned.Owners, p.ID) && (shared(owned, p.ID) || waiting) {
+			if waiting {
+				if use, ok := uses[p.ID]; ok {
+					next = append(next, use)
+				}
+				targets = append(targets, SleepingTarget{Pawn: p.ID, Kind: SleepingUseNeeded, PreviousBed: bedID, Partner: q})
+				continue
+			}
 			if contains(owned.Users, p.ID) {
 				uses[p.ID] = SleepingUse{p.ID, owned.ID, tick}
 			}
@@ -204,6 +291,8 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 			kind = SleepingUseNeeded
 		} else if exists && !safe(owned) {
 			kind = SleepingUnsafe
+		} else if exists && suitable(owned) && contains(owned.Owners, p.ID) && coupled {
+			kind = SleepingShare
 		}
 		// Keep previous exact-bed proof while temporarily unsafe; it cannot clear a
 		// need unless that same assignment is observed suitable again.
@@ -211,13 +300,36 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 			next = append(next, use)
 		}
 		available := []string{}
-		for _, b := range v.Beds {
-			if suitable(b) && len(b.Owners) == 0 {
-				available = append(available, b.ID)
+		if coupled {
+			// A double bed empty or held by the partner comes first, then a
+			// vacant bed in the partner's room.
+			theirs, tk := room(ownedBy[q])
+			var doubles, singles []string
+			for _, b := range v.Beds {
+				if b.ID == bedID || !suitable(b) || contains(b.Owners, p.ID) {
+					continue
+				}
+				partnerOnly := len(b.Owners) == 0 || len(b.Owners) == 1 && b.Owners[0] == q
+				if SleepingDoubleBeds[b.Definition] && partnerOnly {
+					doubles = append(doubles, b.ID)
+				} else if mine, mk := room(b.ID); len(b.Owners) == 0 && tk && mk && mine == theirs {
+					singles = append(singles, b.ID)
+				}
 			}
+			sort.Strings(doubles)
+			sort.Strings(singles)
+			available = append(doubles, singles...)
 		}
-		sort.Strings(available)
-		targets = append(targets, SleepingTarget{p.ID, kind, bedID, available})
+		// Without a suitable bed at all, any vacant bed beats none.
+		if len(available) == 0 && kind != SleepingShare {
+			for _, b := range v.Beds {
+				if suitable(b) && len(b.Owners) == 0 {
+					available = append(available, b.ID)
+				}
+			}
+			sort.Strings(available)
+		}
+		targets = append(targets, SleepingTarget{Pawn: p.ID, Kind: kind, PreviousBed: bedID, Available: available, Partner: q})
 	}
 	r.History.Uses = next
 	r.Targets = domain.Known(targets)

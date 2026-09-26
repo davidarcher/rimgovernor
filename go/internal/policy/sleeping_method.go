@@ -35,6 +35,10 @@ const (
 // (ReviewSleeping), so it is not a fallback here.
 var SleepingBedDefinitions = []string{"Bed"}
 
+// SleepingCoupleBedDefinition is staged first when a waiting colonist has a
+// couple partner (#812).
+const SleepingCoupleBedDefinition = "DoubleBed"
+
 type SleepingRequest struct {
 	Targets     domain.Fact[[]SleepingTarget]
 	Sleeping    domain.Fact[SleepingObservation]
@@ -145,9 +149,9 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		if t.Kind == SleepingUseNeeded || len(t.Available) == 0 {
 			continue
 		}
-		beds := append([]string{}, t.Available...)
-		sort.Strings(beds)
-		beds = sleepingBedOrder(r, t, beds)
+		// The review lists beds in preference order (a couple's double bed
+		// first); room targets and traits reorder stably.
+		beds := sleepingBedOrder(r, t, append([]string{}, t.Available...))
 		for _, bed := range beds {
 			if bed != t.PreviousBed {
 				choice.Method, choice.Pawn, choice.Bed, choice.PreviousBed = SleepingAssign, t.Pawn, bed, t.PreviousBed
@@ -158,7 +162,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	// Everyone still waiting either has a bed to use or has nothing to be
 	// assigned; only the latter needs a bed built.
 	lo, hi := -1e9, 1e9
-	needsBed := false
+	needsBed, couple := false, false
 	sleeping, sk := r.Sleeping.Value()
 	if !sk {
 		choice.Method = SleepingUnknown
@@ -180,6 +184,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 			continue
 		}
 		needsBed = true
+		couple = couple || t.Partner != ""
 		choice.Unhoused++
 		b, ok := band[t.Pawn]
 		if !ok {
@@ -228,7 +233,12 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		byName[d.Name] = d
 	}
 	unknown := false
-	for _, name := range SleepingBedDefinitions {
+	names := SleepingBedDefinitions
+	if couple {
+		// A waiting couple stages one double bed before a single.
+		names = append([]string{SleepingCoupleBedDefinition}, names...)
+	}
+	for _, name := range names {
 		d, exists := byName[name]
 		available, ak := d.Available.Value()
 		if !exists || !ak {

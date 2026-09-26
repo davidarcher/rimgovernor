@@ -297,7 +297,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = policy.HospitalBedDefinitions
 	}
 	if r.goal == policy.MaintainSleeping && !r.shelter {
-		definitions = policy.SleepingBedDefinitions
+		definitions = append([]string{policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...)
 	}
 	if r.goal == policy.EnsureResearch && !r.shelter {
 		definitions = []string{policy.ResearchBenchDefinition}

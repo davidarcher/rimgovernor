@@ -56,7 +56,8 @@ func TestSelectSleepingMethodAssignsLowestPawnAndBed(t *testing.T) {
 		{Pawn: "p0", Kind: SleepingUpgrade, PreviousBed: "spot-0"},
 	}
 	choice, err := SelectSleepingMethod(SleepingRequest{Targets: domain.Known(targets)})
-	if err != nil || choice.Method != SleepingAssign || choice.Pawn != "p1" || choice.Bed != "bed-5" || choice.PreviousBed != "spot-1" || choice.Waiting != 3 {
+	// Available is the review's preference order, taken as given.
+	if err != nil || choice.Method != SleepingAssign || choice.Pawn != "p1" || choice.Bed != "bed-7" || choice.PreviousBed != "spot-1" || choice.Waiting != 3 {
 		t.Fatal(choice, err)
 	}
 	// A bed the pawn already owns is never reassigned to itself.

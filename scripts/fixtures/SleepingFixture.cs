@@ -18,14 +18,14 @@ namespace HomeBridge.BridgeTools
         // bed in it (a one-bed shortage): MaintainSleeping must build the
         // missing bed, ownership must follow, and the goal recovers only once
         // every colonist has been observed sleeping in their own bed.
-        [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with one bed fewer than colonists (bedsForAll: one each), and construction wood.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool bedsForAll = false)
+        [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with one bed fewer than colonists (bedsForAll: one each), and construction wood. couple: the first two colonists become lovers, both bedless, beside one vacant double bed.")]
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool bedsForAll = false, bool couple = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {
                     var map = Find.CurrentMap;
                     var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).OrderBy(p => p.thingIDNumber).ToList();
-                    if (people.Count < (connectedRooms ? 2 : 1) || people.Count > 8) throw new InvalidOperationException("Insufficient colonists or more than eight.");
+                    if (people.Count < (connectedRooms || couple ? 2 : 1) || people.Count > 8) throw new InvalidOperationException("Insufficient colonists or more than eight.");
                     if (connectedRooms) Find.PlaySettings.autoHomeArea = false;
                     var p = people.First();
                     var prerequisites = ThingDefOf.Bed.researchPrerequisites;
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
                     // leaves free 1x2 sites for the controller's bed.
                     var owned = new System.Collections.Generic.List<object>();
                     var slots = new[] { 1, 3, 5, 7 }.SelectMany(x => new[] { 1, 4 }.Select(z => new IntVec3(origin.x + x, 0, origin.z + z))).ToList();
-                    foreach (var (pawn, index) in people.Skip(bedsForAll ? 0 : connectedRooms ? 2 : 1).Select((pawn, index) => (pawn, index))) {
+                    foreach (var (pawn, index) in people.Skip(couple ? 2 : bedsForAll ? 0 : connectedRooms ? 2 : 1).Select((pawn, index) => (pawn, index))) {
                         var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
                         bed.SetFaction(Faction.OfPlayerSilentFail);
                         GenSpawn.Spawn(bed, slots[index], map, Rot4.North);
@@ -97,6 +97,20 @@ namespace HomeBridge.BridgeTools
                             GenSpawn.Spawn(spot, slots[owned.Count + index], map, Rot4.North);
                             if (!pawn.ownership.ClaimBedIfNonMedical(spot) || pawn.ownership.OwnedBed != spot) throw new InvalidOperationException("Colonist could not claim a fixture sleeping spot.");
                         }
+                    // Couple (#812): the first two colonists are lovers with no
+                    // bed; one vacant 2x2 double bed stands in the top-left
+                    // corner (columns 1-2, rows 6-7). Only the controller's
+                    // AssignBed may put both in it.
+                    string doubleBed = null;
+                    if (couple) {
+                        if (people[0].relations.DirectRelationExists(PawnRelationDefOf.Lover, people[1]) == false)
+                            people[0].relations.AddDirectRelation(PawnRelationDefOf.Lover, people[1]);
+                        var dbl = (Building_Bed)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("DoubleBed"), ThingDefOf.WoodLog);
+                        dbl.SetFaction(Faction.OfPlayerSilentFail);
+                        GenSpawn.Spawn(dbl, origin + new IntVec3(1, 0, 6), map, Rot4.North);
+                        dbl.SetForbidden(false, false);
+                        doubleBed = dbl.GetUniqueLoadID();
+                    }
                     if (connectedRooms) PrepareHomeRooms(map, origin, rect);
                     foreach (var worker in people) {
                         worker.playerSettings.AreaRestrictionInPawnCurrentMap = null;
@@ -106,7 +120,7 @@ namespace HomeBridge.BridgeTools
                         if (!worker.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) worker.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                         worker.jobs.EndCurrentJob(JobCondition.InterruptForced);
                     }
-                    return new { success = true, pawn = p.GetUniqueLoadID(), colonists = people.Count, ownedBeds = owned, research = prerequisites?.Select(r => r.defName).ToArray(),
+                    return new { success = true, pawn = p.GetUniqueLoadID(), partner = couple ? people[1].GetUniqueLoadID() : null, doubleBed, colonists = people.Count, ownedBeds = owned, research = prerequisites?.Select(r => r.defName).ToArray(),
                         x = floorCell.x, z = floorCell.z, roomTemperatureC = floorCell.GetRoom(map).Temperature,
                         room = new { x = origin.x, z = origin.z, width = size, height = size },
                         corridor = new { x = origin.x + 12, z = origin.z + 3 },

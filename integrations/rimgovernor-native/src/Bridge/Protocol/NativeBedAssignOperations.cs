@@ -88,7 +88,11 @@ namespace HomeBridge.BridgeTools
             if (!bed.Spawned || bed.Faction != Faction.OfPlayerSilentFail || !bed.def.building.bed_humanlike)
                 return "Bed unavailable: not a spawned player-owned humanlike bed.";
             if (bed.Medical || bed.ForPrisoners) return "Bed unavailable: medical or prisoner bed.";
-            if (bed.OwnersForReading.Any()) return "Bed unavailable: already assigned.";
+            // A willing love partner may join a partner's bed with a free
+            // slot (#812); nobody else is ever put in an owned bed.
+            if (bed.OwnersForReading.Any() && (!bed.AnyUnownedSleepingSlot || bed.OwnersForReading.Any(o => o == pawn
+                    || !LovePartnerRelationUtility.LovePartnerRelationExists(pawn, o) || !BedUtility.WillingToShareBed(pawn, o))))
+                return "Bed unavailable: already assigned.";
             if (bed.IsForbidden(pawn)) return "Bed unavailable: forbidden to the pawn.";
             if (bed.IsBurning()) return "Bed unavailable: burning.";
             if (!bed.OccupiedRect().All(c => c.Roofed(map))) return "Bed unavailable: not fully roofed.";

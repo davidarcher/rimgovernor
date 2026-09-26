@@ -272,7 +272,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append([]string{"Wall", "Door"}, policy.SleepingBedDefinitions...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append([]string{"Wall", "Door", policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
