@@ -46,6 +46,14 @@ func cachedColonyBoundary(actual, expected Identity, family bridge.FactFamily) b
 	return sameColonyContext(actual, expected) && (actual.Tick.FreshFor(expected.Tick) || family.Fresh(int64(actual.Tick), int64(expected.Tick)))
 }
 
+// aheadColonyBoundary is sameColonyBoundary for a live read anchored on an
+// identity the step's fact cache may have served: under a running window
+// the anchor row lawfully sits behind the live read by up to the family's
+// tolerance, the mirror of cachedColonyBoundary (#306, #712).
+func aheadColonyBoundary(actual, expected Identity, family bridge.FactFamily) bool {
+	return sameColonyContext(actual, expected) && (actual.Tick.FreshFor(expected.Tick) || family.Fresh(int64(expected.Tick), int64(actual.Tick)))
+}
+
 func sameColonyContext(actual, expected Identity) bool {
 	a, ak := actual.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()

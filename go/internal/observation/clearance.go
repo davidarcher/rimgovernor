@@ -76,7 +76,7 @@ func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expecte
 	if err != nil {
 		return unknown, err
 	}
-	if !sameColonyBoundary(actual, expected) {
+	if !aheadColonyBoundary(actual, expected, bridge.FactColony) {
 		return unknown, ErrChanged
 	}
 	rows := make([]ClearanceTarget, 0, len(v.Targets))

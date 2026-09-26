@@ -174,3 +174,33 @@ func TestCachedColonyBoundaryToleratesTheFamilyLag(t *testing.T) {
 		})
 	}
 }
+
+// A live shrine census read ahead of the step's cache-served identity is the
+// same world under a running window (#712): every live shrine pass failed
+// "native observation context changed" and the next heater waited a window.
+func TestAheadColonyBoundaryToleratesACachedAnchor(t *testing.T) {
+	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 10000, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	at := func(tick domain.Tick) Identity {
+		i := expected
+		i.Tick = tick
+		return i
+	}
+	lag := domain.Tick(bridge.FactColony.TickTolerance())
+	for _, scenario := range []struct {
+		name   string
+		actual Identity
+		want   bool
+	}{
+		{"same tick", at(10000), true},
+		{"ahead past planning tolerance within family lag", at(10001 + domain.PlanningTickTolerance), true},
+		{"ahead by the family lag", at(10000 + lag), true},
+		{"ahead past the family lag", at(10001 + lag), false},
+		{"behind", at(9999), false},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			if got := aheadColonyBoundary(scenario.actual, expected, bridge.FactColony); got != scenario.want {
+				t.Fatalf("got %v, want %v", got, scenario.want)
+			}
+		})
+	}
+}

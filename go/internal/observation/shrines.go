@@ -53,7 +53,7 @@ func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity)
 	if err != nil {
 		return unknown, err
 	}
-	if !sameColonyBoundary(actual, expected) {
+	if !aheadColonyBoundary(actual, expected, bridge.FactColony) {
 		return unknown, ErrChanged
 	}
 	kinds := map[o.ShrineGuardKind]policy.ShrineGuardKind{
