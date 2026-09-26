@@ -214,13 +214,15 @@ func (client *Client) seedBundle(ctx context.Context, request *o.BundleRequest, 
 
 // The optional blocks (#360) the consumers of each seeded key decode: every
 // reader behind ReadRoutinePopulation/ReadPrisonerInteractionTarget,
-// ReadResearch and ReadRoutinePawns. None reads a masked block today, so the
-// routine bundle's slim families stand in for the dedicated reads. A consumer
+// ReadResearch and ReadRoutinePawns. The routine pawn profile reads traits and
+// the biological age (observation.routine_work, #695), so a pawn mask without
+// them never seeds; the other masked blocks stay unread, and the routine
+// bundle's slim families stand in for the dedicated reads. A consumer
 // that starts decoding a block adds its flag here; a bundle whose mask omits
 // it then stops seeding that key (#648), and the dedicated read serves the
 // whole family instead of a slim copy passing for it.
 var (
-	seededPawnFields       = &o.PawnFields{}
+	seededPawnFields       = &o.PawnFields{IncludeTraits: proto.Bool(true), IncludeBackstory: proto.Bool(true)}
 	seededPopulationFields = &o.PopulationFields{}
 	seededResearchFields   = &o.ResearchFields{}
 )

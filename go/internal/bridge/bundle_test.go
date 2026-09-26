@@ -448,7 +448,6 @@ func TestBundleReadAcceptsMaskedFamilies(t *testing.T) {
 	server := newBundleFamilyServer(t)
 	for _, row := range server.snapshot.ColonistPawns.Pawns {
 		row.Health.Capacities, row.Health.SurgeryBills = nil, nil
-		row.Biography.Childhood, row.Biography.Adulthood, row.Biography.Traits, row.Biography.BiologicalAgeYears = nil, nil, nil, nil
 		if row.Equipment != nil {
 			row.Equipment.InventoryWeapons, row.Equipment.InventoryItemCount, row.Equipment.CarriedThingId = nil, nil, nil
 			for _, list := range [][]*o.GearItem{row.Equipment.Equipped, row.Equipment.Apparel} {
@@ -468,7 +467,7 @@ func TestBundleReadAcceptsMaskedFamilies(t *testing.T) {
 	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
 	ctx := WithStepReadCache(context.Background(), NewStepReadCache())
 	request := bundleFamilyRequest()
-	request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = &o.PawnFields{}, &o.PopulationFields{}, &o.ResearchFields{}
+	request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = routinePawnMask(), &o.PopulationFields{}, &o.ResearchFields{}
 	if _, _, err := client.ReadBundle(ctx, request); err != nil {
 		t.Fatal(err)
 	}
@@ -477,6 +476,29 @@ func TestBundleReadAcceptsMaskedFamilies(t *testing.T) {
 	}
 	if n := server.familyReads(t, ctx, client); n != 0 {
 		t.Fatal("masked families crossed the bridge", n)
+	}
+}
+
+// routinePawnMask is buildingruntime's bundlePawnMask: the routine bundle keeps
+// traits and backstory because the work profile reads them (#695).
+func routinePawnMask() *o.PawnFields {
+	return &o.PawnFields{IncludeTraits: proto.Bool(true), IncludeBackstory: proto.Bool(true)}
+}
+
+// TestBundleSlimPawnMaskDoesNotSeedRoutinePawns (#695): a pawn mask that strips
+// traits and backstory must not stand in for ReadRoutinePawns, whose work
+// profile would read the stripped rows as colonists with no traits and no age.
+func TestBundleSlimPawnMaskDoesNotSeedRoutinePawns(t *testing.T) {
+	server := newBundleFamilyServer(t)
+	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	ctx := WithStepReadCache(context.Background(), NewStepReadCache())
+	request := bundleFamilyRequest()
+	request.ColonistPawnFields = &o.PawnFields{}
+	if _, _, err := client.ReadBundle(ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	if n := server.familyReads(t, ctx, client); n == 0 {
+		t.Fatal("a traitless pawn bundle served the routine pawn read")
 	}
 }
 
@@ -500,11 +522,11 @@ func TestBundleMaskServesOnlyItsConsumers(t *testing.T) {
 			t.Errorf("%s: maskServes = %v, want %v", tc.name, got, tc.want)
 		}
 	}
-	// The routine bundle's slim masks (bundleMasks in buildingruntime) serve
-	// every seeded key today; TestBundleReadAcceptsMaskedFamilies proves the hit.
-	for _, need := range []proto.Message{seededPawnFields, seededPopulationFields, seededResearchFields} {
-		if !maskServes(need.ProtoReflect().New().Interface(), need) {
-			t.Fatal("an empty mask no longer serves a seeded key; the routine bundle would read twice", need)
+	// The routine bundle's masks (bundleMasks in buildingruntime) serve every
+	// seeded key; TestBundleReadAcceptsMaskedFamilies proves the hit.
+	for _, pair := range [][2]proto.Message{{routinePawnMask(), seededPawnFields}, {&o.PopulationFields{}, seededPopulationFields}, {&o.ResearchFields{}, seededResearchFields}} {
+		if !maskServes(pair[0], pair[1]) {
+			t.Fatal("the routine bundle mask no longer serves a seeded key; the routine bundle would read twice", pair[1])
 		}
 	}
 }
