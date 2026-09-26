@@ -23,6 +23,25 @@ namespace HomeBridge.BridgeTools
     /// the typed clock runtime.
     internal static partial class Supervisor
     {
+        /// The stop tier's severity floor for a new wound (#584): a colonist
+        /// whose blood loss kills them within this many game ticks, or who
+        /// carries a life-threatening hediff stage, still stops the window;
+        /// any lighter new wound is journaled and the medical planner reviews
+        /// it under the running window. Two in-game hours -- long enough for
+        /// a controller running at Ultrafast to reach a doctor's order, short
+        /// enough that a bleed-out is never left to a review cadence.
+        internal const int InjurySeverityFloorTicks = 5000;
+        /// Ticks a pawn's demoted injury waits before it invalidates the
+        /// medical facts again, so a brawl cannot replan the colony every
+        /// probe.
+        internal const int MedicalWakeIntervalTicks = 600;
+
+        /// Whether a new wound is severe enough to keep the stop (#584).
+        internal static bool InjurySeverityFloorReached(int bleedOutTicks, bool lifeThreatening)
+        {
+            return lifeThreatening || bleedOutTicks <= InjurySeverityFloorTicks;
+        }
+
         /// Ticks between tick-paced hazard probes, at every speed.
         internal const int ProbeIntervalTicks = 30;
         /// Wall milliseconds between frame-paced hazard probes: at Normal

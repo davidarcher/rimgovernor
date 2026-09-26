@@ -47,8 +47,12 @@ sleeping planner uses the existing bed-assignment operation for ordinary beds.
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock
-lease. Danger, injury and player input can stop a window
-early (the stop tier, #240); lease expiry also stops a controller that
+lease. Danger and player input can stop a window
+early (the stop tier, #240); an injury stops it only past the native
+severity floor -- a life-threatening stage or a bleed-out inside two
+in-game hours -- because a lighter wound and a discharged rest watch buy
+the same medical review through a journal wake, without the
+stop-to-readmit pause (#584). Lease expiry also stops a controller that
 becomes unresponsive. Reviews and routine orders happen at the stop between
 windows and under a running window alike (#243, #244): the planners read
 one tick-consistent bundle and bind their facts to its tick, and the worker

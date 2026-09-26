@@ -52,12 +52,23 @@ reports every class unhooked and the polled interval bound still holds.
 | `colonist_downed` | a colonist downed or dead | `Pawn_HealthTracker.MakeDowned` and `Pawn.Kill` hooks request the next-tick probe | 1 | the tick the hook fired; a corpse's `timeOfDeath` | `hazard/downed` |
 | `predator_hunt` | a predator hunting within 40 cells of a colonist | polled | 30 | the predator's `PredatorHunt` job `startTick` | `hazard/predator` |
 | `hunting_route_unsafe` | a colonist hunting prey along an unsafe route | polled | 30 | the hunter's `Hunt` job `startTick` | (hunting/* areas) |
-| `colonist_injury` | a new wound or new bleeding (colony mode) | polled | 30 | the newest wound's age (`ageTicks`) | `hazard/injury` |
+| `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within `InjurySeverityFloorTicks` (5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
 | `colonist_health` | a combat health threshold crossed | polled | 30 | the newest wound's age | (defense/* areas) |
-| `medical_rest_changed` | a resting patient no longer eligible | polled | 30 | absent | (medical/* areas) |
+| ~~`medical_rest_changed`~~ | a resting patient no longer eligible -- no longer a stop (#584): the watch is discharged and the medical facts invalidated | polled | 30 | absent | (medical/* areas) |
 
 Non-stopping observations (`alert_new`, `hostiles_cleared`,
 `injury_observed`) ride the same probe and carry the same 30-tick bound.
+
+A wound under the severity floor, and a resting patient who lost their
+eligibility, are demoted tiers (#584): the probe journals the observation
+and an `observation_invalidated` row over the `pawns` and `emergency`
+families -- the review the stop used to buy -- and the window runs on, so
+neither costs a stop-to-readmit pause. A pawn's demoted injury invalidates
+again at most every `MedicalWakeIntervalTicks` (600), so a brawl cannot
+replan the colony every probe; the wake raised for a discharged rest watch
+is never throttled. `hazard/injury` asserts the wake lands inside the
+30-tick bound with the window still running, and the native contract probe
+pins the floor's boundary.
 Fire is not a hazard class: the supervisor stops for it through the
 `ThreatSmall` letter vanilla raises, under `notification_batch`.
 

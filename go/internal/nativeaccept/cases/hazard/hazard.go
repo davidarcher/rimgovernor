@@ -31,15 +31,23 @@ const (
 	// detection is measured under a moving clock, never at the start
 	// baseline.
 	settleTicks = 300
+	// injurySeverityFloorTicks mirrors Supervisor.InjurySeverityFloorTicks
+	// (#584): a wound whose bleed-out lands inside it still stops the
+	// window, so the demoted case fails if its injection ever grows into
+	// one. 0 on the wire means the pawn is not bleeding out at all.
+	injurySeverityFloorTicks = 5000
 )
 
-// hazardCase is one class: how it is injected and the stop it must raise.
+// hazardCase is one class: how it is injected and the stop it must raise,
+// or -- for a demoted tier (#584) -- the journal wake it must raise instead
+// while the window runs on.
 type hazardCase struct {
-	name   string
-	class  string
-	bound  int64
-	scope  string
-	inject func(ctx context.Context, s cases.Session) (int64, map[string]any, error)
+	name    string
+	class   string
+	bound   int64
+	scope   string
+	demoted bool
+	inject  func(ctx context.Context, s cases.Session) (int64, map[string]any, error)
 }
 
 func init() {
@@ -53,8 +61,8 @@ func init() {
 		{name: "hazard/downed", class: "colonist_downed", bound: hookedBoundTicks,
 			scope:  "A colonist downed mid-window at Ultrafast stops the clock as colonist_downed within the hooked 1-tick bound.",
 			inject: injectOp("downed")},
-		{name: "hazard/injury", class: "colonist_injury", bound: probeIntervalTicks,
-			scope:  "A colonist wounded mid-window at Ultrafast stops the clock as colonist_injury within the 30-tick probe bound.",
+		{name: "hazard/injury", class: "colonist_injury", bound: probeIntervalTicks, demoted: true,
+			scope:  "A colonist wounded under the severity floor mid-window at Ultrafast keeps the window running and invalidates the medical facts within the 30-tick probe bound (#584).",
 			inject: injectOp("injury")},
 		{name: "hazard/predator", class: "predator_hunt", bound: probeIntervalTicks,
 			scope:  "A predator hunting a colonist mid-window at Ultrafast stops the clock as predator_hunt within the 30-tick probe bound.",
@@ -166,6 +174,9 @@ func run(ctx context.Context, s cases.Session, hc hazardCase) error {
 	if err != nil {
 		return err
 	}
+	if hc.demoted {
+		return runDemoted(ctx, clock, hc, report, injectTick, injected)
+	}
 	// Poll the events until the stop; the window's tick budget bounds the
 	// wait at Ultrafast.
 	var stopped map[string]any
@@ -252,6 +263,86 @@ func run(ctx context.Context, s cases.Session, hc hazardCase) error {
 		return fmt.Errorf("%s hook is not installed: %#v", hc.class, declared)
 	}
 	return nil
+}
+
+// runDemoted proves a tier the supervisor no longer stops for (#584): the
+// hazard is detected within the class's bound and published as an
+// observation_invalidated wake naming the pawn families, and the window
+// keeps running -- the review the stop used to buy, without the
+// stop-to-readmit pause.
+func runDemoted(ctx context.Context, clock *na.ScenarioClock, hc hazardCase, report na.Report, injectTick int64, injected map[string]any) error {
+	summary := map[string]any{"class": hc.class, "bound_ticks": hc.bound, "inject_tick": injectTick, "injected": injected, "demoted": true}
+	report["hazard"] = summary
+	// The wound is only demotable below the severity floor; the fixture
+	// reports the game's own bleed-out estimate so the case fails loudly
+	// if the injection ever grew into a danger.
+	if ticks, ok := int64Of(injected["bleedOutTicks"]); ok && ticks > 0 && ticks <= injurySeverityFloorTicks {
+		return fmt.Errorf("the injected wound bleeds out in %d ticks, inside the %d-tick severity floor: it is a danger, not a demoted tier: %#v",
+			ticks, injurySeverityFloorTicks, injected)
+	}
+	var wake map[string]any
+	var wakeTick int64
+	deadline := time.Now().Add(90 * time.Second)
+	for wake == nil {
+		events, err := clock.Poll(ctx)
+		if err != nil {
+			return err
+		}
+		for _, raw := range events {
+			row, _ := na.AsMap(raw)
+			native, _ := na.AsMap(row["native"])
+			if stopped, ok := na.AsMap(native["stopped"]); ok {
+				return fmt.Errorf("the window stopped (%s) for a wound under the severity floor: %#v", na.AsString(stopped["reason"]), stopped)
+			}
+			invalidated, ok := na.AsMap(native["observationInvalidated"])
+			if !ok {
+				continue
+			}
+			if !hasFamily(invalidated, "PAWNS") {
+				continue
+			}
+			wake = invalidated
+			context, _ := na.AsMap(native["context"])
+			wakeTick = int64(na.AsNumber(context["tick"]))
+		}
+		if wake == nil {
+			if time.Now().After(deadline) {
+				return fmt.Errorf("no medical wake within 90 s of injecting %s at tick %d", hc.class, injectTick)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	summary["wake"] = wake
+	summary["wake_tick"] = wakeTick
+	gap := wakeTick - injectTick
+	summary["inject_gap_ticks"] = gap
+	if gap < 0 || gap > hc.bound {
+		return fmt.Errorf("the medical wake landed %d ticks after the injection, bound %d: %#v", gap, hc.bound, wake)
+	}
+	if !hasFamily(wake, "EMERGENCY") {
+		return fmt.Errorf("the medical wake does not invalidate the emergency family: %#v", wake)
+	}
+	// The window survives the wake: the readmit the stop used to cost is
+	// exactly what this tier no longer spends.
+	status, err := clock.Call(ctx, "status", nil)
+	if err != nil {
+		return err
+	}
+	if active, _ := status["active"].(bool); !active {
+		return fmt.Errorf("the window is no longer running after the wake: %s", na.AsString(status["stopReason"]))
+	}
+	return nil
+}
+
+// hasFamily reports whether an observation_invalidated row names a fact
+// family; the wire carries the enum name (FACT_FAMILY_PAWNS).
+func hasFamily(row map[string]any, family string) bool {
+	for _, raw := range na.AsSlice(row["families"]) {
+		if na.AsString(raw) == "FACT_FAMILY_"+family {
+			return true
+		}
+	}
+	return false
 }
 
 func (hc hazardCase) requiredTools() []string {

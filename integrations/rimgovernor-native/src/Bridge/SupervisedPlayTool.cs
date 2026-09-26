@@ -888,12 +888,16 @@ namespace HomeBridge.BridgeTools
                 if (s.AlertKeys.Add(a.Key)) Add("alert_new", a.Value, s, AlertRow(a));
             var pawns = HomePlayUntilEventTools.SpawnedPawns(Find.CurrentMap);
             var colonists = pawns.Where(HomePlayUntilEventTools.SafeIsColonist).ToList();
-            foreach (var identity in s.MedicalRest)
+            // A resting patient who is no longer eligible needs a fresh
+            // medical review, not a stopped clock (#584): the watch is
+            // discharged, the medical facts are invalidated and the planner
+            // reviews under the running window.
+            foreach (var identity in s.MedicalRest.ToList())
             {
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
-                if (patient == null || !MedicalRestSafety.Eligible(patient))
-                    return new Hit("medical_rest_changed", "Resting patient requires a fresh medical review",
-                        new Dictionary<string, object?> { { "pawnId", identity } });
+                if (patient != null && MedicalRestSafety.Eligible(patient)) continue;
+                s.MedicalRest.Remove(identity);
+                InvalidateMedicalFacts(s, identity, "resting patient " + identity + " requires a fresh medical review", true);
             }
             var tick = Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick;
             CheckHostilesCleared(s, pawns);
@@ -991,7 +995,21 @@ namespace HomeBridge.BridgeTools
                         payload["newWound"] = newWound;
                         if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
                             payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
-                        if (((s.Mode == "colony" && newWound) || threshold) && !suppressed)
+                        // A new wound stops the window only past the native
+                        // severity floor (#584): bleeding out inside
+                        // InjurySeverityFloorTicks, or a life-threatening
+                        // hediff stage. Anything lighter is a journal row and a
+                        // medical review under the running window, which is
+                        // what every stop bought anyway at the price of a
+                        // stop-to-readmit pause. A combat threshold crossing
+                        // still stops.
+                        var severe = InjurySeverityFloorReached(after.BleedOutTicks, after.LifeThreatening);
+                        payload["bleedOutTicks"] = after.BleedOutTicks == int.MaxValue ? null : (object)after.BleedOutTicks;
+                        payload["lifeThreatening"] = after.LifeThreatening;
+                        payload["severityFloorTicks"] = InjurySeverityFloorTicks;
+                        var demoted = s.Mode == "colony" && newWound && !suppressed && !severe && !threshold;
+                        payload["demoted"] = demoted;
+                        if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
                         {
                             RecordInjuryStop(p);
                             return new Hit("colonist_injury", InjuryDetail(s, p, before, after), payload);
@@ -1002,9 +1020,13 @@ namespace HomeBridge.BridgeTools
                                     ? " took another injury; play continues under the configured injury acknowledgement."
                                     : " took another injury; play continues (within the "
                                         + (s.InjuryStopCooldownMs / 1000) + " s injury-stop cooldown).")
-                                : (newWound
-                                    ? " took a sub-threshold combat injury; play continues."
-                                    : " has a known wound worsening (blood loss/severity creep); play continues.")), s, payload);
+                                : (demoted
+                                    ? " took a new wound under the severity floor; play continues and the medical planner reviews it."
+                                    : newWound
+                                        ? " took a sub-threshold combat injury; play continues."
+                                        : " has a known wound worsening (blood loss/severity creep); play continues.")), s, payload);
+                        if (demoted) InvalidateMedicalFacts(s, p.thingIDNumber,
+                            HomePlayUntilEventTools.SafeName(p) + " took a new wound under the severity floor");
                         // Both modes deliberately coalesce ordinary damage into
                         // durable observations instead of pause storms.
                         after.Health = before.Health; // retain start-of-session health baseline
@@ -1097,6 +1119,23 @@ namespace HomeBridge.BridgeTools
             if (cooldownMs <= 0 || !InjuryStops.TryGetValue(pawnId, out stop)) return 0;
             var remaining = stop.AtMs + cooldownMs - NowMs();
             return remaining > 0 ? remaining : 0;
+        }
+
+        /// Journals the medical facts as stale so the medical planner
+        /// reviews under the running window (#584), at most once per pawn per
+        /// MedicalWakeIntervalTicks unless the caller forces it. This is the
+        /// wake the demoted health tiers are worth: every reader of the pawn
+        /// and emergency families replans, and no window is spent.
+        private static void InvalidateMedicalFacts(State s, int pawnId, string reason, bool force = false)
+        {
+            var tick = Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick;
+            int last;
+            if (!force && s.MedicalWakes.TryGetValue(pawnId, out last) && tick - last < MedicalWakeIntervalTicks) return;
+            s.MedicalWakes[pawnId] = tick;
+            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s,
+                new Dictionary<string, object?> {
+                    { "families", new List<string> { "pawns", "emergency" } },
+                    { "reason", reason } });
         }
 
         private static void RecordInjuryStop(Pawn pawn)
@@ -1396,6 +1435,13 @@ namespace HomeBridge.BridgeTools
             public int Count; public float Severity; public float BleedRate; public float BloodLoss; public float Health;
             // Age in ticks of the youngest injury, for the stop's occurrence tick.
             public int NewestWoundAgeTicks = int.MaxValue;
+            // The severity floor the stop tier reads (#584): RimWorld's own
+            // estimate of the ticks left before this pawn dies of blood loss
+            // (int.MaxValue when they are not bleeding out) and whether any
+            // hediff stage is life-threatening on its own (an infection, a
+            // failing organ). Both are the game's judgement, not ours.
+            public int BleedOutTicks = int.MaxValue;
+            public bool LifeThreatening;
             public static InjurySnapshot Capture(Pawn pawn)
             {
                 var result = new InjurySnapshot();
@@ -1408,7 +1454,9 @@ namespace HomeBridge.BridgeTools
                         var injury = h as Hediff_Injury;
                         if (injury != null) { result.Count++; result.Severity += injury.Severity; result.BleedRate += injury.BleedRate; result.NewestWoundAgeTicks = Math.Min(result.NewestWoundAgeTicks, Math.Max(0, injury.ageTicks)); }
                         if (h.def == HediffDefOf.BloodLoss) result.BloodLoss = Math.Max(result.BloodLoss, h.Severity);
+                        try { if (h.CurStage != null && h.CurStage.lifeThreatening) result.LifeThreatening = true; } catch { }
                     }
+                    try { result.BleedOutTicks = HealthUtility.TicksUntilDeathDueToBloodLoss(pawn); } catch { }
                 }
                 catch { }
                 return result;
@@ -1456,6 +1504,8 @@ namespace HomeBridge.BridgeTools
             public readonly List<Dictionary<string, object?>> BaselineAlerts = new List<Dictionary<string, object?>>();
             // null until the first probe of this epoch has counted.
             public int? ConsciousHostiles; public bool HostilesCleared;
+            /// Game tick of each pawn's last demoted-injury invalidation (#584).
+            public readonly Dictionary<int, int> MedicalWakes = new Dictionary<int, int>();
             public HashSet<int> IgnoredHostiles = new HashSet<int>(); public HashSet<int> IgnoredDowned = new HashSet<int>(); public HashSet<int> SurgicalRecovery = new HashSet<int>(); public HashSet<int> MedicalRest = new HashSet<int>();
             public HashSet<int> IgnoredInjured = new HashSet<int>(); public int InjuryStopCooldownMs;
             public readonly List<Dictionary<string, object?>> SuppressedInjuries = new List<Dictionary<string, object?>>();

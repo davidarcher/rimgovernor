@@ -278,7 +278,7 @@ func projectEvents(page map[string]any, after uint64) (map[string]any, error) {
 		} else {
 			var cases []string
 			for _, key := range []string{"started", "speedChanged", "notification", "alert", "injuryObserved",
-				"hostilesCleared", "pauseFailed", "forcePauseWaiting", "forcePauseCleared"} {
+				"observationInvalidated", "hostilesCleared", "pauseFailed", "forcePauseWaiting", "forcePauseCleared"} {
 				if _, ok := event[key]; ok {
 					cases = append(cases, key)
 				}

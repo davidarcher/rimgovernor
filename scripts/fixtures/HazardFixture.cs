@@ -77,19 +77,29 @@ namespace HomeBridge.BridgeTools
             return new { success = true, pawn = pawn.GetUniqueLoadID(), pawnId = pawn.thingIDNumber, downed = pawn.Downed, tick = Find.TickManager.TicksGame };
         }
 
-        // One cut on a standing colonist: polled by the injury snapshot; the
-        // wound's age is the occurrence.
+        // One cut on a standing colonist, deliberately under the stop tier's
+        // severity floor (#584): polled by the injury snapshot; the wound's
+        // age is the occurrence. bleedOutTicks reports the game's own
+        // estimate (int.MaxValue when the pawn is not bleeding out, reported
+        // as 0) so the case can assert the wound is a demoted tier, not a
+        // danger.
         private static object Injury(List<Pawn> colonists)
         {
             var pawn = colonists.FirstOrDefault();
             if (pawn == null) return Refuse("No standing colonist to injure.");
             var part = pawn.health.hediffSet.GetNotMissingParts().FirstOrDefault(p => p.def == BodyPartDefOf.Torso) ?? pawn.RaceProps.body.corePart;
             var before = pawn.health.hediffSet.hediffs.Count(h => h is Hediff_Injury);
-            var result = pawn.TakeDamage(new DamageInfo(DamageDefOf.Cut, 6f, 0f, -1f, null, part));
+            // Small on purpose (#584): a 6-damage cut dropped summary health
+            // past the watch's healthDropFraction and stopped the window as a
+            // combat threshold crossing, which is a different tier. This one
+            // is a new wound and nothing else.
+            var result = pawn.TakeDamage(new DamageInfo(DamageDefOf.Cut, 2f, 0f, -1f, null, part));
             var after = pawn.health.hediffSet.hediffs.Count(h => h is Hediff_Injury);
             if (after <= before) return Refuse("The cut left no injury.");
+            var bleedOut = HealthUtility.TicksUntilDeathDueToBloodLoss(pawn);
             return new { success = true, pawn = pawn.GetUniqueLoadID(), pawnId = pawn.thingIDNumber, damage = result.totalDamageDealt,
-                injuries = after, downed = pawn.Downed, tick = Find.TickManager.TicksGame };
+                injuries = after, downed = pawn.Downed, bleedOutTicks = bleedOut == int.MaxValue ? 0 : bleedOut,
+                tick = Find.TickManager.TicksGame };
         }
 
         // A hungry predator 8-12 cells from a colonist on a PredatorHunt job

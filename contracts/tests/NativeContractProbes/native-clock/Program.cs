@@ -356,6 +356,14 @@ internal static class NativeClockProbe
         foreach (var name in Supervisor.HazardClassNames())
             Check(Supervisor.HazardBoundTicks(name) > 0 && Supervisor.HazardBoundTicks(name) <= Supervisor.ProbeIntervalTicks, "undeclared or unbounded class " + name);
         Check(Supervisor.HazardBoundTicks("colonist_downed") == Supervisor.HookedBoundTicks && Supervisor.HazardHooked("colonist_downed") && !Supervisor.HazardHooked("predator_hunt"), "hook declarations");
+        // The new-wound stop tier's severity floor (#584): a life-threatening
+        // stage or a bleed-out inside the floor keeps the stop, a lighter
+        // wound is demoted to a journal wake.
+        Check(Supervisor.InjurySeverityFloorReached(int.MaxValue, true), "a life-threatening stage does not reach the severity floor");
+        Check(Supervisor.InjurySeverityFloorReached(Supervisor.InjurySeverityFloorTicks, false)
+            && !Supervisor.InjurySeverityFloorReached(Supervisor.InjurySeverityFloorTicks + 1, false)
+            && !Supervisor.InjurySeverityFloorReached(int.MaxValue, false), "the bleed-out severity floor is not the boundary it declares");
+        Check(Supervisor.MedicalWakeIntervalTicks > 0 && Supervisor.MedicalWakeIntervalTicks < Supervisor.InjurySeverityFloorTicks, "the medical wake interval is not inside the severity floor");
         // The production Probe body contains no digest call: the digests left
         // the probe path (source scan of the Verse-bound partial).
         var root = AppContext.BaseDirectory;
