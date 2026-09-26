@@ -198,7 +198,7 @@ namespace HomeBridge.BridgeTools
                     drills = drills.Length, drillsOnLump = drills.Count(b => b.OccupiedRect().Cells.Any(c => map.deepResourceGrid.ThingDefAt(c) == ThingDefOf.Steel)),
                     drillsDesignated = drills.Count(b => map.designationManager.DesignationOn(b, DesignationDefOf.Deconstruct) != null),
                     scanners = map.listerBuildings.allBuildingsColonist.Count(b => b.def == ThingDefOf.GroundPenetratingScanner), benches = benches.Length,
-                    componentBills = benches.Sum(b => b.BillStack.Bills.Count(bill => bill.recipe.defName == "MakeComponent")),
+                    componentBills = benches.Sum(b => b.BillStack.Bills.Count(bill => bill.recipe.defName == "Make_ComponentIndustrial")),
                     researched = DefDatabase<ResearchProjectDef>.GetNamed(benches.Length > 0 ? "Fabrication" : "GroundPenetratingScanner").IsFinished };
             }, cancellationToken).ConfigureAwait(false);
         }
