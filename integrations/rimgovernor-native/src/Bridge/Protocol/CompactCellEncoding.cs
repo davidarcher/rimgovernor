@@ -44,8 +44,9 @@ namespace HomeBridge.BridgeTools
                     if (cell.HasRoof) Varint(bytes, StringIndex(cell.Roof));
                     if (cell.HasZoneId) Varint(bytes, StringIndex(cell.ZoneId));
                     if (cell.HasRoomId) Varint(bytes, StringIndex(cell.RoomId));
-                    if (cell.Ruin) Varint(bytes, 0);
-                    else if (cell.HasPlayerEdifice) Varint(bytes, StringIndex(cell.PlayerEdifice) + 1);
+                    if (cell.HasClaimableRuin) Varint(bytes, 2 * StringIndex(cell.ClaimableRuin) + 2);
+                    else if (cell.Ruin) Varint(bytes, 0);
+                    else if (cell.HasPlayerEdifice) Varint(bytes, 2 * StringIndex(cell.PlayerEdifice) + 1);
                     if (!glows.TryGetValue(cell.Glow, out var glow)) {
                         glow = (uint)compact.Glow.Count; glows.Add(cell.Glow, glow); compact.Glow.Add(cell.Glow);
                     }

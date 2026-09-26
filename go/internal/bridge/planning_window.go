@@ -235,7 +235,7 @@ func PlanningCells(v *o.CellsSnapshot) ([]policy.SiteCell, uint64) {
 			filtered++
 			continue
 		}
-		cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: cellFact(row.Walkable), Occupied: cellFact(row.Occupied), Zone: CellPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: CellPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: cellFact(row.Roof), Indoors: cellFact(row.Indoors), SupportsLight: cellFact(row.SupportsLight), Doorway: cellFact(row.Doorway), Fertility: cellFact(row.Fertility), Polluted: cellFact(row.Polluted), Glow: cellFact(row.Glow), StorageEmpty: cellFact(row.StorageEmpty), ZoneID: cellFact(row.ZoneId), NaturalRock: cellFact(row.NaturalRock), Ruin: cellFact(row.Ruin), PlayerEdifice: playerEdifice(row)})
+		cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: cellFact(row.Walkable), Occupied: cellFact(row.Occupied), Zone: CellPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: CellPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: cellFact(row.Roof), Indoors: cellFact(row.Indoors), SupportsLight: cellFact(row.SupportsLight), Doorway: cellFact(row.Doorway), Fertility: cellFact(row.Fertility), Polluted: cellFact(row.Polluted), Glow: cellFact(row.Glow), StorageEmpty: cellFact(row.StorageEmpty), ZoneID: cellFact(row.ZoneId), NaturalRock: cellFact(row.NaturalRock), Ruin: cellFact(row.Ruin), PlayerEdifice: edificeDef(row, row.PlayerEdifice), ClaimableRuin: edificeDef(row, row.ClaimableRuin)})
 	}
 	return cells, filtered
 }
@@ -268,11 +268,11 @@ func CellPresence(value *string, issues []*o.ReadIssue, field string, applied bo
 	return domain.Unknown[bool]()
 }
 
-// playerEdifice is the player-owned edifice's definition, known empty on a
-// row whose traversal facts were read without one (#709).
-func playerEdifice(row *o.CellState) domain.Fact[string] {
-	if row.PlayerEdifice != nil {
-		return domain.Known(row.GetPlayerEdifice())
+// edificeDef is an edifice definition fact (#709, #718): known empty on a
+// row whose traversal facts were read without one.
+func edificeDef(row *o.CellState, def *string) domain.Fact[string] {
+	if def != nil {
+		return domain.Known(*def)
 	}
 	if row.Walkable != nil {
 		return domain.Known("")

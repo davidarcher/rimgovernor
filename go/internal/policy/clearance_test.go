@@ -169,3 +169,19 @@ func TestShellRuins(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// #718: a ring claims the ruins covering its claimable cells, never an
+// ancient danger or a casket, whatever roof they carry.
+func TestShellClaims(t *testing.T) {
+	ring := []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}}
+	rows := []ClearanceTarget{
+		{EntityID: "b", Minimum: domain.Cell{X: 6, Z: 5}, Maximum: domain.Cell{X: 6, Z: 5}, RoofBlocker: "roof"},
+		{EntityID: "a", Minimum: domain.Cell{X: 5, Z: 5}, Maximum: domain.Cell{X: 5, Z: 5}},
+		{EntityID: "danger", Minimum: domain.Cell{X: 5, Z: 5}, Maximum: domain.Cell{X: 5, Z: 5}, AncientDanger: true},
+		{EntityID: "far", Minimum: domain.Cell{X: 9, Z: 9}, Maximum: domain.Cell{X: 9, Z: 9}},
+	}
+	got := ShellClaims(rows, ring)
+	if len(got) != 2 || got[0].EntityID != "a" || got[1].EntityID != "b" {
+		t.Fatal(got)
+	}
+}

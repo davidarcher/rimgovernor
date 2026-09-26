@@ -528,6 +528,7 @@ message CellState {
   optional bool natural_rock = 23; // The edifice is natural rock: a shell reuses it as wall or mines it (#700).
   optional bool ruin = 24; // The edifice is an unowned building the player may deconstruct, outside any ancient danger: a shell ring clears it, then builds (#709).
   optional string player_edifice = 25; // Definition of a player-owned edifice on the cell: a shell ring reuses a wall of its own kind (#709).
+  optional string claimable_ruin = 26; // Definition of a ruin (ruin set) the player may claim: a shell ring claims a wall of its own kind and reuses it (#718).
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; }
 message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; optional uint32 unchanged = 8; optional int64 as_of_tick = 9; CompactCells compact = 10; }
@@ -538,8 +539,10 @@ message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle recta
 // fertility-present, roof-present, zone-present, room-present, natural-rock,
 // edifice-present (bits 0..15). Unchanged/fogged have no other flags or data.
 // Visible cells append unsigned varint string-table indices for present
-// roof/zone/room, then for a present edifice 0 (a ruin) or 1 + the
-// string-table index of the player edifice's definition, then a glow-table index.
+// roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
+// ruin, odd v the player edifice definition at string index (v-1)/2, even
+// v a claimable ruin whose definition is at string index (v-2)/2; then a
+// glow-table index.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
 // fogged; unchanged and as_of_tick retain the ordinary row delta semantics.

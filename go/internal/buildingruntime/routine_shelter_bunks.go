@@ -7,10 +7,12 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // The initial shelter is raised around its bunks (#612). A fresh starter
@@ -48,9 +50,10 @@ const (
 	shellMinePlanPrefix string          = "routine-shelter-mine"
 )
 
-// shelterClearMethod deconstructs the ruins standing on the shell's ring
-// (#709), after the bunks and before the ring, which is then raised on the
-// ring's other cells and closed by adoption once the ruins are gone.
+// shelterClearMethod claims the ruin walls of the ring's kind standing on
+// the shell's ring (#718) and deconstructs the other ruins there (#709),
+// after the bunks and before the ring, which is then raised on the ring's
+// other cells and closed by adoption once the ruins are gone.
 const (
 	shelterClearMethod   domain.MethodID = "shelter-clear"
 	shellClearPlanPrefix string          = "routine-shelter-clear"
@@ -236,7 +239,7 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 			return nil, none, "", &result, err
 		}
 	}
-	if len(layouts) > 0 && len(layouts[0].Cleared) > 0 {
+	if len(layouts) > 0 && len(layouts[0].Cleared)+len(layouts[0].Claimed) > 0 {
 		result, admitted, err := r.admitShellClearing(call, epoch, s, layouts[0])
 		if err != nil || admitted {
 			return nil, none, "", &result, err
@@ -305,13 +308,20 @@ func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s
 	return result, result.Reason == BuildingMethodAdmitted, nil
 }
 
-// admitShellClearing designates the ruins on the sited shell's ring for
-// deconstruction (#709) once per goal epoch, as the shelter-clear rung. The
-// clearance census names each ruin's building; one the census holds for a
-// reason other than lying outside Home (a roof it carries, an ancient
+// shellClaimReader refreshes a claimable building's CAS token.
+type shellClaimReader interface {
+	ReadClaimBuildingTarget(context.Context, *c.Identity, string) (bridge.ClaimBuildingTarget, bridge.Result, error)
+}
+
+// admitShellClearing claims the ruin walls on the sited shell's ring that
+// it keeps as wall (#718) and designates its other ruins for deconstruction
+// (#709), once per goal epoch, as the shelter-clear rung. The clearance
+// census names each ruin's building; a ruin to clear that the census holds
+// for a reason other than lying outside Home (a roof it carries, an ancient
 // danger) is left standing, and the ring's gap there waits on adoption. It
 // reports admitted=false, without error, when the rung is spent or nothing
-// on the ring is clearable, so the ring is still raised this review.
+// on the ring is claimable or clearable, so the ring is still raised this
+// review.
 func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context, s shelterSite, layout policy.StarterLayout) (RoutineBuildingResult, bool, error) {
 	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, shelterClearMethod); err == nil {
 		return RoutineBuildingResult{}, false, nil
@@ -335,14 +345,35 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 	if !known {
 		return RoutineBuildingResult{}, false, nil
 	}
-	targets := policy.ShellRuins(census.Targets, layout.Cleared)
-	if len(targets) == 0 {
-		clockSchedulerLog("%s: %s: none of %d ring ruins clearable", r.goal, shelterClearMethod, len(layout.Cleared))
-		return RoutineBuildingResult{}, false, nil
-	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", s.goal.Goal.ID, s.goal.Goal.Epoch, shelterClearMethod)))
 	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", shellClearPlanPrefix, digest[:16]))
-	actions := make([]domain.Action, 0, len(targets))
+	var actions []domain.Action
+	claims := policy.ShellClaims(census.Targets, layout.Claimed)
+	if reader, ok := r.native.(shellClaimReader); ok {
+		for _, target := range claims {
+			current, _, err := reader.ReadClaimBuildingTarget(call, boundary.Identity(snapshot), target.EntityID)
+			if err != nil {
+				return RoutineBuildingResult{}, false, err
+			}
+			if current.PlayerOwned {
+				continue
+			}
+			value, err := domain.NewClaimBuilding(target.EntityID, current.Token)
+			if err != nil {
+				return RoutineBuildingResult{}, false, err
+			}
+			action, err := domain.NewClaimBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), value)
+			if err != nil {
+				return RoutineBuildingResult{}, false, err
+			}
+			actions = append(actions, action)
+		}
+		if err := s.check(); err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+	}
+	claimed := len(actions)
+	targets := policy.ShellRuins(census.Targets, layout.Cleared)
 	for _, target := range targets {
 		value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
 		if err != nil {
@@ -354,6 +385,10 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 		}
 		actions = append(actions, action)
 	}
+	if len(actions) == 0 {
+		clockSchedulerLog("%s: %s: none of %d ring ruins claimable or clearable", r.goal, shelterClearMethod, len(layout.Claimed)+len(layout.Cleared))
+		return RoutineBuildingResult{}, false, nil
+	}
 	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
@@ -362,7 +397,7 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %d ruins reason=%s", r.goal, shelterClearMethod, len(actions), result.Reason)
+	clockSchedulerLog("%s: %s: %d claims, %d ruins reason=%s", r.goal, shelterClearMethod, claimed, len(actions)-claimed, result.Reason)
 	return result, result.Reason == BuildingMethodAdmitted, nil
 }
 

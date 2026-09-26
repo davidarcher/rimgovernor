@@ -609,3 +609,28 @@ func TestStarterRectangleSize(t *testing.T) {
 		}
 	}
 }
+
+// #718: a claimable ruin wall of the ring's kind is claimed and kept as
+// wall, scored like reused wall; any other ruin is still cleared.
+func TestStarterShellClaimsRuinWallsOfItsKind(t *testing.T) {
+	r := standingColumns(func(c *SiteCell) {
+		c.Ruin = domain.Known(true)
+		if c.Cell.X == 16 {
+			c.ClaimableRuin = domain.Known("Wall")
+		}
+	})
+	r.WallDef = "Wall"
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	best := layouts[0]
+	if best.Room.Width != 9 || len(best.Claimed) != 9 || len(best.Cleared) != 9 || len(best.Reused) != 0 {
+		t.Fatalf("ring does not claim the ruin walls: %+v", best)
+	}
+	for _, p := range best.Claimed {
+		if p.X != 16 {
+			t.Fatalf("claimed %v", p)
+		}
+	}
+}

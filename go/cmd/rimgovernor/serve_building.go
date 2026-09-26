@@ -675,10 +675,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		cleanCapabilities = client.clean
 	}
 	var deconstructionCapabilities *buildingruntime.DeconstructionCapabilities
-	// Resource plans remove exhausted deep drills through the same path (#538).
-	if config.routineClearancePlans || config.routineShrinePlans || config.routineResourcePlans {
+	// Resource plans remove exhausted deep drills through the same path
+	// (#538); the initial shelter clears ruins off its ring (#709).
+	if config.routineClearancePlans || config.routineShrinePlans || config.routineResourcePlans || config.routineShelterPlans {
 		if client.deconstruction == nil {
-			return errors.New("clearance, shrine and resource plans require typed deconstruction capabilities")
+			return errors.New("clearance, shrine, resource and shelter plans require typed deconstruction capabilities")
 		}
 		deconstructionCapabilities = client.deconstruction
 	}
@@ -822,11 +823,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		growerCropCapabilities = client.growerCrop
 	}
-	// The shrine family claims empty caskets through the shared executor.
+	// The shrine family claims empty caskets, and the initial shelter the
+	// ruin walls on its ring (#718), through the shared executor.
 	var claimBuildingCapabilities *claimbuilding.Capabilities
-	if config.routineShrinePlans {
+	if config.routineShrinePlans || config.routineShelterPlans {
 		if client.claimBuilding == nil {
-			return errors.New("shrine plans require typed capabilities")
+			return errors.New("shrine and shelter plans require typed claim capabilities")
 		}
 		claimBuildingCapabilities = client.claimBuilding
 	}

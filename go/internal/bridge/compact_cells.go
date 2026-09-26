@@ -91,14 +91,17 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			row.Ruin = proto.Bool(false)
 			if flags&0x8000 != 0 {
 				edifice, n := binary.Uvarint(data)
-				if n <= 0 || edifice > uint64(len(p.Strings)) {
+				if n <= 0 || edifice > 2*uint64(len(p.Strings)) {
 					return bad()
 				}
 				data = data[n:]
-				if edifice == 0 {
+				switch {
+				case edifice == 0:
 					row.Ruin = proto.Bool(true)
-				} else {
-					row.PlayerEdifice = proto.String(p.Strings[edifice-1])
+				case edifice%2 == 1:
+					row.PlayerEdifice = proto.String(p.Strings[(edifice-1)/2])
+				default:
+					row.Ruin, row.ClaimableRuin = proto.Bool(true), proto.String(p.Strings[(edifice-2)/2])
 				}
 			}
 			index, n := binary.Uvarint(data)

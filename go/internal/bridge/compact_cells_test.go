@@ -34,17 +34,17 @@ func TestCompactCellsPreservesFactsAndDelta(t *testing.T) {
 	}
 }
 
-// #709: bit 15 carries the edifice: 0 a ruin, else 1 + the player
-// edifice definition's string index.
+// #709, #718: bit 15 carries the edifice: 0 a ruin, odd the player
+// edifice definition's string index, even a claimable ruin's.
 func TestCompactCellsEdifice(t *testing.T) {
-	for edifice, want := range map[byte]*o.CellState{0: {Ruin: proto.Bool(true)}, 2: {Ruin: proto.Bool(false), PlayerEdifice: proto.String("7")}} {
+	for edifice, want := range map[byte]*o.CellState{0: {Ruin: proto.Bool(true)}, 3: {Ruin: proto.Bool(false), PlayerEdifice: proto.String("7")}, 4: {Ruin: proto.Bool(true), ClaimableRuin: proto.String("7")}} {
 		s := compactFixture()
 		s.Compact.Rows[0] = []byte{0xfc, 0xff, 0, 1, 2, edifice, 0, 2, 0, 1, 0}
 		if err := ExpandCompactCells(s); err != nil {
 			t.Fatal(err)
 		}
 		got := s.Cells[0]
-		if got.GetRuin() != want.GetRuin() || (got.PlayerEdifice == nil) != (want.PlayerEdifice == nil) || got.GetPlayerEdifice() != want.GetPlayerEdifice() || got.GetGlow() != .123456789 {
+		if got.GetRuin() != want.GetRuin() || (got.PlayerEdifice == nil) != (want.PlayerEdifice == nil) || got.GetPlayerEdifice() != want.GetPlayerEdifice() || (got.ClaimableRuin == nil) != (want.ClaimableRuin == nil) || got.GetClaimableRuin() != want.GetClaimableRuin() || got.GetGlow() != .123456789 {
 			t.Fatalf("edifice %d: %v", edifice, got)
 		}
 	}
@@ -55,7 +55,7 @@ func TestCompactCellsRejectsMalformedCoverage(t *testing.T) {
 		"mixed":              func(s *o.CellsSnapshot) { s.Cells = []*o.CellState{{}} },
 		"missing row":        func(s *o.CellsSnapshot) { s.Compact.Rows = nil },
 		"truncated":          func(s *o.CellsSnapshot) { s.Compact.Rows[0] = []byte{4} },
-		"bad edifice":        func(s *o.CellsSnapshot) { s.Compact.Rows[0] = []byte{0xfc, 0xff, 0, 1, 2, 4, 0, 2, 0, 1, 0} },
+		"bad edifice":        func(s *o.CellsSnapshot) { s.Compact.Rows[0] = []byte{0xfc, 0xff, 0, 1, 2, 7, 0, 2, 0, 1, 0} },
 		"fog facts":          func(s *o.CellsSnapshot) { s.Compact.Rows[0][6] = 6 },
 		"unchanged facts":    func(s *o.CellsSnapshot) { s.Compact.Rows[0][8] = 5 },
 		"bad index":          func(s *o.CellsSnapshot) { s.Compact.Rows[0][2] = 3 },

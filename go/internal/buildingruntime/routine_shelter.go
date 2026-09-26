@@ -206,7 +206,7 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 		if len(perimeter) == 0 {
 			return nil, policy.StockObservation{}, "", ErrControl
 		}
-		perimeter = unreused(perimeter, append(append([]domain.Cell(nil), layout.Reused...), layout.Cleared...))
+		perimeter = unreused(perimeter, append(append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...), layout.Cleared...))
 		ids := make([]domain.ActionID, len(perimeter))
 		for i := range perimeter {
 			ids[i] = domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i))
@@ -233,10 +233,10 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 	return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
 }
 
-// unreused drops the placements on ring cells natural rock or a player
-// wall already walls (#700, #709), and on ring cells a ruin still holds: the
-// shelter's clear rung deconstructs it, and adoption closes that gap once
-// the ground is open.
+// unreused drops the placements on ring cells natural rock, a player wall
+// or a claimed ruin wall already walls (#700, #709, #718), and on ring cells
+// a ruin still holds: the shelter's clear rung deconstructs it, and
+// adoption closes that gap once the ground is open.
 func unreused(perimeter []domain.Building, reused []domain.Cell) []domain.Building {
 	if len(reused) == 0 {
 		return perimeter
@@ -254,11 +254,11 @@ func unreused(perimeter []domain.Building, reused []domain.Cell) []domain.Buildi
 	return kept
 }
 
-// uncleared keeps the layouts with no ruin on their ring.
+// uncleared keeps the layouts with no ruin on their ring to clear or claim.
 func uncleared(layouts []policy.StarterLayout) []policy.StarterLayout {
 	kept := make([]policy.StarterLayout, 0, len(layouts))
 	for _, l := range layouts {
-		if len(l.Cleared) == 0 {
+		if len(l.Cleared) == 0 && len(l.Claimed) == 0 {
 			kept = append(kept, l)
 		}
 	}

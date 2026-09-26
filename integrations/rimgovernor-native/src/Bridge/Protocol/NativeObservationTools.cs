@@ -98,6 +98,9 @@ namespace HomeBridge.BridgeTools
                         row.Ruin = edifice != null && player != null && edifice.Faction != player && edifice.def.building?.isNaturalRock != true
                             && !edifice.def.mineable && edifice.DeconstructibleBy(player) && !NativeClearanceObservationTools.AncientDanger(map, edifice, player);
                         if (edifice != null && player != null && edifice.Faction == player) row.PlayerEdifice = Identifier(edifice.def.defName);
+                        // A claimable ruin of the ring's wall kind is claimed
+                        // and kept as wall rather than cleared (#718).
+                        if (row.Ruin && edifice is Building ruin && ruin.ClaimableBy(player)) row.ClaimableRuin = Identifier(edifice.def.defName);
                     }
                     if (fields.Zone) {
                         var zone = map.zoneManager.ZoneAt(cell);

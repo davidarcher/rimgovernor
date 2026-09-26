@@ -212,11 +212,7 @@ func SelectChunkDump(rows []ClearanceChunk, sites []domain.Cell, protected []dom
 func ShellRuins(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
 	var out []ClearanceTarget
 	for _, row := range rows {
-		covers := false
-		for _, c := range cells {
-			covers = covers || c.X >= row.Minimum.X && c.X <= row.Maximum.X && c.Z >= row.Minimum.Z && c.Z <= row.Maximum.Z
-		}
-		if !covers {
+		if !coversAny(row, cells) {
 			continue
 		}
 		held := row
@@ -227,4 +223,28 @@ func ShellRuins(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].EntityID < out[j].EntityID })
 	return out
+}
+
+// ShellClaims is the census rows a starter ring claims as wall (#718): each
+// building covering one of the ring's claimable ruin cells, outside any
+// ancient danger. Ordered by identity.
+func ShellClaims(rows []ClearanceTarget, cells []domain.Cell) []ClearanceTarget {
+	var out []ClearanceTarget
+	for _, row := range rows {
+		if row.AncientDanger || row.Class == "ancient_casket" || !coversAny(row, cells) {
+			continue
+		}
+		out = append(out, row)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].EntityID < out[j].EntityID })
+	return out
+}
+
+func coversAny(row ClearanceTarget, cells []domain.Cell) bool {
+	for _, c := range cells {
+		if c.X >= row.Minimum.X && c.X <= row.Maximum.X && c.Z >= row.Minimum.Z && c.Z <= row.Maximum.Z {
+			return true
+		}
+	}
+	return false
 }
