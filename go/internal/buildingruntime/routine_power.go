@@ -325,6 +325,160 @@ func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot 
 	return []policy.Preview{p}, stock, "", nil
 }
 
+// previewPowerOrSearch places a generator or battery on the v2 layout
+// plan's sites (#788) at Masonry and above, and falls back to the search
+// near the consumer when the plan has no open site for it (no plan yet, the
+// battery room not built and roofed, every site taken or refused).
+func (r *RoutineBuildingPlanner) previewPowerOrSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	if r.power != nil && (r.power.Method == policy.PowerGenerate || r.power.Method == policy.PowerStore) {
+		selected, stock, ok, err := r.previewPlannedPower(call, snapshot, facts, protected, missing, check)
+		if err != nil || ok {
+			return selected, stock, "", err
+		}
+	}
+	return r.previewSearch(call, snapshot, facts, protected, missing, check)
+}
+
+// previewPlannedPower previews the plan's sites for r.definition in plan
+// order and keeps the first missing ones the native accepts: legal, safe,
+// on exactly the planned footprint, a turbine with a clear catch zone, a
+// battery under roof. A battery past its side's first row brings the wall
+// block between it and the one before, in the style's run stuff (stone at
+// Masonry), unless one stands. False when fewer than missing sites fit.
+func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, bool, error) {
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	plan, planned := facts.LayoutPlan.Value()
+	if tier, ok := facts.BuildTier.Value(); !planned || !ok || tier < policy.BuildTierMasonry || missing < 1 {
+		return nil, stock, false, nil
+	}
+	sites := policy.PlannedPowerSites(plan, r.definition)
+	if len(sites) == 0 {
+		return nil, stock, false, nil
+	}
+	blocked := map[domain.Cell]bool{}
+	for _, c := range protected {
+		blocked[c] = true
+	}
+	built := map[domain.Cell]bool{}
+	if census, ok := facts.Facts.CurrentConstruction.Value(); ok && census.Colony {
+		for _, b := range census.Buildings {
+			for _, c := range b.Cells {
+				built[c] = true
+			}
+		}
+	}
+	roofed := map[domain.Cell]bool{}
+	for _, c := range facts.Cells {
+		if v, known := c.Roofed.Value(); known && v {
+			roofed[c.Cell] = true
+		}
+	}
+	wallStuff := ""
+	if s, ok := policy.WallStuff(styleTier(facts), policy.WallRun, styleStock(facts)); ok {
+		wallStuff = string(s)
+	}
+	n, merged := 0, 0
+	preview := func(name string, c domain.Cell, rot domain.Rotation, stuff string, area policy.Rectangle) (policy.Preview, bool, error) {
+		if err := check(); err != nil {
+			return policy.Preview{}, false, err
+		}
+		b, err := domain.NewBuilding(name, c, rot, stuff)
+		if err != nil {
+			return policy.Preview{}, false, err
+		}
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, n)), b)
+		if err != nil {
+			return policy.Preview{}, false, err
+		}
+		n++
+		p, _, err := r.native.PreviewBuilding(ctx, a, snapshot)
+		if err != nil {
+			return policy.Preview{}, false, err
+		}
+		if err = check(); err != nil {
+			return policy.Preview{}, false, err
+		}
+		v := p.Preview
+		if v.Action != a || !v.Snapshot.Matches(snapshot) || !p.Stock.Snapshot.Matches(snapshot) {
+			return policy.Preview{}, false, ErrControl
+		}
+		footprint, fk := v.Footprint.Value()
+		can, ck := v.CanPlace.Value()
+		safe, sk := v.SafeToPlace.Value()
+		made, mk := v.MadeFromStuff.Value()
+		if !fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !sameCells(footprint, policy.RectangleCells(area)) {
+			return policy.Preview{}, false, nil
+		}
+		if name == policy.WindTurbineDefinition {
+			if w, known := v.WindBlockedCells.Value(); !known || w > 0 {
+				return policy.Preview{}, false, nil
+			}
+		}
+		if err = mergeRoutineStock(&stock, p.Stock, merged == 0); err != nil {
+			return policy.Preview{}, false, err
+		}
+		merged++
+		return v, true, nil
+	}
+	var selected []policy.Preview
+	placed := int64(0)
+	for _, s := range sites {
+		if placed == missing {
+			break
+		}
+		cells := policy.RectangleCells(s.Area)
+		free := true
+		for _, c := range cells {
+			free = free && !blocked[c] && !built[c] && (r.definition != policy.BatteryDefinition || roofed[c])
+		}
+		if !free {
+			continue
+		}
+		v, ok, err := preview(r.definition, s.Cell, s.Rotation, r.stuff, s.Area)
+		if err != nil {
+			return nil, stock, false, err
+		}
+		if !ok {
+			continue
+		}
+		selected = append(selected, v)
+		placed++
+		for _, c := range policy.RectangleCells(s.Block) {
+			if built[c] || blocked[c] {
+				continue
+			}
+			w, ok, err := preview("Wall", c, domain.North, wallStuff, policy.Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})
+			if err != nil {
+				return nil, stock, false, err
+			}
+			if ok {
+				selected = append(selected, w)
+			}
+		}
+	}
+	if placed < missing {
+		return nil, stock, false, nil
+	}
+	return selected, stock, true, nil
+}
+
+// sameCells reports whether a and b hold the same cells.
+func sameCells(a, b []domain.Cell) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := map[domain.Cell]bool{}
+	for _, c := range a {
+		set[c] = true
+	}
+	for _, c := range b {
+		if !set[c] {
+			return false
+		}
+	}
+	return true
+}
+
 // Conduits may legally underlay occupied cells. Validate the exact observed
 // route with native previews instead of treating occupied cells as free floor.
 func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {

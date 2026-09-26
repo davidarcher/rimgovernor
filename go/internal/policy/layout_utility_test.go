@@ -6,6 +6,38 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+func TestPlannedPowerSites(t *testing.T) {
+	p := PlanUtilities(PlanCore(coreTestZones(), 3), UtilityWants{TurbinePairs: 1, Solar: 1})
+	batteries := PlannedPowerSites(p, BatteryDefinition)
+	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
+		t.Fatal(batteries)
+	}
+	for _, b := range batteries[2:] {
+		if b.Rotation != domain.East || b.Block.Height != 1 || b.Block.Width != 2 || b.Block.X != b.Area.X {
+			t.Fatal(b)
+		}
+		if d := b.Block.Z - b.Area.Z; d != 1 && d != -1 {
+			t.Fatal("block not beside its battery", b)
+		}
+	}
+	turbines := PlannedPowerSites(p, WindTurbineDefinition)
+	if len(turbines) != 2 || turbines[0].Rotation == turbines[1].Rotation {
+		t.Fatal(turbines)
+	}
+	for _, s := range turbines {
+		for _, c := range TurbineWindCells(s.Cell, s.Rotation) {
+			for _, o := range turbines {
+				if inRect(o.Area, c) {
+					t.Fatal("catch zone crosses a turbine", s, c)
+				}
+			}
+		}
+	}
+	if solar := PlannedPowerSites(p, SolarDefinition); len(solar) != 1 {
+		t.Fatal(solar)
+	}
+}
+
 func inRect(r Rectangle, c domain.Cell) bool {
 	return c.X >= r.X && c.Z >= r.Z && c.X < r.X+r.Width && c.Z < r.Z+r.Height
 }

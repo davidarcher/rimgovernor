@@ -191,6 +191,77 @@ func BatterySlots(r LayoutRoom) []Rectangle {
 	return out
 }
 
+// PlannedPowerSite is one planned battery or generator placement: the
+// native centre and rotation, and the footprint the preview must match.
+// Block is the stone block between a battery and the one before it on its
+// side (zero for the first row and for generators).
+type PlannedPowerSite struct {
+	Cell     domain.Cell
+	Rotation domain.Rotation
+	Area     Rectangle
+	Block    Rectangle
+}
+
+// PlannedPowerSites lists the plan's sites for definition (#788):
+// batteries in the battery room's slots (1x2 turned east), wind turbines on
+// their pair reservations (the southern one facing north), solar on its
+// plots. Nil for any other definition or a plan with no such site.
+func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
+	var out []PlannedPowerSite
+	switch definition {
+	case BatteryDefinition:
+		for _, r := range plan.Rooms {
+			if r.Role != ModuleBattery {
+				continue
+			}
+			slots := BatterySlots(r)
+			for i, s := range slots {
+				site := PlannedPowerSite{Cell: domain.Cell{X: s.X, Z: s.Z}, Rotation: domain.East, Area: s}
+				if i >= 2 {
+					prev := slots[i-2]
+					site.Block = Rectangle{X: s.X, Z: (s.Z + prev.Z) / 2, Width: s.Width, Height: 1}
+				}
+				out = append(out, site)
+			}
+		}
+	case WindTurbineDefinition:
+		for _, r := range plan.Reservations {
+			if r.Kind != ReserveTurbine {
+				continue
+			}
+			south := true
+			for _, o := range plan.Reservations {
+				if o.Kind == ReserveTurbine && o.Pair == r.Pair && o.Area.Z < r.Area.Z {
+					south = false
+				}
+			}
+			c, rot := TurbinePlacement(r.Area, south)
+			out = append(out, PlannedPowerSite{Cell: c, Rotation: rot, Area: r.Area})
+		}
+	case SolarDefinition:
+		for _, r := range plan.Reservations {
+			if r.Kind == ReserveSolar {
+				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: r.Area.X + 1, Z: r.Area.Z + 1}, Rotation: domain.North, Area: r.Area})
+			}
+		}
+	}
+	return out
+}
+
+// SolarDefinition is the solar generator, planned on its 4x4 plots.
+const SolarDefinition = "SolarGenerator"
+
+// RectangleCells lists r's cells row by row.
+func RectangleCells(r Rectangle) []domain.Cell {
+	var out []domain.Cell
+	for z := r.Z; z < r.Z+r.Height; z++ {
+		for x := r.X; x < r.X+r.Width; x++ {
+			out = append(out, domain.Cell{X: x, Z: z})
+		}
+	}
+	return out
+}
+
 // utilityGrid marks the cells a utility site may not take.
 type utilityGrid struct {
 	w, h           int32

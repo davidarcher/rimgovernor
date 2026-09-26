@@ -866,7 +866,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	if r.power != nil && r.power.FixedSite() {
 		return r.previewPowerSite(call, snapshot, facts, protected, check)
 	}
-	selected, stock, reason, err := r.previewSearch(call, snapshot, facts, protected, missing, check)
+	selected, stock, reason, err := r.previewPowerOrSearch(call, snapshot, facts, protected, missing, check)
 	if r.power != nil && r.power.Method == policy.PowerGenerate {
 		// A generator with no acceptable site near the consumer (a wind
 		// turbine whose every catch zone is obstructed) yields to the next
@@ -877,7 +877,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			}
 			next := *r
 			next.definition = name
-			selected, stock, reason, err = next.previewSearch(call, snapshot, facts, protected, missing, check)
+			selected, stock, reason, err = next.previewPowerOrSearch(call, snapshot, facts, protected, missing, check)
 		}
 	}
 	return selected, stock, reason, err
