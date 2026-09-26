@@ -82,3 +82,35 @@ func TestResourceAcquisitionSelectsOnlyTheNamedHarvest(t *testing.T) {
 		t.Fatal("empty resource accepted")
 	}
 }
+
+// Converted from the native case food/hunt-selection (removed for #749 at
+// 04b0a98c): HuntSelectionFixture staged a wild deer and a three-muffalo
+// herd with a positive revenge chance. With one hunting slot and a small
+// food deficit the planner picks the deer first, whatever the native row
+// order, and every hunt channel explains its revenge risk and work.
+func TestHuntSelectionPrefersTheSafeDeerOverTheHerd(t *testing.T) {
+	var rows []AcquisitionSource
+	for i := 0; i < 3; i++ {
+		rows = append(rows, AcquisitionSource{ID: fmt.Sprint("muffalo", i), Definition: "Muffalo", Resource: "Corpse_Muffalo", Token: "m", Food: true, Hunt: true, Yield: 1, NutritionYield: 9, RevengeChance: 0.1, HerdSize: 3, Cell: domain.Cell{X: 10 + int32(i), Z: 10}})
+	}
+	rows = append(rows, AcquisitionSource{ID: "deer", Definition: "Deer", Resource: "Corpse_Deer", Token: "d", Food: true, Hunt: true, Yield: 1, NutritionYield: 4, RevengeChance: 0.05, HerdSize: 1, Cell: domain.Cell{X: 9, Z: 10}})
+	selected, err := SelectAcquisition(domain.Known(rows), domain.Known(0.1), domain.Known(0.0), true, nil, domain.Known(1))
+	if err != nil || len(selected) != 1 || selected[0].ID != "deer" {
+		t.Fatal("safe deer not selected first", selected, err)
+	}
+	channels := HuntChannels(rows)
+	if len(channels) != 4 {
+		t.Fatal(channels)
+	}
+	for _, c := range channels {
+		if len(c.Risk) != 1 || c.Risk[0].Kind != FoodRevenge {
+			t.Fatal("hunt channel lacks revenge risk", c)
+		}
+		if w, known := c.WorkPerDay.Value(); !known || w <= 0 {
+			t.Fatal("hunt channel lacks work", c)
+		}
+	}
+	if muffalo, deer := channels[0].Risk[0], channels[3].Risk[0]; muffalo.Weight <= deer.Weight {
+		t.Fatal("herd revenge cost not above the deer's", muffalo, deer)
+	}
+}

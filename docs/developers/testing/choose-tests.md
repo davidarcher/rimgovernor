@@ -371,12 +371,11 @@ with zero stock. Preparation must take less than a minute. This stages the
 initial state only: ordinary plant regrowth and animal arrivals still apply
 when a channel case advances the simulation.
 
-`food.CheckChannel` asserts typed portfolio rows by channel kind, decision and
-optional source ID, with nutrition/day minimums and finite explain terms.
-`food.CheckBaselinePlan` requires Forage and Hunt Open with positive admitted
-nutrition/day. Callers read the live controller plan and separately establish
-the native pre-harvest state; unknown rows cannot satisfy these assertions.
-`acceptance run food/ledger-baseline` brackets the live colony API plan with native field and rice censuses on the ordinary tribal8 save, before planting or harvest. `test/food_baseline_prey` adds one deterministic wild deer near the colony because the save has no wild prey; existing food channels and colonist skills, equipment and work remain untouched.
+The food planner decisions the former channel cases asserted are go tests
+(#749): the tribal8 pre-harvest portfolio opening forage and hunt replays a
+recorded colony snapshot (`internal/snapshot`, `TestLedgerBaselineOpensForageAndHunt`);
+hunt selection, meal tiers and human butchery are policy tests over the facts
+their fixtures staged.
 
 ## Adding a case
 
@@ -1054,7 +1053,7 @@ one of these is an expected transient sets `FailFast{Disabled: true}`
 (the `sustained/colony` diagnostics) or raises `NoMethodReviews` /
 `RefusalSamples` / `ParkSamples`. A baseline-save case whose kept needs
 can down a colonist keeps `tend` and `rescue` beside its families
-(`supply/starting`, #201's startup cases) so an emergency is served
+(#201's startup cases) so an emergency is served
 rather than parked on.
 
 Process reuse carries the same static-state caveat as an `Owned` case's

@@ -1,0 +1,8957 @@
+{
+ "Facts": {
+  "AnimalUpkeep": {
+   "Animals": {
+    "v": [
+     {
+      "AllowedArea": {
+       "v": ""
+      },
+      "Definition": "YorkshireTerrier",
+      "ID": "Thing_YorkshireTerrier2666",
+      "Pen": {
+       "v": ""
+      },
+      "ReachableBenches": [],
+      "ReachableStorage": [],
+      "Release": {
+       "v": false
+      },
+      "RequiresPen": {
+       "v": false
+      },
+      "SafeToRelease": {
+       "v": false
+      },
+      "Slaughter": {
+       "v": false
+      },
+      "StorageCandidates": [],
+      "SuitablePen": {
+       "v": ""
+      },
+      "SupportsAreas": {
+       "v": true
+      },
+      "Training": [
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Obedience",
+        "Learned": {
+         "v": true
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Release",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Rescue",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": false
+        },
+        "Def": "Haul",
+        "Learned": {
+         "v": false
+        }
+       },
+       {
+        "Available": {
+         "v": true
+        },
+        "Def": "Tameness",
+        "Learned": {
+         "v": true
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "Food": {
+    "v": {
+     "Complete": {
+      "v": true
+     },
+     "Consumers": [
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human195",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human231",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": false
+       },
+       "ID": "Thing_Human209",
+       "NutritionPerDay": {
+        "v": 1.600000023841858
+       }
+      },
+      {
+       "HumanMeatAcceptable": {
+        "v": true
+       },
+       "ID": "Thing_YorkshireTerrier2666",
+       "NutritionPerDay": {
+        "v": 0.23999999463558197
+       }
+      }
+     ],
+     "Larder": {
+      "v": {}
+     },
+     "Stocks": [
+      {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2669",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2670",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2671",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2672",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2657",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 2
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2706",
+       "Nutrition": {
+        "v": 1.7999999523162842
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 1
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2707",
+       "Nutrition": {
+        "v": 0.8999999761581421
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 1
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2709",
+       "Nutrition": {
+        "v": 0.8999999761581421
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 2
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2710",
+       "Nutrition": {
+        "v": 1.7999999523162842
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      },
+      {
+       "Count": {
+        "v": 1
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209",
+        "Thing_YorkshireTerrier2666"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2712",
+       "Nutrition": {
+        "v": 0.8999999761581421
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     ]
+    }
+   },
+   "Forecast": {
+    "v": {
+     "Consumers": [
+      {
+       "ID": "Thing_Human195",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human209",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human231",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_YorkshireTerrier2666",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "PetShortfalls": [
+      {
+       "ID": "Thing_YorkshireTerrier2666",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "RunwayDays": {
+      "v": 0
+     }
+    }
+   },
+   "WildAnimals": {
+    "v": []
+   }
+  },
+  "Armed": {
+   "v": 0
+  },
+  "AvailableMethods": {
+   "v": [
+    "TradeWithCaravan"
+   ]
+  },
+  "BasicComfort": {
+   "v": {
+    "Dining": [],
+    "Joy": {
+     "Methods": [
+      {
+       "Definition": "BilliardsTable",
+       "Kind": "Gaming_Dexterity"
+      },
+      {
+       "Definition": "ChessTable",
+       "Kind": "Gaming_Cerebral"
+      },
+      {
+       "Definition": "HorseshoesPin",
+       "Kind": "Gaming_Dexterity"
+      }
+     ],
+     "Pawns": [
+      {
+       "Pawn": "Thing_Human195"
+      },
+      {
+       "Pawn": "Thing_Human209"
+      },
+      {
+       "Pawn": "Thing_Human231"
+      }
+     ]
+    },
+    "People": [
+     "Thing_Human195",
+     "Thing_Human209",
+     "Thing_Human231"
+    ],
+    "Recreation": []
+   }
+  },
+  "BedCapacity": {
+   "v": 0
+  },
+  "Blight": {
+   "v": []
+  },
+  "Calendar": {
+   "v": {
+    "DayOfYear": 10,
+    "GrowingDays": 30,
+    "GrowingDaysRemaining": 23,
+    "NonGrowingDays": 34,
+    "Season": "Spring",
+    "Sowing": true
+   }
+  },
+  "ChoiceDialog": {
+   "v": false
+  },
+  "CleanupPawns": {
+   "v": false
+  },
+  "Colonists": {
+   "v": 3
+  },
+  "ColonyNaming": {
+   "v": false
+  },
+  "Comfort": {
+   "v": {
+    "Dining": [],
+    "Joy": {
+     "Methods": [
+      {
+       "Definition": "BilliardsTable",
+       "Kind": "Gaming_Dexterity"
+      },
+      {
+       "Definition": "ChessTable",
+       "Kind": "Gaming_Cerebral"
+      },
+      {
+       "Definition": "HorseshoesPin",
+       "Kind": "Gaming_Dexterity"
+      }
+     ],
+     "Pawns": [
+      {
+       "Pawn": "Thing_Human195"
+      },
+      {
+       "Pawn": "Thing_Human209"
+      },
+      {
+       "Pawn": "Thing_Human231"
+      }
+     ]
+    },
+    "People": [
+     "Thing_Human195",
+     "Thing_Human209",
+     "Thing_Human231"
+    ],
+    "Recreation": []
+   }
+  },
+  "ComfortDeficit": {
+   "v": 1
+  },
+  "ComfortRecovered": {
+   "v": false
+  },
+  "ConstructionClaims": {
+   "v": []
+  },
+  "Cooking": {
+   "v": false
+  },
+  "CriticalPatients": {
+   "v": 0
+  },
+  "CurrentConstruction": {
+   "v": {
+    "Buildings": [],
+    "Colony": true,
+    "Requested": []
+   }
+  },
+  "Custody": {
+   "v": [
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human195",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human209",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human231",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16644",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16707",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16714",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16722",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16727",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16749",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16756",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16762",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16767",
+     "Prisoner": {
+      "v": false
+     }
+    },
+    {
+     "Admitted": {
+      "v": false
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Guest": {
+      "v": false
+     },
+     "Pawn": "Thing_Human16773",
+     "Prisoner": {
+      "v": false
+     }
+    }
+   ]
+  },
+  "DefenseTiers": {
+   "v": 0
+  },
+  "DisabledConsumers": {
+   "v": false
+  },
+  "DisasterConditions": {
+   "v": []
+  },
+  "DisasterTick": 9655,
+  "EventLoot": {
+   "v": [
+    {
+     "Count": 300,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 9
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 111
+      },
+      "Definition": "Silver",
+      "Thing": "Thing_Silver2656"
+     }
+    },
+    {
+     "Count": 10,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 6
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 87,
+       "Z": 108
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2657"
+     }
+    },
+    {
+     "Count": 30,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 90,
+       "Z": 112
+      },
+      "Definition": "ComponentIndustrial",
+      "Thing": "Thing_ComponentIndustrial2659"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 7
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 109
+      },
+      "Definition": "Gun_BoltActionRifle",
+      "Thing": "Thing_Gun_BoltActionRifle2660"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 5
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 83,
+       "Z": 107
+      },
+      "Definition": "Gun_Revolver",
+      "Thing": "Thing_Gun_Revolver2661"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 8
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 90,
+       "Z": 110
+      },
+      "Definition": "MeleeWeapon_Knife",
+      "Thing": "Thing_MeleeWeapon_Knife2662"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 7
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 87,
+       "Z": 109
+      },
+      "Definition": "Apparel_FlakPants",
+      "Thing": "Thing_Apparel_FlakPants2663"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 5
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 83,
+       "Z": 105
+      },
+      "Definition": "Apparel_FlakVest",
+      "Thing": "Thing_Apparel_FlakVest2664"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 9
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 111
+      },
+      "Definition": "Apparel_AdvancedHelmet",
+      "Thing": "Thing_Apparel_AdvancedHelmet2665"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 6
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 82,
+       "Z": 106
+      },
+      "Definition": "EggTortoiseFertilized",
+      "Thing": "Thing_EggTortoiseFertilized2667"
+     }
+    },
+    {
+     "Count": 500,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 9
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 90,
+       "Z": 111
+      },
+      "Definition": "Silver",
+      "Thing": "Thing_Silver2668"
+     }
+    },
+    {
+     "Count": 10,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 6
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 88,
+       "Z": 108
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2669"
+     }
+    },
+    {
+     "Count": 10,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 6
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 108
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2670"
+     }
+    },
+    {
+     "Count": 10,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 7
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 88,
+       "Z": 109
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2671"
+     }
+    },
+    {
+     "Count": 10,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 5
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 88,
+       "Z": 107
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2672"
+     }
+    },
+    {
+     "Count": 43,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 15
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 82,
+       "Z": 117
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog2683"
+     }
+    },
+    {
+     "Count": 40,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 17
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 83,
+       "Z": 118
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog2684"
+     }
+    },
+    {
+     "Count": 67,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 16
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 81,
+       "Z": 117
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog2685"
+     }
+    },
+    {
+     "Count": 69,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 15
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 83,
+       "Z": 117
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog2686"
+     }
+    },
+    {
+     "Count": 75,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 5
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 84,
+       "Z": 107
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog2687"
+     }
+    },
+    {
+     "Count": 6,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 5
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 85,
+       "Z": 107
+      },
+      "Definition": "WoodLog",
+      "Thing": "Thing_WoodLog2688"
+     }
+    },
+    {
+     "Count": 2,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 63
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 25,
+       "Z": 59
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2706"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 66
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 22,
+       "Z": 63
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2707"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 59
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 29,
+       "Z": 63
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2709"
+     }
+    },
+    {
+     "Count": 2,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 54
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 142,
+       "Z": 73
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2710"
+     }
+    },
+    {
+     "Count": 1,
+     "Forbidden": true,
+     "PathLength": {
+      "v": 53
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 141,
+       "Z": 72
+      },
+      "Definition": "MealSurvivalPack",
+      "Thing": "Thing_MealSurvivalPack2712"
+     }
+    },
+    {
+     "Count": 400,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 112
+      },
+      "Definition": "Silver",
+      "Thing": "Thing_Silver16616"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 92,
+       "Z": 112
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16617"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 11
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 113
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16618"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 11
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 92,
+       "Z": 113
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16619"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 9
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 92,
+       "Z": 111
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16620"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 11
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 90,
+       "Z": 113
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16621"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 93,
+       "Z": 112
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16622"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 112
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16623"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 12
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 114
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16624"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 8
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 110
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16625"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 12
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 92,
+       "Z": 114
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16626"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 13
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 90,
+       "Z": 114
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16627"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 8
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 92,
+       "Z": 110
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16628"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 12
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 113
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16629"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 9
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 93,
+       "Z": 111
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16630"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 11
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 93,
+       "Z": 113
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16631"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 12
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 114
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16632"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 8
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 93,
+       "Z": 110
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16633"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 8
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 89,
+       "Z": 110
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16634"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 13
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 93,
+       "Z": 114
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16635"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 13
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 115
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16636"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 7
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 91,
+       "Z": 109
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16637"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 94,
+       "Z": 112
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16638"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 10
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 88,
+       "Z": 112
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16639"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 7
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 90,
+       "Z": 109
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16640"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 9
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 94,
+       "Z": 111
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16641"
+     }
+    },
+    {
+     "Count": 75,
+     "PathLength": {
+      "v": 11
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 94,
+       "Z": 113
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16642"
+     }
+    },
+    {
+     "Count": 50,
+     "PathLength": {
+      "v": 14
+     },
+     "SafeToHaul": true,
+     "SafetyKnown": true,
+     "StorageHeadroom": {
+      "v": 0
+     },
+     "Supply": {
+      "Cell": {
+       "X": 92,
+       "Z": 115
+      },
+      "Definition": "Steel",
+      "Thing": "Thing_Steel16643"
+     }
+    }
+   ]
+  },
+  "EventLootPending": {
+   "v": false
+  },
+  "FieldCoverage": {
+   "v": 0
+  },
+  "FoodDays": {
+   "v": 0
+  },
+  "FoodPlan": {
+   "v": {
+    "DeliveredPerDay": 2.3000000342726707,
+    "DemandPerDay": 5.040000066161156,
+    "Forecast": {
+     "Consumers": [
+      {
+       "ID": "Thing_Human195",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human209",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_Human231",
+       "NutritionPerDay": 1.600000023841858
+      },
+      {
+       "ID": "Thing_YorkshireTerrier2666",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "PetShortfalls": [
+      {
+       "ID": "Thing_YorkshireTerrier2666",
+       "NutritionPerDay": 0.23999999463558197
+      }
+     ],
+     "RunwayDays": {
+      "v": 0
+     }
+    },
+    "GapPerDay": 7.780000098049641,
+    "Portfolio": [
+     {
+      "Channel": {
+       "ID": "Thing_Plant_Berry4967",
+       "Kind": "Forage",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0.5000000074505806
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "estimated_cycle_days",
+         "Value": 1
+        },
+        {
+         "Name": "estimated_work_ticks",
+         "Value": 2500
+        }
+       ],
+       "WorkPerDay": {
+        "v": 2500
+       }
+      },
+      "Decision": "Open",
+      "DeliveredPerDay": 0.5000000074505806,
+      "Reason": "close nutrition gap",
+      "Terms": [
+       {
+        "Name": "estimated_cycle_days",
+        "Value": 1
+       },
+       {
+        "Name": "estimated_work_ticks",
+        "Value": 2500
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day",
+        "Value": 0.5000000074505806
+       },
+       {
+        "Name": "work_per_day",
+        "Value": 2500
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "Thing_Plant_Berry5788",
+       "Kind": "Forage",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0.5000000074505806
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "estimated_cycle_days",
+         "Value": 1
+        },
+        {
+         "Name": "estimated_work_ticks",
+         "Value": 2500
+        }
+       ],
+       "WorkPerDay": {
+        "v": 2500
+       }
+      },
+      "Decision": "Open",
+      "DeliveredPerDay": 0.5000000074505806,
+      "Reason": "close nutrition gap",
+      "Terms": [
+       {
+        "Name": "estimated_cycle_days",
+        "Value": 1
+       },
+       {
+        "Name": "estimated_work_ticks",
+        "Value": 2500
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day",
+        "Value": 0.5000000074505806
+       },
+       {
+        "Name": "work_per_day",
+        "Value": 2500
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "Thing_Plant_Berry7862",
+       "Kind": "Forage",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0.5000000074505806
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "estimated_cycle_days",
+         "Value": 1
+        },
+        {
+         "Name": "estimated_work_ticks",
+         "Value": 2500
+        }
+       ],
+       "WorkPerDay": {
+        "v": 2500
+       }
+      },
+      "Decision": "Open",
+      "DeliveredPerDay": 0.5000000074505806,
+      "Reason": "close nutrition gap",
+      "Terms": [
+       {
+        "Name": "estimated_cycle_days",
+        "Value": 1
+       },
+       {
+        "Name": "estimated_work_ticks",
+        "Value": 2500
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day",
+        "Value": 0.5000000074505806
+       },
+       {
+        "Name": "work_per_day",
+        "Value": 2500
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "Thing_Plant_Berry7409",
+       "Kind": "Forage",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0.45000000670552254
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "estimated_cycle_days",
+         "Value": 1
+        },
+        {
+         "Name": "estimated_work_ticks",
+         "Value": 2500
+        }
+       ],
+       "WorkPerDay": {
+        "v": 2500
+       }
+      },
+      "Decision": "Open",
+      "DeliveredPerDay": 0.45000000670552254,
+      "Reason": "close nutrition gap",
+      "Terms": [
+       {
+        "Name": "estimated_cycle_days",
+        "Value": 1
+       },
+       {
+        "Name": "estimated_work_ticks",
+        "Value": 2500
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day",
+        "Value": 0.45000000670552254
+       },
+       {
+        "Name": "work_per_day",
+        "Value": 2500
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "Thing_Plant_Berry9632",
+       "Kind": "Forage",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0.3500000052154064
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "estimated_cycle_days",
+         "Value": 1
+        },
+        {
+         "Name": "estimated_work_ticks",
+         "Value": 2500
+        }
+       ],
+       "WorkPerDay": {
+        "v": 2500
+       }
+      },
+      "Decision": "Open",
+      "DeliveredPerDay": 0.3500000052154064,
+      "Reason": "close nutrition gap",
+      "Terms": [
+       {
+        "Name": "estimated_cycle_days",
+        "Value": 1
+       },
+       {
+        "Name": "estimated_work_ticks",
+        "Value": 2500
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day",
+        "Value": 0.3500000052154064
+       },
+       {
+        "Name": "work_per_day",
+        "Value": 2500
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "cooking-capacity",
+       "Kind": "Cook",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
+       "WorkPerDay": {
+        "v": 0
+       }
+      },
+      "Decision": "Hold",
+      "Reason": "no risk-adjusted nutrition",
+      "Terms": [
+       {
+        "Name": "supporting_method",
+        "Value": 1
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day"
+       },
+       {
+        "Name": "work_per_day"
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "field-capacity",
+       "Kind": "Crop",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
+       "WorkPerDay": {
+        "v": 0
+       }
+      },
+      "Decision": "Hold",
+      "Reason": "no risk-adjusted nutrition",
+      "Terms": [
+       {
+        "Name": "supporting_method",
+        "Value": 1
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day"
+       },
+       {
+        "Name": "work_per_day"
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     },
+     {
+      "Channel": {
+       "ID": "stock-protection",
+       "Kind": "Reserve",
+       "LeadDays": {
+        "v": 0
+       },
+       "NutritionPerDay": {
+        "v": 0
+       },
+       "Open": {
+        "v": false
+       },
+       "Terms": [
+        {
+         "Name": "supporting_method",
+         "Value": 1
+        }
+       ],
+       "WorkPerDay": {
+        "v": 0
+       }
+      },
+      "Decision": "Hold",
+      "Reason": "no risk-adjusted nutrition",
+      "Terms": [
+       {
+        "Name": "supporting_method",
+        "Value": 1
+       },
+       {
+        "Name": "risk_discount"
+       },
+       {
+        "Name": "nutrition_per_day"
+       },
+       {
+        "Name": "work_per_day"
+       },
+       {
+        "Name": "lead_days"
+       },
+       {
+        "Name": "target_cover",
+        "Value": 2
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "FoodReserve": {
+   "v": {
+    "ByDefinition": {},
+    "DeficitNutrition": 24.00000035762787,
+    "Emergency": true,
+    "Release": [
+     "Thing_MealSurvivalPack2657",
+     "Thing_MealSurvivalPack2669",
+     "Thing_MealSurvivalPack2670",
+     "Thing_MealSurvivalPack2671",
+     "Thing_MealSurvivalPack2672",
+     "Thing_MealSurvivalPack2706",
+     "Thing_MealSurvivalPack2707",
+     "Thing_MealSurvivalPack2709",
+     "Thing_MealSurvivalPack2710",
+     "Thing_MealSurvivalPack2712"
+    ],
+    "TargetNutrition": 24.00000035762787
+   }
+  },
+  "FoodStorage": {
+   "v": false
+  },
+  "FoodStorageUpkeep": {
+   "Larder": {
+    "v": {}
+   },
+   "Stocks": {
+    "v": [
+     {
+      "Stock": {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2669",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2670",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2671",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2672",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 10
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2657",
+       "Nutrition": {
+        "v": 9
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 2
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2706",
+       "Nutrition": {
+        "v": 1.7999999523162842
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 1
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2707",
+       "Nutrition": {
+        "v": 0.8999999761581421
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 1
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2709",
+       "Nutrition": {
+        "v": 0.8999999761581421
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 2
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2710",
+       "Nutrition": {
+        "v": 1.7999999523162842
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     },
+     {
+      "Stock": {
+       "Count": {
+        "v": 1
+       },
+       "DefName": "MealSurvivalPack",
+       "Eaters": [
+        "Thing_Human195",
+        "Thing_Human231",
+        "Thing_Human209"
+       ],
+       "Holder": {
+        "v": ""
+       },
+       "ID": "Thing_MealSurvivalPack2712",
+       "Nutrition": {
+        "v": 0.8999999761581421
+       },
+       "Perishable": {
+        "v": false
+       },
+       "RawClass": {
+        "v": ""
+       },
+       "Reserve": true,
+       "Roofed": {
+        "v": false
+       },
+       "Room": {
+        "v": "31"
+       },
+       "TemperatureC": {
+        "v": 14.989426612854004
+       }
+      }
+     }
+    ]
+   }
+  },
+  "ForbiddenSupplies": {
+   "v": true
+  },
+  "Gear": {
+   "v": {
+    "Pawns": [
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_BasicShirt",
+         "Groups": [
+          "Torso",
+          "Shoulders"
+         ]
+        },
+        {
+         "Condition": 1,
+         "Definition": "Apparel_Pants",
+         "Groups": [
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -3.5319809913635254,
+        7.731979846954346,
+        17.486860275268555,
+        23.11884117126465,
+        23.11884117126465,
+        17.486854553222656,
+        7.73197603225708,
+        -3.531984806060791,
+        -13.286859512329102,
+        -18.918842315673828,
+        -18.918840408325195,
+        -13.286859512329102
+       ],
+       "TicksToNextTwelfth": 275345
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "C1EF869A5342163DF3DD93E55341C14E861738348A7CEA6A9F7584ACEA7E7DC2",
+      "Pawn": "Thing_Human195",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Level": 3,
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Melee",
+             "Passion": "Major"
+            },
+            {
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Plants",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Animals",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Crafting",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 2,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Level": 10,
+             "Name": "Social",
+             "Passion": "Major"
+            },
+            {
+             "Level": 1,
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Priority": 3,
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "FDA126596D949715432FB5CC9DED6612A22D23D77DA698FA31E8C0F06A6A615F"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_BasicShirt",
+         "Groups": [
+          "Torso",
+          "Shoulders"
+         ]
+        },
+        {
+         "Condition": 1,
+         "Definition": "Apparel_Pants",
+         "Groups": [
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -3.5319809913635254,
+        7.731979846954346,
+        17.486860275268555,
+        23.11884117126465,
+        23.11884117126465,
+        17.486854553222656,
+        7.73197603225708,
+        -3.531984806060791,
+        -13.286859512329102,
+        -18.918842315673828,
+        -18.918840408325195,
+        -13.286859512329102
+       ],
+       "TicksToNextTwelfth": 275345
+      },
+      "Deficit": {
+       "v": true
+      },
+      "Loadout": "2A2B979338B9C79CB2EFD4C47714C3B8AA8CD5141629B1C9AD5770057085FBBF",
+      "Pawn": "Thing_Human209",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Melee",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Level": 3,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 4,
+             "Name": "Cooking",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Plants",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 5,
+             "Name": "Animals",
+             "Passion": "None"
+            },
+            {
+             "Level": 2,
+             "Name": "Crafting",
+             "Passion": "None"
+            },
+            {
+             "Level": 11,
+             "Name": "Artistic",
+             "Passion": "Major"
+            },
+            {
+             "Level": 2,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Level": 8,
+             "Name": "Intellectual",
+             "Passion": "Major"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Work": "Warden"
+            },
+            {
+             "Work": "Handling"
+            },
+            {
+             "Work": "Cooking"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Work": "Growing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Mining"
+            },
+            {
+             "Work": "PlantCutting"
+            },
+            {
+             "Work": "Smithing"
+            },
+            {
+             "Work": "Tailoring"
+            },
+            {
+             "Priority": 3,
+             "Work": "Art"
+            },
+            {
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Priority": 3,
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "FEAE8306F88FC86A73532EE6694E1A8BDC0E1A63405F202535BE43F3BB8951E9"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     },
+     {
+      "Apparel": {
+       "v": [
+        {
+         "Condition": 1,
+         "Definition": "Apparel_CollarShirt",
+         "Groups": [
+          "Torso",
+          "Neck",
+          "Shoulders",
+          "Arms"
+         ]
+        },
+        {
+         "Condition": 1,
+         "Definition": "Apparel_Pants",
+         "Groups": [
+          "Legs"
+         ]
+        }
+       ]
+      },
+      "Candidates": {
+       "v": []
+      },
+      "Climate": {
+       "CurrentTwelfth": 2,
+       "Temperatures": [
+        -3.5319809913635254,
+        7.731979846954346,
+        17.486860275268555,
+        23.11884117126465,
+        23.11884117126465,
+        17.486854553222656,
+        7.73197603225708,
+        -3.531984806060791,
+        -13.286859512329102,
+        -18.918842315673828,
+        -18.918840408325195,
+        -13.286859512329102
+       ],
+       "TicksToNextTwelfth": 275345
+      },
+      "Deficit": {
+       "v": false
+      },
+      "Loadout": "CCF5FF503B91F597C095E021656974BFCB71F3E068FD4A6E3D54CD8023F54682",
+      "Pawn": "Thing_Human231",
+      "Policy": {
+       "v": {
+        "Current": {
+         "Definitions": [
+          "Apparel_AdvancedHelmet",
+          "Apparel_ArmorHelmetRecon",
+          "Apparel_ArmorRecon",
+          "Apparel_BasicShirt",
+          "Apparel_BowlerHat",
+          "Apparel_ClothMask",
+          "Apparel_CollarShirt",
+          "Apparel_CowboyHat",
+          "Apparel_Duster",
+          "Apparel_FirefoampopPack",
+          "Apparel_FlakJacket",
+          "Apparel_FlakPants",
+          "Apparel_FlakVest",
+          "Apparel_HatHood",
+          "Apparel_Jacket",
+          "Apparel_Pants",
+          "Apparel_Parka",
+          "Apparel_PlateArmor",
+          "Apparel_PowerArmor",
+          "Apparel_PowerArmorHelmet",
+          "Apparel_PsychicFoilHelmet",
+          "Apparel_PsychicInsanityLance",
+          "Apparel_PsychicShockLance",
+          "Apparel_Robe",
+          "Apparel_ShieldBelt",
+          "Apparel_SimpleHelmet",
+          "Apparel_SmokepopBelt",
+          "Apparel_TribalA",
+          "Apparel_TribalHeaddress",
+          "Apparel_Tuque",
+          "Apparel_WarMask",
+          "Apparel_WarVeil",
+          "OrbitalTargeterBombardment",
+          "OrbitalTargeterPowerBeam",
+          "TornadoGenerator"
+         ],
+         "MaxHP": 1,
+         "MaxQuality": 6,
+         "Name": "Anything"
+        },
+        "Definitions": [
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_AdvancedHelmet"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorHelmetRecon"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_ArmorRecon"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_BasicShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_BowlerHat"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ClothMask"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_CollarShirt"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_CowboyHat"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Duster"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_FirefoampopPack"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakJacket"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakPants"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_FlakVest"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_HatHood"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Jacket"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Pants"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Parka"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PlateArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmor"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_PowerArmorHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicFoilHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicInsanityLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_PsychicShockLance"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_Robe"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_ShieldBelt"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_SimpleHelmet"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_SmokepopBelt"
+         },
+         {
+          "Adult": true,
+          "Name": "Apparel_TribalA"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_TribalHeaddress"
+         },
+         {
+          "Adult": true,
+          "Child": true,
+          "Name": "Apparel_Tuque"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Name": "Apparel_WarMask"
+         },
+         {
+          "Adult": true,
+          "Armor": true,
+          "Child": true,
+          "Name": "Apparel_WarVeil"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterBombardment"
+         },
+         {
+          "Adult": true,
+          "Name": "OrbitalTargeterPowerBeam"
+         },
+         {
+          "Adult": true,
+          "Name": "TornadoGenerator"
+         }
+        ],
+        "Role": {
+         "IncapableOfViolence": true,
+         "Work": {
+          "Skills": {
+           "v": [
+            {
+             "Disabled": true,
+             "Name": "Shooting",
+             "Passion": "None"
+            },
+            {
+             "Disabled": true,
+             "Name": "Melee",
+             "Passion": "None"
+            },
+            {
+             "Name": "Construction",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Mining",
+             "Passion": "None"
+            },
+            {
+             "Level": 7,
+             "Name": "Cooking",
+             "Passion": "Major"
+            },
+            {
+             "Level": 9,
+             "Name": "Plants",
+             "Passion": "Major"
+            },
+            {
+             "Level": 7,
+             "Name": "Animals",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 5,
+             "Name": "Crafting",
+             "Passion": "Minor"
+            },
+            {
+             "Level": 3,
+             "Name": "Artistic",
+             "Passion": "None"
+            },
+            {
+             "Level": 5,
+             "Name": "Medicine",
+             "Passion": "None"
+            },
+            {
+             "Disabled": true,
+             "Name": "Social",
+             "Passion": "None"
+            },
+            {
+             "Level": 1,
+             "Name": "Intellectual",
+             "Passion": "None"
+            }
+           ]
+          },
+          "Work": {
+           "v": [
+            {
+             "Priority": 3,
+             "Work": "Firefighter"
+            },
+            {
+             "Priority": 3,
+             "Work": "Patient"
+            },
+            {
+             "Priority": 3,
+             "Work": "Doctor"
+            },
+            {
+             "Priority": 3,
+             "Work": "PatientBedRest"
+            },
+            {
+             "Priority": 3,
+             "Work": "BasicWorker"
+            },
+            {
+             "Disabled": true,
+             "Work": "Warden"
+            },
+            {
+             "Priority": 3,
+             "Work": "Handling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cooking"
+            },
+            {
+             "Disabled": true,
+             "Work": "Hunting"
+            },
+            {
+             "Work": "Construction"
+            },
+            {
+             "Priority": 3,
+             "Work": "Growing"
+            },
+            {
+             "Work": "Mining"
+            },
+            {
+             "Priority": 3,
+             "Work": "PlantCutting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Smithing"
+            },
+            {
+             "Priority": 3,
+             "Work": "Tailoring"
+            },
+            {
+             "Work": "Art"
+            },
+            {
+             "Priority": 3,
+             "Work": "Crafting"
+            },
+            {
+             "Priority": 3,
+             "Work": "Hauling"
+            },
+            {
+             "Priority": 3,
+             "Work": "Cleaning"
+            },
+            {
+             "Work": "Research"
+            }
+           ]
+          }
+         }
+        },
+        "Token": "91FD4B7BACA49A133A7C425E03512EE1484D9F501D191ACA6D44B72DC2B8C7D7"
+       }
+      },
+      "Replacements": {
+       "v": []
+      }
+     }
+    ],
+    "Stored": {
+     "v": []
+    }
+   }
+  },
+  "GrowingCells": {
+   "v": 0
+  },
+  "HomeCoverage": {
+   "v": {
+    "Revision": 28,
+    "Targets": []
+   }
+  },
+  "Hostiles": {
+   "v": 0
+  },
+  "IndoorCapacity": {
+   "v": 0
+  },
+  "JoinerLetters": {
+   "v": []
+  },
+  "Labor": {
+   "v": {
+    "Art": 1,
+    "BasicWorker": 3,
+    "Cleaning": 3,
+    "Cooking": 1,
+    "Crafting": 1,
+    "Doctor": 1,
+    "Firefighter": 3,
+    "Growing": 1,
+    "Handling": 1,
+    "Hauling": 3,
+    "Hunting": 1,
+    "Mining": 1,
+    "Patient": 3,
+    "PatientBedRest": 3,
+    "PlantCutting": 1,
+    "Research": 1,
+    "Smithing": 1,
+    "Tailoring": 1,
+    "Warden": 1
+   }
+  },
+  "LaborUse": {
+   "v": {
+    "Busy": {},
+    "Idle": {
+     "Art": 1,
+     "BasicWorker": 3,
+     "Cleaning": 3,
+     "Cooking": 1,
+     "Crafting": 1,
+     "Doctor": 1,
+     "Firefighter": 3,
+     "Growing": 1,
+     "Handling": 1,
+     "Hauling": 3,
+     "Hunting": 1,
+     "Mining": 1,
+     "Patient": 3,
+     "PatientBedRest": 3,
+     "PlantCutting": 1,
+     "Research": 1,
+     "Smithing": 1,
+     "Tailoring": 1,
+     "Warden": 1
+    }
+   }
+  },
+  "LootReadiness": {
+   "FreeHaulers": {
+    "v": 3
+   },
+   "StorytellerQuiet": {
+    "v": true
+   }
+  },
+  "MapBounds": {
+   "v": {
+    "Height": 200,
+    "Width": 200
+   }
+  },
+  "MedicalCareRecovered": {
+   "v": false
+  },
+  "MedicalPawns": {
+   "v": [
+    {
+     "BadConditions": {
+      "v": false
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": []
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human195",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "SettingsToken": {
+      "v": "drug-488C863AF505F7590737D2A07287C6CF16C16BD45B91AA9BE335CA3C0EE65894"
+     }
+    },
+    {
+     "BadConditions": {
+      "v": false
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": []
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human231",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "SettingsToken": {
+      "v": "drug-599CB7091418FE15EBA8988F6BDCA6522487D631CE0308D8B490DC281CABDD07"
+     }
+    },
+    {
+     "BadConditions": {
+      "v": true
+     },
+     "Care": {
+      "v": "Best"
+     },
+     "Conditions": {
+      "v": [
+       {
+        "DefName": {
+         "v": "Stab"
+        },
+        "Severity": {
+         "v": 2
+        },
+        "Tended": {
+         "v": false
+        }
+       }
+      ]
+     },
+     "Dead": {
+      "v": false
+     },
+     "ID": "Thing_Human209",
+     "LifeThreatening": {
+      "v": false
+     },
+     "NeedsRest": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "SettingsToken": {
+      "v": "drug-78C56474B8B6161194CEBCCD4999E1429A155FB042B32C1402469FE4E078011A"
+     }
+    }
+   ]
+  },
+  "MedicalReserve": {
+   "Colonists": {
+    "v": 3
+   },
+   "Items": {
+    "v": []
+   },
+   "Resources": {
+    "v": [
+     {
+      "Count": 184,
+      "Resource": "ChunkGranite"
+     },
+     {
+      "Count": 282,
+      "Resource": "ChunkSandstone"
+     },
+     {
+      "Count": 231,
+      "Resource": "ChunkSlate"
+     },
+     {
+      "Count": 400,
+      "Resource": "Silver"
+     },
+     {
+      "Count": 2000,
+      "Resource": "Steel"
+     }
+    ]
+   }
+  },
+  "MoodPawns": {
+   "v": [
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human195",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": []
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human231",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": []
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "Food": {
+      "v": 1
+     },
+     "HighExpectations": {
+      "v": false
+     },
+     "ID": "Thing_Human209",
+     "Joy": {
+      "v": 1
+     },
+     "Mental": {
+      "v": false
+     },
+     "Mood": {
+      "v": 1
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "Rest": {
+      "v": 1
+     },
+     "Target": {
+      "v": 1
+     },
+     "Thoughts": {
+      "v": [
+       {
+        "Def": "Greedy",
+        "Offset": -8
+       }
+      ]
+     },
+     "Threshold": {
+      "v": 0.3499999940395355
+     }
+    }
+   ]
+  },
+  "OutdoorTemperature": {
+   "v": 15.039217948913574
+  },
+  "PenGrazing": {
+   "v": null
+  },
+  "PopulationCapacity": {
+   "v": {}
+  },
+  "PowerHeadroom": {
+   "v": 0
+  },
+  "PowerRequired": {
+   "v": false
+  },
+  "PowerWeatherSafe": {
+   "v": true
+  },
+  "Prisoners": {
+   "v": []
+  },
+  "QuestOffers": {
+   "v": []
+  },
+  "RaidPoints": {
+   "v": 35
+  },
+  "RecoveryBuildings": {
+   "v": []
+  },
+  "RecoverySafety": {
+   "v": {
+    "Restrictions": [
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human195"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human209"
+     },
+     {
+      "Area": {
+       "v": ""
+      },
+      "Pawn": "Thing_Human231"
+     }
+    ],
+    "RoofHazard": {
+     "v": false
+    }
+   }
+  },
+  "RecoveryWorkers": {
+   "v": [
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human195",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human231",
+     "PlayerForced": {
+      "v": false
+     }
+    },
+    {
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "Mental": {
+      "v": false
+     },
+     "Pawn": "Thing_Human209",
+     "PlayerForced": {
+      "v": false
+     }
+    }
+   ]
+  },
+  "Research": {
+   "v": {
+    "Finished": [
+     "AirConditioning",
+     "ComplexClothing",
+     "ComplexFurniture",
+     "Electricity",
+     "NutrientPaste",
+     "PassiveCooler",
+     "Stonecutting"
+    ],
+    "Projects": [
+     "AdvancedFabrication",
+     "AirConditioning",
+     "Autodoors",
+     "Batteries",
+     "BiofuelRefining",
+     "Bionics",
+     "BlowbackOperation",
+     "Brewing",
+     "CarpetMaking",
+     "ChargedShot",
+     "Cocoa",
+     "ColoredLights",
+     "ComplexClothing",
+     "ComplexFurniture",
+     "Cryptosleep",
+     "DeepDrilling",
+     "Devilstrand",
+     "DrugProduction",
+     "Electricity",
+     "Fabrication",
+     "Firefoam",
+     "FlakArmor",
+     "FlatscreenTelevision",
+     "FoamTurret",
+     "GasOperation",
+     "GeothermalPower",
+     "GoJuiceProduction",
+     "Greatbow",
+     "GroundPenetratingScanner",
+     "GunTurrets",
+     "Gunsmithing",
+     "HeavyTurrets",
+     "HospitalBed",
+     "Hydroponics",
+     "IEDs",
+     "LongBlades",
+     "LongRangeMineralScanner",
+     "Machining",
+     "MedicineProduction",
+     "MicroelectronicsBasics",
+     "MoisturePump",
+     "Mortars",
+     "MultiAnalyzer",
+     "MultibarrelWeapons",
+     "NutrientPaste",
+     "PackagedSurvivalMeal",
+     "PassiveCooler",
+     "Pemmican",
+     "PenoxycylineProduction",
+     "PlateArmor",
+     "PoweredArmor",
+     "PrecisionRifling",
+     "Prosthetics",
+     "PsychiteRefining",
+     "PsychoidBrewing",
+     "ReconArmor",
+     "RecurveBow",
+     "RocketswarmLauncher",
+     "ShieldBelt",
+     "ShipBasics",
+     "ShipComputerCore",
+     "ShipCryptosleep",
+     "ShipEngine",
+     "ShipReactor",
+     "ShipSensorCluster",
+     "Smithing",
+     "SmokepopBelt",
+     "SniperTurret",
+     "SolarPanels",
+     "SterileMaterials",
+     "Stonecutting",
+     "TransportPod",
+     "TreeSowing",
+     "TubeTelevision",
+     "VitalsMonitor",
+     "WakeUpProduction",
+     "WatermillGenerator"
+    ]
+   }
+  },
+  "ResourceNeeds": {
+   "MedicineHerbal": 9
+  },
+  "ResourceRunways": [
+   {
+    "Resource": "Steel",
+    "Stock": {
+     "v": 2000
+    },
+    "SurfaceOre": {
+     "v": 0
+    },
+    "Tick": 9655,
+    "WindowDays": 0.0793
+   },
+   {
+    "Resource": "ComponentIndustrial",
+    "Stock": {
+     "v": 0
+    },
+    "SurfaceOre": {
+     "v": 0
+    },
+    "Tick": 9655,
+    "WindowDays": 0.0793
+   },
+   {
+    "Resource": "Plasteel",
+    "Stock": {
+     "v": 0
+    },
+    "SurfaceOre": {
+     "v": 0
+    },
+    "Tick": 9655,
+    "WindowDays": 0.0793
+   }
+  ],
+  "ResourceSurfaceOre": {
+   "ComponentIndustrial": {
+    "v": 0
+   },
+   "Plasteel": {
+    "v": 0
+   },
+   "Steel": {
+    "v": 0
+   }
+  },
+  "Resources": {
+   "v": [
+    {
+     "Count": 184,
+     "Resource": "ChunkGranite"
+    },
+    {
+     "Count": 282,
+     "Resource": "ChunkSandstone"
+    },
+    {
+     "Count": 231,
+     "Resource": "ChunkSlate"
+    },
+    {
+     "Count": 400,
+     "Resource": "Silver"
+    },
+    {
+     "Count": 2000,
+     "Resource": "Steel"
+    }
+   ]
+  },
+  "Sleeping": {
+   "v": {
+    "Colonists": 3,
+    "People": [
+     {
+      "ComfortableMax": {
+       "v": 29.96000099182129
+      },
+      "ComfortableMin": {
+       "v": 6.759999752044678
+      },
+      "ID": "Thing_Human195",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 29.96000099182129
+      },
+      "ComfortableMin": {
+       "v": 6.759999752044678
+      },
+      "ID": "Thing_Human209",
+      "OwnedBed": {
+       "v": ""
+      }
+     },
+     {
+      "ComfortableMax": {
+       "v": 29.96000099182129
+      },
+      "ComfortableMin": {
+       "v": 5.880000591278076
+      },
+      "ID": "Thing_Human231",
+      "OwnedBed": {
+       "v": ""
+      }
+     }
+    ]
+   }
+  },
+  "SleepingRecovered": {
+   "v": false
+  },
+  "StartingSupplies": {
+   "v": [
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 105
+     },
+     "Definition": "Apparel_FlakVest",
+     "Thing": "Thing_Apparel_FlakVest2664"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 107
+     },
+     "Definition": "Gun_Revolver",
+     "Thing": "Thing_Gun_Revolver2661"
+    },
+    {
+     "Cell": {
+      "X": 84,
+      "Z": 107
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2687"
+    },
+    {
+     "Cell": {
+      "X": 85,
+      "Z": 107
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2688"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 107
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2672"
+    },
+    {
+     "Cell": {
+      "X": 87,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2657"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2669"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2670"
+    },
+    {
+     "Cell": {
+      "X": 87,
+      "Z": 109
+     },
+     "Definition": "Apparel_FlakPants",
+     "Thing": "Thing_Apparel_FlakPants2663"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 109
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2671"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 109
+     },
+     "Definition": "Gun_BoltActionRifle",
+     "Thing": "Thing_Gun_BoltActionRifle2660"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 110
+     },
+     "Definition": "MeleeWeapon_Knife",
+     "Thing": "Thing_MeleeWeapon_Knife2662"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 111
+     },
+     "Definition": "Apparel_AdvancedHelmet",
+     "Thing": "Thing_Apparel_AdvancedHelmet2665"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 111
+     },
+     "Definition": "Silver",
+     "Thing": "Thing_Silver2668"
+    },
+    {
+     "Cell": {
+      "X": 91,
+      "Z": 111
+     },
+     "Definition": "Silver",
+     "Thing": "Thing_Silver2656"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 112
+     },
+     "Definition": "ComponentIndustrial",
+     "Thing": "Thing_ComponentIndustrial2659"
+    },
+    {
+     "Cell": {
+      "X": 81,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2685"
+    },
+    {
+     "Cell": {
+      "X": 82,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2683"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2686"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 118
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2684"
+    }
+   ]
+  },
+  "StoneStructures": {
+   "v": []
+  },
+  "TradeMealIngredients": {
+   "v": null
+  },
+  "Traders": {
+   "v": [
+    {
+     "CanTrade": true,
+     "Faction": "Faction_0",
+     "GoodsStacks": 34,
+     "ID": "Thing_Human16644",
+     "Kind": "Caravan_Outlander_BulkGoods"
+    }
+   ]
+  },
+  "Upkeep": {
+   "CleaningWorkers": {
+    "v": 3
+   },
+   "Filth": {
+    "v": []
+   },
+   "Fires": {
+    "v": []
+   },
+   "Flooring": {
+    "v": {
+     "Rooms": [],
+     "Terrains": {
+      "Gravel": {
+       "Beauty": -3,
+       "Cleanliness": -1,
+       "Natural": true,
+       "PathCost": 2
+      },
+      "Soil": {
+       "Beauty": -3,
+       "Cleanliness": -1,
+       "Natural": true,
+       "PathCost": 2
+      }
+     },
+     "Traffic": [
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 107
+       },
+       "Samples": 13,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 110
+       },
+       "Samples": 13,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 108
+       },
+       "Samples": 12,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 106
+       },
+       "Samples": 11,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 106
+       },
+       "Samples": 9,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 112
+       },
+       "Samples": 9,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 106
+       },
+       "Samples": 8,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 108
+       },
+       "Samples": 8,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 83,
+        "Z": 111
+       },
+       "Samples": 8,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 116
+       },
+       "Samples": 8,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 105
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 91,
+        "Z": 108
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 113
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 114
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 114
+       },
+       "Samples": 7,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 105
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 105
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 92,
+        "Z": 105
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 106
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 93,
+        "Z": 107
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 109
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 109
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 92,
+        "Z": 109
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 110
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 111
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 80,
+        "Z": 113
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 113
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 105
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 91,
+        "Z": 106
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 95,
+        "Z": 107
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 110
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 110
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 111
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 113
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 114
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 115
+       },
+       "Samples": 5,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 96
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 103
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 104
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 105
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 93,
+        "Z": 105
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 83,
+        "Z": 106
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 107
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 96,
+        "Z": 107
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 92,
+        "Z": 108
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 109
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 93,
+        "Z": 109
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 94,
+        "Z": 110
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 111
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 112
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 112
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 112
+       },
+       "Home": true,
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 78,
+        "Z": 113
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 113
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 95,
+        "Z": 113
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 115
+       },
+       "Samples": 4,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 80,
+        "Z": 101
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 102
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 103
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 80,
+        "Z": 104
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 79,
+        "Z": 105
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 105
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 91,
+        "Z": 105
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 106
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      }
+     ],
+     "TrafficSamples": 585
+    }
+   },
+   "Items": {
+    "v": [
+     {
+      "Cell": {
+       "X": 87,
+       "Z": 108
+      },
+      "Count": 10,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2657"
+     },
+     {
+      "Cell": {
+       "X": 90,
+       "Z": 112
+      },
+      "Count": 30,
+      "Definition": "ComponentIndustrial",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_ComponentIndustrial2659"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 109
+      },
+      "Count": 1,
+      "Definition": "Gun_BoltActionRifle",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Gun_BoltActionRifle2660"
+     },
+     {
+      "Cell": {
+       "X": 83,
+       "Z": 107
+      },
+      "Count": 1,
+      "Definition": "Gun_Revolver",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Gun_Revolver2661"
+     },
+     {
+      "Cell": {
+       "X": 90,
+       "Z": 110
+      },
+      "Count": 1,
+      "Definition": "MeleeWeapon_Knife",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_MeleeWeapon_Knife2662"
+     },
+     {
+      "Cell": {
+       "X": 87,
+       "Z": 109
+      },
+      "Count": 1,
+      "Definition": "Apparel_FlakPants",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Apparel_FlakPants2663"
+     },
+     {
+      "Cell": {
+       "X": 83,
+       "Z": 105
+      },
+      "Count": 1,
+      "Definition": "Apparel_FlakVest",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Apparel_FlakVest2664"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 111
+      },
+      "Count": 1,
+      "Definition": "Apparel_AdvancedHelmet",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_Apparel_AdvancedHelmet2665"
+     },
+     {
+      "Cell": {
+       "X": 82,
+       "Z": 106
+      },
+      "Count": 1,
+      "Definition": "EggTortoiseFertilized",
+      "Deterioration": 2,
+      "Forbidden": true,
+      "ID": "Thing_EggTortoiseFertilized2667"
+     },
+     {
+      "Cell": {
+       "X": 88,
+       "Z": 108
+      },
+      "Count": 10,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2669"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 108
+      },
+      "Count": 10,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2670"
+     },
+     {
+      "Cell": {
+       "X": 88,
+       "Z": 109
+      },
+      "Count": 10,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2671"
+     },
+     {
+      "Cell": {
+       "X": 88,
+       "Z": 107
+      },
+      "Count": 10,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2672"
+     },
+     {
+      "Cell": {
+       "X": 82,
+       "Z": 117
+      },
+      "Count": 43,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog2683"
+     },
+     {
+      "Cell": {
+       "X": 83,
+       "Z": 118
+      },
+      "Count": 40,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog2684"
+     },
+     {
+      "Cell": {
+       "X": 81,
+       "Z": 117
+      },
+      "Count": 67,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog2685"
+     },
+     {
+      "Cell": {
+       "X": 83,
+       "Z": 117
+      },
+      "Count": 69,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog2686"
+     },
+     {
+      "Cell": {
+       "X": 84,
+       "Z": 107
+      },
+      "Count": 75,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog2687"
+     },
+     {
+      "Cell": {
+       "X": 85,
+       "Z": 107
+      },
+      "Count": 6,
+      "Definition": "WoodLog",
+      "Deterioration": 0.5,
+      "Forbidden": true,
+      "ID": "Thing_WoodLog2688"
+     },
+     {
+      "Cell": {
+       "X": 25,
+       "Z": 59
+      },
+      "Count": 2,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2706"
+     },
+     {
+      "Cell": {
+       "X": 22,
+       "Z": 63
+      },
+      "Count": 1,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2707"
+     },
+     {
+      "Cell": {
+       "X": 29,
+       "Z": 63
+      },
+      "Count": 1,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2709"
+     },
+     {
+      "Cell": {
+       "X": 142,
+       "Z": 73
+      },
+      "Count": 2,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2710"
+     },
+     {
+      "Cell": {
+       "X": 141,
+       "Z": 72
+      },
+      "Count": 1,
+      "Definition": "MealSurvivalPack",
+      "Deterioration": 0.25,
+      "Forbidden": true,
+      "ID": "Thing_MealSurvivalPack2712"
+     },
+     {
+      "Cell": {
+       "X": 91,
+       "Z": 112
+      },
+      "Count": 400,
+      "Definition": "Silver",
+      "ID": "Thing_Silver16616"
+     },
+     {
+      "Cell": {
+       "X": 92,
+       "Z": 112
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16617"
+     },
+     {
+      "Cell": {
+       "X": 91,
+       "Z": 113
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16618"
+     },
+     {
+      "Cell": {
+       "X": 92,
+       "Z": 113
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16619"
+     },
+     {
+      "Cell": {
+       "X": 92,
+       "Z": 111
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16620"
+     },
+     {
+      "Cell": {
+       "X": 90,
+       "Z": 113
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16621"
+     },
+     {
+      "Cell": {
+       "X": 93,
+       "Z": 112
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16622"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 112
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16623"
+     },
+     {
+      "Cell": {
+       "X": 91,
+       "Z": 114
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16624"
+     },
+     {
+      "Cell": {
+       "X": 91,
+       "Z": 110
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16625"
+     },
+     {
+      "Cell": {
+       "X": 92,
+       "Z": 114
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16626"
+     },
+     {
+      "Cell": {
+       "X": 90,
+       "Z": 114
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16627"
+     },
+     {
+      "Cell": {
+       "X": 92,
+       "Z": 110
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16628"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 113
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16629"
+     },
+     {
+      "Cell": {
+       "X": 93,
+       "Z": 111
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16630"
+     },
+     {
+      "Cell": {
+       "X": 93,
+       "Z": 113
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16631"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 114
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16632"
+     },
+     {
+      "Cell": {
+       "X": 93,
+       "Z": 110
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16633"
+     },
+     {
+      "Cell": {
+       "X": 89,
+       "Z": 110
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16634"
+     },
+     {
+      "Cell": {
+       "X": 93,
+       "Z": 114
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16635"
+     },
+     {
+      "Cell": {
+       "X": 91,
+       "Z": 115
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16636"
+     },
+     {
+      "Cell": {
+       "X": 91,
+       "Z": 109
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16637"
+     },
+     {
+      "Cell": {
+       "X": 94,
+       "Z": 112
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16638"
+     },
+     {
+      "Cell": {
+       "X": 88,
+       "Z": 112
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16639"
+     },
+     {
+      "Cell": {
+       "X": 90,
+       "Z": 109
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16640"
+     },
+     {
+      "Cell": {
+       "X": 94,
+       "Z": 111
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16641"
+     },
+     {
+      "Cell": {
+       "X": 94,
+       "Z": 113
+      },
+      "Count": 75,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16642"
+     },
+     {
+      "Cell": {
+       "X": 92,
+       "Z": 115
+      },
+      "Count": 50,
+      "Definition": "Steel",
+      "ID": "Thing_Steel16643"
+     }
+    ]
+   },
+   "Lighting": {
+    "v": {
+     "Lamps": [],
+     "WorkCells": []
+    }
+   },
+   "Routes": {
+    "v": {
+     "Facilities": [],
+     "Pawns": [
+      "Thing_Human195",
+      "Thing_Human209",
+      "Thing_Human231"
+     ],
+     "Traffic": [
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 107
+       },
+       "Samples": 13,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 110
+       },
+       "Samples": 13,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 108
+       },
+       "Samples": 12,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 106
+       },
+       "Samples": 11,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 106
+       },
+       "Samples": 9,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 112
+       },
+       "Samples": 9,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 106
+       },
+       "Samples": 8,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 108
+       },
+       "Samples": 8,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 83,
+        "Z": 111
+       },
+       "Samples": 8,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 116
+       },
+       "Samples": 8,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 105
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 91,
+        "Z": 108
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 113
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 114
+       },
+       "Samples": 7,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 114
+       },
+       "Samples": 7,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 105
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 105
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 92,
+        "Z": 105
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 106
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 93,
+        "Z": 107
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 109
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 109
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 92,
+        "Z": 109
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 110
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 111
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 80,
+        "Z": 113
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 113
+       },
+       "Samples": 6,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 105
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 91,
+        "Z": 106
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 95,
+        "Z": 107
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 110
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 110
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 111
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 87,
+        "Z": 113
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 114
+       },
+       "Samples": 5,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 115
+       },
+       "Samples": 5,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 96
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 103
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 104
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 90,
+        "Z": 105
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 93,
+        "Z": 105
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 83,
+        "Z": 106
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 107
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 96,
+        "Z": 107
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 92,
+        "Z": 108
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 109
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 93,
+        "Z": 109
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 94,
+        "Z": 110
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 82,
+        "Z": 111
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 112
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 85,
+        "Z": 112
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 89,
+        "Z": 112
+       },
+       "Home": true,
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 78,
+        "Z": 113
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 113
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 95,
+        "Z": 113
+       },
+       "Samples": 4,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 115
+       },
+       "Samples": 4,
+       "Terrain": "Gravel"
+      },
+      {
+       "Cell": {
+        "X": 80,
+        "Z": 101
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 81,
+        "Z": 102
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 86,
+        "Z": 103
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 80,
+        "Z": 104
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 79,
+        "Z": 105
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 88,
+        "Z": 105
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 91,
+        "Z": 105
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      },
+      {
+       "Cell": {
+        "X": 84,
+        "Z": 106
+       },
+       "Samples": 3,
+       "Terrain": "Soil"
+      }
+     ],
+     "TrafficSamples": 585,
+     "TrafficSince": {
+      "v": 30
+     }
+    }
+   },
+   "Structures": {
+    "v": []
+   },
+   "Tick": 9655
+  },
+  "UpkeepIssued": {},
+  "UrgentPatients": {
+   "v": 0
+  },
+  "Wealth": {
+   "v": {
+    "Buildings": 3544.5400390625,
+    "Items": 10429.91796875,
+    "Pawns": 4385,
+    "Total": 18359.45703125
+   }
+  },
+  "Wood": {
+   "v": 0
+  },
+  "WorkCoverage": {
+   "v": false
+  },
+  "WorkDecaying": {
+   "v": null
+  },
+  "WorkHelp": {
+   "Idle": [
+    "Thing_Human195",
+    "Thing_Human209",
+    "Thing_Human231"
+   ],
+   "Reason": "no_unmet_suitable_construction",
+   "Tick": 9655
+  },
+  "WorkProfiles": {
+   "v": [
+    {
+     "Age": 25.728782653808594,
+     "Effects": {
+      "NightShift": true
+     },
+     "ID": "Thing_Human195",
+     "Incapable": {},
+     "Skills": {
+      "Animals": {
+       "Level": 1,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Artistic": {
+       "Level": 2,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Construction": {
+       "Name": "Construction",
+       "Passion": "None"
+      },
+      "Cooking": {
+       "Level": 2,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Level": 1,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Medicine": {
+       "Level": 3,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Melee": {
+       "Level": 5,
+       "Name": "Melee",
+       "Passion": "Major",
+       "Stored": 5
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 3,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Shooting": {
+       "Level": 3,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Social": {
+       "Level": 10,
+       "Name": "Social",
+       "Passion": "Major",
+       "Stored": 10
+      }
+     },
+     "Traits": [
+      {
+       "Name": "NightOwl"
+      }
+     ]
+    },
+    {
+     "Age": 53.001129150390625,
+     "Effects": {
+      "Greedy": true
+     },
+     "ID": "Thing_Human209",
+     "Incapable": {},
+     "Skills": {
+      "Animals": {
+       "Level": 5,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Artistic": {
+       "Level": 11,
+       "Name": "Artistic",
+       "Passion": "Major",
+       "Stored": 11
+      },
+      "Construction": {
+       "Level": 2,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Cooking": {
+       "Level": 4,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Crafting": {
+       "Level": 2,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Intellectual": {
+       "Level": 8,
+       "Name": "Intellectual",
+       "Passion": "Major",
+       "Stored": 8
+      },
+      "Medicine": {
+       "Level": 2,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Melee": {
+       "Level": 2,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Mining": {
+       "Level": 3,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Plants": {
+       "Level": 5,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Shooting": {
+       "Name": "Shooting",
+       "Passion": "None"
+      },
+      "Social": {
+       "Level": 5,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 5
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Greedy"
+      },
+      {
+       "Degree": 2,
+       "Name": "Beauty"
+      }
+     ]
+    },
+    {
+     "Age": 32.696102142333984,
+     "Effects": {
+      "Ascetic": true,
+      "LearnRate": 0.75
+     },
+     "ID": "Thing_Human231",
+     "Incapable": {
+      "Hunting": true,
+      "Warden": true
+     },
+     "Skills": {
+      "Animals": {
+       "Level": 7,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Artistic": {
+       "Level": 3,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Construction": {
+       "Name": "Construction",
+       "Passion": "None"
+      },
+      "Cooking": {
+       "Level": 7,
+       "Name": "Cooking",
+       "Passion": "Major",
+       "Stored": 7
+      },
+      "Crafting": {
+       "Level": 5,
+       "Name": "Crafting",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Intellectual": {
+       "Level": 1,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Medicine": {
+       "Level": 5,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Melee": {
+       "Disabled": true,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Mining": {
+       "Level": 1,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Plants": {
+       "Level": 9,
+       "Name": "Plants",
+       "Passion": "Major",
+       "Stored": 9
+      },
+      "Shooting": {
+       "Disabled": true,
+       "Name": "Shooting",
+       "Passion": "None"
+      },
+      "Social": {
+       "Disabled": true,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 2
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Ascetic"
+      },
+      {
+       "Name": "FastLearner"
+      },
+      {
+       "Name": "BodyPurist"
+      }
+     ]
+    }
+   ]
+  },
+  "WorkRoster": {
+   "v": [
+    {
+     "Capable": 1,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Doctor"
+    },
+    {
+     "Capable": 2,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Warden"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Handling"
+    },
+    {
+     "Capable": 1,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Cooking"
+    },
+    {
+     "Demand": 1,
+     "Work": "Hunting"
+    },
+    {
+     "Work": "Fishing"
+    },
+    {
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Construction"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Growing"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Mining"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "PlantCutting"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Smithing"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Tailoring"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Art"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Crafting"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Research"
+    }
+   ]
+  },
+  "WorkerCensus": {
+   "v": [
+    {
+     "ID": "Thing_Human195",
+     "Work": [
+      "BasicWorker",
+      "Cleaning",
+      "Firefighter",
+      "Hauling",
+      "Patient",
+      "PatientBedRest",
+      "Warden"
+     ]
+    },
+    {
+     "ID": "Thing_Human209",
+     "Work": [
+      "Art",
+      "BasicWorker",
+      "Cleaning",
+      "Firefighter",
+      "Hauling",
+      "Hunting",
+      "Mining",
+      "Patient",
+      "PatientBedRest",
+      "Research"
+     ]
+    },
+    {
+     "ID": "Thing_Human231",
+     "Work": [
+      "BasicWorker",
+      "Cleaning",
+      "Cooking",
+      "Crafting",
+      "Doctor",
+      "Firefighter",
+      "Growing",
+      "Handling",
+      "Hauling",
+      "Patient",
+      "PatientBedRest",
+      "PlantCutting",
+      "Smithing",
+      "Tailoring"
+     ]
+    }
+   ]
+  },
+  "Workers": {
+   "v": 3
+  }
+ },
+ "Latches": {
+  "Animals": {
+   "Feed": [
+    "Thing_YorkshireTerrier2666"
+   ]
+  },
+  "Cold": true,
+  "Food": true,
+  "MedicalReserve": true,
+  "Sleeping": true,
+  "Upkeep": {
+   "Storage": true
+  },
+  "Wood": true
+ },
+ "Policy": {
+  "AcquisitionStallTicks": 60000,
+  "AnimalUpkeep": {
+   "FeedMinimumDays": 2,
+   "FeedTargetDays": 4
+  },
+  "AutoDevelopment": true,
+  "Cleanliness": {
+   "EnterC": -1,
+   "ExitC": -0.25,
+   "GraceTicks": 30000,
+   "MaxTargets": 8
+  },
+  "ColdEnter": 12,
+  "ColdExit": 16,
+  "Flooring": {
+   "Clean": {
+    "Beauty": 1,
+    "Cleanliness": 10,
+    "Cost": 0.2,
+    "Flammability": 1,
+    "PathCost": 1
+   },
+   "Floors": [
+    "SterileTile",
+    "TileSandstone",
+    "TileGranite",
+    "TileLimestone",
+    "TileSlate",
+    "TileMarble",
+    "FlagstoneSandstone",
+    "FlagstoneGranite",
+    "FlagstoneLimestone",
+    "FlagstoneSlate",
+    "FlagstoneMarble",
+    "CarpetRed",
+    "PavedTile",
+    "Concrete",
+    "WoodPlankFloor"
+   ],
+   "Living": {
+    "Beauty": 3,
+    "Cleanliness": 1,
+    "Cost": 0.2,
+    "Flammability": 3,
+    "PathCost": 1
+   },
+   "MaxCellsPerPlan": 24,
+   "Traffic": {
+    "Beauty": 1,
+    "Cleanliness": 1,
+    "Cost": 0.5,
+    "Flammability": 1,
+    "PathCost": 5
+   },
+   "TrafficMinSamples": 12
+  },
+  "FoodMinDays": 3,
+  "FoodReserveDays": 5,
+  "FoodStorage": {
+   "AtRiskNutritionThreshold": 5,
+   "ChilledExitC": 5,
+   "ChilledMaxC": 10,
+   "FreezerTargetC": -5,
+   "MinimumStoredFraction": 0.5,
+   "SafeRotDays": 5,
+   "TargetStoredFraction": 0.9
+  },
+  "FoodTargetDays": 7,
+  "FootholdFoodDays": 3,
+  "GoalStallTicks": 2500,
+  "HaulStallTicks": 2500,
+  "HotEnter": 32,
+  "HotExit": 28,
+  "HuntStallTicks": 6000,
+  "Lighting": {
+   "Lamps": [
+    {
+     "Name": "StandingLamp",
+     "Powered": true
+    },
+    {
+     "Name": "TorchLamp"
+    }
+   ],
+   "LitGlow": 0.3,
+   "PlacementRadius": 2
+  },
+  "MaxDevelopmentProjects": 8,
+  "MedicalReserve": {
+   "MinimumPerColonist": 1,
+   "TargetPerColonist": 3
+  },
+  "Routes": {
+   "Door": "Door",
+   "MaxBreaches": 4,
+   "Stuff": "WoodLog"
+  },
+  "Trade": {
+   "ItemWealthShare": 0.01
+  },
+  "WoodMax": 500,
+  "WoodMin": 120,
+  "WoodTarget": 350
+ },
+ "Recorded": "colony a92855952da14133b290007c00a64b05 load 6d8ac99ea1ae468ca51e1e025dc34c81 map 0 tick 9655",
+ "Review": {
+  "AsOf": {
+   "bills": 9655,
+   "buildings": 9655,
+   "colony": 9655,
+   "emergency": 9655,
+   "pawns": 9655,
+   "planning_cells": 10898,
+   "population": 9655,
+   "research": 9655,
+   "zones": 9655
+  },
+  "Development": {
+   "Auto": true,
+   "Capacity": 3,
+   "Census": [
+    {
+     "ID": "Thing_Human195",
+     "Work": [
+      "BasicWorker",
+      "Cleaning",
+      "Firefighter",
+      "Hauling",
+      "Patient",
+      "PatientBedRest",
+      "Warden"
+     ]
+    },
+    {
+     "ID": "Thing_Human209",
+     "Work": [
+      "Art",
+      "BasicWorker",
+      "Cleaning",
+      "Firefighter",
+      "Hauling",
+      "Hunting",
+      "Mining",
+      "Patient",
+      "PatientBedRest",
+      "Research"
+     ]
+    },
+    {
+     "ID": "Thing_Human231",
+     "Work": [
+      "BasicWorker",
+      "Cleaning",
+      "Cooking",
+      "Crafting",
+      "Doctor",
+      "Firefighter",
+      "Growing",
+      "Handling",
+      "Hauling",
+      "Patient",
+      "PatientBedRest",
+      "PlantCutting",
+      "Smithing",
+      "Tailoring"
+     ]
+    }
+   ],
+   "Committed": [
+    "TradeWithCaravan"
+   ],
+   "Holds": [
+    {
+     "Labor": [
+      "Construction"
+     ]
+    },
+    {
+     "Goal": "TradeWithCaravan",
+     "Slot": true
+    }
+   ],
+   "Labor": {
+    "Art": 1,
+    "BasicWorker": 3,
+    "Cleaning": 3,
+    "Cooking": 1,
+    "Crafting": 1,
+    "Doctor": 1,
+    "Firefighter": 3,
+    "Growing": 1,
+    "Handling": 1,
+    "Hauling": 3,
+    "Hunting": 1,
+    "Mining": 1,
+    "Patient": 3,
+    "PatientBedRest": 3,
+    "PlantCutting": 1,
+    "Research": 1,
+    "Smithing": 1,
+    "Tailoring": 1,
+    "Warden": 1
+   },
+   "Rows": [
+    {
+     "Deficit": 1,
+     "Goal": "MaintainAnimalFeed",
+     "Labor": [
+      "Cooking",
+      "Hauling",
+      "Growing"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0,
+     "Score": 109.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainStorage",
+     "Labor": [
+      "Hauling"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0,
+     "Score": 109.634,
+     "WaitingSince": 21
+    },
+    {
+     "Committed": true,
+     "Deficit": 1,
+     "Goal": "TradeWithCaravan",
+     "LaborEvidence": "unknown",
+     "Reason": "existing_commitment",
+     "Risk": 0,
+     "Score": 109.634,
+     "WaitingSince": 9655
+    },
+    {
+     "Deficit": 1,
+     "Goal": "EnsureBasicDefense",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "EnsureComfort",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "EnsureExpansion",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainEquipment",
+     "Labor": [
+      "Construction",
+      "Tailoring",
+      "Smithing",
+      "Crafting"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainMedicalReserves",
+     "Labor": [
+      "Crafting",
+      "PlantCutting"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainResource",
+     "Labor": [
+      "Mining",
+      "PlantCutting",
+      "Crafting"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Deficit": 1,
+     "Goal": "MaintainSleeping",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0.5,
+     "Score": 89.634,
+     "WaitingSince": 21
+    },
+    {
+     "Goal": "MaintainHerd",
+     "Labor": [
+      "Handling"
+     ],
+     "Reason": "method_unavailable",
+     "Risk": 0,
+     "Score": 9.634,
+     "WaitingSince": 21
+    },
+    {
+     "Goal": "MaintainWaste",
+     "Labor": [
+      "Hauling"
+     ],
+     "Reason": "blocked",
+     "Risk": 0,
+     "Score": 9.634,
+     "WaitingSince": 21
+    },
+    {
+     "Goal": "ClearAncientShrine",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "blocked",
+     "Risk": 0.5,
+     "WaitingSince": 21
+    },
+    {
+     "Goal": "ClearHomeObstructions",
+     "Labor": [
+      "Construction"
+     ],
+     "Reason": "blocked",
+     "Risk": 0.5,
+     "WaitingSince": 21
+    },
+    {
+     "Goal": "TidyLayout",
+     "Labor": [
+      "Growing",
+      "Hauling",
+      "Construction"
+     ],
+     "Reason": "blocked",
+     "Risk": 0.5,
+     "WaitingSince": 21
+    }
+   ],
+   "Snapshot": {
+    "Colony": "a92855952da14133b290007c00a64b05",
+    "Load": "6d8ac99ea1ae468ca51e1e025dc34c81",
+    "Native": 6,
+    "Plan": "root/a92855952da14133b290007c00a64b05/6d8ac99ea1ae468ca51e1e025dc34c81/0",
+    "Revision": 1
+   },
+   "StageHold": true,
+   "Tick": 9655,
+   "Unused": 3,
+   "Workers": 3
+  },
+  "Enabled": true,
+  "EventLoot": {
+   "Held": [
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 111
+     },
+     "Definition": "Apparel_AdvancedHelmet",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Apparel_AdvancedHelmet2665"
+    },
+    {
+     "Cell": {
+      "X": 87,
+      "Z": 109
+     },
+     "Definition": "Apparel_FlakPants",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Apparel_FlakPants2663"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 105
+     },
+     "Definition": "Apparel_FlakVest",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Apparel_FlakVest2664"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 112
+     },
+     "Definition": "ComponentIndustrial",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_ComponentIndustrial2659"
+    },
+    {
+     "Cell": {
+      "X": 82,
+      "Z": 106
+     },
+     "Definition": "EggTortoiseFertilized",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_EggTortoiseFertilized2667"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 109
+     },
+     "Definition": "Gun_BoltActionRifle",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Gun_BoltActionRifle2660"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 107
+     },
+     "Definition": "Gun_Revolver",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Gun_Revolver2661"
+    },
+    {
+     "Cell": {
+      "X": 87,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2657"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2669"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2670"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 109
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2671"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 107
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2672"
+    },
+    {
+     "Cell": {
+      "X": 25,
+      "Z": 59
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2706"
+    },
+    {
+     "Cell": {
+      "X": 22,
+      "Z": 63
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2707"
+    },
+    {
+     "Cell": {
+      "X": 29,
+      "Z": 63
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2709"
+    },
+    {
+     "Cell": {
+      "X": 142,
+      "Z": 73
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2710"
+    },
+    {
+     "Cell": {
+      "X": 141,
+      "Z": 72
+     },
+     "Definition": "MealSurvivalPack",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MealSurvivalPack2712"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 110
+     },
+     "Definition": "MeleeWeapon_Knife",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_MeleeWeapon_Knife2662"
+    },
+    {
+     "Cell": {
+      "X": 91,
+      "Z": 111
+     },
+     "Definition": "Silver",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Silver2656"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 111
+     },
+     "Definition": "Silver",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_Silver2668"
+    },
+    {
+     "Cell": {
+      "X": 82,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_WoodLog2683"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 118
+     },
+     "Definition": "WoodLog",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_WoodLog2684"
+    },
+    {
+     "Cell": {
+      "X": 81,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_WoodLog2685"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_WoodLog2686"
+    },
+    {
+     "Cell": {
+      "X": 84,
+      "Z": 107
+     },
+     "Definition": "WoodLog",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_WoodLog2687"
+    },
+    {
+     "Cell": {
+      "X": 85,
+      "Z": 107
+     },
+     "Definition": "WoodLog",
+     "Reason": "outside_base:insufficient_defense",
+     "Thing": "Thing_WoodLog2688"
+    }
+   ]
+  },
+  "Goals": [
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ConfirmColonyNames",
+    "Need": "ConfirmColonyNames"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-AnswerDialog",
+    "Need": "AnswerDialog"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ActiveCombat",
+    "Need": "ActiveCombat"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-CriticalMedical",
+    "Need": "CriticalMedical"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-RestoreWorkers",
+    "Need": "RestoreWorkers"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-AllowStartingSupplies",
+    "Need": "AllowStartingSupplies"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ManageSupplySafety",
+    "Need": "ManageSupplySafety"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureWorkAssignments",
+    "Need": "EnsureWorkAssignments"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureFoodSupply",
+    "Need": "EnsureFoodSupply"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureInitialShelter",
+    "Need": "EnsureInitialShelter"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureTemperatureSafety",
+    "Need": "EnsureTemperatureSafety"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureCooking",
+    "Need": "EnsureCooking"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureBasicPower",
+    "Need": "EnsureBasicPower"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureFoodStorage",
+    "Need": "EnsureFoodStorage"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureBasicDefense",
+    "Need": "EnsureBasicDefense"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainMedicalCare",
+    "Need": "MaintainMedicalCare"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureBasicComfort",
+    "Need": "EnsureBasicComfort"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ClearPests",
+    "Need": "ClearPests"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureComfort",
+    "Need": "EnsureComfort"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureExpansion",
+    "Need": "EnsureExpansion"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainEquipment",
+    "Need": "MaintainEquipment"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureResearch",
+    "Need": "EnsureResearch"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainResource",
+    "Need": "MaintainResource"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ProductionPolicy",
+    "Need": "ProductionPolicy"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-TradeWithCaravan",
+    "Need": "TradeWithCaravan"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-EnsureDefensiveLayout",
+    "Need": "EnsureDefensiveLayout"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainFireSafety",
+    "Need": "MaintainFireSafety"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-SecureSupplies",
+    "Need": "SecureSupplies"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainEssentialRepairs",
+    "Need": "MaintainEssentialRepairs"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainCleanFacilities",
+    "Need": "MaintainCleanFacilities"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainStorage",
+    "Need": "MaintainStorage"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ClearHomeObstructions",
+    "Need": "ClearHomeObstructions"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-ClearAncientShrine",
+    "Need": "ClearAncientShrine"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainHomeCoverage",
+    "Need": "MaintainHomeCoverage"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainStoneShell",
+    "Need": "MaintainStoneShell"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainSleeping",
+    "Need": "MaintainSleeping"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainFoodStorage",
+    "Need": "MaintainFoodStorage"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainRefrigeration",
+    "Need": "MaintainRefrigeration"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainLighting",
+    "Need": "MaintainLighting"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainFlooring",
+    "Need": "MaintainFlooring"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainRoutes",
+    "Need": "MaintainRoutes"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainHerd",
+    "Need": "MaintainHerd"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainPopulation",
+    "Need": "MaintainPopulation"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainAnimalContainment",
+    "Need": "MaintainAnimalContainment"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainAnimalFeed",
+    "Need": "MaintainAnimalFeed"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-MaintainWaste",
+    "Need": "MaintainWaste"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-RemoveBlight",
+    "Need": "RemoveBlight"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-TidyLayout",
+    "Need": "TidyLayout"
+   },
+   {
+    "Goal": "routine-683ea481d4e8bb6d-RecoverDisasterServices",
+    "Need": "RecoverDisasterServices"
+   }
+  ],
+  "Latches": {
+   "Animals": {
+    "Feed": [
+     "Thing_YorkshireTerrier2666"
+    ]
+   },
+   "Cold": true,
+   "Food": true,
+   "MedicalReserve": true,
+   "Sleeping": true,
+   "Upkeep": {
+    "Storage": true
+   },
+   "Wood": true
+  },
+  "MedicalCare": {
+   "CensusKnown": true,
+   "Patients": [
+    "Thing_Human209"
+   ]
+  },
+  "MedicineTarget": 9,
+  "Progress": [
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "AllowStartingSupplies",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureWorkAssignments",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "prerequisite:EnsureCooking",
+    "Cooldowns": [
+     {
+      "Key": "acquire/prerequisite:EnsureCooking",
+      "Until": 12155
+     }
+    ],
+    "Expected": "food days rise toward the target",
+    "Goal": "EnsureFoodSupply",
+    "LastProgress": 9655,
+    "Method": "acquire",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureInitialShelter",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureTemperatureSafety",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureCooking",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureFoodStorage",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureBasicDefense",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainMedicalCare",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureBasicComfort",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureComfort",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "EnsureExpansion",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainEquipment",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainResource",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ProductionPolicy",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "TradeWithCaravan",
+    "LastProgress": 9655,
+    "Method": "trade-open-c043e7b4d817db78-0",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainStorage",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ClearHomeObstructions",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "ClearAncientShrine",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainSleeping",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainMedicalReserves",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainFoodStorage",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainHerd",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainAnimalFeed",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155,
+    "Observed": 1
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "MaintainWaste",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   },
+   {
+    "Blocked": "no_method",
+    "Cooldowns": [
+     {
+      "Key": "assess/no_method",
+      "Until": 12155
+     }
+    ],
+    "Expected": "deficit shrinks or the method's work settles",
+    "Goal": "TidyLayout",
+    "LastProgress": 9655,
+    "Method": "assess",
+    "NextReview": 12155
+   }
+  ],
+  "ReadyWork": {
+   "Candidates": [
+    {
+     "Action": "routine-trade-81be48f9c603fe5c470b3018603bb3f9-trade",
+     "Adapter": "conservative",
+     "Goals": [
+      "TradeWithCaravan"
+     ],
+     "ID": "1f77ab48b3c3a844",
+     "Plan": "routine-trade-81be48f9c603fe5c470b3018603bb3f9",
+     "Reason": "effect_unknown",
+     "Stage": "trade",
+     "State": "awaiting_observation"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainResource"
+     ],
+     "ID": "01cb206992ee164c",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainHerd"
+     ],
+     "ID": "03b846aab959905b",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "EnsureBasicDefense"
+     ],
+     "ID": "0802b2d644620095",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainEquipment"
+     ],
+     "ID": "0e021750b1cccb59",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainSleeping"
+     ],
+     "ID": "2c87bf75170b5252",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainFoodStorage"
+     ],
+     "ID": "371b580aaa4f8d3e",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "EnsureBasicComfort"
+     ],
+     "ID": "3a65b072b354a9ec",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainAnimalFeed"
+     ],
+     "ID": "3de61cefcead8cd5",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "EnsureComfort"
+     ],
+     "ID": "56ed3f28b868beaf",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainStorage"
+     ],
+     "ID": "59b9dabbaa2d9b8f",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "EnsureExpansion"
+     ],
+     "ID": "935ff36399a858bc",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    },
+    {
+     "Adapter": "migrated",
+     "Goals": [
+      "MaintainMedicalReserves"
+     ],
+     "ID": "ce34111c8945c2ca",
+     "Reason": "no plan or proposal",
+     "Stage": "none",
+     "State": "no_method"
+    }
+   ],
+   "Colony": "a92855952da14133b290007c00a64b05",
+   "Conservative": [
+    "trade"
+   ],
+   "Load": "6d8ac99ea1ae468ca51e1e025dc34c81",
+   "Tick": 9655
+  },
+  "ReserveSupplies": [
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2669"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2670"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2671"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2672"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2657"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2706"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2707"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2709"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2710"
+   },
+   {
+    "Definition": "MealSurvivalPack",
+    "Thing": "Thing_MealSurvivalPack2712"
+   }
+  ],
+  "ResourceRunways": [
+   {
+    "Resource": "Steel",
+    "Stock": 2000,
+    "SurfaceOre": 0,
+    "Tick": 9655,
+    "WindowDays": 0.0793
+   },
+   {
+    "Resource": "ComponentIndustrial",
+    "Stock": 0,
+    "SurfaceOre": 0,
+    "Tick": 9655,
+    "WindowDays": 0.0793
+   },
+   {
+    "Resource": "Plasteel",
+    "Stock": 0,
+    "SurfaceOre": 0,
+    "Tick": 9655,
+    "WindowDays": 0.0793
+   }
+  ],
+  "Revision": 4,
+  "Roster": {
+   "Coverage": [
+    {
+     "Capable": 1,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Doctor"
+    },
+    {
+     "Capable": 2,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Warden"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Handling"
+    },
+    {
+     "Capable": 1,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Cooking"
+    },
+    {
+     "Demand": 1,
+     "Work": "Hunting"
+    },
+    {
+     "Work": "Fishing"
+    },
+    {
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Construction"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Growing"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Mining"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "PlantCutting"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Smithing"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Tailoring"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Art"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Crafting"
+    },
+    {
+     "Capable": 3,
+     "Demand": 1,
+     "Owners": 1,
+     "Work": "Research"
+    }
+   ],
+   "Help": {
+    "Idle": [
+     "Thing_Human195",
+     "Thing_Human209",
+     "Thing_Human231"
+    ],
+    "Reason": "no_unmet_suitable_construction",
+    "Tick": 9655
+   },
+   "Profiles": [
+    {
+     "Age": 25.728782653808594,
+     "Effects": {
+      "NightShift": true
+     },
+     "ID": "Thing_Human195",
+     "Incapable": {},
+     "Skills": {
+      "Animals": {
+       "Level": 1,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Artistic": {
+       "Level": 2,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Construction": {
+       "Name": "Construction",
+       "Passion": "None"
+      },
+      "Cooking": {
+       "Level": 2,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Crafting": {
+       "Level": 4,
+       "Name": "Crafting",
+       "Passion": "Minor",
+       "Stored": 4
+      },
+      "Intellectual": {
+       "Level": 1,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Medicine": {
+       "Level": 3,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Melee": {
+       "Level": 5,
+       "Name": "Melee",
+       "Passion": "Major",
+       "Stored": 5
+      },
+      "Mining": {
+       "Name": "Mining",
+       "Passion": "None"
+      },
+      "Plants": {
+       "Level": 3,
+       "Name": "Plants",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Shooting": {
+       "Level": 3,
+       "Name": "Shooting",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Social": {
+       "Level": 10,
+       "Name": "Social",
+       "Passion": "Major",
+       "Stored": 10
+      }
+     },
+     "Traits": [
+      {
+       "Name": "NightOwl"
+      }
+     ]
+    },
+    {
+     "Age": 53.001129150390625,
+     "Effects": {
+      "Greedy": true
+     },
+     "ID": "Thing_Human209",
+     "Incapable": {},
+     "Skills": {
+      "Animals": {
+       "Level": 5,
+       "Name": "Animals",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Artistic": {
+       "Level": 11,
+       "Name": "Artistic",
+       "Passion": "Major",
+       "Stored": 11
+      },
+      "Construction": {
+       "Level": 2,
+       "Name": "Construction",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Cooking": {
+       "Level": 4,
+       "Name": "Cooking",
+       "Passion": "None",
+       "Stored": 4
+      },
+      "Crafting": {
+       "Level": 2,
+       "Name": "Crafting",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Intellectual": {
+       "Level": 8,
+       "Name": "Intellectual",
+       "Passion": "Major",
+       "Stored": 8
+      },
+      "Medicine": {
+       "Level": 2,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Melee": {
+       "Level": 2,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Mining": {
+       "Level": 3,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Plants": {
+       "Level": 5,
+       "Name": "Plants",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Shooting": {
+       "Name": "Shooting",
+       "Passion": "None"
+      },
+      "Social": {
+       "Level": 5,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 5
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Greedy"
+      },
+      {
+       "Degree": 2,
+       "Name": "Beauty"
+      }
+     ]
+    },
+    {
+     "Age": 32.696102142333984,
+     "Effects": {
+      "Ascetic": true,
+      "LearnRate": 0.75
+     },
+     "ID": "Thing_Human231",
+     "Incapable": {
+      "Hunting": true,
+      "Warden": true
+     },
+     "Skills": {
+      "Animals": {
+       "Level": 7,
+       "Name": "Animals",
+       "Passion": "Minor",
+       "Stored": 7
+      },
+      "Artistic": {
+       "Level": 3,
+       "Name": "Artistic",
+       "Passion": "None",
+       "Stored": 3
+      },
+      "Construction": {
+       "Name": "Construction",
+       "Passion": "None"
+      },
+      "Cooking": {
+       "Level": 7,
+       "Name": "Cooking",
+       "Passion": "Major",
+       "Stored": 7
+      },
+      "Crafting": {
+       "Level": 5,
+       "Name": "Crafting",
+       "Passion": "Minor",
+       "Stored": 5
+      },
+      "Intellectual": {
+       "Level": 1,
+       "Name": "Intellectual",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Medicine": {
+       "Level": 5,
+       "Name": "Medicine",
+       "Passion": "None",
+       "Stored": 5
+      },
+      "Melee": {
+       "Disabled": true,
+       "Name": "Melee",
+       "Passion": "None",
+       "Stored": 2
+      },
+      "Mining": {
+       "Level": 1,
+       "Name": "Mining",
+       "Passion": "None",
+       "Stored": 1
+      },
+      "Plants": {
+       "Level": 9,
+       "Name": "Plants",
+       "Passion": "Major",
+       "Stored": 9
+      },
+      "Shooting": {
+       "Disabled": true,
+       "Name": "Shooting",
+       "Passion": "None"
+      },
+      "Social": {
+       "Disabled": true,
+       "Name": "Social",
+       "Passion": "None",
+       "Stored": 2
+      }
+     },
+     "Traits": [
+      {
+       "Name": "Ascetic"
+      },
+      {
+       "Name": "FastLearner"
+      },
+      {
+       "Name": "BodyPurist"
+      }
+     ]
+    }
+   ],
+   "Tick": 9655
+  },
+  "Sleeping": {
+   "Uses": []
+  },
+  "Snapshot": {
+   "Colony": "a92855952da14133b290007c00a64b05",
+   "Load": "6d8ac99ea1ae468ca51e1e025dc34c81",
+   "Native": 6,
+   "Plan": "root/a92855952da14133b290007c00a64b05/6d8ac99ea1ae468ca51e1e025dc34c81/0",
+   "Revision": 1
+  },
+  "Stage": {
+   "Blocker": "shelter",
+   "Held": true,
+   "ProductionBlocked": true,
+   "ProductionSince": 21,
+   "Reason": "shelter unmet"
+  },
+  "StartingSupplies": {
+   "Initialized": true,
+   "Pending": [
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 111
+     },
+     "Definition": "Apparel_AdvancedHelmet",
+     "Thing": "Thing_Apparel_AdvancedHelmet2665"
+    },
+    {
+     "Cell": {
+      "X": 87,
+      "Z": 109
+     },
+     "Definition": "Apparel_FlakPants",
+     "Thing": "Thing_Apparel_FlakPants2663"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 105
+     },
+     "Definition": "Apparel_FlakVest",
+     "Thing": "Thing_Apparel_FlakVest2664"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 112
+     },
+     "Definition": "ComponentIndustrial",
+     "Thing": "Thing_ComponentIndustrial2659"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 109
+     },
+     "Definition": "Gun_BoltActionRifle",
+     "Thing": "Thing_Gun_BoltActionRifle2660"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 107
+     },
+     "Definition": "Gun_Revolver",
+     "Thing": "Thing_Gun_Revolver2661"
+    },
+    {
+     "Cell": {
+      "X": 87,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2657"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2669"
+    },
+    {
+     "Cell": {
+      "X": 89,
+      "Z": 108
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2670"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 109
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2671"
+    },
+    {
+     "Cell": {
+      "X": 88,
+      "Z": 107
+     },
+     "Definition": "MealSurvivalPack",
+     "Thing": "Thing_MealSurvivalPack2672"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 110
+     },
+     "Definition": "MeleeWeapon_Knife",
+     "Thing": "Thing_MeleeWeapon_Knife2662"
+    },
+    {
+     "Cell": {
+      "X": 91,
+      "Z": 111
+     },
+     "Definition": "Silver",
+     "Thing": "Thing_Silver2656"
+    },
+    {
+     "Cell": {
+      "X": 90,
+      "Z": 111
+     },
+     "Definition": "Silver",
+     "Thing": "Thing_Silver2668"
+    },
+    {
+     "Cell": {
+      "X": 82,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2683"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 118
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2684"
+    },
+    {
+     "Cell": {
+      "X": 81,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2685"
+    },
+    {
+     "Cell": {
+      "X": 83,
+      "Z": 117
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2686"
+    },
+    {
+     "Cell": {
+      "X": 84,
+      "Z": 107
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2687"
+    },
+    {
+     "Cell": {
+      "X": 85,
+      "Z": 107
+     },
+     "Definition": "WoodLog",
+     "Thing": "Thing_WoodLog2688"
+    }
+   ]
+  },
+  "Tick": 9655,
+  "WoodFloor": 1286
+ },
+ "Snapshot": {
+  "Colony": "a92855952da14133b290007c00a64b05",
+  "Load": "6d8ac99ea1ae468ca51e1e025dc34c81",
+  "Native": 6,
+  "Plan": "root/a92855952da14133b290007c00a64b05/6d8ac99ea1ae468ca51e1e025dc34c81/0",
+  "Revision": 1
+ },
+ "Tick": 9655
+}

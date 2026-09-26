@@ -639,7 +639,8 @@ Steel, Plasteel, Gold, Uranium and Jade while retaining the greatest of the targ
 economic floor and configured minimum. Silver and components are excluded.
 Unknown wealth or a zero share setting adds no wealth-driven surplus. Existing
 target surplus takes precedence and dispatch preserves economic floors;
-`trade/routine-stocked` requires the exact sold quantity and final steel floor.
+The snapshot test `TestReplaySteelHoardSellsDownToTheFloor` replays the recorded
+review of a 2000-steel hoard and requires exactly 1500 sold above the 500 floor.
 [Joiner admission](population-contracts.md) uses its separate optional raid threshold.
 
 ## Bounded combat response
@@ -861,8 +862,10 @@ Forbid changes no pawn orders and may execute during an emergency; Allow retains
 the emergency gate. A changed safety census cancels stale undispatched proposals.
 The census is bounded to 4096 items. Each later review may reverse a prior decision
 when danger clears or returns. A designation receipt proves the flag only; native
-storage observations prove hauling completed. `supply/loot-safety` exercises a
-mid-run distant drop, danger removal, both flag changes and stockpile delivery.
+storage observations prove hauling completed. Both flag decisions replay from
+colony snapshots of a trapped and then cleared distant drop
+(`internal/snapshot` `TestLootOnATrapIsForbidden`,
+`TestLootIsAllowedOnceItsTrapIsGone`).
 
 ### Remote loot and resource reach
 
@@ -882,9 +885,9 @@ item's stack count, safe route length and accepting-storage headroom:
 `free_haulers` (free colonists with Hauling active) and `storyteller_quiet`
 (zero threat scale or no incident generators). Unknown readiness or demand
 holds remote stacks; it never widens reach. Reach changes no Home cell.
-`supply/loot-remote` drops a forbidden stack near the far map edge, proves the
-hold at base reach, raises readiness and proves Allow and stockpile delivery
-with the cell still outside Home.
+Colony snapshots of a forbidden stack near the far map edge replay the hold at
+base reach and the Allow once readiness rises (`internal/snapshot`
+`TestRemoteLootHeldUnderBaseReach`, `TestRemoteLootAllowedOnceReachRises`).
 
 ### Remote work holds and resume
 

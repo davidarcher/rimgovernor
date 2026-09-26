@@ -46,8 +46,9 @@ production rate. Allocation prioritizes a short herd, then survival-meal or raw
 trade surplus, then eligible diners' reserved demand. Feed and eligible shared
 meal bills use explicit ingredients; shared meals require all diners to accept
 human meat. Human survival-meal output is forbidden sale stock, excluded from
-ordinary reserve release. `food/human-butchery` verifies this channel on the
-EmptyChannels fixture in the nightly suite.
+ordinary reserve release. `policy.TestHumanButcheryFixtureDecisions` checks
+the selection and routing decisions over the former `food/human-butchery`
+fixture's facts.
 
 Cooking recipes expose their product's base taste mood offset, nutrition output
 per nutrition input and native work per output nutrition (batch counts included).
@@ -168,8 +169,8 @@ MoodProvision. Paste is a PlanSiteType construction method: one firm network,
 connector reach, native definition sizes and a clear apron select a dispenser
 and adjacent hopper. Both placements and combined costs pass ordinary building
 admission. Cooking is recovered only from a powered dispenser with hopper food,
-not its blueprint or placement receipt. The registered food/meal-tiers case
-checks native fine-to-simple replacement across a controller restart.
+not its blueprint or placement receipt. `policy.TestMealTiersFineThenSimpleAfterDrain`
+checks the fine-to-simple tier decision once raw stock is drained.
 
 ## Shared food portfolio
 
@@ -221,9 +222,10 @@ floor, and require a selected raw protein purchase.
 Native trade sheets provide validated definition nutrition and ingredient
 classification; drugs, corpses, kibble and human meat are excluded. Typed native
 acceptance independently requires a raw protein purchase and positive retained
-floor for crop exports. The registered `trade/routine-food-bridge` and
-`trade/routine-food-surplus` cases assert native inventory changes for emergency
-pemmican purchases and above-target crop exchanges; the nightly suite runs them.
+floor for crop exports. Recorded colony snapshots (`internal/snapshot`,
+`TestReplayOneDayOfFoodBuysABridge` and
+`TestReplayCropSurplusBuysMissingProteinAboveTheFloor`) replay the review's
+food bridge and the above-target crop exchange with its missing protein.
 
 ## Fishing policy
 

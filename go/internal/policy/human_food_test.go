@@ -151,3 +151,56 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 		t.Fatal("human trade stock released as an ordinary reserve")
 	}
 }
+
+// Converted from the native case food/human-butchery (removed for #749 at
+// 04b0a98c), which staged six raider corpses on the EmptyChannels start with
+// one psychopath cook, an ordinary colonist, a two-animal herd, rice and a
+// survival-meal recipe. Its planner decisions: the psychopath gets the
+// pinned human bill beside the animal bill; the finite human meat routes to
+// the herd first and the rest to protected survival-meal trade, never to
+// ordinary meals when a diner refuses it; the survival bill names only human
+// meat and vegetables.
+func TestHumanButcheryFixtureDecisions(t *testing.T) {
+	butcher := ProductionBench{ID: "butcher", Butcher: true, Usable: domain.Known(true), Token: domain.Known("bt"),
+		HumanButchers: []HumanButcherCandidate{
+			{ID: "ordinary", Traits: domain.Known([]PawnTrait{}), PreceptAcceptable: domain.Known(false), CanWork: domain.Known(true)},
+			{ID: "psycho", Traits: domain.Known([]PawnTrait{{Name: "Psychopath"}}), PreceptAcceptable: domain.Known(false), CanWork: domain.Known(true)},
+		},
+		HumanCorpseNutrition: domain.Known(30.),
+		Recipes:              []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}},
+		Bills:                []ExistingProductionBill{{Recipe: "ButcherCorpseFlesh"}}}
+	stove := ProductionBench{ID: "stove", Usable: domain.Known(true), Token: domain.Known("st"), Recipes: []ProductionRecipe{
+		{Name: "CookMealSurvival", Available: domain.Known(true), NutrientEfficiency: domain.Known(1.), Products: []ProductionProduct{{Name: "MealSurvivalPack", Nutrition: domain.Known(.9), Edible: domain.Known(true)}}},
+	}}
+	benches := domain.Known([]ProductionBench{butcher, stove})
+	pick, ok := SelectHumanButcher(benches)
+	if !ok || pick.Bench != "butcher" || pick.Worker != "psycho" || pick.Mode != domain.HumanButcherForever {
+		t.Fatal("qualified psychopath not selected", pick, ok)
+	}
+
+	meat := durableFood("meat", 30, "")
+	meat.IsHumanMeat, meat.RawMeat, meat.DefName = true, true, "Meat_Human"
+	rice := durableFood("rice", 20, "", "psycho", "ordinary")
+	rice.Vegetable, rice.DefName = true, "RawRice"
+	supply := FoodSupply{Complete: domain.Known(true), Stocks: []FoodStock{meat, rice}, Consumers: []FoodConsumer{
+		{ID: "psycho", NutritionPerDay: domain.Known(1.6), HumanMeatAcceptable: domain.Known(true)},
+		{ID: "ordinary", NutritionPerDay: domain.Known(1.6), HumanMeatAcceptable: domain.Known(false)},
+		{ID: "herd1", NutritionPerDay: domain.Known(1.)},
+		{ID: "herd2", NutritionPerDay: domain.Known(1.)},
+	}}
+	channel, ok := HumanFoodChannel([]ProductionBench{butcher, stove}, supply, []PawnID{"psycho", "ordinary"}, 3)
+	if !ok {
+		t.Fatal("human food channel missing")
+	}
+	plan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: channel, Decision: FoodPlanHold, Terms: channel.Terms}}})
+	if HumanRouteNutrition(plan, HumanMeatFeed) <= 0 || HumanRouteNutrition(plan, HumanMeatSurvivalTrade) <= 0 {
+		t.Fatal("human meat not routed to herd and survival trade", channel.Terms)
+	}
+	if HumanCookingIngredients(supply, supply.Consumers[:2], plan, HumanMeatMeals) != nil {
+		t.Fatal("ordinary meals admitted human meat with a refusing diner")
+	}
+	sale, ok := SelectHumanSurvivalBill(benches, supply, plan)
+	if !ok || sale.Bench != "stove" || sale.Recipe != "CookMealSurvival" || sale.Target < 1 || !reflect.DeepEqual(sale.Ingredients, []string{"Meat_Human", "RawRice"}) {
+		t.Fatal("protected survival bill not selected", sale, ok)
+	}
+}

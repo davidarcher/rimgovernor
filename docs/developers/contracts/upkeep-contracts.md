@@ -841,6 +841,7 @@ preventing successive reviews from emptying the reserve. Unknown facts do
 not authorize a hold. General event-loot handling excludes these corpses;
 the larder uses the native safe-hauling census and the shared Hands actions.
 
-`food/corpse-larder` verifies frozen reserves, live controller release, actual
-native meat production and tile density. A corpse butchered before the first
-hold is observed is an accepted loss of density, with its meat still available.
+`snapshot.TestCorpseLarderReleasesOneFrozenCorpse` replays the release
+decision over a colony snapshot recorded from the former `food/corpse-larder`
+case (#749). A corpse butchered before the first hold is observed is an
+accepted loss of density, with its meat still available.

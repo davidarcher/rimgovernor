@@ -62,8 +62,10 @@ when raid points and built defense tiers are known, no firing or turret tier
 stands, and current points plus a conservative 200-point allowance exceed the
 threshold, the joiner is not admitted. Zero disables this veto; unknown threat or
 defense leaves the ordinary capacity answer unchanged. The allowance is not a
-prediction of final raid strength. `quest/wanderer-defense` requires rejection
-without defense and admission after a native firing tier is built and recorded.
+prediction of final raid strength. Colony snapshots replay the rejection without
+defense and the admission after a firing tier is built and recorded
+(`internal/snapshot` `TestWandererLetterRefusedWithoutDefenseAboveRaidThreshold`,
+`TestWandererLetterAnsweredOnceFiringCoverIsBuilt`).
 
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,

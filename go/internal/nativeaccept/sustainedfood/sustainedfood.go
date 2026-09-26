@@ -1,6 +1,6 @@
 // Package sustainedfood holds the watch mechanics behind the serve-driven
 // registry cases (sustained/food, sustained/matrix-*, facility/*, farm/*,
-// supply/starting, medical/stable-patient; issue #1's sustained-matrix
+// medical/stable-patient; issue #1's sustained-matrix
 // acceptance first): on a session the runner opened, launch the live Go
 // player service with the routine families under test, acquire player
 // authority, and sample a goal's durable state over a tick-measured window

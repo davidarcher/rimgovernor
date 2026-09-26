@@ -97,6 +97,26 @@ func TestMealTierTable(t *testing.T) {
 	}
 }
 
+// Converted from the native case food/meal-tiers (removed for #749 at
+// 04b0a98c): a skilled cook with raw rice and milk surplus cooks fine meals;
+// once the raw stock is drained below target the owned fine bill gives way
+// to simple, with the fine tier carried as the previous review's tier (the
+// case crossed a controller restart between the two reviews).
+func TestMealTiersFineThenSimpleAfterDrain(t *testing.T) {
+	r := tierRequest()
+	first, err := ReviewMealTier(r, tierBenches())
+	if err != nil || first.Tier != MealFine || len(first.Recipes) == 0 || first.Recipes[0].Recipe != "CookMealFine" {
+		t.Fatal("surplus with a skilled cook did not choose fine", first, err)
+	}
+	r.Previous = first.Tier
+	r.RawRunwayDays = domain.Known(1.0)
+	r.Environment = domain.Unknown[ControlledEnvironment]()
+	second, err := ReviewMealTier(r, tierBenches())
+	if err != nil || second.Tier != MealSimple || len(second.Recipes) == 0 || second.Recipes[0].Recipe != "CookMealSimple" {
+		t.Fatal("drained raw stock did not downgrade to simple", second, err)
+	}
+}
+
 func TestMealIngredientChannelsAndSlots(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

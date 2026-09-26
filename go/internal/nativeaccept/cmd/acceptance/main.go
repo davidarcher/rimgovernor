@@ -130,7 +130,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/speedmatrix"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/startup"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supply"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/surgery"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/temperature"
