@@ -125,8 +125,8 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture LightingFixture,UpkeepFixture", name)
 		}
 	}
-	clock := na.NewSupervisedPlayClock(sessionOwner)
-	if _, err := clock.Change(ctx, h, "initial-pause", "Paused", nil); err != nil {
+	clock := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: sessionOwner, Report: report}
+	if _, err := h.Call(ctx, "initial-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
 	scope := map[string]any{"expectedIdentity": identity}
@@ -198,23 +198,9 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	// acquire sets Auto mode at the current generation (#52: no lease
 	// handshake); it is repeated before every dispatch that follows a
 	// supervised run, since player-visible activity may bump the generation.
+	// The clock keeps the grant, so its windows start at the same generation.
 	acquire := func(label string) error {
-		statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return err
-		}
-		_, status, err := na.Outcome(statusReply, "status")
-		if err != nil {
-			return err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		grantReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"setMode": map[string]any{
-			"identity": identity, "expectedGeneration": statusContext["nativeGeneration"], "mode": "MODE_AUTO",
-		}})
-		if err != nil {
-			return err
-		}
-		_, _, err = na.Outcome(grantReply, "granted")
+		_, err := clock.Acquire(ctx, label)
 		return err
 	}
 	currentGeneration := func(label string) (any, error) {
@@ -314,9 +300,10 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	// and one that keeps ticking without completing spends the tick budget.
 	runUntilCompleted := func(label string, attempt map[string]any, ticks uint64) error {
 		maxTicks := uint64(6000)
-		if _, err := clock.Change(ctx, h, label+"-run", "Fast", &maxTicks); err != nil {
+		if _, err := clock.Change(ctx, "Fast", maxTicks); err != nil {
 			return err
 		}
+		var state map[string]any
 		polls := 0
 		var latest uint64
 		tick := func(ctx context.Context) (uint64, error) {
@@ -326,7 +313,8 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		}
 		err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Ticks: ticks, Tick: tick}, func(ctx context.Context) (string, bool, error) {
 			polls++
-			if _, err := clock.Poll(ctx, h, fmt.Sprintf("%s-poll-%d", label, polls)); err != nil {
+			var err error
+			if state, err = clock.Call(ctx, "status", nil); err != nil {
 				return "", false, err
 			}
 			observed, err := progress(fmt.Sprintf("%s-progress-%d", label, polls), attempt)
@@ -339,18 +327,20 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 			if _, ok := na.AsMap(observed["completed"]); ok {
 				return "", true, nil
 			}
-			if active, _ := na.AsBool(clock.State["active"]); !active {
-				clock.AllowResume()
-				if _, err := clock.Change(ctx, h, fmt.Sprintf("%s-rerun-%d", label, polls), "Fast", &maxTicks); err != nil {
+			if active, _ := na.AsBool(state["active"]); !active {
+				clock.Hold = ""
+				if _, err := clock.Change(ctx, "Fast", maxTicks); err != nil {
 					return "", false, err
 				}
 			}
-			return na.Signature(latest, clock.State["epoch"]), false, nil
+			return na.Signature(latest, state["epoch"]), false, nil
 		})
 		if err != nil {
 			return fmt.Errorf("%s: %w", label, err)
 		}
-		_, err = clock.Change(ctx, h, label+"-pause", "Paused", nil)
+		if active, _ := na.AsBool(state["active"]); active {
+			_, err = clock.Call(ctx, "pause", map[string]any{"owner": clock.Owner, "epoch": state["epoch"]})
+		}
 		return err
 	}
 	spawn := func(label, cells string) ([]string, error) {

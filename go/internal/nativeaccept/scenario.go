@@ -337,6 +337,9 @@ type ScenarioClock struct {
 	// the zero value preserves Superfast and all native stop boundaries.
 	TestAcceleration bool
 
+	// LeaseMs is the lease every clock_start requests; zero means 30000.
+	LeaseMs uint32
+
 	// Grant is the current authority grant (SetMode(Auto)'s "granted" body:
 	// {context, authority}); its context.nativeGeneration is the generation
 	// every owned write below is admitted against. Exported so callers can
@@ -523,7 +526,7 @@ func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint6
 		"authority": s.precondition(),
 		"speed":     "SPEED_" + strings.ToUpper(speed),
 		"policy":    deepCopyMap(scenarioPolicy),
-		"leaseMs":   30000,
+		"leaseMs":   s.leaseMs(),
 		"maxTicks":  maxTicks,
 	}
 	if s.TestAcceleration {
@@ -1187,4 +1190,11 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 		return nil, runErr
 	}
 	return state, nil
+}
+
+func (s *ScenarioClock) leaseMs() uint32 {
+	if s.LeaseMs == 0 {
+		return 30000
+	}
+	return s.LeaseMs
 }

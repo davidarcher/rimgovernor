@@ -141,7 +141,6 @@ namespace HomeBridge.BridgeTools
         }
         private static object Speed(string owner, long epoch, Verse.TimeSpeed speed, int? maxTicksPerSecond = null)
         {
-            if (!typedSpeedCall) throw new InvalidOperationException("Canonical epoch requires typed speed capability");
             _state.RequestedSpeed = speed; Verse.Find.TickManager.CurTimeSpeed = speed;
             if (maxTicksPerSecond.HasValue) _state.MaxTicksPerSecond = maxTicksPerSecond.Value;
             Add("speed_changed", "Speed changed", _state, new Dictionary<string, object> { ["speed"] = speed.ToString() });

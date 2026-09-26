@@ -97,7 +97,7 @@ func TestFinalizeWithoutABudgetPasses(t *testing.T) {
 func TestTickObservationCountsForwardProgressOnly(t *testing.T) {
 	ResetTickStats()
 	observeReply(t, "home/status", map[string]any{"time": map[string]any{"ticksGame": 500.0}})
-	observeReply(t, "home/supervised_play", map[string]any{"lastTick": 800.0})
+	observeReply(t, "home/status", map[string]any{"time": map[string]any{"ticksGame": 800.0}})
 	// A rewind (an older save loaded without a load tool passing through
 	// the harness) re-baselines without counting.
 	observeReply(t, "home/colony_facts", map[string]any{"tick": 100.0})

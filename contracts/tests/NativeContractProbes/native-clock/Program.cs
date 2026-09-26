@@ -392,6 +392,13 @@ internal static class NativeClockProbe
         foreach (var digest in new[] { "PublishFactChanges", "ZoneDigests", "ResearchDigest", "WorldDigest", "ConditionDigest", "PublishZoneChanges" })
             Check(!body.Contains(digest), "Probe still runs " + digest);
         Check(source.Contains("RunDigestIfDue(s, tm)") && !source.Contains("AcceleratedProbeTicks"), "digest cadence or wall gate not replaced");
+        // #661/#662: an untyped home/supervised_play epoch left in a kept
+        // process made every typed status read Unavailable, and the
+        // controller churned authority on each step. Every epoch is typed.
+        var runtime = File.ReadAllText(Path.Combine(root, "Bridge/Protocol/NativeClockRuntime.cs"));
+        Check(!source.Contains("home/supervised_play") && !source.Contains("[Tool("), "the untyped supervised_play tool is back");
+        Check(runtime.Contains("if (pendingTyped == null) throw new InvalidOperationException(") && !runtime.Contains("Legacy supervisor has no canonical epoch owner"),
+            "an untyped clock epoch can start again, or typed status still reports one as unavailable");
         // The status carries the two elapsed counters and per-class gaps.
         ClockProbeAccounting.Started(Current.Game);
         ClockProbeAccounting.Probed(System.Diagnostics.Stopwatch.Frequency / 1000 * 4); ClockProbeAccounting.Probed(System.Diagnostics.Stopwatch.Frequency / 1000 * 4);

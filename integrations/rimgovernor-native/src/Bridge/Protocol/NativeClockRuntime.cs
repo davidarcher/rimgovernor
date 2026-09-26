@@ -32,7 +32,6 @@ namespace HomeBridge.BridgeTools
             internal readonly List<ArmedWatch> Watches = new List<ArmedWatch>();
         }
         private static TypedEpoch? pendingTyped;
-        private static bool typedSpeedCall;
         // Test acceleration (the native dev tick boost behind an Ultrafast
         // epoch) is admitted only for a game launched with this argument, which
         // nativeaccept's Prepare and PrepareRendered add and no player launch
@@ -41,19 +40,19 @@ namespace HomeBridge.BridgeTools
         internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostField != null && BoostField.FieldType == typeof(bool);
         private static readonly Stopwatch TypedClock = Stopwatch.StartNew();
         private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock epoch is not typed.");
-        private static long LeaseNow(State s) => s.Typed == null ? NowMs() : TypedClock.ElapsedMilliseconds;
+        private static long LeaseNow(State s) => TypedClock.ElapsedMilliseconds;
         private static void AttachTypedEpoch(State s)
         {
-            if (pendingTyped == null) return;
+            // Every epoch is typed: the untyped home/supervised_play start is gone (#661/#662).
+            if (pendingTyped == null) throw new InvalidOperationException("Clock epochs start only through the typed clock start.");
             s.Typed = pendingTyped;
             s.Typed.Owner.Epoch = s.Epoch;
             s.LeaseExpiresMs = checked(LeaseNow(s) + s.Typed.LeaseMs);
         }
         private static bool StopInvalidTypedAuthority(State s)
         {
-            if (s.Typed == null) return false;
             if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Owned clock lease expired.", true, null); return true; }
-            var pre = s.Typed.Authority;
+            var pre = TypedOf(s).Authority;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
             { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
             var result = authority.Check(pre.ExpectedGeneration);
@@ -72,19 +71,17 @@ namespace HomeBridge.BridgeTools
         // lease, so silence past it means a crash, hang or dropped transport.
         // Authority follows the clock down as Disconnect, so a reconnecting or
         // restarted controller observes Inactive and grants Auto afresh instead
-        // of finding an Auto it cannot prove it owns. Legacy (untyped) epochs
-        // carry no authority precondition and are left alone.
+        // of finding an Auto it cannot prove it owns.
         private static void RevokeDisconnected(State s)
         {
-            if (s.Typed == null || !ReferenceEquals(Current.Game, s.Session)) return;
+            if (!ReferenceEquals(Current.Game, s.Session)) return;
             if (NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority != null)
                 authority.RevokeExternal(NativeControlRevocationReason.Disconnect);
         }
         private static void CaptureTypedContext(State s)
         {
-            if (s.Typed == null) return;
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map)
-                && ProtoBoundary.TryReadContext(s.Map, out var observed, out _)) s.Typed.LastObservation = observed;
+                && ProtoBoundary.TryReadContext(s.Map, out var observed, out _)) TypedOf(s).LastObservation = observed;
         }
 
         internal static Common.Failure? ValidateTypedStart(Clock.StartRequest request)
@@ -201,12 +198,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
                 if (ActiveState.TestAcceleration && request.Speed != Clock.Speed.Ultrafast) throw new InvalidOperationException("An accelerated epoch cannot change speed; pause it instead.");
-                try
-                {
-                    typedSpeedCall = true;
-                    Speed(request.Epoch.Owner.ControllerSessionId, request.Epoch.Owner.Epoch, NativeSpeed(request.Speed), request.HasMaxTicksPerSecond ? (int?)request.MaxTicksPerSecond : null);
-                }
-                finally { typedSpeedCall = false; }
+                Speed(request.Epoch.Owner.ControllerSessionId, request.Epoch.Owner.Epoch, NativeSpeed(request.Speed), request.HasMaxTicksPerSecond ? (int?)request.MaxTicksPerSecond : null);
                 if (ActiveState.RequestedSpeed != NativeSpeed(request.Speed) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed))
                     throw new InvalidOperationException("Native speed did not match admitted change");
                 return TypedStatus(context);
@@ -278,7 +270,6 @@ namespace HomeBridge.BridgeTools
                 if (Journal != null) result.NewestCursor = Journal.Newest;
                 var s = _state;
                 if (s == null) result.NeverStarted = new Clock.NeverStarted();
-                else if (s.Typed == null) result.Unavailable = Unavailable("Legacy supervisor has no canonical epoch owner or admission origin.");
                 else
                 {
                     var epoch = Epoch(s);
@@ -356,7 +347,8 @@ namespace HomeBridge.BridgeTools
                     long previous = request.AfterCursor;
                     foreach (var row in window.Rows)
                     {
-                        // A legacy (untyped) epoch's row carries no canonical
+                        // A retained row from a legacy (untyped) epoch, written
+                        // before home/supervised_play was removed, carries no canonical
                         // ownership or original observation context, and nothing
                         // may fabricate one for it. It reads as cursor loss,
                         // exactly like a damaged retained file: the page reports

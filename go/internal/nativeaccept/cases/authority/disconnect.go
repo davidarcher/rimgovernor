@@ -6,8 +6,7 @@
 // the clock as lease_expired, revoke authority as
 // REVOCATION_REASON_DISCONNECT at the next generation, and then admit a
 // fresh SetMode(Auto) at that generation exactly as a reconnecting
-// controller would issue it. A legacy home/supervised_play lease lapsing
-// must not touch authority: it carries no authority precondition.
+// controller would issue it.
 //
 // The final case is the Go transport side (#87): the case kills its own
 // GABS process mid-epoch, the bridge client must report the loss and fail
@@ -33,7 +32,7 @@ const controller = "disconnectaccept"
 func init() {
 	cases.Register(cases.Case{
 		Name:   "authority/disconnect",
-		Scope:  "Typed clock lease expiry revokes native authority as REVOCATION_REASON_DISCONNECT at generation+1 with the clock stopped lease_expired and pause verified; a fresh SetMode(Auto) at that generation is granted; a legacy supervised_play lease lapsing leaves authority untouched. Killing the case's own GABS mid-epoch disconnects the Go bridge client, Reattach restores it against the running game, and the re-observed DISCONNECT revocation is cleared by a fresh grant.",
+		Scope:  "Typed clock lease expiry revokes native authority as REVOCATION_REASON_DISCONNECT at generation+1 with the clock stopped lease_expired and pause verified; a fresh SetMode(Auto) at that generation is granted. Killing the case's own GABS mid-epoch disconnects the Go bridge client, Reattach restores it against the running game, and the re-observed DISCONNECT revocation is cleared by a fresh grant.",
 		Start:  cases.DebugStart{},
 		Quiet:  na.Loud,
 		Reason: "an interruption case: the typed epochs run the colony watch policy against the game's own storyteller, and the transport drop must reattach to a game that kept running unquieted",
@@ -45,7 +44,7 @@ func init() {
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, identity := s.Harness(), s.Identity()
-	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/clock_start", "rimgovernor/clock_read_status", "home/supervised_play"} {
+	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/clock_start", "rimgovernor/clock_read_status"} {
 		if !na.Contains(s.Names(), tool) {
 			return fmt.Errorf("missing %s in discovery", tool)
 		}
@@ -145,53 +144,10 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["case_regrant"] = map[string]any{"generation": regranted}
 
-	// Case 3: a legacy supervised_play lease lapsing carries no authority
-	// precondition and must leave the fresh Auto grant alone.
-	legacy, err := h.Call(ctx, "legacy-start", "home/supervised_play", map[string]any{
-		"op": "start", "owner": controller, "speed": "Normal", "leaseMs": 1000, "maxTicks": 60000,
-		"hostileWithin": 40, "injuryStopCooldownMs": 0,
-	})
-	if err != nil {
-		return fmt.Errorf("legacy-start: %w", err)
-	}
-	if active, _ := na.AsBool(legacy["active"]); !active {
-		return fmt.Errorf("legacy-start: expected an active clock, got %v", legacy)
-	}
-	deadline := time.Now().Add(20 * time.Second)
-	for {
-		status, err := h.Call(ctx, "legacy-status", "home/supervised_play", map[string]any{"op": "status", "owner": controller})
-		if err != nil {
-			return fmt.Errorf("legacy-status: %w", err)
-		}
-		if active, _ := na.AsBool(status["active"]); !active {
-			if na.AsString(status["stopReason"]) != "lease_expired" {
-				return fmt.Errorf("legacy-status: expected lease_expired, got %v", status)
-			}
-			break
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("legacy-status: lease did not expire in time")
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(250 * time.Millisecond):
-		}
-	}
-	legacyGeneration, legacyState, err := authority(ctx, h, "status-after-legacy", identity)
-	if err != nil {
-		return err
-	}
-	active, ok := na.AsMap(legacyState["active"])
-	if !ok || na.AsString(active["mode"]) != "MODE_AUTO" || legacyGeneration != regranted {
-		return fmt.Errorf("status-after-legacy: expected Auto at generation %d untouched, got %v at %d", regranted, legacyState, legacyGeneration)
-	}
-	report["case_legacy_lease_untouched"] = map[string]any{"generation": legacyGeneration}
-
-	// Case 4 (#87): the GABS process itself dies mid-epoch. The typed lease
+	// Case 3 (#87): the GABS process itself dies mid-epoch. The typed lease
 	// is again the only native-observable sign; on the Go side the bridge
 	// client must notice the loss without a call, fail fast, and reattach.
-	transport, err := transportDrop(ctx, s, h, identity, legacyGeneration)
+	transport, err := transportDrop(ctx, s, h, identity, regranted)
 	if err != nil {
 		return err
 	}

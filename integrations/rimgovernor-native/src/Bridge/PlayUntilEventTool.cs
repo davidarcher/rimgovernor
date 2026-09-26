@@ -258,7 +258,7 @@ namespace HomeBridge.BridgeTools
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.", "error");
 
             if (Supervisor.IsActive)
-                return Failure("A supervised_play session is active; use its status/pause API instead of starting a competing clock guard.", "busy");
+                return Failure("An owned clock epoch is active; pause it through the typed clock instead of starting a competing clock guard.", "busy");
 
             if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
                 return Failure("Another " + ToolName + " call is already running; two loops would fight over the clock.", "busy");

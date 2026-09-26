@@ -44,7 +44,7 @@ func TestGoClockTraceRequiresContiguousAttributedControl(t *testing.T) {
 	if _, err := ClockAudit(append(append([]map[string]any{}, rows...), rows[len(rows)-1]), 0, caps, false, false); err == nil {
 		t.Fatal("expected an error for a duplicated-sequence trace")
 	}
-	caps["clock_start"] = []string{"home/supervised_play"}
+	caps["clock_start"] = []string{"home/status"}
 	if _, err := ClockAudit(rows, 0, caps, false, false); err == nil {
 		t.Fatal("expected an error once clock_start no longer maps to an allowed capability")
 	}

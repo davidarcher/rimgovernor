@@ -95,7 +95,6 @@ discovered/mapped, not as live source links.
 | `home/render_demand` | PresentationMedia.DemandRendering; PresentationReads.RenderState | Typed | `controller/rimgovernor/bridge_runtime.py:250` |
 | `rimworld/take_screenshot` | PresentationMedia.CaptureScreenshot | Typed | `controller/rimgovernor/bridge_runtime.py:256` |
 | `rimworld/get_camera_state` | PresentationReads.Camera | Typed | `controller/rimgovernor/bridge_runtime.py:252` |
-| `home/supervised_play` | Clock.ReadStatus / ReadEvents / Start / Pause / Renew / ChangeSpeed / ReadAttempt | Typed | `controller/rimgovernor/clock_control.py:6` |
 | `home/pawn_image` | PresentationMedia.CapturePawn | Typed | `controller/rimgovernor/colony_people.py:56` |
 | `rimworld/list_colonists` | PresentationReads.Colonists; Observations.ListPawns | Typed | `controller/rimgovernor/dashboard_controls.py:184` |
 | `rimworld/select_pawn` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:194` |

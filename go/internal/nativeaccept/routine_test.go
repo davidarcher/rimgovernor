@@ -354,7 +354,7 @@ func TestRoutineTraceRequiresAttributedNativeReads(t *testing.T) {
 	if _, err := AuditRoutine(rows, 0, caps, true); err == nil {
 		t.Fatal("expected an error requiring observations_read_colony_facts on restart")
 	}
-	for _, forbidden := range []string{"rimgovernor/authority_control", "rimgovernor/clock_start", "rimgovernor/operations_execute", "home/supervised_play"} {
+	for _, forbidden := range []string{"rimgovernor/authority_control", "rimgovernor/clock_start", "rimgovernor/operations_execute"} {
 		changed := map[string][]string{}
 		for k, v := range caps {
 			changed[k] = v

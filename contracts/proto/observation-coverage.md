@@ -151,7 +151,6 @@ Sources in this table are under
 | OrderTool.cs / order resolve | ResolveTarget; exact typed target or explicit ambiguity | hands, target resolution, player inspections |
 | TradeTool.cs / list_traders, sheet, status | ListTraders / ReadTradeSheet / ReadTradeStatus; TradeLine absolute index, session snapshot token, validated native food nutrition/class/preparation/perishability/crop facts | trade_policy, trade_outcome, player inspections |
 | CaravanTool.cs / caravan catalog | ReadCaravanCatalog; PawnEligibility, stock/routes/return storage, scoped token | expedition_policy, caravan outcomes |
-| SupervisedPlayTool.cs / supervised_play status/events | clock.proto; lease status, journal, gaps and typed events | supervisor, native_scenario |
 | InstallTool.cs / install without coordinates | ReadInstallStatus; PackedFurnitureState preserving inner identity | install outcome and player inspections |
 | GearUpkeepTool.cs / gear_upkeep inspection | ReadGear; GearLoadout, GearCandidate, snapshot token | gear_upkeep, colony_facts planning |
 | MedicalOperationsTool.cs / medical_operations catalog | ReadMedicalCatalog; MedicalCatalog, MedicalRecipe, exact body-part/medicine/practitioner facts | medical_operations, medical_outcome |

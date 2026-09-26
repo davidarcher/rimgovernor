@@ -5,7 +5,6 @@ remain in N01; schema compilation alone does not establish these behaviors.
 
 | Current boundary/source | Contract | Required behavior |
 | --- | --- | --- |
-| `home/supervised_play`: `status`, `events` in `SupervisedPlayTool.cs` | `clock.Clock.ReadStatus`, `ReadEvents` | Read-only, current identity, complete typed state and journal rows. |
 | `start`, `pause`, `heartbeat`, `speed` in the same source | `Start`, `Pause`, `Renew`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no lease stealing or automatic reacquisition. |
 | `home/play_until_event` and consumed ordinary `rimworld/set_time_speed` calls | Migrate supervised consumers to `clock.Clock` | One supervised clock owner. Remove bypass calls from autonomous execution. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which `nativeaccept` adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
 | `Supervisor.Add`, `ClockEventJournal.cs` | `clock.Event`, `EventsPage` | Immutable typed events, explicit gaps, journal failure holds play. |

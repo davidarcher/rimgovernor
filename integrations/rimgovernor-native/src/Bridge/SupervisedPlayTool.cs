@@ -15,100 +15,6 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// Persistent, main-thread play guard. The MCP call only changes or reads
-    /// state; TickManagerUpdate owns monitoring and pausing after it returns.
-    public sealed class HomeSupervisedPlayTools
-    {
-        private const string ToolName = "home/supervised_play";
-
-        [Tool(ToolName, Title = "Supervised nonblocking play",
-            Description = "Start, pause, renew or inspect a persistent in-game safety watcher. Start returns immediately; the watcher pauses independently on danger or lease expiry.")]
-        [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted case-sensitively. Empty means the call was clean.", Always = true)]
-        [ToolResponse("unknownArgumentsWarning", "string", "Present when unknown arguments were supplied or raw argument inspection was unavailable.", Nullable = true)]
-        public async Task<object?> SupervisedPlay(
-            IRimBridgeContext ctx,
-            CancellationToken cancellationToken,
-            [ToolParameter(Description = "start, pause, speed, status, heartbeat, or events.")] string op,
-            [ToolParameter(Description = "Caller identity used with epoch to reject stale control.", DefaultValue = "agent")] string owner = "agent",
-            [ToolParameter(Description = "Epoch returned by start; required for heartbeat and pause.", DefaultValue = 0L)] long epoch = 0L,
-            [ToolParameter(Description = "Renewable watchdog lease, clamped to 1000..30000 ms.", DefaultValue = 15000)] int leaseMs = 15000,
-            [ToolParameter(Description = "Normal, Fast, Superfast or Ultrafast.", DefaultValue = "Superfast")] string speed = "Superfast",
-            [ToolParameter(Description = "colony stops on any new/worsened injury; combat records ordinary wounds and stops only at configured health thresholds.", DefaultValue = "colony")] string mode = "colony",
-            [ToolParameter(Description = "Combat mode: stop when summary health drops this fraction from start, clamped 0.01..1.", DefaultValue = 0.15f)] float healthDropFraction = 0.15f,
-            [ToolParameter(Description = "Combat mode: stop when summary health crosses under this fraction within the epoch, clamped 0.01..1.", DefaultValue = 0.5f)] float minHealthFraction = 0.5f,
-            [ToolParameter(Description = "Accepted and ignored: alerts never stop play.", DefaultValue = "")] string ignoredAlertLabels = "",
-            [ToolParameter(Description = "Pause for hostiles within this many cells of a colonist; distant cave occupants alone do not stop play.", DefaultValue = 40f)] float hostileWithin = 40f,
-            [ToolParameter(Description = "Stable IDs of explicitly acknowledged hostiles or nearby hunting predators, comma-separated.", DefaultValue = "")] string ignoredHostileIds = "",
-            [ToolParameter(Description = "Stable IDs of explicitly acknowledged downed colonists, comma-separated.", DefaultValue = "")] string ignoredDownedColonistIds = "",
-            [ToolParameter(Description = "Stable IDs of colonists whose non-severe injuries are acknowledged; they never stop the clock in this epoch, comma-separated.", DefaultValue = "")] string ignoredInjuredColonistIds = "",
-            [ToolParameter(Description = "After a colonist_injury stop, that colonist non-severe injuries do not stop the clock again for this many real milliseconds, across restarts. Clamped 0..1800000; 0 disables.", DefaultValue = 180000)] int injuryStopCooldownMs = 180000,
-            [ToolParameter(Description = "For events, return rows strictly after this cursor.", DefaultValue = 0L)] long afterCursor = 0L,
-            [ToolParameter(Description = "For events, maximum rows, clamped to 1..128.", DefaultValue = 64)] int limit = 64,
-            [ToolParameter(Description = "Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.", DefaultValue = 0)] int maxTicks = 0,
-            [ToolParameter(Description = "Tracked surgical patient IDs. Only permits downing while alive, anesthetized, in bed, not bleeding or dangerously ill, and above half health. Rechecked every safety sweep; no injury or death guard is disabled.", DefaultValue = "")] string surgicalRecoveryIds = "",
-            [ToolParameter(Description = "Disposable acceptance only: enable native boost for a bounded Ultrafast epoch, with safety probes at most 30 game ticks apart. Restores the prior boost on stop; does not suppress native forced slowdown.", DefaultValue = false)] bool testAcceleration = false,
-            [ToolParameter(Description = "Observed stable resting patient IDs, requiring maxTicks 1..600. Native sweeps require alive, downed, in bed, above half health, no bleeding, tending need, anesthesia or life-threatening condition. Injury and death still stop play.", DefaultValue = "")] string medicalRestIds = "")
-        {
-            return BridgeCommon.WithUnknownArguments(
-                await SupervisedPlayCore(ctx, cancellationToken, op, owner, epoch,
-                    leaseMs, speed, mode, healthDropFraction, minHealthFraction,
-                    ignoredAlertLabels, hostileWithin, ignoredHostileIds, ignoredDownedColonistIds,
-                    ignoredInjuredColonistIds, injuryStopCooldownMs,
-                    afterCursor, limit, maxTicks, surgicalRecoveryIds, testAcceleration, medicalRestIds).ConfigureAwait(false),
-                ctx, typeof(HomeSupervisedPlayTools), ToolName);
-        }
-
-        private async Task<object> SupervisedPlayCore(
-            IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string op, string owner, long epoch, int leaseMs, string speed,
-            string mode, float healthDropFraction, float minHealthFraction,
-            string ignoredAlertLabels, float hostileWithin, string ignoredHostileIds,
-            string ignoredDownedColonistIds, string ignoredInjuredColonistIds,
-            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks, string surgicalRecoveryIds, bool testAcceleration, string medicalRestIds)
-        {
-            if (ctx == null || ctx.MainThread == null)
-                return Fail("No main-thread dispatcher is available.");
-            var action = (op ?? string.Empty).Trim().ToLowerInvariant();
-            if (action == "status") return Supervisor.Status();
-            if (action == "events") return Supervisor.Events(afterCursor, limit);
-            if (action == "heartbeat") return Supervisor.Heartbeat(owner, epoch, leaseMs);
-            if (action == "speed")
-            {
-                TimeSpeed changed;
-                if (!Enum.TryParse(speed ?? string.Empty, true, out changed) || changed == TimeSpeed.Paused)
-                    return Fail("Unknown play speed; use Normal, Fast, Superfast or Ultrafast.");
-                return await ctx.MainThread.InvokeAsync(() => Supervisor.Speed(owner, epoch, changed),
-                    cancellationToken).ConfigureAwait(false);
-            }
-            if (action == "start")
-            {
-                if (maxTicks < 0 || maxTicks > 1800000)
-                    return Fail("maxTicks must be between 0 and 1800000.");
-                if (!string.IsNullOrWhiteSpace(medicalRestIds) && (maxTicks < 1 || maxTicks > 600))
-                    return Fail("Medical rest monitoring requires maxTicks between 1 and 600.");
-                Supervisor.EnsurePatched();
-                TimeSpeed requested;
-                if (!Enum.TryParse(speed ?? string.Empty, true, out requested)
-                    || requested == TimeSpeed.Paused)
-                    return Fail("Unknown play speed; use Normal, Fast, Superfast or Ultrafast.");
-                if (testAcceleration && (requested != TimeSpeed.Ultrafast || maxTicks == 0))
-                    return Fail("Test acceleration requires Ultrafast and a positive native tick budget.");
-                return await ctx.MainThread.InvokeAsync(() => Supervisor.Start(owner, requested,
-                    leaseMs, mode, healthDropFraction, minHealthFraction, hostileWithin,
-                    ignoredHostileIds, ignoredDownedColonistIds,
-                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks, surgicalRecoveryIds, testAcceleration, medicalRestIds),
-                    cancellationToken).ConfigureAwait(false);
-            }
-            if (action == "pause")
-                return await ctx.MainThread.InvokeAsync(() => Supervisor.Pause(owner, epoch),
-                    cancellationToken).ConfigureAwait(false);
-            return Fail("Unknown op '" + op + "'. Use start, pause, speed, status, heartbeat or events.");
-        }
-
-        private static object Fail(string message) { return new Dictionary<string, object?> {
-            { "success", false }, { "tool", ToolName }, { "message", message } }; }
-    }
-
     internal static partial class Supervisor
     {
         private const int Capacity = 128;
@@ -327,24 +233,11 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static object Heartbeat(string owner, long epoch, int leaseMs)
-        {
-            lock (Gate)
-            {
-                var s = _state;
-                if (s != null && s.Typed != null) return Failure("Canonical clock epochs require the typed renewal capability.");
-                if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
-                s.LeaseExpiresMs = LeaseNow(s) + Clamp(leaseMs, 1000, 30000);
-                return Snapshot(s, true);
-            }
-        }
-
         internal static object Speed(string owner, long epoch, TimeSpeed speed, int? maxTicksPerSecond = null)
         {
             lock (Gate)
             {
                 var s = _state;
-                if (s != null && s.Typed != null && !typedSpeedCall) return Failure("Canonical clock epochs require the typed speed capability.");
                 if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
                 // Update expectation and game speed in the same main-thread
                 // critical section, so our own change cannot look external.
@@ -366,40 +259,6 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static object Pause(string owner, long epoch)
-        {
-            lock (Gate)
-            {
-                var s = _state;
-                if (s != null && s.Typed != null) return Failure("Canonical clock epochs require the typed owned cleanup capability.");
-                if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
-                Stop(s, "requested_pause", "Paused by the supervisor owner.", true, null);
-                return Snapshot(s, s.PauseVerified == true);
-            }
-        }
-
-        internal static object Status()
-        {
-            lock (Gate) return Snapshot(_state, true);
-        }
-
-        internal static object Events(long after, int limit)
-        {
-            lock (Gate)
-            {
-                var take = Clamp(limit, 1, Capacity);
-                var journal = EnsureJournal();
-                var oldest = 1L;
-                var gap = false;
-                var rows = journal.Read(after, take);
-                return new Dictionary<string, object?> {
-                    { "success", true }, { "events", rows }, { "gap", gap },
-                    { "lostCount", gap ? oldest - after - 1 : 0 },
-                    { "oldestCursor", oldest }, { "newestCursor", _cursor },
-                    { "nextCursor", rows.Count > 0 ? Convert.ToInt64(rows[rows.Count - 1]["cursor"]) : after }
-                };
-            }
-        }
 
         // TickManagerUpdate checks Paused after each DoSingleTick. Pausing here
         // stops its frame batch at the boundary, including accelerated frames.

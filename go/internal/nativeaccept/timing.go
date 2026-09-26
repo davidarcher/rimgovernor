@@ -137,7 +137,7 @@ func observeReplyTick(tool string, tick *uint64) {
 }
 
 // replyTick is the game tick a decoded reply carries, when it does:
-// home/status, home/colony_facts, the supervised clock, and any
+// home/status, home/colony_facts, and any
 // rimgovernor/* ProtoJSON reply whose payload is a lifecycle "loaded"
 // context (an identity read, a load, an authority acquisition).
 func replyTick(tool string, payload map[string]any) (uint64, bool) {
@@ -147,11 +147,6 @@ func replyTick(tool string, payload map[string]any) (uint64, bool) {
 			return asUint64(t["ticksGame"])
 		}
 	case "home/colony_facts":
-		return asUint64(payload["tick"])
-	case "home/supervised_play":
-		if _, has := payload["lastTick"]; has {
-			return asUint64(payload["lastTick"])
-		}
 		return asUint64(payload["tick"])
 	}
 	if !strings.HasPrefix(tool, "rimgovernor/") {

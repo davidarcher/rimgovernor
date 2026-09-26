@@ -46,21 +46,31 @@ func init() {
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
-	loadBaseline := func(label string) error {
-		_, err := h.Call(ctx, label, "rimworld/load_game_ready", map[string]any{
+	// load reloads the baseline and returns a typed clock, holding Auto, on
+	// the fresh load's identity: a load changes the identity and the
+	// authority generation, so neither carries across.
+	load := func(label string) (*na.ScenarioClock, error) {
+		if _, err := h.Call(ctx, label, "rimworld/load_game_ready", map[string]any{
 			"saveName": baselineSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
-		})
-		return err
+		}); err != nil {
+			return nil, err
+		}
+		identity, err := na.ReadIdentity(ctx, h, label+"-identity")
+		if err != nil {
+			return nil, err
+		}
+		clock := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: randomOwner(), Report: report}
+		if _, err := clock.Acquire(ctx, label+"-acquire"); err != nil {
+			return nil, err
+		}
+		return clock, nil
 	}
-	status := func(label string) (map[string]any, error) {
-		return h.Call(ctx, label, "home/supervised_play", map[string]any{"op": "status"})
-	}
-	stopped := func(label string) (map[string]any, error) {
+	stopped := func(clock *na.ScenarioClock, label string) (map[string]any, error) {
 		deadline := time.Now().Add(20 * time.Second)
 		for {
-			result, err := status(label)
+			result, err := clock.Call(ctx, "status", nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%s: %w", label, err)
 			}
 			if active, _ := na.AsBool(result["active"]); !active {
 				return result, nil
@@ -76,37 +86,21 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 	}
 
-	clock := na.NewSupervisedPlayClock(randomOwner())
-	if _, err := clock.Change(ctx, h, "initial-pause", "Paused", nil); err != nil {
-		return err
-	}
-
+	var clock *na.ScenarioClock
 	var results []any
 	for _, speed := range speeds {
 		for _, budget := range budgets {
-			budget := budget
 			label := fmt.Sprintf("%s-%d", speed, budget)
-			if err := loadBaseline("load-" + label); err != nil {
+			var err error
+			if clock, err = load("load-" + label); err != nil {
 				return err
 			}
-			clock = na.NewSupervisedPlayClock(randomOwner())
-			if _, err := clock.Change(ctx, h, "pause-"+label, "Paused", nil); err != nil {
-				return err
-			}
-			start, err := clock.Change(ctx, h, "start-"+label, speed, &budget)
+			start, err := clock.Change(ctx, speed, budget)
 			if err != nil {
-				return err
+				return fmt.Errorf("start-%s: %w", label, err)
 			}
-			active, _ := na.AsBool(start["active"])
-			if !active && na.AsString(start["stopReason"]) != "tick_budget" {
-				return fmt.Errorf("%s: unexpected start result %#v", label, start)
-			}
-			if active {
-				if _, err := clock.Poll(ctx, h, "renew-"+label); err != nil {
-					return err
-				}
-			}
-			end, err := stopped("stopped-" + label)
+			clock.SeekEvents(start)
+			end, err := stopped(clock, "stopped-"+label)
 			if err != nil {
 				return err
 			}
@@ -141,14 +135,13 @@ func run(ctx context.Context, s cases.Session) error {
 			if na.AsNumber(stableTime["ticksGame"]) != na.AsNumber(end["tickDeadline"]) {
 				return fmt.Errorf("%s: game ticks moved after the verified pause: %#v", label, stable)
 			}
-			events, err := clock.Poll(ctx, h, "drain-"+label)
+			events, err := clock.Poll(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("drain-%s: %w", label, err)
 			}
 			tickBudgetEvents := 0
 			for _, raw := range events {
-				row, _ := na.AsMap(raw)
-				if na.AsString(row["kind"]) == "tick_budget" {
+				if strings.Contains(fmt.Sprint(raw), "STOP_REASON_TICK_BUDGET") {
 					tickBudgetEvents++
 				}
 			}
@@ -165,48 +158,39 @@ func run(ctx context.Context, s cases.Session) error {
 	report["results"] = results
 
 	for _, external := range []struct{ speed, reason string }{{"Paused", "external_pause"}, {"Fast", "external_speed_changed"}} {
-		maxTicks := uint64(3000)
-		if _, err := clock.Change(ctx, h, "external-resume-"+external.reason, "Normal", &maxTicks); err != nil {
-			return err
+		if _, err := clock.Change(ctx, "Normal", 3000); err != nil {
+			return fmt.Errorf("external-resume-%s: %w", external.reason, err)
 		}
 		if _, err := h.Call(ctx, "external-override-"+external.reason, "rimworld/set_time_speed", map[string]any{
 			"speed": external.speed, "ultraSpeedBoost": false,
 		}); err != nil {
 			return err
 		}
-		end, err := stopped("external-stopped-" + external.reason)
+		end, err := stopped(clock, "external-stopped-"+external.reason)
 		if err != nil {
 			return err
 		}
 		if na.AsString(end["stopReason"]) != external.reason {
 			return fmt.Errorf("external-%s: unexpected stop result %#v", external.reason, end)
 		}
-		if _, err := clock.Poll(ctx, h, "external-poll-"+external.reason); err != nil {
-			return err
-		}
-		resumeTicks := uint64(100)
-		if _, err := clock.Change(ctx, h, "external-resume-attempt-"+external.reason, "Normal", &resumeTicks); err == nil {
+		if _, err := clock.Change(ctx, "Normal", 100); err == nil {
 			return fmt.Errorf("external hold %q was overridden", external.reason)
-		} else if !strings.Contains(err.Error(), "player must enable") {
+		} else if !strings.Contains(err.Error(), "external clock hold") {
 			return err
 		}
-		clock.AllowResume()
+		clock.Hold = ""
 		results = append(results, map[string]any{"external_speed": external.speed, "stop": end})
 		fmt.Printf("PASS %s: explicit resume required\n", external.reason)
 	}
 	report["results"] = results
 
-	leaseReply, err := h.Call(ctx, "lease-start", "home/supervised_play", map[string]any{
-		"op": "start", "owner": clock.Owner, "speed": "Normal", "leaseMs": 1000, "maxTicks": 3000,
-		"hostileWithin": 40, "injuryStopCooldownMs": 0,
-	})
-	if err != nil {
-		return err
+	// A lease that is never renewed stops the clock before its tick limit.
+	clock.LeaseMs = 1000
+	if _, err := clock.Change(ctx, "Normal", 3000); err != nil {
+		return fmt.Errorf("lease-start: %w", err)
 	}
-	if active, _ := na.AsBool(leaseReply["active"]); !active {
-		return fmt.Errorf("lease-start: expected an active clock, got %#v", leaseReply)
-	}
-	expired, err := stopped("lease-expired")
+	clock.LeaseMs = 0
+	expired, err := stopped(clock, "lease-expired")
 	if err != nil {
 		return err
 	}
@@ -223,16 +207,16 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// Loading a native save retires the old watcher without claiming the new
 	// session's clock or carrying its old tick deadline over.
-	if _, err := h.Call(ctx, "prelude-start", "home/supervised_play", map[string]any{
-		"op": "start", "owner": clock.Owner, "speed": "Normal", "leaseMs": 15000, "maxTicks": 3000,
-		"hostileWithin": 40, "injuryStopCooldownMs": 0,
-	}); err != nil {
+	if clock, err = load("prelude-load"); err != nil {
 		return err
 	}
-	if err := loadBaseline("reload-baseline"); err != nil {
+	if _, err := clock.Change(ctx, "Normal", 3000); err != nil {
+		return fmt.Errorf("prelude-start: %w", err)
+	}
+	if clock, err = load("reload-baseline"); err != nil {
 		return err
 	}
-	changed, err := stopped("session-changed")
+	changed, err := stopped(clock, "session-changed")
 	if err != nil {
 		return err
 	}
