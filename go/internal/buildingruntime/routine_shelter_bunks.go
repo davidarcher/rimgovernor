@@ -199,14 +199,15 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	}
 	if !record.spotsBound && !record.bedsBound {
 		bunks := policy.PlanShelterBunks(layouts[0], int(owed), int(owed), nil)
-		result, admitted, err := r.admitBunks(call, epoch, s, shelterSpotsMethod, "SleepingSpot", bunks.Spots)
+		result, admitted, err := r.admitBunks(call, epoch, s, shelterSpotsMethod, "SleepingSpot", bunks.Spots, nil)
 		if err != nil || admitted {
 			return nil, none, "", &result, err
 		}
 	}
 	if !record.bedsBound {
 		bunks := policy.PlanShelterBunks(layouts[0], int(owed), 0, record.cells())
-		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, shelterBedDefinition, bunks.Beds)
+		enclosure := func() (map[policy.Resource]int64, error) { return r.enclosureReserve(call, s, layouts) }
+		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, shelterBedDefinition, bunks.Beds, enclosure)
 		if err != nil || admitted {
 			return nil, none, "", &result, err
 		}
@@ -223,8 +224,12 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 // the rung's method. It reports admitted=false, without error, when the
 // rung has nothing to place (no candidate, definition unavailable, none
 // placeable, or the method refused whole), so the next rung is tried in
-// the same review.
-func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelterSite, method domain.MethodID, definition string, anchors []domain.Cell) (RoutineBuildingResult, bool, error) {
+// the same review. A non-nil reserve is the enclosure budget (#641): the
+// materials the ring needs are held back from the observed stock first, and
+// only the bunks the remainder pays for are admitted, so partial stock
+// raises walls before furniture; a rung the remainder pays for none of
+// yields to the ring.
+func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelterSite, method domain.MethodID, definition string, anchors []domain.Cell, reserve func() (map[policy.Resource]int64, error)) (RoutineBuildingResult, bool, error) {
 	if len(anchors) == 0 {
 		clockSchedulerLog("%s: %s: no bunk fits the site", r.goal, method)
 		return RoutineBuildingResult{}, false, nil
@@ -232,6 +237,13 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 	if !routineDefinitionsAvailable(s.facts, []string{definition}, false) {
 		clockSchedulerLog("%s: %s: %s is not buildable now", r.goal, method, definition)
 		return RoutineBuildingResult{}, false, nil
+	}
+	var held map[policy.Resource]int64
+	if reserve != nil {
+		var err error
+		if held, err = reserve(); err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
 	}
 	var stuff string
 	for _, d := range s.facts.Definitions {
@@ -283,6 +295,8 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
 	var selected []policy.Preview
+	spent := map[policy.Resource]int64{}
+	unpaid := 0
 	for i, preview := range previews {
 		v := preview.Preview
 		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(s.facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(s.facts.Identity.Tick) {
@@ -298,10 +312,22 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		if !canKnown || !can || !safeKnown || !safe || !footprintKnown || !sameBunkFootprint(anchors[i], footprint) {
 			continue
 		}
+		if held != nil && !bunkAffordable(spent, held, v, preview.Stock) {
+			unpaid++
+			continue
+		}
+		if costs, known := v.Costs.Value(); known {
+			for _, cost := range costs {
+				spent[cost.Resource] += cost.Count
+			}
+		}
 		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
 		selected = append(selected, v)
+	}
+	if unpaid > 0 {
+		clockSchedulerLog("%s: %s: enclosure budget %v holds back %d of %d bunks", r.goal, method, held, unpaid, len(anchors))
 	}
 	if len(selected) == 0 {
 		clockSchedulerLog("%s: %s: none of %d bunks placeable", r.goal, method, len(anchors))
@@ -313,6 +339,45 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 	}
 	clockSchedulerLog("%s: %s: %s x%d reason=%s refused=%d", r.goal, method, definition, len(selected), result.Reason, len(result.Decision.Refused))
 	return result, result.Reason == BuildingMethodAdmitted, nil
+}
+
+// enclosureReserve is the material the ring around the bunks costs: the
+// native previews of the best placeable layout, summed. A site with no
+// placeable ring reserves nothing; the ring step reports that itself.
+func (r *RoutineBuildingPlanner) enclosureReserve(call context.Context, s shelterSite, layouts []policy.StarterLayout) (map[policy.Resource]int64, error) {
+	ring, _, reason, err := r.previewFreshShell(call, s.snapshot, s.facts, layouts, s.check)
+	if err != nil {
+		return nil, err
+	}
+	held := map[policy.Resource]int64{}
+	if reason != "" {
+		return held, nil
+	}
+	for _, v := range ring {
+		if costs, known := v.Costs.Value(); known {
+			for _, cost := range costs {
+				held[cost.Resource] += cost.Count
+			}
+		}
+	}
+	return held, nil
+}
+
+// bunkAffordable reports whether the bunk's costs fit its own stock scan
+// after the enclosure reserve and the rung's earlier bunks; an unknown
+// cost or availability never holds a bunk back here.
+func bunkAffordable(spent, held map[policy.Resource]int64, v policy.Preview, stock policy.StockObservation) bool {
+	available := map[policy.Resource]domain.Fact[int64]{}
+	for _, row := range stock.Values {
+		available[row.Resource] = row.Available
+	}
+	costs, _ := v.Costs.Value()
+	for _, cost := range costs {
+		if have, known := available[cost.Resource].Value(); known && held[cost.Resource]+spent[cost.Resource]+cost.Count > have {
+			return false
+		}
+	}
+	return true
 }
 
 // sameBunkFootprint reports whether the native footprint is exactly the two

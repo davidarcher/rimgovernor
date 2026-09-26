@@ -160,7 +160,12 @@ holds the goal, and the indoor furnishing step still waits for the bunks. Bunk c
 and the layout enclosing every bunk, with no bed on a corner, is preferred;
 the dig is weighed only before any bunk is placed, and a ring already
 standing is adopted without bunks. A bed rung the native previews refuse
-whole falls through to the ring in the same review.
+whole falls through to the ring in the same review. Partial stock pays for
+the enclosure first: the bed rung holds back the ring's previewed costs from
+the observed stock and admits only the beds the remainder pays for, so short
+wood admits fewer beds, or none, and the ring (whose frames wait natively for
+materials) follows at the next review. A restart rereads the bound rungs and
+sites the ring around them rather than placing new bunks.
 
 Pausing and resuming control (a letter pause, a keep-alive resume, a paired
 restart) suspends every routine goal and reactivates it in the same world

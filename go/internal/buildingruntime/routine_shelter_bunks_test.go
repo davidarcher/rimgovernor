@@ -221,3 +221,121 @@ func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
 		t.Fatal("methods", goal.Methods, err)
 	}
 }
+
+// chargeBeds makes every previewed Bed cost 45 wood and every preview see
+// the given wood stock, the ring at 180 included.
+func chargeBeds(n *sleepingNative, wood int64) {
+	ring := n.onPreview
+	n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
+		ring(ctx, v)
+		b, _ := v.Preview.Action.Building()
+		if b.Definition() == "SleepingSpot" {
+			return
+		}
+		if b.Definition() == "Bed" {
+			v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 45}})
+		}
+		v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(wood)}}
+	}
+}
+
+// Partial stock pays for the ring first (#641): with wood for the ring and
+// one bed, the bed rung admits one bed, not two.
+func TestRoutineShelterPartialStockReservesEnclosure(t *testing.T) {
+	t.Parallel()
+	r, db, n := shelterSiteFixture(t)
+	chargeBeds(n, 180+45)
+	ctx := context.Background()
+	if spots, err := r.Step(ctx); err != nil || spots.Reason != BuildingMethodAdmitted {
+		t.Fatal(spots, err)
+	}
+	beds, err := r.Step(ctx)
+	if err != nil || beds.Reason != BuildingMethodAdmitted {
+		t.Fatal(beds, err)
+	}
+	plan, err := db.LoadPlan(ctx, methodPlan(t, beds.Decision, shelterBedsMethod))
+	if err != nil || len(bunkAnchors(t, plan, "Bed")) != 1 {
+		t.Fatal("beds under the enclosure budget", plan.Spec.Actions(), err)
+	}
+	shell, err := r.Step(ctx)
+	if err != nil || shell.Reason != BuildingMethodAdmitted || !strings.HasPrefix(string(shellMethod(shell.Decision.Goal).Plan), "routine-shell") {
+		t.Fatal(shell, err)
+	}
+}
+
+// Wood for the ring alone, or none at all, admits no bed: the ring follows
+// the spots at the next review, and a repeat review adds nothing.
+func TestRoutineShelterShortStockRingBeforeBeds(t *testing.T) {
+	t.Parallel()
+	for _, wood := range []int64{180, 0} {
+		r, db, n := shelterSiteFixture(t)
+		chargeBeds(n, wood)
+		ctx := context.Background()
+		if spots, err := r.Step(ctx); err != nil || spots.Reason != BuildingMethodAdmitted {
+			t.Fatal(wood, spots, err)
+		}
+		shell, err := r.Step(ctx)
+		if err != nil || shell.Reason != BuildingMethodAdmitted || !strings.HasPrefix(string(shellMethod(shell.Decision.Goal).Plan), "routine-shell") {
+			t.Fatal(wood, shell, err)
+		}
+		for _, m := range shell.Decision.Goal.Methods {
+			if m.Method == shelterBedsMethod {
+				t.Fatal(wood, "beds admitted past the enclosure budget", m)
+			}
+		}
+		again, err := r.Step(ctx)
+		if err != nil || again.Reason != BuildingMethodExistingWork {
+			t.Fatal(wood, "repeat review", again, err)
+		}
+		goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID)
+		if err != nil || len(goal.Methods) != 2 {
+			t.Fatal(wood, goal.Methods, err)
+		}
+	}
+}
+
+// A restart (a fresh planner over the same journal) with spots and beds
+// placed and the beds still open neither duplicates a rung nor forgets
+// their geometry: the ring is sited around the recorded bunks.
+func TestRoutineShelterRestartKeepsBunks(t *testing.T) {
+	t.Parallel()
+	r, db, n := shelterSiteFixture(t)
+	ctx := context.Background()
+	for range 2 {
+		if result, err := r.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+			t.Fatal(result, err)
+		}
+	}
+	restarted, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shell, err := restarted.Step(ctx)
+	if err != nil || shell.Reason != BuildingMethodAdmitted {
+		t.Fatal(shell, err)
+	}
+	record, err := restarted.shelterBunks(ctx, shell.Decision.Goal)
+	if err != nil || len(record.spots) != 2 || len(record.beds) != 2 {
+		t.Fatal(record, err)
+	}
+	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Goal).Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wall := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, _ := action.Building()
+		wall[b.Cell()] = true
+	}
+	for _, c := range record.cells() {
+		if wall[c] {
+			t.Fatal("ring on a recorded bunk", c)
+		}
+	}
+	if again, err := restarted.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
+		t.Fatal("repeat review", again, err)
+	}
+	if goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID); err != nil || len(goal.Methods) != 3 {
+		t.Fatal(goal.Methods, err)
+	}
+}

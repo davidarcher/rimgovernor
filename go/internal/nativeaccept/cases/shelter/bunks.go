@@ -27,13 +27,13 @@ func init() {
 		Name: "shelter/bunks-first",
 		Scope: "Issues #612 and #615: the one complete-construction path. From the tribal " + sustained.BaselineSave +
 			" baseline, which houses nobody indoors at the start (asserted), the initial shelter places sleeping spots at " +
-			"the first review, builds the wooden beds as its first construction and only then raises the whole shell around " +
-			"them -- every wall by ordinary pawn work, nothing staged -- no bed on a ring corner; the game roofs the room and " +
-			"the native census then holds one bed per colonist inside it.",
+			"the first review, admits the wooden beds next and raises the shell around them without waiting for the beds " +
+			"to stand (#641) -- every wall and the door by ordinary pawn work, nothing staged -- no bed on a ring corner; " +
+			"the game roofs the room and the native census then holds one bed per colonist inside it.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: []string{families}, NativeTimeout: 60 * time.Second, Prefix: "bunks"},
 		Budget: 25 * time.Minute,
-		Reason: "one unstaged run of three sequential construction rungs: eight tribal builders raise eight beds (800 work each) and then a hut ring of some thirty cells, and the game roofs the room after; the ordering is the assertion, so no rung can be staged",
+		Reason: "one unstaged run of three construction rungs: eight tribal builders raise eight beds (800 work each) and a hut ring of some thirty cells side by side, and the game roofs the room after; the rungs' layout and progress are the assertion, so no rung can be staged",
 		Run:    bunksFirst,
 	})
 }
@@ -89,20 +89,31 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		service.Stop()
 		return err
 	}
-	// 2. The beds are the first construction, completed on the site.
-	beds, err := waitBunks(ctx, st, buildingruntime.ShelterBedsMethod(), "Bed", true, w.wait(w.build, service))
-	if err != nil {
+	// 2. The beds are admitted next; the shell is sited around them whether
+	// or not they stand yet (#641).
+	if _, err := waitBunks(ctx, st, buildingruntime.ShelterBedsMethod(), "Bed", false, w.wait(w.build, service)); err != nil {
 		service.Stop()
 		return err
 	}
-	report["beds"] = describeBunks(beds)
-	// 3. The shell is sited around the completed beds.
 	sh, err := waitShell(ctx, st, w.wait(w.build, service))
 	if err != nil {
 		service.Stop()
 		return err
 	}
 	report["shell"] = sh.describe()
+	// 3. Every wall and the door stand, and every bed completes.
+	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
+		return len(l.completed) == len(sh.cells)
+	}); err != nil {
+		service.Stop()
+		return err
+	}
+	beds, err := waitBunks(ctx, st, buildingruntime.ShelterBedsMethod(), "Bed", true, w.wait(w.build, service))
+	if err != nil {
+		service.Stop()
+		return err
+	}
+	report["beds"] = describeBunks(beds)
 	inside := map[domain.Cell]bool{}
 	for _, c := range sh.footprint.Interior() {
 		inside[c] = true
@@ -124,36 +135,6 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 			}
 			bedCells = append(bedCells, c)
 		}
-	}
-	// The ring closes after the beds: no wall completes before the last
-	// bed did.
-	var lastBed domain.Tick
-	for _, b := range beds {
-		lastBed = max(lastBed, b.tick)
-	}
-	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		return len(l.completed) == len(sh.cells)
-	}); err != nil {
-		service.Stop()
-		return err
-	}
-	l, err := shellLineage(ctx, st, sh)
-	if err != nil {
-		service.Stop()
-		return err
-	}
-	var firstWall domain.Tick
-	for _, plan := range l.byID {
-		for _, p := range plan.Progress {
-			if v := p.View(); v.Stage == domain.Completed && (firstWall == 0 || v.Tick < firstWall) {
-				firstWall = v.Tick
-			}
-		}
-	}
-	report["last_bed_tick"], report["first_wall_tick"] = lastBed, firstWall
-	if firstWall < lastBed {
-		service.Stop()
-		return fmt.Errorf("a wall completed at tick %d before the last bed at %d", firstWall, lastBed)
 	}
 	report["keepalive"] = service.Stop()
 	// 4. Roofed, every colonist housed: the native room holds a bed per
