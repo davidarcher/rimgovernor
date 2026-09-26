@@ -4,7 +4,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // Layout plan v2 (#771, A1) replaces the module grid with a spine of
 // hallways, concrete rooms hung off it, whole-map zones and reserved
-// infrastructure sites. MasterPlan keeps working beside it until D1.
+// infrastructure sites.
 
 // SpineWidth is a spine hallway's width in cells.
 const SpineWidth int32 = 3
@@ -80,7 +80,7 @@ type LayoutPlan struct {
 	Reservations []LayoutReservation
 }
 
-// Anchor has MasterPlan.Anchor's contract: the interior centre of the
+// Anchor is the interior centre of the
 // first room for want that free accepts (every one when free is nil), in
 // plan order (the planner lists rooms nearest the spine's start first). A
 // full role falls back to reserve rooms; false means the plan holds no

@@ -87,7 +87,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
-	e := MasterPlanEdgeMargin
+	e := LayoutEdgeMargin
 	outer := clipRect(pad(core, perimeterGap+perimeterThick), Rectangle{X: e, Z: e, Width: w - 2*e, Height: h - 2*e})
 	inner := pad(outer, -perimeterThick)
 	if inner.Width < 1 || inner.Height < 1 {

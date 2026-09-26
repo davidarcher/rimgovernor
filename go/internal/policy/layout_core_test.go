@@ -95,7 +95,7 @@ func TestGrowStopsAtEdge(t *testing.T) {
 		t.Fatal("rooms", len(g.Rooms))
 	}
 	for _, r := range g.Rooms {
-		if r.Interior.X < MasterPlanEdgeMargin || r.Interior.X+r.Interior.Width > 120-MasterPlanEdgeMargin {
+		if r.Interior.X < LayoutEdgeMargin || r.Interior.X+r.Interior.Width > 120-LayoutEdgeMargin {
 			t.Fatal("off the core", r)
 		}
 	}

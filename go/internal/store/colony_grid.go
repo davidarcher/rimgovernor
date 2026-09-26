@@ -38,7 +38,7 @@ func colonyGridValid(g policy.ColonyGrid) bool {
 		return false
 	}
 	switch g.Source {
-	case policy.ColonyGridFromStarter, policy.ColonyGridFromRoom, policy.ColonyGridFromSurvey:
+	case policy.ColonyGridFromStarter, policy.ColonyGridFromRoom:
 		return true
 	}
 	return false

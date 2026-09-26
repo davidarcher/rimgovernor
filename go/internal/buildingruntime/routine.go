@@ -46,12 +46,13 @@ type RoutineReviewer struct {
 	// bids is MaintainResource's joint ranking across its two planners
 	// (#728); see acquisitionBoard.
 	bids acquisitionBoard
-	// planChecked is the tick of the last master-plan terrain check this
-	// process read (#727); see reviewMasterPlan.
-	planChecked domain.Tick
+	// planChecked is the tick of the last layout survey this process read;
+	// planSurveyed is set once any survey was read. See reviewLayoutPlan.
+	planChecked  domain.Tick
+	planSurveyed bool
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
-	// layoutOverlay draws the master plan as native plans (#726); the
+	// layoutOverlay draws the layout plan as native plans (#726); the
 	// overlay fields record the last draw. See drawLayoutOverlay.
 	layoutOverlay  bool
 	overlayKey     string
@@ -153,7 +154,7 @@ func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool) observatio
 type RoutineCapabilities struct {
 	Methods   []policy.GoalID
 	Longitude domain.Fact[float64]
-	// LayoutOverlay draws the master plan as native plan designations
+	// LayoutOverlay draws the layout plan as native plan designations
 	// (#726, serve --layout-overlay).
 	LayoutOverlay bool
 }

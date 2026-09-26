@@ -45,7 +45,7 @@ func Zone(s MapSurvey) []LayoutZone {
 			cells[c.Cell.Z*w+c.Cell.X] = c
 		}
 	}
-	e := MasterPlanEdgeMargin
+	e := LayoutEdgeMargin
 	noGo := func(i int32) bool {
 		c := cells[i]
 		x, z := i%w, i/w

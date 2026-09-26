@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LayoutOverlay is the master plan drawn as native plan designations
+// LayoutOverlay is the layout plan drawn as native plan designations
 // (#726): output only, rewritten whole on every change. Existing rooms
 // are painted solid natively by their RoomRoleDef (Rooms); each planned
 // module is outlined in its role's color with its role name as a text
@@ -68,62 +68,6 @@ var overlayRooms = []OverlayRoomColor{
 	{"Storeroom", planTan, "storage"},
 	{"Laboratory", planViolet, "research"},
 	{"Barn", planGreen, "barn"},
-}
-
-// moduleOverlay is a planned module's color and label.
-var moduleOverlay = map[ModuleRole][2]string{
-	ModulePlaza:    {planAmber, "plaza"},
-	ModuleHousing:  {planBlue, "housing"},
-	ModuleHospital: {planWhite, "hospital"},
-	ModulePrison:   {planDarkPurple, "jail"},
-	ModuleKitchen:  {planYellow, "kitchen"},
-	ModuleFreezer:  {planCyan, "freezer"},
-	ModuleStorage:  {planTan, "storage"},
-	ModuleWorkshop: {planBrown, "workshop"},
-	ModuleFields:   {planGreen, "fields"},
-	ModuleKillbox:  {planRed, "killbox"},
-	ModuleWall:     {planRed, "wall"},
-	ModuleReserve:  {planGray, "reserve"},
-}
-
-// Overlay draws the plan inside bounds: aisles over the plan's extent,
-// then each module's outline and label. Unusable modules draw nothing.
-func (p MasterPlan) Overlay(bounds Bounds) LayoutOverlay {
-	out := LayoutOverlay{Rooms: append([]OverlayRoomColor(nil), overlayRooms...)}
-	if !p.Grid.Valid() {
-		return out
-	}
-	extent := p.Grid.rectangle(-p.Radius*p.Grid.Pitch, -p.Radius*p.Grid.Pitch, (2*p.Radius+1)*p.Grid.Pitch, (2*p.Radius+1)*p.Grid.Pitch)
-	if aisles := rowRuns(p.Grid.AislesWithin(bounds, extent)); len(aisles) > 0 {
-		out.Layers = append(out.Layers, OverlayLayer{Color: planGray, Label: "aisles", Rects: aisles})
-	}
-	for _, m := range p.Modules {
-		style, ok := moduleOverlay[m.Role]
-		if !ok {
-			continue
-		}
-		r := p.Rect(m)
-		var rects []Rectangle
-		for _, edge := range []Rectangle{
-			{X: r.X, Z: r.Z, Width: r.Width, Height: 1},
-			{X: r.X, Z: r.Z + r.Height - 1, Width: r.Width, Height: 1},
-			{X: r.X, Z: r.Z + 1, Width: 1, Height: r.Height - 2},
-			{X: r.X + r.Width - 1, Z: r.Z + 1, Width: 1, Height: r.Height - 2},
-		} {
-			if e, ok := clip(edge, bounds); ok {
-				rects = append(rects, e)
-			}
-		}
-		if len(rects) == 0 {
-			continue
-		}
-		out.Layers = append(out.Layers, OverlayLayer{Color: style[0], Label: style[1], Rects: rects})
-		centre := domain.Cell{X: r.X + r.Width/2, Z: r.Z + r.Height/2}
-		if centre.X >= 0 && centre.Z >= 0 && centre.X < bounds.Width && centre.Z < bounds.Height {
-			out.Labels = append(out.Labels, OverlayLabel{Text: style[1], Cell: centre})
-		}
-	}
-	return out
 }
 
 // clip is r inside bounds, false when nothing is left.

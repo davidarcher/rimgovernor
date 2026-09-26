@@ -220,9 +220,6 @@ func tidy(ctx context.Context, s cases.Session) error {
 			if !modulePatch(g, rect) || rect != done.To {
 				return fmt.Errorf("the re-sited zone %s %+v is not the proposed module patch %+v on the grid", id, rect, done.To)
 			}
-			if d := g.District(domain.Cell{X: rect.X, Z: rect.Z}); d == policy.DistrictPlaza {
-				return fmt.Errorf("the re-sited zone %s %+v shares the plaza with the hut", id, rect)
-			}
 			r := rect
 			moved = &r
 		}

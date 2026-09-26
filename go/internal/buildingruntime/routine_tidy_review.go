@@ -25,7 +25,7 @@ func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.Genera
 		return nil
 	}
 	tick := projection.Identity.Tick
-	request := policy.TidyRequest{Tier: projection.BuildTier, Grid: projection.ColonyGrid, Bounds: projection.Bounds, Cells: projection.Cells, Protected: layoutProtected(*projection, nil), Extent: domain.Unknown[policy.ColonyExtent]()}
+	request := policy.TidyRequest{Tier: projection.BuildTier, Grid: projection.ColonyGrid, Bounds: projection.Bounds, Cells: projection.Cells, Protected: layoutProtected(*projection, nil), Plan: projection.LayoutPlan}
 	if tier, known := request.Tier.Value(); !known || tier < policy.BuildTierMasonry {
 		projection.Facts.LayoutTidy = domain.Known(policy.PlanTidyLayout(request))
 		return nil
@@ -39,17 +39,6 @@ func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.Genera
 		if t.Status == store.LayoutTidyMoving {
 			request.InFlight = true
 		}
-	}
-	history, err := r.player.journal.EstablishedColonyExtent(ctx, snapshot, tick)
-	if err != nil {
-		return err
-	}
-	if len(history) > 0 {
-		extent := policy.ColonyExtent{}
-		for _, row := range history {
-			extent.Regions = append(extent.Regions, row.Region)
-		}
-		request.Extent = domain.Known(extent)
 	}
 	claims, err := r.player.journal.ZoneClaims(ctx, snapshot, tick)
 	if err != nil {

@@ -72,8 +72,9 @@ type TidyRequest struct {
 	Cells    []SiteCell
 	// Protected cells are never zoned: accepted footprints, aisles, routes.
 	Protected []domain.Cell
-	// Extent scopes the districts; unknown uses the grid's default ring.
-	Extent domain.Fact[ColonyExtent]
+	// Plan is the layout plan a re-sited zone prefers: a stockpile its
+	// storerooms, a field its field zones. Unknown takes the nearest.
+	Plan domain.Fact[LayoutPlan]
 	// Rooms are the rooms whose furniture is measured against their derived
 	// interior plans; a piece whose thing id is in Tidied is never moved.
 	Rooms []TidyRoom
@@ -212,11 +213,11 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		return review
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
-	districts := DistrictsFor(grid, r.Extent)
+	plan, _ := r.Plan.Value()
 	sites := newTidySites(grid, r)
 	var best *TidyProposal
 	for _, item := range candidates {
-		proposal, ok := tidyProposal(grid, districts, sites, item)
+		proposal, ok := tidyProposal(grid, plan, sites, item)
 		if !ok {
 			continue
 		}
@@ -290,9 +291,10 @@ func (s tidySites) free(rect Rectangle, field bool) bool {
 }
 
 // tidyProposal chooses the item's new site: for a zone the nearest free
-// sub-cell of the wanted size in the item's district, then in any
-// district; for a replaced shell the deconstruction itself.
-func tidyProposal(grid ColonyGrid, districts Districts, sites tidySites, item TidyItem) (TidyProposal, bool) {
+// sub-cell of the wanted size in the item's district of the layout plan
+// (a storeroom or a field zone), then anywhere; for a replaced shell the
+// deconstruction itself.
+func tidyProposal(grid ColonyGrid, plan LayoutPlan, sites tidySites, item TidyItem) (TidyProposal, bool) {
 	before := tidyAlignment(grid, item)
 	if item.Kind == TidyShell {
 		return TidyProposal{Item: item, Gain: before, Explanation: fmt.Sprintf("%s %s (%dx%d at %d,%d, corner error %d): replacement module complete and empty, deconstruct; alignment gain %d", item.Kind, item.ID, item.Footprint.Width, item.Footprint.Height, item.Footprint.X, item.Footprint.Z, before, before)}, true
@@ -323,7 +325,7 @@ func tidyProposal(grid ColonyGrid, districts Districts, sites tidySites, item Ti
 			}
 			mid := domain.Cell{X: sub.X + sub.Width/2, Z: sub.Z + sub.Height/2}
 			d := absInt32(mid.X-centre.X) + absInt32(mid.Z-centre.Z)
-			options = append(options, option{sub, d, districts.District(mid) == district})
+			options = append(options, option{sub, d, plan.District(mid) == district})
 		}
 	}
 	if len(options) == 0 {

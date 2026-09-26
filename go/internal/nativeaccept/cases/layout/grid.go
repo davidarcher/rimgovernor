@@ -142,9 +142,6 @@ func grid(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("the room's south-west corner %d,%d is %d cells off the grid", room.X, room.Z, g.CornerError(room))
 	}
 	module := g.Module(domain.Cell{X: room.X, Z: room.Z})
-	if d := g.District(domain.Cell{X: room.X, Z: room.Z}); d != policy.DistrictPlaza {
-		return fmt.Errorf("the hut's module is in the %s district, not the plaza", d)
-	}
 	// The fields: every zone off the aisles, each a module patch (#608)
 	// outside the room's module, and the second sharing a full co-linear
 	// edge with the first: one pitch away along an axis, or across the
@@ -163,7 +160,7 @@ func grid(ctx context.Context, s cases.Session) error {
 		}
 		rect := bounding(cells)
 		d := describe(rect, g)
-		d["id"], d["crop"], d["cells"], d["district"] = zone["id"], zone["crop"], len(cells), string(g.District(domain.Cell{X: rect.X, Z: rect.Z}))
+		d["id"], d["crop"], d["cells"] = zone["id"], zone["crop"], len(cells)
 		described = append(described, d)
 		for _, c := range cells {
 			if u, v := gridOffsets(g, c); u >= policy.ColonyGridModule || v >= policy.ColonyGridModule {
@@ -175,9 +172,6 @@ func grid(ctx context.Context, s cases.Session) error {
 		}
 		if intersects(rect, module) {
 			return fmt.Errorf("zone %v %+v lies in the room's module %+v", zone["id"], rect, module)
-		}
-		if d := g.District(domain.Cell{X: rect.X, Z: rect.Z}); d == policy.DistrictPlaza {
-			return fmt.Errorf("zone %v %+v shares the plaza with the hut", zone["id"], rect)
 		}
 		rects = append(rects, rect)
 	}
@@ -293,7 +287,6 @@ func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, re
 	}
 	bounds := bounding(ring)
 	described := describe(bounds, g)
-	described["district"] = string(g.District(domain.Cell{X: bounds.X, Z: bounds.Z}))
 	report["styled_room"] = described
 	if intersects(bounds, hut) {
 		return fmt.Errorf("the stone ring %+v stands in the hut's module %+v", bounds, hut)

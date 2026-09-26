@@ -92,8 +92,8 @@ func TestLayoutAnchorReadsTheLayoutPlan(t *testing.T) {
 	if c := layoutAnchor(p, policy.DistrictHousing); c != (domain.Cell{X: 22, Z: 12}) {
 		t.Fatalf("next housing %v", c)
 	}
-	// Production has no planned room here: the grid module anchors it.
-	if c := layoutAnchor(p, policy.DistrictProduction); c != (domain.Cell{X: 62, Z: 46}) {
+	// Production has no planned room here: the colony centre anchors it.
+	if c := layoutAnchor(p, policy.DistrictProduction); c != p.Center {
 		t.Fatalf("production %v", c)
 	}
 	// Camp ignores the plan.
@@ -103,41 +103,11 @@ func TestLayoutAnchorReadsTheLayoutPlan(t *testing.T) {
 	}
 }
 
-func TestLayoutAnchorSitesEachDistrictOrFallsBack(t *testing.T) {
+func TestLayoutAnchorWithoutAPlanIsTheCentre(t *testing.T) {
 	p := districtProjection(policy.BuildTierMasonry)
-	housing := layoutAnchor(p, policy.RoomDistrict(policy.RoomRoleBedroom))
-	production := layoutAnchor(p, policy.RoomDistrict(policy.RoomRoleWorkshop))
-	if housing != (domain.Cell{X: 46, Z: 62}) || production != (domain.Cell{X: 62, Z: 46}) {
-		t.Fatalf("housing %v production %v", housing, production)
-	}
-	g, _ := p.ColonyGrid.Value()
-	if g.District(housing) != policy.DistrictHousing || g.District(production) != policy.DistrictProduction {
-		t.Fatal("anchors outside their districts")
-	}
-	// A wall on the nearest housing module moves the anchor to the next
-	// housing module; the plaza's own module never anchors a wedge.
-	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 46, Z: 60}, domain.North, "WoodLog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "w", Building: wall, Cells: []domain.Cell{{X: 46, Z: 60}}}}})
-	next := layoutAnchor(p, policy.DistrictHousing)
-	if next == housing || g.District(next) != policy.DistrictHousing {
-		t.Fatalf("next housing anchor %v", next)
-	}
-	// Camp, an unknown grid, and a district with no observed free module
-	// all anchor on the colony centre.
-	if layoutAnchor(districtProjection(policy.BuildTierCamp), policy.DistrictHousing) != p.Center {
-		t.Fatal("camp anchors on the centre")
-	}
-	blind := districtProjection(policy.BuildTierMasonry)
-	blind.ColonyGrid = domain.Unknown[policy.ColonyGrid]()
-	if layoutAnchor(blind, policy.DistrictHousing) != p.Center {
-		t.Fatal("no grid anchors on the centre")
-	}
-	full := districtProjection(policy.BuildTierMasonry)
-	full.Cells = nil
-	if layoutAnchor(full, policy.DistrictHousing) != p.Center {
-		t.Fatal("a full district anchors on the centre")
+	for _, d := range []policy.District{policy.DistrictHousing, policy.DistrictProduction, policy.DistrictFields} {
+		if layoutAnchor(p, d) != p.Center {
+			t.Fatalf("%s anchors off the centre without a plan", d)
+		}
 	}
 }

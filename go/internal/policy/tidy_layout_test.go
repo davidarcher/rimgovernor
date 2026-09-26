@@ -9,11 +9,24 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// tidyPlan plans fields over the south strip (z < 15) and a storeroom over
+// the north-east corner of the tidy fixture's map.
+func tidyPlan() LayoutPlan {
+	fields := LayoutZone{Kind: ZoneField}
+	for z := int32(0); z < 15; z++ {
+		fields.Runs = append(fields.Runs, RowRun{Z: z, X: 0, Length: 64})
+	}
+	return LayoutPlan{
+		Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: 34, Z: 30, Width: 30, Height: 34}}},
+		Zones: []LayoutZone{fields},
+	}
+}
+
 // tidyFixture is an idle Masonry colony on a 64x64 map whose grid origin
 // sits at (16,16): every cell open, fertile soil, one managed 2x2 field
-// off the grid at (20,5) (the Fields district lies south of the origin).
+// off the grid at (20,5) inside the plan's field zone (tidyPlan).
 func tidyFixture() TidyRequest {
-	r := TidyRequest{Tier: domain.Known(BuildTierMasonry), Grid: domain.Known(ColonyGrid{Origin: domain.Cell{X: 16, Z: 16}, Pitch: GridPitch, Axes: ColonyGridAxes}), Busy: domain.Known(false), Bounds: Bounds{64, 64}}
+	r := TidyRequest{Tier: domain.Known(BuildTierMasonry), Grid: domain.Known(ColonyGrid{Origin: domain.Cell{X: 16, Z: 16}, Pitch: GridPitch, Axes: ColonyGridAxes}), Busy: domain.Known(false), Bounds: Bounds{64, 64}, Plan: domain.Known(tidyPlan())}
 	for x := int32(0); x < 64; x++ {
 		for z := int32(0); z < 64; z++ {
 			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Fertility: domain.Known(1.0)})
@@ -50,7 +63,7 @@ func TestTidyLayoutIdleColonyProposesTheOffGridFieldAndExplainsItsGain(t *testin
 	if before := tidyAlignment(grid, r.Items[0]); proposal.Gain != before || proposal.Gain <= 0 {
 		t.Fatalf("gain %d, alignment error %d", proposal.Gain, before)
 	}
-	if grid.District(domain.Cell{X: proposal.Target.X, Z: proposal.Target.Z}) != DistrictFields {
+	if tidyPlan().District(domain.Cell{X: proposal.Target.X, Z: proposal.Target.Z}) != DistrictFields {
 		t.Fatalf("target %+v is not in Fields", proposal.Target)
 	}
 	for _, want := range []string{"field Zone_7", "corner error", "alignment gain", "crop Plant_Rice kept", "on grid (error 0)"} {
@@ -162,8 +175,7 @@ func TestTidyLayoutStockpileMovesToStorageAndNoFreeModuleIsReported(t *testing.T
 	r = tidyZoned(r, Rectangle{3, 30, 3, 3}, "Zone_5")
 	review := PlanTidyLayout(r)
 	proposal := review.Proposal
-	grid, _ := r.Grid.Value()
-	if !review.Active || proposal.Target.Width != ColonyGridSubCell || proposal.Target.Height != ColonyGridSubCell || grid.District(domain.Cell{X: proposal.Target.X + 2, Z: proposal.Target.Z + 2}) != DistrictStorage {
+	if !review.Active || proposal.Target.Width != ColonyGridSubCell || proposal.Target.Height != ColonyGridSubCell || tidyPlan().District(domain.Cell{X: proposal.Target.X + 2, Z: proposal.Target.Z + 2}) != DistrictStorage {
 		t.Fatalf("stockpile review %+v", review)
 	}
 	for i := range r.Cells {

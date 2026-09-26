@@ -17,15 +17,13 @@ import (
 // re-derived. An incomplete census leaves the grid unknown for this
 // review.
 func (r *RoutineReviewer) reviewColonyGrid(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
+	if err := r.reviewLayoutPlan(ctx, snapshot, projection); err != nil {
+		return err
+	}
 	tick := projection.Identity.Tick
 	record, ok, err := r.player.journal.ColonyGrid(ctx, snapshot, tick)
 	if err != nil {
 		return err
-	}
-	if !ok {
-		if record, ok, err = r.establishMasterPlan(ctx, snapshot, projection); err != nil {
-			return err
-		}
 	}
 	if !ok {
 		census, known := projection.Facts.CurrentConstruction.Value()
@@ -50,7 +48,7 @@ func (r *RoutineReviewer) reviewColonyGrid(ctx context.Context, snapshot domain.
 		}
 	}
 	projection.ColonyGrid = domain.Known(record.Grid)
-	return r.reviewMasterPlan(ctx, snapshot, projection)
+	return nil
 }
 
 // starterShell is the first shell this controller ordered, read back from

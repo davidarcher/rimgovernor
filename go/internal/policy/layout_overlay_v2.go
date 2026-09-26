@@ -24,6 +24,13 @@ var roomOverlay = map[ModuleRole][2]string{
 	ModuleRec:      {planPink, "rec room"},
 	ModuleLab:      {planViolet, "research"},
 	ModuleBattery:  {planCyan, "battery room"},
+	ModuleHospital: {planWhite, "hospital"},
+	ModulePrison:   {planDarkPurple, "jail"},
+	ModuleKitchen:  {planYellow, "kitchen"},
+	ModuleFreezer:  {planCyan, "freezer"},
+	ModuleStorage:  {planTan, "storage"},
+	ModuleWorkshop: {planBrown, "workshop"},
+	ModuleReserve:  {planGray, "reserve"},
 }
 
 var reservationOverlay = map[ReservationKind][2]string{
@@ -83,9 +90,7 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 	for _, r := range p.Rooms {
 		style, ok := roomOverlay[r.Role]
 		if !ok {
-			if style, ok = moduleOverlay[r.Role]; !ok {
-				continue
-			}
+			continue
 		}
 		w := Rectangle{X: r.Interior.X - 1, Z: r.Interior.Z - 1, Width: r.Interior.Width + 2, Height: r.Interior.Height + 2}
 		add(style, []Rectangle{
