@@ -18,6 +18,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"strings"
 	"time"
@@ -84,7 +85,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "production/ladder",
 		Scope:  fmt.Sprintf("MaintainResource %s:%d walks research (%s) -> smithy -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4).", resource, target, project),
-		Start:  cases.Fixture{Op: "test/production_ladder_prepare", Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
+		Start:  cases.Fixture{Op: "test/production_ladder_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)}},
 		Stages: []string{benchStage},
 		Budget: benchWindow + window + 5*time.Minute,

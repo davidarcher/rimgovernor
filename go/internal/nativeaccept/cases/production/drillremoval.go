@@ -3,6 +3,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:        "production/drillremoval",
 		Scope:       "Remove an exhausted deep drill through the Hands deconstruction path while a steel runway is in deficit (#538); the drill over barren ground must be designated and demolished by pawns, the scanner and seeded lump untouched.",
-		Start:       cases.Fixture{Op: "test/production_materials_prepare", Args: map[string]any{"scenario": "exhausted"}, On: cases.Save{Name: baselineSave}},
+		Start:       cases.Fixture{Op: "test/production_materials_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{"scenario": "exhausted"}, On: cases.Save{Name: baselineSave}},
 		RequiredOps: []string{"test/production_materials_audit"},
 		Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: "exhausted", Extra: []string{"--routine-resource-target", "Steel:250"}},
 		QuietWorld:  true,

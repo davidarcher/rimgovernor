@@ -3,6 +3,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"time"
 
@@ -19,7 +20,7 @@ func init() {
 		cases.Register(cases.Case{
 			Name:        "production/" + scenario,
 			Scope:       "Recover a material runway deficit through ordinary pawn production; native stock must rise, with deep steel depletion or a Make_ComponentIndustrial bill proving its source.",
-			Start:       cases.Fixture{Op: "test/production_materials_prepare", Args: map[string]any{"scenario": scenario}, On: cases.Save{Name: baselineSave}},
+			Start:       cases.Fixture{Op: "test/production_materials_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{"scenario": scenario}, On: cases.Save{Name: baselineSave}},
 			RequiredOps: []string{"test/production_materials_audit"},
 			Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: scenario, Extra: []string{"--routine-resource-target", "Steel:250", "--routine-resource-target", "ComponentIndustrial:10"}},
 			QuietWorld:  true,

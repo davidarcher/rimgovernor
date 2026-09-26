@@ -31,12 +31,12 @@ namespace HomeBridge.BridgeTools
         const int HutSize = 11;
 
         [Tool("test/production_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist and a simple research bench inside, move every colonist in, drop steel and wood beside its door, and advance Smithing research to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest).")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, [ToolParameter(Description = "South-west corner x of the hut the controller's starter search chose (required).")] int siteX = -1, [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1, [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1, [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var hut = FixtureHut.Build(map, HutSize);
+                var hut = FixtureHut.Build(map, HutSize, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 var bench = FixtureHut.SpawnInside(map, hut, ThingDef.Named("SimpleResearchBench"));
                 // The smithy and the gladius cost steel; the bench ladder may
                 // pay wood. The tribal baseline holds neither.
@@ -64,12 +64,12 @@ namespace HomeBridge.BridgeTools
         // the chunks the map already holds, so it also reports the stone
         // chunks in reach.
         [Tool("test/production_stone_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist and a simple research bench inside, move every colonist in, drop the steel a stonecutter's table costs beside its door, advance Stonecutting research to 97% of its base cost, and count the unforbidden stone chunks within 40 cells of the colonists by definition.")]
-        public async Task<object> PrepareStone(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> PrepareStone(IRimBridgeContext ctx, CancellationToken cancellationToken, [ToolParameter(Description = "South-west corner x of the hut the controller's starter search chose (required).")] int siteX = -1, [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1, [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1, [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var hut = FixtureHut.Build(map, HutSize);
+                var hut = FixtureHut.Build(map, HutSize, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 var bench = FixtureHut.SpawnInside(map, hut, ThingDef.Named("SimpleResearchBench"));
                 var steel = FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 60);
                 var project = Advance(StoneProject);
@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/production_materials_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an exhausted surface, powered workshop, completed research and either a seeded steel lump plus scanner (with, for the exhausted scenario, one unpowered drill over barren ground) or a fabrication bench; no bill is supplied.")]
-        public async Task<object> PrepareMaterials(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "deepdrill")
+        public async Task<object> PrepareMaterials(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "deepdrill", [ToolParameter(Description = "South-west corner x of the hut the controller's starter search chose (required).")] int siteX = -1, [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1, [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1, [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
                     if (pawn.carryTracker.CarriedThing != null && Material(pawn.carryTracker.CarriedThing)) pawn.carryTracker.CarriedThing.Destroy(DestroyMode.Vanish);
                 }
                 foreach (var cell in map.AllCells) map.deepResourceGrid.SetAt(cell, null, 0);
-                var hut = FixtureHut.Build(map, HutSize);
+                var hut = FixtureHut.Build(map, HutSize, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 void Finish(ResearchProjectDef project) {
                     if (project.IsFinished) return;
                     if (project.prerequisites != null) foreach (var prerequisite in project.prerequisites) Finish(prerequisite);

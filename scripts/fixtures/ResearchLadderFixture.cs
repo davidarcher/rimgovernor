@@ -22,7 +22,8 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/research_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: advance the named project (default Stonecutting) to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest), build one roofed wood hut with a sleeping spot per colonist and wood and steel beside its door, and move every colonist inside. Spawns no research bench: the research ladder builds its own in the hut.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "ResearchProjectDef to advance (default Stonecutting).")] string project = "Stonecutting")
+            [ToolParameter(Description = "ResearchProjectDef to advance (default Stonecutting).")] string project = "Stonecutting",
+            [ToolParameter(Description = "South-west corner x of the hut the controller's starter search chose (required).")] int siteX = -1, [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1, [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1, [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -36,7 +37,7 @@ namespace HomeBridge.BridgeTools
 
                 // One 9x9 ring (7x7 inside): the middle rows stay free for
                 // the bench.
-                var hut = FixtureHut.Build(map, 9);
+                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 // The bench's materials: 75 stuff and 25 steel, which the
                 // tribal baseline holds none of. Supply is another goal's
                 // domain, so the fixture drops both beside the door.

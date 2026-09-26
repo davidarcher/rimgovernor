@@ -3,6 +3,7 @@ package production
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"time"
 
@@ -34,7 +35,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "production/stone",
 		Scope:  fmt.Sprintf("--routine-stone-block-target %d walks research (%s) -> %s -> Make_StoneBlocks bill fed from map chunks; the live block count must rise above the pre-service baseline (#231).", stoneTarget, stoneProject, stoneBench),
-		Start:  cases.Fixture{Op: "test/production_stone_prepare", Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
+		Start:  cases.Fixture{Op: "test/production_stone_prepare", ArgsFrom: startersite.ArgsFor(11), Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{stoneFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-stone-block-target", fmt.Sprintf("%d", stoneTarget)}},
 		Stages: []string{benchStage},
 		Budget: benchWindow + window + 5*time.Minute,

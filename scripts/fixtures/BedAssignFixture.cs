@@ -38,12 +38,12 @@ namespace HomeBridge.BridgeTools
                 if (wallDef == null || !wallDef.MadeFromStuff || !GenStuff.AllowedStuffsFor(wallDef).Contains(ThingDefOf.WoodLog))
                     return Refuse("Wall def unavailable or WoodLog is not an allowed stuff in this ruleset.");
                 if (doorDef == null) return Refuse("Door def unavailable in this ruleset.");
-                var origin = GenRadial.RadialCellsAround(pawn.Position, 40, true).FirstOrDefault(c =>
-                    new CellRect(c.x, c.z, 6, 4).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
-                        && cell.Standable(map) && cell.GetEdifice(map) == null && cell.GetZone(map) == null
-                        && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
-                    && pawn.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None));
-                if (origin == default) return Refuse("No open reachable area for the fixture bedroom.");
+                // The case starts on the blank lab (#732): its colonists
+                // stand on the centre row, so the bedroom sits a few rows
+                // north of it on bare Soil, with no site search.
+                var origin = map.Center + new IntVec3(-3, 0, 4);
+                if (!new CellRect(origin.x, origin.z, 6, 4).Cells.All(cell => cell.InBounds(map) && cell.Standable(map) && cell.GetEdifice(map) == null))
+                    return Refuse($"The fixture bedroom at {origin} is not clear: this fixture needs the blank lab start.");
 
                 // One open 6x4 roofed room (no interior dividing wall, so the
                 // target bed at x=3 is reachable from the claimed previous

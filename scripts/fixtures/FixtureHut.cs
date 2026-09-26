@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
@@ -31,16 +30,16 @@ namespace HomeBridge.BridgeTools
         }
 
         // Build raises a size x size ring (size-2 square inside) and
-        // furnishes it as above. site, when set, is the south-west corner the
+        // furnishes it as above. site is the south-west corner the
         // controller's own starter search chose (#700) and door the door cell
-        // it chose on the ring; otherwise FindSite picks the nearest open
-        // square and the door stands mid east wall. Natural rock on the ring
+        // it chose on the ring, or mid east wall when null; the fixture never
+        // searches for a site of its own (#732). Natural rock on the ring
         // stays as wall, rock inside is cleared as mining would, and plants
         // and items anywhere in the square are removed. spots caps the
         // sleeping spots laid: negative is one per colonist, a smaller count
         // leaves the bed deficit a capacity goal then plans against. Throws
-        // when the ruleset lacks the defs or the map has no room for it.
-        public static Result Build(Map map, int size, int spots = -1, IntVec3? site = null, IntVec3? doorCell = null)
+        // when the ruleset lacks the defs or no site is given.
+        public static Result Build(Map map, int size, IntVec3? site, IntVec3? doorCell, int spots = -1)
         {
             var player = Faction.OfPlayerSilentFail;
             if (player == null) throw new InvalidOperationException("No player faction.");
@@ -53,8 +52,8 @@ namespace HomeBridge.BridgeTools
             if (wallDef == null || doorDef == null || spotDef == null)
                 throw new InvalidOperationException("Wall, Door or SleepingSpot def unavailable in this ruleset.");
 
-            var origin = site ?? FindSite(map, people, size);
-            if (origin == default) throw new InvalidOperationException("No open reachable area for the fixture hut.");
+            if (site == null) throw new InvalidOperationException("No fixture hut site given: pass the starter site (siteX/siteZ).");
+            var origin = site.Value;
             var rect = new CellRect(origin.x, origin.z, size, size);
             if (!rect.InBounds(map)) throw new InvalidOperationException($"Fixture hut site {origin} runs off the map.");
             var door = doorCell ?? new IntVec3(origin.x + size - 1, 0, origin.z + size / 2);
@@ -106,31 +105,8 @@ namespace HomeBridge.BridgeTools
             return new Result { Origin = origin, Door = door, Outward = outward, Room = room, Interior = interior, People = people, SleepingSpots = laid };
         }
 
-        // FindSite returns the south-west corner of the size x size square
-        // nearest the first colonist whose cells are unfogged, in bounds,
-        // clear of edifices and zones, walkable heavy-affordance terrain, and
-        // hold nothing but plants and items (Build clears both: a chunk or a
-        // tree is not a reason to refuse), reachable by every colonist. The
-        // whole map is searched, nearest first (#674: the debug-200 start had
-        // no such square within 30 cells under the old Standable test).
-        // default when none exists.
-        public static IntVec3 FindSite(Map map, List<Pawn> people, int size)
-        {
-            var anchor = people[0].Position;
-            bool Open(IntVec3 cell) => cell.InBounds(map) && !cell.Fogged(map)
-                && cell.GetEdifice(map) == null && cell.GetZone(map) == null
-                && cell.GetTerrain(map).passability != Traversability.Impassable
-                && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)
-                && cell.GetThingList(map).All(t => t is Plant || t.def.category == ThingCategory.Item);
-            return map.AllCells
-                .Where(c => c.x + size <= map.Size.x && c.z + size <= map.Size.z)
-                .OrderBy(c => (c - anchor).LengthHorizontalSquared)
-                .FirstOrDefault(c => new CellRect(c.x, c.z, size, size).Cells.All(Open)
-                    && people.All(p => p.CanReach(c, PathEndMode.OnCell, Danger.Deadly)));
-        }
-
         // Site is the cell a fixture's x/z arguments name, null when x is
-        // negative (the fixture searches for its own site).
+        // negative (Build then refuses: no site given).
         public static IntVec3? Site(int x, int z) => x < 0 ? (IntVec3?)null : new IntVec3(x, 0, z);
 
         // DropOutside places count of def two cells outside the door,

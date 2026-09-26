@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "setup, force, unforce, forbid, allow, policy or interrupt")] string mode = "setup",
             [ToolParameter(Description = "production_setup: the ingredient stack placed by the subject (Cloth or a leather def).")] string material = "Cloth",
-            [ToolParameter(Description = "South-west corner x of the 11x11 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner x of the 11x11 hut the controller's starter search chose (required).")] int siteX = -1,
             [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
                         foreach (var existing in map.listerBuildings.allBuildingsColonist
                             .Where(b => b.def.AllRecipes != null && b.def.AllRecipes.Any(r => r.products.Any(p => p.thingDef.defName == "Apparel_BasicShirt"))).ToList())
                             existing.Destroy();
-                        var hut = FixtureHut.Build(map, 11, -1, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
+                        var hut = FixtureHut.Build(map, 11, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                         FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 150);
                         FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 150);
                     } else {

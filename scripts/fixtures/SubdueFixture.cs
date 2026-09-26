@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/subdue_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage disposable colonists for native subdue acceptance.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "South-west corner x of the 7x7 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner x of the 7x7 hut the controller's starter search chose (required).")] int siteX = -1,
             [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var hut = FixtureHut.Build(map, 7, -1, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
+                var hut = FixtureHut.Build(map, 7, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 var pawn = hut.People.First(p => !p.WorkTagIsDisabled(WorkTags.Violent));
                 var target = hut.People.First(p => p != pawn);
                 pawn.skills.GetSkill(SkillDefOf.Melee).Level = 20;

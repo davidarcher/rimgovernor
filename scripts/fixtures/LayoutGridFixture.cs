@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "ResearchProjectDef to finish (default Stonecutting).")] string project = "Stonecutting",
             [ToolParameter(Description = "Sleeping spots to lay in the hut; negative lays one per colonist, fewer leaves a bed deficit the capacity goal plans against.")] int sleepingSpots = -1,
             [ToolParameter(Description = "Stone blocks of the map's own stone to drop beside the door; 0 drops none.")] int stoneBlocks = 0,
-            [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose (required).")] int siteX = -1,
             [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var def = DefDatabase<ResearchProjectDef>.GetNamed(name);
                 Finish(def);
-                var hut = FixtureHut.Build(map, 9, sleepingSpots, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
+                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ), sleepingSpots);
                 FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
                 ThingDef blocks = null;
                 if (stoneBlocks > 0) {
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
 
         [Tool("test/layout_tidy_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture for layout/tidy (#611): build the fixture hut with wood beside its door at Camp tier (no research finished) so the field family plants its first patch off the grid; the tidy stage finishes Stonecutting later with test/layout_tidy_research.")]
         public async Task<object> PrepareTidy(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose (required).")] int siteX = -1,
             [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
             [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var hut = FixtureHut.Build(map, 9, -1, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
+                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
                 FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
                 return new { success = true, hut = hut.Summary(), hutOrigin = new { x = hut.Origin.x, z = hut.Origin.z }, hutSize = 9,
                     stonecutting = DefDatabase<ResearchProjectDef>.GetNamed("Stonecutting").IsFinished, tick = Find.TickManager.TicksGame };

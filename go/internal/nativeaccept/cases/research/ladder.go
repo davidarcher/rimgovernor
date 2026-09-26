@@ -20,6 +20,7 @@ package research
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"strings"
 	"time"
@@ -65,7 +66,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "research/ladder",
 		Scope:  fmt.Sprintf("With no research target and no research bench, EnsureResearch stages a simple research bench in the fixture hut, selects %s from the default ladder, keeps the clock moving until it finishes natively, then selects %s; all proven by the live research state (issues #230, #254).", firstRung, secondRung),
-		Start:  cases.Fixture{Op: "test/research_ladder_prepare", Args: map[string]any{"project": firstRung}, On: cases.Save{Name: baselineSave}},
+		Start:  cases.Fixture{Op: "test/research_ladder_prepare", ArgsFrom: startersite.ArgsFor(9), Args: map[string]any{"project": firstRung}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "research"},
 		Stages: []string{benchStage},
 		Budget: benchWindow + ladderWindow + 3*time.Minute,
