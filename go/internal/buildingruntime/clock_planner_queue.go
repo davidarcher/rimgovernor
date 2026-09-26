@@ -35,6 +35,10 @@ type plannerQueue struct {
 	// it waits on reaches its outcome row, its tick deadline passes, or a
 	// full step runs.
 	waits map[string]plannerWait
+	// refused are the planners whose last run was refused admission: they
+	// are due again at a tick, which a stopped clock never reaches, so
+	// stalled re-marks them (#692).
+	refused map[string]bool
 	// configured filters the catalog to the planners the scheduler runs
 	// (plannerEntry.configured); nil admits every entry. An unconfigured
 	// planner is never marked or due, so it cannot keep a step reviewing.
@@ -52,7 +56,7 @@ type plannerWait struct {
 }
 
 func newPlannerQueue() *plannerQueue {
-	return &plannerQueue{due: map[string]int64{}, dirty: map[string]uint64{}, waits: map[string]plannerWait{}}
+	return &plannerQueue{due: map[string]int64{}, dirty: map[string]uint64{}, waits: map[string]plannerWait{}, refused: map[string]bool{}}
 }
 
 // clone copies the queue for a selection that must not persist its marks
@@ -70,6 +74,9 @@ func (q *plannerQueue) clone() *plannerQueue {
 	}
 	for name, wait := range q.waits {
 		out.waits[name] = wait
+	}
+	for name := range q.refused {
+		out.refused[name] = true
 	}
 	out.seq, out.all, out.configured, out.catalog = q.seq, q.all, q.configured, q.catalog
 	return out
@@ -262,6 +269,11 @@ func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf 
 			delete(q.dirty, name)
 		}
 		reason, finished := reasonOf(name)
+		if finished && reason == BuildingMethodRefused {
+			q.refused[name] = true
+		} else {
+			delete(q.refused, name)
+		}
 		if !finished || reason != BuildingMethodExistingWork || openWork == nil {
 			delete(q.waits, name)
 			continue
@@ -272,6 +284,17 @@ func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf 
 			continue
 		}
 		q.waits[name] = plannerWait{On: on, Deadline: q.due[name]}
+	}
+}
+
+// stalled is the step on a stopped clock (the last window refused no_work
+// and the tick did not move): no tick deadline or cadence can pass, so the
+// waits are dropped and the refused planners marked, each re-examining its
+// own work instead of parking the colony for good (#692).
+func (q *plannerQueue) stalled() {
+	q.waits = map[string]plannerWait{}
+	for name := range q.refused {
+		q.mark(name)
 	}
 }
 

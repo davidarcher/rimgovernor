@@ -102,6 +102,31 @@ func TestClockSchedulerAdmitsPastBlockedOptionalPlanner(t *testing.T) {
 	}
 }
 
+// An optional planner slower than the grace is not starved: after it
+// missed one step's cutoff the next step joins it for the wall budget, so
+// its result is merged instead of being cancelled every step while the
+// clock is refused no_work on the work only it would propose.
+func TestClockSchedulerJoinsStarvedOptionalPlanner(t *testing.T) {
+	t.Parallel()
+	s, _ := schedulerFixture(t)
+	s.config.Budget.OptionalGrace = 20 * time.Millisecond
+	s.config.Budget.Wall = 5 * time.Second
+	if got := s.optionalWaveGrace(5*time.Millisecond, []string{"defenseLayout"}); got != 20*time.Millisecond {
+		t.Fatalf("fresh planner grace %v, want the floor", got)
+	}
+	s.catalog = []plannerEntry{quickPlanner("tend", classCritical), blockedPlanner("defenseLayout", classOptional, make(chan error, 1))}
+	got, err := s.Step(context.Background())
+	if err != nil || !reflect.DeepEqual(got.MissedCutoff, []string{"defenseLayout"}) {
+		t.Fatal(got.MissedCutoff, err)
+	}
+	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"defenseLayout"}); grace != 5*time.Second {
+		t.Fatalf("starved planner grace %v, want the wall budget", grace)
+	}
+	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"lighting"}); grace != 20*time.Millisecond {
+		t.Fatalf("other planner grace %v, want the floor", grace)
+	}
+}
+
 // A critical planner blocked the same way holds admission (#623): past the
 // wall budget the step admits no window, reports the planner under
 // held_by, and the next step evaluates again.

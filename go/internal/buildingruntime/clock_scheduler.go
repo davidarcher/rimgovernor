@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -309,6 +310,15 @@ type ClockScheduler struct {
 	lastTick, plannedTick           int64
 	lastTickKnown, plannedTickKnown bool
 	lastFull                        time.Time
+	// starved names the optional planners that missed the previous step's
+	// cutoff; the next step joins them for the whole wall budget, so a
+	// planner slower than the grace still returns once instead of being
+	// cancelled every step while the clock waits on its work. Touched
+	// only under the player gate.
+	starved map[string]bool
+	// noWork is set when the last window decision refused no_work; see
+	// selectPlanners. Touched only under the player gate.
+	noWork bool
 	// paceTick and paceAt are the previous step's status tick and the wall
 	// time it was read at, the basis of the running window's pace
 	// (livePace); touched only under the player gate.
@@ -1349,6 +1359,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	combatMaxTicks := min(s.config.CombatMaxTicks, start.MaxTicks)
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
 	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
+	s.noWork = !out.Decision.Admitted && slices.Contains(out.Decision.Refused, policy.ClockWindowNoWork)
 	if !out.Decision.Admitted {
 		clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
 		return out, executor.ErrHeld
@@ -1473,6 +1484,20 @@ func (s *ClockScheduler) nativeWorkBudget() uint32 {
 	return s.config.Start.MaxTicks
 }
 
+// optionalWaveGrace is how long the optional wave is joined after the
+// critical wave returned: the critical wave's own duration floored by
+// OptionalGrace, or the whole wall budget when a pending planner missed the
+// previous step's cutoff (starved), so a planner slower than the grace is
+// not cancelled every step.
+func (s *ClockScheduler) optionalWaveGrace(critical time.Duration, pending []string) time.Duration {
+	for _, name := range pending {
+		if s.starved[name] {
+			return s.config.Budget.wall()
+		}
+	}
+	return max(critical, s.config.Budget.optionalGrace())
+}
+
 // runPlanners runs the routine reviewer and the selected planner wave as an
 // admission cycle and an optional wave (#623). The cycle joins the routine
 // review and the critical planners under the wall budget: past it, the
@@ -1531,7 +1556,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	}
 	out.CriticalWave = time.Since(began)
 	watched(s.clock.Now().Sub(readAt), true)
-	grace := max(out.CriticalWave, s.config.Budget.optionalGrace())
+	grace := s.optionalWaveGrace(out.CriticalWave, wave.group.Pending())
 	cutoff := after(min(grace, s.config.Budget.wall()-out.CriticalWave))
 	select {
 	case <-wall:
@@ -1541,6 +1566,10 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	if pending := wave.group.WaitUntil(cutoff); len(pending) > 0 {
 		out.MissedCutoff = pending
 		clockSchedulerLog("optional planners %v still evaluating %s after the critical wave (%s) -> missed the cutoff", pending, grace.Round(time.Millisecond), out.CriticalWave.Round(time.Millisecond))
+	}
+	s.starved = map[string]bool{}
+	for _, name := range out.MissedCutoff {
+		s.starved[name] = true
 	}
 	wave.close()
 	arbiter.close()
@@ -1695,6 +1724,9 @@ func (s *ClockScheduler) liveWaveDue() bool {
 // held, so a dependency that settled without an outcome event (an
 // immediate designation) releases its planner at the next step.
 func (s *ClockScheduler) selectPlanners(call context.Context, reason StepReason, tick int64) (plannerSelectionResult, error) {
+	if s.noWork && !reason.TickAdvanced {
+		s.queue.stalled()
+	}
 	var stillOpen func(domain.ActionID) bool
 	if len(s.queue.waits) > 0 {
 		plans, err := s.player.journal.LoadPlans(call, 256)

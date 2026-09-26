@@ -186,6 +186,39 @@ func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 	}
 }
 
+// A wait's deadline is a tick, so on a stopped clock it never passes: a
+// step whose tick did not advance drops the waits and a dirty planner
+// re-examines its open work, and a planner refused admission is marked
+// again, its cadence tick being unreachable too (#692).
+func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
+	t.Parallel()
+	s, _ := schedulerFixture(t)
+	s.queue.catalog = func() []plannerEntry {
+		return []plannerEntry{quickPlanner("defense", classCritical), quickPlanner("defenseLayout", classOptional)}
+	}
+	s.queue.configured = nil
+	ctx := context.Background()
+	// defenseLayout was refused admission and is due only at a later tick.
+	reasons := map[string]RoutineBuildingReason{"defenseLayout": BuildingMethodRefused}
+	s.queue.ran(plannerSelectionResult{planners: true, pick: func(plannerEntry) bool { return true }}, []string{"defenseLayout"}, func(name string) (RoutineBuildingReason, bool) {
+		reason, ok := reasons[name]
+		return reason, ok
+	}, 100, nil)
+	s.queue.mark("defense")
+	s.queue.waits["defense"] = plannerWait{On: []domain.ActionID{"attack-1"}, Deadline: 1 << 40}
+	s.noWork = true
+	got, err := s.selectPlanners(ctx, StepReason{Cause: StepTimer}, 100)
+	if err != nil || !got.planners || got.waiting != nil || !got.pick(plannerEntry{name: "defense"}) || !got.pick(plannerEntry{name: "defenseLayout"}) {
+		t.Fatal(got, err)
+	}
+	// While a window runs the refused planner waits for its cadence.
+	s.noWork = false
+	s.queue.dirty = map[string]uint64{}
+	if got, err = s.selectPlanners(ctx, StepReason{Cause: StepTimer}, 100); err != nil || got.planners {
+		t.Fatal(got, err)
+	}
+}
+
 // TestInvalidationSections maps a wire invalidation to the store sections
 // it dirties: whole families to every section, ids to the incremental
 // sections, a rect to the cell section.
