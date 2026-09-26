@@ -1433,6 +1433,23 @@ func (s *ClockScheduler) optionalWaveGrace(critical time.Duration, pending []str
 	return max(critical, s.config.Budget.optionalGrace())
 }
 
+// markStarved records a wave's outcome on the starved marks: a planner that
+// returned loses its mark and one that missed the cutoff gains it. A mark
+// lasts until its planner returns, so a wave that does not run it leaves
+// it alone; wiping it there left a planner due less often than steps run
+// cancelled at the grace every time it was due (#717).
+func (s *ClockScheduler) markStarved(finished, missed []string) {
+	if s.starved == nil {
+		s.starved = map[string]bool{}
+	}
+	for _, name := range finished {
+		delete(s.starved, name)
+	}
+	for _, name := range missed {
+		s.starved[name] = true
+	}
+}
+
 // runPlanners runs the routine reviewer and the selected planner wave as an
 // admission cycle and an optional wave (#623). The cycle joins the routine
 // review and the critical planners under the wall budget: past it, the
@@ -1502,10 +1519,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		out.MissedCutoff = pending
 		clockSchedulerLog("optional planners %v still evaluating %s after the critical wave (%s) -> missed the cutoff", pending, grace.Round(time.Millisecond), out.CriticalWave.Round(time.Millisecond))
 	}
-	s.starved = map[string]bool{}
-	for _, name := range out.MissedCutoff {
-		s.starved[name] = true
-	}
+	s.markStarved(wave.finishedNames(), out.MissedCutoff)
 	wave.close()
 	arbiter.close()
 	// The migrated planners proposed instead of committing: rank their

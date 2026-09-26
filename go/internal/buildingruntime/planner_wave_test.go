@@ -124,6 +124,15 @@ func TestClockSchedulerJoinsStarvedOptionalPlanner(t *testing.T) {
 	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"lighting"}); grace != 20*time.Millisecond {
 		t.Fatalf("other planner grace %v, want the floor", grace)
 	}
+	// A wave that does not run it keeps the mark; its own return clears it (#717).
+	s.markStarved([]string{"rooms"}, nil)
+	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"defenseLayout"}); grace != 5*time.Second {
+		t.Fatalf("starved planner grace %v after a wave without it, want the wall budget", grace)
+	}
+	s.markStarved([]string{"defenseLayout"}, nil)
+	if grace := s.optionalWaveGrace(5*time.Millisecond, []string{"defenseLayout"}); grace != 20*time.Millisecond {
+		t.Fatalf("returned planner grace %v, want the floor", grace)
+	}
 }
 
 // A critical planner blocked the same way holds admission (#623): past the
