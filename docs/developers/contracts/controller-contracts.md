@@ -201,7 +201,11 @@ lacks) and the optional wave skips their planners. No new action kind or command
 stream: the stage only moves budgets the existing planners already read. The
 `routine_review` timeline event carries `stage`/`stage_blocker`/`stage_reason`/
 `stage_held`, a `colony_stage` event records each change, `GET /api/routines` returns
-the record under `stage` and the Development priorities panel shows it.
+the record under `stage` and the Development priorities panel shows it. Both the
+record and the progress records also feed the spectator "now" panel
+(`GET /api/spectator/now`, #632), which adds the pacing reason, the effective TPS
+and the last clock stop's latency split; that route is a pure read, so a viewer
+never writes a journal row or requests a speed.
 
 ## Method compilation and work allocation
 

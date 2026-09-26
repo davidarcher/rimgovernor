@@ -7,6 +7,7 @@ import PlayerControls from './PlayerControls';
 import PresentationPanel from './PresentationPanel';
 import NotificationPanel from './NotificationPanel';
 import DevelopmentPanel from './DevelopmentPanel';
+import NowPanel from './NowPanel';
 import FoodPlanPanel from './FoodPlanPanel';
 import ThreatPanel from './ThreatPanel';
 import GameVideoGo, {MapOverviewGo, PawnFeedGo} from './GameVideoGo';
@@ -164,6 +165,7 @@ export default function ObservationDashboard() {
         <div><dt>Load</dt><dd>{state?.identity?.loadToken ?? '—'}</dd></div>
       </dl></section>
       {view === 'watch' && <>
+        <NowPanel active/>
         <section className="observation-panel"><h2>Camera</h2><GameVideoGo token={token} active/></section>
         <section className="observation-panel"><h2>Map overview</h2><MapOverviewGo token={token} active/></section>
         <PlayerControls observation={state} observationFresh={observationFresh}/>

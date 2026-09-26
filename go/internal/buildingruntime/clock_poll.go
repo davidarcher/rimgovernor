@@ -276,13 +276,35 @@ func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
 		case *k.Event_Stopped:
-			clockEvent(ctx, "clock-scheduler", "scheduler_stop", "window stopped", "reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStopEvent(v.Stopped))
+			clockEvent(ctx, "clock-scheduler", "scheduler_stop", "window stopped", append([]any{"reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStopEvent(v.Stopped)}, clockStopLegs(event, v.Stopped)...)...)
 		case *k.Event_AuthorityChanged:
 			clockEvent(ctx, "clock-scheduler", "authority_change", "authority changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
 		case *k.Event_Alert:
 			clockEvent(ctx, "clock-scheduler", "alert_row", "game alert", "key", v.Alert.GetKey(), "label", v.Alert.GetLabel(), "priority", v.Alert.GetPriority(), "cursor", event.GetCursor())
 		}
 	}
+}
+
+// clockStopLegs are the stop's latency legs on the row, the live half of
+// the #621 split the throughput report computes offline: the tick the stop
+// was taken at, the tick the supervisor first raised it, the tick the
+// hazard arose (when the evidence carries one) and how long the stop sat
+// unobserved in native before the page that carried it was composed. Ticks
+// are native's own; the age is native's own span, so nothing subtracts one
+// process's clock from another's. The spectator panel (#632) reads them
+// beside the readmit leg the following clock_step row records.
+func clockStopLegs(event *k.Event, stop *k.StopEvent) []any {
+	attrs := []any{"tick", event.GetContext().GetTick()}
+	if stop.DetectedTick != nil {
+		attrs = append(attrs, "detected_tick", stop.GetDetectedTick(), "stop_ticks", event.GetContext().GetTick()-stop.GetDetectedTick())
+		if stop.OccurrenceTick != nil {
+			attrs = append(attrs, "occurrence_tick", stop.GetOccurrenceTick(), "detect_ticks", stop.GetDetectedTick()-stop.GetOccurrenceTick())
+		}
+	}
+	if event.AgeAtReplyMs != nil {
+		attrs = append(attrs, "age_at_reply_ms", float64(event.GetAgeAtReplyMs()))
+	}
+	return attrs
 }
 
 // clockStopEvidence names the evidence a stop event carries (the oneof

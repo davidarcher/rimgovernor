@@ -15,7 +15,8 @@ The interface polls compact state while preserving the last good data. A slow
 or failed refresh should not replace a useful view with an empty one — errors
 are shown alongside the last successful reading, not in place of it.
 
-The main navigation is Watch, Work, Colony, Governor and Help. Watch combines
+The main navigation is Watch, Work, Colony, Governor and Help. Watch leads with
+the spectator "now" panel (below) and combines
 the live game view with the explicit player-control panel (session token,
 building and temporary-draft submission, control acquire/manual, clock
 review). Work is a read-only feed of the active plan's actions and their
@@ -56,6 +57,39 @@ factor, with the skills the last plan let decay marked. The roster section
 opens the same report's coverage table (owners found and wanted, pawns
 capable, per work type). Profiles join by native pawn id; a colonist the last
 review did not plan for shows the raw dossier alone.
+
+## The spectator "now" panel
+
+Watch opens with one read, `GET /api/spectator/now` (#632), answering what the
+colony is doing at a glance:
+
+- the colony stage (#630) with the first unmet condition of the next and its
+  measured values, plus the Foothold development hold;
+- the active goals' progress records (#629) — method, the native observable it
+  should move, the tick evidence last moved it, the review deadline and the
+  blocker — the most urgent first (blocked before unblocked, then by deadline),
+  bounded to a panel's worth of rows;
+- the pacing reason with the effective ticks per second and the last window's
+  tick budget: `running`, `tick_budget` between windows, `window_refused` with
+  the arbitration's own refusal reasons, `held` while a clock event awaits
+  review, `governor_off`, `stopped`, or `cinematic` when a mode is slowing an
+  interesting moment on purpose;
+- the last clock stop with its #621 latency split: the ticks from the hazard
+  arising to the supervisor raising the stop to the stop landing, then how long
+  it sat unobserved in native, how long the controller took to act on it and how
+  long the pause lasted before a window was readmitted.
+
+`internal/spectator` projects the panel from the last review's records and the
+flight-recorder rows of the current launch; the route composes those with the
+state snapshot's tick. Reading it issues no native call, writes no journal row
+and requests no speed, so a viewer connecting, watching and leaving never
+changes the simulation contract — continuous autonomous play is the default, and
+a cinematic mode is opt-in and visible as the pacing reason rather than an
+unexplained change of speed. Chat stays explanation and policy nudges (below);
+the panel carries no controls. Without a flight recorder the panel still answers
+from the review's own facts, with the recorder-derived fields empty and the
+pacing reason `unknown`; without routine diagnostics it answers 404 and the
+dashboard hides it.
 
 ## Video and simulation are independent
 

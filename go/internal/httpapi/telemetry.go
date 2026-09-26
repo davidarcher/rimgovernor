@@ -253,18 +253,10 @@ func telemetryMetrics(rows []bridge.TimelineRecord, snapshot Snapshot, evidenceB
 	if raw, known := snapshot.Generation.Value(); known && raw.Validate() == nil {
 		out.Authority = generation(raw)
 	}
+	current := currentRun(rows)
 	run := ""
-	for i := len(rows) - 1; i >= 0; i-- {
-		if rows[i].HasSeq {
-			run = rows[i].Run
-			break
-		}
-	}
-	current := rows[:0:0]
-	for _, row := range rows {
-		if row.HasSeq && row.Run == run {
-			current = append(current, row)
-		}
+	if len(current) > 0 {
+		run = current[len(current)-1].Run
 	}
 	out.Run = run
 	summary := bridge.SummarizePhases(current)
