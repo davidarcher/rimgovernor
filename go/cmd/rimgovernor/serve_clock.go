@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -143,15 +144,11 @@ func parseClockSpeed(speed string) k.Speed {
 // (maxClockWindowTicks, 30 game days) for one that wants the budget as a
 // pure safety net.
 //
-// The default stays at a day because two review inputs still reach the
-// controller only through a review, not through a journal row: a growing
-// zone reaching harvest and a stock level crossing a planner's threshold
-// (the native digests cover research, faction relations, game conditions
-// and zone edits, #626). Live waves under the running window cover them
-// while the game runs slower than the wave, but the pace skip
-// (LivePlanningSkippedPace, #598) suppresses those waves at speed, and
-// then the budget stop is the review. Raising the default needs those rows
-// first (#669).
+// The default stays at a day. The review inputs that once reached the
+// controller only through a review now have journal rows: the native
+// digests cover research, faction relations, game conditions and zone
+// edits (#626), a growing zone turning harvestable and a stock crossing a
+// --routine-resource-target level (#670). Raising the default is #669.
 //
 // A raid runs in combatClockWindowTicks windows so the defense planner
 // re-targets between them; that bound is fixed.
@@ -178,6 +175,23 @@ func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, wi
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
 				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
 	}
+}
+
+// clockResourceThresholds is the operator's resource targets as the watch
+// policy's stock levels, sorted by definition and cut at the wire bound.
+func clockResourceThresholds(targets map[policy.Resource]int64) []*k.ResourceThreshold {
+	names := make([]string, 0, len(targets))
+	for name, level := range targets {
+		if level >= 1 {
+			names = append(names, string(name))
+		}
+	}
+	slices.Sort(names)
+	out := make([]*k.ResourceThreshold, 0, min(len(names), bridge.ClockResourceThresholdsMax))
+	for _, name := range names[:min(len(names), bridge.ClockResourceThresholdsMax)] {
+		out = append(out, &k.ResourceThreshold{DefName: proto.String(name), Level: proto.Int64(targets[policy.Resource(name)])})
+	}
+	return out
 }
 
 // serviceClockStepTimeout budgets one scheduler step: the routine review
@@ -248,6 +262,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), uint32(sc.clockBlindTicks))
+	if sc.resourceTargetsConfigured() {
+		// The native digest appends a colony row when a stock crosses one
+		// of these levels (#670), so MaintainResource reviews under the
+		// running window instead of waiting for the budget stop.
+		config.Start.Policy.ResourceThresholds = clockResourceThresholds(sc.routineResourceTargets.Map())
+	}
 	config.Facts = cache
 	config.Store = sections
 	config.Worker = true

@@ -529,6 +529,8 @@ namespace HomeBridge.BridgeTools
                 && (policy.MedicalRestIds.Count == 0 || maxTicks <= 600)
                 && policy.WatchedAttempts.Count <= MaxWatchedAttempts && policy.WatchedAttempts.All(ValidWatchKey)
                 && policy.WatchedAttempts.Distinct().Count() == policy.WatchedAttempts.Count
+                && policy.ResourceThresholds.Count <= 32 && policy.ResourceThresholds.All(t => t.HasDefName && ProtoBoundary.IsIdentifier(t.DefName) && t.HasLevel && t.Level >= 1)
+                && policy.ResourceThresholds.Select(t => t.DefName).Distinct(StringComparer.Ordinal).Count() == policy.ResourceThresholds.Count
                 && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
         }
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;

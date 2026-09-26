@@ -79,6 +79,17 @@ message WatchPolicy {
   // already terminal at Start is reported once as OperationOutcome and is not
   // armed; it never burns the window.
   repeated rimgovernor.common.v1.AttemptKey watched_attempts = 11;
+  // Stored-resource levels the controller's planners act on (#670). When a
+  // definition's colony stock crosses its level in either direction under a
+  // running epoch the journal gets an observation_invalidated row for the
+  // colony family; the clock does not stop. At most 32, distinct def names,
+  // level >= 1.
+  repeated ResourceThreshold resource_thresholds = 12;
+}
+
+message ResourceThreshold {
+  optional string def_name = 1;
+  optional int64 level = 2;
 }
 
 // Epoch ownership is distinct from automation authority and viewer/input leases.

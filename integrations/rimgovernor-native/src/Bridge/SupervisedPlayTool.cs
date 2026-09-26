@@ -721,6 +721,87 @@ namespace HomeBridge.BridgeTools
                 Add("observation_invalidated", "Observed facts changed: " + string.Join("; ", reasons) + ".", s,
                     new Dictionary<string, object?> { { "families", families }, { "reason", string.Join("; ", reasons) } });
             PublishZoneChanges(s);
+            PublishHarvestChanges(s);
+            PublishResourceChanges(s);
+        }
+        /// A growing zone turning ripe (any sown plant harvestable now) or
+        /// fully harvested appends one colony row narrowed to those zones
+        /// (#670), so the grower review runs without waiting for a stop.
+        private static void PublishHarvestChanges(State s)
+        {
+            var ripe = RipeZones(s.Map);
+            var before = s.RipeZones;
+            s.RipeZones = ripe;
+            if (before == null) return;
+            var changed = ripe.Where(id => !before.Contains(id)).Concat(before.Where(id => !ripe.Contains(id))).ToList();
+            if (changed.Count == 0) return;
+            changed.Sort(StringComparer.Ordinal);
+            var turned = changed.Where(ripe.Contains).ToList();
+            var cleared = changed.Where(id => !ripe.Contains(id)).ToList();
+            var parts = new List<string>();
+            if (turned.Count != 0) parts.Add("zones harvestable: " + string.Join(", ", turned));
+            if (cleared.Count != 0) parts.Add("zones harvested: " + string.Join(", ", cleared));
+            var reason = string.Join("; ", parts);
+            var payload = new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } };
+            if (changed.Count <= InvalidationEntitiesMax) payload["entityIds"] = changed;
+            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+        }
+        private static HashSet<string> RipeZones(Map map)
+        {
+            var result = new HashSet<string>(StringComparer.Ordinal);
+            List<Zone> zones;
+            try { zones = map?.zoneManager?.AllZones ?? new List<Zone>(); } catch { return result; }
+            foreach (var zone in zones)
+            {
+                var growing = zone as Zone_Growing;
+                if (growing == null) continue;
+                string id;
+                try { id = zone.GetUniqueLoadID(); } catch { continue; }
+                if (!ProtoBoundary.IsIdentifier(id)) continue;
+                try
+                {
+                    foreach (var cell in growing.Cells)
+                    {
+                        var plant = cell.GetPlant(map);
+                        if (plant != null && plant.def == growing.GetPlantDefToGrow() && plant.HarvestableNow) { result.Add(id); break; }
+                    }
+                }
+                catch { }
+            }
+            return result;
+        }
+        /// A declared resource level (WatchPolicy.resource_thresholds) the
+        /// colony's stored count crosses in either direction appends one
+        /// colony row naming the definitions (#670); the controller's
+        /// supply and food planners act on exactly those levels.
+        private static void PublishResourceChanges(State s)
+        {
+            var thresholds = s.Typed?.Policy?.ResourceThresholds;
+            if (thresholds == null || thresholds.Count == 0) return;
+            var above = new Dictionary<string, bool>(StringComparer.Ordinal);
+            foreach (var t in thresholds)
+            {
+                var def = DefDatabase<ThingDef>.GetNamedSilentFail(t.DefName);
+                if (def == null) continue;
+                int count;
+                try { count = s.Map.resourceCounter.GetCount(def); } catch { continue; }
+                above[t.DefName] = count >= t.Level;
+            }
+            var before = s.ResourceLevels;
+            s.ResourceLevels = above;
+            if (before == null) return;
+            var changed = new List<string>();
+            foreach (var pair in above)
+            {
+                bool old;
+                if (before.TryGetValue(pair.Key, out old) && old != pair.Value)
+                    changed.Add(pair.Key + (pair.Value ? " reached" : " fell below") + " its level");
+            }
+            if (changed.Count == 0) return;
+            changed.Sort(StringComparer.Ordinal);
+            var reason = "stock " + string.Join(", ", changed);
+            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s,
+                new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } });
         }
         private static void PublishZoneChanges(State s)
         {
@@ -1493,6 +1574,7 @@ namespace HomeBridge.BridgeTools
             // null until the epoch's first probe baselined them; see PublishFactChanges.
             public string? ResearchDigest; public string? WorldDigest; public string? ConditionDigest;
             public Dictionary<string, ZoneDigest>? ZoneDigests;
+            public HashSet<string>? RipeZones; public Dictionary<string, bool>? ResourceLevels;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
             public long ForcePauseSinceMs; public string? ForcePauseKind;
             public Dictionary<string, object?>? PendingPayload;

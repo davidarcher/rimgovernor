@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -86,5 +87,28 @@ func TestClockEventsWaitBound(t *testing.T) {
 	request.WaitMs = proto.Uint32(ClockEventsMaxWaitMs + 1)
 	if _, _, err := (&Client{}).ReadClockEvents(t.Context(), request); !errors.Is(err, ErrContract) {
 		t.Fatal(err)
+	}
+}
+
+func TestClockPolicyResourceThresholdsBounded(t *testing.T) {
+	policy := clockTestPolicy()
+	for i := range ClockResourceThresholdsMax {
+		policy.ResourceThresholds = append(policy.ResourceThresholds, &k.ResourceThreshold{DefName: proto.String("Def" + strconv.Itoa(i)), Level: proto.Int64(1)})
+	}
+	if err := clockPolicy(policy, 600); err != nil {
+		t.Fatal(err)
+	}
+	over := proto.Clone(policy).(*k.WatchPolicy)
+	over.ResourceThresholds = append(over.ResourceThresholds, &k.ResourceThreshold{DefName: proto.String("Extra"), Level: proto.Int64(1)})
+	duplicate := proto.Clone(policy).(*k.WatchPolicy)
+	duplicate.ResourceThresholds[1].DefName = proto.String("Def0")
+	zero := proto.Clone(policy).(*k.WatchPolicy)
+	zero.ResourceThresholds[0].Level = proto.Int64(0)
+	unnamed := proto.Clone(policy).(*k.WatchPolicy)
+	unnamed.ResourceThresholds[0].DefName = nil
+	for name, p := range map[string]*k.WatchPolicy{"over": over, "duplicate": duplicate, "zero": zero, "unnamed": unnamed} {
+		if err := clockPolicy(p, 600); !errors.Is(err, ErrContract) {
+			t.Fatal(name, err)
+		}
 	}
 }

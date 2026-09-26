@@ -303,11 +303,27 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 		}
 		watched[key] = true
 	}
+	if len(p.ResourceThresholds) > ClockResourceThresholdsMax {
+		return contract("clock policy resource threshold bound")
+	}
+	levels := map[string]bool{}
+	for _, t := range p.ResourceThresholds {
+		if t.DefName == nil || validID(t.GetDefName()) != nil || t.Level == nil || t.GetLevel() < 1 {
+			return contract("invalid clock resource threshold")
+		}
+		if levels[t.GetDefName()] {
+			return contract("duplicate clock resource threshold")
+		}
+		levels[t.GetDefName()] = true
+	}
 	return nil
 }
 
 // ClockWatchedAttemptsMax bounds the attempts one epoch watches natively.
 const ClockWatchedAttemptsMax = 16
+
+// ClockResourceThresholdsMax bounds the stock levels one epoch digests (#670).
+const ClockResourceThresholdsMax = 32
 
 func clockOwner(owner *k.EpochOwner) error {
 	if owner == nil || owner.ControllerSessionId == nil || owner.Epoch == nil || owner.GetEpoch() <= 0 {
