@@ -62,36 +62,65 @@ func DeriveGearRole(p GearRoleInput) GearRole {
 		return GearSoldier
 	}
 	priorities, _ := p.Work.Work.Value()
-	// The role with the most work types at the pawn's best priority wins;
-	// ties go worker, hunter, indoor, so a generalist whose every work type
-	// shares one priority (a fresh tribal pawn) stays a worker.
+	// The role with the most work types at the pawn's best priority wins.
+	// A tie goes to the role holding the pawn's best skill among those work
+	// types (level, passion breaking a level tie), then worker, hunter,
+	// indoor, so a generalist whose every work type shares one priority (a
+	// fresh tribal pawn) stays a worker unless a skill marks it otherwise.
+	skills := map[string]int{}
+	if known, ok := p.Work.Skills.Value(); ok {
+		for _, s := range known {
+			if !s.Disabled {
+				skills[s.Name] = s.Level*3 + gearPassionRank(s.Passion)
+			}
+		}
+	}
 	best := 5
-	var counts map[GearRole]int
+	var counts, skill map[GearRole]int
 	for _, w := range priorities {
 		if w.Disabled || w.Priority <= 0 || w.Priority > 4 {
 			continue
 		}
-		r := GearWorker
-		switch w.Work {
-		case WorkHunting:
-			r = GearHunter
-		case WorkCrafting, WorkTailoring, WorkSmithing, WorkResearch, WorkArt:
-			r = GearIndoor
-		}
+		r := gearWorkRole(w.Work)
 		if w.Priority < best {
-			best, counts = w.Priority, map[GearRole]int{}
+			best, counts, skill = w.Priority, map[GearRole]int{}, map[GearRole]int{}
 		}
 		if w.Priority == best {
 			counts[r]++
+			skill[r] = max(skill[r], skills[WorkSkillName(w.Work)])
 		}
 	}
 	role := GearWorker
 	for _, r := range []GearRole{GearHunter, GearIndoor} {
-		if counts[r] > counts[role] {
+		if counts[r] > counts[role] || counts[r] == counts[role] && skill[r] > skill[role] {
 			role = r
 		}
 	}
 	return role
+}
+
+// gearWorkRole is the gear role a work type dresses for, per the wiki's work
+// descriptions: hunters need a ranged weapon; benches, beds and research
+// happen indoors; everything else (building, mining, growing, hauling,
+// handling, fishing) is outdoor labour.
+func gearWorkRole(w WorkType) GearRole {
+	switch w {
+	case WorkHunting:
+		return GearHunter
+	case WorkCrafting, WorkTailoring, WorkSmithing, WorkResearch, WorkArt, WorkCooking, WorkDoctor, WorkWarden:
+		return GearIndoor
+	}
+	return GearWorker
+}
+
+func gearPassionRank(passion string) int {
+	switch passion {
+	case "Minor":
+		return 1
+	case "Major":
+		return 2
+	}
+	return 0
 }
 
 type GearSource string

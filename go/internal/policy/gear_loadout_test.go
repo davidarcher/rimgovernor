@@ -53,6 +53,10 @@ func TestGearRoles(t *testing.T) {
 		}
 		return GearRoleInput{Work: WorkPawn{Work: domain.Known(ps)}}
 	}
+	skilled := func(in GearRoleInput, skills ...WorkSkill) GearRoleInput {
+		in.Work.Skills = domain.Known(skills)
+		return in
+	}
 	for _, tt := range []struct {
 		name  string
 		input GearRoleInput
@@ -67,6 +71,15 @@ func TestGearRoles(t *testing.T) {
 		{"mostly crafter", works(WorkConstruction, 3, WorkCrafting, 3, WorkTailoring, 3), GearIndoor},
 		{"hunter over crafter tie", works(WorkHunting, 2, WorkCrafting, 2, WorkConstruction, 3), GearHunter},
 		{"best priority rules", works(WorkCrafting, 1, WorkConstruction, 2, WorkGrowing, 2), GearIndoor},
+		{"cook", work(WorkCooking), GearIndoor},
+		{"doctor", work(WorkDoctor), GearIndoor},
+		{"warden", work(WorkWarden), GearIndoor},
+		{"miner", work(WorkMining), GearWorker},
+		{"fisher", work(WorkFishing), GearWorker},
+		{"skilled crafter tie", skilled(works(WorkConstruction, 2, WorkCrafting, 2), WorkSkill{Name: "Construction", Level: 4}, WorkSkill{Name: "Crafting", Level: 12}), GearIndoor},
+		{"skilled builder tie", skilled(works(WorkConstruction, 2, WorkCrafting, 2), WorkSkill{Name: "Construction", Level: 12}, WorkSkill{Name: "Crafting", Level: 4}), GearWorker},
+		{"passion breaks level tie", skilled(works(WorkHunting, 2, WorkMining, 2), WorkSkill{Name: "Shooting", Level: 6, Passion: "Major"}, WorkSkill{Name: "Mining", Level: 6}), GearHunter},
+		{"count beats skill", skilled(works(WorkConstruction, 3, WorkGrowing, 3, WorkCrafting, 3), WorkSkill{Name: "Crafting", Level: 20}), GearWorker},
 		{"child", GearRoleInput{Child: true, DraftedSquad: true}, GearChild},
 		{"slave", GearRoleInput{Slave: true, DraftedSquad: true}, GearSlave},
 		{"noncombatant", GearRoleInput{IncapableOfViolence: true, DraftedSquad: true}, GearNonCombatant},
