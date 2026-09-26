@@ -74,44 +74,20 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return fmt.Errorf("incorrect initial protection: %v", row)
 	}
 	if reason != "" {
-		service, err := start(ctx, s)
+		// The hold is the only work these families have, and a hold lends
+		// the clock nothing, so the service parks it on no_work (#701): the
+		// harness advances 600 ticks between two serves instead.
+		first, err := protect(ctx, s, target, reason, 0)
 		if err != nil {
 			return err
 		}
-		journal, err := service.Store(ctx)
-		if err != nil {
-			service.Stop()
+		if err = reattach(ctx, s); err != nil {
 			return err
 		}
-		var first domain.Tick
-		err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
-			review, err := journal.LoadRoutineReview(ctx)
-			if err != nil {
-				return "", false, err
-			}
-			held := slices.ContainsFunc(review.ClearanceHolds, func(h policy.ClearanceHold) bool { return h.Target == target && h.Reason == reason })
-			if !held {
-				return "waiting for protection", false, nil
-			}
-			if first == 0 {
-				first = review.Tick
-			}
-			plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-clearance-", 256)
-			if err != nil {
-				return "", false, err
-			}
-			for _, plan := range plans {
-				for _, action := range plan.Spec.Actions() {
-					if d, ok := action.Deconstruction(); ok && d.Target() == target {
-						return "", false, fmt.Errorf("protected wall adopted into plan %s", plan.Spec.ID())
-					}
-				}
-			}
-			s.Report()["clearance_holds"] = review.ClearanceHolds
-			return na.Signature(review.Tick), review.Tick-first >= 600, nil
-		})
-		service.Stop()
-		if err != nil {
+		if _, err = s.Advance(ctx, 600); err != nil {
+			return err
+		}
+		if _, err = protect(ctx, s, target, reason, first+600); err != nil {
 			return err
 		}
 		if err = reattach(ctx, s); err != nil {
@@ -144,6 +120,49 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		}
 	}
 	return demolish(ctx, s, fixture, scenario == "standing_designation")
+}
+
+// protect serves until a routine review at or after tick from holds target
+// for reason with no clearance plan adopting it, and returns that review's
+// tick.
+func protect(ctx context.Context, s cases.Session, target, reason string, from domain.Tick) (domain.Tick, error) {
+	service, err := start(ctx, s)
+	if err != nil {
+		return 0, err
+	}
+	defer service.Stop()
+	journal, err := service.Store(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var at domain.Tick
+	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
+		review, err := journal.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		if review.Tick < from {
+			return "waiting for review at " + na.Signature(from), false, nil
+		}
+		if !slices.ContainsFunc(review.ClearanceHolds, func(h policy.ClearanceHold) bool { return h.Target == target && h.Reason == reason }) {
+			return "waiting for protection", false, nil
+		}
+		plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-clearance-", 256)
+		if err != nil {
+			return "", false, err
+		}
+		for _, plan := range plans {
+			for _, action := range plan.Spec.Actions() {
+				if d, ok := action.Deconstruction(); ok && d.Target() == target {
+					return "", false, fmt.Errorf("protected wall adopted into plan %s", plan.Spec.ID())
+				}
+			}
+		}
+		s.Report()["clearance_holds"] = review.ClearanceHolds
+		at = review.Tick
+		return na.Signature(review.Tick), true, nil
+	})
+	return at, err
 }
 
 func wait(service *na.ServiceProcess) na.Wait {
