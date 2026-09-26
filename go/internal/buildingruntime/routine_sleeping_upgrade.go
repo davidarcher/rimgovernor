@@ -23,6 +23,11 @@ func roomUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) 
 	}
 	tier, _ := facts.BuildTier.Value()
 	targets := policy.RoomQualityTargets(obs, traits, tier)
+	for id, t := range policy.CommonRoomTargets(obs, tier) {
+		if _, owned := targets[id]; !owned {
+			targets[id] = t
+		}
+	}
 	available := func(def string) bool {
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v

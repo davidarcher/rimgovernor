@@ -76,6 +76,20 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 		p.Centred = true
 		out = append(out, p)
 	}
+	// A standing lamp in a back corner is the common-room quality lever
+	// (#816): the gap closer places it only for a room below its target.
+	// It is left out when the corner would cut a path.
+	blocked := map[domain.Cell]bool{}
+	for _, p := range out {
+		for _, c := range rectCells(p.Rect) {
+			blocked[c] = true
+		}
+	}
+	room := InteriorRoom{Interior: Rectangle{Width: f.Width, Height: f.Depth}, Doors: f.Doors}
+	lamp := NewInteriorPiece("lamp", "StandingLamp", standLampSize, domain.South, domain.Cell{X: f.Width - 1, Z: f.Depth - 1})
+	if cells := rectCells(lamp.Rect); !blocked[cells[0]] && InteriorPlacementWalkable(room, blocked, cells) {
+		out = append(out, lamp)
+	}
 	return out, true
 }
 

@@ -6,7 +6,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Room quality gap closer (#814, B3/B4 of #799): an owned bedroom below its
+// Room quality gap closer (#814, B3/B4 of #799): an owned bedroom (or a
+// dining or rec room, #816, against CommonRoomTargets) below its
 // RoomTarget.Min gets one furniture piece at a time from the #802 bedroom
 // template's optional slots. The weakest of wealth, beauty, space and
 // cleanliness decides whether a piece helps at all:

@@ -52,6 +52,31 @@ func RoomTargetBaseline(tier BuildTier) float64 {
 	return 0
 }
 
+// CommonRoomTargets returns a RoomTarget per dining and rec room (#816),
+// keyed by room id, or nil while the room census is unknown. Every colonist
+// eats and relaxes there, so no one's traits apply: the target is the
+// colony-wide tier baseline (RoomTargetBaseline), reason "common". A room
+// holding colonist beds is left to RoomQualityTargets.
+func CommonRoomTargets(obs SleepingObservation, tier BuildTier) map[string]RoomTarget {
+	rooms, ok := obs.Rooms.Value()
+	if !ok {
+		return nil
+	}
+	min := RoomTargetBaseline(tier)
+	targets := map[string]RoomTarget{}
+	for _, room := range rooms {
+		if len(room.Beds) > 0 || (room.Role != string(RoomRoleDiningRoom) && room.Role != string(RoomRoleRecRoom)) {
+			continue
+		}
+		t := RoomTarget{Room: room.ID, Min: min}
+		if min > 0 {
+			t.Reasons = []string{"common"}
+		}
+		targets[room.ID] = t
+	}
+	return targets
+}
+
 // RoomQualityTargets returns a RoomTarget per owned bedroom, keyed by room
 // id, or nil while the room census is unknown. A bedroom is a room holding
 // a humanlike, non-medical, non-prisoner bed with owners. traits carries each
