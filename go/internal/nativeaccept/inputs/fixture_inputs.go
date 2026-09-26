@@ -35,7 +35,7 @@ var (
 
 // NativeProject is the native mod's project, repo-relative: the fixture
 // sources it compiles are each conditioned on a build flag, and several
-// sources share one flag (ComfortFixture.cs under UpkeepFixture).
+// sources share one flag (SleepingFixture.cs under UpkeepFixture).
 const NativeProject = "integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj"
 
 // fixtureBuildFlags maps each fixture source (file base) NativeProject
