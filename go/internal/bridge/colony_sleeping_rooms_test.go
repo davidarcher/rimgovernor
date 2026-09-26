@@ -21,7 +21,7 @@ func roomQualityWire() *o.UpkeepFacts {
 	v.Beds[0].RoomId = proto.String("7")
 	v.Beds[0].Quality = proto.String("Good")
 	v.Rooms = &o.UpkeepRoomsSection{Outcome: &o.UpkeepRoomsSection_Observed{Observed: &o.UpkeepRoomsFacts{
-		Rooms:        []*o.UpkeepRoom{{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Quality: &o.RoomQuality{Impressiveness: proto.Float64(35), Wealth: proto.Float64(900), Beauty: proto.Float64(-0.5), Space: proto.Float64(20), Cleanliness: proto.Float64(-0.1)}, CellCount: proto.Uint32(16), BedIds: []string{"bed"}}},
+		Rooms:        []*o.UpkeepRoom{{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Impressiveness: proto.Float64(35), Wealth: proto.Float64(900), Beauty: proto.Float64(-0.5), Space: proto.Float64(20), Cleanliness: proto.Float64(-0.1), CellCount: proto.Uint32(16), BedIds: []string{"bed"}}},
 		Completeness: roomComplete(1),
 	}}}
 	return v
@@ -49,8 +49,8 @@ func TestRoomQualityBoundary(t *testing.T) {
 			f.Rooms = append(f.Rooms, f.Rooms[0])
 			f.Completeness = roomComplete(2)
 		},
-		"NaN stat":           func(v *o.UpkeepFacts) { room(v).Quality.Beauty = proto.Float64(math.NaN()) },
-		"negative wealth":    func(v *o.UpkeepFacts) { room(v).Quality.Wealth = proto.Float64(-1) },
+		"NaN stat":           func(v *o.UpkeepFacts) { room(v).Beauty = proto.Float64(math.NaN()) },
+		"negative wealth":    func(v *o.UpkeepFacts) { room(v).Wealth = proto.Float64(-1) },
 		"duplicate bed":      func(v *o.UpkeepFacts) { room(v).BedIds = []string{"bed", "bed"} },
 		"incomplete census":  func(v *o.UpkeepFacts) { v.Rooms.GetObserved().Completeness = roomComplete(2) },
 		"rows with an issue": func(v *o.UpkeepFacts) { v.Issues = []*o.ReadIssue{{Field: proto.String("rooms")}} },

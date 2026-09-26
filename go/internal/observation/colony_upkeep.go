@@ -129,12 +129,6 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection) domain.
 		if room.Role != nil {
 			out.Role = domain.Known(policy.RoomRole(room.GetRole()))
 		}
-		if q := room.Quality; q != nil {
-			if q.Space == nil || q.Beauty == nil || q.Cleanliness == nil || q.Wealth == nil || q.Impressiveness == nil {
-				return domain.Fact[policy.FlooringObservation]{}
-			}
-			out.Quality = domain.Known(policy.RoomQuality{Space: q.GetSpace(), Beauty: q.GetBeauty(), Cleanliness: q.GetCleanliness(), Wealth: q.GetWealth(), Impressiveness: q.GetImpressiveness()})
-		}
 		for _, cell := range room.Cells {
 			if cell.Terrain == nil {
 				return domain.Fact[policy.FlooringObservation]{}

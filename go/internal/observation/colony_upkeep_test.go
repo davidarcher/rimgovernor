@@ -68,7 +68,7 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
 	}
 	flooring := &o.FlooringFacts{
-		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Quality: &o.RoomQuality{Space: proto.Float64(12.5), Beauty: proto.Float64(-0.4), Cleanliness: proto.Float64(-1.2), Wealth: proto.Float64(310), Impressiveness: proto.Float64(18)}, Cells: []*o.FloorCell{
+		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}, {RoomId: proto.String("8"), Cells: []*o.FloorCell{{Cell: cell(20, 20), Terrain: proto.String("WoodPlankFloor")}}}},
@@ -84,17 +84,6 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 	if r.ID != "7" || r.Role != domain.Known(policy.RoomRoleKitchen) || len(r.Cells) != 2 || r.Cells[0] != (policy.FloorCell{Cell: domain.Cell{X: 10, Z: 10}, Terrain: "Soil"}) || r.Cells[1].Pending != "WoodPlankFloor" {
 		t.Fatal(r)
 	}
-	if q, ok := r.Quality.Value(); !ok || q != (policy.RoomQuality{Space: 12.5, Beauty: -0.4, Cleanliness: -1.2, Wealth: 310, Impressiveness: 18}) {
-		t.Fatal("room quality", r.Quality)
-	}
-	if _, ok := f.Rooms[1].Quality.Value(); ok {
-		t.Fatal("room without a quality row gained one", f.Rooms[1])
-	}
-	flooring.Rooms[0].Quality.Wealth = nil
-	if _, known := colonyUpkeep(v).Flooring.Value(); known {
-		t.Fatal("partial room quality became known")
-	}
-	flooring.Rooms[0].Quality.Wealth = proto.Float64(310)
 	if _, ok := f.Rooms[1].Role.Value(); ok {
 		t.Fatal("roleless room gained a role", f.Rooms[1])
 	}

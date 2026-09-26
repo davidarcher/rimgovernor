@@ -187,10 +187,6 @@ namespace HomeBridge.BridgeTools
                 foreach (var r in rooms) {
                     var row = new Obs.FloorRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
                     if (r.Role != null) row.Role = Id(r.Role.defName);
-                    row.Quality = new Obs.RoomQuality {
-                        Space = Number(r.GetStat(RoomStatDefOf.Space)), Beauty = Number(r.GetStat(RoomStatDefOf.Beauty)),
-                        Cleanliness = Number(r.GetStat(RoomStatDefOf.Cleanliness)), Wealth = Number(r.GetStat(RoomStatDefOf.Wealth)),
-                        Impressiveness = Number(r.GetStat(RoomStatDefOf.Impressiveness)) };
                     foreach (var c in r.Cells.OrderBy(c => c.z).ThenBy(c => c.x)) {
                         var terrain = c.GetTerrain(map);
                         var cell = new Obs.FloorCell { Cell = Cell(c), Terrain = Id(terrain.defName) };
@@ -398,10 +394,9 @@ namespace HomeBridge.BridgeTools
                 var facts = new Obs.UpkeepRoomsFacts();
                 foreach (var r in rooms.Values.OrderBy(r => r.ID)) {
                     var row = new Obs.UpkeepRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), CellCount = checked((uint)r.CellCount),
-                        Quality = new Obs.RoomQuality {
-                            Space = Number(r.GetStat(RoomStatDefOf.Space)), Beauty = Number(r.GetStat(RoomStatDefOf.Beauty)),
+                        Space = Number(r.GetStat(RoomStatDefOf.Space)), Beauty = Number(r.GetStat(RoomStatDefOf.Beauty)),
                             Cleanliness = Number(r.GetStat(RoomStatDefOf.Cleanliness)), Wealth = Number(r.GetStat(RoomStatDefOf.Wealth)),
-                            Impressiveness = Number(r.GetStat(RoomStatDefOf.Impressiveness)) } };
+                            Impressiveness = Number(r.GetStat(RoomStatDefOf.Impressiveness)) };
                     if (r.Role != null) row.Role = Id(r.Role.defName);
                     var beds = colonistBeds.Where(b => b.GetRoom() == r).Select(b => Id(b.GetUniqueLoadID())).ToList();
                     Require(beds.Count, 256);

@@ -45,7 +45,7 @@ func upkeepRooms(section *o.UpkeepRoomsSection) domain.Fact[[]policy.UpkeepRoom]
 			cells = domain.Known(int(r.GetCellCount()))
 		}
 		quality := domain.Unknown[policy.RoomQuality]()
-		if q := r.Quality; q != nil && q.Space != nil && q.Beauty != nil && q.Cleanliness != nil && q.Wealth != nil && q.Impressiveness != nil {
+		if q := r; q.Space != nil && q.Beauty != nil && q.Cleanliness != nil && q.Wealth != nil && q.Impressiveness != nil {
 			quality = domain.Known(policy.RoomQuality{Space: q.GetSpace(), Beauty: q.GetBeauty(), Cleanliness: q.GetCleanliness(), Wealth: q.GetWealth(), Impressiveness: q.GetImpressiveness()})
 		}
 		rows = append(rows, policy.UpkeepRoom{ID: r.GetRoomId(), Role: r.GetRole(), Quality: quality, Cells: cells, Beds: append([]string{}, r.BedIds...)})

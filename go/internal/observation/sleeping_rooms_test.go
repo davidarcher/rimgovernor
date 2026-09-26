@@ -14,7 +14,7 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 			Title: &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}}},
 		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, RoomId: proto.String("7"), Quality: proto.String("Good")}},
 		Rooms: &o.UpkeepRoomsSection{Outcome: &o.UpkeepRoomsSection_Observed{Observed: &o.UpkeepRoomsFacts{Rooms: []*o.UpkeepRoom{
-			{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Quality: &o.RoomQuality{Space: proto.Float64(20), Beauty: proto.Float64(1), Cleanliness: proto.Float64(0), Wealth: proto.Float64(900), Impressiveness: proto.Float64(35)}, CellCount: proto.Uint32(16), BedIds: []string{"bed"}}}}}},
+			{RoomId: proto.String("7"), Role: proto.String("Bedroom"), Space: proto.Float64(20), Beauty: proto.Float64(1), Cleanliness: proto.Float64(0), Wealth: proto.Float64(900), Impressiveness: proto.Float64(35), CellCount: proto.Uint32(16), BedIds: []string{"bed"}}}}}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	r, known := colonySleeping(v).Value()
@@ -49,7 +49,7 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 		t.Fatal("cells", cells)
 	}
 
-	u.Rooms.GetObserved().Rooms[0].Quality.Wealth = nil
+	u.Rooms.GetObserved().Rooms[0].Wealth = nil
 	r, _ = colonySleeping(v).Value()
 	if rooms, _ := r.Rooms.Value(); func() bool { _, k := rooms[0].Quality.Value(); return k }() {
 		t.Fatal("partial quality became known")

@@ -116,9 +116,6 @@ type FloorRoom struct {
 	ID    string
 	Role  domain.Fact[RoomRole]
 	Cells []FloorCell
-	// Quality is the room's native RoomStatDefOf readout; unknown when the
-	// census row carried none.
-	Quality domain.Fact[RoomQuality]
 }
 
 // RoomQuality is a room's native quality stats as Room.GetStat reports them.
@@ -156,9 +153,6 @@ func (v FlooringObservation) Validate() error {
 			return errors.New("invalid floor room")
 		}
 		rooms[room.ID] = true
-		if q, ok := room.Quality.Value(); ok && !(floorNumber(q.Space) && floorNumber(q.Beauty) && floorNumber(q.Cleanliness) && floorNumber(q.Wealth) && floorNumber(q.Impressiveness)) {
-			return errors.New("invalid room quality")
-		}
 		total += len(room.Cells)
 		if total > 4096 {
 			return errors.New("flooring census exceeds bound")

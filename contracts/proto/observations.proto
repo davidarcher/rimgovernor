@@ -972,16 +972,19 @@ message LightingSection { oneof outcome { LightingFacts observed = 1; rimgoverno
 // whose floor is already ordered carries the pending floor definition so the
 // planner never doubles an open blueprint or frame.
 message FloorCell { rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string pending = 3; }
-// RoomQuality is the room's native RoomStatDefOf readout (#807): space,
-// beauty, cleanliness, wealth and impressiveness as Room.GetStat returns them.
-message RoomQuality { optional double space = 1; optional double beauty = 2; optional double cleanliness = 3; optional double wealth = 4; optional double impressiveness = 5; }
-message FloorRoom { optional string room_id = 1; optional string role = 2; repeated FloorCell cells = 3; RoomQuality quality = 4; }
+// Room stats live on the upkeep room census (UpkeepRoom), not here (#821).
+message FloorRoom { optional string room_id = 1; optional string role = 2; repeated FloorCell cells = 3; reserved 4; reserved "quality"; }
 message FloorTerrain { optional string def_name = 1; optional double cleanliness = 2; optional int32 path_cost = 3; optional double beauty = 4; optional double flammability = 5; optional bool natural = 6; }
 message FlooringFacts { repeated FloorRoom rooms = 1; repeated FloorTerrain terrains = 2; Completeness completeness = 3; }
 // Room quality census: every room holding a colonist bed or carrying a common
 // role (dining, rec room), with the native room stats. Bound 256 rooms; past it
-// the section is unavailable (issue "rooms"), never truncated.
-message UpkeepRoom { optional string room_id = 1; optional string role = 2; RoomQuality quality = 3; optional uint32 cell_count = 4; repeated string bed_ids = 5; }
+// the section is unavailable (issue "rooms"), never truncated. The stats are
+// the room's native RoomStatDefOf readout as Room.GetStat returns them (#821
+// flattened the former nested RoomQuality message).
+message UpkeepRoom {
+  optional string room_id = 1; optional string role = 2; reserved 3; reserved "quality"; optional uint32 cell_count = 4; repeated string bed_ids = 5;
+  optional double impressiveness = 6; optional double wealth = 7; optional double beauty = 8; optional double space = 9; optional double cleanliness = 10;
+}
 message UpkeepRoomsFacts { repeated UpkeepRoom rooms = 1; Completeness completeness = 2; }
 message UpkeepRoomsSection { oneof outcome { UpkeepRoomsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
