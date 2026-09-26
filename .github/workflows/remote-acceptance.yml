@@ -17,7 +17,7 @@ on:
         type: string
       tier:
         type: choice
-        options: [smoke, land, full]
+        options: [smoke, land, nightly, full]
         default: smoke
       shards:
         description: Nonempty shards, 1 through 32 (at most 20 active)

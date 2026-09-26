@@ -59,7 +59,7 @@ function Input-Value($Inputs, $Name) {
     return [string]$property.Value
 }
 function Resolve-Source($Event) {
-    $head = $env:GITHUB_SHA; $base = $head; $tier = 'full'; $shards = 32
+    $head = $env:GITHUB_SHA; $base = $head; $tier = 'nightly'; $shards = 32
     if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
         if ((Input-Value $Event.inputs 'reviewed_commit') -cne 'true') { throw 'Dispatch must attest review of the tested source' }
         $head = Input-Value $Event.inputs 'tested_commit'
@@ -75,7 +75,7 @@ function Resolve-Source($Event) {
         if (-not $base -and $tier -ne 'land') { $base = $head }
     }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
-        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','full') -or
+        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','nightly','full') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit; land requires an explicit ancestor base SHA' }
     return @{head=$head; base=$base; tier=$tier; shards=$shards}
 }

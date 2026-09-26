@@ -166,7 +166,7 @@ rock, roofs, plants, items and fog across the room, trap lane and squad footprin
 The cases observe drafting, breach completion, ActiveCombat
 handoff and goal recovery; claim additionally checks ClaimBuilding ownership
 and native salvage while the filled casket stays closed. Both are quiet,
-eight-minute cases in the clearance land selection and nightly full tier.
+eight-minute cases in the clearance land selection and full tier.
 Build with `acceptance setup -rebuild -fixture ShrineFixture`; the existing
 csproj and build-script registrations include the class.
 
@@ -237,7 +237,7 @@ and the suite's `result.json` records them as `sampled`. A boot-path edit
 (`headless.go`, `warm.go`) therefore costs one case per area plus the
 smoke set, not the registry. Run the printed
 `acceptance suite -tier smoke` command at the milestone and hand its output
-to `cmd/land -results`; the nightly full tier proves the affected areas
+to `cmd/land -results`; the full tier proves the affected areas
 (#387), and `-tier land` proves them before landing when the change warrants
 it. Do not run the areas separately first. Name the suite in the commit
 message; an area you judged unaffected and skipped is "left unverified"
@@ -245,7 +245,7 @@ below: land and say so in the commit body. A run counts for the code it ran agai
 branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
 and nothing hashes or grades it. Never enter a second rerun-and-land cycle
 for one milestone; land and name anything left unverified in the commit
-body (the nightly full tier verifies it, #387).
+body (the full tier verifies it, #387, #752).
 
 Scenario-clock cases may set `ScenarioClock.TestAcceleration` to advance at
 Ultrafast with the native test tick boost; `needs/freeze` uses it for both
@@ -299,7 +299,7 @@ leftover. Evidence lands under `<root>/acceptance/fixture/<op>-<time>`
 ## Unassisted campaigns
 
 The `campaign/*` family (#633, epic #613) is the proof of autonomy and runs
-in the nightly full tier only (`nightlyOnly` in `cmd/acceptance/tier.go`).
+outside the land tier (`nightlyOnly` in `cmd/acceptance/tier.go`); foothold and recovery run in the nightly tier, the rest in full.
 Every case declares its fixture (the committed tribal8 baseline, Core only,
 the save's seed) in `report.json`'s `manifest`, plays through the player
 control path (`--clock-speed Ultrafast` without test acceleration;
@@ -327,7 +327,7 @@ stream client issues no control operation).
 
 ## Late-game material production
 
-`production/deepdrill` and `production/components` run in the nightly full
+`production/deepdrill` and `production/components` run in the full
 tier only. `ProductionLadderFixture` stages their research, power, skilled
 workers and exhausted surface. Deep drilling starts with a built scanner,
 a seeded steel lump and construction funding; fabrication starts with a
@@ -955,7 +955,7 @@ known flake, so neither is read as a regression without a look at the
 seed. The suite passes only when every case did.
 #### Tiers
 
-The registry runs in three tiers (#273), so a landing runs a fraction of
+The registry runs in tiers (#273, #752), so a landing runs a fraction of
 it and the rest runs on its own cadence; `acceptance list -tier <name>`
 prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
 
@@ -971,10 +971,13 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
   `go/internal/buildingruntime` does not land without `-results` (the
   smoke tier suffices); `-unverified` lands it anyway, and the commit body
   names what went unverified.
-- **full** (`suite -tier full`): every tiered case outside the matrix tier, the
-  nightly loop against `main` on CI (#363, #387), chained with `-baseline`
-  for regression flagging; a red row opens an issue naming it and the
-  day's landings.
+- **nightly** (`suite -tier nightly`): the twelve end-to-end cases (#738
+  bucket C, `endToEnd` in `cmd/acceptance/tier.go`), the scheduled loop
+  against `main` on CI (#363, #752); a signal rather than a gate.
+- **full** (`suite -tier full`): every other tiered case outside the
+  matrix tier: the lab contracts and the planner cases not yet
+  snapshot-converted, dispatched on demand on CI (`tier: full`), chained
+  with `-baseline` for regression flagging; a red row opens an issue.
 - **matrix** (`suite -tier matrix`): the cases that declare
   `Case.Matrix` — `tickbudget/` and any DLC-save case — on
   demand and whenever the clock scheduler or the native tick path changes.

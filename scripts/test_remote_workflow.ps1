@@ -100,7 +100,7 @@ try { Resolve-Source $event | Out-Null } catch { $rejected=$true }
 if (-not $rejected) { throw 'Unreviewed source was accepted' }
 $env:GITHUB_EVENT_NAME='schedule'
 $source = Resolve-Source ([pscustomobject]@{})
-if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne $source.head -or $source.tier -cne 'full' -or $source.shards -ne 32) { throw 'Nightly source changed' }
+if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne $source.head -or $source.tier -cne 'nightly' -or $source.shards -ne 32) { throw 'Nightly source changed' }
 $env:GITHUB_EVENT_NAME='push'
 $rejected=$false
 try { Assert-Gate } catch { $rejected=$true }

@@ -22,8 +22,9 @@ once acceptance passes, and land immediately.
 4. At the milestone, if `cmd/test` named affected case areas, run the one
    command it prints, `acceptance suite -tier smoke` (six short cases,
    minutes), and hand that output to `cmd/land -results`. The affected
-   areas themselves are proven by the nightly full tier over `main`
-   (#387, on CI per #363), not per landing; run `-tier land` instead only
+   areas themselves are proven by `go test` and the on-demand full tier
+   (#752); the scheduled nightly runs only the twelve end-to-end cases
+   (`-tier nightly`, a signal, not a gate). Run `-tier land` instead only
    when you want the change proven before it lands, and never run the
    areas with `acceptance run` first and then a tier, which runs every
    case twice. (Native behaviour changes need the smoke pass before
@@ -62,7 +63,7 @@ once acceptance passes, and land immediately.
    nothing are not work; do not post them.
    An issue whose acceptance is an acceptance case is finished once the
    case is written, registered and builds clean: it runs in the next
-   nightly, and a failure there opens a new issue. Do not hold the issue
+   full tier, and a failure there opens a new issue. Do not hold the issue
    open to run the case yourself.
 
 `main` moves constantly and that is never a reason to redo anything: a test

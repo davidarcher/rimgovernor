@@ -104,7 +104,7 @@ func (r planRun) validate() error {
 	if r.Version != 1 || !planOID.MatchString(r.Head) || !planOID.MatchString(r.Base) || !planOID.MatchString(r.Workflow) || r.Base == strings.Repeat("0", 40) || r.Head == strings.Repeat("0", 40) || r.Workflow == strings.Repeat("0", 40) {
 		return fmt.Errorf("run requires schema_version 1 and nonzero full commit identities")
 	}
-	if r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" {
+	if r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" && r.Tier != "nightly" {
 		return fmt.Errorf("unsupported remote tier %q", r.Tier)
 	}
 	if r.Tier == "land" && r.Base == r.Head {
@@ -275,12 +275,12 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		return p, err
 	}
 	selected := smoke
-	if r.Tier == "full" {
-		full, e := tierCases("full", "", "")
+	if r.Tier == "full" || r.Tier == "nightly" {
+		set, e := tierCases(r.Tier, "", "")
 		if e != nil {
 			return p, e
 		}
-		selected = full.Cases
+		selected = set.Cases
 	}
 	if r.Tier == "land" {
 		selected, err = landCases(all, sel)
@@ -337,8 +337,8 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 			}
 		}
 		area, _, _ := strings.Cut(c.Name, "/")
-		if r.Tier == "full" {
-			row.Reasons = append(row.Reasons, "full")
+		if r.Tier == "full" || r.Tier == "nightly" {
+			row.Reasons = append(row.Reasons, r.Tier)
 		}
 		if r.Tier == "land" {
 			if slices.Contains(sel.Sampled, area) && !sel.AllHarnesses {

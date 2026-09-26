@@ -48,15 +48,22 @@ func TestTierCasesSplitTheRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	full, matrix := fullSet.Cases, matrixSet.Cases
+	nightlySet, err := tierCases("nightly", "", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, matrix, nightly := fullSet.Cases, matrixSet.Cases, nightlySet.Cases
 	off := 0
 	for _, c := range all {
 		if offTier(c.Name) {
 			off++
 		}
 	}
-	if len(full)+len(matrix)+off != len(all) {
-		t.Errorf("full (%d) + matrix (%d) + off-tier (%d) != registry (%d)", len(full), len(matrix), off, len(all))
+	if len(full)+len(nightly)+len(matrix)+off != len(all) {
+		t.Errorf("full (%d) + nightly (%d) + matrix (%d) + off-tier (%d) != registry (%d)", len(full), len(nightly), len(matrix), off, len(all))
+	}
+	if len(nightly) != len(endToEnd) {
+		t.Errorf("nightly tier has %d cases, endToEnd names %d", len(nightly), len(endToEnd))
 	}
 	for _, c := range full {
 		if c.Matrix {
@@ -75,7 +82,7 @@ func TestTierCasesSplitTheRegistry(t *testing.T) {
 			t.Errorf("matrix tier lacks %s", want)
 		}
 	}
-	if _, err := tierCases("nightly", "", "main"); err == nil || !strings.Contains(err.Error(), "unknown tier") {
+	if _, err := tierCases("bogus", "", "main"); err == nil || !strings.Contains(err.Error(), "unknown tier") {
 		t.Errorf("unknown tier: got %v", err)
 	}
 	if _, err := tierCases("land", "", "main"); err == nil {
@@ -115,15 +122,21 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	// Three named long cases and the two campaign/* rows (#633).
-	if len(land) != len(full.Cases)-5 {
+	// The long drill cases and campaign/* rows the full tier still carries.
+	slow := 0
+	for _, c := range full.Cases {
+		if nightlyOnly(c.Name) {
+			slow++
+		}
+	}
+	if len(land) != len(full.Cases)-slow {
 		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
 	}
 }
 
 func TestColonyStableNightlyOnly(t *testing.T) {
 	for _, name := range []string{"sustained/colony-stable", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery"} {
-		for _, tier := range []string{"full", "smoke", "matrix"} {
+		for _, tier := range []string{"nightly", "full", "smoke", "matrix"} {
 			set, err := tierCases(tier, "", "main")
 			if err != nil {
 				t.Fatal(err)
@@ -132,7 +145,7 @@ func TestColonyStableNightlyOnly(t *testing.T) {
 			for _, c := range set.Cases {
 				found = found || c.Name == name
 			}
-			if found != (tier == "full") {
+			if found != (tier == map[bool]string{true: "nightly", false: "full"}[endToEnd[name]]) {
 				t.Errorf("%s contains stable gate: %v", tier, found)
 			}
 		}

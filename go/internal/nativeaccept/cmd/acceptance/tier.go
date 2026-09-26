@@ -9,8 +9,10 @@ package main
 //     proven (#387). An area a
 //     harness change reaches through plumbing alone is sampled: one case
 //     (#348).
-//   - full: every case outside the matrix tier; the nightly loop against
-//     main on CI, chained with -baseline for regression flagging (#387).
+//   - nightly: the twelve end-to-end cases (#738 bucket C); the scheduled
+//     loop against main on CI, a signal rather than a gate (#752).
+//   - full: every other case outside the matrix tier, the native contracts
+//     and the planner cases not yet snapshot-converted; on demand (#752).
 //   - matrix: the cases that declare Matrix (speedmatrix, tickbudget, a
 //     DLC-save case); on demand and whenever the clock scheduler or the
 //     native tick path changes.
@@ -46,7 +48,7 @@ func repoOfCwd() (string, bool) {
 }
 
 // tierNames are the tiers in the order the usage lists them.
-var tierNames = []string{"land", "full", "matrix", "smoke"}
+var tierNames = []string{"land", "nightly", "full", "matrix", "smoke"}
 
 // tierSet is a resolved tier: its registry cases in registry order and,
 // for the land tier, the areas it sampled to one case (#348).
@@ -60,10 +62,18 @@ type tierSet struct {
 func tierCases(tier, repo, base string) (tierSet, error) {
 	all := tiered()
 	switch tier {
+	case "nightly":
+		var out []cases.Case
+		for _, c := range all {
+			if endToEnd[c.Name] {
+				out = append(out, c)
+			}
+		}
+		return tierSet{Cases: out}, nil
 	case "full":
 		var out []cases.Case
 		for _, c := range all {
-			if !c.Matrix {
+			if !c.Matrix && !endToEnd[c.Name] {
 				out = append(out, c)
 			}
 		}
@@ -198,12 +208,20 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 	return out, nil
 }
 
+// endToEnd is the nightly tier (#738 bucket C, #752): whole-colony
+// proofs, a signal rather than a gate.
+var endToEnd = map[string]bool{
+	"campaign/foothold": true, "campaign/recovery": true, "clearance/shrine-breach": true,
+	"defense/raid": true, "food/reserve": true, "production/ladder": true,
+	"shelter/bunks-first": true, "shelter/excavation": true, "startup/labor": true,
+	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true,
+}
+
 // nightlyOnly excludes slow gameplay proofs from the landing and sampled
-// sets: the named long cases and the whole campaign/* family (#633), whose
-// unassisted campaigns and fault injections are pass/fail rows of the
-// nightly bulk tier only.
+// sets: the end-to-end cases, the long drill cases and the campaign/*
+// family (#633).
 func nightlyOnly(name string) bool {
-	return name == "sustained/colony-stable" || name == "production/deepdrill" || name == "production/components" ||
+	return endToEnd[name] || name == "production/deepdrill" || name == "production/components" ||
 		strings.HasPrefix(name, "campaign/")
 }
 
