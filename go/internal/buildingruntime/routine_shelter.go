@@ -80,8 +80,13 @@ func (r *RoutineBuildingPlanner) shapeFamily(facts observation.ColonyProjection)
 // shellShapesAtDoor lists every shell shape whose door would stand on
 // door: the module templates on the grid for the module style, then the
 // starter templates, which a ring begun at Camp still matches.
-func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, style policy.ShelterStyle, family policy.ShapeFamily) []domain.RoomFootprint {
+func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, style policy.ShelterStyle, family policy.ShapeFamily, role policy.RoomRole) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
+	for _, shell := range plannedShells(facts, role) {
+		if shell.Door() == door {
+			shells = append(shells, shell)
+		}
+	}
 	if style == policy.ShelterModule {
 		grid, _ := layoutAlignment(facts)
 		if g, known := grid.Value(); known {
@@ -89,6 +94,17 @@ func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, sty
 		}
 	}
 	return append(shells, policy.ShellShapesAtDoor(door, style)...)
+}
+
+// plannedShells is the v2 layout plan's rooms for role (#787): at Masonry
+// and above, where the plan anchors site searches (#785), a shell builder
+// raises these exact rectangles and doors before searching.
+func plannedShells(facts observation.ColonyProjection, role policy.RoomRole) []domain.RoomFootprint {
+	plan, known := facts.LayoutPlan.Value()
+	if tier, ok := facts.BuildTier.Value(); !known || !ok || tier < policy.BuildTierMasonry {
+		return nil
+	}
+	return plan.PlannedShells(role)
 }
 
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
@@ -160,7 +176,7 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 		return selected, stock, reason, err
 	}
 	grid, _ := layoutAlignment(facts)
-	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(facts), WallDef: shellStyle(facts).WallDef}
+	request := policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(facts), WallDef: shellStyle(facts).WallDef, Planned: plannedShells(facts, r.roomRole())}
 	snap.NoteShelter(ctx, request)
 	layouts, err := policy.StarterLayouts(request)
 	if err != nil {
@@ -464,7 +480,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	expanded := shellStyle(facts)
 	for d, door := range doors {
 		shapes := earlier[door]
-		for _, shell := range shellShapesAtDoor(facts, door, style, r.shapeFamily(facts)) {
+		for _, shell := range shellShapesAtDoor(facts, door, style, r.shapeFamily(facts), r.roomRole()) {
 			shapes = append(shapes, shell.StyledPlacements(expanded))
 		}
 		best, bestMatched := -1, 0

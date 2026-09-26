@@ -80,6 +80,10 @@ type StarterRequest struct {
 	WallDef string
 	// Size is the rectangle template's outer size; zero is the 9x9.
 	Size int32
+	// Planned lists the layout plan's rooms for the builder's role (#787),
+	// in plan order. The first buildable one is the only site, exactly its
+	// rectangle and door; the search runs only when none is buildable.
+	Planned []domain.RoomFootprint
 }
 type StarterLayout struct {
 	// Room is the shell's bounding rectangle, walls included; Shell is its
@@ -477,7 +481,29 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		return score
 	}
 	var sites []site
-	if grid, known := r.Grid.Value(); r.Shelter == ShelterModule && known && grid.Valid() {
+	// A planned room's door opens onto the spine hallway, which the caller
+	// protects: its threshold need only be open ground. A wall a neighbour
+	// already raised on a shared side is reused as ring (WallDef).
+	plannedBuildable := func(shell domain.RoomFootprint) bool {
+		standing := shellRock(shell, wall, claim, ruin, mineable)
+		for _, p := range shell.Cells() {
+			if !standing.kept(p) && !standing.cleared[p] && !standing.mined[p] && (!free(p) || !positive(cells[p].SupportsLight)) {
+				return false
+			}
+		}
+		if standing.kept(shell.Door()) || standing.cleared[shell.Door()] {
+			return false
+		}
+		c, observed := cells[shell.Threshold()]
+		return !observed || positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))
+	}
+	for _, shell := range r.Planned {
+		if plannedBuildable(shell) {
+			sites = append(sites, site{0, score(shell), shell})
+			break
+		}
+	}
+	if grid, known := r.Grid.Value(); len(sites) == 0 && r.Shelter == ShelterModule && known && grid.Valid() {
 		sites = moduleSites(grid, r.Shape, ordered, moduleBuildable, score)
 	}
 	templated := func(templates []ShellTemplate) {

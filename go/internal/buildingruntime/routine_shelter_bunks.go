@@ -162,7 +162,7 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		return nil, none, "", nil, err
 	}
 	search := func(anchor domain.Cell) ([]policy.StarterLayout, error) {
-		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef}
+		request := policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: anchor, Cells: sites, Protected: protected, Shelter: style, Grid: grid, Shape: r.shapeFamily(s.facts), WallDef: shellStyle(s.facts).WallDef, Planned: plannedShells(s.facts, r.roomRole())}
 		snap.NoteShelter(call, request)
 		return policy.StarterLayouts(request)
 	}

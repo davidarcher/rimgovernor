@@ -62,7 +62,8 @@ func init() {
 			"zone is a module patch on the grid outside the hut's module, no zone cell lies in an aisle, the second field " +
 			"shares a full co-linear edge with the first (#608), and the hut and the fields lie in different districts (#609). " +
 			"With a bed deficit and stone blocks stocked the capacity planner's ring reads back in the Masonry tier style: " +
-			"stone walls of one block definition and a stone Door (#637).",
+			"stone walls of one block definition and a stone Door (#637). With a v2 layout plan recorded the ring is exactly a " +
+			"planned room's walls and its door opens onto a spine hallway (#787).",
 		Start: cases.Fixture{Op: gridPrepare, ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": bunks, "stoneBlocks": blocks},
 			On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
@@ -83,6 +84,8 @@ func grid(ctx context.Context, s cases.Session) error {
 	hutOrigin, _ := na.AsMap(prepared["hutOrigin"])
 	origin := domain.Cell{X: int32(na.AsNumber(hutOrigin["x"])), Z: int32(na.AsNumber(hutOrigin["z"]))}
 	var record store.ColonyGridRecord
+	var layout store.LayoutPlanRecord
+	var laid bool
 	var audit map[string]any
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		WatchConfig: sustainedfood.WatchConfig{Watch: window, Extra: []policy.GoalID{policy.EnsureInitialShelter, policy.EnsureExpansion}, Until: layoutPlanned},
@@ -100,6 +103,10 @@ func grid(ctx context.Context, s cases.Session) error {
 			if record, ok, err = journal.ColonyGrid(ctx, review.Snapshot, review.Tick); err != nil {
 				return err
 			}
+			if layout, laid, err = journal.LayoutPlan(ctx, review.Snapshot, review.Tick); err != nil {
+				return err
+			}
+			report["layout_plan"] = map[string]any{"recorded": laid, "rooms": len(layout.Plan.Rooms)}
 			report["colony_grid"] = map[string]any{"recorded": ok, "origin_x": record.Grid.Origin.X, "origin_z": record.Grid.Origin.Z, "pitch": record.Grid.Pitch, "source": string(record.Grid.Source)}
 			if !ok {
 				return fmt.Errorf("no colony grid recorded by the review at tick %d", review.Tick)
@@ -196,14 +203,62 @@ func grid(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	return styledRing(g, module, shell, report)
+	if err := styledRing(g, module, shell, report, laid); err != nil {
+		return err
+	}
+	if laid {
+		return plannedRing(layout.Plan, shell, report)
+	}
+	return nil
+}
+
+// plannedRing checks the capacity ring against the v2 layout plan (#787):
+// the stone ring is exactly a planned room's walls, its door stands where
+// the plan put it, and the door's threshold lies on a spine hallway.
+func plannedRing(plan policy.LayoutPlan, shell []shellCell, report na.Report) error {
+	ring := map[domain.Cell]string{}
+	for _, c := range shell {
+		if policy.StoneBlockResource(policy.Resource(c.stuff)) {
+			ring[c.cell] = c.def
+		}
+	}
+	for _, room := range plan.Rooms {
+		fp, err := room.Footprint()
+		if err != nil {
+			continue
+		}
+		walls := fp.Walls()
+		match := len(walls) == len(ring)
+		for _, w := range walls {
+			if _, ok := ring[w]; !ok {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+		report["planned_room"] = map[string]any{"role": string(room.Role), "x": room.Interior.X, "z": room.Interior.Z, "width": room.Interior.Width, "height": room.Interior.Height, "door_x": room.Door.X, "door_z": room.Door.Z}
+		if def := ring[room.Door]; def == "" || def == "Wall" {
+			return fmt.Errorf("the planned %s room's door cell %v holds %q, not a door", room.Role, room.Door, def)
+		}
+		threshold, half := fp.Threshold(), policy.SpineWidth/2
+		for _, s := range plan.Spine {
+			if threshold.X >= min(s.From.X, s.To.X)-half && threshold.X <= max(s.From.X, s.To.X)+half &&
+				threshold.Z >= min(s.From.Z, s.To.Z)-half && threshold.Z <= max(s.From.Z, s.To.Z)+half {
+				return nil
+			}
+		}
+		return fmt.Errorf("the planned %s room's door %v opens onto %v, off every spine hallway %v", room.Role, room.Door, threshold, plan.Spine)
+	}
+	return fmt.Errorf("the stone ring (%d cells) matches no planned room's walls", len(ring))
 }
 
 // styledRing checks the Masonry tier style on the ring the capacity planner
 // raised beside the wood hut (#637): every wall and door of it, finished or
 // still a blueprint or frame, is built from one stone block definition, its
 // door is a stone Door, and no cell of it stands in an aisle.
-func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, report na.Report) error {
+func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, report na.Report, planned bool) error {
 	stuffs := map[string]int{}
 	var stone []shellCell
 	for _, c := range shell {
@@ -230,7 +285,8 @@ func styledRing(g policy.ColonyGrid, hut policy.Rectangle, shell []shellCell, re
 	}
 	var ring []domain.Cell
 	for _, c := range stone {
-		if u, v := gridOffsets(g, c.cell); u >= policy.ColonyGridModule || v >= policy.ColonyGridModule {
+		// A planned room follows the spine, not the lattice (#787).
+		if u, v := gridOffsets(g, c.cell); !planned && (u >= policy.ColonyGridModule || v >= policy.ColonyGridModule) {
 			return fmt.Errorf("the stone ring builds aisle cell %d,%d (grid offsets %d,%d)", c.cell.X, c.cell.Z, u, v)
 		}
 		ring = append(ring, c.cell)

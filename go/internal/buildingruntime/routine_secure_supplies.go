@@ -613,8 +613,33 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1
+	// The layout plan's storerooms come first, built to their exact
+	// rectangle and door (#787); the 6x6 search sites follow with the door
+	// on the south wall's centre.
+	type supplyRoomSite struct {
+		room policy.Rectangle
+		door domain.Cell
+	}
+	var candidates []supplyRoomSite
+	reserved := make(map[domain.Cell]bool, len(protected))
+	for _, c := range protected {
+		reserved[c] = true
+	}
+planned:
+	for _, shell := range plannedShells(projection, policy.RoomRoleStoreroom) {
+		for _, c := range shell.Cells() {
+			if reserved[c] {
+				continue planned
+			}
+		}
+		b := shell.Bounds()
+		candidates = append(candidates, supplyRoomSite{policy.Rectangle{X: b.X, Z: b.Z, Width: b.Width, Height: b.Height}, shell.Door()})
+	}
 	for _, room := range sites {
-		actions, previews, stock, reason, err := r.previewSupplyRoomShell(call, snapshot, room, stuff, projection)
+		candidates = append(candidates, supplyRoomSite{room, domain.Cell{X: room.X + room.Width/2, Z: room.Z}})
+	}
+	for _, site := range candidates {
+		actions, previews, stock, reason, err := r.previewSupplyRoomShell(call, snapshot, site.room, site.door, stuff, projection)
 		if err != nil {
 			return PlanResult{}, err
 		}
@@ -635,12 +660,11 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	return PlanResult{Kind: PlanWaiting, Dependency: "supply room site", Reason: BuildingMethodNoSpace}, nil
 }
 
-// previewSupplyRoomShell previews one candidate room's full 6x6 perimeter
-// (one Door anchoring the south wall's center, Wall elsewhere), mirroring
+// previewSupplyRoomShell previews one candidate room's full perimeter (a
+// Door on door, Wall elsewhere), mirroring
 // previewPenShell. It never commits: a rejected or infeasible cell aborts
 // only this candidate.
-func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
-	door := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
+func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, door domain.Cell, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	perimeter := []domain.Cell{door}
 	for x := room.X; x < room.X+room.Width; x++ {
 		for z := room.Z; z < room.Z+room.Height; z++ {
