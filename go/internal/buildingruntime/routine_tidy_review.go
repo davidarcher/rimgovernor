@@ -62,6 +62,11 @@ func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.Genera
 	request.Busy = domain.Known(busy)
 	request.Items = append(request.Items, tidyZoneItems(owned, projection)...)
 	request.Items = append(request.Items, tidyShellItems(projection)...)
+	if rooms, rk := projection.Rooms.Value(); rk {
+		if census, ck := projection.Facts.CurrentConstruction.Value(); ck && census.Colony {
+			request.Rooms = policy.TidyFurnitureRooms(rooms, census, projection.Cells)
+		}
+	}
 	review := policy.PlanTidyLayout(request)
 	projection.Facts.LayoutTidy = domain.Known(review)
 	if proposal := review.Proposal; proposal != nil {
@@ -198,7 +203,7 @@ func tidyBusy(definitions []string, plans []store.PlanState, current domain.Gene
 	busy := false
 	routineOpenActions(plans, current, player, func(a domain.Action) {
 		switch a.Kind() {
-		case domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction, domain.ZoneDeleteAction, domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction:
+		case domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction, domain.ZoneDeleteAction, domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.MoveBuildingAction:
 			busy = true
 		}
 	})

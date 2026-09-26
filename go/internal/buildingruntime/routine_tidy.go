@@ -117,6 +117,9 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	for _, t := range tidies {
+		if t.Status == store.LayoutTidyMoving && t.Kind == policy.TidyFurniture {
+			return r.finishFurniture(call, state, expected.Tick, tidies, t.NewZone)
+		}
 		if t.Status == store.LayoutTidyMoving {
 			return r.finish(call, epoch, state, goal, expected.Tick, t)
 		}
@@ -152,6 +155,9 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	if proposal.Item.Kind == policy.TidyShell {
 		return r.deconstruct(call, epoch, state, goal, read, *proposal)
+	}
+	if proposal.Item.Kind == policy.TidyFurniture {
+		return r.move(call, epoch, state, goal, read, *proposal)
 	}
 	return r.create(call, epoch, state, goal, read, *proposal)
 }

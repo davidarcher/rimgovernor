@@ -2,6 +2,7 @@ package policy
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -57,7 +58,7 @@ func TestTidyLayoutIdleColonyProposesTheOffGridFieldAndExplainsItsGain(t *testin
 			t.Fatalf("explanation %q lacks %q", proposal.Explanation, want)
 		}
 	}
-	if again := PlanTidyLayout(r); *again.Proposal != *review.Proposal {
+	if again := PlanTidyLayout(r); !reflect.DeepEqual(*again.Proposal, *review.Proposal) {
 		t.Fatal("proposal is not deterministic")
 	}
 }
@@ -186,7 +187,7 @@ func TestTidyReviewProposalSurvivesJSON(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatal(err)
 	}
-	if decoded.Proposal == nil || *decoded.Proposal != *review.Proposal {
+	if decoded.Proposal == nil || !reflect.DeepEqual(*decoded.Proposal, *review.Proposal) {
 		t.Fatalf("proposal lost in JSON: %s", encoded)
 	}
 }

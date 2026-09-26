@@ -36,6 +36,9 @@ const (
 	TidyField     TidyKind = "field"
 	TidyStockpile TidyKind = "stockpile"
 	TidyShell     TidyKind = "shell"
+	// TidyFurniture re-sites a room's off-plan furniture onto its derived
+	// interior plan (#809); the item is the room, the tidied ids its pieces.
+	TidyFurniture TidyKind = "furniture"
 )
 
 // TidyItem is one item the review measures against the grid: a
@@ -71,6 +74,9 @@ type TidyRequest struct {
 	Protected []domain.Cell
 	// Extent scopes the districts; unknown uses the grid's default ring.
 	Extent domain.Fact[ColonyExtent]
+	// Rooms are the rooms whose furniture is measured against their derived
+	// interior plans; a piece whose thing id is in Tidied is never moved.
+	Rooms []TidyRoom
 }
 
 // TidyProposal is the one re-site the review proposes: the item, the
@@ -83,6 +89,8 @@ type TidyProposal struct {
 	Gain        int
 	Distance    int32
 	Explanation string
+	// Moves is a furniture proposal's ordered batch (#809).
+	Moves []TidyMove `json:",omitempty"`
 }
 
 // TidyReview is the review outcome: Known once the gates were evaluated
@@ -192,7 +200,9 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		review.Active, review.Reason = true, "re-site in flight"
 		return review
 	}
-	if len(candidates) == 0 {
+	furnitureRooms := tidyFurnitureCandidates(r.Rooms, tidied)
+	review.Candidates += furnitureRooms
+	if len(candidates) == 0 && furnitureRooms == 0 {
 		review.Reason = "nothing off grid"
 		return review
 	}
@@ -216,7 +226,14 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		}
 	}
 	if best == nil {
+		if furniture := tidyFurnitureProposal(r.Rooms, tidied); furniture != nil {
+			review.Active, review.Proposal = true, furniture
+			return review
+		}
 		review.Reason = "no free module"
+		if len(candidates) == 0 {
+			review.Reason = "no feasible furniture move"
+		}
 		return review
 	}
 	review.Active, review.Proposal = true, best

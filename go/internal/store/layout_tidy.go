@@ -32,7 +32,9 @@ const (
 	LayoutTidyAbandoned LayoutTidyStatus = "abandoned"
 )
 
-// LayoutTidy is one recorded re-site.
+// LayoutTidy is one recorded re-site. A furniture row (#809) is one piece
+// by thing id; its NewZone carries the batch plan's id, which the moving
+// rows of one room share.
 type LayoutTidy struct {
 	Item        string
 	Kind        policy.TidyKind
@@ -46,7 +48,7 @@ type LayoutTidy struct {
 }
 
 func initializeLayoutTidies(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE layout_tidies(id INTEGER PRIMARY KEY, colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), item TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('field','stockpile','shell')), status TEXT NOT NULL CHECK(status IN ('moving','done','abandoned')), from_x INTEGER NOT NULL, from_z INTEGER NOT NULL, from_w INTEGER NOT NULL, from_h INTEGER NOT NULL, to_x INTEGER NOT NULL, to_z INTEGER NOT NULL, to_w INTEGER NOT NULL, to_h INTEGER NOT NULL, crop TEXT NOT NULL, new_zone TEXT NOT NULL, explanation TEXT NOT NULL) STRICT;
+	_, err := tx.ExecContext(ctx, `CREATE TABLE layout_tidies(id INTEGER PRIMARY KEY, colony TEXT NOT NULL, map_id INTEGER NOT NULL, load_token TEXT NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), item TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('field','stockpile','shell','furniture')), status TEXT NOT NULL CHECK(status IN ('moving','done','abandoned')), from_x INTEGER NOT NULL, from_z INTEGER NOT NULL, from_w INTEGER NOT NULL, from_h INTEGER NOT NULL, to_x INTEGER NOT NULL, to_z INTEGER NOT NULL, to_w INTEGER NOT NULL, to_h INTEGER NOT NULL, crop TEXT NOT NULL, new_zone TEXT NOT NULL, explanation TEXT NOT NULL) STRICT;
 CREATE INDEX layout_tidies_scope ON layout_tidies(colony,map_id,load_token,tick);`)
 	return err
 }
@@ -57,7 +59,7 @@ func checkLayoutTidySchema(ctx context.Context, tx *sql.Tx) error {
 
 func layoutTidyValid(t LayoutTidy) bool {
 	switch t.Kind {
-	case policy.TidyField, policy.TidyStockpile, policy.TidyShell:
+	case policy.TidyField, policy.TidyStockpile, policy.TidyShell, policy.TidyFurniture:
 	default:
 		return false
 	}
