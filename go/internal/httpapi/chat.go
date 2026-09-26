@@ -23,7 +23,6 @@ type chatGuidanceDTO struct {
 	PopulationPolicy   *PopulationPolicy   `json:"populationPolicy,omitempty"`
 	ExpeditionPolicy   *ExpeditionPolicy   `json:"expeditionPolicy,omitempty"`
 	PopulationDecision *PopulationDecision `json:"populationDecision,omitempty"`
-	ResourcePolicy     *ResourcePolicy     `json:"resourcePolicy,omitempty"`
 }
 
 type chatResponseDTO struct {
@@ -212,20 +211,6 @@ func (s *Server) applyChatGuidance(ctx context.Context, requestID string, world 
 			return dto, 0, nil, err
 		}
 		dto.PopulationDecision = &projected.Current
-	case interpreter.SetResourcePolicy:
-		player, ok := s.player.(playerResourcePolicy)
-		if !ok {
-			return disabled("Resource policies")
-		}
-		v, _, err := player.SubmitResourcePolicy(ctx, store.ResourcePolicySubmissionRequest{RequestID: requestID, World: world, Patch: guidance.ResourcePolicy})
-		if status, failure := check(err); failure != nil {
-			return dto, status, failure, nil
-		}
-		projected, err := projectResourcePolicySubmission(v)
-		if err != nil {
-			return dto, 0, nil, err
-		}
-		dto.ResourcePolicy = &projected.Current
 	default:
 		return dto, 0, nil, errors.New("unsupported guidance kind")
 	}

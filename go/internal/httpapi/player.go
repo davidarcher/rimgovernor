@@ -241,10 +241,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		s.handlePopulationDecision(ctx, w, r, query, path)
 		return true
 	}
-	if strings.HasPrefix(path, "/api/player/resource-policy") {
-		s.handleResourcePolicy(ctx, w, r, query, path)
-		return true
-	}
 	if strings.HasPrefix(path, "/api/player/goals") {
 		s.handlePlayerGoals(ctx, w, r, query, path)
 		return true

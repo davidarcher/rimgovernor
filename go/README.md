@@ -126,7 +126,7 @@ room shells were removed in
 families are reached only through the routine planners. Chat (`POST /api/chat`) is
 guidance only: the local model reads bounded colony and policy facts, answers
 with an explanation and at most one nudge (activate or cancel a goal, set the
-population, expedition or resource policy, or a per-pawn population decision),
+population or expedition policy, or a per-pawn population decision),
 and the nudge is applied through the same store submission the matching policy
 route uses. Chat never places buildings, selects research or issues orders
 ([issue #56](https://github.com/davidarcher/rimgovernor/issues/56)).
@@ -137,9 +137,8 @@ current value per colony/load/map: population policy (`/api/player/population-po
 whole replace), expedition policy (`/api/player/expedition-policy/update`, a
 partial patch merged over the limits in force, validated as a whole) and per-pawn
 population decisions (`/api/player/population-decision/*`; custody decisions
-require an established population policy, `ignore` never does). Resource policy
-(`/api/player/resource-policy/*`) is both persistent configuration and a native
-`SetProductionPolicy` dispatch. Player goals (`/api/player/goals/*`) activate or
+require an established population policy, `ignore` never does). Production
+policy (reserves and spending) belongs to the autopilot alone. Player goals (`/api/player/goals/*`) activate or
 cancel autopilot-managed maintained goals by exact goal ID.
 
 Multi-instance colony directory serving (`--colonies`) does not exist in Go

@@ -27,7 +27,7 @@ func chatContext() *c.ObservationContext {
 	return &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}, Tick: proto.Int64(500), NativeGeneration: proto.Uint64(9)}
 }
 func (chatNative) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	snapshot := &o.ColonyFactsSnapshot{Context: chatContext(), ColonistCount: proto.Uint32(1), FoodRunwayDays: proto.Float64(4), Resources: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(120)}}, PolicyResources: []*o.DefinitionRef{{DefName: proto.String("Silver")}}}
+	snapshot := &o.ColonyFactsSnapshot{Context: chatContext(), ColonistCount: proto.Uint32(1), FoodRunwayDays: proto.Float64(4), Resources: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(120)}}}
 	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: snapshot}}, bridge.Result{}, nil
 }
 func (chatNative) ReadHomeColonists(context.Context, *c.Identity) (*o.ListPawnsReply, bridge.Result, error) {
@@ -138,7 +138,7 @@ func TestChatHTTPExplainOnlyWritesNothing(t *testing.T) {
 		t.Fatal("explain-only chat reached a policy input", f.calls)
 	}
 	facts := completer.seen[0].Messages[1].Content
-	for _, want := range []string{`"Bob"`, `"Thing_Human9"`, `"downed":true`, `"Steel"`, `"Silver"`, `"foodRunwayDays":4`} {
+	for _, want := range []string{`"Bob"`, `"Thing_Human9"`, `"downed":true`, `"Steel"`, `"foodRunwayDays":4`} {
 		if !strings.Contains(facts, want) {
 			t.Fatal("facts missing", want, facts)
 		}

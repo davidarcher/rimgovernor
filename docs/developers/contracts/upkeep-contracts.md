@@ -27,14 +27,14 @@ Non-damageable markers such as sleeping spots cannot become repair targets.
 
 ## Maintained jobs
 
-`MaintainHomeCoverage` joins the complete current player-faction building census
-and owned stockpiles to observed facility geometry. Buildings placed in Manual
-are eligible when Auto resumes; action history is optional provenance. Targets use the native unique load id: a
-building's, or the `zone_id` returned by the owned `CreateZone` receipt.
+`MaintainHomeCoverage` covers every target of the native Home census: every
+colonist building and every stockpile, whoever made it (#719); action history
+plays no part. Targets use the native unique load id of the building or zone.
 A building anchors its occupied cells and connected visible, enclosed,
 fully roofed rooms. Traversal crosses usable colony doors only when both
 sides are enclosed rooms; outside doors and gaps do not extend coverage.
-Stockpiles retain their exact committed footprint.
+A stockpile is covered at its current footprint; an edited zone is
+reconciled, never blocked.
 
 Each target proposes at most 256 cells, preferring missing cells in stable
 coordinate order. Larger rooms and connected interiors progress through

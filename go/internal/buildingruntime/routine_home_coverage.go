@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -121,34 +120,6 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
-	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, review.Tick)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-
-	buildingReply, _, err := r.native.ReadConstructionBuildings(call, identity, nil)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	buildings := buildingReply.GetObserved()
-	if err = bridge.ValidateConstructionBuildings(buildings, identity, nil); err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	if _, err = boundary.Context(buildings.Context, state.Snapshot); err != nil || buildings.Context.GetTick() < int64(review.Tick) {
-		return RoutineHomeCoverageResult{}, ErrControl
-	}
-	construction, err := observation.ConstructionBuildings(buildings, nil)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	owned, err := policy.OwnedConstructions(claims, construction)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	zones, err := p.journal.StockpileClaims(call, state.Snapshot, review.Tick)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
 	reply, _, err := r.native.ReadColonyFacts(call, identity, false, nil)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
@@ -157,14 +128,14 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if observed == nil {
 		return RoutineHomeCoverageResult{}, ErrControl
 	}
-	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() != buildings.Context.GetTick() {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return RoutineHomeCoverageResult{}, ErrControl
 	}
 	census, ok := homeCoverageObservationFacts(observed)
 	if !ok {
 		return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
 	}
-	targets, err := policy.ReviewHomeCoverage(owned, zones, domain.Known(census))
+	targets, err := policy.ReviewHomeCoverage(domain.Known(census))
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}

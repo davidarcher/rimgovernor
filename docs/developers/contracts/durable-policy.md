@@ -14,7 +14,6 @@ native legality still guard every write.
 | --- | --- | --- |
 | `work_preferences`, `work_preference_requests` | `Store.SetWorkPreferences`; explicit API request, scoped to a plan/world, revision checked; an empty replacement clears overrides. | `RoutineWorkPlanner` reads these separately from current native priorities. `PlanWork` recomputes priorities from the roster and demand; observed priority zero is not copied into an override. Explicit overrides, including zero, remain authoritative outside a temporary disease rest hold; the hold masks them until immunity without rewriting them. |
 | `RoutinePolicy.ResourceTargets` and `StoneBlockTarget` | Startup configuration, not imported from native bills or Manual edits. | `EffectiveResourceTargets` combines configured floors with current stock and derived goal needs each review. They are acquisition floors, not spending prohibitions. |
-| `resource_policies`, `resource_policy_submissions` | Explicit API/chat directives keyed by colony/load/map/resource; normal/defense-only/stop and reserve persist until replaced. | Explicit directives override both reserve and spending for their resource, including zero/normal; startup reserves/stops supply defaults for other resources. Submission and routine reconciliation use this same merge. Auto resume retains current directives. |
 | Native `ProductionPolicyState.Floors` / `Stopped` | Saved in the game; full map replacement through `SetProductionPolicy`. Commitments are transient and not serialized by this component. | Fresh native floors/stops are observed state, never imported as intent. Auto replaces drift with the merged desired policy, including an empty replacement after config removal or save/load. Completed writes do not suppress later identical repairs; open work still prevents duplicate plans. Snapshot, world and authority checks guard dispatch; commitments/drills are preserved from a fresh read. |
 | Pawn/animal allowed areas | Saved native pawn settings; colonist `PatchPawn`, animal husbandry `allowed_area`. | Recovery re-derives both from the fresh Auto census without requiring disaster history. A roof hazard retains/selects a roofed refuge; known absence clears restrictions for ordinary food/work access. Unknown safety never widens access. Native admission rechecks hazard, refuge reachability, current settings and world identity. Manual performs no correction. |
 | Animal training and removal designations | Native saved settings/designations; routine husbandry selects training, tame and opted-in removal from a fresh census. | Training is selected from current availability/learned facts. Fresh Auto reviews reconcile standing release/slaughter flags with current herd floors, ceilings, removal opt-ins and food offers. Shared Hands cancels obsolete flags with exact animal/census guards; valid pending removals still suppress duplicate work. Upkeep and training resume from native readback. |
@@ -30,9 +29,9 @@ reads live in `observation/routine_work.go`; proposals and explicit overrides me
 in `policy/work_assignment.go` and `buildingruntime/routine_assignments.go`.
 
 Resource target derivation lives in `policy/stone_blocks.go` and
-`buildingruntime/routine_defense_layout.go`. Explicit resource directives live in
-`store/resource_policy.go`. `buildingruntime/routine_production_policy.go` uses
-startup reserves/stops overridden by current world-scoped directives, while `policy/routine.go` determines whether its goal is
+`buildingruntime/routine_defense_layout.go`.
+`buildingruntime/routine_production_policy.go` dispatches the startup
+reserves/stops as the whole production policy, while `policy/routine.go` determines whether its goal is
 active. Native save serialization is
 `integrations/rimgovernor-native/src/Runtime/Persistence/ProductionPolicyState.cs`.
 

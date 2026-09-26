@@ -78,10 +78,21 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 			return unknown, nil
 		}
 	}
+	if len(zones) > 256 {
+		return unknown, invalid
+	}
+	zoneIDs := map[string]bool{}
+	for _, b := range census.Buildings {
+		zoneIDs[b.ID] = true
+	}
 	for _, z := range zones {
 		if len(z.Cells) == 0 {
 			return unknown, nil
 		}
+		if !foodID(z.ID) || zoneIDs[z.ID] || !facilityCells(z.Cells) {
+			return unknown, invalid
+		}
+		zoneIDs[z.ID] = true
 	}
 	// Ambiguous optional history cannot select provenance by input order.
 	history, _ := r.Claims.Value()
@@ -96,7 +107,7 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 	if err != nil {
 		return unknown, err
 	}
-	if _, err := ReviewHomeCoverage(owned, r.Stockpiles, r.Home); err != nil {
+	if _, err := ReviewHomeCoverage(r.Home); err != nil {
 		return unknown, err
 	}
 	buildings, _ := owned.Value()

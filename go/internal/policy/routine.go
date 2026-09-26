@@ -642,7 +642,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	home, err := ReviewHomeCoverage(owned, f.OwnedStockpiles, f.HomeCoverage)
+	home, err := ReviewHomeCoverage(f.HomeCoverage)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

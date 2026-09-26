@@ -223,7 +223,7 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 
 // TradeReserveFacts is what EconomicReserves folds into economic floors: the
 // player's own per-resource reserves and spending restrictions
-// (store.ResourcePolicies, Python's plan.control['resource_policy']) and
+// (the autopilot's configured production policy) and
 // native's outstanding construction commitments
 // (bridge.ReadConstructionDeficits, Python's buildings['resourceDeficit']).
 type TradeReserveFacts struct {

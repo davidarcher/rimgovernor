@@ -53,32 +53,11 @@ func facilityCells(cells []domain.Cell) bool {
 	return true
 }
 
-func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fact[[]OwnedStockpile], observed domain.Fact[HomeCoverageObservation]) (domain.Fact[[]HomeCoverageTarget], error) {
+// ReviewHomeCoverage lists every census target (all colonist buildings and
+// every stockpile, #719: the autopilot owns them whoever built them) still
+// missing Home, at its current geometry.
+func ReviewHomeCoverage(observed domain.Fact[HomeCoverageObservation]) (domain.Fact[[]HomeCoverageTarget], error) {
 	unknown := domain.Unknown[[]HomeCoverageTarget]()
-	buildings, bk := owned.Value()
-	stockpiles, zk := zones.Value()
-	if !bk || !zk {
-		return unknown, nil
-	}
-	if len(buildings) > 256 || len(stockpiles) > 256 {
-		return unknown, errors.New("owned facilities exceed bound")
-	}
-	ids := map[string]bool{}
-	for _, b := range buildings {
-		if !foodID(b.Identity.Current) || ids[b.Identity.Current] {
-			return unknown, errors.New("invalid owned building")
-		}
-		ids[b.Identity.Current] = true
-	}
-	for _, z := range stockpiles {
-		if !foodID(z.ID) || ids[z.ID] || !facilityCells(z.Cells) {
-			return unknown, errors.New("invalid owned stockpile")
-		}
-		ids[z.ID] = true
-	}
-	if len(ids) == 0 {
-		return domain.Known([]HomeCoverageTarget{}), nil
-	}
 	census, known := observed.Value()
 	if !known {
 		return unknown, nil
@@ -93,9 +72,6 @@ func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fac
 			return unknown, errors.New("invalid Home target identity")
 		}
 		seen[row.ID] = true
-		if !ids[row.ID] {
-			continue
-		}
 		missing, mk := row.Missing.Value()
 		excluded, ek := row.Excluded.Value()
 		shape, sk := row.Shape.Value()

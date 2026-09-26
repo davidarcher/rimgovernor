@@ -15,7 +15,7 @@ import (
 )
 
 // playerGoals is an optional player capability, asserted the same way
-// playerResourcePolicy is, so enabling the maintained-goal routes never widens
+// the other optional player capabilities are, so enabling the maintained-goal routes never widens
 // the required PlayerBuildings interface.
 type playerGoals interface {
 	SubmitGoalCreate(context.Context, store.GoalCreateSubmissionRequest) (store.GoalCreateSubmission, bool, error)

@@ -10,9 +10,8 @@ import (
 
 // stockpileClaims mirrors constructionClaims: it joins durable autopilot goal
 // methods for the current world scope to find completed ZoneCreate actions of
-// kind StockpileZone, so ReviewHomeCoverage keeps Home over the zones this
-// colony created, at their current geometry (#719: an edited zone is
-// reconciled, never exempted).
+// kind StockpileZone, as colony-extent territory evidence. It exempts nothing:
+// Home coverage reads every census stockpile (#719).
 // The claim's ID is the native zone identity the completion receipt returned
 // (the zone's unique load id), the same form the Home coverage census names
 // stockpiles by (#315); a completion recorded without one owns nothing.
@@ -116,7 +115,7 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 
 // StockpileClaims exposes stockpileClaims outside the routine review
 // transaction, mirroring Store.ConstructionClaims, so a routine scheduler can
-// re-derive a fresh HomeCoverage target list on its own tick.
+// re-derive the colony extent on its own tick.
 func (s *Store) StockpileClaims(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
 	if current.Validate() != nil || tick < 0 {
 		return domain.Unknown[[]policy.OwnedStockpile](), ErrConflict

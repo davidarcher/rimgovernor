@@ -17,7 +17,6 @@ type WorldSource interface {
 }
 type PlayerConfig struct {
 	CallTimeout, JournalTimeout time.Duration
-	ProductionDefaults          domain.ProductionPolicy
 }
 
 type playerSession interface {

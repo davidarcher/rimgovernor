@@ -148,14 +148,6 @@ func (r *RoutineProductionPolicyPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutineProductionPolicyResult{}, err
 	}
-	directives, err := p.journal.ResourcePolicies(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
-	if err != nil {
-		return RoutineProductionPolicyResult{}, err
-	}
-	value, err = domain.ResolveProductionPolicy(value, directives)
-	if err != nil {
-		return RoutineProductionPolicyResult{}, err
-	}
 	if productionPolicyMatches(read, value) {
 		return RoutineProductionPolicyResult{Reason: BuildingMethodUsed}, nil
 	}

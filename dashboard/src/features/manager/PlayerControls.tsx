@@ -13,7 +13,6 @@ function describeGuidance(value: ChatGuidance): string {
     case 'set_population_policy': return `Population policy: up to ${value.populationPolicy.maximum} colonists, ${value.populationPolicy.foodDays} food days`;
     case 'set_expedition_policy': return `Expedition limits: ${Object.entries(value.expeditionPolicy).map(([key, item]) => `${key} ${item}`).join(', ')}`;
     case 'set_population_decision': return `Population decision: ${value.populationDecision.decision} ${value.populationDecision.pawn}`;
-    case 'set_resource_policy': return `Resource policy: ${value.resourcePolicy.resource} reserve ${value.resourcePolicy.reserve}, spending ${value.resourcePolicy.spending}`;
   }
 }
 function submissionMatches(value: Submission, request: SubmissionRequest): boolean {return value.requestId === request.requestId && sameWorld(value.expected, request.expected) && Object.entries(request.building).every(([key, item]) => Object.entries(value.building).some(([other, actual]) => key === other && item === actual));}

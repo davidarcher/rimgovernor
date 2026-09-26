@@ -55,7 +55,7 @@ func TestObservedPlayerFacilitiesNeedNoAutonomousHistory(t *testing.T) {
 			t.Fatal(rows, known, err)
 		}
 		home := HomeCoverageObservation{Targets: []HomeCoverageTarget{{ID: "player-bed", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{bed.Building.Cell()}}}}
-		targets, err := ReviewHomeCoverage(owned, domain.Known([]OwnedStockpile{}), domain.Known(home))
+		targets, err := ReviewHomeCoverage(domain.Known(home))
 		h, hk := targets.Value()
 		if err != nil || !hk || len(h) != 1 {
 			t.Fatal(h, hk, err)

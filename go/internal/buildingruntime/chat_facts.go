@@ -32,7 +32,6 @@ type ChatFactsJournal interface {
 	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
 	CurrentPopulationPolicy(context.Context, store.World) (domain.PopulationPolicy, error)
 	CurrentExpeditionPolicy(context.Context, store.World) (domain.ExpeditionPolicy, error)
-	ResourcePolicies(context.Context, store.World) ([]domain.ResourceDirective, error)
 	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
 }
 
@@ -65,7 +64,7 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 	if err = current.Validate(); err != nil {
 		return none, domain.GenerationSnapshot{}, err
 	}
-	facts := interpreter.Facts{Generation: current, Pawns: []interpreter.Pawn{}, Goals: []interpreter.Goal{}, PolicyResources: []string{}, ResourcePolicies: []interpreter.ResourcePolicy{}, PopulationDecisions: []interpreter.PopulationDecision{}}
+	facts := interpreter.Facts{Generation: current, Pawns: []interpreter.Pawn{}, Goals: []interpreter.Goal{}, PopulationDecisions: []interpreter.PopulationDecision{}}
 	facts.Colony = interpreter.Colony{Tick: domain.Tick(observed.Context.GetTick()), Biome: observed.GetBiome(), ColonistCount: observed.GetColonistCount(), WorkerCount: observed.GetWorkerCount(), BedCapacity: observed.GetBedCapacity(), Resources: []interpreter.Resource{}}
 	if observed.FoodRunwayDays != nil {
 		days := observed.GetFoodRunwayDays()
@@ -82,14 +81,6 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 		}
 		stocked[row.GetDefName()] = true
 		facts.Colony.Resources = append(facts.Colony.Resources, interpreter.Resource{DefName: row.GetDefName(), Units: row.GetUnits()})
-	}
-	policyResources := map[string]bool{}
-	for _, row := range observed.GetPolicyResources() {
-		if row == nil || row.GetDefName() == "" || policyResources[row.GetDefName()] {
-			continue
-		}
-		policyResources[row.GetDefName()] = true
-		facts.PolicyResources = append(facts.PolicyResources, row.GetDefName())
 	}
 
 	roster, _, err := native.ReadHomeColonists(ctx, identity)
@@ -199,13 +190,6 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 		MaximumCaravans: expedition.MaximumCaravans(), MinimumGoodwill: expedition.MinimumGoodwill(),
 		MinimumDestinationTemperature: expedition.MinimumDestinationTemperature(), MaximumDestinationTemperature: expedition.MaximumDestinationTemperature(),
 		KeepHomeDoctor: expedition.KeepHomeDoctor(), RequireReturnStorage: expedition.RequireReturnStorage(),
-	}
-	directives, err := journal.ResourcePolicies(ctx, world)
-	if err != nil {
-		return none, domain.GenerationSnapshot{}, err
-	}
-	for _, directive := range directives {
-		facts.ResourcePolicies = append(facts.ResourcePolicies, interpreter.ResourcePolicy{Resource: directive.Resource(), Reserve: directive.Reserve(), Spending: directive.Spending()})
 	}
 	decisions, err := journal.PopulationDecisions(ctx, world)
 	if err != nil {

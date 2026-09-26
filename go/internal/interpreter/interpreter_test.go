@@ -28,11 +28,10 @@ func (f completeFunc) Complete(c context.Context, r model.Request) (model.Respon
 func inputFixture() Input {
 	generation := domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "root", Revision: 2, Native: 4}
 	return Input{UserRequest: "What are you doing about food?", Current: generation, Facts: Facts{
-		Generation:      generation,
-		Colony:          Colony{Tick: 100, ColonistCount: 3, Resources: []Resource{{"Steel", 120}, {"WoodLog", 300}}},
-		Pawns:           []Pawn{{ID: "Thing_Human1", Label: "Bob", Colonist: true}, {ID: "Thing_Human9", Downed: true}},
-		Goals:           []Goal{{ID: "goal-food", Kind: "EnsureFoodSupply", Source: domain.AutopilotGoal, Status: domain.GoalActive, Need: domain.NeedDeficit, Priority: 1}},
-		PolicyResources: []string{"Silver"},
+		Generation: generation,
+		Colony:     Colony{Tick: 100, ColonistCount: 3, Resources: []Resource{{"Steel", 120}, {"WoodLog", 300}}},
+		Pawns:      []Pawn{{ID: "Thing_Human1", Label: "Bob", Colonist: true}, {ID: "Thing_Human9", Downed: true}},
+		Goals:      []Goal{{ID: "goal-food", Kind: "EnsureFoodSupply", Source: domain.AutopilotGoal, Status: domain.GoalActive, Need: domain.NeedDeficit, Priority: 1}},
 	}}
 }
 func clientFixture(t *testing.T, fn completeFunc) *Interpreter {
@@ -95,7 +94,7 @@ func mustJSON(value string) []byte { data, _ := json.Marshal(value); return data
 
 func TestExplainOnlyCarriesNoNudge(t *testing.T) {
 	guidance, err := replying(t, explainOnly).Interpret(context.Background(), inputFixture())
-	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationPolicy.Set() || !guidance.ExpeditionPolicy.Empty() || guidance.PopulationDecision.Set() || !guidance.ResourcePolicy.Empty() {
+	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationPolicy.Set() || !guidance.ExpeditionPolicy.Empty() || guidance.PopulationDecision.Set() {
 		t.Fatalf("%+v %v", guidance, err)
 	}
 	if !strings.Contains(guidance.Explanation, "rice") {
@@ -120,14 +119,6 @@ func TestEveryNudgeKindDecodesToItsPolicyInput(t *testing.T) {
 		}},
 		{"decision", `{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}`, func(g Guidance) bool {
 			return g.Kind == SetPopulationDecision && g.PopulationDecision.Pawn() == "Thing_Human9" && g.PopulationDecision.Decision() == domain.PopulationRescue
-		}},
-		{"spending", `{"kind":"set_resource_policy","resource":"Steel","spending":"stop"}`, func(g Guidance) bool {
-			s, ok := g.ResourcePolicy.Spending.Get()
-			return g.Kind == SetResourcePolicy && g.ResourcePolicy.Resource == "Steel" && ok && s == domain.ResourceSpendingStop && !g.ResourcePolicy.Reserve.Present()
-		}},
-		{"reserve on policy resource", `{"kind":"set_resource_policy","resource":"Silver","reserve":250}`, func(g Guidance) bool {
-			r, ok := g.ResourcePolicy.Reserve.Get()
-			return g.Kind == SetResourcePolicy && g.ResourcePolicy.Resource == "Silver" && ok && r == 250 && !g.ResourcePolicy.Spending.Present()
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -215,10 +206,6 @@ func TestRefusesUnresolvedOrMalformedReplies(t *testing.T) {
 		{"expedition out of range", wrap(`{"kind":"set_expedition_policy","maximumCaravans":99}`), InvalidGuidance},
 		{"unknown pawn", wrap(`{"kind":"set_population_decision","pawn":"Bob","decision":"rescue"}`), UnknownFacts},
 		{"unknown decision", wrap(`{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"execute"}`), InvalidGuidance},
-		{"unknown resource", wrap(`{"kind":"set_resource_policy","resource":"Plasteel","spending":"stop"}`), UnknownFacts},
-		{"both resource halves", wrap(`{"kind":"set_resource_policy","resource":"Steel","spending":"stop","reserve":1}`), InvalidGuidance},
-		{"reserve out of range", wrap(`{"kind":"set_resource_policy","resource":"Steel","reserve":99999}`), InvalidGuidance},
-		{"unknown spending", wrap(`{"kind":"set_resource_policy","resource":"Steel","spending":"hoard"}`), InvalidGuidance},
 		{"too large", strings.Repeat(" ", 65537), InvalidGuidance},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

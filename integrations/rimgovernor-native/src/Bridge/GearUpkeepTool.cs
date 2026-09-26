@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
                 return "Item unavailable or forbidden";
             if (a.Faction != null && !a.Faction.IsPlayer) return "Item belongs to another faction";
             if (!ProductionPolicyGuard.Budgets(p.Map, p).TryGetValue(a.def.defName, out var budget) || budget < 1)
-                return "Apparel stock is protected by resource policy or commitments";
+                return "Apparel stock is protected by production policy or commitments";
             if (!p.outfits.CurrentApparelPolicy.filter.Allows(a)) return "Apparel policy excludes item";
             if (!a.PawnCanWear(p) || !ApparelUtility.HasPartsToWear(p, a.def) ||
                 !a.def.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)) return "Body, age or definition incompatible";
@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
             if (!p.CanReserveAndReach(weapon, PathEndMode.ClosestTouch, p.NormalMaxDanger())) return "Weapon not safely reachable";
             if (!EquipmentUtility.CanEquip(weapon, p, out var reason)) return reason ?? "Native weapon eligibility refused";
             if (!ProductionPolicyGuard.Budgets(p.Map, p).TryGetValue(weapon.def.defName, out var budget) || budget < 1)
-                return "Weapon protected by resource policy or commitments";
+                return "Weapon protected by production policy or commitments";
             var primary = p.equipment?.Primary;
             if (primary != null) {
                 if (primary.TryGetQuality(out var oldQuality) && (!weapon.TryGetQuality(out var quality) || quality < oldQuality))

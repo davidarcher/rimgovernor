@@ -23,7 +23,7 @@ import (
 //
 // Like every other player command this acquires no authority and issues no
 // native call. The world half of the requested snapshot is checked against live
-// native identity before submission, the same gate SubmitResourcePolicy uses;
+// native identity before submission, the same gate the other player submissions use;
 // the direction, plan revision and tick in the snapshot are the caller's, the
 // same way the routine reviewer supplies its own.
 func (p *Player) SubmitGoalCreate(ctx context.Context, request store.GoalCreateSubmissionRequest) (store.GoalCreateSubmission, bool, error) {

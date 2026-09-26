@@ -102,7 +102,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if !known || len(ids) != 35 || !reflect.DeepEqual(ids, fixture.Expected.Owned) {
 		t.Fatal("native ownership lost", ids, fixture.Expected.Owned)
 	}
-	home, err := policy.ReviewHomeCoverage(owned, domain.Known([]policy.OwnedStockpile{}), projection.Facts.HomeCoverage)
+	home, err := policy.ReviewHomeCoverage(projection.Facts.HomeCoverage)
 	homes, known := home.Value()
 	if err != nil || !known {
 		t.Fatal(home, err)

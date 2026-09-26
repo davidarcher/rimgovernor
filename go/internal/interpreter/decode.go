@@ -32,9 +32,6 @@ type modelGuidance struct {
 	// Pawn/Decision hold set_population_decision's named individual and
 	// direction.
 	Pawn, Decision *string
-	// Resource and exactly one of Spending/Reserve hold set_resource_policy.
-	Resource, Spending *string
-	Reserve            *int32
 }
 
 // modelExpeditionPolicy is an untrusted partial expedition policy request.
@@ -104,8 +101,6 @@ func decode(text string) (modelReply, error) {
 		guidance, err = decodeSetExpeditionPolicy(guidanceFields)
 	case SetPopulationDecision:
 		guidance, err = decodeSetPopulationDecision(guidanceFields)
-	case SetResourcePolicy:
-		guidance, err = decodeSetResourcePolicy(guidanceFields)
 	default:
 		return modelReply{}, fail(InvalidGuidance, "unsupported guidance kind")
 	}
@@ -169,37 +164,6 @@ func decodeSetPopulationDecision(fields map[string]json.RawMessage) (modelGuidan
 		return modelGuidance{}, fail(InvalidGuidance, "invalid decision field")
 	}
 	return modelGuidance{Kind: SetPopulationDecision, Pawn: &pawn, Decision: &decision}, nil
-}
-
-// decodeSetResourcePolicy reads the resource and exactly one of spending or
-// reserve; the vocabulary and range belong to domain.ResourcePolicyPatch and
-// the resource is bounded against facts by the interpreter.
-func decodeSetResourcePolicy(fields map[string]json.RawMessage) (modelGuidance, error) {
-	if len(fields) != 3 || fields["resource"] == nil || (fields["spending"] == nil) == (fields["reserve"] == nil) {
-		return modelGuidance{}, fail(InvalidGuidance, "unexpected guidance fields")
-	}
-	var resource string
-	if err := json.Unmarshal(fields["resource"], &resource); err != nil || resource == "" {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid resource field")
-	}
-	g := modelGuidance{Kind: SetResourcePolicy, Resource: &resource}
-	if fields["spending"] != nil {
-		var spending string
-		if err := json.Unmarshal(fields["spending"], &spending); err != nil || spending == "" {
-			return modelGuidance{}, fail(InvalidGuidance, "invalid spending field")
-		}
-		g.Spending = &spending
-		return g, nil
-	}
-	if isNull(fields["reserve"]) {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid reserve field")
-	}
-	var reserve int32
-	if err := json.Unmarshal(fields["reserve"], &reserve); err != nil {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid reserve field")
-	}
-	g.Reserve = &reserve
-	return g, nil
 }
 
 // optionalField turns a decoded partial-request pointer into the comparable

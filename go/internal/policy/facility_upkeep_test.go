@@ -16,22 +16,23 @@ func facilityClaim(t *testing.T, id, def, stuff string) ConstructionClaim {
 	return ConstructionClaim{Plan: "method", Action: domain.ActionID(id), Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint-" + id, Current: id}, Building: b}
 }
 
-func TestHomeCoverageRestoresMissingCellsAndRequiresOwnedTargets(t *testing.T) {
-	claim := facilityClaim(t, "wall", "Wall", "WoodLog")
+// Every census target missing Home is listed, player-built ones included (#719).
+func TestHomeCoverageRestoresMissingCellsOnEveryTarget(t *testing.T) {
 	row := HomeCoverageTarget{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}}
-	census := HomeCoverageObservation{Revision: 4, Targets: []HomeCoverageTarget{row, {ID: "player-wall"}}}
-	got, err := ReviewHomeCoverage(domain.Known([]ConstructionClaim{claim}), domain.Known([]OwnedStockpile{}), domain.Known(census))
+	player := HomeCoverageTarget{ID: "player-wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 4, Z: 7}}}
+	census := HomeCoverageObservation{Revision: 4, Targets: []HomeCoverageTarget{row, player}}
+	got, err := ReviewHomeCoverage(domain.Known(census))
 	rows, known := got.Value()
-	if err != nil || !known || len(rows) != 1 || rows[0].ID != "wall" || rows[0].Excluded != domain.Known(int64(1)) {
+	if err != nil || !known || len(rows) != 2 || rows[0].ID != "player-wall" || rows[1].ID != "wall" || rows[1].Excluded != domain.Known(int64(1)) {
 		t.Fatal(rows, known, err)
 	}
-	rows[0].Cells[0].X = 99
+	rows[1].Cells[0].X = 99
 	if census.Targets[0].Cells[0].X != 3 {
 		t.Fatal("target aliases native input")
 	}
-	// Native Home coverage omits fully covered targets; absence is recovery only
-	// after exact current-building ownership and a complete Home read are known.
-	got, err = ReviewHomeCoverage(domain.Known([]ConstructionClaim{claim}), domain.Known([]OwnedStockpile{}), domain.Known(HomeCoverageObservation{Revision: 5}))
+	// Native Home coverage omits fully covered targets; absence is recovery once
+	// a complete Home read is known.
+	got, err = ReviewHomeCoverage(domain.Known(HomeCoverageObservation{Revision: 5}))
 	rows, known = got.Value()
 	if err != nil || !known || len(rows) != 0 {
 		t.Fatal(rows, known, err)
@@ -39,16 +40,10 @@ func TestHomeCoverageRestoresMissingCellsAndRequiresOwnedTargets(t *testing.T) {
 }
 
 func TestHomeCoverageUnknownsAndMalformedGeometry(t *testing.T) {
-	claim := facilityClaim(t, "wall", "Wall", "WoodLog")
-	for _, kind := range []string{"ownership", "zones", "census", "shape", "missing", "excluded", "cells", "bad-count", "duplicate"} {
+	for _, kind := range []string{"census", "shape", "missing", "excluded", "cells", "bad-count", "duplicate"} {
 		t.Run(kind, func(t *testing.T) {
-			owned, zones := domain.Known([]ConstructionClaim{claim}), domain.Known([]OwnedStockpile{})
 			row := HomeCoverageTarget{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}
 			switch kind {
-			case "ownership":
-				owned = domain.Unknown[[]ConstructionClaim]()
-			case "zones":
-				zones = domain.Unknown[[]OwnedStockpile]()
 			case "shape":
 				row.Shape = domain.Unknown[string]()
 			case "missing":
@@ -68,7 +63,7 @@ func TestHomeCoverageUnknownsAndMalformedGeometry(t *testing.T) {
 			if kind == "census" {
 				observed = domain.Unknown[HomeCoverageObservation]()
 			}
-			got, err := ReviewHomeCoverage(owned, zones, observed)
+			got, err := ReviewHomeCoverage(observed)
 			_, known := got.Value()
 			if known || (err != nil) != (kind == "bad-count" || kind == "duplicate") {
 				t.Fatal(got, err)
@@ -77,12 +72,11 @@ func TestHomeCoverageUnknownsAndMalformedGeometry(t *testing.T) {
 	}
 }
 
-// An edited owned stockpile is reconciled at its current geometry, never
+// An edited stockpile is reconciled at its current geometry, never
 // blocked as a player edit (#719).
 func TestHomeCoverageReconcilesChangedOwnedStockpileFootprint(t *testing.T) {
-	zone := OwnedStockpile{ID: "zone", Cells: []domain.Cell{{X: 3, Z: 7}}}
 	row := HomeCoverageTarget{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 8}}}
-	got, err := ReviewHomeCoverage(domain.Known([]ConstructionClaim{}), domain.Known([]OwnedStockpile{zone}), domain.Known(HomeCoverageObservation{Targets: []HomeCoverageTarget{row}}))
+	got, err := ReviewHomeCoverage(domain.Known(HomeCoverageObservation{Targets: []HomeCoverageTarget{row}}))
 	rows, known := got.Value()
 	if err != nil || !known || len(rows) != 1 || rows[0].Blocker != "" || rows[0].Cells[0] != (domain.Cell{X: 3, Z: 8}) {
 		t.Fatal(rows, known, err)

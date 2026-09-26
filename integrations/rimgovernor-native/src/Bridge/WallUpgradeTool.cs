@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
                     || !GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(stuff)
                     || r.Backup.Any(id => Wall(map, id)?.Stuff != stuff)) return "Native stone replacement material changed";
                 var policy = ProductionPolicyGuard.LoadedState(); var key = ProductionPolicyGuard.Key(map, stuff.defName);
-                if (policy.Stopped.Contains(key)) return "Player resource policy prevents replacement";
+                if (policy.Stopped.Contains(key)) return "Production policy prevents replacement";
                 var budgets = ProductionPolicyGuard.Budgets(map);
                 var required = ThingDefOf.Wall.CostListAdjusted(stuff).Where(c => c.thingDef == stuff).Sum(c => c.count);
                 policy.Commitments.TryGetValue(key, out var held);

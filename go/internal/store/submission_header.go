@@ -34,7 +34,7 @@ func lookupSubmissionHeader(ctx context.Context, tx *sql.Tx, id, kind string) (s
 	if revision != "1" {
 		return h, errors.New("invalid submitted revision")
 	}
-	if h.Kind != "building" && h.Kind != "research_select" && h.Kind != "resource_policy" {
+	if h.Kind != "building" && h.Kind != "research_select" {
 		return h, errors.New("invalid submission kind")
 	}
 	if kind != "" && h.Kind != kind {
@@ -55,8 +55,6 @@ func lookupAnySubmission(ctx context.Context, tx *sql.Tx, id string) (submission
 		_, err = lookupSubmission(ctx, tx, id)
 	case "research_select":
 		_, err = lookupResearchSelectSubmission(ctx, tx, id)
-	case "resource_policy":
-		_, err = lookupResourcePolicySubmission(ctx, tx, id)
 	default:
 		err = errors.New("invalid submission kind")
 	}
@@ -91,7 +89,7 @@ func (s *Store) AuthorizePlayerPlan(ctx context.Context, root, target domain.Gen
 	if err != nil {
 		return err
 	}
-	if h.Kind == "resource_policy" || h.World != (World{Colony: root.Colony, Load: root.Load, Map: root.Map}) || h.Revision != target.Revision {
+	if h.World != (World{Colony: root.Colony, Load: root.Load, Map: root.Map}) || h.Revision != target.Revision {
 		return ErrConflict
 	}
 	var retired int

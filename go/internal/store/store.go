@@ -42,7 +42,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 101
+const schemaVersion = 102
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -306,7 +306,7 @@ CREATE TABLE wall_removal_admissions(action_id TEXT PRIMARY KEY REFERENCES actio
 CREATE TABLE production_policy_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
-CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','research_select','resource_policy')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
+CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','research_select')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
 CREATE INDEX action_transitions ON transitions(action_id,sequence);
 CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL) STRICT;
 CREATE TABLE research_select_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;
@@ -317,9 +317,7 @@ CREATE TABLE population_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL,
 CREATE TABLE expedition_policy_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, patch BLOB NOT NULL, minimum_home_colonists INTEGER NOT NULL, minimum_home_food_days REAL NOT NULL, travel_food_margin_days REAL NOT NULL, maximum_travel_days REAL NOT NULL, maximum_caravans INTEGER NOT NULL, minimum_goodwill INTEGER NOT NULL, minimum_destination_temperature REAL NOT NULL, maximum_destination_temperature REAL NOT NULL, keep_home_doctor INTEGER NOT NULL CHECK(keep_home_doctor IN (0,1)), require_return_storage INTEGER NOT NULL CHECK(require_return_storage IN (0,1))) STRICT;
 CREATE TABLE expedition_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, request_id TEXT NOT NULL REFERENCES expedition_policy_submissions(request_id), minimum_home_colonists INTEGER NOT NULL, minimum_home_food_days REAL NOT NULL, travel_food_margin_days REAL NOT NULL, maximum_travel_days REAL NOT NULL, maximum_caravans INTEGER NOT NULL, minimum_goodwill INTEGER NOT NULL, minimum_destination_temperature REAL NOT NULL, maximum_destination_temperature REAL NOT NULL, keep_home_doctor INTEGER NOT NULL CHECK(keep_home_doctor IN (0,1)), require_return_storage INTEGER NOT NULL CHECK(require_return_storage IN (0,1)), PRIMARY KEY(colony,load_token,map_id)) STRICT;
 CREATE TABLE population_decision_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, pawn TEXT NOT NULL, decision TEXT NOT NULL CHECK(decision IN ('rescue','capture','recruit','ignore'))) STRICT;
-CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, pawn TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES population_decision_submissions(request_id), decision TEXT NOT NULL CHECK(decision IN ('rescue','capture','recruit','ignore')), PRIMARY KEY(colony,load_token,map_id,pawn)) STRICT;
-CREATE TABLE resource_policy_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), patch BLOB NOT NULL, resource TEXT NOT NULL, reserve INTEGER NOT NULL, spending TEXT NOT NULL CHECK(spending IN ('normal','defense_only','stop'))) STRICT;
-CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, resource TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES resource_policy_submissions(request_id), reserve INTEGER NOT NULL, spending TEXT NOT NULL CHECK(spending IN ('normal','defense_only','stop')), PRIMARY KEY(colony,load_token,map_id,resource)) STRICT;`)
+CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, pawn TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES population_decision_submissions(request_id), decision TEXT NOT NULL CHECK(decision IN ('rescue','capture','recruit','ignore')), PRIMARY KEY(colony,load_token,map_id,pawn)) STRICT;`)
 		if err != nil {
 			return err
 		}
