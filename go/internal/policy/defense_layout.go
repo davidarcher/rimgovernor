@@ -66,6 +66,20 @@ type DefenseRequest struct {
 	// the native census reports zero. Unknown disables cover selection; a
 	// definition name is not evidence of its fill.
 	CoverThreshold domain.Fact[float64]
+	// Killbox is the layout plan's opening the corridor stands in.
+	Killbox DefenseKillbox
+}
+
+// DefenseKillbox is the layout plan's killbox opening (#789): Entry is the
+// centre cell of the opening's outer face, Toward points inward through it,
+// Width is the opening's width. Walled cells are the perimeter tier's wall;
+// the funnel leaves them to it. Turrets are the plan's turret slots.
+type DefenseKillbox struct {
+	Entry   domain.Cell
+	Toward  domain.Rotation
+	Width   int32
+	Walled  []domain.Cell
+	Turrets []domain.Cell
 }
 
 type DefenseTierName string
@@ -228,116 +242,42 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 	return s, nil
 }
 
-// approach is the shortest passable path from Home to the nearest census
-// cell that reaches the map edge, ordered home first. Ties resolve by cell
-// order so the result is stable across runs.
-func (s defenseSite) approach() []domain.Cell {
-	if !s.passable(s.r.Home) {
-		return nil
-	}
-	prev := map[domain.Cell]domain.Cell{s.r.Home: s.r.Home}
-	queue := []domain.Cell{s.r.Home}
-	for len(queue) > 0 {
-		c := queue[0]
-		queue = queue[1:]
-		if row := s.cells[c]; positive(row.EdgeReachable) && c != s.r.Home && s.onBorder(c) {
-			var path []domain.Cell
-			for at := c; ; at = prev[at] {
-				path = append(path, at)
-				if at == s.r.Home {
-					break
-				}
-			}
-			for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
-				path[i], path[j] = path[j], path[i]
-			}
-			return path
-		}
-		for _, d := range directions {
-			n := addCell(c, d)
-			if _, seen := prev[n]; seen || !s.passable(n) {
-				continue
-			}
-			prev[n] = c
-			queue = append(queue, n)
-		}
-	}
-	return nil
-}
 func (s defenseSite) onBorder(c domain.Cell) bool {
 	reg := s.r.Region
 	return c.X == reg.X || c.Z == reg.Z || c.X == reg.X+reg.Width-1 || c.Z == reg.Z+reg.Height-1
 }
 
-// width counts contiguous passable cells across axis d through c, bounded.
-func (s defenseSite) width(c, d domain.Cell) (int, domain.Cell) {
-	p := perpendicular(d)
-	low := c
-	for n := 0; n < defenseMaxWidth && s.passable(addCell(low, scale(p, -1))); n++ {
-		low = addCell(low, scale(p, -1))
-	}
-	w := 0
-	for at := low; w <= defenseMaxWidth && s.passable(at); at = addCell(at, p) {
-		w++
-	}
-	return w, low
-}
-
-// DefenseLayouts proposes a staged corridor defense on the shortest edge
-// approach to Home. It returns an error when no chokepoint narrow enough for
-// a two-lane corridor exists, and never places on protected, occupied or
-// unknown cells.
+// DefenseLayouts proposes a staged corridor defense in the request's killbox
+// opening. It returns an error without an opening or when the corridor
+// cannot stand there, and never places on protected, occupied or unknown
+// cells.
 func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	s, err := newDefenseSite(r)
 	if err != nil {
 		return DefenseLayout{}, err
 	}
-	path := s.approach()
-	if len(path) < defenseCorridorLength+4 {
-		return DefenseLayout{}, errors.New("no edge approach long enough for a corridor")
+	// The layout anchors on the layout plan's killbox opening (#789): the
+	// corridor runs inward from the opening's outer face, across the
+	// opening's width, and the wall ring beside it is the perimeter tier's.
+	kb := r.Killbox
+	if kb.Width < 2 || kb.Width > defenseMaxWidth || !s.inRegion(kb.Entry) {
+		return DefenseLayout{}, errors.New("no killbox opening to anchor the corridor on")
 	}
-	// Candidate chokepoints: path cells whose approach direction is straight
-	// for the corridor length, ranked by passable width then distance to home.
-	type candidate struct {
-		index int
-		width int
-		low   domain.Cell
-		d     domain.Cell
+	walled := map[domain.Cell]bool{}
+	for _, c := range kb.Walled {
+		walled[c] = true
 	}
-	var best *candidate
-	for i := defenseCorridorLength + 2; i < len(path)-1; i++ {
-		d := domain.Cell{X: path[i-1].X - path[i].X, Z: path[i-1].Z - path[i].Z}
-		straight := true
-		for k := 1; k < defenseCorridorLength; k++ {
-			if addCell(path[i-k], scale(d, -1)) != path[i-k+1] {
-				straight = false
-				break
-			}
-		}
-		if !straight {
-			continue
-		}
-		w, low := s.width(path[i], d)
-		if w < 2 || w > defenseMaxWidth {
-			continue
-		}
-		c := candidate{i, w, low, d}
-		if best == nil || c.width < best.width {
-			best = &c
-		}
-	}
-	if best == nil {
-		return DefenseLayout{}, errors.New("no chokepoint narrow enough for a corridor")
-	}
-	d, p := best.d, perpendicular(best.d)
-	entry := path[best.index]
-	// Lanes: the path's own cells are the trap lane; the safe lane is the
+	d := directionOf(kb.Toward)
+	p := perpendicular(d)
+	width, low := int(kb.Width), addCell(kb.Entry, scale(p, -kb.Width/2))
+	entry := kb.Entry
+	// Lanes: the opening's centre is the trap lane; the safe lane is the
 	// passable neighbour across p, preferring the side nearer the home area.
 	side := p
 	if !s.passable(addCell(entry, p)) || s.passable(addCell(entry, scale(p, -1))) && positive(s.cells[addCell(entry, scale(p, -1))].HomeArea) {
 		side = scale(p, -1)
 	}
-	layout := DefenseLayout{Chokepoint: entry, Toward: rotationOf(d), Width: best.width, Entry: entry}
+	layout := DefenseLayout{Chokepoint: entry, Toward: rotationOf(d), Width: width, Entry: entry}
 	for k := 0; k < defenseCorridorLength; k++ {
 		trap := addCell(entry, scale(d, int32(k)))
 		safe := addCell(trap, side)
@@ -356,7 +296,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	var funnel []domain.Building
 	var funnelReserved []domain.Cell
 	wall := func(c domain.Cell) error {
-		if lane[c] || s.blocking(c) {
+		if lane[c] || walled[c] || s.blocking(c) {
 			return nil
 		}
 		if !s.free(c) {
@@ -370,7 +310,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		funnelReserved = append(funnelReserved, c)
 		return nil
 	}
-	for at, n := best.low, 0; n < best.width; at, n = addCell(at, p), n+1 {
+	for at, n := low, 0; n < width; at, n = addCell(at, p), n+1 {
 		if err := wall(at); err != nil {
 			return DefenseLayout{}, err
 		}

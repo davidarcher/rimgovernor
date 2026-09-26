@@ -13,54 +13,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestDefenseRegionStaysInsideMapAndBound(t *testing.T) {
+// The census region is the plan's killbox and approach, inside the native
+// bound; without a plan the layout waits (#789).
+func TestDefenseKillboxRegionFromThePlan(t *testing.T) {
 	t.Parallel()
 	bounds := policy.Bounds{Width: 250, Height: 250}
-	// No complete extent geometry: the previous Home-centred derivation.
-	region, err := defenseRegion(observation.ColonyProjection{Bounds: bounds, Center: domain.Cell{X: 125, Z: 125}})
-	if err != nil || region.Min != (domain.Cell{X: 103, Z: 103}) || region.Max != (domain.Cell{X: 147, Z: 147}) || region.Cells() > 2048 {
-		t.Fatalf("%+v %d %v", region, region.Cells(), err)
+	if _, _, _, ok := defenseKillbox(observation.ColonyProjection{Bounds: bounds}); ok {
+		t.Fatal("a killbox without a plan")
 	}
-	edge, err := defenseRegion(observation.ColonyProjection{Bounds: bounds, Center: domain.Cell{X: 3, Z: 248}})
-	if err != nil || edge.Min != (domain.Cell{X: 0, Z: 226}) || edge.Max != (domain.Cell{X: 25, Z: 249}) {
-		t.Fatalf("%+v %v", edge, err)
-	}
-}
-
-// TestDefenseRegionReadsColonyExtent: with complete extent geometry the
-// census window anchors on the established footprint, still holding Home.
-func TestDefenseRegionReadsColonyExtent(t *testing.T) {
-	t.Parallel()
-	bounds := policy.Bounds{Width: 250, Height: 250}
-	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 150, Z: 150}, domain.North, "WoodLog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	facts := policy.RoutineFacts{
-		CurrentConstruction: domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "w", Building: wall, Cells: []domain.Cell{{X: 150, Z: 150}}}}}),
-		HomeCoverage: domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{
-			ID: "w", Cells: []domain.Cell{{X: 150, Z: 150}}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)),
-			ExtentGeometry: domain.Known(policy.HomeExtentGeometry{}),
-		}}}),
-	}
-	projection := observation.ColonyProjection{Bounds: bounds, Center: domain.Cell{X: 125, Z: 125}, Facts: facts}
-	region, err := defenseRegion(projection)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Extent centre (150,150) is 25 cells from Home; the 22-cell window is
-	// shifted back so Home stays on its border.
-	if region.Min != (domain.Cell{X: 125, Z: 125}) || region.Max != (domain.Cell{X: 169, Z: 169}) || region.Cells() > 2048 {
-		t.Fatalf("%+v %d", region, region.Cells())
-	}
-	// The same facts without complete geometry keep the previous derivation.
-	facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "w", Cells: []domain.Cell{{X: 150, Z: 150}}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0))}}})
-	projection.Facts = facts
-	if region, err = defenseRegion(projection); err != nil || region.Min != (domain.Cell{X: 103, Z: 103}) {
-		t.Fatalf("%+v %v", region, err)
+	plan := policy.LayoutPlan{Reservations: []policy.LayoutReservation{
+		{Kind: policy.ReserveKillbox, Area: policy.Rectangle{X: 95, Z: 53, Width: 11, Height: 10}},
+		{Kind: policy.ReserveKillboxApproach, Area: policy.Rectangle{X: 99, Z: 42, Width: 3, Height: 8}},
+		{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 60, Z: 50, Width: 39, Height: 3}},
+	}}
+	k, region, home, ok := defenseKillbox(observation.ColonyProjection{Bounds: bounds, LayoutPlan: domain.Known(plan)})
+	if !ok || k.Entry != (domain.Cell{X: 100, Z: 50}) || k.Toward != domain.North || region.Cells() > 2048 || home != (domain.Cell{X: 100, Z: 58}) {
+		t.Fatalf("%+v %+v %v %v", k, region, home, ok)
 	}
 }
-
 func TestDefenseCellFactsLeaveFogUnknown(t *testing.T) {
 	t.Parallel()
 	fogged := defenseCellFacts(bridge.DefenseCell{Cell: domain.Cell{X: 1, Z: 2}, Fogged: true, Walkable: true})
@@ -219,7 +189,7 @@ func TestDefenseCensusFloorStandsByTerrain(t *testing.T) {
 	// A floor the native preview refused is dropped from the tier alone;
 	// the cover and the other positions' floors stay.
 	other := domain.Cell{X: 114, Z: 127}
-	kept := defenseWithoutFloors([]store.DefenseBuilding{{Definition: "Barricade", Cell: cover}, {Definition: "WoodPlankFloor", Cell: shooter}, {Definition: "WoodPlankFloor", Cell: other}, {Definition: "Barricade", Cell: shooter}}, map[domain.Cell]bool{shooter: true})
+	kept := defenseWithoutFloors([]store.DefenseBuilding{{Definition: "Barricade", Cell: cover}, {Definition: "WoodPlankFloor", Cell: shooter}, {Definition: "WoodPlankFloor", Cell: other}, {Definition: "Barricade", Cell: shooter}}, map[domain.Cell]bool{shooter: true}, false)
 	if len(kept) != 3 || kept[0].Cell != cover || kept[1].Cell != other || kept[2].Definition != "Barricade" {
 		t.Fatalf("%+v", kept)
 	}
@@ -277,14 +247,19 @@ func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
 	record := store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 142, Z: 133}, Tiers: []store.DefenseTierRecord{
 		{Name: "funnel", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 141, Z: 128}, Definition: "Wall"}, {Cell: domain.Cell{X: 144, Z: 133}, Definition: "Wall"}}},
 		{Name: "firing_line", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 143, Z: 125}, Definition: "Barricade"}}},
+		{Name: "perimeter-00", Buildings: []store.DefenseBuilding{{Cell: domain.Cell{X: 10, Z: 10}, Definition: "Wall"}, {Cell: domain.Cell{X: 12, Z: 11}, Definition: "Wall"}}},
 	}}
-	got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250})
+	got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, "")
 	want := bridge.CellRect{Min: domain.Cell{X: 140, Z: 124}, Max: domain.Cell{X: 145, Z: 134}}
 	if got != want {
 		t.Fatalf("region %+v, want %+v", got, want)
 	}
-	edge := defenseRecordRegion(store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 0, Z: 249}}, policy.Bounds{Width: 250, Height: 250})
+	edge := defenseRecordRegion(store.DefenseLayoutRecord{Chokepoint: domain.Cell{X: 0, Z: 249}}, policy.Bounds{Width: 250, Height: 250}, "")
 	if edge != (bridge.CellRect{Min: domain.Cell{X: 0, Z: 248}, Max: domain.Cell{X: 1, Z: 249}}) {
 		t.Fatalf("edge region %+v", edge)
+	}
+	// A perimeter section is read on its own.
+	if got := defenseRecordRegion(record, policy.Bounds{Width: 250, Height: 250}, "perimeter-00"); got != (bridge.CellRect{Min: domain.Cell{X: 9, Z: 9}, Max: domain.Cell{X: 13, Z: 12}}) {
+		t.Fatalf("section region %+v", got)
 	}
 }

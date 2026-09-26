@@ -43,26 +43,6 @@ func TestClockEstablishesOnlyKnownExtent(t *testing.T) {
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("known extent not idempotently established: %v %v", rows, err)
 	}
-	r := &RoutineDefenseLayoutPlanner{reviewer: &RoutineReviewer{player: s.player}}
-	p.Center = cell
-	before, err := r.extentRegion(ctx, snapshot, p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = s.player.journal.AddExpansionArea(ctx, snapshot, 100, "east", []domain.Cell{{X: 80, Z: 4}}, "test"); err != nil {
-		t.Fatal(err)
-	}
-	after, err := r.extentRegion(ctx, snapshot, p)
-	if err != nil || after == before {
-		t.Fatalf("consumer ignored expansion: %v %v %v", before, after, err)
-	}
-	if err = s.player.journal.RemoveExpansionArea(ctx, snapshot, 100, "east", "test"); err != nil {
-		t.Fatal(err)
-	}
-	restored, err := r.extentRegion(ctx, snapshot, p)
-	if err != nil || restored != before {
-		t.Fatalf("consumer retained removed expansion: %v %v", restored, err)
-	}
 	if err = s.player.journal.AddExpansionArea(ctx, snapshot, 150, "later", []domain.Cell{{X: 70, Z: 4}}, "newer than cached census"); err != nil {
 		t.Fatal(err)
 	}

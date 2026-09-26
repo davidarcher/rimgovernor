@@ -4,7 +4,6 @@ import (
 	"context"
 	"sort"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -85,31 +84,4 @@ func (p *Player) ChangeExpansionArea(ctx context.Context, world store.World, id,
 		return cells[i].X < cells[j].X || cells[i].X == cells[j].X && cells[i].Z < cells[j].Z
 	})
 	return p.journal.AddExpansionArea(call, state.Snapshot, identity.Tick, id, cells, reason)
-}
-
-func (r *RoutineDefenseLayoutPlanner) extentRegion(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) (bridgeRegion bridge.CellRect, err error) {
-	history, err := r.reviewer.player.journal.EstablishedColonyExtent(ctx, snapshot, projection.Identity.Tick)
-	if err != nil {
-		return bridgeRegion, err
-	}
-	areas, err := r.reviewer.player.journal.ExpansionAreas(ctx, snapshot, projection.Identity.Tick)
-	if err != nil {
-		return bridgeRegion, err
-	}
-	if len(history) == 0 && len(areas) == 0 {
-		return defenseRegion(projection)
-	}
-	extent := policy.ColonyExtent{}
-	for _, row := range history {
-		extent.Regions = append(extent.Regions, row.Region)
-	}
-	request := policy.ExtentWindowRequest{Extent: domain.Known(extent), Focus: projection.Center, Bounds: projection.Bounds, Half: defenseSiteHalfExtent}
-	for _, area := range areas {
-		request.Areas = append(request.Areas, area.Cells)
-	}
-	window, _, err := policy.ExtentWindow(request)
-	if err == nil {
-		clockSchedulerLog("defense-layout: census window from colony extent %+v", window)
-	}
-	return bridge.CellRect{Min: domain.Cell{X: window.X, Z: window.Z}, Max: domain.Cell{X: window.X + window.Width - 1, Z: window.Z + window.Height - 1}}, err
 }

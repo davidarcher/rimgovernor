@@ -1,26 +1,30 @@
-// Package defense holds the defensive-layout vertical (issue #5, B06c) end to end against a live game and a live rimgovernor "serve"
-// service: on a constrained site (a granite band with one corridor gap, laid
-// by the private test/defense_setup fixture) the RoutineDefenseLayoutPlanner
-// chooses the chokepoint, builds every tier natively (firing line, funnel,
-// trap corridor), and the stored layout is re-verified by an independent
-// native spatial-access read with its walls and barricades blocked and by a native
-// inspection that no colonist stands on a trap. A real RaidEnemy edge
-// assault is then raised and the RoutineDefensePlanner must respond with
-// hold-the-line (method "hold-…"). The service then holds the raid itself
-// -- the scheduler admits bounded combat watch windows acknowledging the
-// live hostiles while the ActiveCombat goal has an admitted plan (#69) --
-// and the run waits for the goal to recover, then for the aftermath (#72):
-// the hold plan's drafts are released and the layout planner re-admits
-// every tier the raid degraded (a sprung spike trap is destroyed; a
-// breached wall is gone) until the stored record is verified standing
-// again within a bounded number of ticks. The repair is the planner's own
-// (#117): before the repair service starts, the fixture switches the
-// game's auto-rebuild off, removes its pending trap blueprints and vanishes
-// a surviving trap, so every missing trap can only be replaced by a
-// re-admitted tier method. Natively the run then asserts that the raiders
-// are dead or downed, at least one trap sprung, the trap and wall counts
-// match the audited layout, the breached cell holds a trap again and no
-// colonist is left drafted.
+// Package defense holds the defensive-layout vertical (issue #5, B06c; the
+// v2 perimeter, #789) end to end against a live game and a live rimgovernor
+// "serve" service. On the tribal8 baseline with stone blocks stocked, the
+// RoutineDefenseLayoutPlanner anchors its corridor on the layout plan's
+// killbox opening, builds every tier natively (firing line, funnel, trap
+// corridor) and the plan's 3-thick stone perimeter wall with its 3-door
+// gates, section by section. The stored layout is re-verified by an
+// independent native spatial-access read with every wall and barricade
+// blocked (the gates' doors open for colonists, so every colonist still
+// reaches the killbox entry and every colony door through them) and by a
+// native inspection that no colonist stands on a trap. A real RaidEnemy
+// edge assault is then raised at the opening and the RoutineDefensePlanner
+// must respond with hold-the-line (method "hold-…"). The service then
+// holds the raid itself -- the scheduler admits bounded combat watch
+// windows acknowledging the live hostiles while the ActiveCombat goal has
+// an admitted plan (#69) -- and the run waits for the goal to recover, then
+// for the aftermath (#72): the hold plan's drafts are released and the
+// layout planner re-admits every tier the raid degraded (a sprung spike
+// trap is destroyed; a breached wall is gone) until the stored record is
+// verified standing again within a bounded number of ticks. The repair is
+// the planner's own (#117): before the repair service starts, the fixture
+// switches the game's auto-rebuild off, removes its pending trap blueprints
+// and vanishes a surviving trap, so every missing trap can only be replaced
+// by a re-admitted tier method. Natively the run then asserts that the
+// raiders are dead or downed, at least one trap in the opening sprung, the
+// trap and wall counts match the audited layout, the breached cell holds a
+// trap again and no colonist is left drafted.
 //
 // The other threat responses and layout decisions (bypass, breach, siege,
 // drop, predator, hostile buildings, turrets, cover, stocked projection)
@@ -29,14 +33,6 @@
 //
 // Only one GABP client may hold the game at a time: the case's fixture
 // session and the service's session are used strictly in turn.
-//
-// tools/defense-checkpoint builds the layout on the tribal8 baseline,
-// audits it, then saves the game as the committed checkpoint
-// (scripts/fixtures/saves/RimGovernor-defense-layout.rws plus its
-// .checkpoint.json: the layout record and the guarded-construction site).
-// defense/raid resumes from that checkpoint: it re-runs the cheap layout
-// audits and goes straight to the raid. The checkpoint is fixture-mod
-// state, so regenerate it after fixture or save-format changes.
 package defense
 
 import (
@@ -44,7 +40,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -61,28 +56,26 @@ import (
 )
 
 const (
-	// checkpointName is the committed layout checkpoint the raid cases
-	// resume from, under cases.CommittedSavesDir.
-	checkpointName = "RimGovernor-defense-layout"
-	// layoutTimeout bounds the native layout build, raidTimeout the raid
-	// response and resolution, repairTimeout the post-raid draft release and
-	// layout repair in wall time (raid injuries are tended first:
-	// CriticalMedical suspends the layout goal) and repairTicks the same in
-	// game ticks from the tick the raid resolved (one day).
-	layoutTimeout = 20 * time.Minute
+	// layoutTimeout bounds the native layout build (the killbox's tiers and
+	// every perimeter section), raidTimeout the raid response and
+	// resolution, repairTimeout the post-raid draft release and layout
+	// repair in wall time (raid injuries are tended first: CriticalMedical
+	// suspends the layout goal) and repairTicks the same in game ticks from
+	// the tick the raid resolved (one day).
+	layoutTimeout = 150 * time.Minute
 	raidTimeout   = 8 * time.Minute
 	repairTimeout = 15 * time.Minute
 	repairTicks   = int64(60000)
+	// perimeterStacks of BlocksGranite (75 a stack) cover the wall: 3 cells
+	// thick round the core, the yard and the fields, 5 blocks a wall and 25
+	// a door.
+	perimeterStacks = 120
 )
 
 // variant is one case's scenario: the edge raid staged after the layout
-// (its RaidStrategyDef/PawnsArrivalModeDef), whether the layout comes from
-// the committed checkpoint, and whether the run ends by writing that
-// checkpoint instead of staging the raid.
+// (its RaidStrategyDef/PawnsArrivalModeDef).
 type variant struct {
 	strategy, arrival, threat string
-	fromCheckpoint            bool
-	writeCheckpoint           bool
 }
 
 func init() {
@@ -98,42 +91,19 @@ func init() {
 	// forbidding the stack; without it every development goal, the layout's
 	// cover clearance included, stays unselected after the raid (#620).
 	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply"}, Prefix: "defense"}
-	// The baseline save keeps the site deterministic; a random debug colony
-	// can spawn beside ruins the rock band cannot close.
+	// The baseline save keeps the site deterministic.
 	baseline := cases.Save{Name: sustained.BaselineSave}
-	checkpoint := cases.Save{Name: checkpointName, From: cases.CommittedSaves()}
-	register := func(name, scope string, start cases.Start, budget time.Duration, v variant) {
-		var reason string
-		if budget > cases.MaxBudget {
-			reason = "layout build and audit, or raid answer and repair to the audited state, are one native campaign"
-		}
-		cases.Register(cases.Case{
-			Name: name, Scope: scope, Start: start, Serve: spec, Budget: budget, Reason: reason,
-			Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
-		})
-	}
-	const audit = "the routine planner chooses the corridor chokepoint on a fixture-constrained site, builds every tier natively, " +
-		"the layout is re-verified by independent spatial-access and trap-cell reads"
-	register("tools/defense-checkpoint", "Checkpoint generation: "+audit+", then the game is saved as the committed "+checkpointName+
-		" checkpoint defense/raid resumes from.", baseline, 30*time.Minute,
-		variant{threat: "raid", writeCheckpoint: true})
-	register("defense/raid", "Native defensive layout vertical (#5 M4) from the committed layout checkpoint: the saved layout is re-audited, "+
-		"a real RaidEnemy edge assault is answered with hold-the-line, and afterwards the defenders are undrafted and the layout is repaired to its audited state (#72).",
-		checkpoint, 30*time.Minute, variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid", fromCheckpoint: true})
-}
-
-// layoutCheckpoint is what a raid-only run needs besides the save itself:
-// the layout the service built (the raid assertions compare the hold plan
-// against it) and the guarded-construction site the service is pointed at.
-type layoutCheckpoint struct {
-	Layout      store.DefenseLayoutRecord `json:"layout"`
-	SiteX       int                       `json:"siteX"`
-	SiteZ       int                       `json:"siteZ"`
-	SavedAtTick int64                     `json:"savedAtTick"`
-}
-
-func checkpointPath(root, name string) string {
-	return filepath.Join(root, "profile", "Saves", name+".checkpoint.json")
+	v := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid"}
+	cases.Register(cases.Case{
+		Name: "defense/perimeter",
+		Scope: "Layout v2 perimeter (#789) and the defensive layout vertical (#5 M4): the routine planner anchors the corridor on the layout plan's killbox " +
+			"opening and builds every tier and the 3-thick stone wall with its 3-door gates natively; independent spatial-access and trap-cell reads " +
+			"prove colonists pass the gates; a real RaidEnemy edge assault walks to the opening and is answered with hold-the-line, and afterwards " +
+			"the defenders are undrafted and the layout is repaired to its audited state (#72).",
+		Start: baseline, Serve: spec, Budget: 3 * time.Hour,
+		Reason: "the whole perimeter's build, the raid answer and the repair are one native campaign",
+		Run:    func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
+	})
 }
 
 type apiFunc func(method, path string, body map[string]any, token string) (map[string]any, int, error)
@@ -180,7 +150,7 @@ func (s *service) wait(budget time.Duration) na.Wait {
 
 func run(ctx context.Context, s cases.Session, v variant) error {
 	report, h, identity := s.Report(), s.Harness(), s.Identity()
-	root, output := s.Config().Root, s.Config().Output
+	output := s.Config().Output
 	report["raid"] = map[string]any{"strategy": v.strategy, "arrival": v.arrival, "threat": v.threat}
 	// Releasing the harness before a launch is the service's own business:
 	// Session.Serve first answers any colony-naming dialog through the
@@ -202,7 +172,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return h, nil
 	}
 	world := store.World{Colony: domain.ColonyID(na.AsString(identity["colonyId"])), Load: domain.LoadID(na.AsString(identity["loadToken"])), Map: domain.MapID(na.AsNumber(identity["mapId"]))}
-	for _, want := range []string{"test/defense_setup", "test/guarded_construction_prepare"} {
+	for _, want := range []string{"test/defense_setup", "test/guarded_construction_prepare", na.LabSpawnTool} {
 		if !na.Contains(s.Names(), want) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture DefenseFixture,GuardedConstructionFixture", want)
 		}
@@ -226,136 +196,106 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	launch := func(name string) (*service, error) {
 		return launchService(ctx, s, name, identity, siteX, siteZ, report)
 	}
-	if v.fromCheckpoint {
-		data, err := os.ReadFile(checkpointPath(root, checkpointName))
+	// The band, the stock, the rifles and the construction site are
+	// staged here, in the run body, so a resume from the ring (#249)
+	// finds them in the save already: the resumed entry's state names
+	// the site the fresh run chose, and the prep is skipped rather than
+	// laid again on the colonists' shifted centre (#316).
+	var staged bool
+	if entry, ok := s.Resumed(); ok {
+		if state, ok := na.AsMap(entry.State["fixture"]); ok {
+			siteX, siteZ = int(na.AsNumber(state["siteX"])), int(na.AsNumber(state["siteZ"]))
+			staged = true
+			report["fixture_resumed"] = state
+		}
+	}
+	if !staged {
+		if _, err := fixture("stock", map[string]any{"op": "stock"}); err != nil {
+			return err
+		}
+		ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
 		if err != nil {
-			return fmt.Errorf("read checkpoint: %w", err)
+			return err
 		}
-		var cp layoutCheckpoint
-		if err := json.Unmarshal(data, &cp); err != nil {
-			return fmt.Errorf("decode checkpoint: %w", err)
-		}
-		layout, siteX, siteZ = cp.Layout, cp.SiteX, cp.SiteZ
-		report["checkpoint"] = map[string]any{"name": checkpointName, "savedAtTick": cp.SavedAtTick}
-		// The raid service starts on a fresh state file; seed it with the
-		// record exactly as the layout session stored it, under the load it
-		// was built in. The reload minted a new load token, so the layout
-		// review must adopt the record and re-observe its tiers before combat
-		// holds the line -- the same path a player's save/reload takes.
-		seed, err := store.Open(ctx, statePath)
+		report["ranged"] = ranged
+		construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
 		if err != nil {
-			return fmt.Errorf("seed layout store: %w", err)
+			return err
 		}
-		err = seed.SaveDefenseLayout(ctx, layout)
-		if closeErr := seed.Close(); err == nil {
+		if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
+			return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
+		}
+		sites := na.AsSlice(construction["sites"])
+		if len(sites) != 1 {
+			return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
+		}
+		site0, _ := na.AsMap(sites[0])
+		siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
+		// The perimeter is stone: stock the blocks beside the colony's
+		// construction site so the wall's sections are admitted as fast as
+		// they are built.
+		for i := 0; i < perimeterStacks; i++ {
+			if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "BlocksGranite", X: siteX, Z: siteZ, Count: 75}); err != nil {
+				return err
+			}
+		}
+		report["stone_blocks"] = perimeterStacks * 75
+		before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
+		if err != nil {
+			return err
+		}
+		report["inspect_before"] = before
+		if int(na.AsNumber(before["traps"])) != 0 {
+			return fmt.Errorf("fresh colony already has traps: %#v", before)
+		}
+		na.SetCheckpointState("fixture", map[string]any{"siteX": siteX, "siteZ": siteZ})
+	}
+	// A resumed store may already hold the finished layout (the run
+	// failed past it): then the layout service has nothing to build.
+	if staged {
+		stored, err := store.Open(ctx, statePath)
+		if err != nil {
+			return fmt.Errorf("open resumed store: %w", err)
+		}
+		r, ok, err := stored.LoadDefenseLayout(ctx, world)
+		if closeErr := stored.Close(); err == nil {
 			err = closeErr
 		}
 		if err != nil {
-			return fmt.Errorf("seed layout: %w", err)
+			return fmt.Errorf("resumed layout: %w", err)
 		}
-		// Storyteller comps come back with the load; silence them again.
-		if _, err := fixture("quiet", map[string]any{"op": "quiet"}); err != nil {
-			return err
-		}
-	} else {
-		// The band, the stock, the rifles and the construction site are
-		// staged here, in the run body, so a resume from the ring (#249)
-		// finds them in the save already: the resumed entry's state names
-		// the site the fresh run chose, and the prep is skipped rather than
-		// laid again on the colonists' shifted centre (#316).
-		var staged bool
-		if entry, ok := s.Resumed(); ok {
-			if state, ok := na.AsMap(entry.State["fixture"]); ok {
-				siteX, siteZ = int(na.AsNumber(state["siteX"])), int(na.AsNumber(state["siteZ"]))
-				staged = true
-				report["fixture_resumed"] = state
-			}
-		}
-		if !staged {
-			terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
-			if err != nil {
-				return err
-			}
-			report["terrain"] = terrain
-			if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
-				return err
-			}
-			ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
-			if err != nil {
-				return err
-			}
-			report["ranged"] = ranged
-			construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
-			if err != nil {
-				return err
-			}
-			if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
-				return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
-			}
-			sites := na.AsSlice(construction["sites"])
-			if len(sites) != 1 {
-				return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
-			}
-			site0, _ := na.AsMap(sites[0])
-			siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
-			before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
-			if err != nil {
-				return err
-			}
-			report["inspect_before"] = before
-			if int(na.AsNumber(before["traps"])) != 0 {
-				return fmt.Errorf("fresh colony already has traps: %#v", before)
-			}
-			na.SetCheckpointState("fixture", map[string]any{"siteX": siteX, "siteZ": siteZ})
-		}
-		// A resumed store may already hold the finished layout (the run
-		// failed past it): then the layout service has nothing to build.
-		if staged {
-			stored, err := store.Open(ctx, statePath)
-			if err != nil {
-				return fmt.Errorf("open resumed store: %w", err)
-			}
-			r, ok, err := stored.LoadDefenseLayout(ctx, world)
-			if closeErr := stored.Close(); err == nil {
-				err = closeErr
-			}
-			if err != nil {
-				return fmt.Errorf("resumed layout: %w", err)
-			}
-			if ok && r.Complete {
-				layout = r
-				data, _ := json.Marshal(layout)
-				report["layout_record"] = json.RawMessage(data)
-			}
-		}
-		if !layout.Complete {
-			var err error
-			if err = closeClient(); err != nil {
-				return fmt.Errorf("close fixture-prep bridge session: %w", err)
-			}
-
-			// Scenario 1: the layout is planned on the constrained site and every
-			// tier is built natively under the live routine reviewer/planner.
-			svc, err = launch("layout")
-			if err != nil {
-				return err
-			}
-			defer svc.stop()
-			layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(layoutTimeout), report)
-			if err != nil {
-				return fmt.Errorf("layout: %w", err)
-			}
-			svc.stop()
-			report["layout_authority"] = svc.keepAlive.snapshot()
-
-			h, err = reopenHarness()
-			if err != nil {
-				return err
-			}
+		if ok && r.Complete {
+			layout = r
+			data, _ := json.Marshal(layout)
+			report["layout_record"] = json.RawMessage(data)
 		}
 	}
-	// The audits below run on a resumed checkpoint too: they are cheap
-	// reads, and they prove the save still carries the layout it claims.
+	if !layout.Complete {
+		var err error
+		if err = closeClient(); err != nil {
+			return fmt.Errorf("close fixture-prep bridge session: %w", err)
+		}
+
+		// Scenario 1: the layout is planned on the constrained site and every
+		// tier is built natively under the live routine reviewer/planner.
+		svc, err = launch("layout")
+		if err != nil {
+			return err
+		}
+		defer svc.stop()
+		layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(layoutTimeout), report)
+		if err != nil {
+			return fmt.Errorf("layout: %w", err)
+		}
+		svc.stop()
+		report["layout_authority"] = svc.keepAlive.snapshot()
+
+		h, err = reopenHarness()
+		if err != nil {
+			return err
+		}
+	}
+	// The audits below are cheap reads proving the layout stands.
 	after, err := fixture("inspect-after-layout", map[string]any{"op": "inspect"})
 	if err != nil {
 		return err
@@ -411,21 +351,33 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	if err := assertCover(fire, layout); err != nil {
 		return fmt.Errorf("lines of fire after layout: %w", err)
 	}
-	if v.writeCheckpoint {
-		if err := na.CheckCommittedSaveHeadroom(ctx, h, report); err != nil {
-			return err
+	// The perimeter stood with its gates: the access audit above blocked
+	// every wall of it, so colonists reached the entry through the doors.
+	sections, walls, doors := 0, 0, 0
+	for _, tier := range layout.Tiers {
+		if !policy.IsPerimeterTier(tier.Name) || len(tier.Buildings) == 0 {
+			continue
 		}
-		committed := cases.CommittedSaves()
-		if err := writeCheckpoint(ctx, h, root, committed, checkpointName, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
-			return fmt.Errorf("checkpoint: %w", err)
+		sections++
+		if !tier.Built {
+			return fmt.Errorf("perimeter section %s not built", tier.Name)
 		}
-		report["checkpoint"] = map[string]any{"name": checkpointName, "path": checkpointPath(root, checkpointName), "committed": committed}
-		return nil
+		for _, b := range tier.Buildings {
+			if b.Definition == "Door" {
+				doors++
+			} else {
+				walls++
+			}
+		}
+	}
+	report["perimeter"] = map[string]any{"sections": sections, "walls": walls, "gate_doors": doors}
+	if sections == 0 || doors < 3 {
+		return fmt.Errorf("layout has no perimeter wall with gates: %d sections, %d gate doors", sections, doors)
 	}
 
 	// Scenario 2/3: a real edge raid.
-	// The checkpoint was saved with the colonists parked inside the
-	// corridor they had been building. A hold plan drafts and moves
+	// The colonists may be parked inside the corridor they had been
+	// building. A hold plan drafts and moves
 	// them one action per window, so a raider reaching the corridor
 	// first bounced authority on a colonist-health stop and settled
 	// the plan before dispatch (#222). The line is held from the
@@ -638,68 +590,6 @@ func edgeSide(toward domain.Rotation) string {
 // harness session must be closed), waits for it to attach to the fixture's
 // identity, submits the one player building plan the routine arbitration
 // slot needs, acquires authority and keeps it alive, and opens the journal.
-// writeCheckpoint saves the running game and stages the save beside the
-// baseline under root/profile/Saves, where Prepare copies every save into the
-// headless profile, so a later -from-checkpoint run loads it like any other;
-// the same two files go to the committed checkpoint directory when set.
-// The game writes into the active profile's Saves directory: headless runs
-// use root/headless-profile, rendered runs root/profile itself.
-func writeCheckpoint(ctx context.Context, h *na.Harness, root, checkpoints, name string, cp layoutCheckpoint) error {
-	started := time.Now()
-	if _, err := h.Call(ctx, "save-checkpoint", "rimworld/save_game", map[string]any{"saveName": name}); err != nil {
-		return err
-	}
-	staged := filepath.Join(root, "profile", "Saves", name+".rws")
-	deadline := started.Add(60 * time.Second)
-	for {
-		for _, profile := range []string{"headless-profile", "profile"} {
-			candidate := filepath.Join(root, profile, "Saves", name+".rws")
-			info, err := os.Stat(candidate)
-			if err != nil || info.Size() == 0 || info.ModTime().Before(started.Add(-time.Second)) {
-				continue
-			}
-			if candidate != staged {
-				if err := copyFile(candidate, staged); err != nil {
-					return err
-				}
-			}
-			data, err := json.MarshalIndent(cp, "", "  ")
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(checkpointPath(root, name), data, 0644); err != nil {
-				return err
-			}
-			if checkpoints == "" {
-				return nil
-			}
-			if err := os.MkdirAll(checkpoints, 0755); err != nil {
-				return err
-			}
-			if err := copyFile(staged, filepath.Join(checkpoints, name+".rws")); err != nil {
-				return err
-			}
-			return os.WriteFile(filepath.Join(checkpoints, name+".checkpoint.json"), data, 0644)
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("save %s.rws did not appear under root/headless-profile/Saves or root/profile/Saves", name)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Second):
-		}
-	}
-}
-
-func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(dst, data, 0644)
-}
-
 func launchService(ctx context.Context, s cases.Session, name string, identity map[string]any, siteX, siteZ int, report na.Report) (*service, error) {
 	// Every launch shares one profile and state journal (na.Serve): the
 	// journal binds its clock inbox to the first profile path and refuses

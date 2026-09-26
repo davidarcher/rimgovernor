@@ -60,7 +60,6 @@ func TestHarnessInputsTrackInputs(t *testing.T) {
 		"AGENTS.md",
 		"go/internal/nativeaccept/cases/defense/defense.go",
 		"scripts/fixtures/DefenseFixture.cs",
-		"scripts/fixtures/saves/RimGovernor-defense-layout.rws",
 		"contracts/fixtures/colony-core.json",
 	} {
 		if has(skip) {
@@ -75,7 +74,7 @@ func TestHarnessInputsTrackInputs(t *testing.T) {
 }
 
 // A case's inputs carry the fixture sources whose ops its area calls, the
-// sources those mention, and the committed save it loads.
+// sources those mention.
 func TestHarnessInputsScopeFixtures(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
@@ -85,7 +84,7 @@ func TestHarnessInputsScopeFixtures(t *testing.T) {
 	if !ok {
 		t.Skip("not in a checkout")
 	}
-	files, err := HarnessInputs(repo, "defense/raid")
+	files, err := HarnessInputs(repo, "defense/perimeter")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,8 +92,6 @@ func TestHarnessInputsScopeFixtures(t *testing.T) {
 		"go/internal/nativeaccept/cases/defense/defense.go",
 		"scripts/fixtures/DefenseFixture.cs",
 		"scripts/fixtures/GuardedConstructionFixture.cs",
-		"scripts/fixtures/saves/RimGovernor-defense-layout.rws",
-		"scripts/fixtures/saves/RimGovernor-defense-layout.checkpoint.json",
 	} {
 		if !slices.Contains(files, want) {
 			t.Errorf("inputs lack %s", want)

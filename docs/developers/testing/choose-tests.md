@@ -635,8 +635,7 @@ Medium`, quiet); `Prepare`/`PrepareRendered` stage it into
 peer's save. A committed save's planning colony facts must read under 768 KiB
 (`na.CheckCommittedSaveHeadroom`): the routine review fails every step once
 that read crosses the 1 MiB envelope, and a case that starts from the save
-adds buildings and loot to it (#320). The checkpoint generator
-(`tools/defense-checkpoint`) refuses to commit past it.
+adds buildings and loot to it (#320).
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep
@@ -972,8 +971,8 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
   Neither land nor full runs them.
 - **off-tier** (#739): fixture generators and diagnostics no tier runs
   (`offTier` in `cmd/acceptance/tier.go`). The generators
-  (`tools/variantsavegen-*`, `tools/defense-checkpoint`) run through
-  `acceptance setup generate <variantsave-<save>|variantsave-all|defense-checkpoint>`
+  (`tools/variantsavegen-*`) run through
+  `acceptance setup generate <variantsave-<save>|variantsave-all>`
   followed by the usual run flags; the diagnostics (`sustained/colony`,
   `sustained/colony-loud`, `sustained/food`, `sustained/matrix-*`,
   `speedmatrix/*`, `lifecycle/headless-soak`, `video/source-spike`,
@@ -1165,12 +1164,12 @@ band of rock, a construction site, a chosen coordinate) records what it
 did with `na.SetCheckpointState(key, value)`; every later bundle's
 sidecar carries that `state`, and on a resume the body reads it back
 through `s.Resumed()` and skips the prep the save already holds instead
-of laying it again over a world that has moved on (`tools/defense-checkpoint`,
+of laying it again over a world that has moved on (`defense/perimeter`,
 #316). A body that reaches a point its later steps cannot resume after (a
 staged raid whose sprung traps would fail the pre-raid audits a resume
 replays) caps the ring there with `na.CapCheckpoints(reason)`: no entry is
 taken past it, only the `failed/` bundle, so a later failure always resumes
-from the last pre-raid entry and stages the raid again (`defense/raid`,
+from the last pre-raid entry and stages the raid again (`defense/perimeter`,
 #330; the reason lands on the report as `checkpoint_capped`). A body whose
 later steps assume the fresh run's progress has not
 happened and records nothing should declare `NoCheckpoint`. A case that never
@@ -1238,20 +1237,6 @@ case's stage graph from its `result.json`. `-stages` is refused with
 `-tier land` and with `-resume`, and `cmd/land -results` refuses its
 report.
 
-A case whose late scenario depends on minutes of earlier play (the
-defense layout build before its raid) checkpoints the precondition as a
-prepared save instead of replaying it: `tools/defense-checkpoint`
-(`acceptance setup generate defense-checkpoint`) saves the
-game once the layout is built and audited, writing
-`RimGovernor-defense-layout.rws` and `.checkpoint.json` (the layout record and site the
-raid assertions need) to `root/profile/Saves` and to the committed
-[scripts/fixtures/saves](../../../scripts/fixtures/saves/). The
-`defense/raid` case declares
-`cases.Save{From: ...}` and the runner stages those files into the root
-when it lacks them, loads the save, re-runs the cheap layout audits and goes
-straight to the raid; the checkpoint is fixture-mod state, so rebuild it
-after fixture or save-format changes.
-
 ## Available checks
 
 | What changed / what you need to establish | Available support | Requirements and limits |
@@ -1260,7 +1245,7 @@ after fixture or save-format changes.
 | Dashboard behavior and build | `task dashboard:build` runs `pnpm run typecheck`, `pnpm run lint` and `pnpm run build`; `task dashboard:test` runs `pnpm test` (Vitest) | Local pnpm and dashboard dependencies; native UI acceptance is separate. |
 | Shared Protobuf contracts | Official C#/Go generation `--check` for both languages (`task protobuf:build`, ~20 s) | [Generation commands](../../../contracts/schema-generation.md); native adapters additionally need gameplay acceptance. The drift check and the `tools/protobuf/go` module tests are not in the landing loop; the nightly `race` job runs both so a schema edit landed without regeneration is caught there. The C#/Go/C# exchange proof (`task protobuf:test`) proves the pinned runtime and stays manual. |
 | Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/control`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `presentation/media` (needs `-headless=false`), `quest/accept`, `quest/fulfill`, `research/reads`, `rooms/reads`, `settlement/gift`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak` (off-tier); the rendered `video/stream`, `video/feeds`, `video/matrix` and `video/source-spike` (the last two off-tier); the serve-driven `dialog/pause` (#156: a force-pausing choice dialog the game opens is answered and the clock runs again); every other area is listed there too, so trust `acceptance list` over this row) | Disposable prepared colony, matching native DLLs, GABS and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe`/`gabs.exe` by image name — that ends every concurrent worktree's game (seen there as GABS's catalog emptying, `availableTotal: 0`); stop your own via `games_stop` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
-| A threat response or layout decision of the defense planners: sapper bypass, breach fallback, siege, centre drop, hunting predator, hive, ship part, the corridor layout, the turret tier, stocked turret scaling (#341) and raider cover clearance (#581) | `go test ./internal/buildingruntime -run TestDefenseReplay` from `go/`: snapshot replays of routine reviews recorded natively (#742, #744) | Fast and offline. The native end-to-end raid, hold-the-line and repair stay `defense/raid` on the committed layout checkpoint. |
+| A threat response or layout decision of the defense planners: sapper bypass, breach fallback, siege, centre drop, hunting predator, hive, ship part, the turret tier, stocked turret scaling (#341) and raider cover clearance (#581) | `go test ./internal/buildingruntime -run TestDefenseReplay` from `go/`: snapshot replays of routine reviews recorded natively (#742, #744) | Fast and offline. The native end-to-end perimeter build, raid, hold-the-line and repair stay `defense/perimeter` (nightly). |
 | The native per-cell change grid behind `GetCellsRequest.changed_since_tick` (#357): after a full `observations_get_cells` read of a clear 8x8 site, a wall, roof, growing zone, loose stack and floor laid directly by the fixture come back from a read since the first read's tick, `unchanged` counts the rest to the exact area, the delta merged over the first read equals a fresh full read (drift 0), and after one game tick a read since the newer tick omits the older round | `acceptance run cells/changed-since -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against a `CellsFixture` build (`test/cells_prepare` picks the site near a colonist, `test/cells_mutate` mutates it in phases `first`, `second` and `cleanup`); `result.json` carries `first_round`/`second_round` (touched, listed, unchanged) and `drift` | Paused and synchronous; a few seconds. The store's own merge, resync cadence and drift count are Go unit tests (`buildingruntime/clock_planning_window_test.go`). Rerun when `CellTracking.cs`, the `GetCells` handler, `bridge/planning_window.go` or `clock_planning_window.go` changes. |
 | The planning-window view's dirty-chunk refresh (#652): a bundle view of three eight-row bands around the clear 8x8 site, read twice at one paused tick, reuses every band and reads no cell the second time; after each `test/cells_mutate` round (`first`, then `second` a tick later) the next bundle's view equals a compact planning `observations_get_cells` read of the region row for row, room ids and indoors included (only glow in a band validated before the tick is excused) | `acceptance run cells/planning-view-refresh -root <abs root> -output <fresh dir> -rimgovernor <abs exe>` from `go/` against a `CellsFixture` build; `result.json` carries `before`/`stable`/`first`/`second`, each the hop's `timing.observation.planningView` account (chunks, reused, validated, rebuilt, dirty and topology chunks, tiles and cells scanned, cells read, age, retained bytes, resync) plus `drift` | Paused and synchronous; a few seconds. Region/mask changes, reload, rewind, overflow, the scheduled scan and out-of-order publication are the `native-planning-window-view` probe. Rerun when `CellTracking.cs`, `PlanningViewLedger.cs` or `PlanningWindowViewCapture.cs` changes. |
 | The initial shelter on a fresh site is sleeping spots, then wooden beds, then the ring (#612): the `shelter-spots` rung is bound before any `routine-shell-*` plan, every bed of the `shelter-beds` rung is completed before the first wall, no bed cell lies on a ring corner (`policy.ShellCornerCells`) or outside the sited interior, and the roofed native room holds a bed per colonist | `acceptance run shelter/bunks-first` (with `-rimgovernor`) against a `HutShellFixture` build; `result.json` carries `spots`, `beds`, `shell`, `last_bed_tick`/`first_wall_tick`, `colonists`/`housed` and the native room census | Serve-driven on the tribal8 baseline, one run, no stage: 200 wood is dropped beside the spots once they are placed (the baseline's 500 covers the beds, not the ring after them). Rerun when `shelter_bunks.go`, `routine_shelter_bunks.go` or the shell search change. |

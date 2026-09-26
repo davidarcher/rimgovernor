@@ -75,9 +75,15 @@ type DefenseLayoutRecord struct {
 	// raises it as a derived MaintainResource floor until a barrel is
 	// rearmed or the stock returns.
 	FuelShortage []policy.Amount `json:",omitempty"`
+	// Anchored marks a layout proposed on the layout plan's killbox with
+	// the perimeter's sections (#789); an older record is proposed afresh.
+	Anchored bool `json:",omitempty"`
 }
 
-const maxDefenseLayoutBytes = 256 * 1024
+// maxDefenseTiers holds the killbox's tiers and the perimeter's sections.
+const maxDefenseTiers = 160
+
+const maxDefenseLayoutBytes = 1024 * 1024
 
 // Validate rejects a record that could not have come from a policy layout:
 // bad world identity, no firing cells or tiers, or oversized tiers.
@@ -85,7 +91,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if !validIdentity(string(r.World.Colony)) || !validIdentity(string(r.World.Load)) || r.World.Map < 0 || !validIdentity(string(r.Goal)) {
 		return errors.New("defense layout world or goal identity invalid")
 	}
-	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > 8 || len(r.Firing) > 64 || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
+	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > maxDefenseTiers || len(r.Firing) > 64 || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
 	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 {

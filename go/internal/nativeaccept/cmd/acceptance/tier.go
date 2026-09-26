@@ -212,7 +212,7 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 // proofs, a signal rather than a gate.
 var endToEnd = map[string]bool{
 	"campaign/foothold": true, "campaign/recovery": true, "clearance/shrine-breach": true,
-	"defense/raid": true, "food/reserve": true, "production/ladder": true,
+	"defense/perimeter": true, "food/reserve": true, "production/ladder": true,
 	"shelter/bunks-first": true, "shelter/excavation": true, "startup/labor": true,
 	"sustained/colony-stable": true, "sustained/winter": true, "upkeep/campaign": true,
 }

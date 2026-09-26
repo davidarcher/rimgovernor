@@ -11,7 +11,7 @@ import (
 
 // The defense family's threat responses (#744), replayed from defense
 // steps recorded with RIMGOVERNOR_SNAPSHOT_DIR on acceptance runs of the
-// retired native cases from the committed defense-layout checkpoint (see
+// retired native cases from the retired defense-layout checkpoint (see
 // docs/developers/testing/colony-snapshots.md). Each file is the step that
 // admitted the case's answer.
 
@@ -121,28 +121,6 @@ func loadLayout(t *testing.T, path, point string) snapshot.Layout {
 		t.Fatalf("%s records %s, want %s", path, l.Point, point)
 	}
 	return l
-}
-
-// defense/layout: on the fixture-constrained tribal8 site the planner
-// chooses the corridor chokepoint and proposes every tier with a verified
-// firing line (recorded from the proposal's second, lines-of-fire pass).
-func TestDefenseReplayLayoutChoosesTheCorridor(t *testing.T) {
-	t.Parallel()
-	l := loadLayout(t, "testdata/defense/layout-propose.json.gz", snapshot.LayoutPropose)
-	layout, err := policy.DefenseLayouts(l.Request)
-	if err != nil || !layout.LinesVerified {
-		t.Fatal(layout.LinesVerified, err)
-	}
-	if len(layout.TrapLane) == 0 || len(layout.SafeLane) == 0 || len(layout.Firing) == 0 {
-		t.Fatalf("lanes %d/%d firing %d", len(layout.TrapLane), len(layout.SafeLane), len(layout.Firing))
-	}
-	tiers := map[policy.DefenseTierName]bool{}
-	for _, tier := range layout.Tiers {
-		tiers[tier.Name] = len(tier.Buildings) > 0
-	}
-	if !tiers[policy.TierFiringLine] {
-		t.Fatalf("tiers %v", tiers)
-	}
 }
 
 // defense/turrets: with turret research, a fuelled network and steel

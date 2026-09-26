@@ -34,7 +34,7 @@ const (
 	perimeterGatePitch  int32 = 20
 	perimeterCoverBand  int32 = 30
 	killboxHalf         int32 = 5
-	killboxDepth        int32 = 9
+	killboxDepth        int32 = 10
 	approachLeg         int32 = 8
 )
 

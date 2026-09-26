@@ -17,7 +17,7 @@ import (
 
 const setupUsage = `  acceptance setup [-worktree <dir>] [-rimworld <RimWorld dir>] [-harmony <0Harmony.dll>] [-gabs <gabs.exe>]
                    [-fixture A,B] [-rebuild] [-skip-mod] [-skip-binaries]
-  acceptance setup generate <variantsave-<save>|variantsave-all|defense-checkpoint> [run flags]
+  acceptance setup generate <variantsave-<save>|variantsave-all> [run flags]
 `
 
 // setupOptions are the parsed setup flags.
@@ -129,12 +129,10 @@ func fixtureSummary(fixtures []string) string {
 
 // generators maps a `setup generate` name to the registry case that
 // writes the fixture (#739): the variant saves the sustained/matrix-*
-// diagnostics load and the committed defense checkpoint.
+// diagnostics load.
 // They stay registry cases so the runner hosts them, but no tier runs them.
 func generators() map[string][]string {
-	out := map[string][]string{
-		"defense-checkpoint": {"tools/defense-checkpoint"},
-	}
+	out := map[string][]string{}
 	for _, c := range cases.All() {
 		if short, ok := strings.CutPrefix(c.Name, "tools/variantsavegen-"); ok {
 			out["variantsave-"+short] = []string{c.Name}

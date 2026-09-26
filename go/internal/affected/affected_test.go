@@ -167,7 +167,7 @@ func TestSelectFollowsImports(t *testing.T) {
 // them as a shared-input change.
 func TestSelectScopesFixtures(t *testing.T) {
 	r := repo(t)
-	sel, err := Select(r, []string{"scripts/fixtures/DefenseFixture.cs", "scripts/fixtures/saves/RimGovernor-defense-layout.rws"})
+	sel, err := Select(r, []string{"scripts/fixtures/DefenseFixture.cs"})
 	if err != nil {
 		t.Fatal(err)
 	}

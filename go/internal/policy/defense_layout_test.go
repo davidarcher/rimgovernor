@@ -18,6 +18,7 @@ func defenseFixture() DefenseRequest {
 		Definitions: DefenseDefinitions{Sandbag: "Sandbags", Wall: "Wall", WallStuff: "BlocksGranite", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Door: "Door", DoorStuff: "WoodLog", Floor: "WoodPlankFloor"},
 		MinRange:    domain.Known(25.9),
 		Defenders:   3,
+		Killbox:     DefenseKillbox{Entry: domain.Cell{X: 9, Z: 14}, Toward: domain.North, Width: 4},
 		UnitCosts: map[string][]Amount{
 			"Sandbags": {{Resource: "Cloth", Count: 5}}, "Wall": {{Resource: "BlocksGranite", Count: 5}},
 			"Fence": {{Resource: "WoodLog", Count: 2}}, "TrapSpike": {{Resource: "WoodLog", Count: 45}}, "Door": {{Resource: "WoodLog", Count: 25}},
@@ -227,18 +228,32 @@ func TestDefenseLayoutUnknownFactsBlock(t *testing.T) {
 		t.Fatal("missing census became a route")
 	}
 }
-func TestDefenseLayoutNoChokepoint(t *testing.T) {
+func TestDefenseLayoutWaitsForAKillbox(t *testing.T) {
 	r := defenseFixture()
-	for i := range r.Cells {
-		c := &r.Cells[i]
-		if c.Cell.Z < 15 && c.Cell.X >= 1 && c.Cell.X <= 18 {
-			c.Passable, c.Walkable, c.EdgeReachable, c.NaturalRock, c.BlocksSight, c.CoverFill, c.Edifice = domain.Known(true), domain.Known(true), domain.Known(true), domain.Known(false), domain.Known(false), domain.Known(0.0), ""
-		}
-	}
+	r.Killbox = DefenseKillbox{}
 	if _, err := DefenseLayouts(r); err == nil {
-		t.Fatal("18-wide approach accepted as a chokepoint")
+		t.Fatal("a layout without the plan's killbox opening")
 	}
 }
+
+// The funnel leaves the perimeter wall's cells to the perimeter tier.
+func TestDefenseLayoutLeavesThePerimeterWall(t *testing.T) {
+	r := defenseFixture()
+	r.Killbox.Walled = cells(11, 14, 10, 15)
+	layout, err := DefenseLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	funnel, _ := layout.Tier(TierFunnel)
+	got := placed(t, funnel)
+	if _, ok := got[domain.Cell{X: 11, Z: 14}]; ok {
+		t.Fatal(got)
+	}
+	if _, ok := got[domain.Cell{X: 10, Z: 14}]; !ok {
+		t.Fatal(got)
+	}
+}
+
 func TestDefenseLayoutRejectsInvalidRequests(t *testing.T) {
 	for name, edit := range map[string]func(*DefenseRequest){
 		"region outside bounds": func(r *DefenseRequest) { r.Region.Width = 300 },

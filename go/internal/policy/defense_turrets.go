@@ -178,6 +178,10 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 			positions = append(positions, addCell(origin, scale(p, o)))
 		}
 	}
+	// The layout plan's turret slots replace the searched positions (#789).
+	if len(s.r.Killbox.Turrets) > 0 {
+		positions = s.r.Killbox.Turrets
+	}
 	for _, c := range positions {
 		if len(candidates) >= maxTurretCandidates {
 			break

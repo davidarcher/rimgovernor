@@ -21,10 +21,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// defenseSiteHalfExtent keeps the census rectangle around the colony centre
-// inside the native 2048-cell defense site bound (45 x 45 = 2025).
-const defenseSiteHalfExtent = 22
-
 // defenseDefinitions are the native buildings each tier places. Wood keeps
 // the first layout affordable (native Sandbags need fabric or leather, which
 // a young colony rarely holds; a wooden Barricade gives the same 0.55 cover);
@@ -184,6 +180,8 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
+	// A layout from before the plan's killbox (#789) is proposed afresh.
+	stored = stored && record.Anchored
 	if stored && record.World != world {
 		// A reload of the same colony: the geometry is on the map, but which
 		// tiers still stand is re-observed below before the record counts as
@@ -251,6 +249,9 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
+		if err = defensePerimeterTiers(&record, read.Projection); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
@@ -278,7 +279,13 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			clockSchedulerLog("defense-layout: turret gates closed %s", defenseTurretGates(request))
 		}
 	}
-	for _, name := range defenseTierOrder {
+	order := append([]policy.DefenseTierName{}, defenseTierOrder...)
+	for _, t := range record.Tiers {
+		if policy.IsPerimeterTier(t.Name) {
+			order = append(order, t.Name)
+		}
+	}
+	for _, name := range order {
 		tier, buildings, ok := record.Tier(name)
 		if !ok || len(buildings) == 0 || tier.Built {
 			continue
@@ -300,6 +307,22 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			// The census re-opened the tier on a cell it cannot see
 			// (fogged); nothing can be admitted until it can.
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: name}, nil
+		}
+		if policy.IsPerimeterTier(name) {
+			// The wall is stone: the stock's most plentiful block, waited
+			// for the way MaintainStoneShell waits for its material.
+			stuff, ok := defensePerimeterStone(read.Projection, buildings)
+			if !ok {
+				if gate := policy.ResearchGate([]string{policy.StoneShellResearch}, read.Projection.Facts.Research); gate != "" {
+					return RoutineDefenseLayoutResult{Reason: researchWaitReason(gate), Tier: name}, nil
+				}
+				return RoutineDefenseLayoutResult{Reason: defensePerimeterNoStone, Tier: name}, nil
+			}
+			for i, b := range buildings {
+				if buildings[i], err = domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), stuff); err != nil {
+					return RoutineDefenseLayoutResult{}, err
+				}
+			}
 		}
 		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(tier))
 	}
@@ -599,9 +622,9 @@ func abs32(v int32) int32 {
 func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
-	region, err := r.extentRegion(call, state.Snapshot, projection)
-	if err != nil {
-		return err
+	killbox, region, home, ok := defenseKillbox(projection)
+	if !ok {
+		return nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
@@ -611,7 +634,7 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 		return err
 	}
 	request := defenseTurretRequest(read)
-	request.Bounds, request.Home = projection.Bounds, projection.Center
+	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
 	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
@@ -656,7 +679,7 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 func defenseRecordGeometry(record store.DefenseLayoutRecord) policy.DefenseGeometry {
 	g := policy.DefenseGeometry{Entry: record.Entry, Approach: append([]domain.Cell{}, record.TrapLane...), Toward: record.Toward, Firing: append([]domain.Cell{}, record.Firing...), Lanes: append(append([]domain.Cell{}, record.TrapLane...), record.SafeLane...)}
 	for _, tier := range record.Tiers {
-		if tier.Name == policy.TierTurrets {
+		if tier.Name == policy.TierTurrets || policy.IsPerimeterTier(tier.Name) {
 			continue
 		}
 		g.Reserved = append(g.Reserved, tier.Reserved...)
@@ -738,17 +761,28 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 		return nil, nil
 	}
 	projection := read.Projection
-	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseRecordRegion(*record, projection.Bounds))
-	if err != nil {
-		return nil, err
-	}
-	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
-		return nil, err
-	}
 	census := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{}}
-	for _, cell := range site.Cells {
-		if !cell.Fogged {
-			census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
+	// The killbox's tiers share one census rectangle; each perimeter
+	// section is read on its own, the whole ring being past the native
+	// census bound.
+	regions := []bridge.CellRect{defenseRecordRegion(*record, projection.Bounds, "")}
+	for _, tier := range record.Tiers {
+		if policy.IsPerimeterTier(tier.Name) && len(tier.Buildings) > 0 {
+			regions = append(regions, defenseRecordRegion(*record, projection.Bounds, tier.Name))
+		}
+	}
+	for _, region := range regions {
+		site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), region)
+		if err != nil {
+			return nil, err
+		}
+		if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
+			return nil, err
+		}
+		for _, cell := range site.Cells {
+			if !cell.Fogged {
+				census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
+			}
 		}
 	}
 	if topology, known := projection.PowerPlanning.Value(); known {
@@ -845,9 +879,10 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
-	region, err := r.extentRegion(call, state.Snapshot, projection)
-	if err != nil {
-		return policy.DefenseLayout{}, nil, false, err
+	killbox, region, home, ok := defenseKillbox(projection)
+	if !ok {
+		clockSchedulerLog("defense-layout: waiting for the layout plan's killbox")
+		return policy.DefenseLayout{}, nil, false, nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
@@ -857,7 +892,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 		return policy.DefenseLayout{}, nil, false, err
 	}
 	request := defenseTurretRequest(read)
-	request.Bounds, request.Home = projection.Bounds, projection.Center
+	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
 	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
@@ -930,7 +965,9 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		if !ok && preview.NativeWorkPending {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
-		if !ok && tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor {
+		if !ok && (tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor || policy.IsPerimeterTier(tier.Name)) {
+			// A perimeter cell the game refuses (natural rock, a building
+			// in the way) is left out of the wall; the terrain holds it.
 			unfloorable[building.Cell()] = true
 			continue
 		}
@@ -944,9 +981,9 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		}
 	}
 	if len(unfloorable) > 0 {
-		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable)
+		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable, policy.IsPerimeterTier(tier.Name))
 		record.SetTier(tier)
-		clockSchedulerLog("defense-layout.admit: tier=%s floor refused natively on %v; those firing cells stay unfloored", tier.Name, unfloorable)
+		clockSchedulerLog("defense-layout.admit: tier=%s placement refused natively on %v; left out of the tier", tier.Name, unfloorable)
 		if err := p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
@@ -1026,11 +1063,11 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 }
 
 // defenseWithoutFloors is the tier's buildings less the shooter floors on
-// the given cells.
-func defenseWithoutFloors(buildings []store.DefenseBuilding, cells map[domain.Cell]bool) []store.DefenseBuilding {
+// the given cells, or less every building there for a perimeter section.
+func defenseWithoutFloors(buildings []store.DefenseBuilding, cells map[domain.Cell]bool, perimeter bool) []store.DefenseBuilding {
 	kept := make([]store.DefenseBuilding, 0, len(buildings))
 	for _, b := range buildings {
-		if b.Definition != defenseDefinitions.Floor || !cells[b.Cell] {
+		if b.Definition != defenseDefinitions.Floor && !perimeter || !cells[b.Cell] {
 			kept = append(kept, b)
 		}
 	}
@@ -1074,40 +1111,98 @@ func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain
 	return preview, true, nil
 }
 
-// defenseRegion is the inclusive census rectangle centred on the colony,
-// clipped to the map.
-// defenseRegion is the census rectangle the planner reads: the shared colony
-// extent's bounded window (#519), centred on the established footprint and
-// shifted only as far as keeps the Home cell inside, so the census no longer
-// drifts with the colonists' centre. An unknown extent (no complete
-// geometry yet) keeps the previous derivation, a window centred on Home.
-// The window selects cells to read; it grants nothing and paints no Home.
-func defenseRegion(projection observation.ColonyProjection) (bridge.CellRect, error) {
-	f := projection.Facts
-	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{
-		Bounds: domain.Known(projection.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
-		Home: f.HomeCoverage,
-	})
+// defensePerimeterNoStone is a perimeter section waiting on stone blocks
+// once Stonecutting is done.
+const defensePerimeterNoStone RoutineBuildingReason = "no_perimeter_stone"
+
+// Native stuff costs of a stone Wall and Door.
+const (
+	defenseWallStone = 5
+	defenseDoorStone = 25
+)
+
+// defensePerimeterTiers adds the layout plan's wall sections (#789) to a
+// fresh record, after the killbox's tiers, and marks it anchored.
+func defensePerimeterTiers(record *store.DefenseLayoutRecord, projection observation.ColonyProjection) error {
+	record.Anchored = true
+	plan, known := projection.LayoutPlan.Value()
+	if !known {
+		return nil
+	}
+	sections, err := policy.PerimeterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door)
 	if err != nil {
-		return bridge.CellRect{}, err
+		return err
 	}
-	window, source, err := policy.ExtentWindow(policy.ExtentWindowRequest{Extent: extent, Focus: projection.Center, Bounds: projection.Bounds, Half: defenseSiteHalfExtent})
-	if err != nil {
-		return bridge.CellRect{}, err
+	for _, section := range sections {
+		t := store.DefenseTierRecord{Name: section.Name}
+		for _, b := range section.Buildings {
+			t.Buildings = append(t.Buildings, store.DefenseBuilding{Definition: b.Definition(), Cell: b.Cell(), Rotation: b.Rotation(), Stuff: b.Stuff()})
+		}
+		record.Tiers = append(record.Tiers, t)
 	}
-	if source == policy.ExtentWindowExtent {
-		clockSchedulerLog("defense-layout: census window from colony extent %+v", window)
+	return record.Validate()
+}
+
+// defensePerimeterStone picks the stone for a section: the stone-block
+// resource the colony holds most of (cut from the rock nearby), when it
+// covers the whole section.
+func defensePerimeterStone(projection observation.ColonyProjection, buildings []domain.Building) (string, bool) {
+	stock, known := projection.Resources.Value()
+	if !known {
+		return "", false
 	}
-	return bridge.CellRect{Min: domain.Cell{X: window.X, Z: window.Z}, Max: domain.Cell{X: window.X + window.Width - 1, Z: window.Z + window.Height - 1}}, nil
+	need := int64(0)
+	for _, b := range buildings {
+		if b.Definition() == defenseDefinitions.Door {
+			need += defenseDoorStone
+		} else {
+			need += defenseWallStone
+		}
+	}
+	best, most := "", int64(0)
+	for resource, count := range stock {
+		name := string(resource)
+		if strings.HasPrefix(name, "Blocks") && (count > most || count == most && name < best) {
+			best, most = name, count
+		}
+	}
+	return best, best != "" && most >= need
+}
+
+// defenseKillbox reads the layout plan's killbox opening (#789): the anchor
+// the corridor stands in, the census region around it and the home cell
+// deep inside. ok is false until the plan (B1) holds an opening; the layout
+// waits for it.
+func defenseKillbox(projection observation.ColonyProjection) (policy.DefenseKillbox, bridge.CellRect, domain.Cell, bool) {
+	plan, known := projection.LayoutPlan.Value()
+	if !known {
+		return policy.DefenseKillbox{}, bridge.CellRect{}, domain.Cell{}, false
+	}
+	k, region, home, ok := policy.LayoutKillbox(plan, projection.Bounds)
+	if !ok {
+		return policy.DefenseKillbox{}, bridge.CellRect{}, domain.Cell{}, false
+	}
+	return k, bridge.CellRect{Min: domain.Cell{X: region.X, Z: region.Z}, Max: domain.Cell{X: region.X + region.Width - 1, Z: region.Z + region.Height - 1}}, home, true
 }
 
 // defenseRecordRegion is the census rectangle that covers every building the
 // record placed, with a one-cell margin. The colonists' centre drifts as
 // they work and wander, so a census around it can leave the layout outside
 // the rectangle and count a standing tier as lost.
-func defenseRecordRegion(record store.DefenseLayoutRecord, bounds policy.Bounds) bridge.CellRect {
+//
+// With a perimeter section named it covers that section alone; otherwise
+// the killbox's tiers, never the perimeter.
+func defenseRecordRegion(record store.DefenseLayoutRecord, bounds policy.Bounds, section policy.DefenseTierName) bridge.CellRect {
 	min, max := record.Chokepoint, record.Chokepoint
 	for _, tier := range record.Tiers {
+		if section != "" && tier.Name == section && len(tier.Buildings) > 0 {
+			min, max = tier.Buildings[0].Cell, tier.Buildings[0].Cell
+		}
+	}
+	for _, tier := range record.Tiers {
+		if tier.Name != section && (section != "" || policy.IsPerimeterTier(tier.Name)) {
+			continue
+		}
 		for _, b := range tier.Buildings {
 			min.X, min.Z = minInt32(min.X, b.Cell.X), minInt32(min.Z, b.Cell.Z)
 			max.X, max.Z = maxInt32(max.X, b.Cell.X), maxInt32(max.Z, b.Cell.Z)

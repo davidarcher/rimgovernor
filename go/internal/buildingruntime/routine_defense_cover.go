@@ -168,9 +168,9 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	projection := read.Projection
 	tick := projection.Identity.Tick
 	identity := boundary.Identity(state.Snapshot)
-	region, err := r.extentRegion(call, state.Snapshot, projection)
-	if err != nil {
-		return RoutineDefenseLayoutResult{}, false, err
+	killbox, region, home, ok := defenseKillbox(projection)
+	if !ok {
+		return RoutineDefenseLayoutResult{}, false, nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
@@ -180,7 +180,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 		return RoutineDefenseLayoutResult{}, false, err
 	}
 	request := defenseTurretRequest(read)
-	request.Bounds, request.Home, request.Tick = projection.Bounds, projection.Center, tick
+	request.Bounds, request.Home, request.Tick, request.Killbox = projection.Bounds, home, tick, killbox
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	byCell := map[domain.Cell]bridge.DefenseCell{}
 	for _, cell := range site.Cells {
