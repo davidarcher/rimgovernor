@@ -1,0 +1,36 @@
+package observation
+
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
+)
+
+// The census's skills reach DeriveGearRole, so a work-count tie splits on the
+// pawn's best skill (#660).
+func TestApparelPolicySkillsBreakRoleTie(t *testing.T) {
+	skill := func(name string, level int32) *o.Skill {
+		return &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Level: proto.Int32(level), Passion: proto.String("None"), Disabled: proto.Bool(false)}
+	}
+	work := func(name string) *o.WorkSetting {
+		return &o.WorkSetting{DefName: proto.String(name), Priority: proto.Int32(2), Disabled: proto.Bool(false)}
+	}
+	v := &o.ApparelPolicyState{Work: []*o.WorkSetting{work("Construction"), work("Crafting")}, Skills: []*o.Skill{skill("Construction", 3), skill("Crafting", 14)}}
+	state, known := ApparelPolicyFacts(&o.GearLoadout{ApparelPolicy: v}).Value()
+	if !known {
+		t.Fatal("unknown")
+	}
+	if got := policy.DeriveGearRole(state.Role); got != policy.GearIndoor {
+		t.Fatal(got)
+	}
+	v.Skills = nil
+	state, _ = ApparelPolicyFacts(&o.GearLoadout{ApparelPolicy: v}).Value()
+	if _, known := state.Role.Work.Skills.Value(); known {
+		t.Fatal("absent skills read as known")
+	}
+	if got := policy.DeriveGearRole(state.Role); got != policy.GearWorker {
+		t.Fatal(got)
+	}
+}

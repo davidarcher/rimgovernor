@@ -23,5 +23,13 @@ func ApparelPolicyFacts(p *o.GearLoadout) domain.Fact[policy.ApparelPolicyState]
 		priorities = append(priorities, policy.WorkPriority{Work: policy.WorkType(w.GetDefName()), Priority: int(w.GetPriority()), Disabled: w.GetDisabled()})
 	}
 	s.Role.Work.Work = domain.Known(priorities)
+	// An older producer omits skills; the role then splits on priorities alone.
+	if len(v.Skills) > 0 {
+		skills := []policy.WorkSkill{}
+		for _, sk := range v.Skills {
+			skills = append(skills, policy.WorkSkill{Name: sk.GetDefinition().GetDefName(), Level: int(sk.GetLevel()), Passion: sk.GetPassion(), Disabled: sk.GetDisabled()})
+		}
+		s.Role.Work.Skills = domain.Known(skills)
+	}
 	return domain.Known(s)
 }

@@ -39,6 +39,7 @@ namespace HomeBridge.BridgeTools
                     Child = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Child), Adult = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Adult) });
             row.Drafted = p.Drafted;
             if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row.Work.Add(new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });
+            if (p.skills != null) foreach (var s in p.skills.skills) row.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = s.passion.ToString(), Disabled = s.TotallyDisabled });
             return row;
         }
         private static bool Prepare(Operations.SetApparelPolicy c, Common.ObservationContext context, out Pawn p)

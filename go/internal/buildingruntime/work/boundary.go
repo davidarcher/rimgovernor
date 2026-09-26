@@ -70,7 +70,7 @@ func (b *WorkBoundary) InspectWork(ctx context.Context, t executor.Target) (exec
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	settings, tick, err := b.readWork(ctx, w, t.Snapshot)
+	settings, _, err := b.readWork(ctx, w, t.Snapshot)
 	if err != nil {
 		return out, err
 	}
@@ -98,7 +98,7 @@ func (b *WorkBoundary) InspectWork(ctx context.Context, t executor.Target) (exec
 	// The reads need not be simultaneous: the before-token binds the write
 	// to the settings the read listed, and the emergency read may come from
 	// the step's fact cache (#244, #624).
-	tick = domain.Tick(v.Context.GetTick())
+	tick := domain.Tick(v.Context.GetTick())
 	out.Current, out.Tick, out.Work, out.SnapshotToken, out.Accepted = t.Snapshot, tick, w, w.BeforeToken(), true
 	out.Emergency, err = policy.NewEmergencySnapshot(t.Snapshot, tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()
