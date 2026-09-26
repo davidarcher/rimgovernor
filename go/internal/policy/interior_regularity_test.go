@@ -16,12 +16,18 @@ import (
 // interiorRegularityViolations lists every #798 rule a plan's canonical
 // pieces break: rows share one line and one rotation with even gaps and are
 // anchored to a corner or centred; pairs are mirror images; centred pieces
-// sit on the centre line.
+// sit on the centre line; a plan with its room keeps the doors' aisle
+// (#801).
 func interiorRegularityViolations(plan InteriorPlan) []string {
 	f := plan.Frame
 	var out []string
 	if err := ValidateInteriorPieces(f, plan.Canonical); err != nil {
 		out = append(out, err.Error())
+	}
+	if plan.Room.Interior.Width > 0 {
+		if err := InteriorPlanWalkable(plan); err != nil {
+			out = append(out, err.Error())
+		}
 	}
 	rows, pairs := map[string][]InteriorPiece{}, map[string][]InteriorPiece{}
 	for _, p := range plan.Canonical {

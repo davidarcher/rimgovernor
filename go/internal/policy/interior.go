@@ -129,6 +129,9 @@ func PlanInterior(room InteriorRoom) (InteriorPlan, bool) {
 	for _, p := range pieces {
 		plan.Pieces = append(plan.Pieces, x.piece(p))
 	}
+	if InteriorPlanWalkable(plan) != nil {
+		return InteriorPlan{}, false
+	}
 	return plan, true
 }
 

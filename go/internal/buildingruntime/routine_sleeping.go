@@ -1070,10 +1070,32 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		}
 		return placementChoice{choice: choice, preview: preview, score: score}, true, "", nil
 	}
+	var occupied []domain.Cell
+	if len(interiorRooms) > 0 {
+		for _, c := range facts.Cells {
+			if o, known := c.Occupied.Value(); !known || o {
+				occupied = append(occupied, c.Cell)
+			}
+		}
+	}
+	// overlaps refuses a footprint on a site already chosen, or one that
+	// cuts a planned room's door-to-door aisle or strands its floor (#801).
 	overlaps := func(p policy.Preview) bool {
 		footprint, _ := p.Footprint.Value()
 		for _, c := range footprint {
 			if usedCells[c] {
+				return true
+			}
+		}
+		for _, room := range interiorRooms {
+			blocked := map[domain.Cell]bool{}
+			for _, c := range occupied {
+				blocked[c] = true
+			}
+			for c := range usedCells {
+				blocked[c] = true
+			}
+			if !policy.InteriorPlacementWalkable(room, blocked, footprint) {
 				return true
 			}
 		}
@@ -1127,12 +1149,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	// other free cell.
 	if len(interiorRooms) > 0 {
 		var slots []policy.InteriorPiece
-		var anchors, occupied []domain.Cell
-		for _, c := range facts.Cells {
-			if o, known := c.Occupied.Value(); !known || o {
-				occupied = append(occupied, c.Cell)
-			}
-		}
+		var anchors []domain.Cell
 		for _, room := range interiorRooms {
 			anchors = append(anchors, policy.InteriorSnapAnchors(room, occupied)...)
 			plan, ok := policy.PlanInterior(room)
