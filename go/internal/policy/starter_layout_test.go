@@ -279,7 +279,7 @@ func TestShellShapesAtDoorReproduceStarterShells(t *testing.T) {
 }
 
 func TestStarterHutGrowsAlongCorridorTerrainRows(t *testing.T) {
-	// The corridor terrain fixture (scripts/fixtures/CorridorTerrainFixture.cs):
+	// Corridor terrain (the retired corridor fixture, #745):
 	// granite rows every sixth cell, each pierced by a walkway every twelfth
 	// cell, adjacent rows offset by six. Five-cell strips fit no hut template
 	// and no 9x9 rectangle, so the only shell is a grown one confined to a
