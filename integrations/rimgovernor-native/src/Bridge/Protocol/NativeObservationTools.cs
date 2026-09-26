@@ -102,6 +102,8 @@ namespace HomeBridge.BridgeTools
                         // and kept as wall rather than cleared (#718).
                         if (row.Ruin && edifice is Building ruin && ruin.ClaimableBy(player)) row.ClaimableRuin = Identifier(edifice.def.defName);
                     }
+                    // Heavy affordance: a wall stands here; marsh, mud and water refuse one (#727).
+                    if (fields.Foundation) row.SupportsHeavy = cell.GetTerrain(map)?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
                     if (fields.Zone) {
                         var zone = map.zoneManager.ZoneAt(cell);
                         if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -203,7 +205,16 @@ namespace HomeBridge.BridgeTools
             } else throw new ArgumentException("Cell selection required.");
             return result;
         }
-        internal static Obs.CellFields Fields(Obs.CellFields? source) => new Obs.CellFields {
+        internal static Obs.CellFields Fields(Obs.CellFields? source)
+        {
+            var fields = DefaultFields(source);
+            // Foundation is opt-in and set only when asked (#727), so a read
+            // that never names it applies the fields an older native did.
+            if (source != null && source.HasFoundation && source.Foundation) fields.Foundation = true;
+            return fields;
+        }
+
+        private static Obs.CellFields DefaultFields(Obs.CellFields? source) => new Obs.CellFields {
             Terrain = source == null || !source.HasTerrain || source.Terrain, Roof = source == null || !source.HasRoof || source.Roof,
             Visibility = source == null || !source.HasVisibility || source.Visibility, Traversal = source == null || !source.HasTraversal || source.Traversal,
             // Things is opt-in only (absence selects false), unlike
@@ -212,6 +223,7 @@ namespace HomeBridge.BridgeTools
             Things = source != null && source.HasThings && source.Things,
             Zone = source != null && source.HasZone && source.Zone, Room = source != null && source.HasRoom && source.Room,
             Growth = source != null && source.HasGrowth && source.Growth, Areas = false, Designations = false };
+
 
         // The status read as a bundle section: the same facts ReadStatus
         // answers, with its limit and read failures as unavailable.

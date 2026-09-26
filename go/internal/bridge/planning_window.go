@@ -116,8 +116,13 @@ func SortSiteCells(cells []policy.SiteCell) {
 // planningBandRequest is one band's get_cells read, shared with the
 // bundle's planning window family (#593).
 func planningBandRequest(identity *c.Identity, band policy.Rectangle, since int64) *o.GetCellsRequest {
+	return cellsBandRequest(identity, band, since, planningWindowFields())
+}
+
+// cellsBandRequest is one compact rectangle read of the given fields.
+func cellsBandRequest(identity *c.Identity, band policy.Rectangle, since int64, fields *o.CellFields) *o.GetCellsRequest {
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}
-	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: planningWindowFields(), Compact: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
+	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: fields, Compact: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
 	if since > 0 {
 		request.ChangedSinceTick = proto.Int64(since)
 	}
@@ -125,7 +130,12 @@ func planningBandRequest(identity *c.Identity, band policy.Rectangle, since int6
 }
 
 func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle, since int64) (*o.CellsSnapshot, Result, error) {
-	request := planningBandRequest(identity, band, since)
+	return client.readCellsBand(ctx, identity, band, since, planningWindowFields())
+}
+
+// readCellsBand reads and validates one compact band of the given fields.
+func (client *Client) readCellsBand(ctx context.Context, identity *c.Identity, band policy.Rectangle, since int64, fields *o.CellFields) (*o.CellsSnapshot, Result, error) {
+	request := cellsBandRequest(identity, band, since, fields)
 	region := request.GetRectangle()
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
@@ -151,7 +161,7 @@ func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity
 		if !colonySize(snapshot.MapSize) || !proto.Equal(snapshot.Region, region) {
 			return nil, raw, contract("planning window region differs")
 		}
-		if !proto.Equal(snapshot.AppliedFields, planningWindowFields()) {
+		if !proto.Equal(snapshot.AppliedFields, fields) {
 			return nil, raw, contract("planning window applied fields differ")
 		}
 		if err := ExpandCompactCells(snapshot); err != nil {

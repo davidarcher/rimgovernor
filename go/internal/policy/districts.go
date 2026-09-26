@@ -11,8 +11,7 @@ import (
 // origin module itself is the plaza, and every other module joins the
 // sector of the axis it lies furthest along, so a district is a wedge of
 // modules the colony grows outward through. Districts never move once a
-// grid is fixed unless wind or the colony extent changes them, and both
-// only rotate or widen the wedges deterministically.
+// grid is fixed unless the colony extent widens the defense ring.
 type District string
 
 const (
@@ -25,8 +24,8 @@ const (
 	DistrictProduction District = "production"
 	// DistrictStorage holds storerooms and covered stockpiles.
 	DistrictStorage District = "storage"
-	// DistrictFields holds growing zones, pens and barns, downwind of
-	// storage when the prevailing wind is known.
+	// DistrictFields holds growing zones, pens and barns. RimWorld has no
+	// wind direction, so fields are sited by fertility and open sky within the sector.
 	DistrictFields District = "fields"
 	// DistrictDefense is the ring of modules on the colony's perimeter.
 	DistrictDefense District = "defense"
@@ -40,12 +39,6 @@ const districtDefaultRadius int32 = 3
 // Districts is the district assignment over one grid.
 type Districts struct {
 	Grid ColonyGrid
-	// Wind is the unit vector, along the grid's axes, the prevailing wind
-	// blows toward when known: Fields lie in that sector, Storage upwind of
-	// them and Production and Housing across. Unknown keeps the default
-	// compass: Housing along +axis1, Production +axis0, Storage -axis0 and
-	// Fields -axis1.
-	Wind domain.Fact[domain.Cell]
 	// Radius is the Chebyshev module distance of the defense ring; zero is
 	// districtDefaultRadius.
 	Radius int32
@@ -86,28 +79,7 @@ func (d Districts) radius() int32 {
 // sectors lists the four wedge districts in the order +axis1, +axis0,
 // -axis0, -axis1 (north, east, west, south on the map-aligned grid).
 func (d Districts) sectors() [4]District {
-	out := [4]District{DistrictHousing, DistrictProduction, DistrictStorage, DistrictFields}
-	w, known := d.Wind.Value()
-	if !known || (w.X == 0) == (w.Z == 0) {
-		return out
-	}
-	// Fields downwind, Storage upwind, Production a quarter turn on from
-	// the wind, Housing opposite Production.
-	index := func(v domain.Cell) int {
-		switch {
-		case v.Z > 0:
-			return 0
-		case v.X > 0:
-			return 1
-		case v.X < 0:
-			return 2
-		}
-		return 3
-	}
-	turn := domain.Cell{X: -w.Z, Z: w.X}
-	out[index(w)], out[index(domain.Cell{X: -w.X, Z: -w.Z})] = DistrictFields, DistrictStorage
-	out[index(turn)], out[index(domain.Cell{X: -turn.X, Z: -turn.Z})] = DistrictProduction, DistrictHousing
-	return out
+	return [4]District{DistrictHousing, DistrictProduction, DistrictStorage, DistrictFields}
 }
 
 // districtOf assigns module coordinates a district.
@@ -140,7 +112,7 @@ func (d Districts) District(c domain.Cell) District {
 }
 
 // District names the district a cell belongs to under the grid's default
-// districts (no wind, the default defense ring).
+// districts (the default defense ring).
 func (g ColonyGrid) District(c domain.Cell) District { return Districts{Grid: g}.District(c) }
 
 // Anchor is the centre cell of the district's module nearest the origin
@@ -198,4 +170,23 @@ func RoomDistrict(role RoomRole) District {
 		return DistrictFields
 	}
 	return DistrictPlaza
+}
+
+// DistrictModule is the master-plan role (#727) a district's site search
+// fills: Production anchors on the workshop cluster, Defense on the
+// killbox line.
+func DistrictModule(d District) ModuleRole {
+	switch d {
+	case DistrictHousing:
+		return ModuleHousing
+	case DistrictProduction:
+		return ModuleWorkshop
+	case DistrictStorage:
+		return ModuleStorage
+	case DistrictFields:
+		return ModuleFields
+	case DistrictDefense:
+		return ModuleKillbox
+	}
+	return ModulePlaza
 }

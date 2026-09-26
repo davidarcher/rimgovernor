@@ -18,7 +18,8 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 		return nil
 	}
 	bad := func() error { return contract("invalid compact planning cells") }
-	if len(v.Cells) != 0 || !proto.Equal(v.AppliedFields, planningWindowFields()) || v.Region == nil ||
+	foundation := proto.Equal(v.AppliedFields, mapSurveyFields())
+	if len(v.Cells) != 0 || !foundation && !proto.Equal(v.AppliedFields, planningWindowFields()) || v.Region == nil ||
 		!colonyCell(v.Region.Minimum, v.MapSize) || !colonyCell(v.Region.Maximum, v.MapSize) {
 		return bad()
 	}
@@ -110,6 +111,13 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			}
 			data = data[n:]
 			row.Glow = proto.Float64(p.Glow[index])
+			if foundation {
+				if len(data) < 1 || data[0] > 1 {
+					return bad()
+				}
+				row.SupportsHeavy = proto.Bool(data[0] == 1)
+				data = data[1:]
+			}
 			if flags&1024 != 0 {
 				if fertility >= len(p.Fertility) {
 					return bad()

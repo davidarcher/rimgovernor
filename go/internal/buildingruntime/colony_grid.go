@@ -23,6 +23,11 @@ func (r *RoutineReviewer) reviewColonyGrid(ctx context.Context, snapshot domain.
 		return err
 	}
 	if !ok {
+		if record, ok, err = r.establishMasterPlan(ctx, snapshot, projection); err != nil {
+			return err
+		}
+	}
+	if !ok {
 		census, known := projection.Facts.CurrentConstruction.Value()
 		if !known || !census.Colony {
 			return nil
@@ -45,7 +50,7 @@ func (r *RoutineReviewer) reviewColonyGrid(ctx context.Context, snapshot domain.
 		}
 	}
 	projection.ColonyGrid = domain.Known(record.Grid)
-	return nil
+	return r.reviewMasterPlan(ctx, snapshot, projection)
 }
 
 // starterShell is the first shell this controller ordered, read back from

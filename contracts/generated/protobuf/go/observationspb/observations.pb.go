@@ -10329,15 +10329,16 @@ type CellState struct {
 	StorageEmpty  *bool                  `protobuf:"varint,15,opt,name=storage_empty,json=storageEmpty,proto3,oneof" json:"storage_empty,omitempty"`
 	SupportsLight *bool                  `protobuf:"varint,16,opt,name=supports_light,json=supportsLight,proto3,oneof" json:"supports_light,omitempty"`
 	Issues        []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
-	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"`                               // Native edifice, blueprint or frame occupies this cell.
-	Doorway       *bool                  `protobuf:"varint,19,opt,name=doorway,proto3,oneof" json:"doorway,omitempty"`                                 // A door, or a door blueprint or frame, occupies this cell.
-	Reachable     *bool                  `protobuf:"varint,20,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`                             // An available colonist can path to this cell without danger.
-	Polluted      *bool                  `protobuf:"varint,21,opt,name=polluted,proto3,oneof" json:"polluted,omitempty"`                               // Growth field; false when Biotech is inactive.
-	Glow          *float64               `protobuf:"fixed64,22,opt,name=glow,proto3,oneof" json:"glow,omitempty"`                                      // Native ground glow, including artificial light.
-	NaturalRock   *bool                  `protobuf:"varint,23,opt,name=natural_rock,json=naturalRock,proto3,oneof" json:"natural_rock,omitempty"`      // The edifice is natural rock: a shell reuses it as wall or mines it (#700).
-	Ruin          *bool                  `protobuf:"varint,24,opt,name=ruin,proto3,oneof" json:"ruin,omitempty"`                                       // The edifice is an unowned building the player may deconstruct, outside any ancient danger: a shell ring clears it, then builds (#709).
-	PlayerEdifice *string                `protobuf:"bytes,25,opt,name=player_edifice,json=playerEdifice,proto3,oneof" json:"player_edifice,omitempty"` // Definition of a player-owned edifice on the cell: a shell ring reuses a wall of its own kind (#709).
-	ClaimableRuin *string                `protobuf:"bytes,26,opt,name=claimable_ruin,json=claimableRuin,proto3,oneof" json:"claimable_ruin,omitempty"` // Definition of a ruin (ruin set) the player may claim: a shell ring claims a wall of its own kind and reuses it (#718).
+	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"`                                // Native edifice, blueprint or frame occupies this cell.
+	Doorway       *bool                  `protobuf:"varint,19,opt,name=doorway,proto3,oneof" json:"doorway,omitempty"`                                  // A door, or a door blueprint or frame, occupies this cell.
+	Reachable     *bool                  `protobuf:"varint,20,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`                              // An available colonist can path to this cell without danger.
+	Polluted      *bool                  `protobuf:"varint,21,opt,name=polluted,proto3,oneof" json:"polluted,omitempty"`                                // Growth field; false when Biotech is inactive.
+	Glow          *float64               `protobuf:"fixed64,22,opt,name=glow,proto3,oneof" json:"glow,omitempty"`                                       // Native ground glow, including artificial light.
+	NaturalRock   *bool                  `protobuf:"varint,23,opt,name=natural_rock,json=naturalRock,proto3,oneof" json:"natural_rock,omitempty"`       // The edifice is natural rock: a shell reuses it as wall or mines it (#700).
+	Ruin          *bool                  `protobuf:"varint,24,opt,name=ruin,proto3,oneof" json:"ruin,omitempty"`                                        // The edifice is an unowned building the player may deconstruct, outside any ancient danger: a shell ring clears it, then builds (#709).
+	PlayerEdifice *string                `protobuf:"bytes,25,opt,name=player_edifice,json=playerEdifice,proto3,oneof" json:"player_edifice,omitempty"`  // Definition of a player-owned edifice on the cell: a shell ring reuses a wall of its own kind (#709).
+	ClaimableRuin *string                `protobuf:"bytes,26,opt,name=claimable_ruin,json=claimableRuin,proto3,oneof" json:"claimable_ruin,omitempty"`  // Definition of a ruin (ruin set) the player may claim: a shell ring claims a wall of its own kind and reuses it (#718).
+	SupportsHeavy *bool                  `protobuf:"varint,27,opt,name=supports_heavy,json=supportsHeavy,proto3,oneof" json:"supports_heavy,omitempty"` // Foundation field: the terrain takes a wall (Heavy affordance); marsh, mud and water do not (#727).
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10554,6 +10555,13 @@ func (x *CellState) GetClaimableRuin() string {
 	return ""
 }
 
+func (x *CellState) GetSupportsHeavy() bool {
+	if x != nil && x.SupportsHeavy != nil {
+		return *x.SupportsHeavy
+	}
+	return false
+}
+
 type CellFields struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Terrain       *bool                  `protobuf:"varint,1,opt,name=terrain,proto3,oneof" json:"terrain,omitempty"`
@@ -10566,6 +10574,7 @@ type CellFields struct {
 	Designations  *bool                  `protobuf:"varint,8,opt,name=designations,proto3,oneof" json:"designations,omitempty"`
 	Room          *bool                  `protobuf:"varint,9,opt,name=room,proto3,oneof" json:"room,omitempty"`
 	Growth        *bool                  `protobuf:"varint,10,opt,name=growth,proto3,oneof" json:"growth,omitempty"`
+	Foundation    *bool                  `protobuf:"varint,11,opt,name=foundation,proto3,oneof" json:"foundation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10666,6 +10675,13 @@ func (x *CellFields) GetRoom() bool {
 func (x *CellFields) GetGrowth() bool {
 	if x != nil && x.Growth != nil {
 		return *x.Growth
+	}
+	return false
+}
+
+func (x *CellFields) GetFoundation() bool {
+	if x != nil && x.Foundation != nil {
+		return *x.Foundation
 	}
 	return false
 }
@@ -10917,7 +10933,7 @@ func (*GetCellsRequest_ExactCells) isGetCellsRequest_Selection() {}
 // roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
 // ruin, odd v the player edifice definition at string index (v-1)/2, even
 // v a claimable ruin whose definition is at string index (v-2)/2; then a
-// glow-table index.
+// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
 // fogged; unchanged and as_of_tick retain the ordinary row delta semantics.
@@ -36965,7 +36981,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\x95\n" +
+	"\x06_frame\"\xd4\n" +
 	"\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
@@ -36995,7 +37011,8 @@ const file_observations_proto_rawDesc = "" +
 	"\fnatural_rock\x18\x17 \x01(\bH\x11R\vnaturalRock\x88\x01\x01\x12\x17\n" +
 	"\x04ruin\x18\x18 \x01(\bH\x12R\x04ruin\x88\x01\x01\x12*\n" +
 	"\x0eplayer_edifice\x18\x19 \x01(\tH\x13R\rplayerEdifice\x88\x01\x01\x12*\n" +
-	"\x0eclaimable_ruin\x18\x1a \x01(\tH\x14R\rclaimableRuin\x88\x01\x01B\n" +
+	"\x0eclaimable_ruin\x18\x1a \x01(\tH\x14R\rclaimableRuin\x88\x01\x01\x12*\n" +
+	"\x0esupports_heavy\x18\x1b \x01(\bH\x15R\rsupportsHeavy\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -37023,7 +37040,8 @@ const file_observations_proto_rawDesc = "" +
 	"\r_natural_rockB\a\n" +
 	"\x05_ruinB\x11\n" +
 	"\x0f_player_edificeB\x11\n" +
-	"\x0f_claimable_ruin\"\xb1\x03\n" +
+	"\x0f_claimable_ruinB\x11\n" +
+	"\x0f_supports_heavy\"\xe5\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -37038,7 +37056,11 @@ const file_observations_proto_rawDesc = "" +
 	"\fdesignations\x18\b \x01(\bH\aR\fdesignations\x88\x01\x01\x12\x17\n" +
 	"\x04room\x18\t \x01(\bH\bR\x04room\x88\x01\x01\x12\x1b\n" +
 	"\x06growth\x18\n" +
-	" \x01(\bH\tR\x06growth\x88\x01\x01B\n" +
+	" \x01(\bH\tR\x06growth\x88\x01\x01\x12#\n" +
+	"\n" +
+	"foundation\x18\v \x01(\bH\n" +
+	"R\n" +
+	"foundation\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\r\n" +
@@ -37050,7 +37072,8 @@ const file_observations_proto_rawDesc = "" +
 	"\a_thingsB\x0f\n" +
 	"\r_designationsB\a\n" +
 	"\x05_roomB\t\n" +
-	"\a_growth\"\xa7\x05\n" +
+	"\a_growthB\r\n" +
+	"\v_foundation\"\xa7\x05\n" +
 	"\rCellsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12?\n" +
 	"\bmap_size\x18\x02 \x01(\v2$.rimgovernor.observations.v1.MapSizeR\amapSize\x12>\n" +

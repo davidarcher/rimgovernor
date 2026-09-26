@@ -42,7 +42,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 102
+const schemaVersion = 103
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -345,6 +345,9 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		if err = initializeColonyGrid(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeColonyPlan(ctx, tx); err != nil {
+			return err
+		}
 		if err = initializeLayoutTidies(ctx, tx); err != nil {
 			return err
 		}
@@ -402,6 +405,9 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		return err
 	}
 	if err = checkColonyGridSchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkColonyPlanSchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkLayoutTidySchema(ctx, tx); err != nil {

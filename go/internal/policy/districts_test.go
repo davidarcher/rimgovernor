@@ -39,28 +39,6 @@ func TestDistrictsAreCompassWedgesAroundThePlaza(t *testing.T) {
 	}
 }
 
-func TestDistrictsWindPutsFieldsDownwindOfStorage(t *testing.T) {
-	g := ColonyGrid{Origin: domain.Cell{X: 100, Z: 100}, Pitch: GridPitch, Axes: ColonyGridAxes}
-	// Wind blowing east: fields east, storage west, production north
-	// (a quarter turn on from east), housing south.
-	d := Districts{Grid: g, Wind: domain.Known(domain.Cell{X: 1, Z: 0})}
-	pitch := GridPitch
-	want := map[District]domain.Cell{
-		DistrictFields:     {X: 100 + pitch, Z: 100},
-		DistrictStorage:    {X: 100 - pitch, Z: 100},
-		DistrictProduction: {X: 100, Z: 100 + pitch},
-		DistrictHousing:    {X: 100, Z: 100 - pitch},
-	}
-	for district, cell := range want {
-		if got := d.District(cell); got != district {
-			t.Fatalf("District(%v) = %s, want %s", cell, got, district)
-		}
-	}
-	if anchor, ok := d.Anchor(DistrictFields, nil); !ok || anchor != (domain.Cell{X: 100 + pitch + 6, Z: 106}) {
-		t.Fatalf("fields anchor %v %v", anchor, ok)
-	}
-}
-
 func TestDistrictsForExtentWidensTheDefenseRing(t *testing.T) {
 	g := ColonyGrid{Origin: domain.Cell{X: 100, Z: 100}, Pitch: GridPitch, Axes: ColonyGridAxes}
 	extent := ColonyExtent{Regions: []ExtentRegion{{Cells: []ExtentCell{{Cell: domain.Cell{X: 100 + 4*GridPitch, Z: 100}}}}}}

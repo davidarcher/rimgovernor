@@ -68,6 +68,10 @@ type ColonyProjection struct {
 	// review from the journal; unknown until one is established. At tier
 	// >= Masonry its aisles are protected cells in every site search (#606).
 	ColonyGrid domain.Fact[policy.ColonyGrid]
+	// ColonyPlan is the master layout plan on that grid (#727): unknown
+	// when the grid came from the starter shell or the native serves no
+	// map survey.
+	ColonyPlan domain.Fact[policy.MasterPlan]
 	Facts      policy.RoutineFacts
 	Workers    domain.Fact[int]
 	Bounds     policy.Bounds
@@ -203,6 +207,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.BuildTier = domain.Unknown[policy.BuildTier]()
 	r.ColonyGrid = domain.Unknown[policy.ColonyGrid]()
+	r.ColonyPlan = domain.Unknown[policy.MasterPlan]()
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.DeepResources = colonyDeepResources(v.DeepResources)
