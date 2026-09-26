@@ -221,9 +221,10 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 // dispatchResourceGoal is the shared MaintainResource/MaintainAnimalFeed
 // acquisition tail, once each goal's own selection has picked one
 // (resource, absolute stock floor) pair: bench/recipe production
-// (policy.SelectResourceMethod) first, falling back to native mine/harvest
-// sources (policy.SelectResourceSources) and, if hauling them needs new
-// storage, a covered stockpile zone -- see RoutineAnimalFeedPlanner for the
+// (policy.SelectResourceMethod) and native mine sources
+// (policy.SelectResourceSources) ranked by the acquisition catalog
+// (policy.RankResourceCandidates, #728), sources alone when no bill fits,
+// and, if hauling them needs new storage, a covered stockpile zone -- see RoutineAnimalFeedPlanner for the
 // MaintainAnimalFeed caller. A non-nil benches set restricts the bench/recipe
 // path to those bench IDs (the caller's delivery constraint: a bill's product
 // drops at its bench); an empty set refuses the production path outright
@@ -307,31 +308,35 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		if beer && choice.Kind == policy.ResourceMethodWait {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 		}
+		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, nil)
+		return result, err
+	}
+	// Both a bill and a deposit can cover the deficit (smelting against
+	// mining compacted steel): the acquisition catalog ranks them by
+	// estimated labor per unit and the cheaper runs (#728). A mine choice
+	// that dispatches nothing falls back to the bill.
+	if !beer && benchFilter == nil {
 		remote, err := r.miningReach(call, state, reviewTick)
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
 		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
-		if !ok {
-			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+		deficit := target - resourceCount(stock, resource)
+		candidates := policy.MineCandidates(resource, selected, domain.Known(sourceStorage.Capacity))
+		if produce, found := policy.ProduceCandidate(choice, deficit); found {
+			candidates = append(candidates, produce)
 		}
-		zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, sourceStorage, started)
+		ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, deficit), candidates, policy.AcquisitionCompetition{})
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-		if handled {
-			zoneResult.Sources = selected
-			return zoneResult, nil
+		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
+			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Goal.ID, resource, ranked[0].ID, ranked[0].Score)
+			result, dispatched, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, &sourceSelection{selected, sourceStorage})
+			if err != nil || dispatched {
+				return result, err
+			}
 		}
-		result, dispatched, err := r.dispatchMineSource(call, epoch, state, goal, resource, selected, started)
-		if err != nil {
-			return RoutineResourceResult{}, err
-		}
-		if dispatched {
-			result.Sources = selected
-			return result, nil
-		}
-		return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: selected}, nil
 	}
 	token, ok := tokens[choice.Bench]
 	if !ok {
@@ -396,6 +401,58 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		return RoutineResourceResult{}, err
 	}
 	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// resourceCount is resource's units in a known census, 0 otherwise.
+func resourceCount(stock domain.Fact[[]policy.Amount], resource policy.Resource) int64 {
+	rows, _ := stock.Value()
+	for _, row := range rows {
+		if row.Resource == resource {
+			return row.Count
+		}
+	}
+	return 0
+}
+
+type sourceSelection struct {
+	selected []policy.ResourceSource
+	storage  policy.ResourceStorage
+}
+
+// acquireFromSources is the mine/harvest branch of dispatchResourceGoal:
+// select sources for the deficit (or use pre, already selected), build
+// storage when hauling them needs it, then dispatch a mine source.
+// dispatched is true when a zone or a mine method was admitted or refused.
+func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time, pre *sourceSelection) (RoutineResourceResult, bool, error) {
+	if pre == nil {
+		remote, err := r.miningReach(call, state, reviewTick)
+		if err != nil {
+			return RoutineResourceResult{}, false, err
+		}
+		selected, storage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
+		if !ok {
+			return RoutineResourceResult{Reason: BuildingMethodUsed}, false, nil
+		}
+		pre = &sourceSelection{selected, storage}
+	}
+	selected := pre.selected
+	zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, pre.storage, started)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if handled {
+		zoneResult.Sources = selected
+		return zoneResult, true, nil
+	}
+	result, dispatched, err := r.dispatchMineSource(call, epoch, state, goal, resource, selected, started)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	if dispatched {
+		result.Sources = selected
+		return result, true, nil
+	}
+	return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: selected}, false, nil
 }
 
 // sourcesForDeficit reads the resource's fresh native mine/harvest sources

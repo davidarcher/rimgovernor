@@ -122,7 +122,7 @@ func scoreResourceCandidate(demand []ResourceDemand, known bool, c AcquisitionCa
 		return s, errors.New("invalid acquisition candidate")
 	}
 	switch c.Kind {
-	case AcquisitionLoot, AcquisitionSalvage, AcquisitionMining:
+	case AcquisitionLoot, AcquisitionSalvage, AcquisitionMining, AcquisitionProduce, AcquisitionDeepDrill, AcquisitionChop, AcquisitionHarvest, AcquisitionHunt, AcquisitionTrade:
 	default:
 		return s, errors.New("invalid acquisition kind")
 	}
