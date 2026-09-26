@@ -54,12 +54,7 @@ namespace HomeBridge.BridgeTools
                 // One 9x9 ring (7x7 inside) with a single east door, sited on
                 // heavy-affordance ground the colonists can reach.
                 const int size = 9;
-                var anchor = people[0].Position;
-                var origin = GenRadial.RadialCellsAround(anchor, 30, true).FirstOrDefault(c =>
-                    new CellRect(c.x, c.z, size, size).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
-                        && cell.Standable(map) && cell.GetEdifice(map) == null && cell.GetZone(map) == null
-                        && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
-                    && people.All(p => p.CanReach(c, PathEndMode.Touch, Danger.None)));
+                var origin = FixtureHut.FindSite(map, people, size);
                 if (origin == default) return Refuse("No open reachable area for the fixture hut.");
                 var door = new IntVec3(origin.x + size - 1, 0, origin.z + size / 2);
                 var rect = new CellRect(origin.x, origin.z, size, size);

@@ -47,12 +47,7 @@ namespace HomeBridge.BridgeTools
             if (wallDef == null || doorDef == null || spotDef == null)
                 throw new InvalidOperationException("Wall, Door or SleepingSpot def unavailable in this ruleset.");
 
-            var anchor = people[0].Position;
-            var origin = GenRadial.RadialCellsAround(anchor, 30, true).FirstOrDefault(c =>
-                new CellRect(c.x, c.z, size, size).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
-                    && cell.Standable(map) && cell.GetEdifice(map) == null && cell.GetZone(map) == null
-                    && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
-                && people.All(p => p.CanReach(c, PathEndMode.Touch, Danger.None)));
+            var origin = FindSite(map, people, size);
             if (origin == default) throw new InvalidOperationException("No open reachable area for the fixture hut.");
             var door = new IntVec3(origin.x + size - 1, 0, origin.z + size / 2);
             var rect = new CellRect(origin.x, origin.z, size, size);
@@ -93,6 +88,29 @@ namespace HomeBridge.BridgeTools
                 pawn.Position = free[i]; pawn.Notify_Teleported(true, true);
             }
             return new Result { Origin = origin, Door = door, Room = room, Interior = interior, People = people, SleepingSpots = laid };
+        }
+
+        // FindSite returns the south-west corner of the size x size square
+        // nearest the first colonist whose cells are unfogged, in bounds,
+        // clear of edifices and zones, walkable heavy-affordance terrain, and
+        // hold nothing but plants and items (Build clears both: a chunk or a
+        // tree is not a reason to refuse), reachable by every colonist. The
+        // whole map is searched, nearest first (#674: the debug-200 start had
+        // no such square within 30 cells under the old Standable test).
+        // default when none exists.
+        public static IntVec3 FindSite(Map map, List<Pawn> people, int size)
+        {
+            var anchor = people[0].Position;
+            bool Open(IntVec3 cell) => cell.InBounds(map) && !cell.Fogged(map)
+                && cell.GetEdifice(map) == null && cell.GetZone(map) == null
+                && cell.GetTerrain(map).passability != Traversability.Impassable
+                && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)
+                && cell.GetThingList(map).All(t => t is Plant || t.def.category == ThingCategory.Item);
+            return map.AllCells
+                .Where(c => c.x + size <= map.Size.x && c.z + size <= map.Size.z)
+                .OrderBy(c => (c - anchor).LengthHorizontalSquared)
+                .FirstOrDefault(c => new CellRect(c.x, c.z, size, size).Cells.All(Open)
+                    && people.All(p => p.CanReach(c, PathEndMode.OnCell, Danger.Deadly)));
         }
 
         // DropOutside places count of def two cells east of the door,

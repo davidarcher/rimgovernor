@@ -102,7 +102,7 @@
     <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BerserkFixture.cs" Condition="'$(BerserkFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SubdueFixture.cs" Condition="'$(SubdueFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(GearAreaFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(BerserkFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(GearAreaFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(BerserkFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(ComfortFixture)' == 'true' Or '$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PestFixture.cs" Condition="'$(PestFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CellsFixture.cs" Condition="'$(CellsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EntitiesFixture.cs" Condition="'$(EntitiesFixture)' == 'true'" />
