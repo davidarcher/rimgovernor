@@ -103,6 +103,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "Plant_Strawberry", "Plant_Toxipotato", "Plant_Nutrifungus", "SunLamp", "HydroponicsBasin", "Heater")
+	definitions = append(definitions, firebreakFloors...)
 	definitions = uniqueFieldDefinitions(definitions)
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -188,7 +189,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	for _, farm := range projection.Farms {
 		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop})
 	}
-	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: layoutProtected(projection, protected), Zones: zones, Weights: layoutFarmWeights(projection)}
+	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: layoutFieldProtected(projection, layoutProtected(projection, protected)), Zones: zones, Weights: layoutFarmWeights(projection)}
 	site.Grid, _ = layoutAlignment(projection)
 	growers, cooks := policy.CropWorkers(projection.WorkPawns)
 	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Growers: growers, Cooks: cooks, Calendar: projection.Facts.Calendar, Conditions: projection.Facts.DisasterConditions, Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}
@@ -226,7 +227,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), selection.Explain())
-		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
+		return r.firebreaks(call, epoch, state, goal, projection, read, wait, token, BuildingMethodUnknown)
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
 	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
@@ -245,7 +246,19 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Reason)
 	}
-	return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, nil
+	return r.firebreaks(call, epoch, state, goal, projection, read, wait, token, BuildingMethodRefused)
+}
+
+// firebreaks floors the plan's firebreaks beside planted fields (#790) once
+// the step has no field to lay; reason is the step's result otherwise.
+func (r *RoutineFieldPlanner) firebreaks(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, token string, reason RoutineBuildingReason) (RoutineFieldResult, error) {
+	if candidate, ok := firebreakCandidate(projection); ok {
+		clockSchedulerLog("Fields: firebreak %s cells=%d", candidate.Buildings[0].Definition, candidate.Cells)
+		if result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate, token); err != nil || tried {
+			return result, err
+		}
+	}
+	return RoutineFieldResult{Reason: reason, NativeWorkTicks: wait}, nil
 }
 
 const (
@@ -505,8 +518,9 @@ func fieldBlockingWork(progress []domain.Progress) bool {
 	for _, p := range progress {
 		_, zone := p.Action().ZoneCreate()
 		building, isBuilding := p.Action().Building()
-		// The butcher spot shares the goal but not the field (#260).
-		if isBuilding && building.Definition() == "ButcherSpot" {
+		// The butcher spot shares the goal but not the field (#260); nor
+		// do firebreak floors (#790).
+		if isBuilding && (building.Definition() == "ButcherSpot" || isFirebreakFloor(building.Definition())) {
 			continue
 		}
 		if (zone || isBuilding) && domain.GoalWorkOpen([]domain.Progress{p}) {

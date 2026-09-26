@@ -1,5 +1,11 @@
 package policy
 
+import (
+	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
 // Whole-map zoning (#778, A2): every surveyed cell is classified from
 // terrain. Zones overlap on purpose: core candidates are every cell a room
 // could stand on (buildable ground or rock to dig out), and fields, mining
@@ -136,4 +142,59 @@ func zoneRuns(w, h int32, in func(int32) bool) []RowRun {
 		}
 	}
 	return runs
+}
+
+// FieldCells is every cell of the plan's field zones (turbine lanes
+// included, since they are zoned as fields).
+func (p LayoutPlan) FieldCells() map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, z := range p.Zones {
+		if z.Kind != ZoneField {
+			continue
+		}
+		for _, r := range z.Runs {
+			for x := r.X; x < r.X+r.Length; x++ {
+				out[domain.Cell{X: x, Z: r.Z}] = true
+			}
+		}
+	}
+	return out
+}
+
+// Firebreaks are the plan's firebreak cells (#790): cells outside every
+// field that sit in a gap at most zoneFirebreak wide between two field
+// cells along a row or a column. They come in row-major order.
+func (p LayoutPlan) Firebreaks() []domain.Cell {
+	fields := p.FieldCells()
+	seen := map[domain.Cell]bool{}
+	var out []domain.Cell
+	for f := range fields {
+		for _, d := range [2][2]int32{{1, 0}, {0, 1}} {
+			// A gap starts right after f and must close on a field cell
+			// within zoneFirebreak cells.
+			var gap []domain.Cell
+			for k := int32(1); k <= zoneFirebreak+1; k++ {
+				c := domain.Cell{X: f.X + d[0]*k, Z: f.Z + d[1]*k}
+				if fields[c] {
+					if len(gap) > 0 {
+						for _, g := range gap {
+							if !seen[g] {
+								seen[g] = true
+								out = append(out, g)
+							}
+						}
+					}
+					break
+				}
+				gap = append(gap, c)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Z != out[j].Z {
+			return out[i].Z < out[j].Z
+		}
+		return out[i].X < out[j].X
+	})
+	return out
 }
