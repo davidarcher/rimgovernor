@@ -24,6 +24,11 @@ type ModuleShell struct {
 	// module, 2 for a quarter.
 	Class int
 	Shell domain.RoomFootprint
+	// Absorbs is the aisle bay a double-module hall takes in (#673): the
+	// one stretch of walkway the shell may build over, the hall's centred
+	// doors carrying the through route instead. Zero for every other
+	// template.
+	Absorbs Rectangle
 }
 
 // moduleShellClass is a sub-cell's search class by its index in SubCells:
@@ -96,7 +101,7 @@ func ModuleShellsAtDoor(g ColonyGrid, door domain.Cell) []domain.RoomFootprint {
 // the tier's shape family (ShapeFamilyShells, class shapeFamilyClass) beats
 // a half module, and a half module further out beats a quarter nearer the
 // anchor.
-func moduleSites(g ColonyGrid, family ShapeFamily, ordered []domain.Cell, buildable func(domain.RoomFootprint) bool, score func(domain.RoomFootprint) int64) []starterSite {
+func moduleSites(g ColonyGrid, family ShapeFamily, ordered []domain.Cell, buildable func(domain.RoomFootprint, Rectangle) bool, score func(domain.RoomFootprint) int64) []starterSite {
 	plaza := g.cell(ColonyGridModule/2, ColonyGridModule/2)
 	seen := map[Rectangle]bool{}
 	var modules []Rectangle
@@ -120,7 +125,7 @@ func moduleSites(g ColonyGrid, family ShapeFamily, ordered []domain.Cell, builda
 			return squaredDistance(templates[i].Shell.Door(), plaza) < squaredDistance(templates[j].Shell.Door(), plaza)
 		})
 		for _, t := range templates {
-			if !buildable(t.Shell) {
+			if !buildable(t.Shell, t.Absorbs) {
 				continue
 			}
 			sites = append(sites, starterSite{t.Class, score(t.Shell), t.Shell})

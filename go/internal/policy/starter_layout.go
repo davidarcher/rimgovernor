@@ -306,10 +306,14 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		return !observed || free(shell.Threshold())
 	}
 	// A module's door opens onto an aisle, which the caller protects from
-	// building: its threshold need only be open ground, not unprotected.
-	moduleBuildable := func(shell domain.RoomFootprint) bool {
+	// building: its threshold need only be open ground, not unprotected. A
+	// hall builds over the aisle bay it absorbs (#673), so those cells need
+	// only be open, unzoned ground too.
+	moduleBuildable := func(shell domain.RoomFootprint, absorbs Rectangle) bool {
 		for _, p := range shell.Cells() {
-			if !free(p) || !positive(cells[p].SupportsLight) {
+			c := cells[p]
+			open := free(p) || containsCell(absorbs, p) && positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v })) && positive(measured(c.Zone, func(v bool) bool { return !v }))
+			if !open || !positive(cells[p].SupportsLight) {
 				return false
 			}
 		}

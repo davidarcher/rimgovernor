@@ -145,7 +145,18 @@ func hallShells(g ColonyGrid, module Rectangle) []ModuleShell {
 			neighbour := Rectangle{X: module.X + step.X, Z: module.Z + step.Z, Width: module.Width, Height: module.Height}
 			hall := union(module, neighbour)
 			name := fmt.Sprintf("hall-%dx%d-%d,%d", hall.Width-2, hall.Height-2, step.X/g.Pitch, step.Z/g.Pitch)
-			out = append(out, ringShells(name, hall, rectCellsOf(inset(hall, 1)))...)
+			// The bay is the aisle strip between the two modules: the hall
+			// builds over it (#673), and its doors carry the walkway through.
+			bay := hall
+			if axis.X != 0 {
+				bay.X, bay.Width = min(module.X, neighbour.X)+module.Width, hall.Width-2*module.Width
+			} else {
+				bay.Z, bay.Height = min(module.Z, neighbour.Z)+module.Height, hall.Height-2*module.Height
+			}
+			for _, s := range ringShells(name, hall, rectCellsOf(inset(hall, 1))) {
+				s.Absorbs = bay
+				out = append(out, s)
+			}
 		}
 	}
 	return out

@@ -161,3 +161,35 @@ func TestStarterLayoutsModuleStyleFillsTheNearestFreeModule(t *testing.T) {
 		t.Fatalf("no grid: %+v", plain)
 	}
 }
+
+func TestStarterLayoutsHallBuildsOverTheAisleBayItAbsorbs(t *testing.T) {
+	g := ColonyGrid{Origin: domain.Cell{X: 20, Z: 20}, Pitch: GridPitch, Axes: ColonyGridAxes}
+	bounds := Bounds{Width: 80, Height: 80}
+	var cells []SiteCell
+	for x := int32(0); x < bounds.Width; x++ {
+		for z := int32(0); z < bounds.Height; z++ {
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), SupportsLight: domain.Known(true)})
+		}
+	}
+	// Every aisle is protected (#606), yet the hall takes in its one bay
+	// (#673) rather than falling back to a single module.
+	layouts, err := StarterLayouts(StarterRequest{Bounds: bounds, Anchor: domain.Cell{X: 26, Z: 26}, Cells: cells, Protected: g.Aisles(bounds), Shelter: ShelterModule, Shape: ShapeFamilyHall, Grid: domain.Known(g)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(layouts) == 0 {
+		t.Fatal("no module layout")
+	}
+	b := layouts[0].Room
+	if long := max(b.Width, b.Height); long != ColonyGridModule+GridPitch {
+		t.Fatalf("best layout %+v is not a hall", b)
+	}
+	// Only the absorbed bay is built over: the shell's aisle cells all lie
+	// between its two modules.
+	for _, c := range layouts[0].Shell.Cells() {
+		u, v := g.local(c)
+		if floorMod(u, g.Pitch) >= ColonyGridModule && floorMod(v, g.Pitch) >= ColonyGridModule {
+			t.Fatalf("shell cell %v lies on an aisle crossing", c)
+		}
+	}
+}
