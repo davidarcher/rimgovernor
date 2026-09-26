@@ -158,9 +158,30 @@ func TestSelectScopesRoutineFamilies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// campaign/* and startup/* serve every family (#633, #639).
-	if !slices.Equal(sel.Cases, []string{"campaign", "condition", "lifecycle", "light", "startup"}) {
-		t.Errorf("lighting change selected %v", sel.Cases)
+	// The areas naming lighting, plus every area whose profile composes every
+	// family (campaign/* #633, startup/* #639, ...), read by profile so a new
+	// every-family area does not stale the expectation (#668).
+	want := []string{"condition", "light"}
+	areas := filepath.Join(r, "go", "internal", "nativeaccept", "cases")
+	entries, err := os.ReadDir(areas)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || slices.Contains(want, entry.Name()) {
+			continue
+		}
+		profile, err := readAreaProfile(filepath.Join(areas, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if profile.Binary && profile.AllFamilies {
+			want = append(want, entry.Name())
+		}
+	}
+	slices.Sort(want)
+	if !slices.Contains(want, "lifecycle") || !slices.Equal(sel.Cases, want) {
+		t.Errorf("lighting change selected %v, want %v", sel.Cases, want)
 	}
 	if why := sel.Why["light"]; len(why) != 1 || !strings.Contains(why[0], "routine family lighting changed (go/internal/buildingruntime/routine_lighting.go) and the area composes it") {
 		t.Errorf("light why = %v", why)
