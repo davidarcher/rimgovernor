@@ -32,7 +32,7 @@ func init() {
 		Scope: "Native AcceptQuest vertical: an actual Quest.Accept settings write and " +
 			"QuestPart_Choice reward selection, exact CAS/stale-token refusal, an accepter-not-required " +
 			"refusal, replay idempotency and a post-acceptance stale-identity refusal.",
-		Start:  cases.Fixture{Op: "test/quest_accept_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/quest_accept_prepare"},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    runAccept,

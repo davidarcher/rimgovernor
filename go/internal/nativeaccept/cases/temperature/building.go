@@ -41,7 +41,7 @@ func init() {
 		Scope: "Native SetBuildingTemperature vertical: PatchBuilding target-temperature CAS " +
 			"admission against an exact CompTempControl building, stale-identity refusal, replay idempotency " +
 			"and durable lookup.",
-		Start:  cases.Fixture{Op: "test/building_temperature_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/building_temperature_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})

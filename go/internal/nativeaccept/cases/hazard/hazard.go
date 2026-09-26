@@ -72,7 +72,7 @@ func init() {
 		cases.Register(cases.Case{
 			Name:        hc.name,
 			Scope:       hc.scope,
-			Start:       cases.FlatDebugStart(),
+			Start:       cases.LabStart(),
 			QuietWorld:  true,
 			RequiredOps: []string{"test/hazard_inject", "test/deliver_letter", "test/letter_pause_mode"},
 			Budget:      4 * time.Minute,

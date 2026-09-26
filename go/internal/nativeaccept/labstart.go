@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -85,11 +86,21 @@ func labStampPath(name string) string {
 	return filepath.Join(startCache.root, "profile", "Saves", name+".stamp")
 }
 
+// labReplyPath holds the test/lab_start reply (centre, colonist ids) the
+// cached save was made with: a cached load replies it as the Lab start's
+// Session.Prepared.
+func labReplyPath(name string) string {
+	return filepath.Join(startCache.root, "profile", "Saves", name+".lab.json")
+}
+
 // labCacheFresh reports whether the cached lab save exists, was recorded
 // under the profile's expansions and carries stamp.
 func labCacheFresh(name, stamp string) (bool, error) {
 	path, have := cachedStartPath(name)
 	if !have {
+		return false, nil
+	}
+	if _, err := os.Stat(labReplyPath(name)); err != nil {
 		return false, nil
 	}
 	recorded, err := os.ReadFile(labStampPath(name))
@@ -126,6 +137,15 @@ func (l LabStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[st
 		if err := loadCachedStart(ctx, h, name); err != nil {
 			return nil, err
 		}
+		raw, err := os.ReadFile(labReplyPath(name))
+		if err != nil {
+			return nil, fmt.Errorf("lab cache %s: %w", name, err)
+		}
+		var lab map[string]any
+		if err := json.Unmarshal(raw, &lab); err != nil {
+			return nil, fmt.Errorf("lab cache %s: %w", name, err)
+		}
+		row["lab"] = lab
 		row["cached"] = true
 	} else {
 		if err := generateDebugStart(ctx, h, s.Names, l.base()); err != nil {
@@ -142,9 +162,17 @@ func (l LabStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[st
 			return nil, fmt.Errorf("%s made a %d map, want %d", LabStartTool, size, LabMapSize)
 		}
 		row["digest"] = lab["digest"]
+		row["lab"] = lab
 		row["cached"] = false
 		if cached {
 			if err := saveCachedStart(ctx, h, name); err != nil {
+				return nil, err
+			}
+			raw, err := json.Marshal(lab)
+			if err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(labReplyPath(name), raw, 0o644); err != nil {
 				return nil, err
 			}
 			if err := os.WriteFile(labStampPath(name), []byte(stamp+"\n"), 0o644); err != nil {

@@ -22,7 +22,7 @@ func init() {
 		Name: "needs/freeze",
 		Scope: "test/freeze_needs pins every free colonist need but the kept ones at maximum across " +
 			"an advance window and releases them on request.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Keep:   []string{kept},
 		Budget: 5 * time.Minute,
 		Run:    run,

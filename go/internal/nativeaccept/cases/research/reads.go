@@ -18,7 +18,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:  "research/reads",
 		Scope: "Private read-only research fingerprint fixture; typed read invariance before separate native getter audit. No selection, save or pawn work.",
-		Start: cases.FlatDebugStart(),
+		Start: cases.LabStart(),
 		// A read-only fingerprint; the wild map is unobserved (#333).
 		QuietWorld: true,
 		Quiet:      na.QuietRequired,

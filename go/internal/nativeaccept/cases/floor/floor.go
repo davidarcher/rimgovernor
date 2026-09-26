@@ -36,7 +36,7 @@ func init() {
 		Scope: "Native MaintainFlooring vertical: a measured-deficient kitchen interior on bare soil drives the live Go " +
 			"routine reviewer/planner to admit an affordable floor on the deficient cells only; the colonists lay it and " +
 			"the measured census, not the receipt, releases the latch, confirmed by an independent native read.",
-		Start:   cases.Fixture{Op: "test/flooring_prepare"},
+		Start:   cases.Fixture{On: cases.LabStart(), Op: "test/flooring_prepare"},
 		Service: true,
 		Budget:  5 * time.Minute,
 		Run:     run,

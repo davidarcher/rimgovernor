@@ -11,7 +11,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "clearance/salvage-remote", Scope: "A useful far-edge ruin is deconstructed and its steel delivered without adding Home.",
-		Start:       cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 1}, On: cases.FlatDebugStart()},
+		Start:       cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 1}, On: cases.LabStart()},
 		RequiredOps: []string{"test/loot_remote_drop", "test/salvage_remote"}, Quiet: na.QuietRequired, QuietWorld: true, Budget: 4 * time.Minute, Stall: 60 * time.Second,
 		Serve: &cases.ServeSpec{Families: []string{"clearance", "supply", "resource"}, Extra: []string{"--routine-resource-target", "Steel:2000"}}, Run: runSalvageRemote})
 }

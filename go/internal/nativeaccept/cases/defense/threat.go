@@ -26,7 +26,7 @@ func init() {
 		Scope: "The typed colony read's threat section (raid points, the wealth split and the storyteller wealth) equals the native " +
 			"WealthWatcher and DefaultThreatPointsNow figures on the paused " + sustained.BaselineSave + " save, and again after the " +
 			"fixture stocks the colony and recounts; read-only (#395).",
-		Start:       cases.Save{Name: sustained.BaselineSave},
+		Start:       cases.LabStart(),
 		RequiredOps: []string{"test/defense_setup"},
 		Quiet:       na.QuietRequired,
 		Budget:      5 * time.Minute,

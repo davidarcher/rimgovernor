@@ -139,7 +139,7 @@ func init() {
 		Scope: "Typed wall-upgrade site census against the legacy home/wall_upgrade_sites geometry; read-only, no designation or construction.",
 		// The save carries its own expansion list (the runner enables them);
 		// the lighting fixture builds the walls on top of it.
-		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.Save{Name: baselineSave}},
+		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
 		Run:    runUpgrade,
 	})

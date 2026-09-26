@@ -34,7 +34,7 @@ func init() {
 		Scope: "Native GiftCaravanSilver vertical: a real gift-mode TradeSession/TradeDeal " +
 			"execution against an actual visited settlement, exact caravan-position/faction-token CAS and " +
 			"visit-first refusal, replay idempotency and a post-gift stale-faction-token refusal.",
-		Start:  cases.Fixture{Op: "test/settlement_gift_prepare", Args: map[string]any{"silverCount": 100}},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/settlement_gift_prepare", Args: map[string]any{"silverCount": 100}},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    run,

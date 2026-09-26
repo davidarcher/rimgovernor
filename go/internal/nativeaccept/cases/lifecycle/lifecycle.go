@@ -30,7 +30,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "lifecycle/shutdown",
 		Scope:  "Unloading the game with Auto granted revokes native authority as REVOCATION_REASON_SHUTDOWN at generation+1; authority_read_status for the ended game's identity reports that retained state with its final tick once no game is loaded; a fresh game afterwards reports the old identity stale and its own authority fresh. Process exit (Root.Shutdown) is hooked the same way but is not wire-observable, so it is not exercised.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Reason: "the case unloads the runner's game and starts a second one; the process ends on a game the next case did not open",
 		NoKeep: true,
 		Budget: 8 * time.Minute,
@@ -49,7 +49,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "lifecycle/runtime-fault",
 		Scope:  "A required authority hook removed at runtime: the fixture observes it missing, authority goes Inactive(HOOKS_UNAVAILABLE) at generation+1 and the hook is reinstalled by the game's own update poll, a SetMode(Auto) at that generation is granted, and home/runtime_health is whole again. Then the newest retained clock journal row is truncated on disk: clock_read_events across it answers a page with gap=true, lostCount=1 and no failure, home/runtime_health lists the cursor under journal.corruptRows, and the next authority change publishes the row after it, which reads back whole.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Reason: "the fixture unpatches a Harmony hook: process-scoped static state no later case should inherit",
 		NoKeep: true,
 		Budget: 8 * time.Minute,

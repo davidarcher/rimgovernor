@@ -111,7 +111,7 @@ func init() {
 		Name: "letter/pause",
 		Scope: "AdvanceGame acknowledges and dismisses informational letters, ignores ones that do not pause, " +
 			"and still interrupts on an unexpected threat letter or, in strict mode, on any letter.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})

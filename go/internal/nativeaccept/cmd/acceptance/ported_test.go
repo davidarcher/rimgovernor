@@ -60,7 +60,7 @@ func TestStopNeedsRoot(t *testing.T) {
 }
 
 // TestLastPortedCases pins the two cases that retired the last per-harness
-// binaries (#146): dialog/pause hosts a service on the baseline save, and
+// binaries (#146): dialog/pause hosts a service on the lab (#751), and
 // authority/warm owns its process (two controllers on one kept process)
 // and retires it.
 func TestLastPortedCases(t *testing.T) {
@@ -68,8 +68,8 @@ func TestLastPortedCases(t *testing.T) {
 	if !ok || dialog.Serve == nil || dialog.Quiet != na.QuietRequired {
 		t.Errorf("dialog/pause = %+v", dialog)
 	}
-	if _, save := dialog.Start.(cases.Save); !save {
-		t.Errorf("dialog/pause does not open on a save: %T", dialog.Start)
+	if _, lab := dialog.Start.(cases.Lab); !lab {
+		t.Errorf("dialog/pause does not open on the lab: %T", dialog.Start)
 	}
 	warm, ok := cases.Lookup("authority/warm")
 	if !ok || !warm.NoKeep || warm.Serve != nil {

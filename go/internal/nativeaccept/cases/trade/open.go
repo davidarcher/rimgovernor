@@ -51,7 +51,7 @@ func init() {
 			"TradeAccept/TradeEnd limitation): a real TradeSession admission against an actual spawned trader " +
 			"caravan, exact trader/negotiator-position CAS self-computed client side, owner-conflict and " +
 			"stale-identity refusals, and replay idempotency.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    run,

@@ -47,7 +47,7 @@ func init() {
 			"script_def, is left unanswered without a declared population policy, and once the player declares one the " +
 			"colony can meet (headroom, food reserve, a spare unowned bed) MaintainPopulation accepts it through the " +
 			"QuestAccept vertical and the joiner arrives natively.",
-		Start: cases.Fixture{Op: joinerPrepareTool, On: cases.Save{Name: joinerBaseline}},
+		Start: cases.Fixture{Op: joinerPrepareTool, On: cases.LabStart()},
 		// The building families keep supervised windows running; the joiner
 		// planner alone never advances the clock.
 		Serve: &cases.ServeSpec{

@@ -40,7 +40,7 @@ func init() {
 			"reassigned to a real named roofed refuge by a real native PatchPawn execute issued through the typed " +
 			"operations contract, exact CAS/stale-identity refusal, preview non-mutation, real allowed-area change " +
 			"observed via native readback (not just a receipt), and replay idempotency.",
-		Start:  cases.Fixture{Op: "test/recovery_area_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/recovery_area_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    runArea,
 	})

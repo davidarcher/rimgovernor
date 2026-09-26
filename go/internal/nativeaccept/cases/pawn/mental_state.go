@@ -16,7 +16,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "pawn/mental-state", Scope: "Induced Berserk is read as its native defName, aggression and zero initial age through pawn and colonist status reads, including the Go Fact projection.",
-		Start: cases.Fixture{Op: "test/mental_state_berserk"}, Budget: time.Minute,
+		Start: cases.Fixture{On: cases.LabStart(), Op: "test/mental_state_berserk"}, Budget: time.Minute,
 		Run: mentalState,
 	})
 }

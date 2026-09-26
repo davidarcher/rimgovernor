@@ -15,8 +15,8 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "zone/changed-since", Scope: "Zone add, cell add/remove, crop change and removal return deltas and tombstones; merged facts equal a full census, and the colony aggregate omits farms, food_storage and zone_map_snapshot.", Start: cases.Fixture{Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, false) }})
-	cases.Register(cases.Case{Name: "zone/tombstone-expiry", Scope: "After 2501 actual ticks a removed zone's delta cursor is refused with entity_tombstone_window_expired; the production Go reader falls back to a full census without resurrecting the zone.", Start: cases.Fixture{Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, true) }})
+	cases.Register(cases.Case{Name: "zone/changed-since", Scope: "Zone add, cell add/remove, crop change and removal return deltas and tombstones; merged facts equal a full census, and the colony aggregate omits farms, food_storage and zone_map_snapshot.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, false) }})
+	cases.Register(cases.Case{Name: "zone/tombstone-expiry", Scope: "After 2501 actual ticks a removed zone's delta cursor is refused with entity_tombstone_window_expired; the production Go reader falls back to a full census without resurrecting the zone.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"}, Budget: 3 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return zoneDelta(ctx, s, true) }})
 }
 
 func zoneDelta(ctx context.Context, s cases.Session, expire bool) error {

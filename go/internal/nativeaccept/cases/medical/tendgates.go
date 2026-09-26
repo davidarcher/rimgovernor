@@ -15,7 +15,7 @@ func init() {
 		Scope: "list_pawns' tend detail carries the doctor gates NativeTendOperations.Prepare enforces " +
 			"(pawn-control eligibility, WorkGiver_Tend capacities, pairwise reachability), so SelectTend stops " +
 			"proposing doctors the native tend gate refuses (#657).",
-		Start:  cases.Fixture{Op: "test/medical_plague_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/medical_plague_prepare"},
 		Budget: time.Minute,
 		Run:    tendGates,
 	})

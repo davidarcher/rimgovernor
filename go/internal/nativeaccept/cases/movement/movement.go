@@ -23,7 +23,7 @@ func init() {
 		Scope: "Real ordinary native Goto arrival under typed authority/clock, exact CAS/replay, " +
 			"no-op, mid-flight disconnect (typed clock lease lapse) recovery, Manual and player override. " +
 			"No teleport or completion injection.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Quiet:  na.Loud,
 		Reason: "an interruption case: the scenario clock's colony watch policy (hostiles within range, injury stops) and the lease-lapse disconnect run against the game's own storyteller, which the quiet op replaces",
 		Budget: 10 * time.Minute,

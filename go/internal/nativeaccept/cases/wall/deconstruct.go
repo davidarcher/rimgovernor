@@ -12,7 +12,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "wall/deconstruct", Scope: "Generic Deconstruct admits colony targets and explicitly adopts player designations, preserves unadopted and replacement orders, releases only owned work, and observes native pawn demolition with replay and lookup.",
-		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.Save{Name: baselineSave}}, Budget: 3 * time.Minute, Run: runDeconstruct})
+		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: 3 * time.Minute, Run: runDeconstruct})
 }
 
 func runDeconstruct(ctx context.Context, s cases.Session) error {

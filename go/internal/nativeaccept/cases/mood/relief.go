@@ -47,7 +47,7 @@ func init() {
 			"job issued through the typed operations contract, exact CAS/stale-identity and stale-fencing refusal, " +
 			"admission over a player-forced current job (#474), " +
 			"real need recovery observed via native ticks, replay idempotency and durable lookup.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Keep:   []string{string(na.NeedJoy), "Mood"},
 		Budget: 5 * time.Minute,
 		Run:    run,

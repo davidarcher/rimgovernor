@@ -465,9 +465,30 @@ by review alone.
    `Start` is required (`Validate`), and lint refuses `Serve` on a bare
    `DebugStart`: a serve-driven case opens on a `Save` or a `Fixture`.
    A case that needs one op or read on a known structure and no colony
-   history opens on the lab (`cases.Lab(n)`, #743): a 100x100 map wiped to
-   bare Soil with `n` fixture colonists, one `na.LabSpawn` per building,
-   item or pawn, `cases.LabBudget`; `lab/spawn` is the pattern (10 s).
+   history opens on the lab (`cases.Lab{Colonists: n}`, #743): a 100x100
+   map wiped to bare Soil with `n` fixture colonists, the `test/lab_start`
+   reply (centre, colonist ids) as `Prepared`, one `na.LabSpawn` per
+   building, item or pawn, `cases.LabBudget`; `lab/spawn` is the pattern
+   (10 s). Every op/read contract case opens on the lab (#751) except
+   these, which cannot:
+   - *Production discovery* (`QuietIfAvailable`, also run on a production
+     build, which has no `test/lab_start`): `pawn/reads`, `rooms/reads`,
+     `supplies/reads`, `presentation/media`, `presentation/roster`,
+     `lifecycle/checkpoint`, `lifecycle/load`, `video/feeds`,
+     `video/stream`, `tickbudget/boundaries`.
+   - *Process lifecycle* (`Owned`: the assertion is the launch, restart or
+     reuse of a game process across saves): `authority/warm`,
+     `lifecycle/reuse`, `service/restart`.
+   - *The save is the subject* (they measure a committed save's size or
+     content): `tools/saveheadroom-*`, `tools/foodchannels`,
+     `tools/deepresources`.
+   - *The wild map is the subject* (mature wild plants, prey, natural
+     rock to mine): `apply/refusal`, `animals/hunt-withdrawal`.
+   - *Failed on the lab, not yet diagnosed* (#760-#763, stay on
+     their old start until fixed): `farm/blight`, `cells/planning-view-refresh`,
+     `medical/plague-readback`, `upkeep/home-coverage`.
+   A lab op that uses existing starting resources and refuses to spawn them
+   takes `ArgsFrom: cases.LabWood(n)` (the `construction/guarded-*` cases).
 2. **Small map, tiny planet.** Take the default start (200x200, 5%
    planet); pass a larger `DebugStart{Size}` only when the assertion reasons
    about terrain beyond that, and never hardcode a map size in a fixture.

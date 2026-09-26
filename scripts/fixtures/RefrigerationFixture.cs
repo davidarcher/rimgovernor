@@ -215,6 +215,10 @@ namespace HomeBridge.BridgeTools
                 // resulting CriticalMedical hold suspends refrigeration itself.
                 // The season scenario keeps the ramp: the outdoors warms over
                 // the first 12000 ticks and the cold room follows it up.
+                // A lab start pins the outdoor temperature, which would cancel
+                // the waves: release the pin so the tile's own climate and the
+                // waves drive the room (#751).
+                AcceptanceWorld.SetLab(float.NaN);
                 var heat = DefDatabase<GameConditionDef>.GetNamedSilentFail("HeatWave");
                 var heatWaves = 0;
                 if (heat != null && !corpseLarder)

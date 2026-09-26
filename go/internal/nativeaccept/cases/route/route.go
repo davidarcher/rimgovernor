@@ -39,7 +39,7 @@ func init() {
 			"drives the live Go routine reviewer/planner to admit exactly one door on a listed breach wall; the colonists " +
 			"build it and the measured census, not the receipt, releases the latch, confirmed by an independent native read " +
 			"with observed traffic samples.",
-		Start: cases.Fixture{Op: "test/routes_prepare", On: cases.FlatDebugStart()},
+		Start: cases.Fixture{Op: "test/routes_prepare", On: cases.LabStart()},
 		// The census paths between the colonists and a staged room; the wild
 		// map is unobserved (#333).
 		QuietWorld: true,

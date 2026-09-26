@@ -33,7 +33,7 @@ func init() {
 		Scope: "Native FulfillQuest vertical: settlement trade-request fulfillment through an " +
 			"actual TradeRequestComp caravan gizmo callback and confirmation dialog, exact CAS/stale-identity " +
 			"refusal, replay idempotency and durable lookup.",
-		Start:  cases.Fixture{Op: "test/quest_fulfill_prepare", Args: map[string]any{"requestedCount": 40}},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/quest_fulfill_prepare", Args: map[string]any{"requestedCount": 40}},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    runFulfill,

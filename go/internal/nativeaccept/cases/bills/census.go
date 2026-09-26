@@ -22,7 +22,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "bills/census",
 		Scope:  "Typed bench/bill census and per-bench recipe catalog against the legacy home/bills listing; read-only, no bill changes or gameplay orders.",
-		Start:  cases.Fixture{Op: "test/routine_production_prepare", On: cases.Save{Name: "RimGovernor-tribal8-baseline"}},
+		Start:  cases.Fixture{Op: "test/routine_production_prepare", On: cases.LabStart()},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    run,

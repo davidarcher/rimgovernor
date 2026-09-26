@@ -11,7 +11,7 @@ import (
 
 func init() {
 	cases.Register(cases.Case{Name: "wall/adoption", Scope: "Smoke: explicit demolition adoption has a receipt; release removes adopted work and preserves unadopted player work.",
-		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.Save{Name: baselineSave}}, Budget: time.Minute, Run: runAdoption})
+		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: time.Minute, Run: runAdoption})
 }
 
 func runAdoption(ctx context.Context, s cases.Session) error {

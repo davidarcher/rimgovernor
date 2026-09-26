@@ -293,6 +293,10 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 		return err
 	}
 	s.Report["start"] = row
+	if _, lab := start.(LabStart); lab {
+		// A bare lab start replies the lab itself (centre, colonist ids).
+		s.Prepared, _ = row["lab"].(map[string]any)
+	}
 	s.Report["world"] = RecordWorld(s.Config, start)
 	if err := s.Pause(ctx); err != nil {
 		return err

@@ -38,7 +38,7 @@ func init() {
 			"player Wall is actually repaired by a real native WorkGiver_Repair job issued through the typed " +
 			"operations contract, exact CAS/stale-identity refusal, preview non-mutation, real HitPoints change " +
 			"observed via native ticks (not just a receipt), and replay idempotency.",
-		Start:  cases.Fixture{Op: "test/recovery_service_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/recovery_service_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    runService,
 	})

@@ -45,7 +45,7 @@ func init() {
 			"operation, with stale-token refusal, preview non-mutation, real effect evidence, real ListZones " +
 			"readbacks and replay idempotency. The re-add runs under a playing clock window and the journal's " +
 			"observation_invalidated names the zone id and its cell rectangle (#359).",
-		Start:  cases.Fixture{Op: "test/zone_delete_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/zone_delete_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})

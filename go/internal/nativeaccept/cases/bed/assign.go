@@ -26,7 +26,6 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 )
 
 const sessionOwner = "native-bed-assign-acceptance"
@@ -40,7 +39,7 @@ func init() {
 			"CAS/stale-identity refusal, preview non-mutation, real bed-ownership change observed via native readback " +
 			"(not just a receipt), and replay idempotency.",
 		// Sited on the audited baseline, not a fresh random world (#716).
-		Start:  cases.Fixture{Op: "test/bed_assign_prepare", On: cases.Save{Name: sustained.BaselineSave}},
+		Start:  cases.Fixture{Op: "test/bed_assign_prepare", On: cases.LabStart()},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    run,

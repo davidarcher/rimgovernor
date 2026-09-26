@@ -31,7 +31,7 @@ func init() {
 			"come back from reads with changed_since_tick set to the first reads' tick, unchanged counts the rest, the delta " +
 			"merged over the first read equals a fresh full read (drift 0), the deleted zone and destroyed bench and wall are " +
 			"named in removed_ids, and an ask older than the 2500-tick tombstone window is refused as STALE while a full read answers.",
-		Start:  cases.Fixture{Op: "test/entities_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/entities_prepare"},
 		Budget: 3 * time.Minute,
 		Run:    run,
 	})

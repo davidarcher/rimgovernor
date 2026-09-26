@@ -26,7 +26,6 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 )
 
 const sessionOwner = "native-animal-containment-acceptance"
@@ -40,7 +39,7 @@ func init() {
 			"observations_read_colony_facts, not just a receipt), while a non-pen-requiring pet is left alone.",
 		// Sited on the audited baseline: an unpinned debug start draws a
 		// fresh world each run and may offer no legal pen room (#716).
-		Start:  cases.Fixture{Op: "test/containment_construct_prepare", On: cases.Save{Name: sustained.BaselineSave}},
+		Start:  cases.Fixture{Op: "test/containment_construct_prepare", On: cases.LabStart()},
 		Keep:   []string{string(na.LiveNeeds)},
 		Budget: 5 * time.Minute,
 		Run:    run,

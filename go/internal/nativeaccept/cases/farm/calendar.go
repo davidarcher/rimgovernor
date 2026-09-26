@@ -28,7 +28,7 @@ func init() {
 		Scope: "The typed colony read's growing calendar (season, day of year, growing period, days until the crop range is left " +
 			"and re-entered, the non-growing stretch) agrees with home/status and home/world on the " + sustained.BaselineSave +
 			" save, and the harvest gap it phases in meets the gap the first frost day reads; read-only (#229, #317).",
-		Start:  cases.Save{Name: sustained.BaselineSave},
+		Start:  cases.LabStart(),
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    runCalendar,

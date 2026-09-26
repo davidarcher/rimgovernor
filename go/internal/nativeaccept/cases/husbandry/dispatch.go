@@ -40,7 +40,7 @@ func init() {
 			"settings/census staleness, pregnant-animal-protected and wrong-faction refusals, immediate settings " +
 			"readback (not a native job), the wild census the tame planner reads, allowed-area/master/following settings " +
 			"writes with their obedience and area-existence refusals, replay idempotency and durable lookup.",
-		Start:  cases.Fixture{Op: "test/husbandry_setup"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/husbandry_setup"},
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})

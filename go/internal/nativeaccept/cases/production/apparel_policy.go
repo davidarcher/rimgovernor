@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "SetApparelPolicy creates, assigns and updates a role policy, rejects stale CAS, and overrides manual policies and forced/locked apparel under autonomous control.", Start: cases.DebugStart{}, Budget: 2 * time.Minute, Run: runApparelPolicy})
+	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "SetApparelPolicy creates, assigns and updates a role policy, rejects stale CAS, and overrides manual policies and forced/locked apparel under autonomous control.", Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runApparelPolicy})
 }
 func runApparelPolicy(ctx context.Context, s cases.Session) error {
 	h := s.Harness()

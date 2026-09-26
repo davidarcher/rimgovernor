@@ -30,7 +30,7 @@ func init() {
 		Scope: "Native TravelCaravan vertical: hold (Stop), route (Move) and return-home dispositions " +
 			"of an already-formed real player caravan through its actual native path follower, exact CAS/" +
 			"stale-identity refusal, replay idempotency and durable lookup.",
-		Start:  cases.Fixture{Op: "test/caravan_control_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/caravan_control_prepare"},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    runControl,

@@ -64,7 +64,7 @@ func init() {
 		Scope: "Native QueueSurgery vertical: an actual HealthCardUtility.CreateSurgeryBill queued " +
 			"through the typed operations contract, exact CAS/stale-identity refusal, real completion via native work " +
 			"selection, replay idempotency and durable lookup.",
-		Start:  cases.Fixture{Op: "test/surgery_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/surgery_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})

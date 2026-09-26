@@ -8,13 +8,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func init() {
 	sleeping := scenarios()["sleeping"]
-	cases.Register(cases.Case{Name: "upkeep/colony-extent", Scope: "Runtime extent producer and expansion add/remove leave the complete native Home mask byte-identical (#519, #580); existing Home maintenance covers the ready corridor.", Start: cases.Save{Name: sustained.BaselineSave}, Keep: sleeping.keep, Serve: &cases.ServeSpec{Families: []string{"home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix}, Budget: 4 * time.Minute, Reason: "Ready connected rooms; Home orders require no construction waits.", Run: runColonyExtent})
+	cases.Register(cases.Case{Name: "upkeep/colony-extent", Scope: "Runtime extent producer and expansion add/remove leave the complete native Home mask byte-identical (#519, #580); existing Home maintenance covers the ready corridor.", Start: cases.LabStart(), Keep: sleeping.keep, Serve: &cases.ServeSpec{Families: []string{"home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix}, Budget: 4 * time.Minute, Reason: "Ready connected rooms; Home orders require no construction waits.", Run: runColonyExtent})
 }
 
 func runColonyExtent(ctx context.Context, s cases.Session) error {

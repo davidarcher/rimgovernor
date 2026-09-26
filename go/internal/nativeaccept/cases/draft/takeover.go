@@ -13,7 +13,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "takeover/draft", Scope: "Manual player draft is adopted under Auto through native CAS, then exact owned cleanup undrafts it; independent pawn readbacks prove both effects.",
-		Start: cases.DebugStart{}, RequiredOps: []string{"test/b04f_setup"}, Budget: 2 * time.Minute, Run: runDraftTakeover,
+		Start: cases.LabStart(), RequiredOps: []string{"test/b04f_setup"}, Budget: 2 * time.Minute, Run: runDraftTakeover,
 	})
 }
 

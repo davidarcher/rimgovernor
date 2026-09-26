@@ -33,7 +33,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "authority/disconnect",
 		Scope:  "Typed clock lease expiry revokes native authority as REVOCATION_REASON_DISCONNECT at generation+1 with the clock stopped lease_expired and pause verified; a fresh SetMode(Auto) at that generation is granted. Killing the case's own GABS mid-epoch disconnects the Go bridge client, Reattach restores it against the running game, and the re-observed DISCONNECT revocation is cleared by a fresh grant.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Quiet:  na.Loud,
 		Reason: "an interruption case: the typed epochs run the colony watch policy against the game's own storyteller, and the transport drop must reattach to a game that kept running unquieted",
 		Budget: 8 * time.Minute,

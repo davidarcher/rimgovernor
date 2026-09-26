@@ -48,7 +48,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "smoke/dispatch",
 		Scope:  "#227/#617: companion tools dispatch off the GABP reader. home/runtime_health reports the extension dispatch patch installed with every discovered tool rewrapped, and with a clock_read_events long poll established as held (journal.waiters, or a declared timing approximation on a build without it) an independent identity read is answered before the poll is released.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()

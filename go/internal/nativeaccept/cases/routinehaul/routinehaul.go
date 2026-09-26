@@ -61,7 +61,7 @@ func init() {
 			"outcome is confirmed by an independent native read, a renewed deficit is picked up without a " +
 			"duplicate order, and a player-revoked Hauling priority interrupts dispatch without the planner " +
 			"overriding player intent or double-issuing.",
-		Start: cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}, On: cases.FlatDebugStart()},
+		Start: cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}, On: cases.LabStart(), ArgsFrom: cases.LabWood(75)},
 		// The haul runs between staged items and a stockpile inside the home
 		// area; the wild map is unobserved (#333).
 		QuietWorld: true,

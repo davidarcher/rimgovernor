@@ -32,7 +32,7 @@ func init() {
 			"growing zone, loose stack and floor laid directly by the fixture come back from a read with changed_since_tick " +
 			"set to the first read's tick, unchanged counts the rest to the exact area, the delta merged over the first read " +
 			"equals a fresh full read (drift 0), and after one game tick a read since the newer tick omits the older round.",
-		Start:  cases.Fixture{Op: "test/cells_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"},
 		Budget: 3 * time.Minute,
 		Run:    run,
 	})

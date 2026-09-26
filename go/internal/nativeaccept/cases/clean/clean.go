@@ -52,7 +52,7 @@ func init() {
 				"target at a time until the measured cleanliness releases the latch (filthy), or a co-located butcher spot " +
 				"has the food-supply family admit a separated ButcherSpot that takes the bill (separation); " +
 				"confirmed by an independent native read.",
-			Start:   cases.Fixture{Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
+			Start:   cases.Fixture{On: cases.LabStart(), Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
 			Service: true,
 			Budget:  5 * time.Minute,
 			Stall:   stall,

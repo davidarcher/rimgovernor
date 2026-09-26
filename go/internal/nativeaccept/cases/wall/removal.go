@@ -108,7 +108,7 @@ func init() {
 		Scope: "Native RemoveWall/ReleaseWallRemovals dispatch: site resolution from the wall identity, refusal without " +
 			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, release of a pending " +
 			"removal, replay and lookup idempotency.",
-		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.Save{Name: baselineSave}},
+		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
 		Run:    runRemoval,
 	})

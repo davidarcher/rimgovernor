@@ -29,7 +29,7 @@ func init() {
 		Scope: "A fixture-armed live Pawn_DraftController.Drafted setter fault during an admitted " +
 			"SetDrafted attempt reports an Uncertain receipt, leaves the pawn's real drafted state untouched, and " +
 			"resolves to an Unknown observation, after which a fresh legitimate attempt succeeds normally.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    runFault,
 	})

@@ -43,7 +43,7 @@ func init() {
 			"routine home food floor, admission, an actual FormCaravan dispatch, its observed completion and " +
 			"native's caravan inventory carrying exactly that pack; plus native's home-staffing and " +
 			"post-departure stale-catalog refusals.",
-		Start:  cases.Fixture{Op: "test/caravan_departure_prepare", Args: map[string]any{"crewCount": 1}},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/caravan_departure_prepare", Args: map[string]any{"crewCount": 1}},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    runDeparture,

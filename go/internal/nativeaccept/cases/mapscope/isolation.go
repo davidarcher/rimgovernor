@@ -19,7 +19,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "mapscope/isolation",
 		Scope:  "Two loaded player maps: a status read for the second map's identity answers about that map while the first is viewed; switching the viewed map invalidates authority (IdentityChanged, generation+1) but reads for either identity still resolve their own map, the roster spans both maps with map_id, presentation reads bound to the viewed map refuse the other identity as stale, an identity naming an unloaded map is stale with the viewed context, and after switching back a draft operation bound to the first map is granted and lands there.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    run,

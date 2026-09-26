@@ -94,7 +94,7 @@ func init() {
 		Scope: "Paused real native draft CAS, owned claims, replay/no-op, Manual cleanup, player override and " +
 			"adoption of a player draft under Auto (#461), plus real ordinary-ledger exhaustion and owned-cleanup-beyond-exhaustion. Capacity " +
 			"refusal's own boundary remains covered by compiled ledger tests, not injected native outcomes.",
-		Start:  cases.DebugStart{},
+		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    runOrder,
 	})

@@ -148,7 +148,7 @@ func init() {
 			"that completes on admission with no Frame/Blueprint stage or pawn labor, and a genuinely in-flight " +
 			"Frame replaced by a second admitted PlaceBuilding sharing the same replaceTags, whose own attempt " +
 			"then reports UNSUCCESSFUL_REASON_CANCELLED.",
-		Start: cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}, On: cases.FlatDebugStart()},
+		Start: cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}, On: cases.LabStart(), ArgsFrom: cases.LabWood(75)},
 		// The fixture stages the sites inside the home area; the wild map is
 		// unobserved (#333).
 		QuietWorld: true,

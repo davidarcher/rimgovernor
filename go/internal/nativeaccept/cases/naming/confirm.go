@@ -46,7 +46,7 @@ func init() {
 			"section, its exact observed suggestions confirmed through Operations.ConfirmColonyNames under the " +
 			"ConfirmColonyNames routine goal (the plan persisted and dispatched by the store and worker), the names " +
 			"applied natively and the native clock starting afterwards.",
-		Start: cases.Save{Name: baselineSave},
+		Start: cases.LabStart(),
 		// The building families give the clock ordinary work to start on
 		// once the dialog is gone.
 		Serve: &cases.ServeSpec{

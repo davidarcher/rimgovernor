@@ -42,7 +42,7 @@ func init() {
 			Name: v.name,
 			Scope: "Actual attributed combat terminal outcome, player override and fresh claim, replay, " +
 				"completed-before-Manual retention; bounded shared clock waits. No damage or completion injection.",
-			Start:  cases.DebugStart{},
+			Start:  cases.LabStart(),
 			Quiet:  na.Loud,
 			Reason: loudReason,
 			Budget: 12 * time.Minute,

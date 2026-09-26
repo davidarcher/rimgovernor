@@ -437,9 +437,9 @@ func (c Case) Lint() error {
 	}
 	if c.Serve != nil {
 		switch c.Start.(type) {
-		case Save, Fixture:
+		case Save, Fixture, Lab:
 		default:
-			fail("Serve declared on a bare DebugStart: a serve-driven case opens on a committed save or a fixture op", 1, "Open on the precondition")
+			fail("Serve declared on a bare DebugStart: a serve-driven case opens on a committed save, the lab or a fixture op", 1, "Open on the precondition")
 		}
 	}
 	return errors.Join(errs...)
@@ -489,4 +489,16 @@ func reset() {
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	registry = map[string]Case{}
+}
+
+// LabWood is a Fixture ArgsFrom for a lab case whose op uses existing
+// starting wood and refuses to spawn resources (#751): it lays count WoodLog
+// beside the lab's centre, where a debug start's colonists would find
+// their starting stacks, and adds no arguments.
+func LabWood(count int) func(context.Context, *na.Harness) (map[string]any, error) {
+	return func(ctx context.Context, h *na.Harness) (map[string]any, error) {
+		c := na.LabMapSize / 2
+		_, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "WoodLog", X: c + 3, Z: c + 3, Count: count})
+		return nil, err
+	}
 }

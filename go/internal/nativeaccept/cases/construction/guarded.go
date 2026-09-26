@@ -192,7 +192,7 @@ func init() {
 				"semantics, Go durable restart reconciliation (Go observe phase expects " + outcome + ").",
 			// Nothing here is about eating, sleeping or mood: the builder
 			// stays on the job for the whole run.
-			Start: cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 3}, On: cases.FlatDebugStart()},
+			Start: cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 3}, On: cases.LabStart(), ArgsFrom: cases.LabWood(75)},
 			// The fixture stages the sites inside the home area; the wild map
 			// is unobserved (#333).
 			QuietWorld: true,
