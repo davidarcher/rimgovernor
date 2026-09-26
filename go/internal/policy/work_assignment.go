@@ -98,6 +98,10 @@ type WorkRosterReport struct {
 	Coverage []WorkCoverage
 	Decaying []DecayingSkill `json:",omitempty"`
 	Profiles []PawnProfile
+	// Help is the construction helper record (#653): helpers, unmet ready
+	// work and the reason spare capacity is or is not used. The next
+	// review reads it back for hysteresis.
+	Help *ConstructionHelpRecord `json:",omitempty"`
 }
 
 type WorkDecision struct {
@@ -105,6 +109,8 @@ type WorkDecision struct {
 	Capacity, Matches domain.Fact[bool]
 	Coverage          []WorkCoverage
 	Decaying          []DecayingSkill
+	// Help is the construction helper decision; nil without WorkDemand.Help.
+	Help *ConstructionHelpRecord
 }
 
 // WorkDemand carries the colony census the baseline owner table scales by.
@@ -120,6 +126,8 @@ type WorkDemand struct {
 	Construction bool
 	// Prisoners is the prisoner count; a warden is wanted only with one.
 	Prisoners int
+	// Help enables construction helpers (#653); nil plans none.
+	Help *ConstructionHelp
 }
 
 // Work types in native natural-priority order (WorkTypeDefs.naturalPriority),
@@ -538,6 +546,27 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 			}
 		}
 		result.Coverage = append(result.Coverage, coverage)
+	}
+	if demand.Help != nil {
+		// Helpers (construction_helpers.go): sub-floor pawns the native
+		// floor admits, at the lowest rank; overrides and owners are not
+		// helpers.
+		nativeFloor := 0
+		if r, ok := requirements[WorkConstruction]; ok {
+			nativeFloor = r.Minimum
+		}
+		rec := planConstructionHelp(*demand.Help, workers, owners[WorkConstruction], func(w *workWorker) bool {
+			_, overridden := custom[overrideKey{w.pawn.ID, WorkConstruction}]
+			return w.owns[WorkConstruction] == 0 && !overridden && !able(w, WorkConstruction) && ableAt(w, WorkConstruction, nativeFloor)
+		})
+		byID := map[PawnID]*workWorker{}
+		for _, w := range workers {
+			byID[w.pawn.ID] = w
+		}
+		for _, id := range rec.Helpers {
+			byID[id].owns[WorkConstruction] = 4
+		}
+		result.Help = &rec
 	}
 	// Decay: a skill above 10 no owner or secondary slot exercises; a pawn
 	// owning nothing keeps it exercised at 2.

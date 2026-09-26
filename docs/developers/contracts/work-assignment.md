@@ -85,6 +85,41 @@ role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
 
+## Construction helpers
+
+Owners stay the skilled constructors; `WorkDemand.Help`
+(`construction_helpers.go`, #653) adds bounded help below the floor. Demand
+is `ConstructionHelpDemand` over the review's recorded ready work (#645): the
+parallelism of runnable `building:<def>` candidates on
+`HelperConstructionDefinitions` (Wall, Door, SleepingSpot,
+DoubleSleepingSpot, Campfire, Sandbags, PowerConduit: no native skill
+minimum, no quality, cheap materials). Unmet demand is that parallelism
+beyond the owners not held by another work type's job. A helper is a pawn
+under the floor that the requirement's minimum (the native floor, else 0)
+admits, with no player override for Construction, not resting, idle
+(`idleJob`) now and at the previous review, or already helping; helpers
+take priority 4 (enabled in checkbox mode), previous helpers first, then
+by level, at most one per unmet task. No other work type's floor moves.
+
+A work-type priority enables every native construction job, not one wall.
+Native still refuses a frame above the pawn's `constructionSkillPrerequisite`;
+nothing native keeps a helper off a quality or expensive frame. So any known
+construction outside the set (a ready candidate, a conservative-adapter
+candidate that may build, or an open plan's building definition, player
+plans included) withholds helpers and withdraws current ones at once
+(`risky_construction_pending`); unknown or other-world ready work authorizes
+nothing (`construction_demand_unknown`). A risky frame placed between two
+reviews is open to an enabled helper until the next review: that is the
+limit of the coarse setting.
+
+When unmet demand clears, helpers hold for `ConstructionHelpHoldTicks`
+(2500) from the last tick it held (`held_after_demand`), then return to the
+ordinary 0; an override set meanwhile wins. The record (`Idle`, `Helpers`,
+`DemandTick`, `Ready`, `Unmet`, `Reason`, `Risky`) rides the roster report
+(`RoutineReview.Roster.Help`), which the next review reads back for the
+hysteresis; `no_sustained_idle_pawn` and `no_unmet_suitable_construction`
+name why spare capacity went unused.
+
 ## Situational roles
 
 `go/internal/policy/pawn_roles.go` answers the questions other goals ask of the
@@ -134,7 +169,8 @@ differs from the readback.
 Planner behaviour is table-driven in `work_assignment_test.go`,
 `pawn_profile_test.go` and `pawn_schedule_test.go` (trait table, floors,
 growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
-stability, timetable templates). The `workers/*` native cases
+stability, timetable templates) and `construction_helpers_test.go` (helper
+restrictions, risky and unknown work, hold and restoration). The `workers/*` native cases
 (`nativeaccept/cases/workers`, `WorkersFixture`'s `test/workers_setup`) seed
 the three debug-start colonists with a flat sheet, no traits, manual
 priorities and the native timetable, then one scenario each: `workers/passion`
@@ -144,7 +180,10 @@ warden; Industrious wins a tied Construction sheet), `workers/coverage` (every
 core role owned once, Capacity true, the written matrix matches on readback
 and replans unchanged) and `workers/nightowl` (the first native schedule
 write: a NightOwl's night shift and a QuickSleeper's six-hour sleep beside the
-work rows, a hand-edited timetable replanned and rewritten). Each writes through the real
+work rows, a hand-edited timetable replanned and rewritten) and
+`workers/helpers` (two idle pawns under the Construction floor help at 4 beside
+six wood walls; with the skilled builder drafted, a helper's native
+`ThingsConstructed` rises as a wall finishes). Each writes through the real
 `PatchPawn` execute under the work snapshot token and reads the sheet back
 through the routine census's pawn observation.
 

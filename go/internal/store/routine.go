@@ -208,7 +208,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	if r.Comfort.Dining.Tick > r.Tick || r.Comfort.Recreation.Tick > r.Tick {
 		return RoutineReview{}, errors.New("future comfort use history")
 	}
-	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256) {
+	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256 || r.Roster.Help != nil && (r.Roster.Help.Tick > r.Roster.Tick || len(r.Roster.Help.Idle) > 256 || len(r.Roster.Help.Helpers) > 256 || len(r.Roster.Help.Risky) > 256)) {
 		return RoutineReview{}, errors.New("invalid routine roster history")
 	}
 	if r.ShrineStep != nil && r.ShrineStep.validate(r.Tick) != nil {
@@ -730,5 +730,9 @@ func routineRoster(request RoutineReviewRequest, previous RoutineReview, reset b
 	}
 	profiles, _ := request.Facts.WorkProfiles.Value()
 	report.Profiles = append([]policy.PawnProfile{}, profiles...)
+	if help := request.Facts.WorkHelp; help != nil && help.Tick <= request.Tick {
+		copied := *help
+		report.Help = &copied
+	}
 	return report
 }

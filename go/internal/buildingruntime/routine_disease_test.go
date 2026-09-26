@@ -27,7 +27,7 @@ func TestDiseaseDemandFreshRecoveryAndWorldScope(t *testing.T) {
 		case "rewind":
 			facts.Identity.Tick = 1
 		}
-		demand, err := routineDiseaseDemand(facts, false, previous, current)
+		demand, err := routineDiseaseDemand(facts, nil, previous, current)
 		if err != nil || len(demand.Resting) != want {
 			t.Fatal(stage, demand, err)
 		}

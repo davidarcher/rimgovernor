@@ -167,7 +167,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	needs = r.reviewer.fishingResearchNeeds(needs)
 	required = mergeWorkRequirements(required, routineResearchWork(policy.ArmorResearchPolicy(r.reviewer.policy, review.Latches.Soldiers), needs, read.Projection.Facts.Research))
 	required = mergeWorkRequirements(required, fishingWork(read.Projection))
-	demand, err := routineDiseaseDemand(read.Projection, len(definitions) > 0, review, state.Snapshot)
+	demand, err := routineDiseaseDemand(read.Projection, definitions, review, state.Snapshot)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

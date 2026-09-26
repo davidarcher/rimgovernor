@@ -378,7 +378,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			required = mergeWorkRequirements(required, fishingWork(reading.Projection))
 		}
 		if known {
-			demand, err := routineDiseaseDemand(reading.Projection, len(definitions) > 0, previous, state.Snapshot)
+			demand, err := routineDiseaseDemand(reading.Projection, definitions, previous, state.Snapshot)
 			if err != nil {
 				return store.RoutineReviewResult{}, err
 			}
@@ -402,6 +402,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 				if _, ok := work.Capacity.Value(); ok {
 					reading.Projection.Facts.WorkRoster = domain.Known(work.Coverage)
 					reading.Projection.Facts.WorkDecaying = domain.Known(work.Decaying)
+					reading.Projection.Facts.WorkHelp = work.Help
 				}
 			}
 		}

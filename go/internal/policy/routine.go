@@ -439,6 +439,9 @@ type RoutineFacts struct {
 	WorkProfiles                                                               domain.Fact[[]PawnProfile]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
+	// WorkHelp is the same plan's construction helper record (#653);
+	// nil when the plan ran without the helper input.
+	WorkHelp *ConstructionHelpRecord
 	// Calendar is the tile's native growing calendar (policy.Calendar).
 	// DetectRoutine widens the policy's food and wood targets by its
 	// harvest gap (RoutinePolicy.Seasonal) before measuring any latch;

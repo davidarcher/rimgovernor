@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
 
         [Tool("test/workers_setup", Description = "Seed skills, passions, traits and timetables on the three colonists for a workers/* scenario; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "passion, traits, coverage or nightowl.")] string scenario)
+            [ToolParameter(Description = "passion, traits, coverage, helpers or nightowl.")] string scenario)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -116,6 +116,7 @@ namespace HomeBridge.BridgeTools
                     for (int i = 0; i < 24; i++) p.timetable.SetAssignment(i, i > 21 || i <= 5 ? TimeAssignmentDefOf.Sleep : TimeAssignmentDefOf.Anything);
                 }
                 var a = pawns[0]; var b = pawns[1]; var c = pawns[2];
+                var helperCells = new List<IntVec3>();
                 switch (scenario)
                 {
                     case "passion":
@@ -130,6 +131,29 @@ namespace HomeBridge.BridgeTools
                         Skill(c, SkillDefOf.Construction, 8, Passion.None);
                         break;
                     case "coverage":
+                        break;
+                    case "helpers":
+                        // #653: one skilled builder and two idle pawns under
+                        // the Construction floor beside six wood wall
+                        // blueprints with the wood to build them.
+                        Skill(a, SkillDefOf.Construction, 10, Passion.None);
+                        Skill(b, SkillDefOf.Construction, 2, Passion.None);
+                        Skill(c, SkillDefOf.Construction, 1, Passion.None);
+                        foreach (var p in pawns) p.jobs.StopAll();
+                        var origin = a.Position;
+                        var placed = 0;
+                        foreach (var cell in GenRadial.RadialCellsAround(origin, 12f, false))
+                        {
+                            if (placed >= 6) break;
+                            if (!cell.InBounds(map) || !cell.Standable(map) || cell.GetFirstBuilding(map) != null || cell.GetThingList(map).Any(t => t is Pawn || t.def.category == ThingCategory.Item || t.def.IsBlueprint || t.def.IsFrame) || !GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, cell, Rot4.North, map, false, null, null, ThingDefOf.WoodLog).Accepted) continue;
+                            if (cell.DistanceTo(origin) < 4f) continue;
+                            GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, cell, map, Rot4.North, Faction.OfPlayer, ThingDefOf.WoodLog);
+                            helperCells.Add(cell);
+                            placed++;
+                        }
+                        var wood = ThingMaker.MakeThing(ThingDefOf.WoodLog); wood.stackCount = 75;
+                        GenPlace.TryPlaceThing(wood, origin, map, ThingPlaceMode.Near);
+                        wood.SetForbidden(false, false);
                         break;
                     case "nightowl":
                         Gain(a, "NightOwl", 0);
@@ -150,10 +174,36 @@ namespace HomeBridge.BridgeTools
                         if (!p.WorkTypeIsDisabled(w)) p.workSettings.SetPriority(w, 3);
                 }
                 return new { success = true, scenario, manual = true,
+                    blueprints = helperCells.Select(cell => new { x = cell.x, z = cell.z }).ToList(),
                     pawns = pawns.Select(p => new { id = p.GetUniqueLoadID(), name = p.LabelShort,
                         disabled = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(w => p.WorkTypeIsDisabled(w)).Select(w => w.defName).ToList(),
                         traits = p.story.traits.allTraits.Select(t => t.def.defName).ToList() }).ToList(),
                     setup = "Test-only skill/trait/timetable seeding; no production tool mutates a pawn's biography." };
+            }, cancellationToken);
+        }
+
+        // workers/helpers (#653): "occupy" drafts the skilled builder so only
+        // the helpers can take the walls; "read" reports each pawn's native
+        // ThingsConstructed record and current job, and how many of the
+        // blueprint cells now hold a finished wall.
+        [Tool("test/workers_helpers", Description = "Test-only workers/helpers probe: occupy drafts a pawn; read reports construction records and built walls.")]
+        public async Task<object> Helpers(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "occupy or read")] string action,
+            [ToolParameter(Description = "pawn load id to draft for occupy")] string pawn)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var colonists = map.mapPawns.FreeColonistsSpawned.ToList();
+                if (action == "occupy") {
+                    var target = colonists.FirstOrDefault(p => p.GetUniqueLoadID() == pawn);
+                    if (target == null) return new { success = false, error = "no colonist " + pawn };
+                    target.drafter.Drafted = true;
+                } else if (action != "read") throw new ArgumentException("unknown helpers fixture action");
+                var walls = map.listerBuildings.allBuildingsColonist.Count(t => t.def == ThingDefOf.Wall && t.Stuff == ThingDefOf.WoodLog);
+                return new { success = true, walls, tick = Find.TickManager.TicksGame,
+                    pawns = colonists.Select(p => new { id = p.GetUniqueLoadID(), drafted = p.Drafted,
+                        constructed = p.records.GetValue(RecordDefOf.ThingsConstructed),
+                        job = p.CurJobDef?.defName ?? "", work = p.CurJob?.workGiverDef?.workType?.defName ?? "" }).ToList() };
             }, cancellationToken);
         }
 
