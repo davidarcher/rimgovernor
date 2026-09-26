@@ -78,3 +78,27 @@ func TestSelectCatalogAcquisition(t *testing.T) {
 		t.Fatal("hunted without a slot", got)
 	}
 }
+
+// A deep drill's labor prices it behind a near surface deposit; a cheap
+// caravan beats both, a dear one loses to the deposit (#728).
+func TestCatalogDeepDrillAndTrade(t *testing.T) {
+	demand := ResourceDeficitDemand("Steel", 100)
+	mine := MineCandidates("Steel", []ResourceSource{{ThingID: "ore", Yield: 100, Distance: 20, Method: ResourceSourceMine, Safety: "open_surface"}}, domain.Known(int64(500)))
+	drill, ok := DeepDrillCandidate("Steel", "lump", 100, 20, domain.Known(int64(500)))
+	if !ok {
+		t.Fatal("no drill candidate")
+	}
+	cheap, _ := TradeCandidate("Steel", "caravan", 100, 1.9)
+	ranked, err := RankResourceCandidates(demand, append(mine, drill, cheap), AcquisitionCompetition{})
+	if err != nil || len(ranked) != 3 || ranked[0].Kind != AcquisitionTrade || ranked[1].Kind != AcquisitionMining || ranked[2].Kind != AcquisitionDeepDrill {
+		t.Fatalf("%+v %v", ranked, err)
+	}
+	dear, _ := TradeCandidate("Steel", "caravan", 100, 50)
+	ranked, err = RankResourceCandidates(demand, append(mine, dear), AcquisitionCompetition{})
+	if err != nil || len(ranked) != 2 || ranked[0].Kind != AcquisitionMining {
+		t.Fatalf("%+v %v", ranked, err)
+	}
+	if _, ok := DeepDrillCandidate("Steel", "lump", 0, 0, domain.Known(int64(1))); ok {
+		t.Fatal("empty lump")
+	}
+}

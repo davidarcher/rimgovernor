@@ -7,16 +7,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// MaintainResource is acquired by two planners on one goal (#728): the
-// resource planner (bills, mining) and the acquisition planner (chop,
-// harvest, hunt). Each posts its best catalog score per resource on the
-// reviewer's board and yields a resource to a fresh higher bid from the
-// other, so the two rank jointly instead of first-step-wins.
+// A MaintainResource floor is acquired by several planners (#728): the
+// resource planner (bills, mining, a deep drill), the acquisition planner
+// (chop, harvest, hunt) and the trade planner (a caravan). Each posts its
+// best catalog score per resource on the reviewer's board and yields a
+// resource to a fresh higher bid from another, so they rank jointly
+// instead of first-step-wins.
 type acquisitionBidder string
 
 const (
 	bidResource    acquisitionBidder = "resource"
 	bidAcquisition acquisitionBidder = "acquisition"
+	bidDeepDrill   acquisitionBidder = "deep_drill"
+	bidTrade       acquisitionBidder = "trade"
 )
 
 // acquisitionBidTTL bounds how long a bid stands without being renewed: a
@@ -41,11 +44,41 @@ type acquisitionBoard struct {
 }
 
 // bid records from's best score for resource (0 withdraws it) and reports
-// whether the other planner holds a fresh strictly higher bid, which the
+// whether another planner holds a fresh strictly higher bid, which the
 // caller yields the resource to.
 func (b *acquisitionBoard) bid(snapshot domain.GenerationSnapshot, resource policy.Resource, from acquisitionBidder, score float64, kind policy.AcquisitionKind, tick domain.Tick) (acquisitionBid, bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.prune(snapshot, tick)
+	own := acquisitionBidKey{snapshot, resource, from}
+	if score > 0 {
+		b.bids[own] = acquisitionBid{score, kind, tick}
+	} else {
+		delete(b.bids, own)
+	}
+	return b.rival(snapshot, resource, from, score)
+}
+
+// outranked is bid without posting: a one-shot method (a drill placed in
+// the step it wins) that holds nothing afterwards.
+func (b *acquisitionBoard) outranked(snapshot domain.GenerationSnapshot, resource policy.Resource, from acquisitionBidder, score float64, tick domain.Tick) (acquisitionBid, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.prune(snapshot, tick)
+	return b.rival(snapshot, resource, from, score)
+}
+
+func (b *acquisitionBoard) rival(snapshot domain.GenerationSnapshot, resource policy.Resource, from acquisitionBidder, score float64) (acquisitionBid, bool) {
+	var best acquisitionBid
+	for key, bid := range b.bids {
+		if key.resource == resource && key.from != from && bid.score > best.score {
+			best = bid
+		}
+	}
+	return best, best.score > score
+}
+
+func (b *acquisitionBoard) prune(snapshot domain.GenerationSnapshot, tick domain.Tick) {
 	if b.bids == nil {
 		b.bids = map[acquisitionBidKey]acquisitionBid{}
 	}
@@ -54,16 +87,4 @@ func (b *acquisitionBoard) bid(snapshot domain.GenerationSnapshot, resource poli
 			delete(b.bids, key)
 		}
 	}
-	own := acquisitionBidKey{snapshot, resource, from}
-	if score > 0 {
-		b.bids[own] = acquisitionBid{score, kind, tick}
-	} else {
-		delete(b.bids, own)
-	}
-	other := bidAcquisition
-	if from == bidAcquisition {
-		other = bidResource
-	}
-	rival, ok := b.bids[acquisitionBidKey{snapshot, resource, other}]
-	return rival, ok && rival.score > score
 }

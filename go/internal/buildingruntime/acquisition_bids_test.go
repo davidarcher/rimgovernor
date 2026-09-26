@@ -42,3 +42,25 @@ func TestAcquisitionBoardJointRanking(t *testing.T) {
 		t.Fatal("expired bid held")
 	}
 }
+
+// Any bidder yields to the best other one; outranked posts nothing.
+func TestAcquisitionBoardManyBidders(t *testing.T) {
+	t.Parallel()
+	var b acquisitionBoard
+	world := domain.GenerationSnapshot{Colony: "c", Load: "l", Plan: "p"}
+	b.bid(world, "Steel", bidResource, 0.3, policy.AcquisitionMining, 10)
+	b.bid(world, "Steel", bidTrade, 0.9, policy.AcquisitionTrade, 10)
+	if rival, yield := b.outranked(world, "Steel", bidDeepDrill, 0.5, 10); !yield || rival.kind != policy.AcquisitionTrade {
+		t.Fatal("drill kept the resource", rival)
+	}
+	if rival, yield := b.bid(world, "Steel", bidResource, 0.3, policy.AcquisitionMining, 10); !yield || rival.kind != policy.AcquisitionTrade {
+		t.Fatal("mining kept the resource", rival)
+	}
+	if _, yield := b.bid(world, "Steel", bidTrade, 0.9, policy.AcquisitionTrade, 10); yield {
+		t.Fatal("best bid yielded")
+	}
+	b.bid(world, "Steel", bidTrade, 0, "", 10)
+	if _, yield := b.bid(world, "Steel", bidResource, 0.3, policy.AcquisitionMining, 10); yield {
+		t.Fatal("outranked posted a bid")
+	}
+}

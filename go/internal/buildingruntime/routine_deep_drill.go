@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -209,7 +210,32 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
 		}
 	}
-	for _, site := range deepDrillSites(f, review.ResourceRunwayState()) {
+	runways := review.ResourceRunwayState()
+	for _, site := range deepDrillSites(f, runways) {
+		// The drill is one catalog row (#728): a deposit, bill, tree or
+		// caravan the other planners bid higher for the same metal wins.
+		resource := policy.Resource(site.Definition)
+		deficit := int64(0)
+		for _, row := range runways {
+			if row.Resource == resource {
+				stock, _ := f.ResourceStock(resource).Value()
+				deficit = row.Target - stock
+			}
+		}
+		if candidate, ok := policy.DeepDrillCandidate(resource, site.Definition, min(site.Count, deficit), math.Hypot(float64(site.Centre.X-f.Center.X), float64(site.Centre.Z-f.Center.Z)), domain.Unknown[int64]()); ok {
+			ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, deficit), []policy.AcquisitionCandidate{candidate}, policy.AcquisitionCompetition{})
+			if err != nil {
+				return RoutineResourceResult{}, true, err
+			}
+			score := 0.0
+			if len(ranked) > 0 {
+				score = ranked[0].Score
+			}
+			if rival, yield := r.reviewer.bids.outranked(state.Snapshot, resource, bidDeepDrill, score, f.Identity.Tick); yield {
+				clockSchedulerLog("%s: %s deep drill %.3f yields to %s %.3f", goal.Goal.ID, resource, score, rival.kind, rival.score)
+				continue
+			}
+		}
 		method := domain.MethodID(fmt.Sprintf("deep-drill-%s-%d-%d", site.Definition, site.Centre.X, site.Centre.Z))
 		if _, err := r.reviewer.player.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 			return RoutineResourceResult{Reason: BuildingMethodUsed}, true, nil

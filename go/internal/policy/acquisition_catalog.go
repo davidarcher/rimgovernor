@@ -115,6 +115,37 @@ func AcquisitionSourceCandidates(resource Resource, sources []AcquisitionSource,
 	return out
 }
 
+// DeepDrillCandidate is the catalog row of a drill over a deep lump: units
+// is the lump's yield toward the deficit, distance from home.
+func DeepDrillCandidate(resource Resource, id string, units int64, distance float64, headroom domain.Fact[int64]) (AcquisitionCandidate, bool) {
+	if units <= 0 {
+		return AcquisitionCandidate{}, false
+	}
+	return AcquisitionCandidate{
+		ID: id, Kind: AcquisitionDeepDrill,
+		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: units}, Headroom: headroom}},
+		PathDistance: domain.Known(distance), Labor: catalogLabor(AcquisitionDeepDrill, units),
+		NeedsHaul: true, UnitsPerTrip: acquisitionUnitsPerTrip,
+	}, true
+}
+
+// tradeLaborPerSilver prices a purchase's silver as labor, so a caravan's
+// dear goods can lose to a near deposit.
+const tradeLaborPerSilver = 1.0
+
+// TradeCandidate is the catalog row of buying units from a caravan at
+// price silver each; the goods drop at the colony, so no haul is charged.
+func TradeCandidate(resource Resource, trader string, units int64, price float64) (AcquisitionCandidate, bool) {
+	if units <= 0 || !(price >= 0) {
+		return AcquisitionCandidate{}, false
+	}
+	return AcquisitionCandidate{
+		ID: trader, Kind: AcquisitionTrade,
+		Yields:       []AcquisitionYield{{ResourceQuantity: ResourceQuantity{Key: ResourceKey{Def: resource}, Count: units}}},
+		PathDistance: domain.Known(0.0), Labor: domain.Known(price * float64(units) * tradeLaborPerSilver),
+	}, true
+}
+
 // maxCatalogSelection bounds one acquisition method, matching
 // SelectResourceSources' native selection cap.
 const maxCatalogSelection = 8

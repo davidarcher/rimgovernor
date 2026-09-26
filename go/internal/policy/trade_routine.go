@@ -153,10 +153,13 @@ type TradeNeed struct {
 	ComponentShortfall int64
 	Surplus            []Amount
 	Retained           map[Resource]int64
+	// Shortfall is each MaintainResource floor stock is below (#728): a
+	// caravan selling it is the catalog's trade method.
+	Shortfall []Amount
 }
 
 func (n TradeNeed) Any() bool {
-	return n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other
@@ -194,6 +197,9 @@ func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amou
 		resource := Resource(name)
 		if resource == ComponentResource || resource == "Silver" {
 			continue
+		}
+		if short := targets[resource] - stock[resource]; short > 0 {
+			need.Shortfall = append(need.Shortfall, Amount{Resource: resource, Count: short})
 		}
 		keep := max(targets[resource], floors[name])
 		if surplus := stock[resource] - keep; surplus > 0 {
@@ -299,6 +305,13 @@ func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[R
 	seen := map[string]bool{}
 	for _, target := range out.Targets {
 		seen[target.Item] = true
+	}
+	for _, short := range need.Shortfall {
+		if seen[string(short.Resource)] || len(out.Targets) >= tradeRoutineMaximumTargets {
+			continue
+		}
+		seen[string(short.Resource)] = true
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(short.Resource), Stock: min(targets[short.Resource], tradeRoutineMaximumCount), MaxBuy: min(short.Count, tradeRoutineMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
 	}
 	for _, surplus := range need.Surplus {
 		if seen[string(surplus.Resource)] || len(out.Targets) >= tradeRoutineMaximumTargets {

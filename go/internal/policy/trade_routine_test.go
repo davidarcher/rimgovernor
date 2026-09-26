@@ -167,3 +167,24 @@ func TestRoutineTradeTargetsBuyCheapestMedicineThenSellSurplus(t *testing.T) {
 		t.Fatal("trader without medicine produced a target", p.Targets)
 	}
 }
+
+// A MaintainResource floor short of stock is a trade need and a buy
+// target up to the floor (#728).
+func TestTradeBuysResourceShortfall(t *testing.T) {
+	need, _ := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "WoodLog", Count: 50}}), map[Resource]int64{"WoodLog": 200}, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value()
+	if !need.Any() || len(need.Shortfall) != 1 || need.Shortfall[0] != (Amount{Resource: "WoodLog", Count: 150}) {
+		t.Fatalf("%+v", need)
+	}
+	rows := []TradeSheetRowFact{
+		{LineID: "#0", DefName: "WoodLog", ColonyCount: 50, TraderCount: 400, BuyPrice: 1.5, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true},
+		{LineID: "#1", DefName: "Silver", ColonyCount: 500, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, ProtectedExportKnown: true},
+	}
+	p := RoutineTradeTargets(need, rows, map[Resource]int64{"WoodLog": 200}, RoutineTradePolicy{})
+	if len(p.Targets) != 1 || p.Targets[0].Item != "WoodLog" || p.Targets[0].MaxBuy != 150 || p.Targets[0].Stock != 200 {
+		t.Fatal(p.Targets)
+	}
+	selection := SelectTrade(p, TradeSelectionFacts{Complete: true, Rows: rows, ColonySilver: 500, TraderSilver: 900, SilverKnown: true, MaxSilverSpend: 500})
+	if selection.Refused || len(selection.Selected) != 1 || selection.Selected[0].Count != 150 {
+		t.Fatal(selection)
+	}
+}

@@ -276,6 +276,30 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	return r.open(call, epoch, state, goal, trader.ID, negotiator, attempt, arbiter, started)
 }
 
+// bid posts each purchase on the joint acquisition board (#728), so the
+// resource and acquisition planners leave a resource the caravan is
+// selling cheaper than their best method.
+func (r *RoutineTradePlanner) bid(state ControlState, trader string, selection policy.TradeSelection, rows []policy.TradeSheetRowFact, tick domain.Tick) {
+	price := map[string]float64{}
+	for _, row := range rows {
+		if row.BuyPriceKnown {
+			price[row.DefName] = row.BuyPrice
+		}
+	}
+	for _, line := range selection.Selected {
+		resource := policy.Resource(line.DefName)
+		candidate, ok := policy.TradeCandidate(resource, trader, line.Count, price[line.DefName])
+		if !ok {
+			continue
+		}
+		ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, line.Count), []policy.AcquisitionCandidate{candidate}, policy.AcquisitionCompetition{})
+		if err != nil || len(ranked) == 0 {
+			continue
+		}
+		r.reviewer.bids.bid(state.Snapshot, resource, bidTrade, ranked[0].Score, policy.AcquisitionTrade, tick)
+	}
+}
+
 // negotiator picks the colonist to open with: policy.TraderFor over the
 // roster profiles, restricted to the pawns native listed as eligible
 // (alive, undrafted, able to talk). Native's own first row (best trade
@@ -381,6 +405,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		return RoutineTradeResult{}, err
 	}
 	selection := policy.SelectTrade(economic, facts)
+	r.bid(state, trader, selection, facts.Rows, review.Tick)
 	if !lines.found {
 		if len(economic.Targets) == 0 || selection.Refused || len(selection.Selected) == 0 {
 			return r.cancel(call, epoch, state, goal, trader, openAction, session, started)
@@ -460,12 +485,19 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
 	}
 	floors := policy.RoutineTradeFloors(seasonal, construction.StillNeed)
-	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, seasonal.ResourceTargets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
+	// MaintainResource's floors (the wood floor, shortfall edges) are the
+	// catalog's trade demand (#728): a caravan selling one buys it.
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, projection.Facts.Resources)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+	}
+	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
+	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
 	}
 	rows := tradeSheetRowFacts(sheet.Rows)
-	economic := policy.RoutineTradeTargets(need, rows, r.reviewer.policy.ResourceTargets, r.reviewer.policy.Trade)
+	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
