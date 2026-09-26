@@ -58,37 +58,52 @@ func run(ctx context.Context, s cases.Session) error {
 	area := size * size
 	report["site"] = map[string]any{"x": ox, "z": oz, "size": size}
 
-	// Exclude growth: daylight changes on the real tick between rounds, so
-	// glow legitimately dirties otherwise untouched cells.
 	// read asks for the whole site, since 0 meaning a full read, and
 	// returns the rows by cell, the unchanged count and as_of_tick.
+	//
+	// The mutation projection excludes growth: daylight changes on the real
+	// tick between rounds, so glow legitimately dirties otherwise untouched
+	// cells (#585), and native only consults the growth grid when the field
+	// is applied. The compact planning projection is defined with growth in
+	// it (CompactCellEncoding.Supports refuses a compact read without it), so
+	// compact parity is proven by its own pair of reads over the same
+	// selection rather than against the mutation projection (#665).
+	fields := func(terrain, growth bool) map[string]any {
+		return map[string]any{"terrain": terrain, "roof": true, "visibility": true, "traversal": true, "zone": true, "room": true, "growth": growth}
+	}
 	read := func(label string, since int64) (map[cell]string, int, int64, error) {
-		request := map[string]any{
-			"scope":     map[string]any{"expectedIdentity": identity},
-			"rectangle": map[string]any{"minimum": map[string]any{"x": ox, "z": oz}, "maximum": map[string]any{"x": ox + size - 1, "z": oz + size - 1}},
-			"fields":    map[string]any{"terrain": true, "roof": true, "visibility": true, "traversal": true, "zone": true, "room": true, "growth": false},
-			"page":      map[string]any{"limit": 256},
+		observe := func(label string, fields map[string]any, compact bool) (map[string]any, error) {
+			request := map[string]any{
+				"scope":     map[string]any{"expectedIdentity": identity},
+				"rectangle": map[string]any{"minimum": map[string]any{"x": ox, "z": oz}, "maximum": map[string]any{"x": ox + size - 1, "z": oz + size - 1}},
+				"fields":    fields,
+				"page":      map[string]any{"limit": 256},
+			}
+			if since > 0 {
+				request["changedSinceTick"] = fmt.Sprint(since)
+			}
+			if compact {
+				request["compact"] = true
+			}
+			reply, err := h.Wire(ctx, label, "observations_get_cells", request)
+			if err != nil {
+				return nil, err
+			}
+			_, observed, err := na.Outcome(reply, "observed")
+			return observed, err
 		}
-		if since > 0 {
-			request["changedSinceTick"] = fmt.Sprint(since)
-		}
-		reply, err := h.Wire(ctx, label, "observations_get_cells", request)
+		observed, err := observe(label, fields(true, false), false)
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		_, observed, err := na.Outcome(reply, "observed")
+		// Compare compact planning coverage with the same full or delta read
+		// of the identical planning fields; terrain is outside the projection.
+		planning := fields(false, true)
+		plainObserved, err := observe(label+"-planning", planning, false)
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		// Compare compact planning coverage with the same full or delta read.
-		// Terrain is outside the compact planning projection.
-		request["compact"] = true
-		request["fields"] = map[string]any{"terrain": false, "roof": true, "visibility": true, "traversal": true, "zone": true, "room": true, "growth": false}
-		packed, err := h.Wire(ctx, label+"-compact", "observations_get_cells", request)
-		if err != nil {
-			return nil, 0, 0, err
-		}
-		_, compactObserved, err := na.Outcome(packed, "observed")
+		compactObserved, err := observe(label+"-compact", planning, true)
 		if err != nil {
 			return nil, 0, 0, err
 		}
@@ -104,13 +119,9 @@ func run(ctx context.Context, s cases.Session) error {
 			if err := bridge.ExpandCompactCells(snapshot); err != nil {
 				return nil, err
 			}
-			snapshot.AppliedFields.Terrain = proto.Bool(false)
-			for _, cell := range snapshot.Cells {
-				cell.Terrain = nil
-			}
 			return snapshot, nil
 		}
-		plain, err := decode(observed)
+		plain, err := decode(plainObserved)
 		if err != nil {
 			return nil, 0, 0, err
 		}

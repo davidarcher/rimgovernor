@@ -45,6 +45,7 @@ func init() {
 		Name: "mood/relief",
 		Scope: "Native EnsureMood-* relief dispatch vertical: an actual JobGiver_GetJoy/GetFood/GetRest " +
 			"job issued through the typed operations contract, exact CAS/stale-identity and stale-fencing refusal, " +
+			"admission over a player-forced current job (#474), " +
 			"real need recovery observed via native ticks, replay idempotency and durable lookup.",
 		Start:  cases.DebugStart{},
 		Keep:   []string{string(na.NeedJoy), "Mood"},
@@ -328,8 +329,10 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("lookup: expected the same receipt as execute, got %#v", lookup)
 	}
 
-	// --- Negative fixtures: ineligible pawns are correctly refused, using
-	// fresh, fast (no game-tick) fixture scenarios. ---
+	// --- Ordered work: a player-forced current job is interruption evidence,
+	// not an eligibility veto (#474), so in Auto relief is admitted over it
+	// while the exact current-job identity and native interruptibility still
+	// guard the replacement. Uses a fresh, fast (no game-tick) fixture. ---
 
 	forcedPawnID, err := setup("setup-forced", "forced")
 	if err != nil {
@@ -339,17 +342,39 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
+	forcedJobRow, _ := na.AsMap(forcedRow["job"])
+	if playerForced, _ := na.AsBool(forcedJobRow["playerForced"]); !playerForced {
+		return fmt.Errorf("target-forced: expected a player-forced current job, got %#v", forcedJobRow)
+	}
 	forcedToken, forcedJobID, forcedScheduleDef, _, err := fencing(forcedRow)
 	if err != nil {
 		return err
 	}
 	forcedRequest := buildRequest("mood-relief-forced", "1", buildOperation(forcedPawnID, forcedToken, forcedJobID, forcedScheduleDef))
-	if code, err := failureCode(ctx, h, "player-forced-job", forcedRequest); err != nil {
+	forcedReply, err := h.Wire(ctx, "player-forced-job", "operations_execute", forcedRequest)
+	if err != nil {
 		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("player-forced-job: expected FAILURE_CODE_INVALID_REQUEST, got %q", code)
 	}
-	report["negative_forced_pawn"] = forcedPawnID
+	_, forcedReceipt, err := na.Outcome(forcedReply, "receipt")
+	if err != nil {
+		return err
+	}
+	forcedApplied, ok := na.AsMap(forcedReceipt["applied"])
+	if !ok {
+		return fmt.Errorf("player-forced-job: expected relief over ordered work to be applied, got %#v", forcedReceipt)
+	}
+	forcedObserved, _ := na.AsMap(forcedApplied["observed"])
+	forcedIssued, _ := na.AsMap(forcedObserved["job"])
+	if na.AsString(forcedIssued["pawnId"]) != forcedPawnID {
+		return fmt.Errorf("player-forced-job: unexpected applied relief evidence: %#v", forcedIssued)
+	}
+	if issued, _ := na.AsBool(forcedIssued["issued"]); !issued {
+		return fmt.Errorf("player-forced-job: expected the native relief job to replace the ordered job, got %#v", forcedIssued)
+	}
+	report["ordered_work_pawn"] = forcedPawnID
+
+	// --- Negative fixture: an ineligible pawn is correctly refused, using a
+	// fresh, fast (no game-tick) fixture scenario. ---
 
 	mentalPawnID, err := setup("setup-mental", "mental")
 	if err != nil {
