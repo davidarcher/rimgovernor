@@ -553,8 +553,9 @@ func waitPlanTerminal(ctx context.Context, s *store.Store, w Wait, planID domain
 				// the executor's own no-effect rule (executor/accounting.go).
 				effect, known := view.Effect.Value()
 				if !view.Unresolved && (view.Attempt == 0 || known && effect == domain.EffectAbsent) {
+					// Incidental, but a sibling action may still be running (#760).
 					incidental = true
-					return "", true, nil
+					continue
 				}
 				return "", false, fmt.Errorf("plan %s reached cancelled instead of completed", planID)
 			default:

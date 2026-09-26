@@ -20,15 +20,19 @@ namespace HomeBridge.BridgeTools
     internal readonly struct PlanningViewCell
     {
         internal const int Walkable = 4, Passable = 8, Occupied = 16, Doorway = 32, SupportsLight = 64,
-            StorageEmpty = 128, Indoors = 256, Polluted = 512, HasFertility = 1024;
+            StorageEmpty = 128, Indoors = 256, Polluted = 512, HasFertility = 1024, NaturalRock = 16384,
+            // HasEdifice marks a ruin or player edifice (wire bit 32768);
+            // Ruin (never on the wire) says which, and Edifice names a player
+            // edifice or a claimable ruin (#761).
+            HasEdifice = 32768, Ruin = 65536;
 
         internal readonly bool Fogged;
         internal readonly int Flags;
-        internal readonly string? Roof, ZoneId, RoomId;
+        internal readonly string? Roof, ZoneId, RoomId, Edifice;
         internal readonly double Glow, Fertility;
 
-        internal PlanningViewCell(bool fogged, int flags, string? roof, string? zoneId, string? roomId, double glow, double fertility)
-        { Fogged = fogged; Flags = flags; Roof = roof; ZoneId = zoneId; RoomId = roomId; Glow = glow; Fertility = fertility; }
+        internal PlanningViewCell(bool fogged, int flags, string? roof, string? zoneId, string? roomId, double glow, double fertility, string? edifice = null)
+        { Edifice = edifice; Fogged = fogged; Flags = flags; Roof = roof; ZoneId = zoneId; RoomId = roomId; Glow = glow; Fertility = fertility; }
 
         internal static PlanningViewCell Fog => new PlanningViewCell(true, 0, null, null, null, 0, 0);
     }
@@ -263,11 +267,13 @@ namespace HomeBridge.BridgeTools
                 {
                     var cell = chunk[row * width + x];
                     if (cell.Fogged) { bytes.Add(2); bytes.Add(0); continue; }
-                    var flags = cell.Flags | (cell.Roof != null ? 2048 : 0) | (cell.ZoneId != null ? 4096 : 0) | (cell.RoomId != null ? 8192 : 0);
+                    var flags = (cell.Flags & 0xFFFF) | (cell.Roof != null ? 2048 : 0) | (cell.ZoneId != null ? 4096 : 0) | (cell.RoomId != null ? 8192 : 0);
                     bytes.Add((byte)flags); bytes.Add((byte)(flags >> 8));
                     if (cell.Roof != null) Varint(bytes, StringIndex(cell.Roof));
                     if (cell.ZoneId != null) Varint(bytes, StringIndex(cell.ZoneId));
                     if (cell.RoomId != null) Varint(bytes, StringIndex(cell.RoomId));
+                    if ((cell.Flags & PlanningViewCell.HasEdifice) != 0)
+                        Varint(bytes, cell.Edifice == null ? 0 : 2 * StringIndex(cell.Edifice) + ((cell.Flags & PlanningViewCell.Ruin) != 0 ? 2u : 1u));
                     if (!glows.TryGetValue(cell.Glow, out var glow)) { glow = (uint)compact.Glow.Count; glows.Add(cell.Glow, glow); compact.Glow.Add(cell.Glow); }
                     Varint(bytes, glow);
                     if ((cell.Flags & PlanningViewCell.HasFertility) != 0) compact.Fertility.Add(cell.Fertility);

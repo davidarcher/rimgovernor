@@ -34,7 +34,11 @@ namespace HomeBridge.BridgeTools
                     // Seed the precondition normally created on the first immunity tick.
                     pawn.health.immunity.TryAddImmunityRecord(def, def);
                     pawn.health.immunity.GetImmunityRecord(def).immunity = .1f;
-                    if (!survival && pawn == people[1]) plague.Tended(.75f, .75f);
+                    if (!survival && pawn == people[1]) {
+                        plague.Tended(.75f, .75f);
+                        // Tended jitters quality by +-0.25 under the max; pin it so the rate is exact (#762).
+                        plague.TryGetComp<HediffComp_TendDuration>().tendQuality = .75f;
+                    }
                 }
                 if (survival) {
                     var map = Find.CurrentMap;

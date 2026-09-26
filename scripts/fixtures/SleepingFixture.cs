@@ -87,6 +87,16 @@ namespace HomeBridge.BridgeTools
                         if (!pawn.ownership.ClaimBedIfNonMedical(bed) || pawn.ownership.OwnedBed != bed) throw new InvalidOperationException("Colonist could not claim a fixture bed.");
                         owned.Add(new { pawn = pawn.GetUniqueLoadID(), bed = bed.GetUniqueLoadID(), x = bed.Position.x, z = bed.Position.z });
                     }
+                    // The bedless pair sleep on claimed spots: indoor capacity meets
+                    // the initial shelter, which otherwise sites SleepingSpots in both
+                    // chambers first on a bare map (#763), while a spot still owes a Bed.
+                    if (connectedRooms)
+                        foreach (var (pawn, index) in people.Take(2).Select((pawn, index) => (pawn, index))) {
+                            var spot = (Building_Bed)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("SleepingSpot"));
+                            spot.SetFaction(Faction.OfPlayerSilentFail);
+                            GenSpawn.Spawn(spot, slots[owned.Count + index], map, Rot4.North);
+                            if (!pawn.ownership.ClaimBedIfNonMedical(spot) || pawn.ownership.OwnedBed != spot) throw new InvalidOperationException("Colonist could not claim a fixture sleeping spot.");
+                        }
                     if (connectedRooms) PrepareHomeRooms(map, origin, rect);
                     foreach (var worker in people) {
                         worker.playerSettings.AreaRestrictionInPawnCurrentMap = null;
@@ -105,7 +115,8 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Two 1x2 bed chambers have only one legal Bed footprint each. The
+        // Two 1x3 bed chambers have only one legal Bed footprint each (the
+        // cell beside the door is a doorway aisle, #763). The
         // roofed corridor joins them through doors, independently of the
         // existing dormitory. No controller-owned facility is fixture-spawned.
         private static void PrepareHomeRooms(Map map, IntVec3 origin, CellRect dormitory)
@@ -115,17 +126,21 @@ namespace HomeBridge.BridgeTools
                 chair.SetFaction(Faction.OfPlayerSilentFail);
                 GenSpawn.Spawn(chair, c, map);
             }
-            var footprint = new CellRect(origin.x + 9, origin.z + 2, 9, 4);
+            var footprint = new CellRect(origin.x + 9, origin.z + 2, 9, 5);
             foreach (var c in footprint) {
                 foreach (var thing in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) thing.Destroy();
                 int x = c.x - origin.x, z = c.z - origin.z;
-                bool chamber = (x == 10 || x == 16) && (z == 3 || z == 4);
+                bool chamber = (x == 10 || x == 16) && z >= 3 && z <= 5;
                 bool corridor = x >= 12 && x <= 14 && z == 3;
                 bool door = (x == 11 || x == 15) && z == 3 || x == 13 && z == 2;
                 if (!chamber && !corridor) {
                     var wall = ThingMaker.MakeThing(door ? ThingDefOf.Door : ThingDefOf.Wall, ThingDefOf.WoodLog);
                     wall.SetFaction(Faction.OfPlayerSilentFail);
                     GenSpawn.Spawn(wall, c, map);
+                    // Like the dormitory ring, standing walls are already Home: every
+                    // colonist building is a coverage target, so only the chambers
+                    // and corridor are left for the controller (#763).
+                    map.areaManager.Home[c] = true;
                 }
                 map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
             }

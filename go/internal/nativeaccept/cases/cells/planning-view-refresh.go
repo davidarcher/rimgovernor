@@ -35,7 +35,7 @@ func init() {
 		Scope: "Planning-window view dirty-chunk refresh: a stable paused view reuses every band and reads no cell, and after " +
 			"each of the fixture's mutation rounds the next bundle's view equals an authoritative compact get_cells read of the " +
 			"region row for row, with the refresh's work counts in the hop's timing block; a view panned one band reuses its overlap.",
-		Start:  cases.Fixture{Op: "test/cells_prepare"},
+		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/cells_prepare"},
 		Budget: 3 * time.Minute,
 		Run:    runPlanningViewRefresh,
 	})
@@ -178,6 +178,7 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 			return false
 		}
 		drift, excused := len(want)-len(got.Cells), 0
+		var first string
 		for _, row := range got.Cells {
 			have, ok := want[row.Cell]
 			if ok && have != row && aged(row.Cell.Z) {
@@ -188,12 +189,15 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 				}
 			}
 			if !ok || have != row {
+				if drift == 0 {
+					first = fmt.Sprintf("; first: view %+v, full read %+v (present %v)", row, have, ok)
+				}
 				drift++
 			}
 		}
 		work["drift"], work["glowAged"], work["validated"], work["published"] = drift, excused, got.Validated(), got.PublishedTick
 		if drift != 0 {
-			return work, fmt.Errorf("%s: the view differs from a full read on %d cells (work %v)", label, drift, work)
+			return work, fmt.Errorf("%s: the view differs from a full read on %d cells%s (work %v)", label, drift, first, work)
 		}
 		return work, nil
 	}

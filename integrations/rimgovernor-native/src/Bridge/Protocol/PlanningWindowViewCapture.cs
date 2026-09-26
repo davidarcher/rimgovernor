@@ -223,7 +223,19 @@ namespace HomeBridge.BridgeTools
             var fertility = map.fertilityGrid.FertilityAt(cell);
             double fertile = 0;
             if (fertility > 0f) { fertile = Finite(fertility); flags |= PlanningViewCell.HasFertility; }
-            return new PlanningViewCell(false, flags, roofName, zoneId, roomId, glow, fertile);
+            // Rock, ruins and player edifices as NativeObservationTools reads them (#761).
+            string? edificeName = null;
+            var edifice = cell.GetEdifice(map);
+            var player = Faction.OfPlayerSilentFail;
+            if (edifice?.def.building?.isNaturalRock == true) flags |= PlanningViewCell.NaturalRock;
+            if (edifice != null && player != null && edifice.Faction != player && edifice.def.building?.isNaturalRock != true
+                && !edifice.def.mineable && edifice.DeconstructibleBy(player) && !NativeClearanceObservationTools.AncientDanger(map, edifice, player))
+            {
+                flags |= PlanningViewCell.HasEdifice | PlanningViewCell.Ruin;
+                if (edifice is Building ruin && ruin.ClaimableBy(player)) edificeName = Identifier(edifice.def.defName);
+            }
+            else if (edifice != null && player != null && edifice.Faction == player) { flags |= PlanningViewCell.HasEdifice; edificeName = Identifier(edifice.def.defName); }
+            return new PlanningViewCell(false, flags, roofName, zoneId, roomId, glow, fertile, edificeName);
         }
 
         private static bool installed;

@@ -470,11 +470,7 @@ by review alone.
    reply (centre, colonist ids) as `Prepared`, one `na.LabSpawn` per
    building, item or pawn, `cases.LabBudget`; `lab/spawn` is the pattern
    (10 s). An `Owned` case loads it with `na.StartLab` (`authority/warm`,
-   `lifecycle/reuse`). Every op/read contract case opens on the lab (#751) except
-   these, which cannot:
-   - *Failed on the lab, not yet diagnosed* (#760-#763, stay on
-     their old start until fixed): `farm/blight`, `cells/planning-view-refresh`,
-     `medical/plague-readback`, `upkeep/home-coverage`.
+   `lifecycle/reuse`). Every op/read contract case opens on the lab (#751).
    A lab op that uses existing starting resources and refuses to spawn them
    takes `ArgsFrom: cases.LabWood(n)` (the `construction/guarded-*` cases).
 2. **Small map, tiny planet.** Take the default start (200x200, 5%

@@ -33,7 +33,7 @@ func init() {
 		Scope: "Native blight responder: the blighted_plants census drives the live Go routine reviewer/planner to open " +
 			"RemoveBlight and admit CutPlant designations on the blighted plants only; the colonists cut them within a " +
 			"stall-bounded window and the goal settles on the census emptying, confirmed by an independent native read (#245).",
-		Start:   cases.Fixture{Op: "test/blight_prepare"},
+		Start:   cases.Fixture{Op: "test/blight_prepare", On: cases.LabStart()},
 		Service: true,
 		Budget:  6 * time.Minute,
 		Run:     runBlight,
@@ -99,7 +99,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// "work" rides along so the colony's work priorities match the
 	// controller's own assignment, which keeps plant cutting enabled on the
 	// fixture's cutter.
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"blight", "work", "field"}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"blight", "work", "field", "naming"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -135,8 +135,9 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
 	// The methods: each plan is CutPlant designations on fixture plants only,
-	// each plant once. Vanilla growers also cut blighted crops in a growing
-	// zone once the window runs, so a plant can vanish before its own
+	// each plant once. Vanilla never cuts blight undesignated, yet on the lab
+	// the other blighted plants leave the census within a few thousand
+	// ticks of the first designation, so a plant can vanish before its own
 	// designation dispatches (an absent cancel, incidental) and the goal can
 	// settle on the emptied census before a second method is needed; the
 	// vertical is proven by at least one designation the executor observed
@@ -250,9 +251,13 @@ func runBlight(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// Ordinary growers must sow the new zone; its creation receipt is not
-	// proof of planting. Advance a bounded window before the native audit.
-	if _, err := s.Advance(ctx, 12000); err != nil {
-		return err
+	// proof of planting. Advance a bounded window before the native audit,
+	// in steps: an advance never renews its lease, and a Superfast window
+	// under box load (338 tps) outran the 30 s lease on 12000 ticks (#760).
+	for range 4 {
+		if _, err := s.Advance(ctx, 3000); err != nil {
+			return err
+		}
 	}
 	native, err := h.Call(ctx, "blight-after-native", "test/blight_census", map[string]any{})
 	if err != nil {
