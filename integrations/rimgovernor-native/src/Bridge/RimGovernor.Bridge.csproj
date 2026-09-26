@@ -86,6 +86,7 @@
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ZoneDeleteFixture.cs" Condition="'$(ZoneDeleteFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/StartupLaborFixture.cs" Condition="'$(StartupLaborFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ApplyRefusalFixture.cs" Condition="'$(ApplyRefusalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WinterFixture.cs" Condition="'$(WinterFixture)' == 'true'" />
