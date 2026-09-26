@@ -34,7 +34,9 @@ with `re-record the snapshot`.
 ## Recording
 
 Set `RIMGOVERNOR_SNAPSHOT_DIR` to an absolute directory for any serve.
-Every enabled review writes `routine-<tick>.json` there; a failed write is
+Every enabled review writes `routine-<tick>-<seq>.json` there, `<seq>`
+counting from 1 so several reviews at one paused tick each keep a file;
+a failed write is
 a `[routine] colony snapshot not recorded` service-log line, never a review
 error. The acceptance harness passes its environment to the serves it
 launches, so from `go/`:

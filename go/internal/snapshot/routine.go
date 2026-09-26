@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,7 @@ import (
 )
 
 // DirEnv names the directory a serve records every enabled routine
-// review's snapshot into, as routine-<tick>.json; unset records nothing.
+// review's snapshot into, as routine-<tick>-<seq>.json; unset records nothing.
 const DirEnv = "RIMGOVERNOR_SNAPSHOT_DIR"
 
 // Routine is one enabled routine review as recorded: the input the review
@@ -64,7 +65,9 @@ func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result stor
 	}, true
 }
 
-// Record writes r into dir as routine-<tick>.json.
+// Record writes r into dir as routine-<tick>-<seq>.json, seq the first
+// from 1 not already taken: several reviews at one paused tick each keep
+// their own file.
 func Record(dir string, r Routine) error {
 	data, err := Encode(r)
 	if err != nil {
@@ -73,7 +76,17 @@ func Record(dir string, r Routine) error {
 	if err = os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, fmt.Sprintf("routine-%d.json", r.Tick)), data, 0o644)
+	for seq := 1; ; seq++ {
+		f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("routine-%d-%d.json", r.Tick, seq)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, fs.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_, err = f.Write(data)
+		return errors.Join(err, f.Close())
+	}
 }
 
 // readFile reads a recording, gunzipping one named *.gz: a colony's cell

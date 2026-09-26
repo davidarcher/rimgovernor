@@ -59,8 +59,14 @@ func TestRecordRoundTrips(t *testing.T) {
 	if err = Record(dir, r); err != nil {
 		t.Fatal(err)
 	}
-	again, err := Load(dir + "/routine-158107.json")
+	again, err := Load(dir + "/routine-158107-1.json")
 	if err != nil || !reflect.DeepEqual(r, again) {
 		t.Fatal("recorded snapshot does not round-trip", err)
+	}
+	if err = Record(dir, r); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = Load(dir + "/routine-158107-2.json"); err != nil {
+		t.Fatal("a second review at the same tick overwrote the first", err)
 	}
 }
