@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
             // A hunt follows its animal (#321): the token binds the animal,
             // its corpse and its designation, not the cell or health the
             // census read, which move every tick under a running clock.
-            Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativePlantAcquisition.Token(context.Identity,
+            Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
                 prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, int limit)
         {

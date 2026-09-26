@@ -38,6 +38,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-observation-work": NativeObservationWorkProbe.Invoke(); return 0;
                 case "native-reply-encoder": NativeReplyEncoderProbe.Invoke(); return 0;
                 case "native-threat-classifier": NativeThreatClassifierProbe.Invoke(); return 0;
+                case "native-acquisition-token": NativeAcquisitionTokenProbe.Invoke(); return 0;
                 case "native-attempt-ledger": NativeAttemptLedgerProbe.Invoke(); return 0;
                 case "native-construction-causality": NativeConstructionCausalityProbe.Invoke(); return 0;
 
@@ -108,7 +109,7 @@ internal static class NativeContractProbesDispatcher
         {
             "native-authority", "native-authority-control", "native-authority-status", "native-clock",
             "native-attempt-ledger", "native-construction-causality", "native-observation-work",
-            "native-threat-classifier", "native-reply-encoder",
+            "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
             "native-authority-hooks",
             "native-operation-envelope", "native-proto-boundary", "native-combat-causality",
             "native-combat-operations", "native-draft-operations", "native-movement-operations",

@@ -23,20 +23,9 @@ namespace HomeBridge.BridgeTools
         private static bool Eligible(Plant plant) => ProtoBoundary.IsLoaded(plant.Map) && ResourceAcquisitionTools.Eligible(plant, plant.Map)
             && !(plant.Map.zoneManager.ZoneAt(plant.Position) is Zone_Growing)
             && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, plant));
-        internal static string Token(Common.Identity identity, string id, string resource, int x, int z, float growth, int yield, bool designated)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                { writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId); writer.Write(id); writer.Write(resource); writer.Write(x); writer.Write(z); writer.Write(growth); writer.Write(yield); writer.Write(designated); }
-                using (var hash = SHA256.Create()) return "plant-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
-        // The token hashes harvestability rather than YieldNow, whose random rounding would make a
-        // read's token miss its own execute.
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = Token(context.Identity, plant.GetUniqueLoadID(),
-                plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.Growth, plant.HarvestableNow ? 1 : 0, ResourceAcquisitionTools.Designated(plant)) };
+            Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
+                plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, int limit)
         {
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
