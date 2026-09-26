@@ -174,6 +174,9 @@ type workerWait struct {
 	// stale records that the run was held on stale facts (workerHeldStale):
 	// the next stop is a new observation, so it is retried there at once.
 	stale bool
+	// cancelled counts consecutive steps whose dispatch of this undispatched
+	// action lost its own call context while the step's was live (#671).
+	cancelled int
 }
 
 // workerOutcome keys one action run by what a reader of the log needs to
@@ -547,6 +550,13 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				result, err = w.session.CleanupDraft(run, v.Plan, v.Action)
 			} else {
 				result, err = w.session.Run(run, v.Plan, v.Action)
+				// A dispatch cancelled by its own context (an authority
+				// generation turned over under it) while the step's is live
+				// retries once under the step's: Run reloads durable state,
+				// so the retry cannot lose a receipt (#671).
+				if workerOwnCancel(call, err) {
+					result, err = w.session.Run(run, v.Plan, v.Action)
+				}
 			}
 		}
 		longest = max(longest, time.Since(dispatchStarted))
@@ -592,12 +602,34 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		} else {
 			repeats++
 		}
-		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale}
+		cancelled := 0
+		own := !candidate.cleanup && workerOwnCancel(call, err) && after.Attempt == v.Attempt && (after.Stage == domain.Pending || after.Stage == domain.Prepared)
+		if own {
+			cancelled = 1
+			if workerSameView(wait.view, v) {
+				cancelled = wait.cancelled + 1
+			}
+		}
+		// An undispatched action whose dispatch is cancelled step after step
+		// never reaches native; parked at attempt 0 it would hold its goal
+		// for ever (#671). It settles cancelled, so the goal re-plans.
+		if cancelled >= workerCancelledSettle {
+			if _, cancelErr := w.player.journal.Cancel(call, v.Plan, v.Action); cancelErr != nil {
+				errs = append(errs, cancelErr)
+			} else {
+				slog.Default().Warn("worker settled a dispatch cancelled on every attempt", telemetry.ComponentKey, "worker", "action", string(v.Action), "stage", string(v.Stage), "attempts", cancelled, "err", err)
+				delete(w.waits, v.Action)
+				w.advanced = true
+				continue
+			}
+		}
+		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale, cancelled: cancelled}
 		if err != nil {
 			errs = append(errs, err)
 			// A step that ran out of budget or lost its transport says
-			// nothing about the next candidate either (#342).
-			if call.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, bridge.ErrTransport) {
+			// nothing about the next candidate either (#342); one dispatch
+			// cancelled by its own context says nothing about its siblings.
+			if !own && (call.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, bridge.ErrTransport)) {
 				break
 			}
 		}
@@ -606,6 +638,17 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		w.config.Advanced()
 	}
 	return errors.Join(append([]error{worldErr}, errs...)...)
+}
+
+// workerCancelledSettle is how many consecutive steps an undispatched
+// action's dispatch may be cancelled by its own context before the worker
+// settles it cancelled (#671).
+const workerCancelledSettle = 3
+
+// workerOwnCancel reports whether err is the dispatch's own context
+// cancellation while the step's context is still live.
+func workerOwnCancel(call context.Context, err error) bool {
+	return err != nil && call.Err() == nil && errors.Is(err, context.Canceled)
 }
 
 // backedOff reports whether candidate waits out a backoff from an earlier
