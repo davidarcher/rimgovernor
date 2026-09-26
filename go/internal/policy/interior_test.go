@@ -70,7 +70,7 @@ func TestPlanInteriorRefusesUnfitRooms(t *testing.T) {
 	if _, ok := PlanInterior(doorless, InteriorPieceDef{}); ok {
 		t.Error("a doorless room planned")
 	}
-	untemplated := InteriorRoom{Role: RoomRoleTomb, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
+	untemplated := InteriorRoom{Role: RoomRole("Untemplated"), Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
 	if _, ok := PlanInterior(untemplated, InteriorPieceDef{}); ok {
 		t.Error("a role without a template planned")
 	}

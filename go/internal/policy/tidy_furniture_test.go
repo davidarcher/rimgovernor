@@ -12,8 +12,11 @@ import (
 // against the registry generically.
 var tidyTestSlots []InteriorPiece
 
+// tidyTestRole is a scratch role no catalog row or production template uses.
+const tidyTestRole RoomRole = "TidyTest"
+
 func init() {
-	RegisterInteriorTemplate(RoomRoleTomb, InteriorTemplate{Name: "tidy-test", Plan: func(InteriorFrame, InteriorPieceDef) ([]InteriorPiece, bool) {
+	RegisterInteriorTemplate(tidyTestRole, InteriorTemplate{Name: "tidy-test", Plan: func(InteriorFrame, InteriorPieceDef) ([]InteriorPiece, bool) {
 		return append([]InteriorPiece(nil), tidyTestSlots...), len(tidyTestSlots) > 0
 	}})
 }
@@ -25,7 +28,7 @@ func tidyFurnitureFixture(slots []InteriorPiece, pieces ...TidyPiece) TidyReques
 	tidyTestSlots = slots
 	r := tidyFixture()
 	r.Items = nil
-	r.Rooms = []TidyRoom{{ID: "Room_9", Room: InteriorRoom{Role: RoomRoleTomb, Interior: Rectangle{0, 0, 8, 6}, Doors: []domain.Cell{{X: 1, Z: -1}}}, Pieces: pieces}}
+	r.Rooms = []TidyRoom{{ID: "Room_9", Room: InteriorRoom{Role: tidyTestRole, Interior: Rectangle{0, 0, 8, 6}, Doors: []domain.Cell{{X: 1, Z: -1}}}, Pieces: pieces}}
 	return r
 }
 
