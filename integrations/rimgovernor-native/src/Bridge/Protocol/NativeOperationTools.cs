@@ -37,6 +37,8 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CutPlants = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
+        // InstallBuilding admissions (NativeMoveBuilding, #808), observed by the queued installation.
+        internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Moves = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CoverClearances = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
@@ -138,6 +140,8 @@ namespace HomeBridge.BridgeTools
                     : NativeSupplyAllow.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ClearCover)
                 return NativeClearCover.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
+                return NativeMoveBuilding.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                 return NativeDraftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
@@ -303,6 +307,8 @@ namespace HomeBridge.BridgeTools
                         : NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ClearCover)
                     return ProtoBoundary.Encode(NativeClearCover.Preview(parsed.Operation.ClearCover, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
+                    return ProtoBoundary.Encode(NativeMoveBuilding.Preview(parsed.Operation.InstallBuilding, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
                     return ProtoBoundary.Encode(NativeMovementOperations.Preview(parsed.Operation.MovePawn, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
@@ -449,6 +455,9 @@ namespace HomeBridge.BridgeTools
                     Receipts.DesignationEffect cut;
                     if (state.CutPlants.TryGetValue(parsed.Attempt, out cut))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCutPlant.Observe(parsed.Attempt, context, cut) }));
+                    Receipts.InstallationEffect move;
+                    if (state.Moves.TryGetValue(parsed.Attempt, out move))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeMoveBuilding.Observe(parsed.Attempt, context, move) }));
                     Receipts.DesignationEffect cover;
                     if (state.CoverClearances.TryGetValue(parsed.Attempt, out cover))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeClearCover.Observe(parsed.Attempt, context, cover) }));

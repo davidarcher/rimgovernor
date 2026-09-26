@@ -122,6 +122,8 @@ type Executor struct {
 	deconstruction             DeconstructionBoundary
 	deconstructionJournal      DeconstructionJournal
 	cutPlantJournal            CutPlantJournal
+	moveBuilding               MoveBuildingBoundary
+	moveBuildingJournal        MoveBuildingJournal
 	coverClearanceJournal      CoverClearanceJournal
 	tend                       TendBoundary
 	tendJournal                TendJournal
@@ -377,6 +379,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.DeconstructionAction && e.deconstruction != nil {
 		return e.runDeconstruction(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.MoveBuildingAction && e.moveBuilding != nil {
+		return e.runMoveBuilding(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.CutPlantAction && e.cutPlant != nil {
 		return e.runCutPlant(ctx, action, progress, authority, generation)

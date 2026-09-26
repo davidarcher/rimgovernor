@@ -23,6 +23,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
@@ -38,13 +39,16 @@ import (
 )
 
 type SessionConfig struct {
-	Deconstruction  *DeconstructionCapabilities
-	Bills           *bill.BillCapabilities
-	Zones           *zone.ZoneCapabilities
-	Work            *work.WorkCapabilities
-	Acquisition     *acquisition.AcquisitionCapabilities
-	Supplies        *supply.SupplyCapabilities
-	CutPlant        *cutplant.CutPlantCapabilities
+	Deconstruction *DeconstructionCapabilities
+	Bills          *bill.BillCapabilities
+	Zones          *zone.ZoneCapabilities
+	Work           *work.WorkCapabilities
+	Acquisition    *acquisition.AcquisitionCapabilities
+	Supplies       *supply.SupplyCapabilities
+	CutPlant       *cutplant.CutPlantCapabilities
+	// MoveBuilding backs the tidy family's furniture re-siting through the
+	// game's Reinstall (#808).
+	MoveBuilding    *movebuilding.Capabilities
 	CoverClearance  *coverclearance.CoverClearanceCapabilities
 	RoutineMethods  bool
 	Control         ControlConfig
@@ -335,6 +339,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.CutPlant != nil && (config.CutPlant.Native == nil || config.CutPlant.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.CoverClearance != nil && (config.CoverClearance.Native == nil || config.CoverClearance.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -488,6 +495,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.CutPlant != nil {
 		if err := worker.EnableCutPlant(cutplant.NewCutPlantBoundary(place, *config.CutPlant)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.MoveBuilding != nil {
+		if err := worker.EnableMoveBuilding(movebuilding.NewBoundary(place, *config.MoveBuilding)); err != nil {
 			return cleanup(err)
 		}
 	}
