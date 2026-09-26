@@ -113,7 +113,7 @@ func layoutTidy(v *policy.TidyReview) *layoutTidyDTO {
 		return nil
 	}
 	dto := &layoutTidyDTO{Active: v.Active, Reason: v.Reason, Candidates: v.Candidates}
-	if p, known := v.Proposal.Value(); known {
+	if p := v.Proposal; p != nil {
 		dto.Proposal = &tidyProposalDTO{Kind: string(p.Item.Kind), Item: p.Item.ID, From: rectangle(p.Item.Footprint), To: rectangle(p.Target), Crop: p.Item.Crop, Gain: p.Gain, Distance: p.Distance, Explanation: p.Explanation}
 	}
 	return dto

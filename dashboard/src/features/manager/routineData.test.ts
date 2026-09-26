@@ -76,6 +76,7 @@ it('rejects malformed resource runways at the API boundary', () => {
   expect(readRoutineStatus(status({layoutTidy: tidy})).layoutTidy).toEqual(tidy);
   expect(readRoutineStatus(status({layoutTidy: {active: false, reason: 'colony busy', candidates: 1, proposal: null}})).layoutTidy?.reason).toBe('colony busy');
   expect(readRoutineStatus(status()).layoutTidy).toBeNull();
+  expect(readRoutineStatus(status({layoutTidy: {active: true, reason: 're-site in flight', candidates: 0, proposal: null}})).layoutTidy?.active).toBe(true);
   for (const bad of [{...tidy, active: false}, {...tidy, proposal: {...proposal, gain: -1}}, {...tidy, candidates: null}]) {
     expect(() => readRoutineStatus(status({layoutTidy: bad}))).toThrow();
   }

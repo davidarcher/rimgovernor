@@ -24,6 +24,9 @@ import (
 // The case proves the old zone id is gone from the native census, a new
 // managed zone stands as a module patch on the grid with the same crop,
 // and the journal records the tidy done with its explanation.
+// The defense and supply families ride along because the run reaches the
+// storyteller's first raid (~tick 90k): without them the raid parks every
+// goal (#620) and the window ends on emergency_park.
 const (
 	tidyPrepare  = "test/layout_tidy_prepare"
 	tidyResearch = "test/layout_tidy_research"
@@ -44,7 +47,7 @@ func init() {
 		Start:       cases.Fixture{Op: tidyPrepare, Args: map[string]any{}, On: cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{tidyResearch, gridAudit},
 		Keep:        []string{string(na.NeedFood)},
-		Serve:       &cases.ServeSpec{Families: []string{"field", "tidy"}, NativeTimeout: 30 * time.Second, Prefix: "layout-tidy"},
+		Serve:       &cases.ServeSpec{Families: []string{"field", "tidy", "defense", "supply"}, NativeTimeout: 30 * time.Second, Prefix: "layout-tidy"},
 		Stages:      []string{tidyStage},
 		Budget:      25 * time.Minute,
 		Reason:      "two serve stages: the Camp field plan, then the Masonry re-site through sowing and deletion of the old zone",
@@ -161,19 +164,34 @@ func tidy(ctx context.Context, s cases.Session) error {
 	if !g.Valid() {
 		return fmt.Errorf("invalid colony grid %+v", g)
 	}
+	// The staged Camp fields are the strays the case sets up, but the field
+	// family keeps planting while Stonecutting finishes, so a field planned
+	// just before the tier changed is an equally valid stray: any finished
+	// field re-site proves the behaviour, the staged ones first.
 	var done *store.LayoutTidy
 	for i := range tidies {
-		if _, camp := campFields[tidies[i].Item]; camp && tidies[i].Status == store.LayoutTidyDone {
+		if tidies[i].Kind != policy.TidyField || tidies[i].Status != store.LayoutTidyDone {
+			continue
+		}
+		if _, camp := campFields[tidies[i].Item]; camp || done == nil {
 			done = &tidies[i]
 		}
 	}
 	if done == nil {
-		return fmt.Errorf("the journal records no finished tidy of a Camp field: %+v", tidies)
+		return fmt.Errorf("the journal records no finished field tidy: %+v", tidies)
 	}
-	oldID, crop := done.Item, campFields[done.Item].crop
-	report["old_field"] = describe(campFields[oldID].rect, g)
-	if done.Kind != policy.TidyField || done.Crop != crop || done.NewZone == "" || done.Explanation == "" {
-		return fmt.Errorf("the finished tidy of %s lacks its crop %s, new zone or explanation: %+v", oldID, crop, *done)
+	oldID, crop := done.Item, done.Crop
+	if staged, ok := campFields[oldID]; ok {
+		if staged.crop != crop {
+			return fmt.Errorf("the tidy of staged Camp field %s kept crop %s, not %s", oldID, crop, staged.crop)
+		}
+		report["old_field"] = describe(staged.rect, g)
+	}
+	if modulePatch(g, done.From) {
+		return fmt.Errorf("the tidied field %s %+v was already a module patch on the grid", oldID, done.From)
+	}
+	if crop == "" || done.NewZone == "" || done.Explanation == "" {
+		return fmt.Errorf("the finished tidy of %s lacks its crop, new zone or explanation: %+v", oldID, *done)
 	}
 	if !strings.Contains(done.Explanation, "alignment gain") {
 		return fmt.Errorf("tidy explanation names no alignment gain: %q", done.Explanation)

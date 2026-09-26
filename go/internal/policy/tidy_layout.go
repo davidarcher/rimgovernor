@@ -92,9 +92,11 @@ type TidyProposal struct {
 // against known facts, Active while a proposal stands, and Reason naming
 // why none does.
 type TidyReview struct {
-	Known    bool
-	Active   bool
-	Proposal domain.Fact[TidyProposal]
+	Known  bool
+	Active bool
+	// Proposal is nil when nothing is proposed; a pointer, not a Fact,
+	// so the review survives its JSON round trip through the journal.
+	Proposal *TidyProposal `json:",omitempty"`
 	Reason   string
 	// Candidates counts the managed items measured off the grid.
 	Candidates int
@@ -186,12 +188,15 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		}
 	}
 	review := TidyReview{Known: true, Candidates: len(candidates)}
-	if len(candidates) == 0 {
-		review.Reason = "nothing off grid"
+	if r.InFlight {
+		// The moving item is already tidied (no candidate, no proposal)
+		// but the goal stays in deficit until its delete phase closes;
+		// a recovered goal would strand the re-site half done.
+		review.Active, review.Reason = true, "re-site in flight"
 		return review
 	}
-	if r.InFlight {
-		review.Reason = "re-site in flight"
+	if len(candidates) == 0 {
+		review.Reason = "nothing off grid"
 		return review
 	}
 	busy, bk := r.Busy.Value()
@@ -217,7 +222,7 @@ func PlanTidyLayout(r TidyRequest) TidyReview {
 		review.Reason = "no free module"
 		return review
 	}
-	review.Active, review.Proposal = true, domain.Known(*best)
+	review.Active, review.Proposal = true, best
 	return review
 }
 

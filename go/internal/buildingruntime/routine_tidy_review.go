@@ -64,7 +64,7 @@ func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.Genera
 	request.Items = append(request.Items, tidyShellItems(projection)...)
 	review := policy.PlanTidyLayout(request)
 	projection.Facts.LayoutTidy = domain.Known(review)
-	if proposal, known := review.Proposal.Value(); known {
+	if proposal := review.Proposal; proposal != nil {
 		clockEvent(ctx, "layout", "tidy", "tidy proposal: "+proposal.Explanation, "item", proposal.Item.ID, "kind", string(proposal.Item.Kind), "gain", proposal.Gain)
 	}
 	return nil

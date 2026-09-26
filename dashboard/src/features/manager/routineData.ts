@@ -114,7 +114,7 @@ function readLayoutTidy(value: unknown): LayoutTidy {
     return {kind: id(v.kind), item: id(v.item), from: readTidyRect(v.from), to: readTidyRect(v.to), crop: text(v.crop), gain: count(v.gain), distance: count(v.distance), explanation: text(v.explanation)};
   });
   const tidy = {active: bool(t.active), reason: text(t.reason), candidates: count(t.candidates), proposal};
-  if (tidy.active !== (proposal !== null)) throw Error('Inconsistent layout tidy');
+  if (proposal !== null && !tidy.active) throw Error('Inconsistent layout tidy');
   return tidy;
 }
 function readGoalProgress(v: unknown): GoalProgress {

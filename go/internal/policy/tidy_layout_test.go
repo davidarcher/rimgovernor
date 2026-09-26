@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -37,10 +38,10 @@ func tidyZoned(r TidyRequest, rect Rectangle, id string) TidyRequest {
 func TestTidyLayoutIdleColonyProposesTheOffGridFieldAndExplainsItsGain(t *testing.T) {
 	r := tidyFixture()
 	review := PlanTidyLayout(r)
-	proposal, known := review.Proposal.Value()
-	if !review.Known || !review.Active || !known || review.Candidates != 1 {
+	if !review.Known || !review.Active || review.Proposal == nil || review.Candidates != 1 {
 		t.Fatalf("review %+v", review)
 	}
+	proposal := *review.Proposal
 	grid, _ := r.Grid.Value()
 	if proposal.Item.ID != "Zone_7" || tidyAlignment(grid, TidyItem{Kind: TidyField, Footprint: proposal.Target}) != 0 || proposal.Target.Width != ColonyGridInterior || proposal.Target.Height != ColonyGridSubCell {
 		t.Fatalf("proposal %+v", proposal)
@@ -56,7 +57,7 @@ func TestTidyLayoutIdleColonyProposesTheOffGridFieldAndExplainsItsGain(t *testin
 			t.Fatalf("explanation %q lacks %q", proposal.Explanation, want)
 		}
 	}
-	if again := PlanTidyLayout(r); again.Proposal != review.Proposal {
+	if again := PlanTidyLayout(r); *again.Proposal != *review.Proposal {
 		t.Fatal("proposal is not deterministic")
 	}
 }
@@ -65,7 +66,6 @@ func TestTidyLayoutBusyColonyOrInFlightProposesNothing(t *testing.T) {
 	for name, mutate := range map[string]func(*TidyRequest){
 		"busy":         func(r *TidyRequest) { r.Busy = domain.Known(true) },
 		"busy unknown": func(r *TidyRequest) { r.Busy = domain.Unknown[bool]() },
-		"in flight":    func(r *TidyRequest) { r.InFlight = true },
 	} {
 		r := tidyFixture()
 		mutate(&r)
@@ -73,6 +73,16 @@ func TestTidyLayoutBusyColonyOrInFlightProposesNothing(t *testing.T) {
 		if !review.Known || review.Active || review.Candidates != 1 || review.Reason == "" {
 			t.Fatalf("%s: review %+v", name, review)
 		}
+	}
+	// A re-site in flight proposes nothing but keeps the goal active until
+	// its delete phase closes, even once the moving item is tidied and no
+	// candidate remains (the first live run recovered the goal there and
+	// stranded the re-site at "moving").
+	r := tidyFixture()
+	r.InFlight, r.Tidied = true, []string{r.Items[0].ID}
+	review := PlanTidyLayout(r)
+	if !review.Known || !review.Active || review.Proposal != nil || review.Candidates != 0 || review.Reason != "re-site in flight" {
+		t.Fatalf("in flight: review %+v", review)
 	}
 }
 
@@ -95,7 +105,7 @@ func TestTidyLayoutNeverTouchesPlayerZonesRoomsInUseOrTidiedItems(t *testing.T) 
 func TestTidyLayoutSecondRunAfterTheTidyProposesNothing(t *testing.T) {
 	r := tidyFixture()
 	first := PlanTidyLayout(r)
-	proposal, _ := first.Proposal.Value()
+	proposal := first.Proposal
 	r.Tidied = []string{proposal.Item.ID}
 	second := PlanTidyLayout(r)
 	if !second.Known || second.Active || second.Candidates != 0 {
@@ -131,7 +141,7 @@ func TestTidyLayoutAnOnGridWholeModuleFieldIsNotACandidateButASmallOneIs(t *test
 	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_1", Footprint: Rectangle{17, 1, 2, 2}, Cells: 4, Crop: "Plant_Rice", Managed: true}}
 	r = tidyZoned(r, Rectangle{17, 1, 2, 2}, "Zone_1")
 	review := PlanTidyLayout(r)
-	proposal, _ := review.Proposal.Value()
+	proposal := review.Proposal
 	if !review.Active || proposal.Gain != 0 || proposal.Target.Width*proposal.Target.Height != int32(FieldHalfModuleCellCount) {
 		t.Fatalf("small field review %+v", review)
 	}
@@ -141,7 +151,7 @@ func TestTidyLayoutReplacedEmptyShellIsDeconstructedWithoutATarget(t *testing.T)
 	r := tidyFixture()
 	r.Items = []TidyItem{{Kind: TidyShell, ID: "Room_1", Footprint: Rectangle{40, 40, 7, 7}, Managed: true, Replaced: true}}
 	review := PlanTidyLayout(r)
-	proposal, _ := review.Proposal.Value()
+	proposal := review.Proposal
 	if !review.Active || proposal.Item.Kind != TidyShell || proposal.Target != (Rectangle{}) || proposal.Gain <= 0 || !strings.Contains(proposal.Explanation, "deconstruct") {
 		t.Fatalf("shell review %+v", review)
 	}
@@ -152,7 +162,7 @@ func TestTidyLayoutStockpileMovesToStorageAndNoFreeModuleIsReported(t *testing.T
 	r.Items = []TidyItem{{Kind: TidyStockpile, ID: "Zone_5", Footprint: Rectangle{3, 30, 3, 3}, Cells: 9, Managed: true}}
 	r = tidyZoned(r, Rectangle{3, 30, 3, 3}, "Zone_5")
 	review := PlanTidyLayout(r)
-	proposal, _ := review.Proposal.Value()
+	proposal := review.Proposal
 	grid, _ := r.Grid.Value()
 	if !review.Active || proposal.Target.Width != ColonyGridSubCell || proposal.Target.Height != ColonyGridSubCell || grid.District(domain.Cell{X: proposal.Target.X + 2, Z: proposal.Target.Z + 2}) != DistrictStorage {
 		t.Fatalf("stockpile review %+v", review)
@@ -162,5 +172,23 @@ func TestTidyLayoutStockpileMovesToStorageAndNoFreeModuleIsReported(t *testing.T
 	}
 	if review := PlanTidyLayout(r); review.Active || review.Reason != "no free module" {
 		t.Fatalf("occupied review %+v", review)
+	}
+}
+
+// The review is persisted as JSON by the journal and reloaded by the tidy
+// planner: the proposal must survive that round trip (the first layout/tidy
+// run lost it behind an unexported Fact and never planned).
+func TestTidyReviewProposalSurvivesJSON(t *testing.T) {
+	review := PlanTidyLayout(tidyFixture())
+	encoded, err := json.Marshal(review)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded TidyReview
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Proposal == nil || *decoded.Proposal != *review.Proposal {
+		t.Fatalf("proposal lost in JSON: %s", encoded)
 	}
 }

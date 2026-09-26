@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -65,7 +66,11 @@ func tidyMethodID(item, phase string) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("tidy-%s-%x", phase, sum[:12]))
 }
 func tidyPlanID(goal store.GoalState, method domain.MethodID) domain.PlanID {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	// The plan id leaves the goal's epoch out on purpose: a re-site outlives
+	// an epoch turnover, and finish loads the create plan by this id rather
+	// than through the goal's current methods (#611: an epoch turning over
+	// under a moving tidy abandoned every re-site the tick it started).
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s", goal.Goal.ID, method)))
 	return domain.PlanID(fmt.Sprintf("routine-tidy-%x", digest[:16]))
 }
 
@@ -128,8 +133,8 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineTidyResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	proposal, known := review.Layout.Proposal.Value()
-	if !known {
+	proposal := review.Layout.Proposal
+	if proposal == nil {
 		return RoutineTidyResult{Reason: BuildingMethodUnknown}, nil
 	}
 	for _, t := range tidies {
@@ -146,9 +151,9 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	if proposal.Item.Kind == policy.TidyShell {
-		return r.deconstruct(call, epoch, state, goal, read, proposal)
+		return r.deconstruct(call, epoch, state, goal, read, *proposal)
 	}
-	return r.create(call, epoch, state, goal, read, proposal)
+	return r.create(call, epoch, state, goal, read, *proposal)
 }
 
 // commit journals one goal method after the freshness checks every planner
@@ -182,6 +187,13 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{Reason: BuildingMethodUnknown}, nil
 	}
 	id := tidyPlanID(goal, method)
+	// The plan id outlives the goal's epoch: an existing plan is this
+	// item's own earlier create, not a fresh one to admit.
+	if _, err := p.journal.LoadPlan(call, id); err == nil {
+		return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineTidyResult{}, err
+	}
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	kind := domain.StockpileZone
@@ -209,6 +221,12 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	tick := projection.Identity.Tick
 	if refused != "" {
 		clockSchedulerLog("Tidy: %s %s new site %+v refused: %s", item.Kind, item.ID, proposal.Target, refused)
+		if strings.Contains(refused, "zone census changed") {
+			// Another planner in this wave (the fields planner, typically)
+			// created a zone after the shared census was read: the site is
+			// not refused, the token is stale. Retry on a fresh census.
+			return RoutineTidyResult{Reason: BuildingMethodRefused}, nil
+		}
 		if err = r.record(call, state, tick, proposal, store.LayoutTidyAbandoned, ""); err != nil {
 			return RoutineTidyResult{}, err
 		}
@@ -231,7 +249,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{}, ErrControl
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: tick}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: state.Snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
@@ -261,20 +279,23 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 	p := r.reviewer.player
 	proposal := policy.TidyProposal{Item: policy.TidyItem{Kind: t.Kind, ID: t.Item, Footprint: t.From, Crop: t.Crop, Managed: true}, Target: t.To, Explanation: t.Explanation}
 	createMethod, deleteMethod := tidyMethodID(t.Item, "create"), tidyMethodID(t.Item, "delete")
-	var created, deleting *store.PlanState
-	for _, method := range goal.Methods {
-		if method.Method != createMethod && method.Method != deleteMethod {
-			continue
+	load := func(method domain.MethodID) (*store.PlanState, error) {
+		plan, err := p.journal.LoadPlan(call, tidyPlanID(goal, method))
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil
 		}
-		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
-			return RoutineTidyResult{}, err
+			return nil, err
 		}
-		if method.Method == createMethod {
-			created = &plan
-		} else {
-			deleting = &plan
-		}
+		return &plan, nil
+	}
+	created, err := load(createMethod)
+	if err != nil {
+		return RoutineTidyResult{}, err
+	}
+	deleting, err := load(deleteMethod)
+	if err != nil {
+		return RoutineTidyResult{}, err
 	}
 	newZone := t.NewZone
 	if newZone == "" {
