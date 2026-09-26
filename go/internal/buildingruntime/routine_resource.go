@@ -474,7 +474,7 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 		pre = &sourceSelection{selected, storage}
 	}
 	selected := pre.selected
-	zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, pre.storage, started)
+	zoneResult, handled, err := r.materialStorageZoneFallback(call, epoch, state, goal, reviewTick, resource, selected, pre.storage, target-resourceCount(stock, resource), started)
 	if err != nil {
 		return RoutineResourceResult{}, false, err
 	}
@@ -586,11 +586,13 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 // cells (fingerprint dedup), not attempt-numbered, since
 // the candidate set is whatever native reports fresh each call, not
 // something this planner deliberately retries several times per episode.
-// handled is false when nothing applies this tick (no mine source selected,
-// or existing capacity already covers the deficit) -- the caller should then
+// With no mine source to size it by, a deficit whose storage is full still
+// gets one stack of capacity (#796), so remote salvage and loot can land.
+// handled is false when nothing applies this tick (no mine source selected
+// and capacity left, or existing capacity already covers the deficit) -- the caller should then
 // fall through to dispatchMineSource instead: the storage zone-build takes
 // the place of an acquisition action only when storage is inadequate.
-func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, started time.Time) (RoutineResourceResult, bool, error) {
+func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, selected []policy.ResourceSource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoutineResourceResult, bool, error) {
 	zone, needed, blocked, err := policy.SelectResourceStorageZone(selected, 0, storage)
 	if err != nil {
 		return RoutineResourceResult{}, false, err
@@ -599,7 +601,9 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 		return RoutineResourceResult{Reason: BuildingMethodNoSpace}, true, nil
 	}
 	if !needed {
-		return RoutineResourceResult{}, false, nil
+		if zone, needed, err = policy.SelectFullStorageZone(deficit, storage); err != nil || !needed {
+			return RoutineResourceResult{}, false, err
+		}
 	}
 	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage", "routine-resource-zone")
 	return result, true, err

@@ -602,3 +602,18 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 	}
 	return ResourceMethod{Kind: ResourceMethodBlocked}, nil
 }
+
+// SelectFullStorageZone is the storage floor under a resource deficit (#796):
+// with no mine source to size storage by, a deficit whose accepting storage
+// is full leaves every other acquisition (remote salvage and loot, drops,
+// trade) nowhere to land, and remote work holds on missing_storage forever.
+// One stack of new capacity is enough to unblock the next yield; the next
+// fill asks again. needed is false when capacity remains, nothing is short,
+// or no candidate or hauler exists.
+func SelectFullStorageZone(deficit int64, storage ResourceStorage) (ResourceStorageZone, bool, error) {
+	if deficit <= 0 || storage.Capacity > 0 || storage.StackLimit <= 0 {
+		return ResourceStorageZone{}, false, nil
+	}
+	zone, needed, _, err := SelectStockpileCapacity(min(deficit, storage.StackLimit), storage)
+	return zone, needed, err
+}
