@@ -60,10 +60,9 @@ func playerControl() (mode string, args []string, err error) {
 		// tick boost is not a speed a player can select).
 		return mode, []string{"--clock-speed", "Ultrafast"}, nil
 	case "player":
-		// #627's player pacing mode: frame-time pacing, controller
-		// backoff, visible effective speed. Not landed; the hook stays so
-		// the family switches over by environment alone.
-		return mode, nil, fmt.Errorf("%s=player: #627's player pacing mode is not landed yet", ControlModeEnv)
+		// #627's player acceleration: Ultrafast paced per frame against
+		// native's frame budget, with the controller's backoff.
+		return mode, []string{"--clock-speed", "Ultrafast", "--clock-pacing", "player"}, nil
 	}
 	return mode, nil, fmt.Errorf("%s=%q: one of ultrafast, player", ControlModeEnv, mode)
 }

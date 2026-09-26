@@ -4,12 +4,14 @@
 // here that the server did not send, and reading it changes no simulation
 // state.
 
-export type PacingReason = 'unknown' | 'governor_off' | 'held' | 'window_refused' | 'running' | 'tick_budget' | 'stopped' | 'cinematic';
-export const pacingReasons: PacingReason[] = ['unknown', 'governor_off', 'held', 'window_refused', 'running', 'tick_budget', 'stopped', 'cinematic'];
+export type PacingReason = 'unknown' | 'governor_off' | 'held' | 'window_refused' | 'running' | 'tick_budget' | 'stopped' | 'cinematic'
+  | 'accelerated' | 'frame_budget' | 'forced_slowdown' | 'regulated' | 'backoff';
+export const pacingReasons: PacingReason[] = ['unknown', 'governor_off', 'held', 'window_refused', 'running', 'tick_budget', 'stopped', 'cinematic',
+  'accelerated', 'frame_budget', 'forced_slowdown', 'regulated', 'backoff'];
 
 export type NowStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
 export type NowGoal = {goal: string; method: string; expected: string; lastProgress: number; nextReview: number; blocked: string; prerequisite: string; observed: number | null};
-export type NowPacing = {reason: PacingReason; detail: string; mode: string; effectiveTps: number; windowTicks: number};
+export type NowPacing = {reason: PacingReason; detail: string; mode: string; effectiveTps: number; windowTicks: number; pacedTps: number};
 // The stop's latency split: the tick legs from the hazard arising through the
 // supervisor raising the stop to the stop landing, then the wall legs — how
 // long it sat unobserved in native, how long the controller took to act on it
@@ -52,8 +54,9 @@ function readPacing(v: unknown): NowPacing {
   const p = object(v, ['reason', 'detail', 'mode', 'effectiveTps', 'windowTicks']);
   const reason = text(p.reason) as PacingReason;
   if (!pacingReasons.includes(reason)) throw Error(`Unknown pacing reason ${reason}`);
-  const pacing = {reason, detail: text(p.detail), mode: text(p.mode), effectiveTps: finite(p.effectiveTps), windowTicks: tick(p.windowTicks)};
-  if (pacing.effectiveTps < 0 || !pacing.mode) throw Error('Invalid spectator pacing');
+  const pacing = {reason, detail: text(p.detail), mode: text(p.mode), effectiveTps: finite(p.effectiveTps), windowTicks: tick(p.windowTicks),
+    pacedTps: p.pacedTps === undefined ? 0 : finite(p.pacedTps)};
+  if (pacing.effectiveTps < 0 || pacing.pacedTps < 0 || !pacing.mode) throw Error('Invalid spectator pacing');
   return pacing;
 }
 function readStop(v: unknown): NowStop {

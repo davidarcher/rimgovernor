@@ -98,6 +98,8 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Test acceleration is admitted only for a game launched with -rimgovernor-test-acceleration.");
             if (!ValidCeiling(request.HasBlindTickBudget, request.BlindTickBudget, request.HasMaxTicksPerSecond, request.MaxTicksPerSecond))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A blind tick budget is 1..1800000 and a tick rate ceiling 1..60000 ticks per second.");
+            if (!ValidPacing(request))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Player acceleration requires SPEED_ULTRAFAST without test acceleration, and a frame budget is 5..45 ms.");
             lock (Gate)
             {
                 if (_state != null && _state.Active) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A clock epoch is already active.");
@@ -134,7 +136,8 @@ namespace HomeBridge.BridgeTools
                         policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
                         (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds),
-                        (int)request.BlindTickBudget, (int)request.MaxTicksPerSecond);
+                        (int)request.BlindTickBudget, (int)request.MaxTicksPerSecond,
+                        request.Pacing == Clock.Pacing.PlayerAccelerated, (int)request.FrameBudgetMs);
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     ArmWatches(_state, context);
                     return TypedStatus(context);
@@ -182,6 +185,13 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A tick rate ceiling is 1..60000 ticks per second.");
                 return null;
             }
+        }
+        private static bool ValidPacing(Clock.StartRequest request)
+        {
+            if (request.HasPacing && request.Pacing != Clock.Pacing.Fixed && request.Pacing != Clock.Pacing.PlayerAccelerated) return false;
+            if (request.HasFrameBudgetMs && (request.FrameBudgetMs < MinFrameBudgetMs || request.FrameBudgetMs > MaxFrameBudgetMs)) return false;
+            if (request.Pacing != Clock.Pacing.PlayerAccelerated) return !request.HasFrameBudgetMs;
+            return request.Speed == Clock.Speed.Ultrafast && !request.TestAcceleration;
         }
         private static bool ValidCeiling(bool hasBudget, uint budget, bool hasCeiling, uint ceiling)
             => (!hasBudget || (budget >= 1 && budget <= 1800000)) && (!hasCeiling || (ceiling >= 1 && ceiling <= 60000));
@@ -291,6 +301,8 @@ namespace HomeBridge.BridgeTools
                 result.ProbeElapsedMs = ClockProbeAccounting.ProbeMs(Current.Game); result.DigestElapsedMs = ClockProbeAccounting.DigestMs(Current.Game);
                 result.ProbeTotal = ClockProbeAccounting.Probes(Current.Game); result.DigestTotal = ClockProbeAccounting.Digests(Current.Game);
                 result.SessionMaxProbeTickGap = ClockProbeAccounting.MaxProbeTickGap(Current.Game);
+                result.EffectiveTicksPerSecond = EffectiveTicksPerSecond();
+                ReportFrames(result);
                 foreach (var gap in ClockProbeAccounting.HazardGapsFor(Current.Game))
                     result.HazardGaps.Add(new Clock.HazardGap { HazardClass = gap.Key, MaxTickGap = gap.Value, BoundTicks = HazardBoundTicks(gap.Key), Hooked = HazardHooked(gap.Key) && HazardHooksInstalled });
                 if (_patchError != null) result.WatcherError = Text(_patchError);
@@ -299,7 +311,16 @@ namespace HomeBridge.BridgeTools
         }
         // Typed starts always carry a tick budget, so a typed epoch always has a deadline.
         private static long Deadline(State s) => s.TickDeadline ?? throw new InvalidOperationException("Typed epoch has no tick deadline.");
-        private static Clock.Epoch Epoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner.Clone(), Origin = TypedOf(s).Origin.Clone(),
+        // live adds what the pacing holds right now; the started row keeps
+        // only what the start fixed.
+        private static Clock.Epoch Epoch(State s, bool live = true)
+        {
+            var epoch = BaseEpoch(s);
+            if (s.PlayerPaced) { epoch.Pacing = Clock.Pacing.PlayerAccelerated; epoch.FrameBudgetMs = (uint)s.FrameBudgetMs; }
+            if (live && s.Active) { epoch.PacedTicksPerSecond = (uint)PacedTicksPerSecond(s); epoch.PacingReason = PacingReasonOf(s); }
+            return epoch;
+        }
+        private static Clock.Epoch BaseEpoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner.Clone(), Origin = TypedOf(s).Origin.Clone(),
             RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy.Clone(), StartTick = s.StartTick,
             TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0,
             BlindTickBudget = (uint)s.BlindTickBudget, MaxTicksPerSecond = (uint)s.MaxTicksPerSecond, RegulatedTicksPerSecond = (uint)s.RegulatedTicksPerSecond };
@@ -407,7 +428,7 @@ namespace HomeBridge.BridgeTools
             }
             typed.LastObservation = observed.Clone();
             var result = NativeClockEventProjection.Event(kind, detail, payload, observed, typed.Owner, checked(_cursor + 1), NowMs(),
-                kind == "started" ? Epoch(s) : null, number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
+                kind == "started" ? Epoch(s, false) : null, number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
             if (kind == "pause_failed") result.PauseFailed.Pending.Reason = StopReason(s.PendingKind);
             if (kind == "tick_budget") result.Stopped.Budget = new Clock.BudgetReached { StartTick = s.StartTick, TickDeadline = Deadline(s), ActualTick = s.LastTick };
             if (result.Stopped != null && result.Stopped.EvidenceCase == Clock.StopEvent.EvidenceOneofCase.Unavailable

@@ -185,6 +185,7 @@ namespace HomeBridge.BridgeTools
                 var target = AccessTools.Method(typeof(TickManager), "TickManagerUpdate");
                 if (target == null) throw new MissingMethodException("TickManager.TickManagerUpdate");
                 new Harmony("homebridge.supervised-play").Patch(target,
+                    prefix: new HarmonyMethod(typeof(Supervisor), nameof(OnFrameBegin)),
                     postfix: new HarmonyMethod(typeof(Supervisor), nameof(OnFrame)));
                 var info = Harmony.GetPatchInfo(target);
                 if (info == null || !info.Owners.Contains("homebridge.supervised-play"))
@@ -213,7 +214,7 @@ namespace HomeBridge.BridgeTools
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
             int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "",
-            int blindTickBudget = 0, int maxTicksPerSecond = 0)
+            int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false, int frameBudgetMs = 0)
         {
             lock (Gate)
             {
@@ -228,6 +229,8 @@ namespace HomeBridge.BridgeTools
                     return Failure("No playable map is loaded.");
                 if (testAcceleration && (BoostField == null || BoostField.FieldType != typeof(bool)))
                     return Failure("Native boost support is unavailable.");
+                if (playerPaced && (testAcceleration || speed != TimeSpeed.Ultrafast))
+                    return Failure("Player acceleration requires Ultrafast without test acceleration.");
                 try { LetterPauseHook.EnsurePatched(); }
                 catch (Exception error) { return Failure("Pause source tracking unavailable: " + error.Message); }
                 if (LongEventHandler.AnyEventNowOrWaiting)
@@ -253,6 +256,7 @@ namespace HomeBridge.BridgeTools
                     LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
                     TestAcceleration = testAcceleration,
                     BlindTickBudget = Clamp(blindTickBudget, 0, 1800000), MaxTicksPerSecond = Clamp(maxTicksPerSecond, 0, 60000),
+                    PlayerPaced = playerPaced, FrameBudgetMs = ClampFrameBudget(frameBudgetMs), Paced = PacedFloorMultiplier, LastPaceMs = NowMs(),
                     LastReadTick = Find.TickManager.TicksGame, AckedCursor = _cursor,
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
@@ -415,7 +419,7 @@ namespace HomeBridge.BridgeTools
             {
                 // The frame can contain many accelerated ticks. Check ownership,
                 // lease and tick-bounded hazards before admitting another tick.
-                if (s.TestAcceleration) OnUpdate();
+                if (s.TestAcceleration || s.PlayerPaced) OnUpdate();
                 if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
                 { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
@@ -436,7 +440,7 @@ namespace HomeBridge.BridgeTools
                 // The tick-paced hazard probe (#626): at every production speed
                 // consecutive probes are at most ProbeIntervalTicks apart, however
                 // many ticks the frame carries. The accelerated path ran it above.
-                if (!s.TestAcceleration)
+                if (!s.TestAcceleration && !s.PlayerPaced)
                 {
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
@@ -457,9 +461,13 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 MarkFrame();
+                SampleEffective();
                 var s = _state;
                 if (s != null && s.Active)
                 {
+                    var tm = Find.TickManager;
+                    if (tm != null)
+                        Pace(s, tm, (System.Diagnostics.Stopwatch.GetTimestamp() - _frameBeganTimestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency, tm.TicksThisFrame);
                     s.Timing.Frames++;
                     if (s.Timing.FrameTicks > s.Timing.MaxFrameTicks) s.Timing.MaxFrameTicks = s.Timing.FrameTicks;
                     s.Timing.FrameTicks = 0;
@@ -1558,6 +1566,9 @@ namespace HomeBridge.BridgeTools
             // (0 = none), the controller's last read tick and acknowledged
             // cursor, and the rows it has not acknowledged (cursor, tick).
             public int BlindTickBudget; public int MaxTicksPerSecond; public int RegulatedTicksPerSecond;
+            // Player acceleration (SupervisedPlayPacing.cs): the mode, its frame
+            // budget, the multiplier it holds and when it last ramped.
+            public bool PlayerPaced; public int FrameBudgetMs; public float Paced; public long LastPaceMs; public int PaceLowered;
             public int LastReadTick; public long AckedCursor; public readonly List<KeyValuePair<long, int>> Unacked = new List<KeyValuePair<long, int>>();
             public long LastRampMs; public int MaxBlindTicks; public int RegulatorThrottles;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;

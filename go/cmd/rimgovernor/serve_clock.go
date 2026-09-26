@@ -262,6 +262,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), uint32(sc.clockBlindTicks))
+	config.Start.PlayerAccelerated = sc.clockPacing == "player"
+	config.Start.FrameBudgetMS = uint32(sc.clockFrameBudgetMS)
+	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
 		// The native digest appends a colony row when a stock crosses one
 		// of these levels (#670), so MaintainResource reviews under the

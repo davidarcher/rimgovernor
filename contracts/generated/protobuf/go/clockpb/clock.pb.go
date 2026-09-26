@@ -141,6 +141,126 @@ func (ObservedSpeed) EnumDescriptor() ([]byte, []int) {
 	return file_clock_proto_rawDescGZIP(), []int{1}
 }
 
+// How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
+// own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
+// boosted rate while the frame's tick work stays inside frame_budget_ms, so
+// input, rendering and control dispatch keep their share of each frame; the
+// game's forced slowdown still holds it at Normal. It needs no test launch.
+type Pacing int32
+
+const (
+	Pacing_PACING_UNSPECIFIED        Pacing = 0
+	Pacing_PACING_FIXED              Pacing = 1
+	Pacing_PACING_PLAYER_ACCELERATED Pacing = 2
+)
+
+// Enum value maps for Pacing.
+var (
+	Pacing_name = map[int32]string{
+		0: "PACING_UNSPECIFIED",
+		1: "PACING_FIXED",
+		2: "PACING_PLAYER_ACCELERATED",
+	}
+	Pacing_value = map[string]int32{
+		"PACING_UNSPECIFIED":        0,
+		"PACING_FIXED":              1,
+		"PACING_PLAYER_ACCELERATED": 2,
+	}
+)
+
+func (x Pacing) Enum() *Pacing {
+	p := new(Pacing)
+	*p = x
+	return p
+}
+
+func (x Pacing) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Pacing) Descriptor() protoreflect.EnumDescriptor {
+	return file_clock_proto_enumTypes[2].Descriptor()
+}
+
+func (Pacing) Type() protoreflect.EnumType {
+	return &file_clock_proto_enumTypes[2]
+}
+
+func (x Pacing) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Pacing.Descriptor instead.
+func (Pacing) EnumDescriptor() ([]byte, []int) {
+	return file_clock_proto_rawDescGZIP(), []int{2}
+}
+
+// What bounds the running epoch's tick rate right now (#627), most binding
+// first: the game's forced slowdown, the blind-tick regulator, the owner's
+// max_ticks_per_second (the controller's backoff), the frame budget; else
+// the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
+// (FIXED).
+type PacingReason int32
+
+const (
+	PacingReason_PACING_REASON_UNSPECIFIED     PacingReason = 0
+	PacingReason_PACING_REASON_FIXED           PacingReason = 1
+	PacingReason_PACING_REASON_ACCELERATED     PacingReason = 2
+	PacingReason_PACING_REASON_FRAME_BUDGET    PacingReason = 3
+	PacingReason_PACING_REASON_FORCED_SLOWDOWN PacingReason = 4
+	PacingReason_PACING_REASON_REGULATED       PacingReason = 5
+	PacingReason_PACING_REASON_CEILING         PacingReason = 6
+)
+
+// Enum value maps for PacingReason.
+var (
+	PacingReason_name = map[int32]string{
+		0: "PACING_REASON_UNSPECIFIED",
+		1: "PACING_REASON_FIXED",
+		2: "PACING_REASON_ACCELERATED",
+		3: "PACING_REASON_FRAME_BUDGET",
+		4: "PACING_REASON_FORCED_SLOWDOWN",
+		5: "PACING_REASON_REGULATED",
+		6: "PACING_REASON_CEILING",
+	}
+	PacingReason_value = map[string]int32{
+		"PACING_REASON_UNSPECIFIED":     0,
+		"PACING_REASON_FIXED":           1,
+		"PACING_REASON_ACCELERATED":     2,
+		"PACING_REASON_FRAME_BUDGET":    3,
+		"PACING_REASON_FORCED_SLOWDOWN": 4,
+		"PACING_REASON_REGULATED":       5,
+		"PACING_REASON_CEILING":         6,
+	}
+)
+
+func (x PacingReason) Enum() *PacingReason {
+	p := new(PacingReason)
+	*p = x
+	return p
+}
+
+func (x PacingReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PacingReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_clock_proto_enumTypes[3].Descriptor()
+}
+
+func (PacingReason) Type() protoreflect.EnumType {
+	return &file_clock_proto_enumTypes[3]
+}
+
+func (x PacingReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PacingReason.Descriptor instead.
+func (PacingReason) EnumDescriptor() ([]byte, []int) {
+	return file_clock_proto_rawDescGZIP(), []int{3}
+}
+
 type WatchMode int32
 
 const (
@@ -174,11 +294,11 @@ func (x WatchMode) String() string {
 }
 
 func (WatchMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_clock_proto_enumTypes[2].Descriptor()
+	return file_clock_proto_enumTypes[4].Descriptor()
 }
 
 func (WatchMode) Type() protoreflect.EnumType {
-	return &file_clock_proto_enumTypes[2]
+	return &file_clock_proto_enumTypes[4]
 }
 
 func (x WatchMode) Number() protoreflect.EnumNumber {
@@ -187,7 +307,7 @@ func (x WatchMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WatchMode.Descriptor instead.
 func (WatchMode) EnumDescriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{2}
+	return file_clock_proto_rawDescGZIP(), []int{4}
 }
 
 type StopReason int32
@@ -291,11 +411,11 @@ func (x StopReason) String() string {
 }
 
 func (StopReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_clock_proto_enumTypes[3].Descriptor()
+	return file_clock_proto_enumTypes[5].Descriptor()
 }
 
 func (StopReason) Type() protoreflect.EnumType {
-	return &file_clock_proto_enumTypes[3]
+	return &file_clock_proto_enumTypes[5]
 }
 
 func (x StopReason) Number() protoreflect.EnumNumber {
@@ -304,7 +424,7 @@ func (x StopReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StopReason.Descriptor instead.
 func (StopReason) EnumDescriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{3}
+	return file_clock_proto_rawDescGZIP(), []int{5}
 }
 
 type InjurySuppression int32
@@ -343,11 +463,11 @@ func (x InjurySuppression) String() string {
 }
 
 func (InjurySuppression) Descriptor() protoreflect.EnumDescriptor {
-	return file_clock_proto_enumTypes[4].Descriptor()
+	return file_clock_proto_enumTypes[6].Descriptor()
 }
 
 func (InjurySuppression) Type() protoreflect.EnumType {
-	return &file_clock_proto_enumTypes[4]
+	return &file_clock_proto_enumTypes[6]
 }
 
 func (x InjurySuppression) Number() protoreflect.EnumNumber {
@@ -356,7 +476,7 @@ func (x InjurySuppression) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use InjurySuppression.Descriptor instead.
 func (InjurySuppression) EnumDescriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{4}
+	return file_clock_proto_rawDescGZIP(), []int{6}
 }
 
 // A group of observation reads that go stale together. Definitions and world
@@ -412,11 +532,11 @@ func (x FactFamily) String() string {
 }
 
 func (FactFamily) Descriptor() protoreflect.EnumDescriptor {
-	return file_clock_proto_enumTypes[5].Descriptor()
+	return file_clock_proto_enumTypes[7].Descriptor()
 }
 
 func (FactFamily) Type() protoreflect.EnumType {
-	return &file_clock_proto_enumTypes[5]
+	return &file_clock_proto_enumTypes[7]
 }
 
 func (x FactFamily) Number() protoreflect.EnumNumber {
@@ -425,7 +545,7 @@ func (x FactFamily) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FactFamily.Descriptor instead.
 func (FactFamily) EnumDescriptor() ([]byte, []int) {
-	return file_clock_proto_rawDescGZIP(), []int{5}
+	return file_clock_proto_rawDescGZIP(), []int{7}
 }
 
 type WatchPolicy struct {
@@ -700,8 +820,13 @@ type StartRequest struct {
 	// speed's own rate; an accelerated epoch admits a live change through
 	// SpeedRequest. Zero or absent is the speed's own rate.
 	MaxTicksPerSecond *uint32 `protobuf:"varint,8,opt,name=max_ticks_per_second,json=maxTicksPerSecond,proto3,oneof" json:"max_ticks_per_second,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// PACING_PLAYER_ACCELERATED requires SPEED_ULTRAFAST and excludes
+	// test_acceleration; absent is PACING_FIXED. frame_budget_ms (5..45,
+	// absent = 30) is the wall time per frame the tick loop may take.
+	Pacing        *Pacing `protobuf:"varint,9,opt,name=pacing,proto3,enum=rimgovernor.clock.v1.Pacing,oneof" json:"pacing,omitempty"`
+	FrameBudgetMs *uint32 `protobuf:"varint,10,opt,name=frame_budget_ms,json=frameBudgetMs,proto3,oneof" json:"frame_budget_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartRequest) Reset() {
@@ -786,6 +911,20 @@ func (x *StartRequest) GetBlindTickBudget() uint32 {
 func (x *StartRequest) GetMaxTicksPerSecond() uint32 {
 	if x != nil && x.MaxTicksPerSecond != nil {
 		return *x.MaxTicksPerSecond
+	}
+	return 0
+}
+
+func (x *StartRequest) GetPacing() Pacing {
+	if x != nil && x.Pacing != nil {
+		return *x.Pacing
+	}
+	return Pacing_PACING_UNSPECIFIED
+}
+
+func (x *StartRequest) GetFrameBudgetMs() uint32 {
+	if x != nil && x.FrameBudgetMs != nil {
+		return *x.FrameBudgetMs
 	}
 	return 0
 }
@@ -1032,8 +1171,14 @@ type Epoch struct {
 	// The ceiling the blind-tick regulator holds right now; zero when it is
 	// not throttling.
 	RegulatedTicksPerSecond *uint32 `protobuf:"varint,12,opt,name=regulated_ticks_per_second,json=regulatedTicksPerSecond,proto3,oneof" json:"regulated_ticks_per_second,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	Pacing                  *Pacing `protobuf:"varint,13,opt,name=pacing,proto3,enum=rimgovernor.clock.v1.Pacing,oneof" json:"pacing,omitempty"`
+	FrameBudgetMs           *uint32 `protobuf:"varint,14,opt,name=frame_budget_ms,json=frameBudgetMs,proto3,oneof" json:"frame_budget_ms,omitempty"`
+	// The tick rate the pacing holds right now (60 x the multiplier the game
+	// ticks at), and what bounds it.
+	PacedTicksPerSecond *uint32       `protobuf:"varint,15,opt,name=paced_ticks_per_second,json=pacedTicksPerSecond,proto3,oneof" json:"paced_ticks_per_second,omitempty"`
+	PacingReason        *PacingReason `protobuf:"varint,16,opt,name=pacing_reason,json=pacingReason,proto3,enum=rimgovernor.clock.v1.PacingReason,oneof" json:"pacing_reason,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Epoch) Reset() {
@@ -1148,6 +1293,34 @@ func (x *Epoch) GetRegulatedTicksPerSecond() uint32 {
 		return *x.RegulatedTicksPerSecond
 	}
 	return 0
+}
+
+func (x *Epoch) GetPacing() Pacing {
+	if x != nil && x.Pacing != nil {
+		return *x.Pacing
+	}
+	return Pacing_PACING_UNSPECIFIED
+}
+
+func (x *Epoch) GetFrameBudgetMs() uint32 {
+	if x != nil && x.FrameBudgetMs != nil {
+		return *x.FrameBudgetMs
+	}
+	return 0
+}
+
+func (x *Epoch) GetPacedTicksPerSecond() uint32 {
+	if x != nil && x.PacedTicksPerSecond != nil {
+		return *x.PacedTicksPerSecond
+	}
+	return 0
+}
+
+func (x *Epoch) GetPacingReason() PacingReason {
+	if x != nil && x.PacingReason != nil {
+		return *x.PacingReason
+	}
+	return PacingReason_PACING_REASON_UNSPECIFIED
 }
 
 type Running struct {
@@ -1436,9 +1609,20 @@ type Status struct {
 	SessionMaxProbeTickGap *int64   `protobuf:"varint,27,opt,name=session_max_probe_tick_gap,json=sessionMaxProbeTickGap,proto3,oneof" json:"session_max_probe_tick_gap,omitempty"`
 	// Per hazard class: the declared maximum detection gap in ticks and the
 	// widest gap observed this session (#626).
-	HazardGaps    []*HazardGap `protobuf:"bytes,28,rep,name=hazard_gaps,json=hazardGaps,proto3" json:"hazard_gaps,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	HazardGaps []*HazardGap `protobuf:"bytes,28,rep,name=hazard_gaps,json=hazardGaps,proto3" json:"hazard_gaps,omitempty"`
+	// Game ticks per wall second over the last ten seconds of frames, paused
+	// time included (#627): what the player actually gets.
+	EffectiveTicksPerSecond *float64 `protobuf:"fixed64,29,opt,name=effective_ticks_per_second,json=effectiveTicksPerSecond,proto3,oneof" json:"effective_ticks_per_second,omitempty"`
+	// Player acceleration's frame account (#627), cumulative for the loaded
+	// game session: frames a player-accelerated epoch ticked, those whose
+	// tick work exceeded the epoch's frame budget, and the widest frame's
+	// tick work. A command queued for the main thread waits at most one
+	// frame's tick work.
+	PacedFrames           *uint64  `protobuf:"varint,30,opt,name=paced_frames,json=pacedFrames,proto3,oneof" json:"paced_frames,omitempty"`
+	PacedFramesOverBudget *uint64  `protobuf:"varint,31,opt,name=paced_frames_over_budget,json=pacedFramesOverBudget,proto3,oneof" json:"paced_frames_over_budget,omitempty"`
+	MaxPacedFrameMs       *float64 `protobuf:"fixed64,32,opt,name=max_paced_frame_ms,json=maxPacedFrameMs,proto3,oneof" json:"max_paced_frame_ms,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Status) Reset() {
@@ -1682,6 +1866,34 @@ func (x *Status) GetHazardGaps() []*HazardGap {
 		return x.HazardGaps
 	}
 	return nil
+}
+
+func (x *Status) GetEffectiveTicksPerSecond() float64 {
+	if x != nil && x.EffectiveTicksPerSecond != nil {
+		return *x.EffectiveTicksPerSecond
+	}
+	return 0
+}
+
+func (x *Status) GetPacedFrames() uint64 {
+	if x != nil && x.PacedFrames != nil {
+		return *x.PacedFrames
+	}
+	return 0
+}
+
+func (x *Status) GetPacedFramesOverBudget() uint64 {
+	if x != nil && x.PacedFramesOverBudget != nil {
+		return *x.PacedFramesOverBudget
+	}
+	return 0
+}
+
+func (x *Status) GetMaxPacedFrameMs() float64 {
+	if x != nil && x.MaxPacedFrameMs != nil {
+		return *x.MaxPacedFrameMs
+	}
+	return 0
 }
 
 type isStatus_State interface {
@@ -4812,7 +5024,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12\x19\n" +
 	"\x05epoch\x18\x02 \x01(\x03H\x01R\x05epoch\x88\x01\x01B\x18\n" +
 	"\x16_controller_session_idB\b\n" +
-	"\x06_epoch\"\x91\x04\n" +
+	"\x06_epoch\"\x98\x05\n" +
 	"\fStartRequest\x12I\n" +
 	"\tauthority\x18\x01 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x126\n" +
 	"\x05speed\x18\x02 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x129\n" +
@@ -4821,14 +5033,19 @@ const file_clock_proto_rawDesc = "" +
 	"\tmax_ticks\x18\x05 \x01(\rH\x02R\bmaxTicks\x88\x01\x01\x120\n" +
 	"\x11test_acceleration\x18\x06 \x01(\bH\x03R\x10testAcceleration\x88\x01\x01\x12/\n" +
 	"\x11blind_tick_budget\x18\a \x01(\rH\x04R\x0fblindTickBudget\x88\x01\x01\x124\n" +
-	"\x14max_ticks_per_second\x18\b \x01(\rH\x05R\x11maxTicksPerSecond\x88\x01\x01B\b\n" +
+	"\x14max_ticks_per_second\x18\b \x01(\rH\x05R\x11maxTicksPerSecond\x88\x01\x01\x129\n" +
+	"\x06pacing\x18\t \x01(\x0e2\x1c.rimgovernor.clock.v1.PacingH\x06R\x06pacing\x88\x01\x01\x12+\n" +
+	"\x0fframe_budget_ms\x18\n" +
+	" \x01(\rH\aR\rframeBudgetMs\x88\x01\x01B\b\n" +
 	"\x06_speedB\v\n" +
 	"\t_lease_msB\f\n" +
 	"\n" +
 	"_max_ticksB\x14\n" +
 	"\x12_test_accelerationB\x14\n" +
 	"\x12_blind_tick_budgetB\x17\n" +
-	"\x15_max_ticks_per_second\"\x83\x01\n" +
+	"\x15_max_ticks_per_secondB\t\n" +
+	"\a_pacingB\x12\n" +
+	"\x10_frame_budget_ms\"\x83\x01\n" +
 	"\fOwnedRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x126\n" +
 	"\x05owner\x18\x02 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\"\xc0\x01\n" +
@@ -4845,7 +5062,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x06_speedB\x17\n" +
 	"\x15_max_ticks_per_second\"L\n" +
 	"\rStatusRequest\x12;\n" +
-	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xc4\x06\n" +
+	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\x80\t\n" +
 	"\x05Epoch\x126\n" +
 	"\x05owner\x18\x01 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\x12A\n" +
 	"\x06origin\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x06origin\x12I\n" +
@@ -4860,7 +5077,12 @@ const file_clock_proto_rawDesc = "" +
 	"\x11blind_tick_budget\x18\n" +
 	" \x01(\rH\x06R\x0fblindTickBudget\x88\x01\x01\x124\n" +
 	"\x14max_ticks_per_second\x18\v \x01(\rH\aR\x11maxTicksPerSecond\x88\x01\x01\x12@\n" +
-	"\x1aregulated_ticks_per_second\x18\f \x01(\rH\bR\x17regulatedTicksPerSecond\x88\x01\x01B\x12\n" +
+	"\x1aregulated_ticks_per_second\x18\f \x01(\rH\bR\x17regulatedTicksPerSecond\x88\x01\x01\x129\n" +
+	"\x06pacing\x18\r \x01(\x0e2\x1c.rimgovernor.clock.v1.PacingH\tR\x06pacing\x88\x01\x01\x12+\n" +
+	"\x0fframe_budget_ms\x18\x0e \x01(\rH\n" +
+	"R\rframeBudgetMs\x88\x01\x01\x128\n" +
+	"\x16paced_ticks_per_second\x18\x0f \x01(\rH\vR\x13pacedTicksPerSecond\x88\x01\x01\x12L\n" +
+	"\rpacing_reason\x18\x10 \x01(\x0e2\".rimgovernor.clock.v1.PacingReasonH\fR\fpacingReason\x88\x01\x01B\x12\n" +
 	"\x10_requested_speedB\r\n" +
 	"\v_start_tickB\x10\n" +
 	"\x0e_tick_deadlineB\x15\n" +
@@ -4870,7 +5092,11 @@ const file_clock_proto_rawDesc = "" +
 	"\x12_test_accelerationB\x14\n" +
 	"\x12_blind_tick_budgetB\x17\n" +
 	"\x15_max_ticks_per_secondB\x1d\n" +
-	"\x1b_regulated_ticks_per_second\"<\n" +
+	"\x1b_regulated_ticks_per_secondB\t\n" +
+	"\a_pacingB\x12\n" +
+	"\x10_frame_budget_msB\x19\n" +
+	"\x17_paced_ticks_per_secondB\x10\n" +
+	"\x0e_pacing_reason\"<\n" +
 	"\aRunning\x121\n" +
 	"\x05epoch\x18\x01 \x01(\v2\x1b.rimgovernor.clock.v1.EpochR\x05epoch\"\x82\x02\n" +
 	"\bStopping\x121\n" +
@@ -4895,7 +5121,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x0f_pause_verifiedB\x12\n" +
 	"\x10_pause_requestedB\x15\n" +
 	"\x13_stopped_at_unix_ms\"\x0e\n" +
-	"\fNeverStarted\"\xab\x0f\n" +
+	"\fNeverStarted\"\xe9\x11\n" +
 	"\x06Status\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x129\n" +
 	"\arunning\x18\x02 \x01(\v2\x1d.rimgovernor.clock.v1.RunningH\x00R\arunning\x12<\n" +
@@ -4930,7 +5156,11 @@ const file_clock_proto_rawDesc = "" +
 	"\fdigest_total\x18\x1a \x01(\x04H\x11R\vdigestTotal\x88\x01\x01\x12?\n" +
 	"\x1asession_max_probe_tick_gap\x18\x1b \x01(\x03H\x12R\x16sessionMaxProbeTickGap\x88\x01\x01\x12@\n" +
 	"\vhazard_gaps\x18\x1c \x03(\v2\x1f.rimgovernor.clock.v1.HazardGapR\n" +
-	"hazardGapsB\a\n" +
+	"hazardGaps\x12@\n" +
+	"\x1aeffective_ticks_per_second\x18\x1d \x01(\x01H\x13R\x17effectiveTicksPerSecond\x88\x01\x01\x12&\n" +
+	"\fpaced_frames\x18\x1e \x01(\x04H\x14R\vpacedFrames\x88\x01\x01\x12<\n" +
+	"\x18paced_frames_over_budget\x18\x1f \x01(\x04H\x15R\x15pacedFramesOverBudget\x88\x01\x01\x120\n" +
+	"\x12max_paced_frame_ms\x18  \x01(\x01H\x16R\x0fmaxPacedFrameMs\x88\x01\x01B\a\n" +
 	"\x05stateB\x17\n" +
 	"\x15_native_tick_boundaryB\x11\n" +
 	"\x0f_durable_eventsB\x10\n" +
@@ -4950,7 +5180,11 @@ const file_clock_proto_rawDesc = "" +
 	"\x12_digest_elapsed_msB\x0e\n" +
 	"\f_probe_totalB\x0f\n" +
 	"\r_digest_totalB\x1d\n" +
-	"\x1b_session_max_probe_tick_gap\"\x89\x01\n" +
+	"\x1b_session_max_probe_tick_gapB\x1d\n" +
+	"\x1b_effective_ticks_per_secondB\x0f\n" +
+	"\r_paced_framesB\x1b\n" +
+	"\x19_paced_frames_over_budgetB\x15\n" +
+	"\x13_max_paced_frame_ms\"\x89\x01\n" +
 	"\tHazardGap\x12!\n" +
 	"\fhazard_class\x18\x01 \x01(\tR\vhazardClass\x12\x1f\n" +
 	"\vbound_ticks\x18\x02 \x01(\x03R\n" +
@@ -5262,7 +5496,19 @@ const file_clock_proto_rawDesc = "" +
 	"\x15OBSERVED_SPEED_NORMAL\x10\x02\x12\x17\n" +
 	"\x13OBSERVED_SPEED_FAST\x10\x03\x12\x1c\n" +
 	"\x18OBSERVED_SPEED_SUPERFAST\x10\x04\x12\x1c\n" +
-	"\x18OBSERVED_SPEED_ULTRAFAST\x10\x05*U\n" +
+	"\x18OBSERVED_SPEED_ULTRAFAST\x10\x05*Q\n" +
+	"\x06Pacing\x12\x16\n" +
+	"\x12PACING_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fPACING_FIXED\x10\x01\x12\x1d\n" +
+	"\x19PACING_PLAYER_ACCELERATED\x10\x02*\xe0\x01\n" +
+	"\fPacingReason\x12\x1d\n" +
+	"\x19PACING_REASON_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13PACING_REASON_FIXED\x10\x01\x12\x1d\n" +
+	"\x19PACING_REASON_ACCELERATED\x10\x02\x12\x1e\n" +
+	"\x1aPACING_REASON_FRAME_BUDGET\x10\x03\x12!\n" +
+	"\x1dPACING_REASON_FORCED_SLOWDOWN\x10\x04\x12\x1b\n" +
+	"\x17PACING_REASON_REGULATED\x10\x05\x12\x19\n" +
+	"\x15PACING_REASON_CEILING\x10\x06*U\n" +
 	"\tWatchMode\x12\x1a\n" +
 	"\x16WATCH_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11WATCH_MODE_COLONY\x10\x01\x12\x15\n" +
@@ -5333,211 +5579,216 @@ func file_clock_proto_rawDescGZIP() []byte {
 	return file_clock_proto_rawDescData
 }
 
-var file_clock_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_clock_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_clock_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_clock_proto_goTypes = []any{
 	(Speed)(0),                            // 0: rimgovernor.clock.v1.Speed
 	(ObservedSpeed)(0),                    // 1: rimgovernor.clock.v1.ObservedSpeed
-	(WatchMode)(0),                        // 2: rimgovernor.clock.v1.WatchMode
-	(StopReason)(0),                       // 3: rimgovernor.clock.v1.StopReason
-	(InjurySuppression)(0),                // 4: rimgovernor.clock.v1.InjurySuppression
-	(FactFamily)(0),                       // 5: rimgovernor.clock.v1.FactFamily
-	(*WatchPolicy)(nil),                   // 6: rimgovernor.clock.v1.WatchPolicy
-	(*ResourceThreshold)(nil),             // 7: rimgovernor.clock.v1.ResourceThreshold
-	(*EpochOwner)(nil),                    // 8: rimgovernor.clock.v1.EpochOwner
-	(*StartRequest)(nil),                  // 9: rimgovernor.clock.v1.StartRequest
-	(*OwnedRequest)(nil),                  // 10: rimgovernor.clock.v1.OwnedRequest
-	(*RenewRequest)(nil),                  // 11: rimgovernor.clock.v1.RenewRequest
-	(*SpeedRequest)(nil),                  // 12: rimgovernor.clock.v1.SpeedRequest
-	(*StatusRequest)(nil),                 // 13: rimgovernor.clock.v1.StatusRequest
-	(*Epoch)(nil),                         // 14: rimgovernor.clock.v1.Epoch
-	(*Running)(nil),                       // 15: rimgovernor.clock.v1.Running
-	(*Stopping)(nil),                      // 16: rimgovernor.clock.v1.Stopping
-	(*Stopped)(nil),                       // 17: rimgovernor.clock.v1.Stopped
-	(*NeverStarted)(nil),                  // 18: rimgovernor.clock.v1.NeverStarted
-	(*Status)(nil),                        // 19: rimgovernor.clock.v1.Status
-	(*HazardGap)(nil),                     // 20: rimgovernor.clock.v1.HazardGap
-	(*StatusReply)(nil),                   // 21: rimgovernor.clock.v1.StatusReply
-	(*LongEventPending)(nil),              // 22: rimgovernor.clock.v1.LongEventPending
-	(*AppliedControl)(nil),                // 23: rimgovernor.clock.v1.AppliedControl
-	(*UncertainControl)(nil),              // 24: rimgovernor.clock.v1.UncertainControl
-	(*ControlReceipt)(nil),                // 25: rimgovernor.clock.v1.ControlReceipt
-	(*ControlReply)(nil),                  // 26: rimgovernor.clock.v1.ControlReply
-	(*AttemptRequest)(nil),                // 27: rimgovernor.clock.v1.AttemptRequest
-	(*AttemptUnknown)(nil),                // 28: rimgovernor.clock.v1.AttemptUnknown
-	(*AttemptReply)(nil),                  // 29: rimgovernor.clock.v1.AttemptReply
-	(*Letter)(nil),                        // 30: rimgovernor.clock.v1.Letter
-	(*TransientMessage)(nil),              // 31: rimgovernor.clock.v1.TransientMessage
-	(*Notification)(nil),                  // 32: rimgovernor.clock.v1.Notification
-	(*NotificationBatch)(nil),             // 33: rimgovernor.clock.v1.NotificationBatch
-	(*Alert)(nil),                         // 34: rimgovernor.clock.v1.Alert
-	(*PawnEvent)(nil),                     // 35: rimgovernor.clock.v1.PawnEvent
-	(*Health)(nil),                        // 36: rimgovernor.clock.v1.Health
-	(*Injury)(nil),                        // 37: rimgovernor.clock.v1.Injury
-	(*HealthThreshold)(nil),               // 38: rimgovernor.clock.v1.HealthThreshold
-	(*HostilesCleared)(nil),               // 39: rimgovernor.clock.v1.HostilesCleared
-	(*BudgetReached)(nil),                 // 40: rimgovernor.clock.v1.BudgetReached
-	(*PauseEvidence)(nil),                 // 41: rimgovernor.clock.v1.PauseEvidence
-	(*DialogPause)(nil),                   // 42: rimgovernor.clock.v1.DialogPause
-	(*OperationOutcome)(nil),              // 43: rimgovernor.clock.v1.OperationOutcome
-	(*AuthorityChanged)(nil),              // 44: rimgovernor.clock.v1.AuthorityChanged
-	(*WatchLatched)(nil),                  // 45: rimgovernor.clock.v1.WatchLatched
-	(*StopEvent)(nil),                     // 46: rimgovernor.clock.v1.StopEvent
-	(*EpochStarted)(nil),                  // 47: rimgovernor.clock.v1.EpochStarted
-	(*ObservationInvalidated)(nil),        // 48: rimgovernor.clock.v1.ObservationInvalidated
-	(*Rectangle)(nil),                     // 49: rimgovernor.clock.v1.Rectangle
-	(*SpeedChanged)(nil),                  // 50: rimgovernor.clock.v1.SpeedChanged
-	(*PauseFailed)(nil),                   // 51: rimgovernor.clock.v1.PauseFailed
-	(*ForcePauseWaiting)(nil),             // 52: rimgovernor.clock.v1.ForcePauseWaiting
-	(*ForcePauseCleared)(nil),             // 53: rimgovernor.clock.v1.ForcePauseCleared
-	(*Event)(nil),                         // 54: rimgovernor.clock.v1.Event
-	(*EventsRequest)(nil),                 // 55: rimgovernor.clock.v1.EventsRequest
-	(*EventsPage)(nil),                    // 56: rimgovernor.clock.v1.EventsPage
-	(*EventsReply)(nil),                   // 57: rimgovernor.clock.v1.EventsReply
-	(*commonpb.AttemptKey)(nil),           // 58: rimgovernor.common.v1.AttemptKey
-	(*authoritypb.WritePrecondition)(nil), // 59: rimgovernor.authority.v1.WritePrecondition
-	(*commonpb.Identity)(nil),             // 60: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),   // 61: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),          // 62: rimgovernor.common.v1.Unavailable
-	(*commonpb.PageInfo)(nil),             // 63: rimgovernor.common.v1.PageInfo
-	(*commonpb.Failure)(nil),              // 64: rimgovernor.common.v1.Failure
-	(*commonpb.Cell)(nil),                 // 65: rimgovernor.common.v1.Cell
-	(*receiptspb.CompletedEffect)(nil),    // 66: rimgovernor.receipts.v1.CompletedEffect
-	(*receiptspb.UnsuccessfulEffect)(nil), // 67: rimgovernor.receipts.v1.UnsuccessfulEffect
-	(*receiptspb.AbsentEffect)(nil),       // 68: rimgovernor.receipts.v1.AbsentEffect
-	(*receiptspb.UnknownEffect)(nil),      // 69: rimgovernor.receipts.v1.UnknownEffect
+	(Pacing)(0),                           // 2: rimgovernor.clock.v1.Pacing
+	(PacingReason)(0),                     // 3: rimgovernor.clock.v1.PacingReason
+	(WatchMode)(0),                        // 4: rimgovernor.clock.v1.WatchMode
+	(StopReason)(0),                       // 5: rimgovernor.clock.v1.StopReason
+	(InjurySuppression)(0),                // 6: rimgovernor.clock.v1.InjurySuppression
+	(FactFamily)(0),                       // 7: rimgovernor.clock.v1.FactFamily
+	(*WatchPolicy)(nil),                   // 8: rimgovernor.clock.v1.WatchPolicy
+	(*ResourceThreshold)(nil),             // 9: rimgovernor.clock.v1.ResourceThreshold
+	(*EpochOwner)(nil),                    // 10: rimgovernor.clock.v1.EpochOwner
+	(*StartRequest)(nil),                  // 11: rimgovernor.clock.v1.StartRequest
+	(*OwnedRequest)(nil),                  // 12: rimgovernor.clock.v1.OwnedRequest
+	(*RenewRequest)(nil),                  // 13: rimgovernor.clock.v1.RenewRequest
+	(*SpeedRequest)(nil),                  // 14: rimgovernor.clock.v1.SpeedRequest
+	(*StatusRequest)(nil),                 // 15: rimgovernor.clock.v1.StatusRequest
+	(*Epoch)(nil),                         // 16: rimgovernor.clock.v1.Epoch
+	(*Running)(nil),                       // 17: rimgovernor.clock.v1.Running
+	(*Stopping)(nil),                      // 18: rimgovernor.clock.v1.Stopping
+	(*Stopped)(nil),                       // 19: rimgovernor.clock.v1.Stopped
+	(*NeverStarted)(nil),                  // 20: rimgovernor.clock.v1.NeverStarted
+	(*Status)(nil),                        // 21: rimgovernor.clock.v1.Status
+	(*HazardGap)(nil),                     // 22: rimgovernor.clock.v1.HazardGap
+	(*StatusReply)(nil),                   // 23: rimgovernor.clock.v1.StatusReply
+	(*LongEventPending)(nil),              // 24: rimgovernor.clock.v1.LongEventPending
+	(*AppliedControl)(nil),                // 25: rimgovernor.clock.v1.AppliedControl
+	(*UncertainControl)(nil),              // 26: rimgovernor.clock.v1.UncertainControl
+	(*ControlReceipt)(nil),                // 27: rimgovernor.clock.v1.ControlReceipt
+	(*ControlReply)(nil),                  // 28: rimgovernor.clock.v1.ControlReply
+	(*AttemptRequest)(nil),                // 29: rimgovernor.clock.v1.AttemptRequest
+	(*AttemptUnknown)(nil),                // 30: rimgovernor.clock.v1.AttemptUnknown
+	(*AttemptReply)(nil),                  // 31: rimgovernor.clock.v1.AttemptReply
+	(*Letter)(nil),                        // 32: rimgovernor.clock.v1.Letter
+	(*TransientMessage)(nil),              // 33: rimgovernor.clock.v1.TransientMessage
+	(*Notification)(nil),                  // 34: rimgovernor.clock.v1.Notification
+	(*NotificationBatch)(nil),             // 35: rimgovernor.clock.v1.NotificationBatch
+	(*Alert)(nil),                         // 36: rimgovernor.clock.v1.Alert
+	(*PawnEvent)(nil),                     // 37: rimgovernor.clock.v1.PawnEvent
+	(*Health)(nil),                        // 38: rimgovernor.clock.v1.Health
+	(*Injury)(nil),                        // 39: rimgovernor.clock.v1.Injury
+	(*HealthThreshold)(nil),               // 40: rimgovernor.clock.v1.HealthThreshold
+	(*HostilesCleared)(nil),               // 41: rimgovernor.clock.v1.HostilesCleared
+	(*BudgetReached)(nil),                 // 42: rimgovernor.clock.v1.BudgetReached
+	(*PauseEvidence)(nil),                 // 43: rimgovernor.clock.v1.PauseEvidence
+	(*DialogPause)(nil),                   // 44: rimgovernor.clock.v1.DialogPause
+	(*OperationOutcome)(nil),              // 45: rimgovernor.clock.v1.OperationOutcome
+	(*AuthorityChanged)(nil),              // 46: rimgovernor.clock.v1.AuthorityChanged
+	(*WatchLatched)(nil),                  // 47: rimgovernor.clock.v1.WatchLatched
+	(*StopEvent)(nil),                     // 48: rimgovernor.clock.v1.StopEvent
+	(*EpochStarted)(nil),                  // 49: rimgovernor.clock.v1.EpochStarted
+	(*ObservationInvalidated)(nil),        // 50: rimgovernor.clock.v1.ObservationInvalidated
+	(*Rectangle)(nil),                     // 51: rimgovernor.clock.v1.Rectangle
+	(*SpeedChanged)(nil),                  // 52: rimgovernor.clock.v1.SpeedChanged
+	(*PauseFailed)(nil),                   // 53: rimgovernor.clock.v1.PauseFailed
+	(*ForcePauseWaiting)(nil),             // 54: rimgovernor.clock.v1.ForcePauseWaiting
+	(*ForcePauseCleared)(nil),             // 55: rimgovernor.clock.v1.ForcePauseCleared
+	(*Event)(nil),                         // 56: rimgovernor.clock.v1.Event
+	(*EventsRequest)(nil),                 // 57: rimgovernor.clock.v1.EventsRequest
+	(*EventsPage)(nil),                    // 58: rimgovernor.clock.v1.EventsPage
+	(*EventsReply)(nil),                   // 59: rimgovernor.clock.v1.EventsReply
+	(*commonpb.AttemptKey)(nil),           // 60: rimgovernor.common.v1.AttemptKey
+	(*authoritypb.WritePrecondition)(nil), // 61: rimgovernor.authority.v1.WritePrecondition
+	(*commonpb.Identity)(nil),             // 62: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),   // 63: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),          // 64: rimgovernor.common.v1.Unavailable
+	(*commonpb.PageInfo)(nil),             // 65: rimgovernor.common.v1.PageInfo
+	(*commonpb.Failure)(nil),              // 66: rimgovernor.common.v1.Failure
+	(*commonpb.Cell)(nil),                 // 67: rimgovernor.common.v1.Cell
+	(*receiptspb.CompletedEffect)(nil),    // 68: rimgovernor.receipts.v1.CompletedEffect
+	(*receiptspb.UnsuccessfulEffect)(nil), // 69: rimgovernor.receipts.v1.UnsuccessfulEffect
+	(*receiptspb.AbsentEffect)(nil),       // 70: rimgovernor.receipts.v1.AbsentEffect
+	(*receiptspb.UnknownEffect)(nil),      // 71: rimgovernor.receipts.v1.UnknownEffect
 }
 var file_clock_proto_depIdxs = []int32{
-	2,   // 0: rimgovernor.clock.v1.WatchPolicy.mode:type_name -> rimgovernor.clock.v1.WatchMode
-	58,  // 1: rimgovernor.clock.v1.WatchPolicy.watched_attempts:type_name -> rimgovernor.common.v1.AttemptKey
-	7,   // 2: rimgovernor.clock.v1.WatchPolicy.resource_thresholds:type_name -> rimgovernor.clock.v1.ResourceThreshold
-	59,  // 3: rimgovernor.clock.v1.StartRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	4,   // 0: rimgovernor.clock.v1.WatchPolicy.mode:type_name -> rimgovernor.clock.v1.WatchMode
+	60,  // 1: rimgovernor.clock.v1.WatchPolicy.watched_attempts:type_name -> rimgovernor.common.v1.AttemptKey
+	9,   // 2: rimgovernor.clock.v1.WatchPolicy.resource_thresholds:type_name -> rimgovernor.clock.v1.ResourceThreshold
+	61,  // 3: rimgovernor.clock.v1.StartRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
 	0,   // 4: rimgovernor.clock.v1.StartRequest.speed:type_name -> rimgovernor.clock.v1.Speed
-	6,   // 5: rimgovernor.clock.v1.StartRequest.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
-	60,  // 6: rimgovernor.clock.v1.OwnedRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	8,   // 7: rimgovernor.clock.v1.OwnedRequest.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	10,  // 8: rimgovernor.clock.v1.RenewRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
-	59,  // 9: rimgovernor.clock.v1.RenewRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
-	10,  // 10: rimgovernor.clock.v1.SpeedRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
-	59,  // 11: rimgovernor.clock.v1.SpeedRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
-	0,   // 12: rimgovernor.clock.v1.SpeedRequest.speed:type_name -> rimgovernor.clock.v1.Speed
-	60,  // 13: rimgovernor.clock.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	8,   // 14: rimgovernor.clock.v1.Epoch.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	61,  // 15: rimgovernor.clock.v1.Epoch.origin:type_name -> rimgovernor.common.v1.ObservationContext
-	0,   // 16: rimgovernor.clock.v1.Epoch.requested_speed:type_name -> rimgovernor.clock.v1.Speed
-	6,   // 17: rimgovernor.clock.v1.Epoch.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
-	14,  // 18: rimgovernor.clock.v1.Running.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	14,  // 19: rimgovernor.clock.v1.Stopping.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	3,   // 20: rimgovernor.clock.v1.Stopping.pending_reason:type_name -> rimgovernor.clock.v1.StopReason
-	14,  // 21: rimgovernor.clock.v1.Stopped.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	3,   // 22: rimgovernor.clock.v1.Stopped.reason:type_name -> rimgovernor.clock.v1.StopReason
-	61,  // 23: rimgovernor.clock.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
-	15,  // 24: rimgovernor.clock.v1.Status.running:type_name -> rimgovernor.clock.v1.Running
-	16,  // 25: rimgovernor.clock.v1.Status.stopping:type_name -> rimgovernor.clock.v1.Stopping
-	17,  // 26: rimgovernor.clock.v1.Status.stopped:type_name -> rimgovernor.clock.v1.Stopped
-	18,  // 27: rimgovernor.clock.v1.Status.never_started:type_name -> rimgovernor.clock.v1.NeverStarted
-	62,  // 28: rimgovernor.clock.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	34,  // 29: rimgovernor.clock.v1.Status.baseline_alerts:type_name -> rimgovernor.clock.v1.Alert
-	37,  // 30: rimgovernor.clock.v1.Status.suppressed_injuries:type_name -> rimgovernor.clock.v1.Injury
-	63,  // 31: rimgovernor.clock.v1.Status.evidence_completeness:type_name -> rimgovernor.common.v1.PageInfo
-	1,   // 32: rimgovernor.clock.v1.Status.observed_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
-	20,  // 33: rimgovernor.clock.v1.Status.hazard_gaps:type_name -> rimgovernor.clock.v1.HazardGap
-	19,  // 34: rimgovernor.clock.v1.StatusReply.status:type_name -> rimgovernor.clock.v1.Status
-	64,  // 35: rimgovernor.clock.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	19,  // 36: rimgovernor.clock.v1.AppliedControl.status:type_name -> rimgovernor.clock.v1.Status
-	19,  // 37: rimgovernor.clock.v1.UncertainControl.last_observed:type_name -> rimgovernor.clock.v1.Status
-	58,  // 38: rimgovernor.clock.v1.ControlReceipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	61,  // 39: rimgovernor.clock.v1.ControlReceipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
-	23,  // 40: rimgovernor.clock.v1.ControlReceipt.applied:type_name -> rimgovernor.clock.v1.AppliedControl
-	24,  // 41: rimgovernor.clock.v1.ControlReceipt.uncertain:type_name -> rimgovernor.clock.v1.UncertainControl
-	25,  // 42: rimgovernor.clock.v1.ControlReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
-	64,  // 43: rimgovernor.clock.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
-	22,  // 44: rimgovernor.clock.v1.ControlReply.long_event_pending:type_name -> rimgovernor.clock.v1.LongEventPending
-	60,  // 45: rimgovernor.clock.v1.AttemptRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	58,  // 46: rimgovernor.clock.v1.AttemptRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	25,  // 47: rimgovernor.clock.v1.AttemptReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
-	28,  // 48: rimgovernor.clock.v1.AttemptReply.unknown:type_name -> rimgovernor.clock.v1.AttemptUnknown
-	64,  // 49: rimgovernor.clock.v1.AttemptReply.failure:type_name -> rimgovernor.common.v1.Failure
-	30,  // 50: rimgovernor.clock.v1.Notification.letter:type_name -> rimgovernor.clock.v1.Letter
-	31,  // 51: rimgovernor.clock.v1.Notification.message:type_name -> rimgovernor.clock.v1.TransientMessage
-	30,  // 52: rimgovernor.clock.v1.NotificationBatch.letters:type_name -> rimgovernor.clock.v1.Letter
-	31,  // 53: rimgovernor.clock.v1.NotificationBatch.messages:type_name -> rimgovernor.clock.v1.TransientMessage
-	63,  // 54: rimgovernor.clock.v1.NotificationBatch.completeness:type_name -> rimgovernor.common.v1.PageInfo
-	65,  // 55: rimgovernor.clock.v1.PawnEvent.position:type_name -> rimgovernor.common.v1.Cell
-	35,  // 56: rimgovernor.clock.v1.Injury.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
-	36,  // 57: rimgovernor.clock.v1.Injury.before:type_name -> rimgovernor.clock.v1.Health
-	36,  // 58: rimgovernor.clock.v1.Injury.after:type_name -> rimgovernor.clock.v1.Health
-	4,   // 59: rimgovernor.clock.v1.Injury.suppression:type_name -> rimgovernor.clock.v1.InjurySuppression
-	35,  // 60: rimgovernor.clock.v1.HealthThreshold.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
-	35,  // 61: rimgovernor.clock.v1.HostilesCleared.downed_hostiles:type_name -> rimgovernor.clock.v1.PawnEvent
-	35,  // 62: rimgovernor.clock.v1.HostilesCleared.drafted_colonists:type_name -> rimgovernor.clock.v1.PawnEvent
-	63,  // 63: rimgovernor.clock.v1.HostilesCleared.completeness:type_name -> rimgovernor.common.v1.PageInfo
-	30,  // 64: rimgovernor.clock.v1.PauseEvidence.letter:type_name -> rimgovernor.clock.v1.Letter
-	0,   // 65: rimgovernor.clock.v1.PauseEvidence.requested_speed:type_name -> rimgovernor.clock.v1.Speed
-	1,   // 66: rimgovernor.clock.v1.PauseEvidence.actual_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
-	42,  // 67: rimgovernor.clock.v1.PauseEvidence.dialog:type_name -> rimgovernor.clock.v1.DialogPause
-	58,  // 68: rimgovernor.clock.v1.OperationOutcome.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	66,  // 69: rimgovernor.clock.v1.OperationOutcome.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
-	67,  // 70: rimgovernor.clock.v1.OperationOutcome.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
-	68,  // 71: rimgovernor.clock.v1.OperationOutcome.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
-	69,  // 72: rimgovernor.clock.v1.OperationOutcome.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
-	43,  // 73: rimgovernor.clock.v1.WatchLatched.outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
-	3,   // 74: rimgovernor.clock.v1.StopEvent.reason:type_name -> rimgovernor.clock.v1.StopReason
-	33,  // 75: rimgovernor.clock.v1.StopEvent.notifications:type_name -> rimgovernor.clock.v1.NotificationBatch
-	35,  // 76: rimgovernor.clock.v1.StopEvent.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
-	37,  // 77: rimgovernor.clock.v1.StopEvent.injury:type_name -> rimgovernor.clock.v1.Injury
-	38,  // 78: rimgovernor.clock.v1.StopEvent.health:type_name -> rimgovernor.clock.v1.HealthThreshold
-	40,  // 79: rimgovernor.clock.v1.StopEvent.budget:type_name -> rimgovernor.clock.v1.BudgetReached
-	41,  // 80: rimgovernor.clock.v1.StopEvent.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
-	62,  // 81: rimgovernor.clock.v1.StopEvent.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	45,  // 82: rimgovernor.clock.v1.StopEvent.watch:type_name -> rimgovernor.clock.v1.WatchLatched
-	14,  // 83: rimgovernor.clock.v1.EpochStarted.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	5,   // 84: rimgovernor.clock.v1.ObservationInvalidated.families:type_name -> rimgovernor.clock.v1.FactFamily
-	49,  // 85: rimgovernor.clock.v1.ObservationInvalidated.cells:type_name -> rimgovernor.clock.v1.Rectangle
-	65,  // 86: rimgovernor.clock.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
-	65,  // 87: rimgovernor.clock.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
-	0,   // 88: rimgovernor.clock.v1.SpeedChanged.speed:type_name -> rimgovernor.clock.v1.Speed
-	46,  // 89: rimgovernor.clock.v1.PauseFailed.pending:type_name -> rimgovernor.clock.v1.StopEvent
-	41,  // 90: rimgovernor.clock.v1.ForcePauseWaiting.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
-	8,   // 91: rimgovernor.clock.v1.Event.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	61,  // 92: rimgovernor.clock.v1.Event.context:type_name -> rimgovernor.common.v1.ObservationContext
-	47,  // 93: rimgovernor.clock.v1.Event.started:type_name -> rimgovernor.clock.v1.EpochStarted
-	50,  // 94: rimgovernor.clock.v1.Event.speed_changed:type_name -> rimgovernor.clock.v1.SpeedChanged
-	46,  // 95: rimgovernor.clock.v1.Event.stopped:type_name -> rimgovernor.clock.v1.StopEvent
-	32,  // 96: rimgovernor.clock.v1.Event.notification:type_name -> rimgovernor.clock.v1.Notification
-	34,  // 97: rimgovernor.clock.v1.Event.alert:type_name -> rimgovernor.clock.v1.Alert
-	37,  // 98: rimgovernor.clock.v1.Event.injury_observed:type_name -> rimgovernor.clock.v1.Injury
-	39,  // 99: rimgovernor.clock.v1.Event.hostiles_cleared:type_name -> rimgovernor.clock.v1.HostilesCleared
-	51,  // 100: rimgovernor.clock.v1.Event.pause_failed:type_name -> rimgovernor.clock.v1.PauseFailed
-	52,  // 101: rimgovernor.clock.v1.Event.force_pause_waiting:type_name -> rimgovernor.clock.v1.ForcePauseWaiting
-	53,  // 102: rimgovernor.clock.v1.Event.force_pause_cleared:type_name -> rimgovernor.clock.v1.ForcePauseCleared
-	43,  // 103: rimgovernor.clock.v1.Event.operation_outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
-	44,  // 104: rimgovernor.clock.v1.Event.authority_changed:type_name -> rimgovernor.clock.v1.AuthorityChanged
-	48,  // 105: rimgovernor.clock.v1.Event.observation_invalidated:type_name -> rimgovernor.clock.v1.ObservationInvalidated
-	60,  // 106: rimgovernor.clock.v1.EventsRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	61,  // 107: rimgovernor.clock.v1.EventsPage.context:type_name -> rimgovernor.common.v1.ObservationContext
-	54,  // 108: rimgovernor.clock.v1.EventsPage.events:type_name -> rimgovernor.clock.v1.Event
-	56,  // 109: rimgovernor.clock.v1.EventsReply.page:type_name -> rimgovernor.clock.v1.EventsPage
-	64,  // 110: rimgovernor.clock.v1.EventsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	13,  // 111: rimgovernor.clock.v1.Clock.ReadStatus:input_type -> rimgovernor.clock.v1.StatusRequest
-	55,  // 112: rimgovernor.clock.v1.Clock.ReadEvents:input_type -> rimgovernor.clock.v1.EventsRequest
-	27,  // 113: rimgovernor.clock.v1.Clock.ReadAttempt:input_type -> rimgovernor.clock.v1.AttemptRequest
-	9,   // 114: rimgovernor.clock.v1.Clock.Start:input_type -> rimgovernor.clock.v1.StartRequest
-	10,  // 115: rimgovernor.clock.v1.Clock.Pause:input_type -> rimgovernor.clock.v1.OwnedRequest
-	11,  // 116: rimgovernor.clock.v1.Clock.Renew:input_type -> rimgovernor.clock.v1.RenewRequest
-	12,  // 117: rimgovernor.clock.v1.Clock.ChangeSpeed:input_type -> rimgovernor.clock.v1.SpeedRequest
-	21,  // 118: rimgovernor.clock.v1.Clock.ReadStatus:output_type -> rimgovernor.clock.v1.StatusReply
-	57,  // 119: rimgovernor.clock.v1.Clock.ReadEvents:output_type -> rimgovernor.clock.v1.EventsReply
-	29,  // 120: rimgovernor.clock.v1.Clock.ReadAttempt:output_type -> rimgovernor.clock.v1.AttemptReply
-	26,  // 121: rimgovernor.clock.v1.Clock.Start:output_type -> rimgovernor.clock.v1.ControlReply
-	21,  // 122: rimgovernor.clock.v1.Clock.Pause:output_type -> rimgovernor.clock.v1.StatusReply
-	26,  // 123: rimgovernor.clock.v1.Clock.Renew:output_type -> rimgovernor.clock.v1.ControlReply
-	26,  // 124: rimgovernor.clock.v1.Clock.ChangeSpeed:output_type -> rimgovernor.clock.v1.ControlReply
-	118, // [118:125] is the sub-list for method output_type
-	111, // [111:118] is the sub-list for method input_type
-	111, // [111:111] is the sub-list for extension type_name
-	111, // [111:111] is the sub-list for extension extendee
-	0,   // [0:111] is the sub-list for field type_name
+	8,   // 5: rimgovernor.clock.v1.StartRequest.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
+	2,   // 6: rimgovernor.clock.v1.StartRequest.pacing:type_name -> rimgovernor.clock.v1.Pacing
+	62,  // 7: rimgovernor.clock.v1.OwnedRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	10,  // 8: rimgovernor.clock.v1.OwnedRequest.owner:type_name -> rimgovernor.clock.v1.EpochOwner
+	12,  // 9: rimgovernor.clock.v1.RenewRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
+	61,  // 10: rimgovernor.clock.v1.RenewRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	12,  // 11: rimgovernor.clock.v1.SpeedRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
+	61,  // 12: rimgovernor.clock.v1.SpeedRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	0,   // 13: rimgovernor.clock.v1.SpeedRequest.speed:type_name -> rimgovernor.clock.v1.Speed
+	62,  // 14: rimgovernor.clock.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	10,  // 15: rimgovernor.clock.v1.Epoch.owner:type_name -> rimgovernor.clock.v1.EpochOwner
+	63,  // 16: rimgovernor.clock.v1.Epoch.origin:type_name -> rimgovernor.common.v1.ObservationContext
+	0,   // 17: rimgovernor.clock.v1.Epoch.requested_speed:type_name -> rimgovernor.clock.v1.Speed
+	8,   // 18: rimgovernor.clock.v1.Epoch.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
+	2,   // 19: rimgovernor.clock.v1.Epoch.pacing:type_name -> rimgovernor.clock.v1.Pacing
+	3,   // 20: rimgovernor.clock.v1.Epoch.pacing_reason:type_name -> rimgovernor.clock.v1.PacingReason
+	16,  // 21: rimgovernor.clock.v1.Running.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	16,  // 22: rimgovernor.clock.v1.Stopping.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	5,   // 23: rimgovernor.clock.v1.Stopping.pending_reason:type_name -> rimgovernor.clock.v1.StopReason
+	16,  // 24: rimgovernor.clock.v1.Stopped.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	5,   // 25: rimgovernor.clock.v1.Stopped.reason:type_name -> rimgovernor.clock.v1.StopReason
+	63,  // 26: rimgovernor.clock.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
+	17,  // 27: rimgovernor.clock.v1.Status.running:type_name -> rimgovernor.clock.v1.Running
+	18,  // 28: rimgovernor.clock.v1.Status.stopping:type_name -> rimgovernor.clock.v1.Stopping
+	19,  // 29: rimgovernor.clock.v1.Status.stopped:type_name -> rimgovernor.clock.v1.Stopped
+	20,  // 30: rimgovernor.clock.v1.Status.never_started:type_name -> rimgovernor.clock.v1.NeverStarted
+	64,  // 31: rimgovernor.clock.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	36,  // 32: rimgovernor.clock.v1.Status.baseline_alerts:type_name -> rimgovernor.clock.v1.Alert
+	39,  // 33: rimgovernor.clock.v1.Status.suppressed_injuries:type_name -> rimgovernor.clock.v1.Injury
+	65,  // 34: rimgovernor.clock.v1.Status.evidence_completeness:type_name -> rimgovernor.common.v1.PageInfo
+	1,   // 35: rimgovernor.clock.v1.Status.observed_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
+	22,  // 36: rimgovernor.clock.v1.Status.hazard_gaps:type_name -> rimgovernor.clock.v1.HazardGap
+	21,  // 37: rimgovernor.clock.v1.StatusReply.status:type_name -> rimgovernor.clock.v1.Status
+	66,  // 38: rimgovernor.clock.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	21,  // 39: rimgovernor.clock.v1.AppliedControl.status:type_name -> rimgovernor.clock.v1.Status
+	21,  // 40: rimgovernor.clock.v1.UncertainControl.last_observed:type_name -> rimgovernor.clock.v1.Status
+	60,  // 41: rimgovernor.clock.v1.ControlReceipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	63,  // 42: rimgovernor.clock.v1.ControlReceipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	25,  // 43: rimgovernor.clock.v1.ControlReceipt.applied:type_name -> rimgovernor.clock.v1.AppliedControl
+	26,  // 44: rimgovernor.clock.v1.ControlReceipt.uncertain:type_name -> rimgovernor.clock.v1.UncertainControl
+	27,  // 45: rimgovernor.clock.v1.ControlReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
+	66,  // 46: rimgovernor.clock.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
+	24,  // 47: rimgovernor.clock.v1.ControlReply.long_event_pending:type_name -> rimgovernor.clock.v1.LongEventPending
+	62,  // 48: rimgovernor.clock.v1.AttemptRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	60,  // 49: rimgovernor.clock.v1.AttemptRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	27,  // 50: rimgovernor.clock.v1.AttemptReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
+	30,  // 51: rimgovernor.clock.v1.AttemptReply.unknown:type_name -> rimgovernor.clock.v1.AttemptUnknown
+	66,  // 52: rimgovernor.clock.v1.AttemptReply.failure:type_name -> rimgovernor.common.v1.Failure
+	32,  // 53: rimgovernor.clock.v1.Notification.letter:type_name -> rimgovernor.clock.v1.Letter
+	33,  // 54: rimgovernor.clock.v1.Notification.message:type_name -> rimgovernor.clock.v1.TransientMessage
+	32,  // 55: rimgovernor.clock.v1.NotificationBatch.letters:type_name -> rimgovernor.clock.v1.Letter
+	33,  // 56: rimgovernor.clock.v1.NotificationBatch.messages:type_name -> rimgovernor.clock.v1.TransientMessage
+	65,  // 57: rimgovernor.clock.v1.NotificationBatch.completeness:type_name -> rimgovernor.common.v1.PageInfo
+	67,  // 58: rimgovernor.clock.v1.PawnEvent.position:type_name -> rimgovernor.common.v1.Cell
+	37,  // 59: rimgovernor.clock.v1.Injury.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
+	38,  // 60: rimgovernor.clock.v1.Injury.before:type_name -> rimgovernor.clock.v1.Health
+	38,  // 61: rimgovernor.clock.v1.Injury.after:type_name -> rimgovernor.clock.v1.Health
+	6,   // 62: rimgovernor.clock.v1.Injury.suppression:type_name -> rimgovernor.clock.v1.InjurySuppression
+	37,  // 63: rimgovernor.clock.v1.HealthThreshold.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
+	37,  // 64: rimgovernor.clock.v1.HostilesCleared.downed_hostiles:type_name -> rimgovernor.clock.v1.PawnEvent
+	37,  // 65: rimgovernor.clock.v1.HostilesCleared.drafted_colonists:type_name -> rimgovernor.clock.v1.PawnEvent
+	65,  // 66: rimgovernor.clock.v1.HostilesCleared.completeness:type_name -> rimgovernor.common.v1.PageInfo
+	32,  // 67: rimgovernor.clock.v1.PauseEvidence.letter:type_name -> rimgovernor.clock.v1.Letter
+	0,   // 68: rimgovernor.clock.v1.PauseEvidence.requested_speed:type_name -> rimgovernor.clock.v1.Speed
+	1,   // 69: rimgovernor.clock.v1.PauseEvidence.actual_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
+	44,  // 70: rimgovernor.clock.v1.PauseEvidence.dialog:type_name -> rimgovernor.clock.v1.DialogPause
+	60,  // 71: rimgovernor.clock.v1.OperationOutcome.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	68,  // 72: rimgovernor.clock.v1.OperationOutcome.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
+	69,  // 73: rimgovernor.clock.v1.OperationOutcome.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
+	70,  // 74: rimgovernor.clock.v1.OperationOutcome.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
+	71,  // 75: rimgovernor.clock.v1.OperationOutcome.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
+	45,  // 76: rimgovernor.clock.v1.WatchLatched.outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
+	5,   // 77: rimgovernor.clock.v1.StopEvent.reason:type_name -> rimgovernor.clock.v1.StopReason
+	35,  // 78: rimgovernor.clock.v1.StopEvent.notifications:type_name -> rimgovernor.clock.v1.NotificationBatch
+	37,  // 79: rimgovernor.clock.v1.StopEvent.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
+	39,  // 80: rimgovernor.clock.v1.StopEvent.injury:type_name -> rimgovernor.clock.v1.Injury
+	40,  // 81: rimgovernor.clock.v1.StopEvent.health:type_name -> rimgovernor.clock.v1.HealthThreshold
+	42,  // 82: rimgovernor.clock.v1.StopEvent.budget:type_name -> rimgovernor.clock.v1.BudgetReached
+	43,  // 83: rimgovernor.clock.v1.StopEvent.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
+	64,  // 84: rimgovernor.clock.v1.StopEvent.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	47,  // 85: rimgovernor.clock.v1.StopEvent.watch:type_name -> rimgovernor.clock.v1.WatchLatched
+	16,  // 86: rimgovernor.clock.v1.EpochStarted.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	7,   // 87: rimgovernor.clock.v1.ObservationInvalidated.families:type_name -> rimgovernor.clock.v1.FactFamily
+	51,  // 88: rimgovernor.clock.v1.ObservationInvalidated.cells:type_name -> rimgovernor.clock.v1.Rectangle
+	67,  // 89: rimgovernor.clock.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
+	67,  // 90: rimgovernor.clock.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
+	0,   // 91: rimgovernor.clock.v1.SpeedChanged.speed:type_name -> rimgovernor.clock.v1.Speed
+	48,  // 92: rimgovernor.clock.v1.PauseFailed.pending:type_name -> rimgovernor.clock.v1.StopEvent
+	43,  // 93: rimgovernor.clock.v1.ForcePauseWaiting.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
+	10,  // 94: rimgovernor.clock.v1.Event.owner:type_name -> rimgovernor.clock.v1.EpochOwner
+	63,  // 95: rimgovernor.clock.v1.Event.context:type_name -> rimgovernor.common.v1.ObservationContext
+	49,  // 96: rimgovernor.clock.v1.Event.started:type_name -> rimgovernor.clock.v1.EpochStarted
+	52,  // 97: rimgovernor.clock.v1.Event.speed_changed:type_name -> rimgovernor.clock.v1.SpeedChanged
+	48,  // 98: rimgovernor.clock.v1.Event.stopped:type_name -> rimgovernor.clock.v1.StopEvent
+	34,  // 99: rimgovernor.clock.v1.Event.notification:type_name -> rimgovernor.clock.v1.Notification
+	36,  // 100: rimgovernor.clock.v1.Event.alert:type_name -> rimgovernor.clock.v1.Alert
+	39,  // 101: rimgovernor.clock.v1.Event.injury_observed:type_name -> rimgovernor.clock.v1.Injury
+	41,  // 102: rimgovernor.clock.v1.Event.hostiles_cleared:type_name -> rimgovernor.clock.v1.HostilesCleared
+	53,  // 103: rimgovernor.clock.v1.Event.pause_failed:type_name -> rimgovernor.clock.v1.PauseFailed
+	54,  // 104: rimgovernor.clock.v1.Event.force_pause_waiting:type_name -> rimgovernor.clock.v1.ForcePauseWaiting
+	55,  // 105: rimgovernor.clock.v1.Event.force_pause_cleared:type_name -> rimgovernor.clock.v1.ForcePauseCleared
+	45,  // 106: rimgovernor.clock.v1.Event.operation_outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
+	46,  // 107: rimgovernor.clock.v1.Event.authority_changed:type_name -> rimgovernor.clock.v1.AuthorityChanged
+	50,  // 108: rimgovernor.clock.v1.Event.observation_invalidated:type_name -> rimgovernor.clock.v1.ObservationInvalidated
+	62,  // 109: rimgovernor.clock.v1.EventsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	63,  // 110: rimgovernor.clock.v1.EventsPage.context:type_name -> rimgovernor.common.v1.ObservationContext
+	56,  // 111: rimgovernor.clock.v1.EventsPage.events:type_name -> rimgovernor.clock.v1.Event
+	58,  // 112: rimgovernor.clock.v1.EventsReply.page:type_name -> rimgovernor.clock.v1.EventsPage
+	66,  // 113: rimgovernor.clock.v1.EventsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	15,  // 114: rimgovernor.clock.v1.Clock.ReadStatus:input_type -> rimgovernor.clock.v1.StatusRequest
+	57,  // 115: rimgovernor.clock.v1.Clock.ReadEvents:input_type -> rimgovernor.clock.v1.EventsRequest
+	29,  // 116: rimgovernor.clock.v1.Clock.ReadAttempt:input_type -> rimgovernor.clock.v1.AttemptRequest
+	11,  // 117: rimgovernor.clock.v1.Clock.Start:input_type -> rimgovernor.clock.v1.StartRequest
+	12,  // 118: rimgovernor.clock.v1.Clock.Pause:input_type -> rimgovernor.clock.v1.OwnedRequest
+	13,  // 119: rimgovernor.clock.v1.Clock.Renew:input_type -> rimgovernor.clock.v1.RenewRequest
+	14,  // 120: rimgovernor.clock.v1.Clock.ChangeSpeed:input_type -> rimgovernor.clock.v1.SpeedRequest
+	23,  // 121: rimgovernor.clock.v1.Clock.ReadStatus:output_type -> rimgovernor.clock.v1.StatusReply
+	59,  // 122: rimgovernor.clock.v1.Clock.ReadEvents:output_type -> rimgovernor.clock.v1.EventsReply
+	31,  // 123: rimgovernor.clock.v1.Clock.ReadAttempt:output_type -> rimgovernor.clock.v1.AttemptReply
+	28,  // 124: rimgovernor.clock.v1.Clock.Start:output_type -> rimgovernor.clock.v1.ControlReply
+	23,  // 125: rimgovernor.clock.v1.Clock.Pause:output_type -> rimgovernor.clock.v1.StatusReply
+	28,  // 126: rimgovernor.clock.v1.Clock.Renew:output_type -> rimgovernor.clock.v1.ControlReply
+	28,  // 127: rimgovernor.clock.v1.Clock.ChangeSpeed:output_type -> rimgovernor.clock.v1.ControlReply
+	121, // [121:128] is the sub-list for method output_type
+	114, // [114:121] is the sub-list for method input_type
+	114, // [114:114] is the sub-list for extension type_name
+	114, // [114:114] is the sub-list for extension extendee
+	0,   // [0:114] is the sub-list for field type_name
 }
 
 func init() { file_clock_proto_init() }
@@ -5644,7 +5895,7 @@ func file_clock_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clock_proto_rawDesc), len(file_clock_proto_rawDesc)),
-			NumEnums:      6,
+			NumEnums:      8,
 			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,

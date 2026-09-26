@@ -63,6 +63,25 @@ accelerated epoch admits a live ceiling change through `SpeedRequest`
 while its speed stays Ultrafast. `speedmatrix/plain`'s `regulated` row runs
 uncapped under a 300-tick budget and must match the capped speeds' outcome.
 
+Player acceleration (`--clock-pacing player`, `StartRequest.pacing =
+PACING_PLAYER_ACCELERATED`, #627) is the player-launch mode: Ultrafast only,
+never with `--clock-test-acceleration` (which stays acceptance-only). Native
+raises Ultrafast's multiplier between 15x and 150x against the frame budget
+(`frame_budget_ms`, 5..45, default 30): a frame whose tick work exceeds it
+lowers the rate at once, one under 75% of it climbs 25% per 250 ms; the
+game's forced slowdown is kept. Every tick of such an epoch runs the full
+safety check, so hazard bounds stay tick-bounded however many ticks a frame
+carries. The controller watches each critical planner wave and lowers the
+epoch's `max_ticks_per_second` before that wave's evidence can age past half
+the safe horizon (`--clock-blind-ticks`, default 300), parks at Normal while
+evidence is stale, climbs back at most doubling per fresh wave, and never
+releases to full speed while any evidence is stale; a new window starts at
+the earned ceiling. `Epoch.pacing_reason`/`paced_ticks_per_second` and
+`Status.effective_ticks_per_second` feed the clock_step row and the
+dashboard's Now panel. `speedmatrix/observations`' `player` row checks the
+hazard gaps, the over-budget frame share (the manual-command dispatch bound)
+and `speed_changes` per 6000 ticks.
+
 Discrete camera navigation uses a separate player-only endpoint with a fixed
 pan/zoom action set. Each request validates the live native contract under the
 runtime writer lock, rechecks loaded-session identity before dispatch and reads

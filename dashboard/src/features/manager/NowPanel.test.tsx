@@ -37,6 +37,12 @@ it('shows the stage, the pacing reason, the goals and the last stop with its lat
   expect(screen.getByTestId('now-stop')).toHaveTextContent('Last stop: colonist health (health) at tick 5,040 — 30 ticks to detect, 10 ticks to stop, 12 ms unobserved in native, 40 ms to the step that acted, 500 ms paused before readmission · 3 stop(s) this launch, 2 on budget and 1 reactive');
 });
 
+it('shows a player-accelerated window pacing reason, held rate and effective speed', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({...now, lastStop: null, pacing: {reason: 'frame_budget', detail: 'ticks per frame held to the frame budget', mode: 'autonomous', effectiveTps: 3900, windowTicks: 60000, pacedTps: 4200}})));
+  render(<NowPanel active/>);
+  await waitFor(() => expect(screen.getByTestId('now-pacing')).toHaveTextContent('Frame-paced: ticks per frame held to the frame budget · 3,900 ticks/s · holding 4,200 ticks/s · window 60,000 ticks'));
+});
+
 it('names an opt-in cinematic pace as the pacing reason', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({...now, pacing: {reason: 'cinematic', detail: 'cinematic', mode: 'cinematic', effectiveTps: 60, windowTicks: 0}})));
   render(<NowPanel active/>);

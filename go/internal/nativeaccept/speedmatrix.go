@@ -20,7 +20,11 @@ import (
 // with no controller attached, the simulation ceiling on the same save and
 // renderer; it builds nothing, so it is outside the outcome comparison.
 // "viewer" is uncapped with one dashboard client streaming video at the
-// default cadence beside the governor, the viewing overhead.
+// default cadence beside the governor, the viewing overhead. "player" (#627)
+// is Ultrafast under player acceleration (--clock-pacing player): no test
+// acceleration, native paces ticks per frame against its frame budget and
+// the controller backs off before its evidence goes stale, the mode a
+// player launch runs.
 type SpeedCase struct {
 	Name             string `json:"name"`
 	Speed            string `json:"speed"`
@@ -28,6 +32,7 @@ type SpeedCase struct {
 	BlindTicks       uint   `json:"blind_ticks,omitempty"`
 	GovernorOff      bool   `json:"governor_off,omitempty"`
 	Viewer           bool   `json:"viewer,omitempty"`
+	Player           bool   `json:"player,omitempty"`
 }
 
 // Compared reports whether the case's pawn outcome takes part in the
@@ -54,6 +59,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		"regulated":    {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
 		"governor-off": {Name: "governor-off", Speed: "Ultrafast", TestAcceleration: true, GovernorOff: true},
 		"viewer":       {Name: "viewer", Speed: "Ultrafast", TestAcceleration: true, Viewer: true},
+		"player":       {Name: "player", Speed: "Ultrafast", Player: true},
 	}
 	var cases []SpeedCase
 	seen := map[string]bool{}
@@ -64,7 +70,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		}
 		c, ok := known[key]
 		if !ok {
-			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off or viewer)", strings.TrimSpace(part))
+			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off, viewer or player)", strings.TrimSpace(part))
 		}
 		if seen[key] {
 			return nil, fmt.Errorf("speed %q listed twice", c.Name)
@@ -88,7 +94,75 @@ func (c SpeedCase) ServeArgs() []string {
 	if c.BlindTicks > 0 {
 		args = append(args, "--clock-blind-ticks", strconv.FormatUint(uint64(c.BlindTicks), 10))
 	}
+	if c.Player {
+		args = append(args, "--clock-pacing", "player")
+	}
 	return args
+}
+
+// The player row's bounds (#627). A command queued for the game's main
+// thread waits behind at most one frame's tick work, so the frame budget
+// holding is the dispatch bound: at most MaxPlayerOverBudgetShare of the
+// paced frames may exceed it (the frame that trips the decrease, a long
+// single tick). Recovery from a stop resumes the backoff's earned rate
+// rather than restarting at full speed, so tick-rate changes stay at most
+// MaxPlayerSpeedChangesPer6000 per 6000 ticks.
+const (
+	MaxPlayerOverBudgetShare     = 0.05
+	MaxPlayerSpeedChangesPer6000 = 6
+)
+
+// PlayerRow is what the player row's checks read.
+type PlayerRow struct {
+	HazardGaps              []bridge.HazardGap
+	SpeedChanges            int
+	Ticks                   uint64
+	PacedFrames, OverBudget uint64
+	// LastPacingReason is the pacing reason of the last step that found a
+	// window running.
+	LastPacingReason string
+}
+
+// PlayerRowProblems lists every player-row bound the run broke.
+func PlayerRowProblems(row PlayerRow) []string {
+	var problems []string
+	for _, gap := range row.HazardGaps {
+		if gap.BoundTicks > 0 && gap.MaxTickGap > gap.BoundTicks {
+			problems = append(problems, fmt.Sprintf("hazard %s: widest detection gap %d ticks past its %d-tick bound", gap.HazardClass, gap.MaxTickGap, gap.BoundTicks))
+		}
+	}
+	if row.PacedFrames == 0 {
+		problems = append(problems, "no frame ran under player pacing")
+	} else if share := float64(row.OverBudget) / float64(row.PacedFrames); share > MaxPlayerOverBudgetShare {
+		problems = append(problems, fmt.Sprintf("%d of %d paced frames (%.1f%%) exceeded the frame budget", row.OverBudget, row.PacedFrames, share*100))
+	}
+	if row.Ticks > 0 {
+		if per := float64(row.SpeedChanges) * 6000 / float64(row.Ticks); per > MaxPlayerSpeedChangesPer6000 {
+			problems = append(problems, fmt.Sprintf("%.1f tick-rate changes per 6000 ticks (%d over %d ticks) oscillate past %d", per, row.SpeedChanges, row.Ticks, MaxPlayerSpeedChangesPer6000))
+		}
+	}
+	switch row.LastPacingReason {
+	case "accelerated", "frame_budget", "forced_slowdown":
+	case "":
+		problems = append(problems, "no running step reported a pacing reason")
+	default:
+		problems = append(problems, fmt.Sprintf("the last running window was held at %q, not the accelerated rate", row.LastPacingReason))
+	}
+	return problems
+}
+
+// LastPacingReason is the pacing reason of the newest clock_step row that
+// carries one.
+func LastPacingReason(rows []bridge.TimelineRecord) string {
+	for i := len(rows) - 1; i >= 0; i-- {
+		if rows[i].Kind != "clock_step" {
+			continue
+		}
+		if reason, ok := rows[i].Payload["pacing_reason"].(string); ok && reason != "" {
+			return reason
+		}
+	}
+	return ""
 }
 
 // SpeedOutcome is what the pawns achieved in one case: the postconditions

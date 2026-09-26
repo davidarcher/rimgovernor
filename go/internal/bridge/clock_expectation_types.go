@@ -29,6 +29,29 @@ type ClockStart struct {
 	// a continuous ceiling under the speed's own rate; zero is none.
 	BlindTickBudget   uint32
 	MaxTicksPerSecond uint32
+	// PlayerAccelerated asks for player acceleration (issue #627): an
+	// Ultrafast epoch, without test acceleration, whose ticks per frame
+	// native adapts to FrameBudgetMS (5..45, zero is native's default 30)
+	// toward the boosted rate. Any launch admits it.
+	PlayerAccelerated bool
+	FrameBudgetMS     uint32
+}
+
+// WirePacing is the start's pacing and frame budget as StartRequest
+// carries them: both absent for fixed pacing, the budget absent at zero.
+func (s ClockStart) WirePacing() (*k.Pacing, *uint32) {
+	if !s.PlayerAccelerated {
+		if s.FrameBudgetMS != 0 {
+			return nil, &s.FrameBudgetMS
+		}
+		return nil, nil
+	}
+	pacing := k.Pacing_PACING_PLAYER_ACCELERATED
+	if s.FrameBudgetMS == 0 {
+		return &pacing, nil
+	}
+	budget := s.FrameBudgetMS
+	return &pacing, &budget
 }
 
 type ClockRenew struct {

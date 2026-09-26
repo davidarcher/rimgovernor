@@ -38,6 +38,9 @@ func ValidateClockExpectation(e ClockExpectation) error {
 		if start.BlindTickBudget > 1800000 || start.MaxTicksPerSecond > 60000 {
 			return contract("clock blind tick budget or tick rate ceiling")
 		}
+		if err := clockStartPacing(*start); err != nil {
+			return err
+		}
 		return errors.Join(authorityDuration(&start.LeaseMS), clockPolicy(start.Policy, int64(start.MaxTicks)))
 	}
 	var original *k.Epoch
@@ -83,7 +86,7 @@ func ValidateClockReceipt(r *k.ControlReceipt, e ClockExpectation) error {
 	}
 	actual := clockStatusEpoch(r.GetApplied().GetStatus())
 	if start := e.Command.Start; start != nil {
-		if actual == nil || !proto.Equal(actual.Origin, r.AdmittedContext) || actual.GetTickDeadline()-actual.GetStartTick() != int64(start.MaxTicks) || actual.GetRequestedSpeed() != start.Speed || actual.GetTestAcceleration() != start.TestAcceleration || !proto.Equal(actual.Policy, start.Policy) || actual.GetLeaseRemainingMs() > start.LeaseMS || actual.GetBlindTickBudget() != start.BlindTickBudget || actual.GetMaxTicksPerSecond() != start.MaxTicksPerSecond {
+		if actual == nil || !proto.Equal(actual.Origin, r.AdmittedContext) || actual.GetTickDeadline()-actual.GetStartTick() != int64(start.MaxTicks) || actual.GetRequestedSpeed() != start.Speed || actual.GetTestAcceleration() != start.TestAcceleration || !proto.Equal(actual.Policy, start.Policy) || actual.GetLeaseRemainingMs() > start.LeaseMS || actual.GetBlindTickBudget() != start.BlindTickBudget || actual.GetMaxTicksPerSecond() != start.MaxTicksPerSecond || (actual.GetPacing() == k.Pacing_PACING_PLAYER_ACCELERATED) != start.PlayerAccelerated {
 			return contract("clock start epoch mismatch")
 		}
 		return nil
@@ -149,4 +152,9 @@ func ValidateClockControlReply(reply *k.ControlReply, e ClockExpectation) error 
 	default:
 		return contract("clock control outcome missing")
 	}
+}
+
+func clockStartPacing(start ClockStart) error {
+	pacing, budget := start.WirePacing()
+	return clockPacing(&k.StartRequest{Speed: start.Speed.Enum(), TestAcceleration: &start.TestAcceleration, Pacing: pacing, FrameBudgetMs: budget})
 }

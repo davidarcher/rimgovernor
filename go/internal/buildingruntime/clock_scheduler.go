@@ -42,7 +42,11 @@ type ClockSchedulerConfig struct {
 	FoodStorage                                                   *RoutineFoodStoragePlanner
 	Profile                                                       string
 	Start                                                         bridge.ClockStart
-	MaxAge                                                        time.Duration
+	// PaceHorizonTicks is the safe horizon player acceleration's backoff
+	// keeps the critical evidence inside (issue #627); zero is
+	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
+	PaceHorizonTicks domain.Tick
+	MaxAge           time.Duration
 	// Worker is set when a routine Worker reconciles and dispatches beside
 	// this scheduler: a review then defers admission while the Worker owes
 	// a latched outcome's reconcile or a successor's dispatch (issue #162).
@@ -138,6 +142,8 @@ type ClockSchedulerConfig struct {
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
+	// Pacing is what the step's clock status said of the pace (#627).
+	Pacing                                                        StepPacing
 	CookingBills, PreservationBills, ButcherBills, CookAheadBills *RoutineBillResult
 	Butcher                                                       *RoutineBuildingResult
 	Fields                                                        *RoutineFieldResult
@@ -289,6 +295,11 @@ type ClockScheduler struct {
 	config              ClockSchedulerConfig
 	clock               executor.Clock
 	pollGate, renewGate chan struct{}
+	// pace is player acceleration's backoff (clock_pace_backoff.go), nil
+	// under fixed pacing.
+	pace *paceBackoff
+	// paceEpoch is the running epoch the backoff's requests change.
+	paceEpoch *atomic.Pointer[k.Epoch]
 	// facts carries reviewed observations between steps; see clockFacts.
 	facts *clockFacts
 	// lastTick is the previous step's status tick, the basis of
@@ -589,6 +600,10 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	config.Profile = inbox.Profile
 	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	if config.Start.PlayerAccelerated {
+		scheduler.paceEpoch = new(atomic.Pointer[k.Epoch])
+		scheduler.pace = newPaceBackoff(config.PaceHorizonTicks, clock.Now, scheduler.requestCeiling)
+	}
 	scheduler.queue.catalog = func() []plannerEntry { return scheduler.catalog }
 	scheduler.queue.configured = func(entry plannerEntry) bool { return entry.configured(&scheduler.config) }
 	if config.Routine != nil {
@@ -814,6 +829,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if out.Window.Ticks != 0 {
 			extra["window_ticks"] = out.Window.Ticks
 		}
+		out.Pacing.publish(extra)
 		if out.Unwatched != 0 {
 			extra["unwatched"] = out.Unwatched
 		}
@@ -976,6 +992,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	reason.TickAdvanced = out.Retaken || !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	s.livePace(status, started)
+	out.Pacing = stepPacing(status)
 	// The step's scope, tick and pace are fixed: every read and decision
 	// below, and the Worker's dispatches under the window this step may
 	// admit, judge their facts against this validity (#624).
@@ -1370,6 +1387,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
+	if s.pace != nil {
+		// The window resumes the rate the last critical waves earned.
+		if ceiling := s.pace.Ceiling(); ceiling != 0 && (start.MaxTicksPerSecond == 0 || ceiling < start.MaxTicksPerSecond) {
+			start.MaxTicksPerSecond = ceiling
+		}
+	}
 	intent := store.ClockIntent{Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission}
 	// The store returns sequence order. Retain the latest exact logical window,
 	// including terminal refusals, rather than allocating another native attempt.
@@ -1469,11 +1492,24 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	wall := after(s.config.Budget.wall())
 	wanted := s.sectionsWanted(sel.pick)
 	out.Sections = sectionNames(wanted)
+	// Under player acceleration the critical wave is the evidence the
+	// backoff keeps inside the horizon, aged from the step's status read.
+	watched := func(time.Duration, bool) {}
+	readAt := began
+	if s.paceKnown {
+		readAt = s.paceAt
+	}
+	if s.pace != nil && status.GetRunning() != nil {
+		s.paceEpoch.Store(proto.Clone(status.GetRunning().GetEpoch()).(*k.Epoch))
+		watched = s.pace.Watch(call, readAt)
+	}
 	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, wanted, sel.pick)
 	if err != nil {
+		watched(0, false)
 		return nil, err
 	}
 	if err = wave.group.WaitCritical(wall); err != nil {
+		watched(0, false)
 		if !errors.Is(err, errCutoff) {
 			return nil, err
 		}
@@ -1490,6 +1526,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		return planners, nil
 	}
 	out.CriticalWave = time.Since(began)
+	watched(s.clock.Now().Sub(readAt), true)
 	grace := max(out.CriticalWave, s.config.Budget.optionalGrace())
 	cutoff := after(min(grace, s.config.Budget.wall()-out.CriticalWave))
 	select {

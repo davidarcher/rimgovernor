@@ -25,6 +25,30 @@ enum ObservedSpeed {
   OBSERVED_SPEED_SUPERFAST = 4;
   OBSERVED_SPEED_ULTRAFAST = 5;
 }
+// How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
+// own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
+// boosted rate while the frame's tick work stays inside frame_budget_ms, so
+// input, rendering and control dispatch keep their share of each frame; the
+// game's forced slowdown still holds it at Normal. It needs no test launch.
+enum Pacing {
+  PACING_UNSPECIFIED = 0;
+  PACING_FIXED = 1;
+  PACING_PLAYER_ACCELERATED = 2;
+}
+// What bounds the running epoch's tick rate right now (#627), most binding
+// first: the game's forced slowdown, the blind-tick regulator, the owner's
+// max_ticks_per_second (the controller's backoff), the frame budget; else
+// the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
+// (FIXED).
+enum PacingReason {
+  PACING_REASON_UNSPECIFIED = 0;
+  PACING_REASON_FIXED = 1;
+  PACING_REASON_ACCELERATED = 2;
+  PACING_REASON_FRAME_BUDGET = 3;
+  PACING_REASON_FORCED_SLOWDOWN = 4;
+  PACING_REASON_REGULATED = 5;
+  PACING_REASON_CEILING = 6;
+}
 enum WatchMode {
   WATCH_MODE_UNSPECIFIED = 0;
   WATCH_MODE_COLONY = 1;
@@ -121,6 +145,11 @@ message StartRequest {
   // speed's own rate; an accelerated epoch admits a live change through
   // SpeedRequest. Zero or absent is the speed's own rate.
   optional uint32 max_ticks_per_second = 8;
+  // PACING_PLAYER_ACCELERATED requires SPEED_ULTRAFAST and excludes
+  // test_acceleration; absent is PACING_FIXED. frame_budget_ms (5..45,
+  // absent = 30) is the wall time per frame the tick loop may take.
+  optional Pacing pacing = 9;
+  optional uint32 frame_budget_ms = 10;
 }
 message OwnedRequest {
   rimgovernor.common.v1.Identity identity = 1;
@@ -156,6 +185,12 @@ message Epoch {
   // The ceiling the blind-tick regulator holds right now; zero when it is
   // not throttling.
   optional uint32 regulated_ticks_per_second = 12;
+  optional Pacing pacing = 13;
+  optional uint32 frame_budget_ms = 14;
+  // The tick rate the pacing holds right now (60 x the multiplier the game
+  // ticks at), and what bounds it.
+  optional uint32 paced_ticks_per_second = 15;
+  optional PacingReason pacing_reason = 16;
 }
 message Running { Epoch epoch = 1; }
 message Stopping {
@@ -219,6 +254,17 @@ message Status {
   // Per hazard class: the declared maximum detection gap in ticks and the
   // widest gap observed this session (#626).
   repeated HazardGap hazard_gaps = 28;
+  // Game ticks per wall second over the last ten seconds of frames, paused
+  // time included (#627): what the player actually gets.
+  optional double effective_ticks_per_second = 29;
+  // Player acceleration's frame account (#627), cumulative for the loaded
+  // game session: frames a player-accelerated epoch ticked, those whose
+  // tick work exceeded the epoch's frame budget, and the widest frame's
+  // tick work. A command queued for the main thread waits at most one
+  // frame's tick work.
+  optional uint64 paced_frames = 30;
+  optional uint64 paced_frames_over_budget = 31;
+  optional double max_paced_frame_ms = 32;
 }
 // One hazard class the supervisor probe covers: its declared detection
 // bound in ticks (holds at every speed) and the widest gap observed.

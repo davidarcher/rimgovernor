@@ -45,6 +45,16 @@ const (
 	// ReasonCinematic: a cinematic mode is slowing an interesting moment on
 	// purpose (#627 sets the mode; the panel only shows it).
 	ReasonCinematic PacingReason = "cinematic"
+	// The reasons a running player-accelerated window (#627) holds the
+	// rate it does, from native's pacing reason on the step's status:
+	// full acceleration, the frame budget keeping input and rendering
+	// responsive, the game's own forced slowdown, the blind-tick
+	// regulator, and the controller's backoff ceiling.
+	ReasonAccelerated    PacingReason = "accelerated"
+	ReasonFrameBudget    PacingReason = "frame_budget"
+	ReasonForcedSlowdown PacingReason = "forced_slowdown"
+	ReasonRegulated      PacingReason = "regulated"
+	ReasonBackoff        PacingReason = "backoff"
 )
 
 // ModeAutonomous is the default pacing mode: the colony plays on without a
@@ -110,6 +120,9 @@ type Pacing struct {
 	// WindowTicks is the tick budget of the last window the scheduler sized,
 	// 0 when it admitted none.
 	WindowTicks int64 `json:"windowTicks"`
+	// PacedTPS is the tick rate the running window held at the last step,
+	// 0 when none ran.
+	PacedTPS float64 `json:"pacedTps"`
 }
 
 // Stop is one clock stop and its latency split (#621): the ticks between
@@ -169,7 +182,7 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 	if in.Stage != nil {
 		out.Stage = &Stage{Stage: in.Stage.Stage.String(), Since: in.Stage.Since, Blocker: string(in.Stage.Blocker), Reason: in.Stage.Reason, Held: in.Stage.Held}
 	}
-	var refused string
+	var refused, native string
 	var admitted, haveStep bool
 	var running bool
 	for _, row := range rows {
@@ -204,7 +217,15 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 				out.Stops.Reactive++
 			}
 			running, admitted, haveStep = false, false, true
+			native, out.Pacing.PacedTPS = "", 0
 		case "clock_step":
+			// The step's clock status: native's pacing reason and rate
+			// under a running window, and its effective speed.
+			if tps, ok := number(row.Payload["effective_tps"]); ok && tps > 0 {
+				out.Pacing.EffectiveTPS = tps
+			}
+			native, _ = row.Payload["pacing_reason"].(string)
+			out.Pacing.PacedTPS, _ = number(row.Payload["paced_tps"])
 			// The step that acted on the stop closes its wall legs: the
 			// latency from the native stamp to this step, and the pause the
 			// readmission ended.
@@ -224,6 +245,9 @@ func Project(rows []bridge.TimelineRecord, in Input) Now {
 		}
 	}
 	out.Pacing.Reason, out.Pacing.Detail = pacing(in, out, refused, admitted, running, haveStep)
+	if out.Pacing.Reason == ReasonRunning {
+		out.Pacing.Reason, out.Pacing.Detail = runningPace(native)
+	}
 	return out
 }
 
@@ -250,6 +274,24 @@ func pacing(in Input, out Now, refused string, admitted, running, haveStep bool)
 		return ReasonRunning, ""
 	}
 	return ReasonUnknown, ""
+}
+
+// runningPace refines a running window's reason by native's pacing
+// reason (#627); a fixed-speed window, or none reported, stays running.
+func runningPace(native string) (PacingReason, string) {
+	switch native {
+	case "accelerated":
+		return ReasonAccelerated, "at the boosted rate"
+	case "frame_budget":
+		return ReasonFrameBudget, "ticks per frame held to the frame budget"
+	case "forced_slowdown":
+		return ReasonForcedSlowdown, "the game forced Normal speed"
+	case "regulated":
+		return ReasonRegulated, "blind-tick regulator"
+	case "ceiling":
+		return ReasonBackoff, "the controller lowered the rate to keep its evidence current"
+	}
+	return ReasonRunning, ""
 }
 
 // stop reads one scheduler_stop row, deriving the tick legs the row carries.

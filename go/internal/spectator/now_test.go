@@ -155,3 +155,35 @@ func TestProjectWireShapeWithoutAReview(t *testing.T) {
 		t.Fatal(wire["pacing"])
 	}
 }
+
+// A running player-accelerated window (#627) shows native's pacing reason
+// and effective speed from the step's clock_step row; a stop clears them.
+func TestProjectPlayerPacing(t *testing.T) {
+	rows := []bridge.TimelineRecord{
+		row("clock_step", 1, map[string]any{"pacing_reason": "frame_budget", "paced_tps": float64(4200), "effective_tps": float64(3900.5), "player_pacing": true}),
+		row("scheduler_step", 2, map[string]any{"admitted": false, "running": true}),
+	}
+	now := Project(rows, Input{ReviewsEnabled: true, TPS: 820})
+	if now.Pacing.Reason != ReasonFrameBudget || now.Pacing.PacedTPS != 4200 || now.Pacing.EffectiveTPS != 3900.5 || now.Pacing.Detail == "" {
+		t.Fatalf("pacing %+v", now.Pacing)
+	}
+	rows = append(rows, row("clock_step", 3, map[string]any{"pacing_reason": "ceiling", "paced_tps": float64(60), "effective_tps": float64(1200)}), row("scheduler_step", 4, map[string]any{"running": true}))
+	if now = Project(rows, Input{ReviewsEnabled: true}); now.Pacing.Reason != ReasonBackoff || now.Pacing.PacedTPS != 60 {
+		t.Fatalf("backoff %+v", now.Pacing)
+	}
+	rows = append(rows, stopRow(5, "STOP_REASON_HOSTILE", nil))
+	if now = Project(rows, Input{ReviewsEnabled: true}); now.Pacing.Reason != ReasonStopped || now.Pacing.PacedTPS != 0 {
+		t.Fatalf("stopped %+v", now.Pacing)
+	}
+	body, err := json.Marshal(now.Pacing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire map[string]any
+	if err = json.Unmarshal(body, &wire); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := wire["pacedTps"]; !ok {
+		t.Fatalf("pacing wire %s", body)
+	}
+}

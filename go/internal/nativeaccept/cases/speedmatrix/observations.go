@@ -39,7 +39,7 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 // matrix (so the useful work is the work that matrix already measures) kept
 // in its own save, and the three rows compared.
 var observationsProfile = profile{items: items, segments: segments, ticks: ticks,
-	save: "RimGovernor-observations-stage", speeds: "governor-off,uncapped,viewer"}
+	save: "RimGovernor-observations-stage", speeds: "governor-off,uncapped,viewer,player"}
 
 func init() {
 	cases.Register(cases.Case{

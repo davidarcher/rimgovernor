@@ -450,6 +450,19 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	report["metrics"] = metrics
 	appendMetrics(m.report, metrics)
+	if c.Player {
+		// Player acceleration's bounds (#627), checked on the row's own
+		// recording once the outcome below has been read.
+		defer func() {
+			if err != nil {
+				return
+			}
+			if problems := na.PlayerRowProblems(na.PlayerRow{HazardGaps: phases.Clock.NativeHazardGaps, SpeedChanges: stops.SpeedChanges, Ticks: lastTick - startTick,
+				PacedFrames: phases.Clock.NativePacedFrames, OverBudget: phases.Clock.NativePacedOverBudget, LastPacingReason: na.LastPacingReason(rows)}); len(problems) > 0 {
+				err = fmt.Errorf("player row: %s", strings.Join(problems, "; "))
+			}
+		}()
+	}
 
 	// Independent native read after the service released the slot.
 	if h, err = m.s.Reattach(ctx); err != nil {
@@ -667,7 +680,10 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		pauseMean = phases.Steps.PauseSecs / float64(phases.Steps.Pauses)
 	}
 	return map[string]any{
-		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration, "blind_ticks": c.BlindTicks,
+		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration, "blind_ticks": c.BlindTicks, "player": c.Player,
+		// Player acceleration's frame account (#627): frames paced, those
+		// over the frame budget and the widest frame's tick work.
+		"paced_frames": phases.Clock.NativePacedFrames, "paced_frames_over_budget": phases.Clock.NativePacedOverBudget, "max_paced_frame_ms": phases.Clock.NativeMaxPacedFrameMs,
 		// The regulator's transitions (#583): SpeedChanged rows and the
 		// widest blind span they reported; zero on an unregulated row.
 		"speed_changes": stops.SpeedChanges, "max_blind_ticks": stops.MaxBlindTicks,

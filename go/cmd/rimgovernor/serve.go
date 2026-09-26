@@ -120,6 +120,8 @@ type serveConfig struct {
 	clockTestAcceleration           bool
 	clockWindowTicks                uint
 	clockBlindTicks                 uint
+	clockPacing                     string
+	clockFrameBudgetMS              uint
 	chat                            bool
 	resume                          bool
 	pprof                           bool
@@ -155,6 +157,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
+	flags.StringVar(&c.clockPacing, "clock-pacing", "fixed", "how an Ultrafast window paces its ticks: fixed (the speed's own rate) or player (issue #627: native raises ticks per frame toward the boosted rate while the frame's tick work stays inside --clock-frame-budget-ms, and the controller lowers the rate before its critical evidence goes stale); player needs --clock-speed Ultrafast and no --clock-test-acceleration")
+	flags.UintVar(&c.clockFrameBudgetMS, "clock-frame-budget-ms", 0, fmt.Sprintf("with --clock-pacing player: wall milliseconds per frame the tick loop may take, the rest kept for input, rendering and control dispatch (%d..%d; 0 is native's default 30)", bridge.MinClockFrameBudgetMS, bridge.MaxClockFrameBudgetMS))
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised routine window may run before it pauses (1..%d, default one game day); reviews and routine orders happen under the running window, and danger or player input still stops it earlier; above a day the budget is a safety net rather than a review guarantee; combat windows stay at %d", maxClockWindowTicks, combatClockWindowTicks))
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
@@ -196,7 +200,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-research-ladder", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-pacing", "clock-frame-budget-ms", "clock-window-ticks", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-research-ladder", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -226,6 +230,21 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockWindowTicks < 1 || c.clockWindowTicks > maxClockWindowTicks {
 		return c, fmt.Errorf("--clock-window-ticks must be 1 through %d", maxClockWindowTicks)
+	}
+	switch c.clockPacing {
+	case "fixed":
+		if c.clockFrameBudgetMS != 0 {
+			return c, errors.New("--clock-frame-budget-ms requires --clock-pacing player")
+		}
+	case "player":
+		if c.clockSpeed != "Ultrafast" || c.clockTestAcceleration {
+			return c, errors.New("--clock-pacing player requires --clock-speed Ultrafast without --clock-test-acceleration")
+		}
+		if c.clockFrameBudgetMS != 0 && (c.clockFrameBudgetMS < bridge.MinClockFrameBudgetMS || c.clockFrameBudgetMS > bridge.MaxClockFrameBudgetMS) {
+			return c, fmt.Errorf("--clock-frame-budget-ms must be 0 or %d through %d", bridge.MinClockFrameBudgetMS, bridge.MaxClockFrameBudgetMS)
+		}
+	default:
+		return c, errors.New("--clock-pacing must be fixed or player")
 	}
 	if c.clockBlindTicks > maxClockBlindTicks {
 		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)

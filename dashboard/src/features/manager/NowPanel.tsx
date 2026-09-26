@@ -36,6 +36,11 @@ export const pacingLabels: Record<PacingReason, string> = {
   tick_budget: 'Between windows: the last one spent its tick budget',
   stopped: 'Stopped',
   cinematic: 'Cinematic: an interesting moment is slowed on purpose',
+  accelerated: 'Accelerated',
+  frame_budget: 'Frame-paced',
+  forced_slowdown: 'Slowed by the game',
+  regulated: 'Regulated',
+  backoff: 'Backed off',
 };
 const ticks = (v: number) => v.toLocaleString();
 const ms = (v: number | null) => v === null ? null : `${v.toLocaleString(undefined, {maximumFractionDigits: 1})} ms`;
@@ -73,6 +78,7 @@ export default function NowPanel({active}: {active: boolean}) {
       </p>
       <p className="now-pacing" data-testid="now-pacing">
         {pacingLabels[now.pacing.reason]}{now.pacing.detail ? `: ${now.pacing.detail}` : ''} · {now.pacing.effectiveTps.toLocaleString(undefined, {maximumFractionDigits: 0})} ticks/s
+        {now.pacing.pacedTps > 0 && <> · holding {ticks(now.pacing.pacedTps)} ticks/s</>}
         {now.pacing.windowTicks > 0 && <> · window {ticks(now.pacing.windowTicks)} ticks</>}
       </p>
       {now.goals.length === 0

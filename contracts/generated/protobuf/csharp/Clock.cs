@@ -43,7 +43,7 @@ namespace RimGovernor.Protocol.Clock {
             "FQoIZGVmX25hbWUYASABKAlIAIgBARISCgVsZXZlbBgCIAEoA0gBiAEBQgsK",
             "CV9kZWZfbmFtZUIICgZfbGV2ZWwiaAoKRXBvY2hPd25lchIiChVjb250cm9s",
             "bGVyX3Nlc3Npb25faWQYASABKAlIAIgBARISCgVlcG9jaBgCIAEoA0gBiAEB",
-            "QhgKFl9jb250cm9sbGVyX3Nlc3Npb25faWRCCAoGX2Vwb2NoIq4DCgxTdGFy",
+            "QhgKFl9jb250cm9sbGVyX3Nlc3Npb25faWRCCAoGX2Vwb2NoIp4ECgxTdGFy",
             "dFJlcXVlc3QSPgoJYXV0aG9yaXR5GAEgASgLMisucmltZ292ZXJub3IuYXV0",
             "aG9yaXR5LnYxLldyaXRlUHJlY29uZGl0aW9uEi8KBXNwZWVkGAIgASgOMhsu",
             "cmltZ292ZXJub3IuY2xvY2sudjEuU3BlZWRIAIgBARIxCgZwb2xpY3kYAyAB",
@@ -51,334 +51,354 @@ namespace RimGovernor.Protocol.Clock {
             "ZV9tcxgEIAEoDUgBiAEBEhYKCW1heF90aWNrcxgFIAEoDUgCiAEBEh4KEXRl",
             "c3RfYWNjZWxlcmF0aW9uGAYgASgISAOIAQESHgoRYmxpbmRfdGlja19idWRn",
             "ZXQYByABKA1IBIgBARIhChRtYXhfdGlja3NfcGVyX3NlY29uZBgIIAEoDUgF",
-            "iAEBQggKBl9zcGVlZEILCglfbGVhc2VfbXNCDAoKX21heF90aWNrc0IUChJf",
-            "dGVzdF9hY2NlbGVyYXRpb25CFAoSX2JsaW5kX3RpY2tfYnVkZ2V0QhcKFV9t",
-            "YXhfdGlja3NfcGVyX3NlY29uZCJyCgxPd25lZFJlcXVlc3QSMQoIaWRlbnRp",
-            "dHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSLwoF",
-            "b3duZXIYAiABKAsyIC5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9jaE93bmVy",
-            "IqUBCgxSZW5ld1JlcXVlc3QSMQoFZXBvY2gYASABKAsyIi5yaW1nb3Zlcm5v",
-            "ci5jbG9jay52MS5Pd25lZFJlcXVlc3QSPgoJYXV0aG9yaXR5GAIgASgLMisu",
-            "cmltZ292ZXJub3IuYXV0aG9yaXR5LnYxLldyaXRlUHJlY29uZGl0aW9uEhUK",
-            "CGxlYXNlX21zGAMgASgNSACIAQFCCwoJX2xlYXNlX21zIvgBCgxTcGVlZFJl",
-            "cXVlc3QSMQoFZXBvY2gYASABKAsyIi5yaW1nb3Zlcm5vci5jbG9jay52MS5P",
-            "d25lZFJlcXVlc3QSPgoJYXV0aG9yaXR5GAIgASgLMisucmltZ292ZXJub3Iu",
-            "YXV0aG9yaXR5LnYxLldyaXRlUHJlY29uZGl0aW9uEi8KBXNwZWVkGAMgASgO",
-            "MhsucmltZ292ZXJub3IuY2xvY2sudjEuU3BlZWRIAIgBARIhChRtYXhfdGlj",
-            "a3NfcGVyX3NlY29uZBgEIAEoDUgBiAEBQggKBl9zcGVlZEIXChVfbWF4X3Rp",
-            "Y2tzX3Blcl9zZWNvbmQiQgoNU3RhdHVzUmVxdWVzdBIxCghpZGVudGl0eRgB",
-            "IAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eSKZBQoFRXBv",
-            "Y2gSLwoFb3duZXIYASABKAsyIC5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9j",
-            "aE93bmVyEjkKBm9yaWdpbhgCIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1vbi52",
-            "MS5PYnNlcnZhdGlvbkNvbnRleHQSOQoPcmVxdWVzdGVkX3NwZWVkGAMgASgO",
-            "MhsucmltZ292ZXJub3IuY2xvY2sudjEuU3BlZWRIAIgBARIxCgZwb2xpY3kY",
-            "BCABKAsyIS5yaW1nb3Zlcm5vci5jbG9jay52MS5XYXRjaFBvbGljeRIXCgpz",
-            "dGFydF90aWNrGAUgASgDSAGIAQESGgoNdGlja19kZWFkbGluZRgGIAEoA0gC",
-            "iAEBEh8KEmxlYXNlX3JlbWFpbmluZ19tcxgHIAEoDUgDiAEBEhYKCWxhc3Rf",
-            "dGljaxgIIAEoA0gEiAEBEh4KEXRlc3RfYWNjZWxlcmF0aW9uGAkgASgISAWI",
-            "AQESHgoRYmxpbmRfdGlja19idWRnZXQYCiABKA1IBogBARIhChRtYXhfdGlj",
-            "a3NfcGVyX3NlY29uZBgLIAEoDUgHiAEBEicKGnJlZ3VsYXRlZF90aWNrc19w",
-            "ZXJfc2Vjb25kGAwgASgNSAiIAQFCEgoQX3JlcXVlc3RlZF9zcGVlZEINCgtf",
-            "c3RhcnRfdGlja0IQCg5fdGlja19kZWFkbGluZUIVChNfbGVhc2VfcmVtYWlu",
-            "aW5nX21zQgwKCl9sYXN0X3RpY2tCFAoSX3Rlc3RfYWNjZWxlcmF0aW9uQhQK",
-            "El9ibGluZF90aWNrX2J1ZGdldEIXChVfbWF4X3RpY2tzX3Blcl9zZWNvbmRC",
-            "HQobX3JlZ3VsYXRlZF90aWNrc19wZXJfc2Vjb25kIjUKB1J1bm5pbmcSKgoF",
-            "ZXBvY2gYASABKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9jaCLWAQoI",
-            "U3RvcHBpbmcSKgoFZXBvY2gYASABKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52",
-            "MS5FcG9jaBI9Cg5wZW5kaW5nX3JlYXNvbhgCIAEoDjIgLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLlN0b3BSZWFzb25IAIgBARITCgZkZXRhaWwYAyABKAlIAYgB",
-            "ARIaCg1hY3R1YWxfcGF1c2VkGAQgASgISAKIAQFCEQoPX3BlbmRpbmdfcmVh",
-            "c29uQgkKB19kZXRhaWxCEAoOX2FjdHVhbF9wYXVzZWQi3wIKB1N0b3BwZWQS",
-            "KgoFZXBvY2gYASABKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9jaBI1",
-            "CgZyZWFzb24YAiABKA4yIC5yaW1nb3Zlcm5vci5jbG9jay52MS5TdG9wUmVh",
-            "c29uSACIAQESEwoGZGV0YWlsGAMgASgJSAGIAQESGgoNYWN0dWFsX3BhdXNl",
-            "ZBgEIAEoCEgCiAEBEhsKDnBhdXNlX3ZlcmlmaWVkGAUgASgISAOIAQESHAoP",
-            "cGF1c2VfcmVxdWVzdGVkGAYgASgISASIAQESHwoSc3RvcHBlZF9hdF91bml4",
-            "X21zGAcgASgDSAWIAQFCCQoHX3JlYXNvbkIJCgdfZGV0YWlsQhAKDl9hY3R1",
-            "YWxfcGF1c2VkQhEKD19wYXVzZV92ZXJpZmllZEISChBfcGF1c2VfcmVxdWVz",
-            "dGVkQhUKE19zdG9wcGVkX2F0X3VuaXhfbXMiDgoMTmV2ZXJTdGFydGVkIoUM",
-            "CgZTdGF0dXMSOgoHY29udGV4dBgBIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1v",
-            "bi52MS5PYnNlcnZhdGlvbkNvbnRleHQSMAoHcnVubmluZxgCIAEoCzIdLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLlJ1bm5pbmdIABIyCghzdG9wcGluZxgDIAEo",
-            "CzIeLnJpbWdvdmVybm9yLmNsb2NrLnYxLlN0b3BwaW5nSAASMAoHc3RvcHBl",
-            "ZBgEIAEoCzIdLnJpbWdvdmVybm9yLmNsb2NrLnYxLlN0b3BwZWRIABI7Cg1u",
-            "ZXZlcl9zdGFydGVkGAUgASgLMiIucmltZ292ZXJub3IuY2xvY2sudjEuTmV2",
-            "ZXJTdGFydGVkSAASOQoLdW5hdmFpbGFibGUYBiABKAsyIi5yaW1nb3Zlcm5v",
-            "ci5jb21tb24udjEuVW5hdmFpbGFibGVIABIhChRuYXRpdmVfdGlja19ib3Vu",
-            "ZGFyeRgHIAEoCEgBiAEBEhsKDmR1cmFibGVfZXZlbnRzGAggASgISAKIAQES",
-            "GgoNbmV3ZXN0X2N1cnNvchgJIAEoA0gDiAEBEhoKDXdhdGNoZXJfZXJyb3IY",
-            "CiABKAlIBIgBARIjChZmb3JjZV9wYXVzZV93YWl0aW5nX21zGAsgASgESAWI",
-            "AQESHQoQZm9yY2VfcGF1c2Vfa2luZBgMIAEoCUgGiAEBEh8KEm1heF9wcm9i",
-            "ZV90aWNrX2dhcBgNIAEoA0gHiAEBEhgKC3Byb2JlX2NvdW50GA4gASgESAiI",
-            "AQESNAoPYmFzZWxpbmVfYWxlcnRzGA8gAygLMhsucmltZ292ZXJub3IuY2xv",
-            "Y2sudjEuQWxlcnQSOQoTc3VwcHJlc3NlZF9pbmp1cmllcxgQIAMoCzIcLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLkluanVyeRI+ChVldmlkZW5jZV9jb21wbGV0",
-            "ZW5lc3MYESABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuUGFnZUluZm8S",
-            "QAoOb2JzZXJ2ZWRfc3BlZWQYEiABKA4yIy5yaW1nb3Zlcm5vci5jbG9jay52",
-            "MS5PYnNlcnZlZFNwZWVkSAmIAQESGgoNYWN0dWFsX3BhdXNlZBgTIAEoCEgK",
-            "iAEBEigKG3Rlc3RfYWNjZWxlcmF0aW9uX2F2YWlsYWJsZRgUIAEoCEgLiAEB",
-            "EhYKCXBhdXNlZF9tcxgVIAEoBEgMiAEBEhcKCnJ1bm5pbmdfbXMYFiABKARI",
-            "DYgBARIdChBwcm9iZV9lbGFwc2VkX21zGBcgASgBSA6IAQESHgoRZGlnZXN0",
-            "X2VsYXBzZWRfbXMYGCABKAFID4gBARIYCgtwcm9iZV90b3RhbBgZIAEoBEgQ",
-            "iAEBEhkKDGRpZ2VzdF90b3RhbBgaIAEoBEgRiAEBEicKGnNlc3Npb25fbWF4",
-            "X3Byb2JlX3RpY2tfZ2FwGBsgASgDSBKIAQESNAoLaGF6YXJkX2dhcHMYHCAD",
-            "KAsyHy5yaW1nb3Zlcm5vci5jbG9jay52MS5IYXphcmRHYXBCBwoFc3RhdGVC",
-            "FwoVX25hdGl2ZV90aWNrX2JvdW5kYXJ5QhEKD19kdXJhYmxlX2V2ZW50c0IQ",
-            "Cg5fbmV3ZXN0X2N1cnNvckIQCg5fd2F0Y2hlcl9lcnJvckIZChdfZm9yY2Vf",
-            "cGF1c2Vfd2FpdGluZ19tc0ITChFfZm9yY2VfcGF1c2Vfa2luZEIVChNfbWF4",
-            "X3Byb2JlX3RpY2tfZ2FwQg4KDF9wcm9iZV9jb3VudEIRCg9fb2JzZXJ2ZWRf",
-            "c3BlZWRCEAoOX2FjdHVhbF9wYXVzZWRCHgocX3Rlc3RfYWNjZWxlcmF0aW9u",
-            "X2F2YWlsYWJsZUIMCgpfcGF1c2VkX21zQg0KC19ydW5uaW5nX21zQhMKEV9w",
-            "cm9iZV9lbGFwc2VkX21zQhQKEl9kaWdlc3RfZWxhcHNlZF9tc0IOCgxfcHJv",
-            "YmVfdG90YWxCDwoNX2RpZ2VzdF90b3RhbEIdChtfc2Vzc2lvbl9tYXhfcHJv",
-            "YmVfdGlja19nYXAiXAoJSGF6YXJkR2FwEhQKDGhhemFyZF9jbGFzcxgBIAEo",
-            "CRITCgtib3VuZF90aWNrcxgCIAEoAxIUCgxtYXhfdGlja19nYXAYAyABKAMS",
-            "DgoGaG9va2VkGAQgASgIInsKC1N0YXR1c1JlcGx5Ei4KBnN0YXR1cxgBIAEo",
-            "CzIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLlN0YXR1c0gAEjEKB2ZhaWx1cmUY",
-            "AiABKAsyHi5yaW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkKB291",
-            "dGNvbWUiMgoQTG9uZ0V2ZW50UGVuZGluZxITCgZkZXRhaWwYASABKAlIAIgB",
-            "AUIJCgdfZGV0YWlsIj4KDkFwcGxpZWRDb250cm9sEiwKBnN0YXR1cxgBIAEo",
-            "CzIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLlN0YXR1cyJnChBVbmNlcnRhaW5D",
-            "b250cm9sEjMKDWxhc3Rfb2JzZXJ2ZWQYASABKAsyHC5yaW1nb3Zlcm5vci5j",
-            "bG9jay52MS5TdGF0dXMSEwoGZGV0YWlsGAIgASgJSACIAQFCCQoHX2RldGFp",
-            "bCKjAgoOQ29udHJvbFJlY2VpcHQSMgoHYXR0ZW1wdBgBIAEoCzIhLnJpbWdv",
-            "dmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5EkMKEGFkbWl0dGVkX2NvbnRl",
-            "eHQYAiABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24udjEuT2JzZXJ2YXRpb25D",
-            "b250ZXh0EjcKB2FwcGxpZWQYBCABKAsyJC5yaW1nb3Zlcm5vci5jbG9jay52",
-            "MS5BcHBsaWVkQ29udHJvbEgAEjsKCXVuY2VydGFpbhgFIAEoCzImLnJpbWdv",
-            "dmVybm9yLmNsb2NrLnYxLlVuY2VydGFpbkNvbnRyb2xIAEIJCgdvdXRjb21l",
-            "SgQIAxAEUhFhdXRob3JpemluZ19vd25lciLLAQoMQ29udHJvbFJlcGx5EjcK",
-            "B3JlY2VpcHQYASABKAsyJC5yaW1nb3Zlcm5vci5jbG9jay52MS5Db250cm9s",
-            "UmVjZWlwdEgAEjEKB2ZhaWx1cmUYAiABKAsyHi5yaW1nb3Zlcm5vci5jb21t",
-            "b24udjEuRmFpbHVyZUgAEkQKEmxvbmdfZXZlbnRfcGVuZGluZxgDIAEoCzIm",
-            "LnJpbWdvdmVybm9yLmNsb2NrLnYxLkxvbmdFdmVudFBlbmRpbmdIAEIJCgdv",
-            "dXRjb21lIncKDkF0dGVtcHRSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8u",
-            "cmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50aXR5EjIKB2F0dGVtcHQYAiAB",
-            "KAsyIS5yaW1nb3Zlcm5vci5jb21tb24udjEuQXR0ZW1wdEtleSIQCg5BdHRl",
-            "bXB0VW5rbm93biK+AQoMQXR0ZW1wdFJlcGx5EjcKB3JlY2VpcHQYASABKAsy",
-            "JC5yaW1nb3Zlcm5vci5jbG9jay52MS5Db250cm9sUmVjZWlwdEgAEjcKB3Vu",
-            "a25vd24YAiABKAsyJC5yaW1nb3Zlcm5vci5jbG9jay52MS5BdHRlbXB0VW5r",
-            "bm93bkgAEjEKB2ZhaWx1cmUYAyABKAsyHi5yaW1nb3Zlcm5vci5jb21tb24u",
-            "djEuRmFpbHVyZUgAQgkKB291dGNvbWUihgEKBkxldHRlchIPCgJpZBgBIAEo",
-            "CUgAiAEBEhIKBWxhYmVsGAIgASgJSAGIAQESFQoIZGVmX25hbWUYAyABKAlI",
-            "AogBARIVCghuZWdhdGl2ZRgEIAEoCEgDiAEBQgUKA19pZEIICgZfbGFiZWxC",
-            "CwoJX2RlZl9uYW1lQgsKCV9uZWdhdGl2ZSK8AQoQVHJhbnNpZW50TWVzc2Fn",
-            "ZRIPCgJpZBgBIAEoCUgAiAEBEhUKCHR5cGVfZGVmGAIgASgJSAGIAQESEQoE",
-            "dGV4dBgDIAEoCUgCiAEBEhoKDXN0YXJ0aW5nX3RpY2sYBCABKANIA4gBARIV",
-            "CghuZWdhdGl2ZRgFIAEoCEgEiAEBQgUKA19pZEILCglfdHlwZV9kZWZCBwoF",
-            "X3RleHRCEAoOX3N0YXJ0aW5nX3RpY2tCCwoJX25lZ2F0aXZlIoMBCgxOb3Rp",
-            "ZmljYXRpb24SLgoGbGV0dGVyGAEgASgLMhwucmltZ292ZXJub3IuY2xvY2su",
-            "djEuTGV0dGVySAASOQoHbWVzc2FnZRgCIAEoCzImLnJpbWdvdmVybm9yLmNs",
-            "b2NrLnYxLlRyYW5zaWVudE1lc3NhZ2VIAEIICgZzb3VyY2UiswEKEU5vdGlm",
-            "aWNhdGlvbkJhdGNoEi0KB2xldHRlcnMYASADKAsyHC5yaW1nb3Zlcm5vci5j",
-            "bG9jay52MS5MZXR0ZXISOAoIbWVzc2FnZXMYAiADKAsyJi5yaW1nb3Zlcm5v",
-            "ci5jbG9jay52MS5UcmFuc2llbnRNZXNzYWdlEjUKDGNvbXBsZXRlbmVzcxgD",
-            "IAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5QYWdlSW5mbyJjCgVBbGVy",
-            "dBIQCgNrZXkYASABKAlIAIgBARISCgVsYWJlbBgCIAEoCUgBiAEBEhUKCHBy",
-            "aW9yaXR5GAMgASgJSAKIAQFCBgoEX2tleUIICgZfbGFiZWxCCwoJX3ByaW9y",
-            "aXR5IpgBCglQYXduRXZlbnQSFAoHcGF3bl9pZBgBIAEoCUgAiAEBEhEKBG5h",
-            "bWUYAiABKAlIAYgBARItCghwb3NpdGlvbhgDIAEoCzIbLnJpbWdvdmVybm9y",
-            "LmNvbW1vbi52MS5DZWxsEhMKBnJlYXNvbhgEIAEoCUgCiAEBQgoKCF9wYXdu",
-            "X2lkQgcKBV9uYW1lQgkKB19yZWFzb24i2AEKBkhlYWx0aBIZCgxpbmp1cnlf",
-            "Y291bnQYASABKAVIAIgBARIVCghzZXZlcml0eRgCIAEoAkgBiAEBEhcKCmJs",
-            "ZWVkX3JhdGUYAyABKAJIAogBARIXCgpibG9vZF9sb3NzGAQgASgCSAOIAQES",
-            "GwoOc3VtbWFyeV9oZWFsdGgYBSABKAJIBIgBAUIPCg1faW5qdXJ5X2NvdW50",
-            "QgsKCV9zZXZlcml0eUINCgtfYmxlZWRfcmF0ZUINCgtfYmxvb2RfbG9zc0IR",
-            "Cg9fc3VtbWFyeV9oZWFsdGgiyQIKBkluanVyeRItCgRwYXduGAEgASgLMh8u",
-            "cmltZ292ZXJub3IuY2xvY2sudjEuUGF3bkV2ZW50EiwKBmJlZm9yZRgCIAEo",
-            "CzIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLkhlYWx0aBIrCgVhZnRlchgDIAEo",
-            "CzIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLkhlYWx0aBJBCgtzdXBwcmVzc2lv",
-            "bhgEIAEoDjInLnJpbWdvdmVybm9yLmNsb2NrLnYxLkluanVyeVN1cHByZXNz",
-            "aW9uSACIAQESIgoVY29vbGRvd25fcmVtYWluaW5nX21zGAUgASgNSAGIAQES",
-            "FgoJbmV3X3dvdW5kGAYgASgISAKIAQFCDgoMX3N1cHByZXNzaW9uQhgKFl9j",
-            "b29sZG93bl9yZW1haW5pbmdfbXNCDAoKX25ld193b3VuZCKQAgoPSGVhbHRo",
-            "VGhyZXNob2xkEi0KBHBhd24YASABKAsyHy5yaW1nb3Zlcm5vci5jbG9jay52",
-            "MS5QYXduRXZlbnQSHAoPaGVhbHRoX2F0X3N0YXJ0GAIgASgCSACIAQESFwoK",
-            "aGVhbHRoX25vdxgDIAEoAkgBiAEBEiAKE21pbl9oZWFsdGhfZnJhY3Rpb24Y",
-            "BCABKAJIAogBARIhChRoZWFsdGhfZHJvcF9mcmFjdGlvbhgFIAEoAkgDiAEB",
-            "QhIKEF9oZWFsdGhfYXRfc3RhcnRCDQoLX2hlYWx0aF9ub3dCFgoUX21pbl9o",
-            "ZWFsdGhfZnJhY3Rpb25CFwoVX2hlYWx0aF9kcm9wX2ZyYWN0aW9uIsACCg9I",
-            "b3N0aWxlc0NsZWFyZWQSOAoPZG93bmVkX2hvc3RpbGVzGAEgAygLMh8ucmlt",
-            "Z292ZXJub3IuY2xvY2sudjEuUGF3bkV2ZW50EjoKEWRyYWZ0ZWRfY29sb25p",
-            "c3RzGAIgAygLMh8ucmltZ292ZXJub3IuY2xvY2sudjEuUGF3bkV2ZW50EiYK",
-            "GWNvbnNjaW91c19ob3N0aWxlc19iZWZvcmUYAyABKAVIAIgBARIhChRhY3Jv",
-            "c3NfZXBvY2hfcmVzdGFydBgEIAEoCEgBiAEBEjUKDGNvbXBsZXRlbmVzcxgF",
-            "IAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5QYWdlSW5mb0IcChpfY29u",
-            "c2Npb3VzX2hvc3RpbGVzX2JlZm9yZUIXChVfYWNyb3NzX2Vwb2NoX3Jlc3Rh",
-            "cnQijwEKDUJ1ZGdldFJlYWNoZWQSFwoKc3RhcnRfdGljaxgBIAEoA0gAiAEB",
-            "EhoKDXRpY2tfZGVhZGxpbmUYAiABKANIAYgBARIYCgthY3R1YWxfdGljaxgD",
-            "IAEoA0gCiAEBQg0KC19zdGFydF90aWNrQhAKDl90aWNrX2RlYWRsaW5lQg4K",
-            "DF9hY3R1YWxfdGljayL6AwoNUGF1c2VFdmlkZW5jZRIaCg1hY3R1YWxfcGF1",
-            "c2VkGAEgASgISACIAQESHAoPcGF1c2VfcmVxdWVzdGVkGAIgASgISAGIAQES",
-            "GwoOcGF1c2VfdmVyaWZpZWQYAyABKAhIAogBARIgChhmb3JjZV9wYXVzaW5n",
-            "X3dpbmRvd19pZHMYBCADKAkSHwoSbG9uZ19ldmVudF9wZW5kaW5nGAUgASgI",
-            "SAOIAQESLAoGbGV0dGVyGAYgASgLMhwucmltZ292ZXJub3IuY2xvY2sudjEu",
-            "TGV0dGVyEjkKD3JlcXVlc3RlZF9zcGVlZBgHIAEoDjIbLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLlNwZWVkSASIAQESPgoMYWN0dWFsX3NwZWVkGAggASgOMiMu",
-            "cmltZ292ZXJub3IuY2xvY2sudjEuT2JzZXJ2ZWRTcGVlZEgFiAEBEjEKBmRp",
-            "YWxvZxgJIAEoCzIhLnJpbWdvdmVybm9yLmNsb2NrLnYxLkRpYWxvZ1BhdXNl",
-            "QhAKDl9hY3R1YWxfcGF1c2VkQhIKEF9wYXVzZV9yZXF1ZXN0ZWRCEQoPX3Bh",
-            "dXNlX3ZlcmlmaWVkQhUKE19sb25nX2V2ZW50X3BlbmRpbmdCEgoQX3JlcXVl",
-            "c3RlZF9zcGVlZEIPCg1fYWN0dWFsX3NwZWVkInsKC0RpYWxvZ1BhdXNlEhYK",
-            "CXdpbmRvd19pZBgBIAEoBUgAiAEBEhgKC3dpbmRvd190eXBlGAIgASgJSAGI",
-            "AQESEgoFdGl0bGUYAyABKAlIAogBAUIMCgpfd2luZG93X2lkQg4KDF93aW5k",
-            "b3dfdHlwZUIICgZfdGl0bGUi9QIKEE9wZXJhdGlvbk91dGNvbWUSMgoHYXR0",
-            "ZW1wdBgBIAEoCzIhLnJpbWdvdmVybm9yLmNvbW1vbi52MS5BdHRlbXB0S2V5",
-            "EhkKDGxhdGNoZWRfdGljaxgCIAEoA0gBiAEBEj0KCWNvbXBsZXRlZBgDIAEo",
-            "CzIoLnJpbWdvdmVybm9yLnJlY2VpcHRzLnYxLkNvbXBsZXRlZEVmZmVjdEgA",
-            "EkMKDHVuc3VjY2Vzc2Z1bBgEIAEoCzIrLnJpbWdvdmVybm9yLnJlY2VpcHRz",
-            "LnYxLlVuc3VjY2Vzc2Z1bEVmZmVjdEgAEjcKBmFic2VudBgFIAEoCzIlLnJp",
-            "bWdvdmVybm9yLnJlY2VpcHRzLnYxLkFic2VudEVmZmVjdEgAEjkKB3Vua25v",
-            "d24YBiABKAsyJi5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5Vbmtub3duRWZm",
-            "ZWN0SABCCQoHb3V0Y29tZUIPCg1fbGF0Y2hlZF90aWNrIrQBChBBdXRob3Jp",
-            "dHlDaGFuZ2VkEhcKCmdlbmVyYXRpb24YASABKARIAIgBARIgChNwcmV2aW91",
-            "c19nZW5lcmF0aW9uGAIgASgESAGIAQESEwoGcmVhc29uGAMgASgJSAKIAQES",
-            "EwoGYWN0aXZlGAQgASgISAOIAQFCDQoLX2dlbmVyYXRpb25CFgoUX3ByZXZp",
-            "b3VzX2dlbmVyYXRpb25CCQoHX3JlYXNvbkIJCgdfYWN0aXZlInUKDFdhdGNo",
-            "TGF0Y2hlZBI3CgdvdXRjb21lGAEgASgLMiYucmltZ292ZXJub3IuY2xvY2su",
-            "djEuT3BlcmF0aW9uT3V0Y29tZRIaCg10aWNrX2RlYWRsaW5lGAIgASgDSACI",
-            "AQFCEAoOX3RpY2tfZGVhZGxpbmUi8gQKCVN0b3BFdmVudBI1CgZyZWFzb24Y",
-            "ASABKA4yIC5yaW1nb3Zlcm5vci5jbG9jay52MS5TdG9wUmVhc29uSAGIAQES",
-            "QAoNbm90aWZpY2F0aW9ucxgCIAEoCzInLnJpbWdvdmVybm9yLmNsb2NrLnYx",
-            "Lk5vdGlmaWNhdGlvbkJhdGNoSAASLwoEcGF3bhgDIAEoCzIfLnJpbWdvdmVy",
-            "bm9yLmNsb2NrLnYxLlBhd25FdmVudEgAEi4KBmluanVyeRgEIAEoCzIcLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLkluanVyeUgAEjcKBmhlYWx0aBgFIAEoCzIl",
-            "LnJpbWdvdmVybm9yLmNsb2NrLnYxLkhlYWx0aFRocmVzaG9sZEgAEjUKBmJ1",
-            "ZGdldBgGIAEoCzIjLnJpbWdvdmVybm9yLmNsb2NrLnYxLkJ1ZGdldFJlYWNo",
-            "ZWRIABI0CgVwYXVzZRgHIAEoCzIjLnJpbWdvdmVybm9yLmNsb2NrLnYxLlBh",
-            "dXNlRXZpZGVuY2VIABI5Cgt1bmF2YWlsYWJsZRgIIAEoCzIiLnJpbWdvdmVy",
-            "bm9yLmNvbW1vbi52MS5VbmF2YWlsYWJsZUgAEjMKBXdhdGNoGAkgASgLMiIu",
-            "cmltZ292ZXJub3IuY2xvY2sudjEuV2F0Y2hMYXRjaGVkSAASGgoNZGV0ZWN0",
-            "ZWRfdGljaxgKIAEoA0gCiAEBEhwKD29jY3VycmVuY2VfdGljaxgLIAEoA0gD",
-            "iAEBQgoKCGV2aWRlbmNlQgkKB19yZWFzb25CEAoOX2RldGVjdGVkX3RpY2tC",
-            "EgoQX29jY3VycmVuY2VfdGljayI6CgxFcG9jaFN0YXJ0ZWQSKgoFZXBvY2gY",
-            "ASABKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9jaCKwAQoWT2JzZXJ2",
-            "YXRpb25JbnZhbGlkYXRlZBIyCghmYW1pbGllcxgBIAMoDjIgLnJpbWdvdmVy",
-            "bm9yLmNsb2NrLnYxLkZhY3RGYW1pbHkSEwoGcmVhc29uGAIgASgJSACIAQES",
-            "EgoKZW50aXR5X2lkcxgDIAMoCRIuCgVjZWxscxgEIAEoCzIfLnJpbWdvdmVy",
-            "bm9yLmNsb2NrLnYxLlJlY3RhbmdsZUIJCgdfcmVhc29uImcKCVJlY3Rhbmds",
-            "ZRIsCgdtaW5pbXVtGAEgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNl",
-            "bGwSLAoHbWF4aW11bRgCIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5D",
-            "ZWxsIvcBCgxTcGVlZENoYW5nZWQSLwoFc3BlZWQYASABKA4yGy5yaW1nb3Zl",
-            "cm5vci5jbG9jay52MS5TcGVlZEgAiAEBEiEKFG1heF90aWNrc19wZXJfc2Vj",
-            "b25kGAIgASgNSAGIAQESJwoacmVndWxhdGVkX3RpY2tzX3Blcl9zZWNvbmQY",
-            "AyABKA1IAogBARIYCgtibGluZF90aWNrcxgEIAEoA0gDiAEBQggKBl9zcGVl",
-            "ZEIXChVfbWF4X3RpY2tzX3Blcl9zZWNvbmRCHQobX3JlZ3VsYXRlZF90aWNr",
-            "c19wZXJfc2Vjb25kQg4KDF9ibGluZF90aWNrcyI/CgtQYXVzZUZhaWxlZBIw",
-            "CgdwZW5kaW5nGAEgASgLMh8ucmltZ292ZXJub3IuY2xvY2sudjEuU3RvcEV2",
-            "ZW50IpEBChFGb3JjZVBhdXNlV2FpdGluZxIyCgVwYXVzZRgBIAEoCzIjLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLlBhdXNlRXZpZGVuY2USFgoJd2FpdGVkX21z",
-            "GAIgASgESACIAQESFQoIZ3JhY2VfbXMYAyABKA1IAYgBAUIMCgpfd2FpdGVk",
-            "X21zQgsKCV9ncmFjZV9tcyKdAQoRRm9yY2VQYXVzZUNsZWFyZWQSFgoJd2Fp",
-            "dGVkX21zGAEgASgESACIAQESHQoQZm9yY2VfcGF1c2Vfa2luZBgCIAEoCUgB",
-            "iAEBEhsKDnNwZWVkX3Jlc3RvcmVkGAMgASgISAKIAQFCDAoKX3dhaXRlZF9t",
-            "c0ITChFfZm9yY2VfcGF1c2Vfa2luZEIRCg9fc3BlZWRfcmVzdG9yZWQi3QgK",
-            "BUV2ZW50EhMKBmN1cnNvchgBIAEoA0gBiAEBEi8KBW93bmVyGAIgASgLMiAu",
-            "cmltZ292ZXJub3IuY2xvY2sudjEuRXBvY2hPd25lchI6Cgdjb250ZXh0GAMg",
-            "ASgLMikucmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4",
-            "dBIgChNvYnNlcnZlZF9hdF91bml4X21zGAQgASgDSAKIAQESEwoGZGV0YWls",
-            "GAUgASgJSAOIAQESNQoHc3RhcnRlZBgGIAEoCzIiLnJpbWdvdmVybm9yLmNs",
-            "b2NrLnYxLkVwb2NoU3RhcnRlZEgAEjsKDXNwZWVkX2NoYW5nZWQYByABKAsy",
-            "Ii5yaW1nb3Zlcm5vci5jbG9jay52MS5TcGVlZENoYW5nZWRIABIyCgdzdG9w",
-            "cGVkGAggASgLMh8ucmltZ292ZXJub3IuY2xvY2sudjEuU3RvcEV2ZW50SAAS",
-            "OgoMbm90aWZpY2F0aW9uGAkgASgLMiIucmltZ292ZXJub3IuY2xvY2sudjEu",
-            "Tm90aWZpY2F0aW9uSAASLAoFYWxlcnQYCiABKAsyGy5yaW1nb3Zlcm5vci5j",
-            "bG9jay52MS5BbGVydEgAEjcKD2luanVyeV9vYnNlcnZlZBgLIAEoCzIcLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLkluanVyeUgAEkEKEGhvc3RpbGVzX2NsZWFy",
-            "ZWQYDCABKAsyJS5yaW1nb3Zlcm5vci5jbG9jay52MS5Ib3N0aWxlc0NsZWFy",
-            "ZWRIABI5CgxwYXVzZV9mYWlsZWQYDSABKAsyIS5yaW1nb3Zlcm5vci5jbG9j",
-            "ay52MS5QYXVzZUZhaWxlZEgAEkYKE2ZvcmNlX3BhdXNlX3dhaXRpbmcYDiAB",
-            "KAsyJy5yaW1nb3Zlcm5vci5jbG9jay52MS5Gb3JjZVBhdXNlV2FpdGluZ0gA",
-            "EkYKE2ZvcmNlX3BhdXNlX2NsZWFyZWQYDyABKAsyJy5yaW1nb3Zlcm5vci5j",
-            "bG9jay52MS5Gb3JjZVBhdXNlQ2xlYXJlZEgAEkMKEW9wZXJhdGlvbl9vdXRj",
-            "b21lGBAgASgLMiYucmltZ292ZXJub3IuY2xvY2sudjEuT3BlcmF0aW9uT3V0",
-            "Y29tZUgAEkMKEWF1dGhvcml0eV9jaGFuZ2VkGBEgASgLMiYucmltZ292ZXJu",
-            "b3IuY2xvY2sudjEuQXV0aG9yaXR5Q2hhbmdlZEgAEk8KF29ic2VydmF0aW9u",
-            "X2ludmFsaWRhdGVkGBIgASgLMiwucmltZ292ZXJub3IuY2xvY2sudjEuT2Jz",
-            "ZXJ2YXRpb25JbnZhbGlkYXRlZEgAEhwKD2FnZV9hdF9yZXBseV9tcxgTIAEo",
-            "BEgEiAEBQgcKBWV2ZW50QgkKB19jdXJzb3JCFgoUX29ic2VydmVkX2F0X3Vu",
-            "aXhfbXNCCQoHX2RldGFpbEISChBfYWdlX2F0X3JlcGx5X21zIq4BCg1FdmVu",
-            "dHNSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3IuY29t",
-            "bW9uLnYxLklkZW50aXR5EhkKDGFmdGVyX2N1cnNvchgCIAEoA0gAiAEBEhIK",
-            "BWxpbWl0GAMgASgNSAGIAQESFAoHd2FpdF9tcxgEIAEoDUgCiAEBQg8KDV9h",
-            "ZnRlcl9jdXJzb3JCCAoGX2xpbWl0QgoKCF93YWl0X21zIr0CCgpFdmVudHNQ",
-            "YWdlEjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24udjEu",
-            "T2JzZXJ2YXRpb25Db250ZXh0EisKBmV2ZW50cxgCIAMoCzIbLnJpbWdvdmVy",
-            "bm9yLmNsb2NrLnYxLkV2ZW50EhoKDW9sZGVzdF9jdXJzb3IYAyABKANIAIgB",
-            "ARIaCg1uZXdlc3RfY3Vyc29yGAQgASgDSAGIAQESGAoLbmV4dF9jdXJzb3IY",
-            "BSABKANIAogBARIQCgNnYXAYBiABKAhIA4gBARIXCgpsb3N0X2NvdW50GAcg",
-            "ASgESASIAQFCEAoOX29sZGVzdF9jdXJzb3JCEAoOX25ld2VzdF9jdXJzb3JC",
-            "DgoMX25leHRfY3Vyc29yQgYKBF9nYXBCDQoLX2xvc3RfY291bnQifQoLRXZl",
-            "bnRzUmVwbHkSMAoEcGFnZRgBIAEoCzIgLnJpbWdvdmVybm9yLmNsb2NrLnYx",
-            "LkV2ZW50c1BhZ2VIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3Iu",
-            "Y29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lKmoKBVNwZWVkEhUKEVNQ",
-            "RUVEX1VOU1BFQ0lGSUVEEAASEAoMU1BFRURfTk9STUFMEAESDgoKU1BFRURf",
-            "RkFTVBACEhMKD1NQRUVEX1NVUEVSRkFTVBADEhMKD1NQRUVEX1VMVFJBRkFT",
-            "VBAEKroBCg1PYnNlcnZlZFNwZWVkEh4KGk9CU0VSVkVEX1NQRUVEX1VOU1BF",
-            "Q0lGSUVEEAASGQoVT0JTRVJWRURfU1BFRURfUEFVU0VEEAESGQoVT0JTRVJW",
-            "RURfU1BFRURfTk9STUFMEAISFwoTT0JTRVJWRURfU1BFRURfRkFTVBADEhwK",
-            "GE9CU0VSVkVEX1NQRUVEX1NVUEVSRkFTVBAEEhwKGE9CU0VSVkVEX1NQRUVE",
-            "X1VMVFJBRkFTVBAFKlUKCVdhdGNoTW9kZRIaChZXQVRDSF9NT0RFX1VOU1BF",
-            "Q0lGSUVEEAASFQoRV0FUQ0hfTU9ERV9DT0xPTlkQARIVChFXQVRDSF9NT0RF",
-            "X0NPTUJBVBACKpIGCgpTdG9wUmVhc29uEhsKF1NUT1BfUkVBU09OX1VOU1BF",
-            "Q0lGSUVEEAASHwobU1RPUF9SRUFTT05fUkVRVUVTVEVEX1BBVVNFEAESGwoX",
-            "U1RPUF9SRUFTT05fVElDS19CVURHRVQQAhIfChtTVE9QX1JFQVNPTl9TRVNT",
-            "SU9OX0NIQU5HRUQQAxIbChdTVE9QX1JFQVNPTl9VTkFWQUlMQUJMRRAEEh4K",
-            "GlNUT1BfUkVBU09OX0VYVEVSTkFMX1BBVVNFEAUSHAoYU1RPUF9SRUFTT05f",
-            "TEVUVEVSX1BBVVNFEAYSJgoiU1RPUF9SRUFTT05fRVhURVJOQUxfU1BFRURf",
-            "Q0hBTkdFRBAHEh0KGVNUT1BfUkVBU09OX0xFQVNFX0VYUElSRUQQCBIdChlT",
-            "VE9QX1JFQVNPTl9XQVRDSEVSX0VSUk9SEAkSIwofU1RPUF9SRUFTT05fRVZF",
-            "TlRfSk9VUk5BTF9FUlJPUhAKEhwKGFNUT1BfUkVBU09OX0ZPUkNFX1BBVVNF",
-            "RBALEh0KGVNUT1BfUkVBU09OX0NPTE9OWV9OQU1JTkcQDBIdChlTVE9QX1JF",
-            "QVNPTl9TVEFSVF9SRUZVU0VEEA0SIgoeU1RPUF9SRUFTT05fTk9USUZJQ0FU",
-            "SU9OX0JBVENIEA4SJAogU1RPUF9SRUFTT05fTUVESUNBTF9SRVNUX0NIQU5H",
-            "RUQQDxIXChNTVE9QX1JFQVNPTl9IT1NUSUxFEBASHwobU1RPUF9SRUFTT05f",
-            "Q09MT05JU1RfRE9XTkVEEBESHQoZU1RPUF9SRUFTT05fUFJFREFUT1JfSFVO",
-            "VBASEiQKIFNUT1BfUkVBU09OX0hVTlRJTkdfUk9VVEVfVU5TQUZFEBMSHwob",
-            "U1RPUF9SRUFTT05fQ09MT05JU1RfSEVBTFRIEBQSHwobU1RPUF9SRUFTT05f",
-            "Q09MT05JU1RfSU5KVVJZEBUSHQoZU1RPUF9SRUFTT05fV0FUQ0hfTEFUQ0hF",
-            "RBAWEhwKGFNUT1BfUkVBU09OX0RJQUxPR19QQVVTRRAXKpoBChFJbmp1cnlT",
-            "dXBwcmVzc2lvbhIiCh5JTkpVUllfU1VQUFJFU1NJT05fVU5TUEVDSUZJRUQQ",
-            "ABIbChdJTkpVUllfU1VQUFJFU1NJT05fTk9ORRABEiMKH0lOSlVSWV9TVVBQ",
-            "UkVTU0lPTl9BQ0tOT1dMRURHRUQQAhIfChtJTkpVUllfU1VQUFJFU1NJT05f",
-            "Q09PTERPV04QAyryAQoKRmFjdEZhbWlseRIbChdGQUNUX0ZBTUlMWV9VTlNQ",
-            "RUNJRklFRBAAEhsKF0ZBQ1RfRkFNSUxZX0RFRklOSVRJT05TEAESFQoRRkFD",
-            "VF9GQU1JTFlfV09STEQQAhIYChRGQUNUX0ZBTUlMWV9JREVOVElUWRADEhYK",
-            "EkZBQ1RfRkFNSUxZX0NPTE9OWRAEEhUKEUZBQ1RfRkFNSUxZX1BBV05TEAUS",
-            "GQoVRkFDVF9GQU1JTFlfRU1FUkdFTkNZEAYSFQoRRkFDVF9GQU1JTFlfUk9P",
-            "TVMQBxIYChRGQUNUX0ZBTUlMWV9SRVNFQVJDSBAIMtUECgVDbG9jaxJUCgpS",
-            "ZWFkU3RhdHVzEiMucmltZ292ZXJub3IuY2xvY2sudjEuU3RhdHVzUmVxdWVz",
-            "dBohLnJpbWdvdmVybm9yLmNsb2NrLnYxLlN0YXR1c1JlcGx5ElQKClJlYWRF",
-            "dmVudHMSIy5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVudHNSZXF1ZXN0GiEu",
-            "cmltZ292ZXJub3IuY2xvY2sudjEuRXZlbnRzUmVwbHkSVwoLUmVhZEF0dGVt",
-            "cHQSJC5yaW1nb3Zlcm5vci5jbG9jay52MS5BdHRlbXB0UmVxdWVzdBoiLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLkF0dGVtcHRSZXBseRJPCgVTdGFydBIiLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLlN0YXJ0UmVxdWVzdBoiLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLkNvbnRyb2xSZXBseRJOCgVQYXVzZRIiLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLk93bmVkUmVxdWVzdBohLnJpbWdvdmVybm9yLmNsb2NrLnYx",
-            "LlN0YXR1c1JlcGx5Ek8KBVJlbmV3EiIucmltZ292ZXJub3IuY2xvY2sudjEu",
-            "UmVuZXdSZXF1ZXN0GiIucmltZ292ZXJub3IuY2xvY2sudjEuQ29udHJvbFJl",
-            "cGx5ElUKC0NoYW5nZVNwZWVkEiIucmltZ292ZXJub3IuY2xvY2sudjEuU3Bl",
-            "ZWRSZXF1ZXN0GiIucmltZ292ZXJub3IuY2xvY2sudjEuQ29udHJvbFJlcGx5",
-            "QmJaQ2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50",
-            "ZXJuYWwvd2lyZS9jbG9ja3BiO2Nsb2NrcGKqAhpSaW1Hb3Zlcm5vci5Qcm90",
-            "b2NvbC5DbG9ja2IGcHJvdG8z"));
+            "iAEBEjEKBnBhY2luZxgJIAEoDjIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLlBh",
+            "Y2luZ0gGiAEBEhwKD2ZyYW1lX2J1ZGdldF9tcxgKIAEoDUgHiAEBQggKBl9z",
+            "cGVlZEILCglfbGVhc2VfbXNCDAoKX21heF90aWNrc0IUChJfdGVzdF9hY2Nl",
+            "bGVyYXRpb25CFAoSX2JsaW5kX3RpY2tfYnVkZ2V0QhcKFV9tYXhfdGlja3Nf",
+            "cGVyX3NlY29uZEIJCgdfcGFjaW5nQhIKEF9mcmFtZV9idWRnZXRfbXMicgoM",
+            "T3duZWRSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3Iu",
+            "Y29tbW9uLnYxLklkZW50aXR5Ei8KBW93bmVyGAIgASgLMiAucmltZ292ZXJu",
+            "b3IuY2xvY2sudjEuRXBvY2hPd25lciKlAQoMUmVuZXdSZXF1ZXN0EjEKBWVw",
+            "b2NoGAEgASgLMiIucmltZ292ZXJub3IuY2xvY2sudjEuT3duZWRSZXF1ZXN0",
+            "Ej4KCWF1dGhvcml0eRgCIAEoCzIrLnJpbWdvdmVybm9yLmF1dGhvcml0eS52",
+            "MS5Xcml0ZVByZWNvbmRpdGlvbhIVCghsZWFzZV9tcxgDIAEoDUgAiAEBQgsK",
+            "CV9sZWFzZV9tcyL4AQoMU3BlZWRSZXF1ZXN0EjEKBWVwb2NoGAEgASgLMiIu",
+            "cmltZ292ZXJub3IuY2xvY2sudjEuT3duZWRSZXF1ZXN0Ej4KCWF1dGhvcml0",
+            "eRgCIAEoCzIrLnJpbWdvdmVybm9yLmF1dGhvcml0eS52MS5Xcml0ZVByZWNv",
+            "bmRpdGlvbhIvCgVzcGVlZBgDIAEoDjIbLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LlNwZWVkSACIAQESIQoUbWF4X3RpY2tzX3Blcl9zZWNvbmQYBCABKA1IAYgB",
+            "AUIICgZfc3BlZWRCFwoVX21heF90aWNrc19wZXJfc2Vjb25kIkIKDVN0YXR1",
+            "c1JlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21t",
+            "b24udjEuSWRlbnRpdHkimwcKBUVwb2NoEi8KBW93bmVyGAEgASgLMiAucmlt",
+            "Z292ZXJub3IuY2xvY2sudjEuRXBvY2hPd25lchI5CgZvcmlnaW4YAiABKAsy",
+            "KS5yaW1nb3Zlcm5vci5jb21tb24udjEuT2JzZXJ2YXRpb25Db250ZXh0EjkK",
+            "D3JlcXVlc3RlZF9zcGVlZBgDIAEoDjIbLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LlNwZWVkSACIAQESMQoGcG9saWN5GAQgASgLMiEucmltZ292ZXJub3IuY2xv",
+            "Y2sudjEuV2F0Y2hQb2xpY3kSFwoKc3RhcnRfdGljaxgFIAEoA0gBiAEBEhoK",
+            "DXRpY2tfZGVhZGxpbmUYBiABKANIAogBARIfChJsZWFzZV9yZW1haW5pbmdf",
+            "bXMYByABKA1IA4gBARIWCglsYXN0X3RpY2sYCCABKANIBIgBARIeChF0ZXN0",
+            "X2FjY2VsZXJhdGlvbhgJIAEoCEgFiAEBEh4KEWJsaW5kX3RpY2tfYnVkZ2V0",
+            "GAogASgNSAaIAQESIQoUbWF4X3RpY2tzX3Blcl9zZWNvbmQYCyABKA1IB4gB",
+            "ARInChpyZWd1bGF0ZWRfdGlja3NfcGVyX3NlY29uZBgMIAEoDUgIiAEBEjEK",
+            "BnBhY2luZxgNIAEoDjIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLlBhY2luZ0gJ",
+            "iAEBEhwKD2ZyYW1lX2J1ZGdldF9tcxgOIAEoDUgKiAEBEiMKFnBhY2VkX3Rp",
+            "Y2tzX3Blcl9zZWNvbmQYDyABKA1IC4gBARI+Cg1wYWNpbmdfcmVhc29uGBAg",
+            "ASgOMiIucmltZ292ZXJub3IuY2xvY2sudjEuUGFjaW5nUmVhc29uSAyIAQFC",
+            "EgoQX3JlcXVlc3RlZF9zcGVlZEINCgtfc3RhcnRfdGlja0IQCg5fdGlja19k",
+            "ZWFkbGluZUIVChNfbGVhc2VfcmVtYWluaW5nX21zQgwKCl9sYXN0X3RpY2tC",
+            "FAoSX3Rlc3RfYWNjZWxlcmF0aW9uQhQKEl9ibGluZF90aWNrX2J1ZGdldEIX",
+            "ChVfbWF4X3RpY2tzX3Blcl9zZWNvbmRCHQobX3JlZ3VsYXRlZF90aWNrc19w",
+            "ZXJfc2Vjb25kQgkKB19wYWNpbmdCEgoQX2ZyYW1lX2J1ZGdldF9tc0IZChdf",
+            "cGFjZWRfdGlja3NfcGVyX3NlY29uZEIQCg5fcGFjaW5nX3JlYXNvbiI1CgdS",
+            "dW5uaW5nEioKBWVwb2NoGAEgASgLMhsucmltZ292ZXJub3IuY2xvY2sudjEu",
+            "RXBvY2gi1gEKCFN0b3BwaW5nEioKBWVwb2NoGAEgASgLMhsucmltZ292ZXJu",
+            "b3IuY2xvY2sudjEuRXBvY2gSPQoOcGVuZGluZ19yZWFzb24YAiABKA4yIC5y",
+            "aW1nb3Zlcm5vci5jbG9jay52MS5TdG9wUmVhc29uSACIAQESEwoGZGV0YWls",
+            "GAMgASgJSAGIAQESGgoNYWN0dWFsX3BhdXNlZBgEIAEoCEgCiAEBQhEKD19w",
+            "ZW5kaW5nX3JlYXNvbkIJCgdfZGV0YWlsQhAKDl9hY3R1YWxfcGF1c2VkIt8C",
+            "CgdTdG9wcGVkEioKBWVwb2NoGAEgASgLMhsucmltZ292ZXJub3IuY2xvY2su",
+            "djEuRXBvY2gSNQoGcmVhc29uGAIgASgOMiAucmltZ292ZXJub3IuY2xvY2su",
+            "djEuU3RvcFJlYXNvbkgAiAEBEhMKBmRldGFpbBgDIAEoCUgBiAEBEhoKDWFj",
+            "dHVhbF9wYXVzZWQYBCABKAhIAogBARIbCg5wYXVzZV92ZXJpZmllZBgFIAEo",
+            "CEgDiAEBEhwKD3BhdXNlX3JlcXVlc3RlZBgGIAEoCEgEiAEBEh8KEnN0b3Bw",
+            "ZWRfYXRfdW5peF9tcxgHIAEoA0gFiAEBQgkKB19yZWFzb25CCQoHX2RldGFp",
+            "bEIQCg5fYWN0dWFsX3BhdXNlZEIRCg9fcGF1c2VfdmVyaWZpZWRCEgoQX3Bh",
+            "dXNlX3JlcXVlc3RlZEIVChNfc3RvcHBlZF9hdF91bml4X21zIg4KDE5ldmVy",
+            "U3RhcnRlZCL1DQoGU3RhdHVzEjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zl",
+            "cm5vci5jb21tb24udjEuT2JzZXJ2YXRpb25Db250ZXh0EjAKB3J1bm5pbmcY",
+            "AiABKAsyHS5yaW1nb3Zlcm5vci5jbG9jay52MS5SdW5uaW5nSAASMgoIc3Rv",
+            "cHBpbmcYAyABKAsyHi5yaW1nb3Zlcm5vci5jbG9jay52MS5TdG9wcGluZ0gA",
+            "EjAKB3N0b3BwZWQYBCABKAsyHS5yaW1nb3Zlcm5vci5jbG9jay52MS5TdG9w",
+            "cGVkSAASOwoNbmV2ZXJfc3RhcnRlZBgFIAEoCzIiLnJpbWdvdmVybm9yLmNs",
+            "b2NrLnYxLk5ldmVyU3RhcnRlZEgAEjkKC3VuYXZhaWxhYmxlGAYgASgLMiIu",
+            "cmltZ292ZXJub3IuY29tbW9uLnYxLlVuYXZhaWxhYmxlSAASIQoUbmF0aXZl",
+            "X3RpY2tfYm91bmRhcnkYByABKAhIAYgBARIbCg5kdXJhYmxlX2V2ZW50cxgI",
+            "IAEoCEgCiAEBEhoKDW5ld2VzdF9jdXJzb3IYCSABKANIA4gBARIaCg13YXRj",
+            "aGVyX2Vycm9yGAogASgJSASIAQESIwoWZm9yY2VfcGF1c2Vfd2FpdGluZ19t",
+            "cxgLIAEoBEgFiAEBEh0KEGZvcmNlX3BhdXNlX2tpbmQYDCABKAlIBogBARIf",
+            "ChJtYXhfcHJvYmVfdGlja19nYXAYDSABKANIB4gBARIYCgtwcm9iZV9jb3Vu",
+            "dBgOIAEoBEgIiAEBEjQKD2Jhc2VsaW5lX2FsZXJ0cxgPIAMoCzIbLnJpbWdv",
+            "dmVybm9yLmNsb2NrLnYxLkFsZXJ0EjkKE3N1cHByZXNzZWRfaW5qdXJpZXMY",
+            "ECADKAsyHC5yaW1nb3Zlcm5vci5jbG9jay52MS5Jbmp1cnkSPgoVZXZpZGVu",
+            "Y2VfY29tcGxldGVuZXNzGBEgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYx",
+            "LlBhZ2VJbmZvEkAKDm9ic2VydmVkX3NwZWVkGBIgASgOMiMucmltZ292ZXJu",
+            "b3IuY2xvY2sudjEuT2JzZXJ2ZWRTcGVlZEgJiAEBEhoKDWFjdHVhbF9wYXVz",
+            "ZWQYEyABKAhICogBARIoCht0ZXN0X2FjY2VsZXJhdGlvbl9hdmFpbGFibGUY",
+            "FCABKAhIC4gBARIWCglwYXVzZWRfbXMYFSABKARIDIgBARIXCgpydW5uaW5n",
+            "X21zGBYgASgESA2IAQESHQoQcHJvYmVfZWxhcHNlZF9tcxgXIAEoAUgOiAEB",
+            "Eh4KEWRpZ2VzdF9lbGFwc2VkX21zGBggASgBSA+IAQESGAoLcHJvYmVfdG90",
+            "YWwYGSABKARIEIgBARIZCgxkaWdlc3RfdG90YWwYGiABKARIEYgBARInChpz",
+            "ZXNzaW9uX21heF9wcm9iZV90aWNrX2dhcBgbIAEoA0gSiAEBEjQKC2hhemFy",
+            "ZF9nYXBzGBwgAygLMh8ucmltZ292ZXJub3IuY2xvY2sudjEuSGF6YXJkR2Fw",
+            "EicKGmVmZmVjdGl2ZV90aWNrc19wZXJfc2Vjb25kGB0gASgBSBOIAQESGQoM",
+            "cGFjZWRfZnJhbWVzGB4gASgESBSIAQESJQoYcGFjZWRfZnJhbWVzX292ZXJf",
+            "YnVkZ2V0GB8gASgESBWIAQESHwoSbWF4X3BhY2VkX2ZyYW1lX21zGCAgASgB",
+            "SBaIAQFCBwoFc3RhdGVCFwoVX25hdGl2ZV90aWNrX2JvdW5kYXJ5QhEKD19k",
+            "dXJhYmxlX2V2ZW50c0IQCg5fbmV3ZXN0X2N1cnNvckIQCg5fd2F0Y2hlcl9l",
+            "cnJvckIZChdfZm9yY2VfcGF1c2Vfd2FpdGluZ19tc0ITChFfZm9yY2VfcGF1",
+            "c2Vfa2luZEIVChNfbWF4X3Byb2JlX3RpY2tfZ2FwQg4KDF9wcm9iZV9jb3Vu",
+            "dEIRCg9fb2JzZXJ2ZWRfc3BlZWRCEAoOX2FjdHVhbF9wYXVzZWRCHgocX3Rl",
+            "c3RfYWNjZWxlcmF0aW9uX2F2YWlsYWJsZUIMCgpfcGF1c2VkX21zQg0KC19y",
+            "dW5uaW5nX21zQhMKEV9wcm9iZV9lbGFwc2VkX21zQhQKEl9kaWdlc3RfZWxh",
+            "cHNlZF9tc0IOCgxfcHJvYmVfdG90YWxCDwoNX2RpZ2VzdF90b3RhbEIdChtf",
+            "c2Vzc2lvbl9tYXhfcHJvYmVfdGlja19nYXBCHQobX2VmZmVjdGl2ZV90aWNr",
+            "c19wZXJfc2Vjb25kQg8KDV9wYWNlZF9mcmFtZXNCGwoZX3BhY2VkX2ZyYW1l",
+            "c19vdmVyX2J1ZGdldEIVChNfbWF4X3BhY2VkX2ZyYW1lX21zIlwKCUhhemFy",
+            "ZEdhcBIUCgxoYXphcmRfY2xhc3MYASABKAkSEwoLYm91bmRfdGlja3MYAiAB",
+            "KAMSFAoMbWF4X3RpY2tfZ2FwGAMgASgDEg4KBmhvb2tlZBgEIAEoCCJ7CgtT",
+            "dGF0dXNSZXBseRIuCgZzdGF0dXMYASABKAsyHC5yaW1nb3Zlcm5vci5jbG9j",
+            "ay52MS5TdGF0dXNIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3Iu",
+            "Y29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lIjIKEExvbmdFdmVudFBl",
+            "bmRpbmcSEwoGZGV0YWlsGAEgASgJSACIAQFCCQoHX2RldGFpbCI+Cg5BcHBs",
+            "aWVkQ29udHJvbBIsCgZzdGF0dXMYASABKAsyHC5yaW1nb3Zlcm5vci5jbG9j",
+            "ay52MS5TdGF0dXMiZwoQVW5jZXJ0YWluQ29udHJvbBIzCg1sYXN0X29ic2Vy",
+            "dmVkGAEgASgLMhwucmltZ292ZXJub3IuY2xvY2sudjEuU3RhdHVzEhMKBmRl",
+            "dGFpbBgCIAEoCUgAiAEBQgkKB19kZXRhaWwiowIKDkNvbnRyb2xSZWNlaXB0",
+            "EjIKB2F0dGVtcHQYASABKAsyIS5yaW1nb3Zlcm5vci5jb21tb24udjEuQXR0",
+            "ZW1wdEtleRJDChBhZG1pdHRlZF9jb250ZXh0GAIgASgLMikucmltZ292ZXJu",
+            "b3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBI3CgdhcHBsaWVkGAQg",
+            "ASgLMiQucmltZ292ZXJub3IuY2xvY2sudjEuQXBwbGllZENvbnRyb2xIABI7",
+            "Cgl1bmNlcnRhaW4YBSABKAsyJi5yaW1nb3Zlcm5vci5jbG9jay52MS5VbmNl",
+            "cnRhaW5Db250cm9sSABCCQoHb3V0Y29tZUoECAMQBFIRYXV0aG9yaXppbmdf",
+            "b3duZXIiywEKDENvbnRyb2xSZXBseRI3CgdyZWNlaXB0GAEgASgLMiQucmlt",
+            "Z292ZXJub3IuY2xvY2sudjEuQ29udHJvbFJlY2VpcHRIABIxCgdmYWlsdXJl",
+            "GAIgASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIABJEChJs",
+            "b25nX2V2ZW50X3BlbmRpbmcYAyABKAsyJi5yaW1nb3Zlcm5vci5jbG9jay52",
+            "MS5Mb25nRXZlbnRQZW5kaW5nSABCCQoHb3V0Y29tZSJ3Cg5BdHRlbXB0UmVx",
+            "dWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52",
+            "MS5JZGVudGl0eRIyCgdhdHRlbXB0GAIgASgLMiEucmltZ292ZXJub3IuY29t",
+            "bW9uLnYxLkF0dGVtcHRLZXkiEAoOQXR0ZW1wdFVua25vd24ivgEKDEF0dGVt",
+            "cHRSZXBseRI3CgdyZWNlaXB0GAEgASgLMiQucmltZ292ZXJub3IuY2xvY2su",
+            "djEuQ29udHJvbFJlY2VpcHRIABI3Cgd1bmtub3duGAIgASgLMiQucmltZ292",
+            "ZXJub3IuY2xvY2sudjEuQXR0ZW1wdFVua25vd25IABIxCgdmYWlsdXJlGAMg",
+            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRj",
+            "b21lIoYBCgZMZXR0ZXISDwoCaWQYASABKAlIAIgBARISCgVsYWJlbBgCIAEo",
+            "CUgBiAEBEhUKCGRlZl9uYW1lGAMgASgJSAKIAQESFQoIbmVnYXRpdmUYBCAB",
+            "KAhIA4gBAUIFCgNfaWRCCAoGX2xhYmVsQgsKCV9kZWZfbmFtZUILCglfbmVn",
+            "YXRpdmUivAEKEFRyYW5zaWVudE1lc3NhZ2USDwoCaWQYASABKAlIAIgBARIV",
+            "Cgh0eXBlX2RlZhgCIAEoCUgBiAEBEhEKBHRleHQYAyABKAlIAogBARIaCg1z",
+            "dGFydGluZ190aWNrGAQgASgDSAOIAQESFQoIbmVnYXRpdmUYBSABKAhIBIgB",
+            "AUIFCgNfaWRCCwoJX3R5cGVfZGVmQgcKBV90ZXh0QhAKDl9zdGFydGluZ190",
+            "aWNrQgsKCV9uZWdhdGl2ZSKDAQoMTm90aWZpY2F0aW9uEi4KBmxldHRlchgB",
+            "IAEoCzIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLkxldHRlckgAEjkKB21lc3Nh",
+            "Z2UYAiABKAsyJi5yaW1nb3Zlcm5vci5jbG9jay52MS5UcmFuc2llbnRNZXNz",
+            "YWdlSABCCAoGc291cmNlIrMBChFOb3RpZmljYXRpb25CYXRjaBItCgdsZXR0",
+            "ZXJzGAEgAygLMhwucmltZ292ZXJub3IuY2xvY2sudjEuTGV0dGVyEjgKCG1l",
+            "c3NhZ2VzGAIgAygLMiYucmltZ292ZXJub3IuY2xvY2sudjEuVHJhbnNpZW50",
+            "TWVzc2FnZRI1Cgxjb21wbGV0ZW5lc3MYAyABKAsyHy5yaW1nb3Zlcm5vci5j",
+            "b21tb24udjEuUGFnZUluZm8iYwoFQWxlcnQSEAoDa2V5GAEgASgJSACIAQES",
+            "EgoFbGFiZWwYAiABKAlIAYgBARIVCghwcmlvcml0eRgDIAEoCUgCiAEBQgYK",
+            "BF9rZXlCCAoGX2xhYmVsQgsKCV9wcmlvcml0eSKYAQoJUGF3bkV2ZW50EhQK",
+            "B3Bhd25faWQYASABKAlIAIgBARIRCgRuYW1lGAIgASgJSAGIAQESLQoIcG9z",
+            "aXRpb24YAyABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBITCgZy",
+            "ZWFzb24YBCABKAlIAogBAUIKCghfcGF3bl9pZEIHCgVfbmFtZUIJCgdfcmVh",
+            "c29uItgBCgZIZWFsdGgSGQoMaW5qdXJ5X2NvdW50GAEgASgFSACIAQESFQoI",
+            "c2V2ZXJpdHkYAiABKAJIAYgBARIXCgpibGVlZF9yYXRlGAMgASgCSAKIAQES",
+            "FwoKYmxvb2RfbG9zcxgEIAEoAkgDiAEBEhsKDnN1bW1hcnlfaGVhbHRoGAUg",
+            "ASgCSASIAQFCDwoNX2luanVyeV9jb3VudEILCglfc2V2ZXJpdHlCDQoLX2Js",
+            "ZWVkX3JhdGVCDQoLX2Jsb29kX2xvc3NCEQoPX3N1bW1hcnlfaGVhbHRoIskC",
+            "CgZJbmp1cnkSLQoEcGF3bhgBIAEoCzIfLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LlBhd25FdmVudBIsCgZiZWZvcmUYAiABKAsyHC5yaW1nb3Zlcm5vci5jbG9j",
+            "ay52MS5IZWFsdGgSKwoFYWZ0ZXIYAyABKAsyHC5yaW1nb3Zlcm5vci5jbG9j",
+            "ay52MS5IZWFsdGgSQQoLc3VwcHJlc3Npb24YBCABKA4yJy5yaW1nb3Zlcm5v",
+            "ci5jbG9jay52MS5Jbmp1cnlTdXBwcmVzc2lvbkgAiAEBEiIKFWNvb2xkb3du",
+            "X3JlbWFpbmluZ19tcxgFIAEoDUgBiAEBEhYKCW5ld193b3VuZBgGIAEoCEgC",
+            "iAEBQg4KDF9zdXBwcmVzc2lvbkIYChZfY29vbGRvd25fcmVtYWluaW5nX21z",
+            "QgwKCl9uZXdfd291bmQikAIKD0hlYWx0aFRocmVzaG9sZBItCgRwYXduGAEg",
+            "ASgLMh8ucmltZ292ZXJub3IuY2xvY2sudjEuUGF3bkV2ZW50EhwKD2hlYWx0",
+            "aF9hdF9zdGFydBgCIAEoAkgAiAEBEhcKCmhlYWx0aF9ub3cYAyABKAJIAYgB",
+            "ARIgChNtaW5faGVhbHRoX2ZyYWN0aW9uGAQgASgCSAKIAQESIQoUaGVhbHRo",
+            "X2Ryb3BfZnJhY3Rpb24YBSABKAJIA4gBAUISChBfaGVhbHRoX2F0X3N0YXJ0",
+            "Qg0KC19oZWFsdGhfbm93QhYKFF9taW5faGVhbHRoX2ZyYWN0aW9uQhcKFV9o",
+            "ZWFsdGhfZHJvcF9mcmFjdGlvbiLAAgoPSG9zdGlsZXNDbGVhcmVkEjgKD2Rv",
+            "d25lZF9ob3N0aWxlcxgBIAMoCzIfLnJpbWdvdmVybm9yLmNsb2NrLnYxLlBh",
+            "d25FdmVudBI6ChFkcmFmdGVkX2NvbG9uaXN0cxgCIAMoCzIfLnJpbWdvdmVy",
+            "bm9yLmNsb2NrLnYxLlBhd25FdmVudBImChljb25zY2lvdXNfaG9zdGlsZXNf",
+            "YmVmb3JlGAMgASgFSACIAQESIQoUYWNyb3NzX2Vwb2NoX3Jlc3RhcnQYBCAB",
+            "KAhIAYgBARI1Cgxjb21wbGV0ZW5lc3MYBSABKAsyHy5yaW1nb3Zlcm5vci5j",
+            "b21tb24udjEuUGFnZUluZm9CHAoaX2NvbnNjaW91c19ob3N0aWxlc19iZWZv",
+            "cmVCFwoVX2Fjcm9zc19lcG9jaF9yZXN0YXJ0Io8BCg1CdWRnZXRSZWFjaGVk",
+            "EhcKCnN0YXJ0X3RpY2sYASABKANIAIgBARIaCg10aWNrX2RlYWRsaW5lGAIg",
+            "ASgDSAGIAQESGAoLYWN0dWFsX3RpY2sYAyABKANIAogBAUINCgtfc3RhcnRf",
+            "dGlja0IQCg5fdGlja19kZWFkbGluZUIOCgxfYWN0dWFsX3RpY2si+gMKDVBh",
+            "dXNlRXZpZGVuY2USGgoNYWN0dWFsX3BhdXNlZBgBIAEoCEgAiAEBEhwKD3Bh",
+            "dXNlX3JlcXVlc3RlZBgCIAEoCEgBiAEBEhsKDnBhdXNlX3ZlcmlmaWVkGAMg",
+            "ASgISAKIAQESIAoYZm9yY2VfcGF1c2luZ193aW5kb3dfaWRzGAQgAygJEh8K",
+            "EmxvbmdfZXZlbnRfcGVuZGluZxgFIAEoCEgDiAEBEiwKBmxldHRlchgGIAEo",
+            "CzIcLnJpbWdvdmVybm9yLmNsb2NrLnYxLkxldHRlchI5Cg9yZXF1ZXN0ZWRf",
+            "c3BlZWQYByABKA4yGy5yaW1nb3Zlcm5vci5jbG9jay52MS5TcGVlZEgEiAEB",
+            "Ej4KDGFjdHVhbF9zcGVlZBgIIAEoDjIjLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "Lk9ic2VydmVkU3BlZWRIBYgBARIxCgZkaWFsb2cYCSABKAsyIS5yaW1nb3Zl",
+            "cm5vci5jbG9jay52MS5EaWFsb2dQYXVzZUIQCg5fYWN0dWFsX3BhdXNlZEIS",
+            "ChBfcGF1c2VfcmVxdWVzdGVkQhEKD19wYXVzZV92ZXJpZmllZEIVChNfbG9u",
+            "Z19ldmVudF9wZW5kaW5nQhIKEF9yZXF1ZXN0ZWRfc3BlZWRCDwoNX2FjdHVh",
+            "bF9zcGVlZCJ7CgtEaWFsb2dQYXVzZRIWCgl3aW5kb3dfaWQYASABKAVIAIgB",
+            "ARIYCgt3aW5kb3dfdHlwZRgCIAEoCUgBiAEBEhIKBXRpdGxlGAMgASgJSAKI",
+            "AQFCDAoKX3dpbmRvd19pZEIOCgxfd2luZG93X3R5cGVCCAoGX3RpdGxlIvUC",
+            "ChBPcGVyYXRpb25PdXRjb21lEjIKB2F0dGVtcHQYASABKAsyIS5yaW1nb3Zl",
+            "cm5vci5jb21tb24udjEuQXR0ZW1wdEtleRIZCgxsYXRjaGVkX3RpY2sYAiAB",
+            "KANIAYgBARI9Cgljb21wbGV0ZWQYAyABKAsyKC5yaW1nb3Zlcm5vci5yZWNl",
+            "aXB0cy52MS5Db21wbGV0ZWRFZmZlY3RIABJDCgx1bnN1Y2Nlc3NmdWwYBCAB",
+            "KAsyKy5yaW1nb3Zlcm5vci5yZWNlaXB0cy52MS5VbnN1Y2Nlc3NmdWxFZmZl",
+            "Y3RIABI3CgZhYnNlbnQYBSABKAsyJS5yaW1nb3Zlcm5vci5yZWNlaXB0cy52",
+            "MS5BYnNlbnRFZmZlY3RIABI5Cgd1bmtub3duGAYgASgLMiYucmltZ292ZXJu",
+            "b3IucmVjZWlwdHMudjEuVW5rbm93bkVmZmVjdEgAQgkKB291dGNvbWVCDwoN",
+            "X2xhdGNoZWRfdGljayK0AQoQQXV0aG9yaXR5Q2hhbmdlZBIXCgpnZW5lcmF0",
+            "aW9uGAEgASgESACIAQESIAoTcHJldmlvdXNfZ2VuZXJhdGlvbhgCIAEoBEgB",
+            "iAEBEhMKBnJlYXNvbhgDIAEoCUgCiAEBEhMKBmFjdGl2ZRgEIAEoCEgDiAEB",
+            "Qg0KC19nZW5lcmF0aW9uQhYKFF9wcmV2aW91c19nZW5lcmF0aW9uQgkKB19y",
+            "ZWFzb25CCQoHX2FjdGl2ZSJ1CgxXYXRjaExhdGNoZWQSNwoHb3V0Y29tZRgB",
+            "IAEoCzImLnJpbWdvdmVybm9yLmNsb2NrLnYxLk9wZXJhdGlvbk91dGNvbWUS",
+            "GgoNdGlja19kZWFkbGluZRgCIAEoA0gAiAEBQhAKDl90aWNrX2RlYWRsaW5l",
+            "IvIECglTdG9wRXZlbnQSNQoGcmVhc29uGAEgASgOMiAucmltZ292ZXJub3Iu",
+            "Y2xvY2sudjEuU3RvcFJlYXNvbkgBiAEBEkAKDW5vdGlmaWNhdGlvbnMYAiAB",
+            "KAsyJy5yaW1nb3Zlcm5vci5jbG9jay52MS5Ob3RpZmljYXRpb25CYXRjaEgA",
+            "Ei8KBHBhd24YAyABKAsyHy5yaW1nb3Zlcm5vci5jbG9jay52MS5QYXduRXZl",
+            "bnRIABIuCgZpbmp1cnkYBCABKAsyHC5yaW1nb3Zlcm5vci5jbG9jay52MS5J",
+            "bmp1cnlIABI3CgZoZWFsdGgYBSABKAsyJS5yaW1nb3Zlcm5vci5jbG9jay52",
+            "MS5IZWFsdGhUaHJlc2hvbGRIABI1CgZidWRnZXQYBiABKAsyIy5yaW1nb3Zl",
+            "cm5vci5jbG9jay52MS5CdWRnZXRSZWFjaGVkSAASNAoFcGF1c2UYByABKAsy",
+            "Iy5yaW1nb3Zlcm5vci5jbG9jay52MS5QYXVzZUV2aWRlbmNlSAASOQoLdW5h",
+            "dmFpbGFibGUYCCABKAsyIi5yaW1nb3Zlcm5vci5jb21tb24udjEuVW5hdmFp",
+            "bGFibGVIABIzCgV3YXRjaBgJIAEoCzIiLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LldhdGNoTGF0Y2hlZEgAEhoKDWRldGVjdGVkX3RpY2sYCiABKANIAogBARIc",
+            "Cg9vY2N1cnJlbmNlX3RpY2sYCyABKANIA4gBAUIKCghldmlkZW5jZUIJCgdf",
+            "cmVhc29uQhAKDl9kZXRlY3RlZF90aWNrQhIKEF9vY2N1cnJlbmNlX3RpY2si",
+            "OgoMRXBvY2hTdGFydGVkEioKBWVwb2NoGAEgASgLMhsucmltZ292ZXJub3Iu",
+            "Y2xvY2sudjEuRXBvY2gisAEKFk9ic2VydmF0aW9uSW52YWxpZGF0ZWQSMgoI",
+            "ZmFtaWxpZXMYASADKA4yIC5yaW1nb3Zlcm5vci5jbG9jay52MS5GYWN0RmFt",
+            "aWx5EhMKBnJlYXNvbhgCIAEoCUgAiAEBEhIKCmVudGl0eV9pZHMYAyADKAkS",
+            "LgoFY2VsbHMYBCABKAsyHy5yaW1nb3Zlcm5vci5jbG9jay52MS5SZWN0YW5n",
+            "bGVCCQoHX3JlYXNvbiJnCglSZWN0YW5nbGUSLAoHbWluaW11bRgBIAEoCzIb",
+            "LnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEiwKB21heGltdW0YAiABKAsy",
+            "Gy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbCL3AQoMU3BlZWRDaGFuZ2Vk",
+            "Ei8KBXNwZWVkGAEgASgOMhsucmltZ292ZXJub3IuY2xvY2sudjEuU3BlZWRI",
+            "AIgBARIhChRtYXhfdGlja3NfcGVyX3NlY29uZBgCIAEoDUgBiAEBEicKGnJl",
+            "Z3VsYXRlZF90aWNrc19wZXJfc2Vjb25kGAMgASgNSAKIAQESGAoLYmxpbmRf",
+            "dGlja3MYBCABKANIA4gBAUIICgZfc3BlZWRCFwoVX21heF90aWNrc19wZXJf",
+            "c2Vjb25kQh0KG19yZWd1bGF0ZWRfdGlja3NfcGVyX3NlY29uZEIOCgxfYmxp",
+            "bmRfdGlja3MiPwoLUGF1c2VGYWlsZWQSMAoHcGVuZGluZxgBIAEoCzIfLnJp",
+            "bWdvdmVybm9yLmNsb2NrLnYxLlN0b3BFdmVudCKRAQoRRm9yY2VQYXVzZVdh",
+            "aXRpbmcSMgoFcGF1c2UYASABKAsyIy5yaW1nb3Zlcm5vci5jbG9jay52MS5Q",
+            "YXVzZUV2aWRlbmNlEhYKCXdhaXRlZF9tcxgCIAEoBEgAiAEBEhUKCGdyYWNl",
+            "X21zGAMgASgNSAGIAQFCDAoKX3dhaXRlZF9tc0ILCglfZ3JhY2VfbXMinQEK",
+            "EUZvcmNlUGF1c2VDbGVhcmVkEhYKCXdhaXRlZF9tcxgBIAEoBEgAiAEBEh0K",
+            "EGZvcmNlX3BhdXNlX2tpbmQYAiABKAlIAYgBARIbCg5zcGVlZF9yZXN0b3Jl",
+            "ZBgDIAEoCEgCiAEBQgwKCl93YWl0ZWRfbXNCEwoRX2ZvcmNlX3BhdXNlX2tp",
+            "bmRCEQoPX3NwZWVkX3Jlc3RvcmVkIt0ICgVFdmVudBITCgZjdXJzb3IYASAB",
+            "KANIAYgBARIvCgVvd25lchgCIAEoCzIgLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LkVwb2NoT3duZXISOgoHY29udGV4dBgDIAEoCzIpLnJpbWdvdmVybm9yLmNv",
+            "bW1vbi52MS5PYnNlcnZhdGlvbkNvbnRleHQSIAoTb2JzZXJ2ZWRfYXRfdW5p",
+            "eF9tcxgEIAEoA0gCiAEBEhMKBmRldGFpbBgFIAEoCUgDiAEBEjUKB3N0YXJ0",
+            "ZWQYBiABKAsyIi5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9jaFN0YXJ0ZWRI",
+            "ABI7Cg1zcGVlZF9jaGFuZ2VkGAcgASgLMiIucmltZ292ZXJub3IuY2xvY2su",
+            "djEuU3BlZWRDaGFuZ2VkSAASMgoHc3RvcHBlZBgIIAEoCzIfLnJpbWdvdmVy",
+            "bm9yLmNsb2NrLnYxLlN0b3BFdmVudEgAEjoKDG5vdGlmaWNhdGlvbhgJIAEo",
+            "CzIiLnJpbWdvdmVybm9yLmNsb2NrLnYxLk5vdGlmaWNhdGlvbkgAEiwKBWFs",
+            "ZXJ0GAogASgLMhsucmltZ292ZXJub3IuY2xvY2sudjEuQWxlcnRIABI3Cg9p",
+            "bmp1cnlfb2JzZXJ2ZWQYCyABKAsyHC5yaW1nb3Zlcm5vci5jbG9jay52MS5J",
+            "bmp1cnlIABJBChBob3N0aWxlc19jbGVhcmVkGAwgASgLMiUucmltZ292ZXJu",
+            "b3IuY2xvY2sudjEuSG9zdGlsZXNDbGVhcmVkSAASOQoMcGF1c2VfZmFpbGVk",
+            "GA0gASgLMiEucmltZ292ZXJub3IuY2xvY2sudjEuUGF1c2VGYWlsZWRIABJG",
+            "ChNmb3JjZV9wYXVzZV93YWl0aW5nGA4gASgLMicucmltZ292ZXJub3IuY2xv",
+            "Y2sudjEuRm9yY2VQYXVzZVdhaXRpbmdIABJGChNmb3JjZV9wYXVzZV9jbGVh",
+            "cmVkGA8gASgLMicucmltZ292ZXJub3IuY2xvY2sudjEuRm9yY2VQYXVzZUNs",
+            "ZWFyZWRIABJDChFvcGVyYXRpb25fb3V0Y29tZRgQIAEoCzImLnJpbWdvdmVy",
+            "bm9yLmNsb2NrLnYxLk9wZXJhdGlvbk91dGNvbWVIABJDChFhdXRob3JpdHlf",
+            "Y2hhbmdlZBgRIAEoCzImLnJpbWdvdmVybm9yLmNsb2NrLnYxLkF1dGhvcml0",
+            "eUNoYW5nZWRIABJPChdvYnNlcnZhdGlvbl9pbnZhbGlkYXRlZBgSIAEoCzIs",
+            "LnJpbWdvdmVybm9yLmNsb2NrLnYxLk9ic2VydmF0aW9uSW52YWxpZGF0ZWRI",
+            "ABIcCg9hZ2VfYXRfcmVwbHlfbXMYEyABKARIBIgBAUIHCgVldmVudEIJCgdf",
+            "Y3Vyc29yQhYKFF9vYnNlcnZlZF9hdF91bml4X21zQgkKB19kZXRhaWxCEgoQ",
+            "X2FnZV9hdF9yZXBseV9tcyKuAQoNRXZlbnRzUmVxdWVzdBIxCghpZGVudGl0",
+            "eRgBIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIZCgxh",
+            "ZnRlcl9jdXJzb3IYAiABKANIAIgBARISCgVsaW1pdBgDIAEoDUgBiAEBEhQK",
+            "B3dhaXRfbXMYBCABKA1IAogBAUIPCg1fYWZ0ZXJfY3Vyc29yQggKBl9saW1p",
+            "dEIKCghfd2FpdF9tcyK9AgoKRXZlbnRzUGFnZRI6Cgdjb250ZXh0GAEgASgL",
+            "MikucmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBIr",
+            "CgZldmVudHMYAiADKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVudBIa",
+            "Cg1vbGRlc3RfY3Vyc29yGAMgASgDSACIAQESGgoNbmV3ZXN0X2N1cnNvchgE",
+            "IAEoA0gBiAEBEhgKC25leHRfY3Vyc29yGAUgASgDSAKIAQESEAoDZ2FwGAYg",
+            "ASgISAOIAQESFwoKbG9zdF9jb3VudBgHIAEoBEgEiAEBQhAKDl9vbGRlc3Rf",
+            "Y3Vyc29yQhAKDl9uZXdlc3RfY3Vyc29yQg4KDF9uZXh0X2N1cnNvckIGCgRf",
+            "Z2FwQg0KC19sb3N0X2NvdW50In0KC0V2ZW50c1JlcGx5EjAKBHBhZ2UYASAB",
+            "KAsyIC5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVudHNQYWdlSAASMQoHZmFp",
+            "bHVyZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABC",
+            "CQoHb3V0Y29tZSpqCgVTcGVlZBIVChFTUEVFRF9VTlNQRUNJRklFRBAAEhAK",
+            "DFNQRUVEX05PUk1BTBABEg4KClNQRUVEX0ZBU1QQAhITCg9TUEVFRF9TVVBF",
+            "UkZBU1QQAxITCg9TUEVFRF9VTFRSQUZBU1QQBCq6AQoNT2JzZXJ2ZWRTcGVl",
+            "ZBIeChpPQlNFUlZFRF9TUEVFRF9VTlNQRUNJRklFRBAAEhkKFU9CU0VSVkVE",
+            "X1NQRUVEX1BBVVNFRBABEhkKFU9CU0VSVkVEX1NQRUVEX05PUk1BTBACEhcK",
+            "E09CU0VSVkVEX1NQRUVEX0ZBU1QQAxIcChhPQlNFUlZFRF9TUEVFRF9TVVBF",
+            "UkZBU1QQBBIcChhPQlNFUlZFRF9TUEVFRF9VTFRSQUZBU1QQBSpRCgZQYWNp",
+            "bmcSFgoSUEFDSU5HX1VOU1BFQ0lGSUVEEAASEAoMUEFDSU5HX0ZJWEVEEAES",
+            "HQoZUEFDSU5HX1BMQVlFUl9BQ0NFTEVSQVRFRBACKuABCgxQYWNpbmdSZWFz",
+            "b24SHQoZUEFDSU5HX1JFQVNPTl9VTlNQRUNJRklFRBAAEhcKE1BBQ0lOR19S",
+            "RUFTT05fRklYRUQQARIdChlQQUNJTkdfUkVBU09OX0FDQ0VMRVJBVEVEEAIS",
+            "HgoaUEFDSU5HX1JFQVNPTl9GUkFNRV9CVURHRVQQAxIhCh1QQUNJTkdfUkVB",
+            "U09OX0ZPUkNFRF9TTE9XRE9XThAEEhsKF1BBQ0lOR19SRUFTT05fUkVHVUxB",
+            "VEVEEAUSGQoVUEFDSU5HX1JFQVNPTl9DRUlMSU5HEAYqVQoJV2F0Y2hNb2Rl",
+            "EhoKFldBVENIX01PREVfVU5TUEVDSUZJRUQQABIVChFXQVRDSF9NT0RFX0NP",
+            "TE9OWRABEhUKEVdBVENIX01PREVfQ09NQkFUEAIqkgYKClN0b3BSZWFzb24S",
+            "GwoXU1RPUF9SRUFTT05fVU5TUEVDSUZJRUQQABIfChtTVE9QX1JFQVNPTl9S",
+            "RVFVRVNURURfUEFVU0UQARIbChdTVE9QX1JFQVNPTl9USUNLX0JVREdFVBAC",
+            "Eh8KG1NUT1BfUkVBU09OX1NFU1NJT05fQ0hBTkdFRBADEhsKF1NUT1BfUkVB",
+            "U09OX1VOQVZBSUxBQkxFEAQSHgoaU1RPUF9SRUFTT05fRVhURVJOQUxfUEFV",
+            "U0UQBRIcChhTVE9QX1JFQVNPTl9MRVRURVJfUEFVU0UQBhImCiJTVE9QX1JF",
+            "QVNPTl9FWFRFUk5BTF9TUEVFRF9DSEFOR0VEEAcSHQoZU1RPUF9SRUFTT05f",
+            "TEVBU0VfRVhQSVJFRBAIEh0KGVNUT1BfUkVBU09OX1dBVENIRVJfRVJST1IQ",
+            "CRIjCh9TVE9QX1JFQVNPTl9FVkVOVF9KT1VSTkFMX0VSUk9SEAoSHAoYU1RP",
+            "UF9SRUFTT05fRk9SQ0VfUEFVU0VEEAsSHQoZU1RPUF9SRUFTT05fQ09MT05Z",
+            "X05BTUlORxAMEh0KGVNUT1BfUkVBU09OX1NUQVJUX1JFRlVTRUQQDRIiCh5T",
+            "VE9QX1JFQVNPTl9OT1RJRklDQVRJT05fQkFUQ0gQDhIkCiBTVE9QX1JFQVNP",
+            "Tl9NRURJQ0FMX1JFU1RfQ0hBTkdFRBAPEhcKE1NUT1BfUkVBU09OX0hPU1RJ",
+            "TEUQEBIfChtTVE9QX1JFQVNPTl9DT0xPTklTVF9ET1dORUQQERIdChlTVE9Q",
+            "X1JFQVNPTl9QUkVEQVRPUl9IVU5UEBISJAogU1RPUF9SRUFTT05fSFVOVElO",
+            "R19ST1VURV9VTlNBRkUQExIfChtTVE9QX1JFQVNPTl9DT0xPTklTVF9IRUFM",
+            "VEgQFBIfChtTVE9QX1JFQVNPTl9DT0xPTklTVF9JTkpVUlkQFRIdChlTVE9Q",
+            "X1JFQVNPTl9XQVRDSF9MQVRDSEVEEBYSHAoYU1RPUF9SRUFTT05fRElBTE9H",
+            "X1BBVVNFEBcqmgEKEUluanVyeVN1cHByZXNzaW9uEiIKHklOSlVSWV9TVVBQ",
+            "UkVTU0lPTl9VTlNQRUNJRklFRBAAEhsKF0lOSlVSWV9TVVBQUkVTU0lPTl9O",
+            "T05FEAESIwofSU5KVVJZX1NVUFBSRVNTSU9OX0FDS05PV0xFREdFRBACEh8K",
+            "G0lOSlVSWV9TVVBQUkVTU0lPTl9DT09MRE9XThADKvIBCgpGYWN0RmFtaWx5",
+            "EhsKF0ZBQ1RfRkFNSUxZX1VOU1BFQ0lGSUVEEAASGwoXRkFDVF9GQU1JTFlf",
+            "REVGSU5JVElPTlMQARIVChFGQUNUX0ZBTUlMWV9XT1JMRBACEhgKFEZBQ1Rf",
+            "RkFNSUxZX0lERU5USVRZEAMSFgoSRkFDVF9GQU1JTFlfQ09MT05ZEAQSFQoR",
+            "RkFDVF9GQU1JTFlfUEFXTlMQBRIZChVGQUNUX0ZBTUlMWV9FTUVSR0VOQ1kQ",
+            "BhIVChFGQUNUX0ZBTUlMWV9ST09NUxAHEhgKFEZBQ1RfRkFNSUxZX1JFU0VB",
+            "UkNIEAgy1QQKBUNsb2NrElQKClJlYWRTdGF0dXMSIy5yaW1nb3Zlcm5vci5j",
+            "bG9jay52MS5TdGF0dXNSZXF1ZXN0GiEucmltZ292ZXJub3IuY2xvY2sudjEu",
+            "U3RhdHVzUmVwbHkSVAoKUmVhZEV2ZW50cxIjLnJpbWdvdmVybm9yLmNsb2Nr",
+            "LnYxLkV2ZW50c1JlcXVlc3QaIS5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVu",
+            "dHNSZXBseRJXCgtSZWFkQXR0ZW1wdBIkLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LkF0dGVtcHRSZXF1ZXN0GiIucmltZ292ZXJub3IuY2xvY2sudjEuQXR0ZW1w",
+            "dFJlcGx5Ek8KBVN0YXJ0EiIucmltZ292ZXJub3IuY2xvY2sudjEuU3RhcnRS",
+            "ZXF1ZXN0GiIucmltZ292ZXJub3IuY2xvY2sudjEuQ29udHJvbFJlcGx5Ek4K",
+            "BVBhdXNlEiIucmltZ292ZXJub3IuY2xvY2sudjEuT3duZWRSZXF1ZXN0GiEu",
+            "cmltZ292ZXJub3IuY2xvY2sudjEuU3RhdHVzUmVwbHkSTwoFUmVuZXcSIi5y",
+            "aW1nb3Zlcm5vci5jbG9jay52MS5SZW5ld1JlcXVlc3QaIi5yaW1nb3Zlcm5v",
+            "ci5jbG9jay52MS5Db250cm9sUmVwbHkSVQoLQ2hhbmdlU3BlZWQSIi5yaW1n",
+            "b3Zlcm5vci5jbG9jay52MS5TcGVlZFJlcXVlc3QaIi5yaW1nb3Zlcm5vci5j",
+            "bG9jay52MS5Db250cm9sUmVwbHlCYlpDZ2l0aHViLmNvbS9kYXZpZGFyY2hl",
+            "ci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL2Nsb2NrcGI7Y2xvY2tw",
+            "YqoCGlJpbUdvdmVybm9yLlByb3RvY29sLkNsb2NrYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor, global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Clock.Speed), typeof(global::RimGovernor.Protocol.Clock.ObservedSpeed), typeof(global::RimGovernor.Protocol.Clock.WatchMode), typeof(global::RimGovernor.Protocol.Clock.StopReason), typeof(global::RimGovernor.Protocol.Clock.InjurySuppression), typeof(global::RimGovernor.Protocol.Clock.FactFamily), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Clock.Speed), typeof(global::RimGovernor.Protocol.Clock.ObservedSpeed), typeof(global::RimGovernor.Protocol.Clock.Pacing), typeof(global::RimGovernor.Protocol.Clock.PacingReason), typeof(global::RimGovernor.Protocol.Clock.WatchMode), typeof(global::RimGovernor.Protocol.Clock.StopReason), typeof(global::RimGovernor.Protocol.Clock.InjurySuppression), typeof(global::RimGovernor.Protocol.Clock.FactFamily), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.WatchPolicy), global::RimGovernor.Protocol.Clock.WatchPolicy.Parser, new[]{ "Mode", "HealthDropFraction", "MinHealthFraction", "HostileWithin", "AcknowledgedHostileIds", "AcknowledgedDownedColonistIds", "AcknowledgedInjuredColonistIds", "InjuryStopCooldownMs", "SurgicalRecoveryIds", "MedicalRestIds", "WatchedAttempts", "ResourceThresholds" }, new[]{ "Mode", "HealthDropFraction", "MinHealthFraction", "HostileWithin", "InjuryStopCooldownMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.ResourceThreshold), global::RimGovernor.Protocol.Clock.ResourceThreshold.Parser, new[]{ "DefName", "Level" }, new[]{ "DefName", "Level" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.EpochOwner), global::RimGovernor.Protocol.Clock.EpochOwner.Parser, new[]{ "ControllerSessionId", "Epoch" }, new[]{ "ControllerSessionId", "Epoch" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StartRequest), global::RimGovernor.Protocol.Clock.StartRequest.Parser, new[]{ "Authority", "Speed", "Policy", "LeaseMs", "MaxTicks", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond" }, new[]{ "Speed", "LeaseMs", "MaxTicks", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StartRequest), global::RimGovernor.Protocol.Clock.StartRequest.Parser, new[]{ "Authority", "Speed", "Policy", "LeaseMs", "MaxTicks", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "Pacing", "FrameBudgetMs" }, new[]{ "Speed", "LeaseMs", "MaxTicks", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "Pacing", "FrameBudgetMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.OwnedRequest), global::RimGovernor.Protocol.Clock.OwnedRequest.Parser, new[]{ "Identity", "Owner" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.RenewRequest), global::RimGovernor.Protocol.Clock.RenewRequest.Parser, new[]{ "Epoch", "Authority", "LeaseMs" }, new[]{ "LeaseMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.SpeedRequest), global::RimGovernor.Protocol.Clock.SpeedRequest.Parser, new[]{ "Epoch", "Authority", "Speed", "MaxTicksPerSecond" }, new[]{ "Speed", "MaxTicksPerSecond" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StatusRequest), global::RimGovernor.Protocol.Clock.StatusRequest.Parser, new[]{ "Identity" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Epoch), global::RimGovernor.Protocol.Clock.Epoch.Parser, new[]{ "Owner", "Origin", "RequestedSpeed", "Policy", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "RegulatedTicksPerSecond" }, new[]{ "RequestedSpeed", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "RegulatedTicksPerSecond" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Epoch), global::RimGovernor.Protocol.Clock.Epoch.Parser, new[]{ "Owner", "Origin", "RequestedSpeed", "Policy", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "RegulatedTicksPerSecond", "Pacing", "FrameBudgetMs", "PacedTicksPerSecond", "PacingReason" }, new[]{ "RequestedSpeed", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "RegulatedTicksPerSecond", "Pacing", "FrameBudgetMs", "PacedTicksPerSecond", "PacingReason" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Running), global::RimGovernor.Protocol.Clock.Running.Parser, new[]{ "Epoch" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Stopping), global::RimGovernor.Protocol.Clock.Stopping.Parser, new[]{ "Epoch", "PendingReason", "Detail", "ActualPaused" }, new[]{ "PendingReason", "Detail", "ActualPaused" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Stopped), global::RimGovernor.Protocol.Clock.Stopped.Parser, new[]{ "Epoch", "Reason", "Detail", "ActualPaused", "PauseVerified", "PauseRequested", "StoppedAtUnixMs" }, new[]{ "Reason", "Detail", "ActualPaused", "PauseVerified", "PauseRequested", "StoppedAtUnixMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.NeverStarted), global::RimGovernor.Protocol.Clock.NeverStarted.Parser, null, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Status), global::RimGovernor.Protocol.Clock.Status.Parser, new[]{ "Context", "Running", "Stopping", "Stopped", "NeverStarted", "Unavailable", "NativeTickBoundary", "DurableEvents", "NewestCursor", "WatcherError", "ForcePauseWaitingMs", "ForcePauseKind", "MaxProbeTickGap", "ProbeCount", "BaselineAlerts", "SuppressedInjuries", "EvidenceCompleteness", "ObservedSpeed", "ActualPaused", "TestAccelerationAvailable", "PausedMs", "RunningMs", "ProbeElapsedMs", "DigestElapsedMs", "ProbeTotal", "DigestTotal", "SessionMaxProbeTickGap", "HazardGaps" }, new[]{ "State", "NativeTickBoundary", "DurableEvents", "NewestCursor", "WatcherError", "ForcePauseWaitingMs", "ForcePauseKind", "MaxProbeTickGap", "ProbeCount", "ObservedSpeed", "ActualPaused", "TestAccelerationAvailable", "PausedMs", "RunningMs", "ProbeElapsedMs", "DigestElapsedMs", "ProbeTotal", "DigestTotal", "SessionMaxProbeTickGap" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Status), global::RimGovernor.Protocol.Clock.Status.Parser, new[]{ "Context", "Running", "Stopping", "Stopped", "NeverStarted", "Unavailable", "NativeTickBoundary", "DurableEvents", "NewestCursor", "WatcherError", "ForcePauseWaitingMs", "ForcePauseKind", "MaxProbeTickGap", "ProbeCount", "BaselineAlerts", "SuppressedInjuries", "EvidenceCompleteness", "ObservedSpeed", "ActualPaused", "TestAccelerationAvailable", "PausedMs", "RunningMs", "ProbeElapsedMs", "DigestElapsedMs", "ProbeTotal", "DigestTotal", "SessionMaxProbeTickGap", "HazardGaps", "EffectiveTicksPerSecond", "PacedFrames", "PacedFramesOverBudget", "MaxPacedFrameMs" }, new[]{ "State", "NativeTickBoundary", "DurableEvents", "NewestCursor", "WatcherError", "ForcePauseWaitingMs", "ForcePauseKind", "MaxProbeTickGap", "ProbeCount", "ObservedSpeed", "ActualPaused", "TestAccelerationAvailable", "PausedMs", "RunningMs", "ProbeElapsedMs", "DigestElapsedMs", "ProbeTotal", "DigestTotal", "SessionMaxProbeTickGap", "EffectiveTicksPerSecond", "PacedFrames", "PacedFramesOverBudget", "MaxPacedFrameMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.HazardGap), global::RimGovernor.Protocol.Clock.HazardGap.Parser, new[]{ "HazardClass", "BoundTicks", "MaxTickGap", "Hooked" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StatusReply), global::RimGovernor.Protocol.Clock.StatusReply.Parser, new[]{ "Status", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.LongEventPending), global::RimGovernor.Protocol.Clock.LongEventPending.Parser, new[]{ "Detail" }, new[]{ "Detail" }, null, null, null),
@@ -444,6 +464,36 @@ namespace RimGovernor.Protocol.Clock {
     [pbr::OriginalName("OBSERVED_SPEED_FAST")] Fast = 3,
     [pbr::OriginalName("OBSERVED_SPEED_SUPERFAST")] Superfast = 4,
     [pbr::OriginalName("OBSERVED_SPEED_ULTRAFAST")] Ultrafast = 5,
+  }
+
+  /// <summary>
+  /// How a running Ultrafast epoch paces its ticks (#627). FIXED is the speed's
+  /// own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
+  /// boosted rate while the frame's tick work stays inside frame_budget_ms, so
+  /// input, rendering and control dispatch keep their share of each frame; the
+  /// game's forced slowdown still holds it at Normal. It needs no test launch.
+  /// </summary>
+  public enum Pacing {
+    [pbr::OriginalName("PACING_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("PACING_FIXED")] Fixed = 1,
+    [pbr::OriginalName("PACING_PLAYER_ACCELERATED")] PlayerAccelerated = 2,
+  }
+
+  /// <summary>
+  /// What bounds the running epoch's tick rate right now (#627), most binding
+  /// first: the game's forced slowdown, the blind-tick regulator, the owner's
+  /// max_ticks_per_second (the controller's backoff), the frame budget; else
+  /// the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
+  /// (FIXED).
+  /// </summary>
+  public enum PacingReason {
+    [pbr::OriginalName("PACING_REASON_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("PACING_REASON_FIXED")] Fixed = 1,
+    [pbr::OriginalName("PACING_REASON_ACCELERATED")] Accelerated = 2,
+    [pbr::OriginalName("PACING_REASON_FRAME_BUDGET")] FrameBudget = 3,
+    [pbr::OriginalName("PACING_REASON_FORCED_SLOWDOWN")] ForcedSlowdown = 4,
+    [pbr::OriginalName("PACING_REASON_REGULATED")] Regulated = 5,
+    [pbr::OriginalName("PACING_REASON_CEILING")] Ceiling = 6,
   }
 
   public enum WatchMode {
@@ -1713,6 +1763,8 @@ namespace RimGovernor.Protocol.Clock {
       testAcceleration_ = other.testAcceleration_;
       blindTickBudget_ = other.blindTickBudget_;
       maxTicksPerSecond_ = other.maxTicksPerSecond_;
+      pacing_ = other.pacing_;
+      frameBudgetMs_ = other.frameBudgetMs_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -1929,6 +1981,65 @@ namespace RimGovernor.Protocol.Clock {
       _hasBits0 &= ~32;
     }
 
+    /// <summary>Field number for the "pacing" field.</summary>
+    public const int PacingFieldNumber = 9;
+    private readonly static global::RimGovernor.Protocol.Clock.Pacing PacingDefaultValue = global::RimGovernor.Protocol.Clock.Pacing.Unspecified;
+
+    private global::RimGovernor.Protocol.Clock.Pacing pacing_;
+    /// <summary>
+    /// PACING_PLAYER_ACCELERATED requires SPEED_ULTRAFAST and excludes
+    /// test_acceleration; absent is PACING_FIXED. frame_budget_ms (5..45,
+    /// absent = 30) is the wall time per frame the tick loop may take.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Clock.Pacing Pacing {
+      get { if ((_hasBits0 & 64) != 0) { return pacing_; } else { return PacingDefaultValue; } }
+      set {
+        _hasBits0 |= 64;
+        pacing_ = value;
+      }
+    }
+    /// <summary>Gets whether the "pacing" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPacing {
+      get { return (_hasBits0 & 64) != 0; }
+    }
+    /// <summary>Clears the value of the "pacing" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPacing() {
+      _hasBits0 &= ~64;
+    }
+
+    /// <summary>Field number for the "frame_budget_ms" field.</summary>
+    public const int FrameBudgetMsFieldNumber = 10;
+    private readonly static uint FrameBudgetMsDefaultValue = 0;
+
+    private uint frameBudgetMs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint FrameBudgetMs {
+      get { if ((_hasBits0 & 128) != 0) { return frameBudgetMs_; } else { return FrameBudgetMsDefaultValue; } }
+      set {
+        _hasBits0 |= 128;
+        frameBudgetMs_ = value;
+      }
+    }
+    /// <summary>Gets whether the "frame_budget_ms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasFrameBudgetMs {
+      get { return (_hasBits0 & 128) != 0; }
+    }
+    /// <summary>Clears the value of the "frame_budget_ms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearFrameBudgetMs() {
+      _hasBits0 &= ~128;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -1952,6 +2063,8 @@ namespace RimGovernor.Protocol.Clock {
       if (TestAcceleration != other.TestAcceleration) return false;
       if (BlindTickBudget != other.BlindTickBudget) return false;
       if (MaxTicksPerSecond != other.MaxTicksPerSecond) return false;
+      if (Pacing != other.Pacing) return false;
+      if (FrameBudgetMs != other.FrameBudgetMs) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -1967,6 +2080,8 @@ namespace RimGovernor.Protocol.Clock {
       if (HasTestAcceleration) hash ^= TestAcceleration.GetHashCode();
       if (HasBlindTickBudget) hash ^= BlindTickBudget.GetHashCode();
       if (HasMaxTicksPerSecond) hash ^= MaxTicksPerSecond.GetHashCode();
+      if (HasPacing) hash ^= Pacing.GetHashCode();
+      if (HasFrameBudgetMs) hash ^= FrameBudgetMs.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2017,6 +2132,14 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(64);
         output.WriteUInt32(MaxTicksPerSecond);
       }
+      if (HasPacing) {
+        output.WriteRawTag(72);
+        output.WriteEnum((int) Pacing);
+      }
+      if (HasFrameBudgetMs) {
+        output.WriteRawTag(80);
+        output.WriteUInt32(FrameBudgetMs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2059,6 +2182,14 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(64);
         output.WriteUInt32(MaxTicksPerSecond);
       }
+      if (HasPacing) {
+        output.WriteRawTag(72);
+        output.WriteEnum((int) Pacing);
+      }
+      if (HasFrameBudgetMs) {
+        output.WriteRawTag(80);
+        output.WriteUInt32(FrameBudgetMs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2092,6 +2223,12 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (HasMaxTicksPerSecond) {
         size += 1 + pb::CodedOutputStream.ComputeUInt32Size(MaxTicksPerSecond);
+      }
+      if (HasPacing) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Pacing);
+      }
+      if (HasFrameBudgetMs) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(FrameBudgetMs);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2134,6 +2271,12 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (other.HasMaxTicksPerSecond) {
         MaxTicksPerSecond = other.MaxTicksPerSecond;
+      }
+      if (other.HasPacing) {
+        Pacing = other.Pacing;
+      }
+      if (other.HasFrameBudgetMs) {
+        FrameBudgetMs = other.FrameBudgetMs;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -2192,6 +2335,14 @@ namespace RimGovernor.Protocol.Clock {
             MaxTicksPerSecond = input.ReadUInt32();
             break;
           }
+          case 72: {
+            Pacing = (global::RimGovernor.Protocol.Clock.Pacing) input.ReadEnum();
+            break;
+          }
+          case 80: {
+            FrameBudgetMs = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -2247,6 +2398,14 @@ namespace RimGovernor.Protocol.Clock {
           }
           case 64: {
             MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 72: {
+            Pacing = (global::RimGovernor.Protocol.Clock.Pacing) input.ReadEnum();
+            break;
+          }
+          case 80: {
+            FrameBudgetMs = input.ReadUInt32();
             break;
           }
         }
@@ -3435,6 +3594,10 @@ namespace RimGovernor.Protocol.Clock {
       blindTickBudget_ = other.blindTickBudget_;
       maxTicksPerSecond_ = other.maxTicksPerSecond_;
       regulatedTicksPerSecond_ = other.regulatedTicksPerSecond_;
+      pacing_ = other.pacing_;
+      frameBudgetMs_ = other.frameBudgetMs_;
+      pacedTicksPerSecond_ = other.pacedTicksPerSecond_;
+      pacingReason_ = other.pacingReason_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3727,6 +3890,118 @@ namespace RimGovernor.Protocol.Clock {
       _hasBits0 &= ~256;
     }
 
+    /// <summary>Field number for the "pacing" field.</summary>
+    public const int PacingFieldNumber = 13;
+    private readonly static global::RimGovernor.Protocol.Clock.Pacing PacingDefaultValue = global::RimGovernor.Protocol.Clock.Pacing.Unspecified;
+
+    private global::RimGovernor.Protocol.Clock.Pacing pacing_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Clock.Pacing Pacing {
+      get { if ((_hasBits0 & 512) != 0) { return pacing_; } else { return PacingDefaultValue; } }
+      set {
+        _hasBits0 |= 512;
+        pacing_ = value;
+      }
+    }
+    /// <summary>Gets whether the "pacing" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPacing {
+      get { return (_hasBits0 & 512) != 0; }
+    }
+    /// <summary>Clears the value of the "pacing" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPacing() {
+      _hasBits0 &= ~512;
+    }
+
+    /// <summary>Field number for the "frame_budget_ms" field.</summary>
+    public const int FrameBudgetMsFieldNumber = 14;
+    private readonly static uint FrameBudgetMsDefaultValue = 0;
+
+    private uint frameBudgetMs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint FrameBudgetMs {
+      get { if ((_hasBits0 & 1024) != 0) { return frameBudgetMs_; } else { return FrameBudgetMsDefaultValue; } }
+      set {
+        _hasBits0 |= 1024;
+        frameBudgetMs_ = value;
+      }
+    }
+    /// <summary>Gets whether the "frame_budget_ms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasFrameBudgetMs {
+      get { return (_hasBits0 & 1024) != 0; }
+    }
+    /// <summary>Clears the value of the "frame_budget_ms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearFrameBudgetMs() {
+      _hasBits0 &= ~1024;
+    }
+
+    /// <summary>Field number for the "paced_ticks_per_second" field.</summary>
+    public const int PacedTicksPerSecondFieldNumber = 15;
+    private readonly static uint PacedTicksPerSecondDefaultValue = 0;
+
+    private uint pacedTicksPerSecond_;
+    /// <summary>
+    /// The tick rate the pacing holds right now (60 x the multiplier the game
+    /// ticks at), and what bounds it.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint PacedTicksPerSecond {
+      get { if ((_hasBits0 & 2048) != 0) { return pacedTicksPerSecond_; } else { return PacedTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 2048;
+        pacedTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "paced_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPacedTicksPerSecond {
+      get { return (_hasBits0 & 2048) != 0; }
+    }
+    /// <summary>Clears the value of the "paced_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPacedTicksPerSecond() {
+      _hasBits0 &= ~2048;
+    }
+
+    /// <summary>Field number for the "pacing_reason" field.</summary>
+    public const int PacingReasonFieldNumber = 16;
+    private readonly static global::RimGovernor.Protocol.Clock.PacingReason PacingReasonDefaultValue = global::RimGovernor.Protocol.Clock.PacingReason.Unspecified;
+
+    private global::RimGovernor.Protocol.Clock.PacingReason pacingReason_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Clock.PacingReason PacingReason {
+      get { if ((_hasBits0 & 4096) != 0) { return pacingReason_; } else { return PacingReasonDefaultValue; } }
+      set {
+        _hasBits0 |= 4096;
+        pacingReason_ = value;
+      }
+    }
+    /// <summary>Gets whether the "pacing_reason" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPacingReason {
+      get { return (_hasBits0 & 4096) != 0; }
+    }
+    /// <summary>Clears the value of the "pacing_reason" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPacingReason() {
+      _hasBits0 &= ~4096;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3754,6 +4029,10 @@ namespace RimGovernor.Protocol.Clock {
       if (BlindTickBudget != other.BlindTickBudget) return false;
       if (MaxTicksPerSecond != other.MaxTicksPerSecond) return false;
       if (RegulatedTicksPerSecond != other.RegulatedTicksPerSecond) return false;
+      if (Pacing != other.Pacing) return false;
+      if (FrameBudgetMs != other.FrameBudgetMs) return false;
+      if (PacedTicksPerSecond != other.PacedTicksPerSecond) return false;
+      if (PacingReason != other.PacingReason) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3773,6 +4052,10 @@ namespace RimGovernor.Protocol.Clock {
       if (HasBlindTickBudget) hash ^= BlindTickBudget.GetHashCode();
       if (HasMaxTicksPerSecond) hash ^= MaxTicksPerSecond.GetHashCode();
       if (HasRegulatedTicksPerSecond) hash ^= RegulatedTicksPerSecond.GetHashCode();
+      if (HasPacing) hash ^= Pacing.GetHashCode();
+      if (HasFrameBudgetMs) hash ^= FrameBudgetMs.GetHashCode();
+      if (HasPacedTicksPerSecond) hash ^= PacedTicksPerSecond.GetHashCode();
+      if (HasPacingReason) hash ^= PacingReason.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3839,6 +4122,22 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(96);
         output.WriteUInt32(RegulatedTicksPerSecond);
       }
+      if (HasPacing) {
+        output.WriteRawTag(104);
+        output.WriteEnum((int) Pacing);
+      }
+      if (HasFrameBudgetMs) {
+        output.WriteRawTag(112);
+        output.WriteUInt32(FrameBudgetMs);
+      }
+      if (HasPacedTicksPerSecond) {
+        output.WriteRawTag(120);
+        output.WriteUInt32(PacedTicksPerSecond);
+      }
+      if (HasPacingReason) {
+        output.WriteRawTag(128, 1);
+        output.WriteEnum((int) PacingReason);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3897,6 +4196,22 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(96);
         output.WriteUInt32(RegulatedTicksPerSecond);
       }
+      if (HasPacing) {
+        output.WriteRawTag(104);
+        output.WriteEnum((int) Pacing);
+      }
+      if (HasFrameBudgetMs) {
+        output.WriteRawTag(112);
+        output.WriteUInt32(FrameBudgetMs);
+      }
+      if (HasPacedTicksPerSecond) {
+        output.WriteRawTag(120);
+        output.WriteUInt32(PacedTicksPerSecond);
+      }
+      if (HasPacingReason) {
+        output.WriteRawTag(128, 1);
+        output.WriteEnum((int) PacingReason);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3942,6 +4257,18 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (HasRegulatedTicksPerSecond) {
         size += 1 + pb::CodedOutputStream.ComputeUInt32Size(RegulatedTicksPerSecond);
+      }
+      if (HasPacing) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Pacing);
+      }
+      if (HasFrameBudgetMs) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(FrameBudgetMs);
+      }
+      if (HasPacedTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(PacedTicksPerSecond);
+      }
+      if (HasPacingReason) {
+        size += 2 + pb::CodedOutputStream.ComputeEnumSize((int) PacingReason);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3999,6 +4326,18 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (other.HasRegulatedTicksPerSecond) {
         RegulatedTicksPerSecond = other.RegulatedTicksPerSecond;
+      }
+      if (other.HasPacing) {
+        Pacing = other.Pacing;
+      }
+      if (other.HasFrameBudgetMs) {
+        FrameBudgetMs = other.FrameBudgetMs;
+      }
+      if (other.HasPacedTicksPerSecond) {
+        PacedTicksPerSecond = other.PacedTicksPerSecond;
+      }
+      if (other.HasPacingReason) {
+        PacingReason = other.PacingReason;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4076,6 +4415,22 @@ namespace RimGovernor.Protocol.Clock {
             RegulatedTicksPerSecond = input.ReadUInt32();
             break;
           }
+          case 104: {
+            Pacing = (global::RimGovernor.Protocol.Clock.Pacing) input.ReadEnum();
+            break;
+          }
+          case 112: {
+            FrameBudgetMs = input.ReadUInt32();
+            break;
+          }
+          case 120: {
+            PacedTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 128: {
+            PacingReason = (global::RimGovernor.Protocol.Clock.PacingReason) input.ReadEnum();
+            break;
+          }
         }
       }
     #endif
@@ -4150,6 +4505,22 @@ namespace RimGovernor.Protocol.Clock {
           }
           case 96: {
             RegulatedTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 104: {
+            Pacing = (global::RimGovernor.Protocol.Clock.Pacing) input.ReadEnum();
+            break;
+          }
+          case 112: {
+            FrameBudgetMs = input.ReadUInt32();
+            break;
+          }
+          case 120: {
+            PacedTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 128: {
+            PacingReason = (global::RimGovernor.Protocol.Clock.PacingReason) input.ReadEnum();
             break;
           }
         }
@@ -5474,6 +5845,10 @@ namespace RimGovernor.Protocol.Clock {
       digestTotal_ = other.digestTotal_;
       sessionMaxProbeTickGap_ = other.sessionMaxProbeTickGap_;
       hazardGaps_ = other.hazardGaps_.Clone();
+      effectiveTicksPerSecond_ = other.effectiveTicksPerSecond_;
+      pacedFrames_ = other.pacedFrames_;
+      pacedFramesOverBudget_ = other.pacedFramesOverBudget_;
+      maxPacedFrameMs_ = other.maxPacedFrameMs_;
       switch (other.StateCase) {
         case StateOneofCase.Running:
           Running = other.Running.Clone();
@@ -6123,6 +6498,125 @@ namespace RimGovernor.Protocol.Clock {
       get { return hazardGaps_; }
     }
 
+    /// <summary>Field number for the "effective_ticks_per_second" field.</summary>
+    public const int EffectiveTicksPerSecondFieldNumber = 29;
+    private readonly static double EffectiveTicksPerSecondDefaultValue = 0D;
+
+    private double effectiveTicksPerSecond_;
+    /// <summary>
+    /// Game ticks per wall second over the last ten seconds of frames, paused
+    /// time included (#627): what the player actually gets.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double EffectiveTicksPerSecond {
+      get { if ((_hasBits0 & 65536) != 0) { return effectiveTicksPerSecond_; } else { return EffectiveTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 65536;
+        effectiveTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "effective_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasEffectiveTicksPerSecond {
+      get { return (_hasBits0 & 65536) != 0; }
+    }
+    /// <summary>Clears the value of the "effective_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearEffectiveTicksPerSecond() {
+      _hasBits0 &= ~65536;
+    }
+
+    /// <summary>Field number for the "paced_frames" field.</summary>
+    public const int PacedFramesFieldNumber = 30;
+    private readonly static ulong PacedFramesDefaultValue = 0UL;
+
+    private ulong pacedFrames_;
+    /// <summary>
+    /// Player acceleration's frame account (#627), cumulative for the loaded
+    /// game session: frames a player-accelerated epoch ticked, those whose
+    /// tick work exceeded the epoch's frame budget, and the widest frame's
+    /// tick work. A command queued for the main thread waits at most one
+    /// frame's tick work.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong PacedFrames {
+      get { if ((_hasBits0 & 131072) != 0) { return pacedFrames_; } else { return PacedFramesDefaultValue; } }
+      set {
+        _hasBits0 |= 131072;
+        pacedFrames_ = value;
+      }
+    }
+    /// <summary>Gets whether the "paced_frames" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPacedFrames {
+      get { return (_hasBits0 & 131072) != 0; }
+    }
+    /// <summary>Clears the value of the "paced_frames" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPacedFrames() {
+      _hasBits0 &= ~131072;
+    }
+
+    /// <summary>Field number for the "paced_frames_over_budget" field.</summary>
+    public const int PacedFramesOverBudgetFieldNumber = 31;
+    private readonly static ulong PacedFramesOverBudgetDefaultValue = 0UL;
+
+    private ulong pacedFramesOverBudget_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong PacedFramesOverBudget {
+      get { if ((_hasBits0 & 262144) != 0) { return pacedFramesOverBudget_; } else { return PacedFramesOverBudgetDefaultValue; } }
+      set {
+        _hasBits0 |= 262144;
+        pacedFramesOverBudget_ = value;
+      }
+    }
+    /// <summary>Gets whether the "paced_frames_over_budget" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPacedFramesOverBudget {
+      get { return (_hasBits0 & 262144) != 0; }
+    }
+    /// <summary>Clears the value of the "paced_frames_over_budget" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPacedFramesOverBudget() {
+      _hasBits0 &= ~262144;
+    }
+
+    /// <summary>Field number for the "max_paced_frame_ms" field.</summary>
+    public const int MaxPacedFrameMsFieldNumber = 32;
+    private readonly static double MaxPacedFrameMsDefaultValue = 0D;
+
+    private double maxPacedFrameMs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double MaxPacedFrameMs {
+      get { if ((_hasBits0 & 524288) != 0) { return maxPacedFrameMs_; } else { return MaxPacedFrameMsDefaultValue; } }
+      set {
+        _hasBits0 |= 524288;
+        maxPacedFrameMs_ = value;
+      }
+    }
+    /// <summary>Gets whether the "max_paced_frame_ms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMaxPacedFrameMs {
+      get { return (_hasBits0 & 524288) != 0; }
+    }
+    /// <summary>Clears the value of the "max_paced_frame_ms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMaxPacedFrameMs() {
+      _hasBits0 &= ~524288;
+    }
+
     private object state_;
     /// <summary>Enum of possible cases for the "state" oneof.</summary>
     public enum StateOneofCase {
@@ -6190,6 +6684,10 @@ namespace RimGovernor.Protocol.Clock {
       if (DigestTotal != other.DigestTotal) return false;
       if (SessionMaxProbeTickGap != other.SessionMaxProbeTickGap) return false;
       if(!hazardGaps_.Equals(other.hazardGaps_)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(EffectiveTicksPerSecond, other.EffectiveTicksPerSecond)) return false;
+      if (PacedFrames != other.PacedFrames) return false;
+      if (PacedFramesOverBudget != other.PacedFramesOverBudget) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(MaxPacedFrameMs, other.MaxPacedFrameMs)) return false;
       if (StateCase != other.StateCase) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -6226,6 +6724,10 @@ namespace RimGovernor.Protocol.Clock {
       if (HasDigestTotal) hash ^= DigestTotal.GetHashCode();
       if (HasSessionMaxProbeTickGap) hash ^= SessionMaxProbeTickGap.GetHashCode();
       hash ^= hazardGaps_.GetHashCode();
+      if (HasEffectiveTicksPerSecond) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(EffectiveTicksPerSecond);
+      if (HasPacedFrames) hash ^= PacedFrames.GetHashCode();
+      if (HasPacedFramesOverBudget) hash ^= PacedFramesOverBudget.GetHashCode();
+      if (HasMaxPacedFrameMs) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(MaxPacedFrameMs);
       hash ^= (int) stateCase_;
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -6348,6 +6850,22 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteInt64(SessionMaxProbeTickGap);
       }
       hazardGaps_.WriteTo(output, _repeated_hazardGaps_codec);
+      if (HasEffectiveTicksPerSecond) {
+        output.WriteRawTag(233, 1);
+        output.WriteDouble(EffectiveTicksPerSecond);
+      }
+      if (HasPacedFrames) {
+        output.WriteRawTag(240, 1);
+        output.WriteUInt64(PacedFrames);
+      }
+      if (HasPacedFramesOverBudget) {
+        output.WriteRawTag(248, 1);
+        output.WriteUInt64(PacedFramesOverBudget);
+      }
+      if (HasMaxPacedFrameMs) {
+        output.WriteRawTag(129, 2);
+        output.WriteDouble(MaxPacedFrameMs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -6461,6 +6979,22 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteInt64(SessionMaxProbeTickGap);
       }
       hazardGaps_.WriteTo(ref output, _repeated_hazardGaps_codec);
+      if (HasEffectiveTicksPerSecond) {
+        output.WriteRawTag(233, 1);
+        output.WriteDouble(EffectiveTicksPerSecond);
+      }
+      if (HasPacedFrames) {
+        output.WriteRawTag(240, 1);
+        output.WriteUInt64(PacedFrames);
+      }
+      if (HasPacedFramesOverBudget) {
+        output.WriteRawTag(248, 1);
+        output.WriteUInt64(PacedFramesOverBudget);
+      }
+      if (HasMaxPacedFrameMs) {
+        output.WriteRawTag(129, 2);
+        output.WriteDouble(MaxPacedFrameMs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -6549,6 +7083,18 @@ namespace RimGovernor.Protocol.Clock {
         size += 2 + pb::CodedOutputStream.ComputeInt64Size(SessionMaxProbeTickGap);
       }
       size += hazardGaps_.CalculateSize(_repeated_hazardGaps_codec);
+      if (HasEffectiveTicksPerSecond) {
+        size += 2 + 8;
+      }
+      if (HasPacedFrames) {
+        size += 2 + pb::CodedOutputStream.ComputeUInt64Size(PacedFrames);
+      }
+      if (HasPacedFramesOverBudget) {
+        size += 2 + pb::CodedOutputStream.ComputeUInt64Size(PacedFramesOverBudget);
+      }
+      if (HasMaxPacedFrameMs) {
+        size += 2 + 8;
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -6630,6 +7176,18 @@ namespace RimGovernor.Protocol.Clock {
         SessionMaxProbeTickGap = other.SessionMaxProbeTickGap;
       }
       hazardGaps_.Add(other.hazardGaps_);
+      if (other.HasEffectiveTicksPerSecond) {
+        EffectiveTicksPerSecond = other.EffectiveTicksPerSecond;
+      }
+      if (other.HasPacedFrames) {
+        PacedFrames = other.PacedFrames;
+      }
+      if (other.HasPacedFramesOverBudget) {
+        PacedFramesOverBudget = other.PacedFramesOverBudget;
+      }
+      if (other.HasMaxPacedFrameMs) {
+        MaxPacedFrameMs = other.MaxPacedFrameMs;
+      }
       switch (other.StateCase) {
         case StateOneofCase.Running:
           if (Running == null) {
@@ -6825,6 +7383,22 @@ namespace RimGovernor.Protocol.Clock {
             hazardGaps_.AddEntriesFrom(input, _repeated_hazardGaps_codec);
             break;
           }
+          case 233: {
+            EffectiveTicksPerSecond = input.ReadDouble();
+            break;
+          }
+          case 240: {
+            PacedFrames = input.ReadUInt64();
+            break;
+          }
+          case 248: {
+            PacedFramesOverBudget = input.ReadUInt64();
+            break;
+          }
+          case 257: {
+            MaxPacedFrameMs = input.ReadDouble();
+            break;
+          }
         }
       }
     #endif
@@ -6985,6 +7559,22 @@ namespace RimGovernor.Protocol.Clock {
           }
           case 226: {
             hazardGaps_.AddEntriesFrom(ref input, _repeated_hazardGaps_codec);
+            break;
+          }
+          case 233: {
+            EffectiveTicksPerSecond = input.ReadDouble();
+            break;
+          }
+          case 240: {
+            PacedFrames = input.ReadUInt64();
+            break;
+          }
+          case 248: {
+            PacedFramesOverBudget = input.ReadUInt64();
+            break;
+          }
+          case 257: {
+            MaxPacedFrameMs = input.ReadDouble();
             break;
           }
         }

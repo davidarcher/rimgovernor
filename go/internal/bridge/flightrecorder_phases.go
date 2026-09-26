@@ -244,6 +244,12 @@ type ClockSample struct {
 	NativeDigests         uint64      `json:"native_digests"`
 	NativeMaxProbeTickGap int64       `json:"native_max_probe_tick_gap"`
 	NativeHazardGaps      []HazardGap `json:"native_hazard_gaps,omitempty"`
+	// Player acceleration's frame account (#627) between the same
+	// samples: frames paced, those over the frame budget, and the widest
+	// frame's tick work the session reported.
+	NativePacedFrames     uint64  `json:"native_paced_frames,omitempty"`
+	NativePacedOverBudget uint64  `json:"native_paced_over_budget,omitempty"`
+	NativeMaxPacedFrameMs float64 `json:"native_max_paced_frame_ms,omitempty"`
 }
 
 // HazardGap is one hazard class's detection gap as the native clock status
@@ -536,6 +542,11 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 		summary.Clock.NativeMaxProbeTickGap = lastPause.maxProbeTickGap
 		summary.Clock.NativeHazardGaps = lastPause.hazardGaps
 	}
+	if havePause && lastPause.pacedFrames >= firstPause.pacedFrames && lastPause.overBudget >= firstPause.overBudget {
+		summary.Clock.NativePacedFrames = lastPause.pacedFrames - firstPause.pacedFrames
+		summary.Clock.NativePacedOverBudget = lastPause.overBudget - firstPause.overBudget
+		summary.Clock.NativeMaxPacedFrameMs = lastPause.maxFrameMs
+	}
 	summary.Observation = observation.result()
 	summary.Frames = frames.result()
 	if summary.Steps.Stops.LatencySamples > 0 {
@@ -594,6 +605,9 @@ type nativePause struct {
 	probes, digests   uint64
 	maxProbeTickGap   int64
 	hazardGaps        []HazardGap
+	// The player pacing frame account (#627).
+	pacedFrames, overBudget uint64
+	maxFrameMs              float64
 }
 
 func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bool, pause nativePause, hasPause bool) {
@@ -665,6 +679,13 @@ func statusPause(status map[string]any) (nativePause, bool) {
 		sample.digests = uint64(digests)
 	}
 	sample.maxProbeTickGap, _ = tickValue(status["sessionMaxProbeTickGap"])
+	if frames, ok := tickValue(status["pacedFrames"]); ok && frames >= 0 {
+		sample.pacedFrames = uint64(frames)
+	}
+	if over, ok := tickValue(status["pacedFramesOverBudget"]); ok && over >= 0 {
+		sample.overBudget = uint64(over)
+	}
+	sample.maxFrameMs, _ = number(status["maxPacedFrameMs"])
 	if gaps, ok := status["hazardGaps"].([]any); ok {
 		for _, raw := range gaps {
 			row, ok := raw.(map[string]any)

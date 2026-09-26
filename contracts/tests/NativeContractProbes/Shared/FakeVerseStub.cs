@@ -124,12 +124,13 @@ namespace HomeBridge.BridgeTools
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static object Start(string owner, Verse.TimeSpeed speed, int leaseMs, string mode, float healthDrop, float minHealth, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest,
-            int blindTickBudget = 0, int maxTicksPerSecond = 0)
+            int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false, int frameBudgetMs = 0)
         {
             var s = new State
             {
                 Active = true, Epoch = ++_epoch, Session = Verse.Current.Game, Map = Verse.Find.CurrentMap, RequestedSpeed = speed,
                 BlindTickBudget = blindTickBudget, MaxTicksPerSecond = maxTicksPerSecond,
+                PlayerPaced = playerPaced, FrameBudgetMs = playerPaced ? ClampFrameBudget(frameBudgetMs) : 0,
                 StartTick = Verse.Find.TickManager.TicksGame, TickDeadline = Verse.Find.TickManager.TicksGame + maxTicks, LastTick = Verse.Find.TickManager.TicksGame
             };
             EnsureJournal();
@@ -175,12 +176,22 @@ namespace HomeBridge.BridgeTools
             internal long? TickDeadline, StopAtMs; internal string PendingKind, PendingDetail, StopReason, StopDetail, ForcePauseKind;
             internal bool? PauseVerified; internal long ForcePauseSinceMs; internal bool TestAcceleration;
             internal int BlindTickBudget, MaxTicksPerSecond, RegulatedTicksPerSecond;
+            internal bool PlayerPaced; internal int FrameBudgetMs;
             internal List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>(), SuppressedInjuries = new List<Dictionary<string, object>>();
         }
         // The blind-tick regulator (#583) lives in the production
         // SupervisedPlayRegulator.cs partial, outside this project; the probe
         // only records what the typed runtime reports of it.
         private static void NoteControllerRead(State s) { }
+        // Player acceleration (#627) lives in the production
+        // SupervisedPlayPacing.cs partial, outside this project; the fake
+        // reports a pacing epoch at Ultrafast's own rate with no frames.
+        internal const int DefaultFrameBudgetMs = 30, MinFrameBudgetMs = 5, MaxFrameBudgetMs = 45;
+        internal static int ClampFrameBudget(int ms) => ms == 0 ? DefaultFrameBudgetMs : Math.Max(MinFrameBudgetMs, Math.Min(MaxFrameBudgetMs, ms));
+        private static double EffectiveTicksPerSecond() => 0;
+        private static void ReportFrames(RimGovernor.Protocol.Clock.Status status) { }
+        private static int PacedTicksPerSecond(State s) => 900;
+        private static RimGovernor.Protocol.Clock.PacingReason PacingReasonOf(State s) => RimGovernor.Protocol.Clock.PacingReason.Accelerated;
         private static void AcknowledgeRows(State s, long afterCursor) { }
         internal static void FixtureReset()
         { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; HarmonyLib.Harmony.Installed = false; }

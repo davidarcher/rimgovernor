@@ -49,6 +49,7 @@ namespace HomeBridge.BridgeTools
             State? s;
             lock (Gate) s = _state;
             if (s == null || !s.Active) return;
+            __result = PacedMultiplier(s, __result);
             var ceiling = EffectiveTicksPerSecond(s);
             if (ceiling <= 0) return;
             var multiplier = ceiling / (float)NormalTicksPerSecond;
