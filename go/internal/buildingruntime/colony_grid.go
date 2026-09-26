@@ -27,7 +27,7 @@ func (r *RoutineReviewer) reviewColonyGrid(ctx context.Context, snapshot domain.
 		if !known || !census.Colony {
 			return nil
 		}
-		starter, err := r.starterShell(ctx, projection.Bounds, census)
+		starter, err := r.starterShell(ctx, projection.Bounds, census, projection.Cells)
 		if err != nil {
 			return err
 		}
@@ -53,7 +53,13 @@ func (r *RoutineReviewer) reviewColonyGrid(ctx context.Context, snapshot domain.
 // door whose ring lies in bounds and at least half stands in the census
 // (the journal is not world-scoped, so a ring nothing stands on belongs to
 // another world or was never built). Unknown when no such plan exists.
-func (r *RoutineReviewer) starterShell(ctx context.Context, bounds policy.Bounds, census policy.CurrentConstruction) (domain.Fact[domain.RoomFootprint], error) {
+func (r *RoutineReviewer) starterShell(ctx context.Context, bounds policy.Bounds, census policy.CurrentConstruction, cells []policy.SiteCell) (domain.Fact[domain.RoomFootprint], error) {
+	rock := map[domain.Cell]bool{}
+	for _, c := range cells {
+		if positiveFact(c.NaturalRock) {
+			rock[c.Cell] = true
+		}
+	}
 	unknown := domain.Unknown[domain.RoomFootprint]()
 	history, err := r.player.journal.PlanHistoryWithPrefix(ctx, shellPlanPrefix+"-", shellHistoryLimit)
 	if err != nil {
@@ -94,8 +100,45 @@ func (r *RoutineReviewer) starterShell(ctx context.Context, bounds policy.Bounds
 		if shell, ok := shellFootprint(perimeter); ok {
 			return domain.Known(shell), nil
 		}
+		if shell, ok := rockBackedFootprint(perimeter, rock); ok {
+			return domain.Known(shell), nil
+		}
 	}
 	return unknown, nil
+}
+
+// rockBackedFootprint recognises a shell whose ring natural rock partly
+// walls (#700): its plan holds only the placed cells, so the flood below
+// leaks through the rock stretch. The shell is the first starter template
+// at the plan's door whose ring is exactly the placed cells plus rock.
+func rockBackedFootprint(perimeter []domain.Building, rock map[domain.Cell]bool) (domain.RoomFootprint, bool) {
+	if len(rock) == 0 {
+		return domain.RoomFootprint{}, false
+	}
+	placed := map[domain.Cell]bool{}
+	var door domain.Cell
+	for _, b := range perimeter {
+		placed[b.Cell()] = true
+		if shellDoor(b.Definition()) {
+			door = b.Cell()
+		}
+	}
+	for _, shell := range policy.ShellShapesAtDoor(door, policy.ShelterHut) {
+		walls := shell.Walls()
+		covered := 0
+		fits := shell.Door() == door
+		for _, c := range walls {
+			if placed[c] {
+				covered++
+			} else if !rock[c] {
+				fits = false
+			}
+		}
+		if fits && covered == len(placed) {
+			return shell, true
+		}
+	}
+	return domain.RoomFootprint{}, false
 }
 
 // shellFootprint rebuilds the room a shell's placements enclose: the cells

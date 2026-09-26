@@ -21,6 +21,7 @@ package layout
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,7 @@ func init() {
 			"shares a full co-linear edge with the first (#608), and the hut and the fields lie in different districts (#609). " +
 			"With a bed deficit and stone blocks stocked the capacity planner's ring reads back in the Masonry tier style: " +
 			"stone walls of one block definition and a stone Door (#637).",
-		Start: cases.Fixture{Op: gridPrepare, Args: map[string]any{"sleepingSpots": bunks, "stoneBlocks": blocks},
+		Start: cases.Fixture{Op: gridPrepare, ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": bunks, "stoneBlocks": blocks},
 			On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []string{"field", "shelter", "expansion"}, NativeTimeout: 30 * time.Second, Prefix: "layout-grid"},

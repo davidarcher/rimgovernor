@@ -10329,11 +10329,12 @@ type CellState struct {
 	StorageEmpty  *bool                  `protobuf:"varint,15,opt,name=storage_empty,json=storageEmpty,proto3,oneof" json:"storage_empty,omitempty"`
 	SupportsLight *bool                  `protobuf:"varint,16,opt,name=supports_light,json=supportsLight,proto3,oneof" json:"supports_light,omitempty"`
 	Issues        []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
-	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"`   // Native edifice, blueprint or frame occupies this cell.
-	Doorway       *bool                  `protobuf:"varint,19,opt,name=doorway,proto3,oneof" json:"doorway,omitempty"`     // A door, or a door blueprint or frame, occupies this cell.
-	Reachable     *bool                  `protobuf:"varint,20,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"` // An available colonist can path to this cell without danger.
-	Polluted      *bool                  `protobuf:"varint,21,opt,name=polluted,proto3,oneof" json:"polluted,omitempty"`   // Growth field; false when Biotech is inactive.
-	Glow          *float64               `protobuf:"fixed64,22,opt,name=glow,proto3,oneof" json:"glow,omitempty"`          // Native ground glow, including artificial light.
+	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"`                          // Native edifice, blueprint or frame occupies this cell.
+	Doorway       *bool                  `protobuf:"varint,19,opt,name=doorway,proto3,oneof" json:"doorway,omitempty"`                            // A door, or a door blueprint or frame, occupies this cell.
+	Reachable     *bool                  `protobuf:"varint,20,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"`                        // An available colonist can path to this cell without danger.
+	Polluted      *bool                  `protobuf:"varint,21,opt,name=polluted,proto3,oneof" json:"polluted,omitempty"`                          // Growth field; false when Biotech is inactive.
+	Glow          *float64               `protobuf:"fixed64,22,opt,name=glow,proto3,oneof" json:"glow,omitempty"`                                 // Native ground glow, including artificial light.
+	NaturalRock   *bool                  `protobuf:"varint,23,opt,name=natural_rock,json=naturalRock,proto3,oneof" json:"natural_rock,omitempty"` // The edifice is natural rock: a shell reuses it as wall or mines it (#700).
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10520,6 +10521,13 @@ func (x *CellState) GetGlow() float64 {
 		return *x.Glow
 	}
 	return 0
+}
+
+func (x *CellState) GetNaturalRock() bool {
+	if x != nil && x.NaturalRock != nil {
+		return *x.NaturalRock
+	}
+	return false
 }
 
 type CellFields struct {
@@ -10879,7 +10887,7 @@ func (*GetCellsRequest_ExactCells) isGetCellsRequest_Selection() {}
 // Planning fields only. One byte string per region z, x ascending. Each cell
 // starts with little-endian uint16 flags: unchanged, fogged, walkable, passable,
 // occupied, doorway, supports_light, storage_empty, indoors, polluted,
-// fertility-present, roof-present, zone-present, room-present (bits 0..13).
+// fertility-present, roof-present, zone-present, room-present, natural-rock (bits 0..14).
 // Unchanged/fogged have no other flags or data. Visible cells append unsigned
 // varint string-table indices for present roof/zone/room, then a glow-table index.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
@@ -36890,7 +36898,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\xbc\b\n" +
+	"\x06_frame\"\xf5\b\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aterrain\x18\x02 \x01(\tH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -36915,7 +36923,8 @@ const file_observations_proto_rawDesc = "" +
 	"\adoorway\x18\x13 \x01(\bH\rR\adoorway\x88\x01\x01\x12!\n" +
 	"\treachable\x18\x14 \x01(\bH\x0eR\treachable\x88\x01\x01\x12\x1f\n" +
 	"\bpolluted\x18\x15 \x01(\bH\x0fR\bpolluted\x88\x01\x01\x12\x17\n" +
-	"\x04glow\x18\x16 \x01(\x01H\x10R\x04glow\x88\x01\x01B\n" +
+	"\x04glow\x18\x16 \x01(\x01H\x10R\x04glow\x88\x01\x01\x12&\n" +
+	"\fnatural_rock\x18\x17 \x01(\bH\x11R\vnaturalRock\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -36939,7 +36948,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_reachableB\v\n" +
 	"\t_pollutedB\a\n" +
-	"\x05_glow\"\xb1\x03\n" +
+	"\x05_glowB\x0f\n" +
+	"\r_natural_rock\"\xb1\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +

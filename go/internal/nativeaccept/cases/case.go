@@ -61,6 +61,9 @@ type Fixture struct {
 	Op   string
 	Args map[string]any
 	On   Start
+	// ArgsFrom computes more arguments from the loaded game just before
+	// the op runs (StarterSiteArgs: the controller's own hut site, #700).
+	ArgsFrom func(context.Context, *na.Harness) (map[string]any, error)
 }
 
 // Owned is the start of a case that drives the process lifecycle itself

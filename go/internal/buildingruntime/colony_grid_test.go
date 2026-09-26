@@ -26,6 +26,35 @@ func TestShellFootprintRebuildsTheRoom(t *testing.T) {
 	}
 }
 
+// #700: a shell whose west wall is natural rock has no placement there; the
+// template at its door whose ring is the placements plus the rock is the room.
+func TestRockBackedFootprintRebuildsTheRoom(t *testing.T) {
+	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: 16, Z: 16, Width: 9, Height: 9}, domain.South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var placed []domain.Building
+	rock := map[domain.Cell]bool{}
+	for _, b := range shell.Placements("Wall", "Door", "WoodLog") {
+		if b.Cell().X == 16 {
+			rock[b.Cell()] = true
+			continue
+		}
+		placed = append(placed, b)
+	}
+	if _, ok := shellFootprint(placed); ok {
+		t.Fatal("the flood saw a room through the rock stretch")
+	}
+	got, ok := rockBackedFootprint(placed, rock)
+	if !ok || !domain.SameRoomFootprint(got, shell) {
+		t.Fatalf("rebuilt %+v ok=%t, want %+v", got.Bounds(), ok, shell.Bounds())
+	}
+	delete(rock, domain.Cell{X: 16, Z: 20})
+	if _, ok := rockBackedFootprint(placed, rock); ok {
+		t.Fatal("a ring with a gap in its rock is not a room")
+	}
+}
+
 func TestReviewColonyGridDerivesOnceAndServesThePersistedGrid(t *testing.T) {
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()

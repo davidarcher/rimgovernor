@@ -3,6 +3,7 @@ package facility
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -44,7 +45,7 @@ func init() {
 		// The hut is sited on the committed tribal baseline, whose open
 		// ground near the colonists is audited: an unpinned debug start draws
 		// a fresh world each run and may offer none (#674).
-		Start: cases.Fixture{Op: "test/basic_comfort_prepare", On: cases.Save{Name: sustained.BaselineSave}},
+		Start: cases.Fixture{Op: "test/basic_comfort_prepare", ArgsFrom: startersite.Args, On: cases.Save{Name: sustained.BaselineSave}},
 		// The meal that proves the point and the pin's use need Food and
 		// Joy live.
 		Keep:   []string{string(na.NeedFood), string(na.NeedJoy)},

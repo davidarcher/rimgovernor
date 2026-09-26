@@ -163,11 +163,14 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 	if err != nil {
 		return nil, policy.StockObservation{}, "", err
 	}
-	return r.previewFreshShell(ctx, snapshot, facts, layouts, check)
+	// Only the initial shelter's rungs mine a shell's interior; any other
+	// shell stands on ground it need not dig (#700).
+	return r.previewFreshShell(ctx, snapshot, facts, unmined(layouts), check)
 }
 
-// shellSiteCells is the open ground a starter shell may stand on: the
-// observed cells neither indoors nor roofed. Cells in free are offered as
+// shellSiteCells is the ground a starter shell may stand on: the observed
+// cells neither indoors nor roofed, and natural rock under any roof, which
+// the shell reuses as wall or mines from its interior (#700). Cells in free are offered as
 // unoccupied ground whatever the census says of them: the bunks this
 // planner placed earlier stand on the interior the ring is raised around
 // (#612).
@@ -180,7 +183,7 @@ func shellSiteCells(facts observation.ColonyProjection, free []domain.Cell) []po
 	for _, c := range facts.Cells {
 		indoors, indoorKnown := c.Indoors.Value()
 		roof, roofKnown := c.Roofed.Value()
-		if !(indoorKnown && !indoors && roofKnown && !roof) {
+		if !(indoorKnown && !indoors && roofKnown && !roof) && !positiveFact(c.NaturalRock) {
 			continue
 		}
 		if freed[c.Cell] {
@@ -200,6 +203,7 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 		if len(perimeter) == 0 {
 			return nil, policy.StockObservation{}, "", ErrControl
 		}
+		perimeter = unreused(perimeter, layout.Reused)
 		ids := make([]domain.ActionID, len(perimeter))
 		for i := range perimeter {
 			ids[i] = domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i))
@@ -224,6 +228,41 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 		}
 	}
 	return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+}
+
+// unreused drops the placements on ring cells natural rock already walls
+// (#700): the ring places walls only where the rock does not stand.
+func unreused(perimeter []domain.Building, reused []domain.Cell) []domain.Building {
+	if len(reused) == 0 {
+		return perimeter
+	}
+	rock := make(map[domain.Cell]bool, len(reused))
+	for _, c := range reused {
+		rock[c] = true
+	}
+	kept := make([]domain.Building, 0, len(perimeter))
+	for _, b := range perimeter {
+		if !rock[b.Cell()] {
+			kept = append(kept, b)
+		}
+	}
+	return kept
+}
+
+// unmined keeps the layouts with no interior rock to dig.
+func unmined(layouts []policy.StarterLayout) []policy.StarterLayout {
+	kept := make([]policy.StarterLayout, 0, len(layouts))
+	for _, l := range layouts {
+		if len(l.Mined) == 0 {
+			kept = append(kept, l)
+		}
+	}
+	return kept
+}
+
+func positiveFact(f domain.Fact[bool]) bool {
+	v, known := f.Value()
+	return known && v
 }
 
 // shellBatchPreviewer is the batched preview a native source may offer: one

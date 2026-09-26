@@ -235,7 +235,7 @@ func PlanningCells(v *o.CellsSnapshot) ([]policy.SiteCell, uint64) {
 			filtered++
 			continue
 		}
-		cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: cellFact(row.Walkable), Occupied: cellFact(row.Occupied), Zone: CellPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: CellPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: cellFact(row.Roof), Indoors: cellFact(row.Indoors), SupportsLight: cellFact(row.SupportsLight), Doorway: cellFact(row.Doorway), Fertility: cellFact(row.Fertility), Polluted: cellFact(row.Polluted), Glow: cellFact(row.Glow), StorageEmpty: cellFact(row.StorageEmpty), ZoneID: cellFact(row.ZoneId)})
+		cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: cellFact(row.Walkable), Occupied: cellFact(row.Occupied), Zone: CellPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: CellPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: cellFact(row.Roof), Indoors: cellFact(row.Indoors), SupportsLight: cellFact(row.SupportsLight), Doorway: cellFact(row.Doorway), Fertility: cellFact(row.Fertility), Polluted: cellFact(row.Polluted), Glow: cellFact(row.Glow), StorageEmpty: cellFact(row.StorageEmpty), ZoneID: cellFact(row.ZoneId), NaturalRock: cellFact(row.NaturalRock)})
 	}
 	return cells, filtered
 }

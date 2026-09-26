@@ -128,6 +128,10 @@ type Fixture struct {
 	Op   string
 	Args map[string]any
 	On   Start
+	// ArgsFrom, when set, computes more arguments from the loaded, paused
+	// game just before the op runs (the controller's own starter site,
+	// #700); they override Args of the same name.
+	ArgsFrom func(context.Context, *Harness) (map[string]any, error)
 }
 
 func (f Fixture) base() Start {
@@ -312,6 +316,21 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 		return err
 	}
 	if fixture, ok := start.(Fixture); ok {
+		if fixture.ArgsFrom != nil {
+			extra, err := fixture.ArgsFrom(ctx, s.Harness)
+			if err != nil {
+				return fmt.Errorf("%s arguments: %w", fixture.Op, err)
+			}
+			args := make(map[string]any, len(fixture.Args)+len(extra))
+			for k, v := range fixture.Args {
+				args[k] = v
+			}
+			for k, v := range extra {
+				args[k] = v
+			}
+			fixture.Args = args
+			s.Report["fixture_args"] = extra
+		}
 		prepared, err := fixture.prepare(ctx, s.Harness, names, s.Identity)
 		if err != nil {
 			return err

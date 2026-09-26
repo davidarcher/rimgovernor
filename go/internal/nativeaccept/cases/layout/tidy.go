@@ -3,6 +3,7 @@ package layout
 import (
 	"context"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
 	"path/filepath"
 	"strings"
 	"time"
@@ -44,7 +45,7 @@ func init() {
 			"patch at Camp tier (off the grid); after Stonecutting is finished the TidyLayout goal re-sites that managed field onto a " +
 			"free Fields sub-cell of the colony grid keeping its crop, deletes the old zone once the new one is planted, and journals " +
 			"the re-site: the old zone id is gone from the census, the new zone is a module patch on the grid with the same crop.",
-		Start:       cases.Fixture{Op: tidyPrepare, Args: map[string]any{}, On: cases.Save{Name: sustained.BaselineSave}},
+		Start:       cases.Fixture{Op: tidyPrepare, Args: map[string]any{}, ArgsFrom: startersite.Args, On: cases.Save{Name: sustained.BaselineSave}},
 		RequiredOps: []string{tidyResearch, gridAudit},
 		Keep:        []string{string(na.NeedFood)},
 		Serve:       &cases.ServeSpec{Families: []string{"field", "tidy", "defense", "supply"}, NativeTimeout: 30 * time.Second, Prefix: "layout-tidy"},

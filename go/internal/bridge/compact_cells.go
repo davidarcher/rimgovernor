@@ -52,7 +52,7 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			}
 			flags := binary.LittleEndian.Uint16(data)
 			data = data[2:]
-			if flags&0xc000 != 0 {
+			if flags&0x8000 != 0 {
 				return bad()
 			}
 			if flags&1 != 0 {
@@ -79,6 +79,7 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			row.StorageEmpty = proto.Bool(flags&128 != 0)
 			row.Indoors = proto.Bool(flags&256 != 0)
 			row.Polluted = proto.Bool(flags&512 != 0)
+			row.NaturalRock = proto.Bool(flags&0x4000 != 0)
 			for i, target := range []**string{&row.Roof, &row.ZoneId, &row.RoomId} {
 				if flags&(2048<<i) == 0 {
 					continue

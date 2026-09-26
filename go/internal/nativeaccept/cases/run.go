@@ -753,7 +753,7 @@ func seededStart(start Start, seed string) (na.Start, error) {
 		if err != nil {
 			return nil, err
 		}
-		return na.Fixture{Op: s.Op, Args: s.Args, On: on}, nil
+		return na.Fixture{Op: s.Op, Args: s.Args, On: on, ArgsFrom: s.ArgsFrom}, nil
 	}
 	return nil, fmt.Errorf("-seed %s: the case starts from %v, which carries its own world; only a debug or scenario start takes a seed", seed, start.Describe())
 }
@@ -775,7 +775,7 @@ func nativeStart(start Start) na.Start {
 		if start.On != nil {
 			on = nativeStart(start.On)
 		}
-		return na.Fixture{Op: start.Op, Args: start.Args, On: on}
+		return na.Fixture{Op: start.Op, Args: start.Args, On: on, ArgsFrom: start.ArgsFrom}
 	}
 	panic(fmt.Sprintf("unknown Start %T", start))
 }

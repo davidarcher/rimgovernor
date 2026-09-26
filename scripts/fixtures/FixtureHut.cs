@@ -20,6 +20,8 @@ namespace HomeBridge.BridgeTools
         {
             public IntVec3 Origin;
             public IntVec3 Door;
+            // Outward is the step from the door away from the room.
+            public IntVec3 Outward;
             public Room Room;
             public List<IntVec3> Interior;
             public List<Pawn> People;
@@ -28,13 +30,17 @@ namespace HomeBridge.BridgeTools
             public object Summary() => new { origin = Origin.ToString(), door = Door.ToString(), room = Room.ID, cells = Room.CellCount, sleepingSpots = SleepingSpots };
         }
 
-        // Build sites a size x size ring (size-2 square inside) on heavy
-        // affordance ground every housed colonist can reach, within 30 cells
-        // of the first, and furnishes it as above. spots caps the sleeping
-        // spots laid: negative is one per colonist, a smaller count leaves the
-        // bed deficit a capacity goal then plans against. Throws when the
-        // ruleset lacks the defs or the map has no room for it.
-        public static Result Build(Map map, int size, int spots = -1)
+        // Build raises a size x size ring (size-2 square inside) and
+        // furnishes it as above. site, when set, is the south-west corner the
+        // controller's own starter search chose (#700) and door the door cell
+        // it chose on the ring; otherwise FindSite picks the nearest open
+        // square and the door stands mid east wall. Natural rock on the ring
+        // stays as wall, rock inside is cleared as mining would, and plants
+        // and items anywhere in the square are removed. spots caps the
+        // sleeping spots laid: negative is one per colonist, a smaller count
+        // leaves the bed deficit a capacity goal then plans against. Throws
+        // when the ruleset lacks the defs or the map has no room for it.
+        public static Result Build(Map map, int size, int spots = -1, IntVec3? site = null, IntVec3? doorCell = null)
         {
             var player = Faction.OfPlayerSilentFail;
             if (player == null) throw new InvalidOperationException("No player faction.");
@@ -47,12 +53,22 @@ namespace HomeBridge.BridgeTools
             if (wallDef == null || doorDef == null || spotDef == null)
                 throw new InvalidOperationException("Wall, Door or SleepingSpot def unavailable in this ruleset.");
 
-            var origin = FindSite(map, people, size);
+            var origin = site ?? FindSite(map, people, size);
             if (origin == default) throw new InvalidOperationException("No open reachable area for the fixture hut.");
-            var door = new IntVec3(origin.x + size - 1, 0, origin.z + size / 2);
             var rect = new CellRect(origin.x, origin.z, size, size);
+            if (!rect.InBounds(map)) throw new InvalidOperationException($"Fixture hut site {origin} runs off the map.");
+            var door = doorCell ?? new IntVec3(origin.x + size - 1, 0, origin.z + size / 2);
+            if (!rect.IsOnEdge(door) || rect.IsCorner(door)) throw new InvalidOperationException($"Fixture hut door {door} is not on its ring.");
+            var outward = door.x == rect.maxX ? IntVec3.East : door.x == rect.minX ? IntVec3.West : door.z == rect.maxZ ? IntVec3.North : IntVec3.South;
             foreach (var c in rect.Cells) {
                 foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy(DestroyMode.Vanish);
+                var edifice = c.GetEdifice(map);
+                var rock = edifice != null && edifice.def.building?.isNaturalRock == true;
+                if (rock && rect.IsOnEdge(c) && c != door) {
+                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                    continue;
+                }
+                edifice?.Destroy(DestroyMode.Vanish);
                 if (c == door) {
                     var d = (Building)ThingMaker.MakeThing(doorDef, ThingDefOf.WoodLog);
                     d.SetFaction(player); GenSpawn.Spawn(d, c, map);
@@ -87,7 +103,7 @@ namespace HomeBridge.BridgeTools
                 pawn.jobs?.StopAll();
                 pawn.Position = free[i]; pawn.Notify_Teleported(true, true);
             }
-            return new Result { Origin = origin, Door = door, Room = room, Interior = interior, People = people, SleepingSpots = laid };
+            return new Result { Origin = origin, Door = door, Outward = outward, Room = room, Interior = interior, People = people, SleepingSpots = laid };
         }
 
         // FindSite returns the south-west corner of the size x size square
@@ -113,7 +129,11 @@ namespace HomeBridge.BridgeTools
                     && people.All(p => p.CanReach(c, PathEndMode.OnCell, Danger.Deadly)));
         }
 
-        // DropOutside places count of def two cells east of the door,
+        // Site is the cell a fixture's x/z arguments name, null when x is
+        // negative (the fixture searches for its own site).
+        public static IntVec3? Site(int x, int z) => x < 0 ? (IntVec3?)null : new IntVec3(x, 0, z);
+
+        // DropOutside places count of def two cells outside the door,
         // unforbidden: the materials a rung costs that supply is not asked
         // to find on the tribal baseline.
         public static int DropOutside(Map map, Result hut, ThingDef def, int count)
@@ -122,7 +142,7 @@ namespace HomeBridge.BridgeTools
             while (placed < count) {
                 var stack = Math.Min(def.stackLimit, count - placed);
                 var thing = ThingMaker.MakeThing(def); thing.stackCount = stack;
-                if (!GenPlace.TryPlaceThing(thing, hut.Door + IntVec3.East * 2, map, ThingPlaceMode.Near)) throw new InvalidOperationException("No drop site for " + def.defName);
+                if (!GenPlace.TryPlaceThing(thing, hut.Door + hut.Outward * 2, map, ThingPlaceMode.Near)) throw new InvalidOperationException("No drop site for " + def.defName);
                 thing.SetForbidden(false, false);
                 placed += stack;
             }

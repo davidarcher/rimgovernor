@@ -76,6 +76,9 @@ func PlanShelterBunks(layout StarterLayout, beds, spots int, blocked []domain.Ce
 	for _, c := range rectCells(layout.Storage) {
 		taken[c] = true
 	}
+	for _, c := range layout.Mined {
+		taken[c] = true
+	}
 	for _, c := range DoorwayAisles(Bounds{Width: 1 << 30, Height: 1 << 30}, []SiteCell{{Cell: layout.Shell.Door(), Doorway: domain.Known(true)}}) {
 		taken[c] = true
 	}

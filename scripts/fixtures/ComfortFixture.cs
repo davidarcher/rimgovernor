@@ -21,7 +21,11 @@ namespace HomeBridge.BridgeTools
     public sealed class ComfortFixture
     {
         [Tool("test/basic_comfort_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable foothold-comfort fixture: builds one roofed wood hut with a sleeping spot per colonist and a meal stockpile inside, moves every colonist into it, removes every table, seat and recreation building on the map, gives each colonist a fresh AteWithoutTable memory and mild hunger, drops wood beside the door and arms the observer that re-seeds hunger once a table and seat stand.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose; negative searches the nearest open square.")] int siteX = -1,
+            [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
+            [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
+            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -51,25 +55,18 @@ namespace HomeBridge.BridgeTools
                     .Where(b => b.def.surfaceType == SurfaceType.Eat || b.def.building.isSittable || b.def.building.joyKind != null).ToList())
                     b.Destroy(DestroyMode.Vanish);
 
-                // One 9x9 ring (7x7 inside) with a single east door, sited on
-                // heavy-affordance ground the colonists can reach.
-                const int size = 9;
-                var origin = FixtureHut.FindSite(map, people, size);
-                if (origin == default) return Refuse("No open reachable area for the fixture hut.");
-                var door = new IntVec3(origin.x + size - 1, 0, origin.z + size / 2);
-                var rect = new CellRect(origin.x, origin.z, size, size);
-                foreach (var c in rect.Cells) {
-                    foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy(DestroyMode.Vanish);
-                    if (c == door) {
-                        var d = (Building)ThingMaker.MakeThing(doorDef, ThingDefOf.WoodLog);
-                        d.SetFaction(player); GenSpawn.Spawn(d, c, map);
-                    } else if (rect.IsOnEdge(c)) {
-                        var w = (Building)ThingMaker.MakeThing(wallDef, ThingDefOf.WoodLog);
-                        w.SetFaction(player); GenSpawn.Spawn(w, c, map);
-                    }
-                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                // One 9x9 ring (7x7 inside) where the controller's starter
+                // search would site it (#700), natural rock on the ring kept
+                // as wall; the spots and meals below are the fixture's own.
+                FixtureHut.Result hut;
+                try {
+                    hut = FixtureHut.Build(map, 9, 0, siteX < 0 ? (IntVec3?)null : new IntVec3(siteX, 0, siteZ),
+                        doorX < 0 ? (IntVec3?)null : new IntVec3(doorX, 0, doorZ));
+                } catch (InvalidOperationException e) {
+                    return Refuse(e.Message);
                 }
-                var interior = rect.ContractedBy(1).Cells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
+                var door = hut.Door;
+                var interior = hut.Interior;
                 var index = 0;
                 // Meals along the south wall, sleeping spots on the row above:
                 // the middle rows stay free for the table and seat.
@@ -92,7 +89,7 @@ namespace HomeBridge.BridgeTools
                 }
                 for (int i = 0; i < 4; i++) {
                     var wood = ThingMaker.MakeThing(ThingDefOf.WoodLog); wood.stackCount = wood.def.stackLimit;
-                    GenPlace.TryPlaceThing(wood, door + IntVec3.East * 2, map, ThingPlaceMode.Near); wood.SetForbidden(false, false);
+                    GenPlace.TryPlaceThing(wood, door + hut.Outward * 2, map, ThingPlaceMode.Near); wood.SetForbidden(false, false);
                 }
                 foreach (var item in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item).ToList()) item.SetForbidden(false, false);
 

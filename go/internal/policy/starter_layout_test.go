@@ -425,3 +425,112 @@ func TestStarterConcaveTemplatesWrapAnObstacle(t *testing.T) {
 		t.Fatalf("connector: %v %v", layouts, err)
 	}
 }
+
+// rockWest turns every column at or west of edge into natural rock, under
+// roof when roof is set.
+func rockWest(r StarterRequest, edge int32, roof string) StarterRequest {
+	return rockOutside(r, edge, 1<<30, roof)
+}
+
+// rockOutside turns every column west of or at west, and east of or at
+// east, into natural rock.
+func rockOutside(r StarterRequest, west, east int32, roof string) StarterRequest {
+	for i, c := range r.Cells {
+		if c.Cell.X > west && c.Cell.X < east {
+			continue
+		}
+		c.Walkable, c.Occupied, c.NaturalRock = domain.Known(false), domain.Known(true), domain.Known(true)
+		if roof != "" {
+			c.Roofed, c.Roof = domain.Known(true), domain.Known(roof)
+		}
+		r.Cells[i] = c
+	}
+	return r
+}
+
+// #700: rock beside the anchor walls the shell rather than pushing it onto
+// the nearest clean ground.
+func TestStarterShellReusesRock(t *testing.T) {
+	layouts, err := StarterLayouts(rockWest(starterFixture(), 16, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	best := layouts[0]
+	if len(best.Reused) != 9 || len(best.Mined) != 0 {
+		t.Fatalf("best site does not lean on the rock: %+v", best)
+	}
+	for _, p := range best.Reused {
+		if p.X != 16 {
+			t.Fatalf("reused open ground %v", p)
+		}
+	}
+	if best.Shell.Door().X <= 16 {
+		t.Fatalf("door on rock: %v", best.Shell.Door())
+	}
+}
+
+// A strip of open ground too narrow for the shell is widened into the rock
+// beside it: one side reused as wall, the other mined out of the room.
+func TestStarterShellMinesRockWhereOpenGroundIsTooNarrow(t *testing.T) {
+	layouts, err := StarterLayouts(rockOutside(starterFixture(), 16, 23, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	best := layouts[0]
+	if len(best.Reused) == 0 || len(best.Mined) == 0 {
+		t.Fatalf("best site does not mix reuse and mining: %+v", best)
+	}
+	reused := map[domain.Cell]bool{}
+	for _, p := range best.Reused {
+		reused[p] = true
+	}
+	for _, p := range best.Mined {
+		if p.X > 16 && p.X < 23 || reused[p] {
+			t.Fatalf("mined %v", p)
+		}
+	}
+	if d := best.Shell.Door(); d.X <= 16 || d.X >= 23 {
+		t.Fatalf("door on rock: %v", d)
+	}
+}
+
+// Rock under a thick roof is overhead mountain: the ring may lean on it,
+// the interior never digs into it.
+func TestStarterShellNeverMinesOverheadMountain(t *testing.T) {
+	layouts, err := StarterLayouts(rockWest(starterFixture(), 16, "RoofRockThick"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range layouts {
+		if len(l.Mined) != 0 {
+			t.Fatalf("mined overhead mountain: %+v", l)
+		}
+	}
+	if len(layouts[0].Reused) == 0 {
+		t.Fatalf("ring does not lean on the mountain: %+v", layouts[0])
+	}
+}
+
+// Bunks never stand on the rock the shell still has to mine.
+func TestShelterBunksAvoidMinedRock(t *testing.T) {
+	layouts, err := StarterLayouts(rockOutside(starterFixture(), 16, 23, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	layout := layouts[0]
+	mined := map[domain.Cell]bool{}
+	for _, c := range layout.Mined {
+		mined[c] = true
+	}
+	bunks := PlanShelterBunks(layout, 3, 3, nil)
+	for _, anchor := range append(bunks.Beds, bunks.Spots...) {
+		for _, p := range BunkFootprint(anchor) {
+			if mined[p] {
+				t.Fatalf("bunk at %v stands on rock %v", anchor, p)
+			}
+		}
+	}
+	if len(bunks.Beds)+len(bunks.Spots) == 0 {
+		t.Fatal("no bunk fits")
+	}
+}

@@ -40,6 +40,14 @@ const (
 	bunkPlanPrefix                       = "routine-bunks"
 )
 
+// shelterMineMethod digs the natural rock out of the shell's interior
+// (#700), after the bunks and before the ring, under its own plan prefix
+// so no shell or excavation history mistakes it for theirs.
+const (
+	shelterMineMethod   domain.MethodID = "shelter-mine"
+	shellMinePlanPrefix string          = "routine-shelter-mine"
+)
+
 // BunkPlanPrefix names the plans the shelter's bunk rungs admit, for
 // acceptance tooling reading the journal.
 const BunkPlanPrefix = bunkPlanPrefix
@@ -212,12 +220,75 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 			return nil, none, "", &result, err
 		}
 	}
+	if r.excavation == nil {
+		layouts = unmined(layouts)
+	} else if len(layouts) > 0 && len(layouts[0].Mined) > 0 {
+		result, admitted, err := r.admitShellMining(call, epoch, s, layouts[0])
+		if err != nil || admitted {
+			return nil, none, "", &result, err
+		}
+	}
 	selected, stock, reason, err := r.previewFreshShell(call, s.snapshot, s.facts, layouts, s.check)
 	if err == nil && reason == BuildingMethodNoSpace && target != nil {
 		result, err := r.stepExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read, target: *target})
 		return nil, none, "", &result, err
 	}
 	return selected, stock, reason, nil, err
+}
+
+// admitShellMining designates the natural rock inside the sited shell for
+// mining (#700) once per goal epoch, as the shelter-mine rung. It reports
+// admitted=false, without error, when the rung is spent, the site cannot be
+// dug now (no support, a collapse pending, no miner) or nothing in it is
+// eligible, so the ring is still raised this review; the rock left standing
+// inside only shrinks the room until a later epoch digs it.
+func (r *RoutineBuildingPlanner) admitShellMining(call, epoch context.Context, s shelterSite, layout policy.StarterLayout) (RoutineBuildingResult, bool, error) {
+	if _, err := r.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, shelterMineMethod); err == nil {
+		return RoutineBuildingResult{}, false, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineBuildingResult{}, false, err
+	}
+	snapshot := s.state.Snapshot
+	snapshot.Revision = 1
+	site, err := r.readExcavationSite(call, snapshot, s.facts.Identity.Tick, layout.Mined, layout.Shell.Threshold(), s.check)
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
+	if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
+		clockSchedulerLog("%s: %s: interior not diggable now: support=%d (%s) collapse=%v worker=%v", r.goal, shelterMineMethod, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
+		return RoutineBuildingResult{}, false, nil
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", s.goal.Goal.ID, s.goal.Goal.Epoch, shelterMineMethod)))
+	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", shellMinePlanPrefix, digest[:16]))
+	var actions []domain.Action
+	for _, cell := range site.Cells {
+		if !cell.Eligible || cell.MineDesignated || cell.Definition == "" {
+			continue
+		}
+		excavation, err := domain.NewExcavation(cell.Cell, cell.Definition)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		action, err := domain.NewExcavationAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), excavation)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		actions = append(actions, action)
+	}
+	if len(actions) == 0 {
+		clockSchedulerLog("%s: %s: none of %d interior rock cells eligible", r.goal, shelterMineMethod, len(layout.Mined))
+		return RoutineBuildingResult{}, false, nil
+	}
+	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
+	result, err := r.admitExcavation(call, epoch, excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}, snapshot, shelterMineMethod, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, s.check)
+	if err != nil {
+		return result, false, err
+	}
+	clockSchedulerLog("%s: %s: %d rock cells reason=%s", r.goal, shelterMineMethod, len(actions), result.Reason)
+	return result, result.Reason == BuildingMethodAdmitted, nil
 }
 
 // admitBunks previews the bunks natively and admits the placeable ones as

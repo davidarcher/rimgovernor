@@ -13,7 +13,7 @@ func compactFixture() *o.CellsSnapshot {
 		Region:        &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Maximum: &c.Cell{X: proto.Int32(9), Z: proto.Int32(8)}},
 		AppliedFields: planningWindowFields(), AsOfTick: proto.Int64(pbContext().GetTick()), Unchanged: proto.Uint32(1),
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
-		Compact:      &o.CompactCells{Rows: [][]byte{{0xfc, 0x3f, 0, 1, 2, 0, 2, 0, 1, 0}}, Strings: []string{"RoofConstructed", "7", "9"}, Glow: []float64{.123456789}, Fertility: []float64{1.23456789}}}
+		Compact:      &o.CompactCells{Rows: [][]byte{{0xfc, 0x7f, 0, 1, 2, 0, 2, 0, 1, 0}}, Strings: []string{"RoofConstructed", "7", "9"}, Glow: []float64{.123456789}, Fertility: []float64{1.23456789}}}
 }
 
 func TestCompactCellsPreservesFactsAndDelta(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCompactCellsPreservesFactsAndDelta(t *testing.T) {
 	if err := validatePlanningCells(s, s.Context, s.MapSize, 1); err != nil {
 		t.Fatal(err)
 	}
-	want := &o.CellState{Cell: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Walkable: proto.Bool(true), Passable: proto.Bool(true), Occupied: proto.Bool(true), Doorway: proto.Bool(true), SupportsLight: proto.Bool(true), StorageEmpty: proto.Bool(true), Indoors: proto.Bool(true), Polluted: proto.Bool(true), Roof: proto.String("RoofConstructed"), ZoneId: proto.String("7"), RoomId: proto.String("9"), Glow: proto.Float64(.123456789), Fertility: proto.Float64(1.23456789)}
+	want := &o.CellState{Cell: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Walkable: proto.Bool(true), Passable: proto.Bool(true), Occupied: proto.Bool(true), Doorway: proto.Bool(true), SupportsLight: proto.Bool(true), StorageEmpty: proto.Bool(true), Indoors: proto.Bool(true), Polluted: proto.Bool(true), NaturalRock: proto.Bool(true), Roof: proto.String("RoofConstructed"), ZoneId: proto.String("7"), RoomId: proto.String("9"), Glow: proto.Float64(.123456789), Fertility: proto.Float64(1.23456789)}
 	if !proto.Equal(s.Cells[0], want) || !s.Cells[1].GetFogged() || s.Cells[1].Cell.GetX() != 8 || len(s.Cells) != 2 || s.Compact != nil {
 		t.Fatal(s)
 	}

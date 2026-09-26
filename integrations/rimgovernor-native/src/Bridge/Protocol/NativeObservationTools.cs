@@ -89,6 +89,7 @@ namespace HomeBridge.BridgeTools
                         row.Occupied = CellOccupied(map, cell);
                         row.Doorway = CellDoorway(map, cell);
                         row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
+                        row.NaturalRock = cell.GetEdifice(map)?.def.building?.isNaturalRock == true;
                     }
                     if (fields.Zone) {
                         var zone = map.zoneManager.ZoneAt(cell);
