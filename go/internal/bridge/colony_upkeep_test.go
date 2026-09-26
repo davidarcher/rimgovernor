@@ -56,7 +56,7 @@ func flooringWire() *o.FlooringSection {
 		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(0), Beauty: proto.Float64(0), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
 	}
 	return &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{
-		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
+		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Quality: &o.RoomQuality{Space: proto.Float64(12), Beauty: proto.Float64(0.5), Cleanliness: proto.Float64(-0.2), Wealth: proto.Float64(400), Impressiveness: proto.Float64(20)}, Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}},
@@ -81,6 +81,8 @@ func TestDirectUpkeepFlooringBoundary(t *testing.T) {
 		func(f *o.FlooringFacts) { f.Rooms = append(f.Rooms, f.Rooms[0]) },
 		func(f *o.FlooringFacts) { f.Rooms[0].RoomId = proto.String("") },
 		func(f *o.FlooringFacts) { f.Rooms[0].Role = proto.String("") },
+		func(f *o.FlooringFacts) { f.Rooms[0].Quality.Wealth = proto.Float64(math.NaN()) },
+		func(f *o.FlooringFacts) { f.Rooms[0].Quality.Space = proto.Float64(math.Inf(-1)) },
 		func(f *o.FlooringFacts) { f.Terrains = append(f.Terrains, f.Terrains[0]) },
 		func(f *o.FlooringFacts) { f.Terrains[0].Cleanliness = proto.Float64(math.NaN()) },
 		func(f *o.FlooringFacts) { f.Terrains[0].Beauty = proto.Float64(math.Inf(1)) },

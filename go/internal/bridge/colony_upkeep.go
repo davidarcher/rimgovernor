@@ -303,8 +303,18 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	cells := map[[2]int32]bool{}
 	total := 0
 	for _, room := range f.Rooms {
-		if room == nil || validID(room.GetRoomId()) != nil || rooms[room.GetRoomId()] || room.Role != nil && validID(room.GetRole()) != nil || !proto.Equal(room, &o.FloorRoom{RoomId: room.RoomId, Role: room.Role, Cells: room.Cells}) {
+		if room == nil || validID(room.GetRoomId()) != nil || rooms[room.GetRoomId()] || room.Role != nil && validID(room.GetRole()) != nil || !proto.Equal(room, &o.FloorRoom{RoomId: room.RoomId, Role: room.Role, Cells: room.Cells, Quality: room.Quality}) {
 			return contract("invalid flooring room")
+		}
+		if q := room.Quality; q != nil {
+			if !proto.Equal(q, &o.RoomQuality{Space: q.Space, Beauty: q.Beauty, Cleanliness: q.Cleanliness, Wealth: q.Wealth, Impressiveness: q.Impressiveness}) {
+				return contract("invalid room quality")
+			}
+			for _, value := range []*float64{q.Space, q.Beauty, q.Cleanliness, q.Wealth, q.Impressiveness} {
+				if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e9) {
+					return contract("invalid room quality stat")
+				}
+			}
 		}
 		rooms[room.GetRoomId()] = true
 		total += len(room.Cells)
