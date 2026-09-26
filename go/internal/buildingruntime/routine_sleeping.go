@@ -914,6 +914,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		adjacent[c] = true
 	}
 	roomCells := map[domain.Cell]bool{}
+	var interiorRooms []policy.InteriorRoom
 	restricted := r.temperature != nil || r.facility != nil || r.cells != nil
 	if r.temperature != nil {
 		for _, c := range r.temperature.Cells {
@@ -928,6 +929,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		for _, c := range policy.HostingCells(*r.facility, rooms) {
 			roomCells[c] = true
 		}
+		interiorRooms = policy.InteriorRoomsFor(*r.facility, rooms, facts.Cells)
 		if len(roomCells) == 0 {
 			if clockDebug() {
 				var summary []string
@@ -1003,11 +1005,6 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	if r.workshop != nil {
 		rotations = []domain.Rotation{domain.North, domain.East, domain.South, domain.West}
 	}
-	// Candidates come nearest first, and a footprint's score is its distance
-	// plus a non-negative alignment term, so once the next candidate's
-	// distance reaches the best valid score no later candidate can beat it:
-	// the best is committed and the previews stop there. Without a grid
-	// every valid preview commits at once, as before.
 	var pending *placementChoice
 	commit := func() error {
 		selected = append(selected, pending.choice)
@@ -1025,89 +1022,171 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		pending = nil
 		return nil
 	}
-	for i, c := range search.Candidates() {
-		if pending != nil && search.Score(c, nil).Distance >= pending.score.Score {
-			if err := commit(); err != nil {
-				return nil, policy.StockObservation{}, "", err
+	// previewAt previews the definition at one anchor and rotation; false
+	// when the native preview or the search refuses the site.
+	previewAt := func(search policy.PlacementSearch, id string, c domain.Cell, rotation domain.Rotation) (placementChoice, bool, RoutineBuildingReason, error) {
+		if err := check(); err != nil {
+			return placementChoice{}, false, "", err
+		}
+		b, err := domain.NewBuilding(r.definition, c, rotation, r.stuff)
+		if err != nil {
+			return placementChoice{}, false, "", err
+		}
+		a, err := domain.NewBuildingAction(domain.ActionID(id), b)
+		if err != nil {
+			return placementChoice{}, false, "", err
+		}
+		preview, _, err := r.native.PreviewBuilding(call, a, snapshot)
+		if err != nil {
+			return placementChoice{}, false, "", err
+		}
+		if err = check(); err != nil {
+			return placementChoice{}, false, "", err
+		}
+		if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) {
+			return placementChoice{}, false, "", ErrControl
+		}
+		made, known := preview.Preview.MadeFromStuff.Value()
+		if (r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort) && (r.definition == "HorseshoesPin" || r.definition == "TubeTelevision") {
+			accessible, known := preview.Preview.WatchCellsAccessible.Value()
+			unknownWatch = unknownWatch || !known
+			if !known || !accessible {
+				return placementChoice{}, false, "", nil
 			}
+		}
+		if !known || made != (r.stuff != "") {
+			return placementChoice{}, false, BuildingMethodUnknown, nil
+		}
+		if r.definition == policy.WindTurbineDefinition {
+			// Only a site whose native catch zone is clear makes the
+			// turbine's nominal output; an obstructed one is no site.
+			if blocked, known := preview.Preview.WindBlockedCells.Value(); !known || blocked > 0 {
+				return placementChoice{}, false, "", nil
+			}
+		}
+		choice, score, ok, err := search.SelectScored(r.definition, r.stuff, []policy.Preview{preview.Preview})
+		if err != nil || !ok {
+			return placementChoice{}, false, "", err
+		}
+		return placementChoice{choice: choice, preview: preview, score: score}, true, "", nil
+	}
+	overlaps := func(p policy.Preview) bool {
+		footprint, _ := p.Footprint.Value()
+		for _, c := range footprint {
+			if usedCells[c] {
+				return true
+			}
+		}
+		return false
+	}
+	// pass runs one search. Candidates come nearest first, and a
+	// footprint's score is its distance plus a non-negative alignment term,
+	// so once the next candidate's distance reaches the best valid score no
+	// later candidate can beat it: the best is committed and the previews
+	// stop there. Without a grid every valid preview commits at once.
+	pass := func(search policy.PlacementSearch, tag string) (RoutineBuildingReason, error) {
+		for i, c := range search.Candidates() {
 			if int64(len(selected)) == missing {
 				break
 			}
-		}
-		var choice policy.Preview
-		var score policy.PlacementScore
-		var preview bridge.BuildingPreview
-		ok := false
-		for _, rotation := range rotations {
-			if err = check(); err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
-			b, err := domain.NewBuilding(r.definition, c, rotation, r.stuff)
-			if err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
-			id := fmt.Sprintf("%s-%d", snapshot.Plan, i)
-			if rotation != domain.North {
-				id = fmt.Sprintf("%s-%d-%s", snapshot.Plan, i, rotation)
-			}
-			a, err := domain.NewBuildingAction(domain.ActionID(id), b)
-			if err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
-			preview, _, err = r.native.PreviewBuilding(call, a, snapshot)
-			if err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
-			if err = check(); err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
-			if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) {
-				return nil, policy.StockObservation{}, "", ErrControl
-			}
-			made, known := preview.Preview.MadeFromStuff.Value()
-			if (r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort) && (r.definition == "HorseshoesPin" || r.definition == "TubeTelevision") {
-				accessible, known := preview.Preview.WatchCellsAccessible.Value()
-				unknownWatch = unknownWatch || !known
-				if !known || !accessible {
-					continue
+			if pending != nil && search.Score(c, nil).Distance >= pending.score.Score {
+				if err := commit(); err != nil {
+					return "", err
+				}
+				if int64(len(selected)) == missing {
+					break
 				}
 			}
-			if !known || made != (r.stuff != "") {
-				return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
-			}
-			if r.definition == policy.WindTurbineDefinition {
-				// Only a site whose native catch zone is clear makes the
-				// turbine's nominal output; an obstructed one is no site.
-				if blocked, known := preview.Preview.WindBlockedCells.Value(); !known || blocked > 0 {
+			for _, rotation := range rotations {
+				id := fmt.Sprintf("%s%s-%d", snapshot.Plan, tag, i)
+				if rotation != domain.North {
+					id = fmt.Sprintf("%s%s-%d-%s", snapshot.Plan, tag, i, rotation)
+				}
+				choice, ok, reason, err := previewAt(search, id, c, rotation)
+				if err != nil || reason != "" {
+					return reason, err
+				}
+				if !ok {
 					continue
 				}
-			}
-			choice, score, ok, err = search.SelectScored(r.definition, r.stuff, []policy.Preview{preview.Preview})
-			if err != nil {
-				return nil, policy.StockObservation{}, "", err
-			}
-			if ok {
+				if !overlaps(choice.choice) && (pending == nil || choice.score.Score < pending.score.Score) {
+					pending = &choice
+				}
 				break
 			}
 		}
-		if !ok {
-			continue
+		if pending != nil && int64(len(selected)) < missing {
+			return "", commit()
 		}
-		footprint, _ := choice.Footprint.Value()
-		overlaps := false
-		for _, c := range footprint {
-			overlaps = overlaps || usedCells[c]
+		return "", nil
+	}
+	// An indoor facility asks each room's interior template for the
+	// piece's slots first (#800) and takes any slot that can be placed,
+	// whatever its score. Only then does the scored search run, over the
+	// rooms' wall bands, centre lines and mirror positions before any
+	// other free cell.
+	if len(interiorRooms) > 0 {
+		var slots []policy.InteriorPiece
+		var anchors, occupied []domain.Cell
+		for _, c := range facts.Cells {
+			if o, known := c.Occupied.Value(); !known || o {
+				occupied = append(occupied, c.Cell)
+			}
 		}
-		if overlaps {
-			continue
+		for _, room := range interiorRooms {
+			anchors = append(anchors, policy.InteriorSnapAnchors(room, occupied)...)
+			plan, ok := policy.PlanInterior(room)
+			if !ok {
+				continue
+			}
+			for _, p := range plan.Pieces {
+				if p.Def == r.definition {
+					slots = append(slots, p)
+				}
+			}
 		}
-		if pending == nil || score.Score < pending.score.Score {
-			pending = &placementChoice{choice: choice, preview: preview, score: score}
+		if len(slots) > 0 {
+			request := searchRequest
+			request.Anchors, request.Limit = nil, min(len(slots), 64)
+			for _, p := range slots {
+				request.Anchors = append(request.Anchors, p.Anchor())
+			}
+			slotSearch, err := policy.NewPlacementSearch(request)
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			for i, p := range slots {
+				if int64(len(selected)) == missing {
+					break
+				}
+				choice, ok, reason, err := previewAt(slotSearch, fmt.Sprintf("%s-t%d", snapshot.Plan, i), p.Anchor(), p.Rot)
+				if err != nil || reason != "" {
+					return nil, policy.StockObservation{}, reason, err
+				}
+				if ok && !overlaps(choice.choice) {
+					clockSchedulerLog("%s: %s takes interior slot %s at %d,%d %s", r.goal, r.definition, p.Slot, p.Anchor().X, p.Anchor().Z, p.Rot)
+					pending = &choice
+					if err := commit(); err != nil {
+						return nil, policy.StockObservation{}, "", err
+					}
+				}
+			}
+		}
+		if int64(len(selected)) < missing {
+			request := searchRequest
+			request.Anchors = anchors
+			snapSearch, err := policy.NewPlacementSearch(request)
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			if reason, err := pass(snapSearch, "-s"); err != nil || reason != "" {
+				return nil, policy.StockObservation{}, reason, err
+			}
 		}
 	}
-	if pending != nil && int64(len(selected)) < missing {
-		if err := commit(); err != nil {
-			return nil, policy.StockObservation{}, "", err
+	if int64(len(selected)) < missing {
+		if reason, err := pass(search, ""); err != nil || reason != "" {
+			return nil, policy.StockObservation{}, reason, err
 		}
 	}
 	if int64(len(selected)) != missing {

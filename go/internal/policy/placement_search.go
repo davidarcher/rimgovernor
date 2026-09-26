@@ -32,6 +32,9 @@ type PlacementSearchRequest struct {
 	// nearest-site choice.
 	Grid      domain.Fact[ColonyGrid]
 	Alignment float64
+	// Anchors, when non-nil, limits the sites to these cells; footprints
+	// may still cover any free cell.
+	Anchors []domain.Cell
 }
 
 // PlacementSearch is a bounded native-grounded proposal set. It owns a copy
@@ -84,6 +87,13 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 	if grid, known := r.Grid.Value(); known && grid.Valid() && r.Alignment > 0 {
 		s.grid, s.alignment = grid, r.Alignment
 	}
+	var anchors map[domain.Cell]bool
+	if r.Anchors != nil {
+		anchors = map[domain.Cell]bool{}
+		for _, c := range r.Anchors {
+			anchors[c] = true
+		}
+	}
 	seen := map[domain.Cell]bool{}
 	for _, row := range r.Cells {
 		c := row.Cell
@@ -103,6 +113,9 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 			}
 		}
 		s.free[c] = true
+		if anchors != nil && !anchors[c] {
+			continue
+		}
 		if c.X >= r.Center.X-r.Radius && c.X <= r.Center.X+r.Radius && c.Z >= r.Center.Z-r.Radius && c.Z <= r.Center.Z+r.Radius {
 			s.sites = append(s.sites, c)
 		}
