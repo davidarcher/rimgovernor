@@ -20,9 +20,11 @@ const (
 // the same enclosed roofed interiors and internal-door connectivity as Home.
 // A known empty value means only the occupied footprint belongs. Corridors
 // must be observed connecting geometry, never interpolated between facilities.
+// Zone is a stockpile target's whole footprint (#719); a building leaves it empty.
 type HomeExtentGeometry struct {
 	EnclosedInterior []domain.Cell
 	Corridor         []domain.Cell
+	Zone             []domain.Cell
 }
 
 type ExtentProvenance struct {
@@ -48,7 +50,6 @@ type ColonyExtentRequest struct {
 	Bounds       domain.Fact[Bounds]
 	Construction domain.Fact[CurrentConstruction]
 	Claims       domain.Fact[[]ConstructionClaim]
-	Stockpiles   domain.Fact[[]OwnedStockpile]
 	Home         domain.Fact[HomeCoverageObservation]
 	// Margin is a Chebyshev radius, from zero through eight cells.
 	Margin int32
@@ -61,12 +62,11 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 	invalid := errors.New("invalid colony extent geometry or bounds")
 	bounds, bk := r.Bounds.Value()
 	census, ck := r.Construction.Value()
-	zones, zk := r.Stockpiles.Value()
 	home, hk := r.Home.Value()
 	if r.Margin < 0 || r.Margin > 8 {
 		return unknown, invalid
 	}
-	if !bk || !ck || !zk || !hk || !census.Colony {
+	if !bk || !ck || !hk || !census.Colony {
 		return unknown, nil
 	}
 	if bounds.Width <= 0 || bounds.Height <= 0 || bounds.Width > 4096 || bounds.Height > 4096 {
@@ -77,22 +77,6 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 		if len(b.Cells) == 0 {
 			return unknown, nil
 		}
-	}
-	if len(zones) > 256 {
-		return unknown, invalid
-	}
-	zoneIDs := map[string]bool{}
-	for _, b := range census.Buildings {
-		zoneIDs[b.ID] = true
-	}
-	for _, z := range zones {
-		if len(z.Cells) == 0 {
-			return unknown, nil
-		}
-		if !foodID(z.ID) || zoneIDs[z.ID] || !facilityCells(z.Cells) {
-			return unknown, invalid
-		}
-		zoneIDs[z.ID] = true
 	}
 	// Ambiguous optional history cannot select provenance by input order.
 	history, _ := r.Claims.Value()
@@ -179,11 +163,27 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 			return unknown, invalid
 		}
 	}
-	for _, z := range zones {
-		for _, c := range z.Cells {
-			if !add(c, ExtentProvenance{Origin: ExtentFacility, Facility: z.ID}) {
+	// Every census stockpile is territory at its whole current footprint
+	// (#719), whoever zoned it. A target that is not a building and carries
+	// no zone geometry (blocked, legacy or batched) adds nothing.
+	facility := map[string]bool{}
+	for _, b := range buildings {
+		facility[b.Identity.Current] = true
+	}
+	for _, target := range home.Targets {
+		geometry, known := target.ExtentGeometry.Value()
+		if facility[target.ID] || !known || target.Blocker != "" {
+			continue
+		}
+		if len(geometry.Zone) > extentCellLimit {
+			return unknown, invalid
+		}
+		seen := map[domain.Cell]bool{}
+		for _, c := range geometry.Zone {
+			if seen[c] || !add(c, ExtentProvenance{Origin: ExtentFacility, Facility: target.ID}) {
 				return unknown, invalid
 			}
+			seen[c] = true
 		}
 	}
 	ordered := make([]domain.Cell, 0, len(cells))

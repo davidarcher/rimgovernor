@@ -13,13 +13,14 @@ func TestHomeExtentCompleteUnbatchedAndAbsent(t *testing.T) {
 		row.ExtentGeometry.EnclosedInterior = append(row.ExtentGeometry.EnclosedInterior, &c.Cell{X: proto.Int32(x), Z: proto.Int32(1)})
 	}
 	row.ExtentGeometry.Corridor = []*c.Cell{{X: proto.Int32(700), Z: proto.Int32(1)}}
+	row.ExtentGeometry.Zone = []*c.Cell{{X: proto.Int32(701), Z: proto.Int32(1)}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{HomeCoverage: &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{Targets: []*o.HomeCoverageTarget{row}}}}}}}}
 	home, known := colonyHomeCoverage(v).Value()
 	if !known {
 		t.Fatal("missing census")
 	}
 	g, known := home.Targets[0].ExtentGeometry.Value()
-	if !known || len(g.EnclosedInterior) != 700 || len(g.Corridor) != 1 {
+	if !known || len(g.EnclosedInterior) != 700 || len(g.Corridor) != 1 || len(g.Zone) != 1 {
 		t.Fatalf("batched geometry: %+v", g)
 	}
 	row.ExtentGeometry = nil

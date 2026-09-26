@@ -43,31 +43,31 @@ func completedStockpile(t *testing.T, zone string) (*Store, string, domain.Gener
 	return s, path, r.Current
 }
 
-// A stockpile claim carries the native zone identity the creation receipt
+// A zone claim carries the native zone identity the creation receipt
 // returned, the form the Home coverage census names stockpiles by (#315);
 // the action ID never matched a census row.
-func TestStockpileClaimsCarryTheReceiptZoneIdentity(t *testing.T) {
+func TestZoneClaimsCarryTheReceiptZoneIdentity(t *testing.T) {
 	t.Parallel()
 	s, path, current := completedStockpile(t, "Zone_7")
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
-	got, err := s.StockpileClaims(context.Background(), current, 12)
+	got, err := s.ZoneClaims(context.Background(), current, 12)
 	rows, known := got.Value()
 	if err != nil || !known || len(rows) != 1 || rows[0].ID != "Zone_7" || len(rows[0].Cells) != 1 || rows[0].Cells[0] != (domain.Cell{X: 3, Z: 7}) {
 		t.Fatal(rows, known, err)
 	}
-	if got, err = s.StockpileClaims(context.Background(), current, 10); err != nil {
+	if got, err = s.ZoneClaims(context.Background(), current, 10); err != nil {
 		t.Fatal(err)
 	} else if rows, known = got.Value(); !known || len(rows) != 0 {
 		t.Fatal("a future completion owns a zone", rows)
 	}
 }
 
-func TestStockpileClaimsIgnoreCompletionsWithoutZoneIdentity(t *testing.T) {
+func TestZoneClaimsIgnoreCompletionsWithoutZoneIdentity(t *testing.T) {
 	t.Parallel()
 	s, _, current := completedStockpile(t, "")
-	got, err := s.StockpileClaims(context.Background(), current, 12)
+	got, err := s.ZoneClaims(context.Background(), current, 12)
 	rows, known := got.Value()
 	if err != nil || !known || len(rows) != 0 {
 		t.Fatal(rows, known, err)

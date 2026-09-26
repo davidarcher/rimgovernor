@@ -61,7 +61,6 @@ func lootExtentFacts(t *testing.T, f *policy.RoutineFacts, cell domain.Cell) {
 	}
 	f.MapBounds = domain.Known(policy.Bounds{Width: 100, Height: 100})
 	f.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: b, Cells: []domain.Cell{cell}}}})
-	f.OwnedStockpiles = domain.Known([]policy.OwnedStockpile{})
 	f.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "wall", Cells: []domain.Cell{cell}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), ExtentGeometry: domain.Known(policy.HomeExtentGeometry{})}}})
 }
 

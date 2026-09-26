@@ -268,12 +268,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	r.logBuildTier(ctx, reading.Projection)
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
-	reading.Projection.Facts.OwnedStockpiles, err = p.journal.StockpileClaims(ctx, state.Snapshot, reading.Projection.Identity.Tick)
-	if err != nil {
-		return store.RoutineReviewResult{}, err
-	}
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
-	reading.Sections.Colony.Value.Facts.OwnedStockpiles = reading.Projection.Facts.OwnedStockpiles
 	if err = r.reviewColonyGrid(ctx, state.Snapshot, &reading.Projection); err != nil {
 		clockSchedulerLog("routine.step: colony grid err=%v", err)
 		return store.RoutineReviewResult{}, err

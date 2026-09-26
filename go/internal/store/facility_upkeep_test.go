@@ -145,7 +145,6 @@ func TestRoutineReviewCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 	r.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "fake", Action: "fake", Goal: "fake", Identity: domain.ConstructionIdentity{Origin: "fake", Current: "wall"}, Building: b}})
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Requested: []string{"wall"}, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: b}}})
-	r.Facts.OwnedStockpiles = domain.Known([]policy.OwnedStockpile{{ID: "zone", Cells: []domain.Cell{{X: 3, Z: 7}}}})
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRoutine(t, s, &r)

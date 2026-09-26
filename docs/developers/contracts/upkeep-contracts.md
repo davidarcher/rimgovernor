@@ -85,8 +85,8 @@ player-built facility, and replacement geometry never inherits causal history.
 Lineage does not authorize demolition or establish safe removal.
 
 `policy.DeriveColonyExtent` is a pure current-territory model. It joins the
-complete `CurrentConstruction` census, optional action provenance and exact
-owned stockpiles into sorted four-neighbor regions. Each cell records `facility`,
+complete `CurrentConstruction` census, optional action provenance and every
+census stockpile footprint into sorted four-neighbor regions. Each cell records `facility`,
 `enclosed_interior`, `corridor` or `margin` provenance. A margin is an explicit
 0–8 cell Chebyshev radius clipped to map bounds; overlapping margins never join
 separate regions. No bounding rectangle or inferred path fills gaps between

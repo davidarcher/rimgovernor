@@ -116,6 +116,10 @@ namespace HomeBridge.BridgeTools
                             if (cell.GetEdifice(map) is Building_Door) row.ExtentGeometry.Corridor.Add(Cell(cell));
                             else row.ExtentGeometry.EnclosedInterior.Add(Cell(cell));
                         }
+                    } else {
+                        // A stockpile's whole footprint, unbatched: colony extent
+                        // takes every census stockpile (#719).
+                        row.ExtentGeometry.Zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Cell));
                     }
                     facts.Targets.Add(row);
                 }

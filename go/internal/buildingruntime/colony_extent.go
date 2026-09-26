@@ -23,7 +23,7 @@ func (s *ClockScheduler) establishExtent(ctx context.Context, tick domain.Tick) 
 		return nil
 	}
 	f := p.Facts
-	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{Bounds: domain.Known(p.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage})
+	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{Bounds: domain.Known(p.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
 	if err != nil {
 		return err
 	}

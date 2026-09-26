@@ -1083,7 +1083,7 @@ func defenseRegion(projection observation.ColonyProjection) (bridge.CellRect, er
 	f := projection.Facts
 	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{
 		Bounds: domain.Known(projection.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
-		Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage,
+		Home: f.HomeCoverage,
 	})
 	if err != nil {
 		return bridge.CellRect{}, err

@@ -21,7 +21,6 @@ func TestClockEstablishesOnlyKnownExtent(t *testing.T) {
 	}
 	p := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load, Tick: 100}, Bounds: policy.Bounds{Width: 100, Height: 100}}
 	p.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: b, Cells: []domain.Cell{cell}}}})
-	p.Facts.OwnedStockpiles = domain.Known([]policy.OwnedStockpile{})
 	put := func() {
 		facts.Put(s.facts.store, facts.Scope{Load: string(snapshot.Load), Generation: uint64(snapshot.Native)}, facts.Colony, facts.Held[observation.ColonyProjection]{Value: p, Complete: true, AsOf: int64(p.Identity.Tick)})
 	}

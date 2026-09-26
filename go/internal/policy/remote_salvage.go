@@ -13,7 +13,7 @@ type SalvageEvidence struct {
 // review shares: reach from the derived extent, demand from the effective
 // targets and the urgent work competing for the colonists.
 func SalvageContext(p RoutinePolicy, f RoutineFacts) (RemoteWorkRequest, error) {
-	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage})
+	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
 	if err != nil {
 		return RemoteWorkRequest{}, err
 	}

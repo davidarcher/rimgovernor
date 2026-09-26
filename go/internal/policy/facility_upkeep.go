@@ -15,10 +15,6 @@ const (
 	MaintainStoneShell   GoalID = "MaintainStoneShell"
 )
 
-type OwnedStockpile struct {
-	ID    string
-	Cells []domain.Cell
-}
 type HomeCoverageTarget struct {
 	// ExtentGeometry is complete, unbatched geometry. Legacy Home batches
 	// leave it unknown and cannot establish colony territory.

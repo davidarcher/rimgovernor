@@ -5,35 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
-
-// stockpileClaims mirrors constructionClaims: it joins durable autopilot goal
-// methods for the current world scope to find completed ZoneCreate actions of
-// kind StockpileZone, as colony-extent territory evidence. It exempts nothing:
-// Home coverage reads every census stockpile (#719).
-// The claim's ID is the native zone identity the completion receipt returned
-// (the zone's unique load id), the same form the Home coverage census names
-// stockpiles by (#315); a completion recorded without one owns nothing.
-// The link query keeps only plans with an observed zone_create action, as in
-// constructionClaims.
-func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
-	zones, err := zoneClaims(ctx, tx, current, tick)
-	if err != nil {
-		return domain.Unknown[[]policy.OwnedStockpile](), err
-	}
-	owned, known := zones.Value()
-	if !known {
-		return domain.Unknown[[]policy.OwnedStockpile](), nil
-	}
-	result := []policy.OwnedStockpile{}
-	for _, z := range owned {
-		if z.Kind == domain.StockpileZone {
-			result = append(result, policy.OwnedStockpile{ID: z.ID, Cells: z.Cells})
-		}
-	}
-	return domain.Known(result), nil
-}
 
 // OwnedZone is one zone this colony created, by native zone identity:
 // the completed zone_create's kind, crop and cells.
@@ -111,25 +83,6 @@ func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapsh
 		}
 	}
 	return domain.Known(result), nil
-}
-
-// StockpileClaims exposes stockpileClaims outside the routine review
-// transaction, mirroring Store.ConstructionClaims, so a routine scheduler can
-// re-derive the colony extent on its own tick.
-func (s *Store) StockpileClaims(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
-	if current.Validate() != nil || tick < 0 {
-		return domain.Unknown[[]policy.OwnedStockpile](), ErrConflict
-	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return domain.Unknown[[]policy.OwnedStockpile](), err
-	}
-	defer tx.Rollback()
-	result, err := stockpileClaims(ctx, tx, current, tick)
-	if err != nil {
-		return result, err
-	}
-	return result, tx.Commit()
 }
 
 // ZoneClaims exposes zoneClaims outside the routine review transaction:

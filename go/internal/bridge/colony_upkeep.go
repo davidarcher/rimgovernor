@@ -164,11 +164,11 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 				}
 				seen[row.GetId()] = true
 				if g := row.ExtentGeometry; g != nil {
-					if row.GetBlocker() != "" || len(g.EnclosedInterior)+len(g.Corridor) > 65536 {
+					if row.GetBlocker() != "" || len(g.EnclosedInterior)+len(g.Corridor)+len(g.Zone) > 65536 {
 						return contract("invalid complete Home extent geometry")
 					}
 					geometryCells := map[[2]int32]bool{}
-					for _, group := range [][]*c.Cell{g.EnclosedInterior, g.Corridor} {
+					for _, group := range [][]*c.Cell{g.EnclosedInterior, g.Corridor, g.Zone} {
 						for _, cell := range group {
 							key := [2]int32{cell.GetX(), cell.GetZ()}
 							if !colonyCell(cell, size) || geometryCells[key] {

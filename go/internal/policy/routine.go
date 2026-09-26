@@ -361,7 +361,6 @@ type RoutineFacts struct {
 	Mood                 MoodHistory
 	HomeCoverage         domain.Fact[HomeCoverageObservation]
 	StoneStructures      domain.Fact[[]StoneStructure]
-	OwnedStockpiles      domain.Fact[[]OwnedStockpile]
 	ConstructionClaims   domain.Fact[[]ConstructionClaim]
 	CurrentConstruction  domain.Fact[CurrentConstruction]
 	Sleeping             domain.Fact[SleepingObservation]

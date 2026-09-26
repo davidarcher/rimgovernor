@@ -141,7 +141,6 @@ func TestMiningReachLoadsKnownEmptyJournalClaims(t *testing.T) {
 	f.HomeCoverage = domain.Known(policy.HomeCoverageObservation{})
 	f.MapBounds = domain.Known(policy.Bounds{Width: 100, Height: 100})
 	f.ConstructionClaims = domain.Unknown[[]policy.ConstructionClaim]()
-	f.OwnedStockpiles = domain.Unknown[[]policy.OwnedStockpile]()
 	planner := &RoutineResourcePlanner{reviewer: r}
 	reach, err := planner.miningReach(context.Background(), r.player.session.State(), r.census.latest.reading.Projection.Identity.Tick)
 	if err != nil {

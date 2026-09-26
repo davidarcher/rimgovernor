@@ -35,6 +35,9 @@ func colonyHomeCoverage(v *o.ColonyFactsSnapshot) domain.Fact[policy.HomeCoverag
 			for _, c := range geometry.Corridor {
 				g.Corridor = append(g.Corridor, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 			}
+			for _, c := range geometry.Zone {
+				g.Zone = append(g.Zone, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+			}
 			t.ExtentGeometry = domain.Known(g)
 		}
 		r.Targets = append(r.Targets, t)

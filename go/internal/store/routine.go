@@ -431,10 +431,6 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		request.Facts.ResourceNeeds = policy.ResourceGoalTargets(request.Facts.ResourceNeeds, policy.ResourceRunwayTargets(request.Facts.ResourceRunways))
-		request.Facts.OwnedStockpiles, err = stockpileClaims(ctx, tx, request.Current, request.Tick)
-		if err != nil {
-			return RoutineReviewResult{}, err
-		}
 		request.Facts.ConstructionClaims, err = constructionClaims(ctx, tx, request.Current, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err

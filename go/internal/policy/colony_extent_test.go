@@ -22,7 +22,7 @@ func extentFixture(t *testing.T, points ...domain.Cell) ColonyExtentRequest {
 		census.Buildings = append(census.Buildings, CurrentBuilding{ID: id, Building: b, Cells: []domain.Cell{c}})
 		home.Targets = append(home.Targets, HomeCoverageTarget{ID: id, Cells: []domain.Cell{c}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), ExtentGeometry: domain.Known(HomeExtentGeometry{})})
 	}
-	return ColonyExtentRequest{Bounds: domain.Known(Bounds{Width: 30, Height: 30}), Construction: domain.Known(census), Stockpiles: domain.Known([]OwnedStockpile{}), Home: domain.Known(home)}
+	return ColonyExtentRequest{Bounds: domain.Known(Bounds{Width: 30, Height: 30}), Construction: domain.Known(census), Home: domain.Known(home)}
 }
 
 func extentReasons(e ColonyExtent, c domain.Cell) []ExtentProvenance {
@@ -85,7 +85,7 @@ func TestColonyExtentGeometry(t *testing.T) {
 }
 
 func TestColonyExtentUnknown(t *testing.T) {
-	for _, kind := range []string{"bounds", "construction", "stockpiles", "home", "exact refresh", "missing footprint", "missing target", "batch only", "blocked"} {
+	for _, kind := range []string{"bounds", "construction", "home", "exact refresh", "missing footprint", "missing target", "batch only", "blocked"} {
 		t.Run(kind, func(t *testing.T) {
 			r := extentFixture(t, domain.Cell{X: 2, Z: 2})
 			c, _ := r.Construction.Value()
@@ -95,8 +95,6 @@ func TestColonyExtentUnknown(t *testing.T) {
 				r.Bounds = domain.Unknown[Bounds]()
 			case "construction":
 				r.Construction = domain.Unknown[CurrentConstruction]()
-			case "stockpiles":
-				r.Stockpiles = domain.Unknown[[]OwnedStockpile]()
 			case "home":
 				r.Home = domain.Unknown[HomeCoverageObservation]()
 			case "exact refresh":
@@ -144,7 +142,7 @@ func TestColonyExtentValidation(t *testing.T) {
 			case "duplicate target":
 				h.Targets = append(h.Targets, h.Targets[0])
 			case "duplicate stockpile":
-				r.Stockpiles = domain.Known([]OwnedStockpile{{ID: "a", Cells: []domain.Cell{{X: 3, Z: 2}}}})
+				h.Targets = append(h.Targets, HomeCoverageTarget{ID: "zone", ExtentGeometry: domain.Known(HomeExtentGeometry{Zone: []domain.Cell{{X: 9, Z: 9}, {X: 9, Z: 9}}})})
 			}
 			r.Home = domain.Known(h)
 			got, err := DeriveColonyExtent(r)
@@ -163,7 +161,9 @@ func TestColonyExtentStableProvenanceAndIsolation(t *testing.T) {
 	r.Home = domain.Known(h)
 	b := c.Buildings[0]
 	r.Claims = domain.Known([]ConstructionClaim{{Plan: "plan", Action: "action", Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: b.ID}, Building: b.Building, Cells: b.Cells}})
-	r.Stockpiles = domain.Known([]OwnedStockpile{{ID: "stockpile", Cells: []domain.Cell{{X: 20, Z: 20}, {X: 20, Z: 21}}}})
+	// A census stockpile no journal claim created is territory too (#719).
+	h.Targets = append(h.Targets, HomeCoverageTarget{ID: "stockpile", ExtentGeometry: domain.Known(HomeExtentGeometry{Zone: []domain.Cell{{X: 20, Z: 20}, {X: 20, Z: 21}}})})
+	r.Home = domain.Known(h)
 	first, err := DeriveColonyExtent(r)
 	e, known := first.Value()
 	if err != nil || !known {

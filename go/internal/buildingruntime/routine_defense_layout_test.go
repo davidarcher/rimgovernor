@@ -38,7 +38,6 @@ func TestDefenseRegionReadsColonyExtent(t *testing.T) {
 	}
 	facts := policy.RoutineFacts{
 		CurrentConstruction: domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "w", Building: wall, Cells: []domain.Cell{{X: 150, Z: 150}}}}}),
-		OwnedStockpiles:     domain.Known([]policy.OwnedStockpile{}),
 		HomeCoverage: domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{
 			ID: "w", Cells: []domain.Cell{{X: 150, Z: 150}}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)),
 			ExtentGeometry: domain.Known(policy.HomeExtentGeometry{}),

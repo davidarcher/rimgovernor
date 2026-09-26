@@ -71,7 +71,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 		}
 		r.Extent, err = policy.DeriveColonyExtent(policy.ColonyExtentRequest{
 			Bounds: r.Bounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
-			Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage,
+			Home: f.HomeCoverage,
 		})
 		if err != nil {
 			return httpapi.RoutineStatus{}, err
@@ -89,14 +89,17 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 			}
 			status.ExtentEligibility = policy.ExtentEligibilityRequest{Extent: domain.Known(extent), Threat: r.Threat}
 			buildings, bk := f.CurrentConstruction.Value()
-			zones, zk := f.OwnedStockpiles.Value()
-			if bk && buildings.Colony && zk {
+			home, hk := f.HomeCoverage.Value()
+			if bk && buildings.Colony && hk {
 				ids := []string{}
 				for _, b := range buildings.Buildings {
 					ids = append(ids, b.ID)
 				}
-				for _, z := range zones {
-					ids = append(ids, z.ID)
+				// Every census stockpile (#719): a target with zone geometry.
+				for _, t := range home.Targets {
+					if g, known := t.ExtentGeometry.Value(); known && len(g.Zone) > 0 {
+						ids = append(ids, t.ID)
+					}
 				}
 				status.ExtentEligibility.Facilities = domain.Known(ids)
 			}

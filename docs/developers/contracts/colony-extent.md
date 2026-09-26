@@ -25,9 +25,10 @@ knowledge about the colony; the game holds no copy of it.
 
 `policy.DeriveColonyExtent` joins the complete `CurrentConstruction`
 player-faction building census (#475), optional action provenance
-(`ConstructionClaims`), exact owned stockpile footprints and each target's
-complete `HomeCoverageTarget.ExtentGeometry` (enclosed roofed interior and
-observed corridor cells, same geometry rules as Home) into sorted
+(`ConstructionClaims`) and each target's complete
+`HomeCoverageTarget.ExtentGeometry` (enclosed roofed interior and observed
+corridor cells, same geometry rules as Home, and every census stockpile's
+whole `zone` footprint whoever zoned it, #719) into sorted
 four-neighbour regions. Every cell carries provenance: `facility`,
 `enclosed_interior`, `corridor` or `margin`, with the facility identity and,
 when known, the plan, action and goal that built it. A margin is an explicit

@@ -557,10 +557,6 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 	if err != nil {
 		return policy.RemoteWorkRequest{}, err
 	}
-	f.OwnedStockpiles, err = r.reviewer.player.journal.StockpileClaims(ctx, state.Snapshot, expected.Tick)
-	if err != nil {
-		return policy.RemoteWorkRequest{}, err
-	}
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
 		return policy.RemoteWorkRequest{}, err
@@ -568,7 +564,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 	f.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	f.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{Bounds: f.MapBounds,
-		Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage})
+		Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
 	if err != nil {
 		return policy.RemoteWorkRequest{}, err
 	}
