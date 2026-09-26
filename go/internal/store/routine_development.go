@@ -37,13 +37,18 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		var goalID domain.GoalID
 		source, priority := domain.PlayerGoal, 3
 		world := World{}
-		err = tx.QueryRowContext(ctx, "SELECT goal_id FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&goalID)
+		admitted := 0
+		err = tx.QueryRowContext(ctx, "SELECT goal_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&goalID, &admitted)
 		if err == nil {
 			g, e := loadGoal(ctx, tx, goalID)
 			if e != nil {
 				return nil, e
 			}
-			source, priority = g.Goal.Source, g.Goal.Priority
+			// The priority the method was admitted under, not the goal's
+			// current one: work a priority-2 goal admitted outside the
+			// ranked queue never turns into a slot hold when the goal
+			// drops back to 3 (#705), and slot work stays one.
+			source, priority = g.Goal.Source, admitted
 			world = World{Colony: g.Goal.Snapshot.Colony, Load: g.Goal.Snapshot.Load, Map: g.Goal.Snapshot.Map}
 			for _, b := range bindings {
 				if goalID == b.Goal || source == domain.AutopilotGoal && strings.HasPrefix(string(goalID), "routine-") && strings.HasSuffix(string(goalID), "-"+string(b.Need)) {

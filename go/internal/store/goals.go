@@ -41,7 +41,7 @@ const maxActiveGoals = 512
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
-CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
+CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
@@ -350,7 +350,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if err = createPlan(ctx, tx, plan); err != nil {
 		return GoalState{}, err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id) VALUES(?,?,?,?)", id, strconv.FormatUint(m.Epoch, 10), method, plan.ID()); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id,priority) VALUES(?,?,?,?,?)", id, strconv.FormatUint(m.Epoch, 10), method, plan.ID(), g.Priority); err != nil {
 		return GoalState{}, conflict(err)
 	}
 	state.Revision++

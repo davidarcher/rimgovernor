@@ -748,3 +748,35 @@ func TestRoutineDevelopmentIdleReleaseSurvivesRestartAndKeepsClaims(t *testing.T
 		t.Fatal("resumed work was dispatched again or lost its claims", err)
 	}
 }
+
+// Work a goal admitted while it bypassed the ranked queue (priority 2, as
+// MaintainFoodStorage does for a larder or reserve access) holds no slot
+// after the goal drops back to 3: the commitment keeps the priority it was
+// admitted under, so the review never counts more slots than capacity
+// (#705).
+func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	out := reviewRoutine(t, s, &r)
+	wood := routineGoal(t, out, policy.MaintainWood)
+	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.Colonists = domain.Known(int64(3))
+	r.Facts.Armed = domain.Known(int64(0))
+	out = reviewRoutine(t, s, &r)
+	if len(out.Review.Development.Committed) != 1 || developmentRow(t, out.Review, policy.EnsureBasicDefense).Reason != policy.DevelopmentCapacity {
+		t.Fatal("slot work admitted at priority 3 holds the slot", out.Review.Development)
+	}
+	if _, err := s.db.ExecContext(ctx, "UPDATE goal_methods SET priority=2 WHERE plan_id='wood'"); err != nil {
+		t.Fatal(err)
+	}
+	out = reviewRoutine(t, s, &r)
+	if len(out.Review.Development.Committed) != 0 || !developmentRow(t, out.Review, policy.EnsureBasicDefense).Selected {
+		t.Fatal("work admitted at priority 2 counted as a slot", out.Review.Development)
+	}
+}
