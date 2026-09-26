@@ -292,6 +292,14 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	case policy.SleepingUnknown:
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	case policy.SleepingNoDemand:
+		// A bed replacement under way finishes first (#829): its new bed
+		// stands unowned until the owner moves.
+		if rep, due := bedReplacement(facts); due && rep.Step == policy.BedReplaceAssign {
+			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: rep.Pawn, Bed: rep.Bed, PreviousBed: rep.PreviousBed}
+			break
+		} else if due && rep.Step == policy.BedReplaceRemove {
+			return r.removeOldBed(call, epoch, state, review, goal, reading, rep)
+		}
 		// Everyone owns a bed: walk them into planned bedrooms (#786).
 		step := bedroomStep(facts)
 		switch step.Kind {
@@ -310,6 +318,9 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			if !ok {
 				if upgrade, due := roomUpgrade(facts); due {
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
+				}
+				if rep, due := bedReplacement(facts); due && rep.Step == policy.BedReplaceBuild {
+					return r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: rep.Room, Slot: "bed", Def: rep.Def, Anchor: rep.Cell, Rot: rep.Rot})
 				}
 				return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
 			}

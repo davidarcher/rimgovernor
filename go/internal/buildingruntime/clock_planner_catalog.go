@@ -203,7 +203,7 @@ var plannerCatalog = []plannerEntry{
 			out.Supplies = &method
 			return method.Reason, nil
 		}},
-	{name: "sleeping", class: classOptional, startup: true, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
+	{name: "sleeping", class: classOptional, startup: true, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.DeconstructionAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Sleeping != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Sleeping.step(ctx, epoch, arbiter)

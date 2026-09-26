@@ -35,6 +35,65 @@ func roomUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) 
 	return policy.NextRoomUpgrade(obs, targets, policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
 }
 
+// bedReplacement is the next bed replacement step (#829), read from the
+// same census as roomUpgrade.
+func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, bool) {
+	obs, sk := facts.Facts.Sleeping.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	traits := sleepingTraits(facts)
+	if !sk || !rk || !ck || !census.Colony || traits == nil {
+		return policy.BedReplacement{}, false
+	}
+	tier, _ := facts.BuildTier.Value()
+	available := func(def string) bool {
+		v, known := facts.DefinitionAvailable(def).Value()
+		return known && v
+	}
+	return policy.NextBedReplacement(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
+}
+
+// removeOldBed deconstructs a replaced bed, once per bed per goal epoch.
+func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, rep policy.BedReplacement) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
+	bed := sha256.Sum256([]byte(rep.Bed))
+	method := domain.MethodID(fmt.Sprintf("bedroom-replace-remove-%x", bed[:8]))
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	snapshot := state.Snapshot
+	snapshot.Plan = domain.PlanID(fmt.Sprintf("routine-sleeping-replace-%x", digest[:16]))
+	snapshot.Revision = 1
+	check := func() error {
+		if err := p.current(call, epoch); err != nil {
+			return err
+		}
+		if p.session.State() != state {
+			return ErrControl
+		}
+		return nil
+	}
+	if err := check(); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	value, err := domain.NewDeconstruction(rep.Bed, rep.Def, rep.Cell)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	action, err := domain.NewDeconstructionAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), value)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	plan, err := domain.NewPlan(snapshot.Plan, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	clockSchedulerLog("%s: bedroom %s: remove replaced bed %s", goal.Goal.ID, rep.Room, rep.Bed)
+	facts := reading.Projection
+	return r.building.admitExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, check)
+}
+
 // upgradeBedroom previews and admits one upgrade piece, once per room and
 // slot per goal epoch.
 func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, u policy.RoomUpgrade) (RoutineBuildingResult, error) {
