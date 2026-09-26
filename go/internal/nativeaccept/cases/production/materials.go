@@ -18,7 +18,7 @@ func init() {
 	for _, scenario := range []string{"deepdrill", "components"} {
 		cases.Register(cases.Case{
 			Name:        "production/" + scenario,
-			Scope:       "Recover a material runway deficit through ordinary pawn production; native stock must rise, with deep steel depletion or a MakeComponent bill proving its source.",
+			Scope:       "Recover a material runway deficit through ordinary pawn production; native stock must rise, with deep steel depletion or a Make_ComponentIndustrial bill proving its source.",
 			Start:       cases.Fixture{Op: "test/production_materials_prepare", Args: map[string]any{"scenario": scenario}, On: cases.Save{Name: baselineSave}},
 			RequiredOps: []string{"test/production_materials_audit"},
 			Serve:       &cases.ServeSpec{Families: []string{"work,resource,production-policy,power"}, NativeTimeout: 15 * time.Second, Prefix: scenario, Extra: []string{"--routine-resource-target", "Steel:250", "--routine-resource-target", "ComponentIndustrial:10"}},
@@ -130,7 +130,7 @@ func materialOutcome(before, after map[string]any, scenario string) error {
 			return fmt.Errorf("steel increase lacks drilled-lump depletion: %v", after)
 		}
 	} else if na.AsNumber(after["componentBills"]) < 1 || na.AsNumber(after["steel"]) >= na.AsNumber(before["steel"]) {
-		return fmt.Errorf("component increase lacks MakeComponent bill and steel consumption: %v", after)
+		return fmt.Errorf("component increase lacks Make_ComponentIndustrial bill and steel consumption: %v", after)
 	}
 	return nil
 }
