@@ -273,10 +273,12 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Partially lit benches, protected fungus rooms, layout changes,
+	// exhausted batteries and the hot-weather freezer failure are snapshot
+	// tests in internal/buildingruntime (#747), not native rows.
 	criteria := map[string]bool{
-		"dark benches": false, "partially lit benches": false, "protected fungus rooms": false, "layout changes": false,
-		"filthy vs inherently dirty rooms": false, "kitchen/butcher separation": false, "unreachable stores": false,
-		"disconnected consumers": false, "exhausted fuel": false, "exhausted batteries": false, "hot-weather freezer failure": false,
+		"dark benches": false, "filthy vs inherently dirty rooms": false, "kitchen/butcher separation": false,
+		"unreachable stores": false, "disconnected consumers": false, "exhausted fuel": false,
 	}
 	for i, h := range list {
 		if h.Acceptance == "" {

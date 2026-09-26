@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -35,18 +36,29 @@ type Routine struct {
 	Policy policy.RoutinePolicy
 	// Review is the journal's routine review after this one filed.
 	Review *store.RoutineReview
+	// Projection is the colony reading the review took, the planners'
+	// inputs beyond Facts (site cells, planning definitions, power
+	// topology, rooms, bounds); its Facts are left empty here and restored
+	// from Facts on load, and its Zones and Window are not recorded. Nil
+	// in a recording that predates it.
+	Projection *observation.ColonyProjection
 }
 
 // FromReview is the snapshot of an enabled review's result; false when
 // the review detected nothing (disabled).
-func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result store.RoutineReviewResult) (Routine, bool) {
+func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result store.RoutineReviewResult, reading observation.ColonyProjection) (Routine, bool) {
 	if result.Detection == nil {
 		return Routine{}, false
 	}
 	review := result.Review
+	// Facts ride once; the zone read holds native protobuf messages and
+	// the window only repeats Region and Cells, so neither is recorded.
+	var none observation.ColonyProjection
+	reading.Facts, reading.Zones, reading.Window = none.Facts, none.Zones, none.Window
 	return Routine{
-		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick),
-		Snapshot: current, Tick: tick,
+		Projection: &reading,
+		Recorded:   fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick),
+		Snapshot:   current, Tick: tick,
 		Facts: result.Detection.Facts, Latches: result.Detection.Latches, Policy: result.Detection.Policy,
 		Review: &review,
 	}, true
@@ -83,11 +95,14 @@ func readFile(path string) ([]byte, error) {
 func Load(path string) (Routine, error) {
 	data, err := readFile(path)
 	if err != nil {
-		return Routine{}, err
+		return Routine{}, fmt.Errorf("%s: %w", path, err)
 	}
 	var r Routine
 	if err = Decode(data, &r); err != nil {
 		return Routine{}, fmt.Errorf("%s: %w", path, err)
+	}
+	if r.Projection != nil {
+		r.Projection.Facts = r.Facts
 	}
 	return r, nil
 }

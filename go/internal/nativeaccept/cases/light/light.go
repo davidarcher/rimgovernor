@@ -1,38 +1,18 @@
-// Package light holds the MaintainLighting vertical (issue #6 slice 3): a
-// live game and a live rimgovernor Go player-control service composed with
-// the lighting family, one case per scenario:
+// Package light holds the MaintainLighting vertical (issue #6 slice 3) on
+// the lab contract (#747): a live game and a live rimgovernor Go
+// player-control service composed with the lighting family.
 //
-//	dark   -- an enclosed roofed room holds a fuelled stove whose interaction
-//	          cell native measures dark, with no lamp in reach. The service
-//	          must latch the bench from the measured glow, admit exactly one
-//	          affordable lamp (a TorchLamp: the colony has no power source)
-//	          on a free cell of the room within the placement radius, the
-//	          colonists build it, and the next measured census must release
-//	          the latch. An independent native read then confirms the cell
-//	          reads lit and the lamp stands where it was admitted.
-//	outage -- the same room with an unpowered StandingLamp in reach. The
-//	          lamp does not glow, so the cell stays dark, but the service
-//	          must hold for the power family (lamp_power_needed) rather than
-//	          double up with a torch: no lighting method may be committed.
-//	partial -- a wider room with a lit torch at the far end whose glow
-//	          radius reaches the interaction cell but whose light has fallen
-//	          off below lit by then (the issue's "partially lit bench"). The
-//	          service must not defer to the far torch: it admits a lamp of
-//	          its own beside the cell, the census releases on measured glow,
-//	          and both lamps stand lit afterwards.
-//	fungus -- the dark room grows a cave plant that dies to light (the
-//	          issue's "protected fungus room"). The census must mark the
-//	          work cell light-sensitive, the review must never latch it,
-//	          no lighting method may be committed over the hold, and the
-//	          plant must still be alive on an independent native read.
+//	dark -- an enclosed roofed room on the blank lab holds a fuelled stove
+//	        whose interaction cell native measures dark, with no lamp in
+//	        reach. The service must latch the bench from the measured glow,
+//	        admit exactly one affordable lamp (a TorchLamp: the colony has
+//	        no power source) on a free cell of the room within the placement
+//	        radius, the colonists build it, and the next measured census
+//	        must release the latch. An independent native read then confirms
+//	        the cell reads lit and the lamp stands where it was admitted.
 //
-//	repair -- the dark scenario played through its release, after which
-//	          the fixture removes the admitted lamp (issue #161: repair
-//	          after a layout change). The controller, restarted on the same
-//	          journal, must re-latch the bench from the measured dark
-//	          census, admit a replacement lamp within the placement radius
-//	          and release again; an independent read confirms the cell lit
-//	          and exactly the replacement standing.
+// The outage, partial, fungus and repair decisions are snapshot tests over
+// their recorded reviews (internal/buildingruntime, #747).
 //
 // Uses the private disposable test/lighting_prepare fixture
 // (LightingFixture.cs). The case's own bridge session and the service's
@@ -43,9 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -57,49 +35,22 @@ import (
 
 const prefix = "light-accept"
 
-// hold is how long the outage and fungus cases require the service to
-// hold without committing a lighting method.
-const hold = 4 * time.Minute
-
-// budgets are ~2x the measured healthy runs (403eebbb): dark and partial
-// admit a lamp in under a minute; outage and fungus play a power hold or a
-// day of plant growth for ~4 minutes.
-// repair plays dark twice around a service restart.
-var budgets = map[string]time.Duration{
-	"dark": 5 * time.Minute, "partial": 5 * time.Minute,
-	"outage": 10 * time.Minute, "fungus": 10 * time.Minute,
-	"repair": 12 * time.Minute,
-}
-
-// fixtureScenario is the test/lighting_prepare scenario a case starts
-// from; repair starts from the dark room.
-func fixtureScenario(scenario string) string {
-	if scenario == "repair" {
-		return "dark"
-	}
-	return scenario
-}
-
 func init() {
-	for _, scenario := range []string{"dark", "outage", "partial", "fungus", "repair"} {
-		scenario := scenario
-		cases.Register(cases.Case{
-			Name: "light/" + scenario,
-			Scope: "Native MaintainLighting vertical (" + scenario + "): a measured-dark stove interaction cell in an enclosed room " +
-				"drives the live Go routine reviewer/planner to admit one affordable lamp beside it (dark, partial) or to hold for the power " +
-				"family behind an unpowered lamp already in reach (outage), a room growing a light-killed cave plant is never latched (fungus), " +
-				"and a lit room whose lamp is removed is re-latched and relit with a replacement (repair); " +
-				"the measured glow, not the receipt, releases the latch, " +
-				"confirmed by an independent native read.",
-			Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": fixtureScenario(scenario)}},
-			Service: true,
-			Budget:  budgets[scenario],
-			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
-		})
-	}
+	cases.Register(cases.Case{
+		Name: "light/dark",
+		Scope: "Native MaintainLighting vertical on the lab: a measured-dark stove interaction cell in an enclosed room " +
+			"drives the live Go routine reviewer/planner to admit one affordable lamp beside it; " +
+			"the measured glow, not the receipt, releases the latch, confirmed by an independent native read.",
+		Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": "dark"}, On: cases.LabStart()},
+		Service: true,
+		// ~2x the measured healthy run (403eebbb): the lamp is admitted in
+		// under a minute.
+		Budget: 5 * time.Minute,
+		Run:    run,
+	})
 }
 
-func run(ctx context.Context, s cases.Session, scenario string) error {
+func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	var service *na.ServiceProcess
@@ -129,9 +80,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	stoveID := na.AsString(prepared["stove"])
-	lampID := na.AsString(prepared["lamp"])
-	plantCellMap, _ := na.AsMap(prepared["plantCell"])
-	plantCell := domain.Cell{X: int32(na.AsNumber(plantCellMap["x"])), Z: int32(na.AsNumber(plantCellMap["z"]))}
 	interior, _ := na.AsMap(prepared["interior"])
 	workCellMap, _ := na.AsMap(prepared["workCell"])
 	workCell := domain.Cell{X: int32(na.AsNumber(workCellMap["x"])), Z: int32(na.AsNumber(workCellMap["z"]))}
@@ -153,41 +101,10 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if !ok || !stove.roofed || stove.glow >= lighting.LitGlow || stove.cell != workCell {
 		return fmt.Errorf("lighting-before: fixture stove is not a roofed dark work cell: %+v", stove)
 	}
-	switch scenario {
-	case "outage":
-		lamp, ok := before.lamps[lampID]
-		if !ok || lamp.lit || lamp.powered {
-			return fmt.Errorf("lighting-before: fixture lamp is not an unlit unpowered lamp: %+v", lamp)
-		}
-	case "partial":
-		// The far torch is lit and its radius reaches the cell, yet the
-		// cell measures dark: partial coverage, beyond the placement radius.
-		lamp, ok := before.lamps[lampID]
-		reach := math.Hypot(float64(lamp.cell.X-workCell.X), float64(lamp.cell.Z-workCell.Z))
-		if !ok || !lamp.lit || reach > lamp.radius || max(abs(lamp.cell.X-workCell.X), abs(lamp.cell.Z-workCell.Z)) <= lighting.PlacementRadius {
-			return fmt.Errorf("lighting-before: fixture torch is not a lit lamp reaching the cell from beyond the placement radius: %+v (reach %.1f)", lamp, reach)
-		}
-	case "fungus":
-		if !stove.lightSensitive {
-			return fmt.Errorf("lighting-before: the census does not mark the fungus room's work cell light-sensitive: %+v", stove)
-		}
-		if len(before.lamps) != 0 {
-			return fmt.Errorf("lighting-before: %d lamps present before the controller acts", len(before.lamps))
-		}
-		plant, err := inspectPlant(ctx, h, plantCell, "plant-before")
-		if err != nil {
-			return err
-		}
-		report["plant_before"] = plant
-		if alive, _ := na.AsBool(plant["alive"]); !alive {
-			return fmt.Errorf("plant-before: no live cave plant at %v: %#v", plantCell, plant)
-		}
-	default:
-		if len(before.lamps) != 0 {
-			return fmt.Errorf("lighting-before: %d lamps present before the controller acts", len(before.lamps))
-		}
+	if len(before.lamps) != 0 {
+		return fmt.Errorf("lighting-before: %d lamps present before the controller acts", len(before.lamps))
 	}
-	if scenario != "fungus" && stove.lightSensitive {
+	if stove.lightSensitive {
 		return fmt.Errorf("lighting-before: work cell marked light-sensitive without a cave plant: %+v", stove)
 	}
 
@@ -244,77 +161,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	reviewData, _ := json.Marshal(review)
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
-	if scenario == "fungus" {
-		// Hold: the protected room must never latch, whatever the glow.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(hold):
-		}
-		methods, err := lightingMethods(ctx, journal)
-		if err != nil {
-			return err
-		}
-		if len(methods) != 0 {
-			return fmt.Errorf("lighting committed %d methods in a protected fungus room: %#v", len(methods), methods)
-		}
-		still, err := journal.LoadRoutineReview(ctx)
-		if err != nil {
-			return err
-		}
-		if latchedOn(still, stoveID) || len(still.Latches.Lighting) != 0 {
-			return fmt.Errorf("lighting latched a protected fungus room (revision %d, latches %+v)", still.Revision, still.Latches.Lighting)
-		}
-		report["held_review_revision"] = still.Revision
-		stderr, err := os.ReadFile(service.StderrPath())
-		if err != nil {
-			return fmt.Errorf("read service stderr: %w", err)
-		}
-		reasons := stepReasons(string(stderr))
-		report["lighting_step_reasons"] = reasons
-		// The planner's own reason for an inactive goal, not a policy method.
-		const noDeficit = "no_active_deficit"
-		if reasons[noDeficit] == 0 {
-			return fmt.Errorf("service never reported %s; observed step reasons %v", noDeficit, reasons)
-		}
-		for reason := range reasons {
-			if reason != noDeficit {
-				return fmt.Errorf("service reported %s in a protected fungus room: %v", reason, reasons)
-			}
-		}
-		if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
-			return err
-		}
-		journal.Close()
-		service.Stop()
-		if h, err = s.Reattach(ctx); err != nil {
-			return fmt.Errorf("reopen harness session after service stop: %w", err)
-		}
-		if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return err
-		}
-		after, err := readLighting(ctx, h, identity, "lighting-after")
-		if err != nil {
-			return err
-		}
-		report["lighting_after"] = after.evidence()
-		if len(after.lamps) != 0 {
-			return fmt.Errorf("lighting-after: %d lamps stand in the protected fungus room", len(after.lamps))
-		}
-		if s := after.cells[stoveID]; s.glow >= lighting.LitGlow || !s.lightSensitive {
-			return fmt.Errorf("lighting-after: work cell no longer a dark light-sensitive cell: %+v", s)
-		}
-		plant, err := inspectPlant(ctx, h, plantCell, "plant-after")
-		if err != nil {
-			return err
-		}
-		report["plant_after"] = plant
-		if alive, _ := na.AsBool(plant["alive"]); !alive {
-			return fmt.Errorf("plant-after: the cave plant at %v did not survive: %#v", plantCell, plant)
-		}
-		return finish(s)
-	}
-
 	// The review must latch the stove and bind MaintainLighting.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
 	latched, err := waitLatch(waitCtx, journal, service, stoveID)
@@ -323,68 +169,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return fmt.Errorf("lighting latch: %w", err)
 	}
 	report["latched_review_revision"] = latched.Revision
-
-	if scenario == "outage" {
-		// Hold: the lamp in reach is unpowered, so the lighting family must
-		// report lamp_power_needed and commit nothing for the whole window.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(hold):
-		}
-		methods, err := lightingMethods(ctx, journal)
-		if err != nil {
-			return err
-		}
-		if len(methods) != 0 {
-			return fmt.Errorf("lighting committed %d methods behind an unpowered lamp: %#v", len(methods), methods)
-		}
-		still, err := journal.LoadRoutineReview(ctx)
-		if err != nil {
-			return err
-		}
-		if !latchedOn(still, stoveID) {
-			return fmt.Errorf("lighting latch dropped during the hold (revision %d, latches %+v)", still.Revision, still.Latches.Lighting)
-		}
-		report["held_review_revision"] = still.Revision
-		stderr, err := os.ReadFile(service.StderrPath())
-		if err != nil {
-			return fmt.Errorf("read service stderr: %w", err)
-		}
-		reasons := stepReasons(string(stderr))
-		report["lighting_step_reasons"] = reasons
-		if reasons[string(policy.LightingPowerNeeded)] == 0 {
-			return fmt.Errorf("service never reported %s; observed step reasons %v", policy.LightingPowerNeeded, reasons)
-		}
-		for reason := range reasons {
-			if reason == string(policy.LightingBuild) || reason == "admitted" {
-				return fmt.Errorf("service reported a lamp build behind an unpowered lamp: %v", reasons)
-			}
-		}
-		if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
-			return err
-		}
-		journal.Close()
-		service.Stop()
-		if h, err = s.Reattach(ctx); err != nil {
-			return fmt.Errorf("reopen harness session after service stop: %w", err)
-		}
-		if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return err
-		}
-		after, err := readLighting(ctx, h, identity, "lighting-after")
-		if err != nil {
-			return err
-		}
-		report["lighting_after"] = after.evidence()
-		if len(after.lamps) != 1 {
-			return fmt.Errorf("lighting-after: expected only the fixture lamp, observed %d lamps", len(after.lamps))
-		}
-		if s := after.cells[stoveID]; s.glow >= lighting.LitGlow {
-			return fmt.Errorf("lighting-after: stove cell reads lit (%.2f) with no power; the fixture lamp must not glow", s.glow)
-		}
-		return finish(s)
-	}
 
 	lamp, err := admitAndRelease(ctx, admission{journal: journal, service: service, stove: stoveID, work: workCell, inside: inside, radius: lighting.PlacementRadius, report: report})
 	if err != nil {
@@ -404,144 +188,31 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	if scenario != "repair" {
-		after, err := readLighting(ctx, h, identity, "lighting-after")
-		if err != nil {
-			return err
-		}
-		report["lighting_after"] = after.evidence()
-		if err := checkLit(after, scenario, stoveID, lampID, lamp, lighting.LitGlow); err != nil {
-			return fmt.Errorf("lighting-after: %w", err)
-		}
-		return finish(s)
-	}
-
-	// repair: the room reads lit with the admitted lamp, then the fixture
-	// removes that lamp (the layout change) and the room must read dark
-	// again with no lamp standing, all before the controller returns.
-	lit, err := readLighting(ctx, h, identity, "lighting-lit")
-	if err != nil {
-		return err
-	}
-	report["lighting_lit"] = lit.evidence()
-	if err := checkLit(lit, scenario, stoveID, lampID, lamp, lighting.LitGlow); err != nil {
-		return fmt.Errorf("lighting-lit: %w", err)
-	}
-	disrupted, err := h.Call(ctx, "lighting-disrupt", "test/lighting_disrupt", map[string]any{"x": lamp.cell.X, "z": lamp.cell.Z, "workX": workCell.X, "workZ": workCell.Z})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(disrupted["success"]); !success {
-		return fmt.Errorf("lighting-disrupt: lighting_disrupt refused: %#v", disrupted)
-	}
-	report["lighting_disrupted"] = disrupted
-	dark, err := readLighting(ctx, h, identity, "lighting-dark-again")
-	if err != nil {
-		return err
-	}
-	report["lighting_dark_again"] = dark.evidence()
-	if c := dark.cells[stoveID]; c.glow >= lighting.LitGlow || len(dark.lamps) != 0 {
-		return fmt.Errorf("lighting-dark-again: the work cell still reads %.2f with %d lamps after the lamp was removed", c.glow, len(dark.lamps))
-	}
-
-	// The controller returns on the same journal: its released review must
-	// re-latch the bench from the measured dark census, admit a replacement
-	// lamp and release again. Only one GABP client may hold the game, so
-	// the harness session is released first; the restart reuses the first
-	// launch's spec and state under report["service_2"].
-	if err := s.Release(); err != nil {
-		return err
-	}
-	service.Identity = identity
-	restarted, err := service.Restart(ctx)
-	if err != nil {
-		return fmt.Errorf("restart the controller after the layout change: %w", err)
-	}
-	service = restarted
-	defer service.Stop()
-	const repairPrefix = prefix + "-repair"
-	token = service.Token
-	if _, err := service.Resume(repairPrefix, identity, token, report); err != nil {
-		return fmt.Errorf("resume after the layout change: %w", err)
-	}
-	keepAlive = &na.AuthorityKeepAlive{Service: service, Prefix: repairPrefix, Identity: identity, Token: token}
-	stopKeepAlive = keepAlive.Start(ctx)
-	journal, err = na.OpenStoreWithRetry(ctx, service.StatePath)
-	if err != nil {
-		return err
-	}
-	defer journal.Close()
-	relatchCtx, relatchCancel := context.WithTimeout(ctx, 3*time.Minute)
-	relatched, err := waitLatch(relatchCtx, journal, service, stoveID)
-	relatchCancel()
-	if err != nil {
-		return fmt.Errorf("lighting re-latch after the layout change: %w", err)
-	}
-	if relatched.Revision <= lamp.released {
-		return fmt.Errorf("re-latched review revision %d is not past the released revision %d", relatched.Revision, lamp.released)
-	}
-	report["repair_latched_review_revision"] = relatched.Revision
-	replacement, err := admitAndRelease(ctx, admission{journal: journal, service: service, stove: stoveID, work: workCell, inside: inside, radius: lighting.PlacementRadius, report: report, previous: &lamp.method, keys: "repair_"})
-	if err != nil {
-		return fmt.Errorf("repair: %w", err)
-	}
-	if replacement.method.Plan == lamp.method.Plan {
-		return fmt.Errorf("repair reused the first lamp's plan %s", lamp.method.Plan)
-	}
-	if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
-		return err
-	}
-	journal.Close()
-	stopped["repair"], stopKeepAlive = stopKeepAlive(), nil
-	service.Stop()
-	if h, err = s.Reattach(ctx); err != nil {
-		return fmt.Errorf("reopen harness session after the repair: %w", err)
-	}
-	if _, err := h.Call(ctx, "pause-after-repair", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
 	after, err := readLighting(ctx, h, identity, "lighting-after")
 	if err != nil {
 		return err
 	}
 	report["lighting_after"] = after.evidence()
-	if err := checkLit(after, scenario, stoveID, lampID, replacement, lighting.LitGlow); err != nil {
+	if err := checkLit(after, stoveID, lamp, lighting.LitGlow); err != nil {
 		return fmt.Errorf("lighting-after: %w", err)
 	}
 	return finish(s)
 }
 
-// checkLit is the independent read every lit scenario ends on: the stove
-// cell lit and exactly the admitted lamp standing lit where it was placed
-// (dark, repair), or that lamp beside the fixture torch, both lit and
-// nothing else doubled up (partial).
-func checkLit(after lightingSummary, scenario, stoveID, lampID string, lamp admitted, litGlow float64) error {
+// checkLit is the independent read the case ends on: the stove cell lit
+// and exactly the admitted lamp standing lit where it was placed.
+func checkLit(after lightingSummary, stoveID string, lamp admitted, litGlow float64) error {
 	stoveAfter, ok := after.cells[stoveID]
 	if !ok || stoveAfter.glow < litGlow {
 		return fmt.Errorf("stove cell glow %.2f is still under %.2f", stoveAfter.glow, litGlow)
 	}
-	expectedLamps := 1
-	if scenario == "partial" {
-		expectedLamps = 2
+	if len(after.lamps) != 1 {
+		return fmt.Errorf("expected exactly 1 lamp, observed %d: %+v", len(after.lamps), after.lamps)
 	}
-	if len(after.lamps) != expectedLamps {
-		return fmt.Errorf("expected exactly %d lamps, observed %d: %+v", expectedLamps, len(after.lamps), after.lamps)
-	}
-	found := false
-	for id, l := range after.lamps {
-		if scenario == "partial" && id == lampID {
-			if !l.lit {
-				return fmt.Errorf("the fixture torch %+v went out during the run", l)
-			}
-			continue
-		}
+	for _, l := range after.lamps {
 		if l.cell != lamp.cell || l.definition != lamp.definition || !l.lit {
 			return fmt.Errorf("the surviving lamp %+v is not the lit %s admitted at %v", l, lamp.definition, lamp.cell)
 		}
-		found = true
-	}
-	if !found {
-		return fmt.Errorf("the admitted %s at %v does not stand: %+v", lamp.definition, lamp.cell, after.lamps)
 	}
 	return nil
 }
@@ -743,19 +414,6 @@ func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, l
 	return s, nil
 }
 
-// inspectPlant reads the fixture's own account of the plant on a cell (alive,
-// growth, dying) and the measured glow there, independent of the census.
-func inspectPlant(ctx context.Context, h *na.Harness, cell domain.Cell, label string) (map[string]any, error) {
-	reply, err := h.Call(ctx, label, "test/lighting_inspect", map[string]any{"x": cell.X, "z": cell.Z})
-	if err != nil {
-		return nil, err
-	}
-	if success, _ := na.AsBool(reply["success"]); !success {
-		return nil, fmt.Errorf("%s: lighting_inspect refused: %#v", label, reply)
-	}
-	return reply, nil
-}
-
 func latchedOn(review store.RoutineReview, bench string) bool {
 	for _, id := range review.Latches.Lighting {
 		if id == bench {
@@ -816,24 +474,6 @@ func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, 
 		out = append(out, goal.Methods...)
 	}
 	return out, nil
-}
-
-// stepReasons counts the lighting planner's step reasons from the service's
-// debug log (service/stderr.log), so a hold can be attributed.
-func stepReasons(stderr string) map[string]int {
-	out := map[string]int{}
-	for _, line := range strings.Split(stderr, "\n") {
-		i := strings.Index(line, "Lighting.step result: reason=")
-		if i < 0 {
-			continue
-		}
-		rest := line[i+len("Lighting.step result: reason="):]
-		if j := strings.IndexByte(rest, ' '); j >= 0 {
-			rest = rest[:j]
-		}
-		out[rest]++
-	}
-	return out
 }
 
 // A disabled review after a transport timeout cannot prove measured light.

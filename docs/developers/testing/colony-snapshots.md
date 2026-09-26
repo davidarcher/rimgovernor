@@ -20,6 +20,10 @@ millisecond unit test over the facts that colony really produced.
   budgets.
 - `Review`: the journal's routine review cursor after the review filed
   (goal bindings, progress records, stage, dependencies).
+- `Projection`: the colony reading the review took, holding what the
+  planners read beyond `Facts`: site `Cells`, planning `Definitions`,
+  `PowerPlanning`, `Rooms`, `Bounds` (its zone read and window are not
+  recorded). `Load` restores its `Facts` from `Facts`.
 - `Recorded`, `Snapshot`, `Tick`: provenance.
 
 `domain.Fact` values are carried exactly: a known fact is `{"v": value}`,
@@ -42,7 +46,8 @@ RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance
 records every review of that case. A checkpoint save is recorded the same
 way: resume or `acceptance dev` the case from the bundle, or serve the save
 by hand, with the variable set. Pick the tick that shows the decision under
-test, copy that file into the consuming package's `testdata/` with a name
+test, gzip that file into the consuming package's `testdata/` (`Load`
+reads `.json.gz`; a recording with its projection runs to megabytes) with a name
 saying what it shows (`clean-filthy-kitchen.json`), and name the case and
 commit it came from in the test's comment.
 
@@ -60,7 +65,9 @@ a, err := r.Assessment(policy.MaintainCleanFacilities)   // one goal's assessmen
 ```
 
 A planner is a policy function over the same facts: call it with
-`r.Facts` (and `r.Policy`) and assert the chosen method, target or refusal.
+`r.Facts` (and `r.Policy`), or a building planner's `select*` with
+`*r.Projection` (`internal/buildingruntime/routine_snapshot_test.go`),
+and assert the chosen method, target or refusal.
 Tests edit the loaded facts to probe a variant of the recorded colony
 instead of hand-building a whole fixture.
 

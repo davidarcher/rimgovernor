@@ -1,44 +1,26 @@
 // Package refrigeration holds the MaintainRefrigeration vertical (issue #6
-// slice 1, milestone B): a live game and a live rimgovernor Go
-// player-control service composed with the refrigeration family (and, for
-// the power hand-off scenario, the power family too), one case per
-// scenario:
+// slice 1, milestone B) on the lab contract (#747): a live game and a live
+// rimgovernor Go player-control service composed with the refrigeration
+// family.
 //
-//	build    -- an enclosed roofed stockpile room holds warm raw meat and has
-//	            no cooler. The service must admit exactly one Cooler on a
-//	            wall cell of that room with its hot side outdoors, the
-//	            colonists build it, and native cooling then takes the
-//	            measured room temperature under the review's exit threshold.
-//	setpoint -- the room already has a powered, outward-facing cooler at a
-//	            warm setpoint. The service must patch that cooler's target
-//	            through the building-temperature CAS action rather than
-//	            build a second one, and the room must cool.
-//	power    -- the "hot-weather freezer failure": the existing cooler's
-//	            conduit run to the generator is missing. The refrigeration
-//	            family must hold (the cooler is unpowered, the power family's
-//	            problem), the power family must route conduits so the cooler
-//	            is powered, and only then the setpoint patch and cooling
-//	            follow.
-//	season   -- seasonal demand (#160): the storeroom starts settled cold
-//	            with the fixture cooler idling at its warm setpoint and
-//	            nothing at risk; heat waves ramp the outdoors up from the
-//	            current tick and the harness runs the game until the cold
-//	            room has followed and the stock reads warm (the native
-//	            season turn, not a forced room), then starts the service,
-//	            whose review must latch on the warmed stock, patch the
-//	            setpoint down to the freezer target and release once native
-//	            cooling holds -- with the cooler count still one.
+//	build -- an enclosed roofed stockpile room on the blank lab holds warm
+//	         raw meat and has no cooler. The service must admit exactly one
+//	         Cooler on a wall cell of that room with its hot side outdoors,
+//	         the colonists build it, and native cooling then takes the
+//	         measured room temperature under the review's exit threshold.
 //
-// Every scenario ends with spoilage recovery: the fixture seeds one meat
-// stack part-way to rotting, and once the room is chilled the case advances
-// the game until that stack measures under 0 C and then over a further
-// window in which its CompRottable progress must not move (issue #159).
+// The case ends with spoilage recovery: the fixture seeds one meat stack
+// part-way to rotting, and once the room is chilled the case advances the
+// game until that stack measures under 0 C and then over a further window
+// in which its CompRottable progress must not move (issue #159).
+//
+// The setpoint, power and season decisions are snapshot tests over their
+// recorded reviews (internal/buildingruntime, #747).
 //
 // Uses the private disposable test/refrigeration_prepare fixture
-// (RefrigerationFixture.cs) since a naturally generated colony never starts
-// with an enclosed stockpile, Cooler research and a hot room together. The
-// case's own bridge session and the service's are used sequentially, never
-// concurrently (one GABP client per game).
+// (RefrigerationFixture.cs). The case's own bridge session and the
+// service's are used sequentially, never concurrently (one GABP client per
+// game).
 package refrigeration
 
 import (
@@ -47,7 +29,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -60,35 +41,24 @@ import (
 const prefix = "refrigeration-accept"
 
 func init() {
-	for _, scenario := range []string{"build", "setpoint", "power", "season"} {
-		scenario := scenario
-		roomC, coolerTargetC, budget := 30, 21.0, 8*time.Minute
-		food, rotStacks, rotFraction := "Meat_Muffalo", 1, 0.25
-		roomWidth, roomHeight := 6, 4
-		if scenario == "season" {
-			roomC = 0
-		}
-		cases.Register(cases.Case{
-			Name: "refrigeration/" + scenario,
-			Scope: "Native MaintainRefrigeration vertical (" + scenario + "): warm at-risk meat in an enclosed room " +
-				"drives the live Go routine reviewer/planner to admit a Cooler on a vented wall, patch an existing cooler's " +
-				"setpoint, or hold for the power family; or a settled cold room warms as heat waves ramp in and the live " +
-				"review latches and patches the idle cooler's setpoint; native cooling then takes the measured room under " +
-				"the exit threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress " +
-				"stops advancing.",
-			Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
-				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": roomC, "season": strings.HasPrefix(scenario, "season"),
-				"coolerTargetC": coolerTargetC, "foodDef": food, "rotStacks": rotStacks, "rotProgressFraction": rotFraction,
-				"roomWidth": roomWidth, "roomHeight": roomHeight,
-			}},
-			Service: true,
-			Budget:  budget,
-			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
-		})
-	}
+	cases.Register(cases.Case{
+		Name: "refrigeration/build",
+		Scope: "Native MaintainRefrigeration vertical on the lab: warm at-risk meat in an enclosed room drives the live Go " +
+			"routine reviewer/planner to admit a Cooler on a vented wall; native cooling then takes the measured room under " +
+			"the exit threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress " +
+			"stops advancing.",
+		Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
+			"existingCooler": false, "disconnected": false, "roomTemperatureC": 30, "season": false,
+			"coolerTargetC": 21.0, "foodDef": "Meat_Muffalo", "rotStacks": 1, "rotProgressFraction": 0.25,
+			"roomWidth": 6, "roomHeight": 4,
+		}, On: cases.LabStart()},
+		Service: true,
+		Budget:  8 * time.Minute,
+		Run:     run,
+	})
 }
 
-func run(ctx context.Context, s cases.Session, scenario string) error {
+func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	var service *na.ServiceProcess
@@ -126,7 +96,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
-	coolerID := na.AsString(prepared["cooler"])
 	interior, _ := na.AsMap(prepared["interior"])
 	spare, _ := na.AsMap(prepared["spareCell"])
 	walls := map[domain.Cell]bool{}
@@ -141,39 +110,15 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 
 	// Before: the typed colony facts must show the meat warm, roofed, in the
 	// fixture room and short of runway -- the exact facts the review latches
-	// on -- or, for the season scenario, settled cold with nothing at risk.
+	// on.
 	before, err := readFoodStorage(ctx, h, identity, "food-before")
 	if err != nil {
 		return err
 	}
 	report["food_before"] = before.evidence()
 	policyDefaults := policy.DefaultFoodStoragePolicy()
-	season, build := strings.HasPrefix(scenario, "season"), scenario == "build"
-	if season {
-		if before.rows == 0 || before.temperature > policyDefaults.ChilledMaxC || before.warmNutrition != 0 {
-			return fmt.Errorf("food-before: fixture meat is not settled cold stock (warm nutrition %.2f, temperature %.1f C, rows %d)", before.warmNutrition, before.temperature, before.rows)
-		}
-		// The season turn is the game's own: the heat waves lerp the
-		// outdoors up over 12000 ticks and the room equalises behind them
-		// (the idle cooler holds nothing below its warm setpoint), so run
-		// until the stock reads warm at-risk, bounded in game days.
-		var warmed foodSummary
-		advanced, err := na.RunUntil(ctx, h, "season-warm", 3*na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
-			f, err := readFoodStorage(ctx, h, identity, "season-warm-food")
-			if err != nil {
-				return "", false, err
-			}
-			warmed = f
-			return na.Signature(int(f.temperature), int(f.warmNutrition)), f.warmNutrition >= policyDefaults.AtRiskNutritionThreshold, nil
-		})
-		if err != nil {
-			return fmt.Errorf("season-warm: the room never warmed the stock past the at-risk threshold (warm nutrition %.2f, temperature %.1f C): %w", warmed.warmNutrition, warmed.temperature, err)
-		}
-		before = warmed
-		report["season_warm_ticks"] = advanced
-		report["food_warm"] = warmed.evidence()
-	} else if before.warmNutrition < policyDefaults.AtRiskNutritionThreshold {
-		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d); a cold biome may have overwhelmed the forced room temperature -- rerun",
+	if before.warmNutrition < policyDefaults.AtRiskNutritionThreshold {
+		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d)",
 			before.warmNutrition, before.temperature, before.roofed, before.rows)
 	}
 
@@ -194,12 +139,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	// "work" rides along because every building method's builder check
 	// (comfortBuilderAvailable) requires the colony's work priorities to match
 	// the controller's own assignment, which only the work family applies.
-	families := []string{"refrigeration", "work"}
-	extra := na.ClockSpeedArgs()
-	if scenario == "power" {
-		families = append(families, "power")
-	}
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: extra})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"refrigeration", "work"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -245,82 +185,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	}
 	report["latched_review_revision"] = latched.Revision
 
-	if scenario == "power" {
-		// The refrigeration family must not commit anything while the cooler
-		// is unpowered; the power family's conduit method lands first.
-		powerCtx, powerCancel := context.WithTimeout(ctx, 8*time.Minute)
-		defer powerCancel()
-		_, conduit, err := na.WaitGoalMethod(powerCtx, journal, policy.EnsureBasicPower, nil)
-		if err != nil {
-			return fmt.Errorf("power family conduit method: %w", err)
-		}
-		plan, err := journal.LoadPlan(ctx, conduit.Plan)
-		if err != nil {
-			return err
-		}
-		for _, action := range plan.Spec.Actions() {
-			b, ok := action.Building()
-			if !ok || b.Definition() != string(policy.PowerConnect) {
-				return fmt.Errorf("power family committed a non-%s action: id=%s kind=%s", policy.PowerConnect, action.ID(), action.Kind())
-			}
-		}
-		report["power_conduit_plan"] = string(conduit.Plan)
-		if fridge, err := refrigerationMethods(ctx, journal); err != nil {
-			return err
-		} else if len(fridge) != 0 {
-			return fmt.Errorf("refrigeration committed %d methods while its cooler was unpowered: %#v", len(fridge), fridge)
-		}
-		// The evidence is the cooler regaining power, not every conduit
-		// landing: the planner traces a path with slack, and once enough of
-		// it is built the deficit clears and the rest never dispatches. The
-		// refrigeration family commits its setpoint only once the cooler
-		// reads powered, so a committed method ends the wait too.
-		var completed int
-		var completedTick uint64
-		err = na.WaitProgress(powerCtx, na.Wait{Stall: na.StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
-			state, err := journal.LoadPlan(ctx, conduit.Plan)
-			if err != nil {
-				return "", false, err
-			}
-			completed = 0
-			terminal := len(state.Progress) > 0
-			var signature []any
-			for _, progress := range state.Progress {
-				view := progress.View()
-				signature = append(signature, view.Stage, view.Attempt, view.Unresolved)
-				switch view.Stage {
-				case domain.Completed:
-					completed++
-					if uint64(view.Tick) > completedTick {
-						completedTick = uint64(view.Tick)
-					}
-				case domain.Unsuccessful:
-					return "", false, fmt.Errorf("conduit plan %s reached unsuccessful instead of completed", conduit.Plan)
-				default:
-					terminal = false
-				}
-			}
-			if terminal {
-				return "", true, nil
-			}
-			fridge, err := refrigerationMethods(ctx, journal)
-			if err != nil {
-				return "", false, err
-			}
-			if completed > 0 && len(fridge) != 0 {
-				return "", true, nil
-			}
-			return na.Signature(signature...), false, nil
-		})
-		if err != nil {
-			return fmt.Errorf("conduit plan: %w", err)
-		}
-		report["power_conduits_completed"] = completed
-		report["power_conduit_completed_tick"] = int64(completedTick)
-	}
-
-	// The refrigeration method: a Cooler build on a wall cell (build) or a building-temperature patch of the fixture
-	// cooler (setpoint, power, season).
+	// The refrigeration method: a Cooler build on a wall cell.
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
 	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainRefrigeration, nil)
 	methodCancel()
@@ -338,31 +203,20 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		if len(actions) != 1 {
 			return fmt.Errorf("refrigeration plan %s has %d actions, expected 1", method.Plan, len(actions))
 		}
-		if build {
-			b, ok := actions[0].Building()
-			if !ok || b.Definition() != "Cooler" {
-				return fmt.Errorf("refrigeration plan action is not a Cooler build: %#v", actions[0])
-			}
-			builtCell = b.Cell()
-			if !walls[builtCell] {
-				return fmt.Errorf("cooler placed at %v, not on a fixture wall cell", builtCell)
-			}
-			placed := policy.RefrigerationCooler{Position: builtCell, Rotation: b.Rotation()}
-			cold, hot := placed.Cold(), placed.Hot()
-			if !inside(cold) || inside(hot) || walls[hot] {
-				return fmt.Errorf("cooler at %v facing %s has cold side %v / hot side %v; expected cold inside and hot outdoors", builtCell, b.Rotation(), cold, hot)
-			}
-			report["cooler_cell"] = map[string]any{"x": builtCell.X, "z": builtCell.Z, "rotation": string(b.Rotation())}
-		} else {
-			patch, ok := actions[0].BuildingTemperature()
-			if !ok || patch.Thing() != coolerID {
-				return fmt.Errorf("refrigeration plan action is not a temperature patch of %s: %#v", coolerID, actions[0])
-			}
-			if patch.Celsius() > policyDefaults.FreezerTargetC {
-				return fmt.Errorf("setpoint patch targets %.1f C, above the freezer target %.1f C", patch.Celsius(), policyDefaults.FreezerTargetC)
-			}
-			report["setpoint_patch"] = map[string]any{"cooler": patch.Thing(), "celsius": patch.Celsius()}
+		b, ok := actions[0].Building()
+		if !ok || b.Definition() != "Cooler" {
+			return fmt.Errorf("refrigeration plan action is not a Cooler build: %#v", actions[0])
 		}
+		builtCell = b.Cell()
+		if !walls[builtCell] {
+			return fmt.Errorf("cooler placed at %v, not on a fixture wall cell", builtCell)
+		}
+		placed := policy.RefrigerationCooler{Position: builtCell, Rotation: b.Rotation()}
+		cold, hot := placed.Cold(), placed.Hot()
+		if !inside(cold) || inside(hot) || walls[hot] {
+			return fmt.Errorf("cooler at %v facing %s has cold side %v / hot side %v; expected cold inside and hot outdoors", builtCell, b.Rotation(), cold, hot)
+		}
+		report["cooler_cell"] = map[string]any{"x": builtCell.X, "z": builtCell.Z, "rotation": string(b.Rotation())}
 		doneCtx, doneCancel := context.WithTimeout(ctx, 10*time.Minute)
 		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
 		doneCancel()
@@ -433,29 +287,15 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		coolerEvidence = append(coolerEvidence, c.evidence())
 	}
 	report["coolers_after"] = coolerEvidence
-	expectedCoolers := 1
-	if len(coolers) != expectedCoolers {
-		return fmt.Errorf("expected exactly %d Cooler(s) after the run, observed %d: %#v", expectedCoolers, len(coolers), coolers)
+	if len(coolers) != 1 {
+		return fmt.Errorf("expected exactly 1 Cooler after the run, observed %d: %#v", len(coolers), coolers)
 	}
-	var fixtureCooler, builtCooler bool
-	for _, c := range coolers {
-		switch {
-		case coolerID != "" && c.id == coolerID:
-			fixtureCooler = true
-		case build && c.x == builtCell.X && c.z == builtCell.Z:
-			builtCooler = true
-		default:
-			return fmt.Errorf("cooler %s at (%d,%d) is neither the fixture cooler %s nor the admitted cell %v", c.id, c.x, c.z, coolerID, builtCell)
-		}
-		if c.target > policyDefaults.FreezerTargetC {
-			return fmt.Errorf("cooler %s target %.1f C is above the freezer target %.1f C", c.id, c.target, policyDefaults.FreezerTargetC)
-		}
+	c := coolers[0]
+	if c.x != builtCell.X || c.z != builtCell.Z {
+		return fmt.Errorf("cooler %s at (%d,%d) is not at the admitted cell %v", c.id, c.x, c.z, builtCell)
 	}
-	if coolerID != "" && !fixtureCooler {
-		return fmt.Errorf("the fixture cooler %s did not survive the run: %#v", coolerID, coolers)
-	}
-	if build && !builtCooler {
-		return fmt.Errorf("no built cooler sits at the admitted cell %v: %#v", builtCell, coolers)
+	if c.target > policyDefaults.FreezerTargetC {
+		return fmt.Errorf("cooler %s target %.1f C is above the freezer target %.1f C", c.id, c.target, policyDefaults.FreezerTargetC)
 	}
 	if err := checkSpoilageRecovery(ctx, s, rotID, rotBefore); err != nil {
 		return fmt.Errorf("spoilage recovery: %w", err)

@@ -104,7 +104,7 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 			t.Errorf("land tier carries %s, neither affected nor smoke", c.Name)
 		}
 	}
-	for _, want := range []string{"power/fuel", "power/reserve", "smoke/identity", "light/dark"} {
+	for _, want := range []string{"power/fuel", "smoke/identity", "light/dark"} {
 		if !got[want] {
 			t.Errorf("land tier lacks %s", want)
 		}

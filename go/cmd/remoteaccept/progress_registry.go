@@ -13,7 +13,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clean"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clearance"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/condition"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/construction"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/custody"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/defense"

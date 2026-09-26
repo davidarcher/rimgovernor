@@ -105,13 +105,10 @@ completed work against `PowerFamilyDefinitions()`.
 
 ## Acceptance
 
-`power/fuel`, `power/reserve`, `power/battery`, `power/wind` and
-`power/geothermal` (`go/internal/nativeaccept/cases/power`) cover the
-refuel hold, the generation shortfall on a draining reserve, storage for a
-solar-only network (one `Battery` sited in the lamp's roofed room, then a
-night driven in owned clock windows finds the bank charged and the lamp
-powered), a
-wind turbine raised in a cleared field on a catch zone the native read
-confirms unobstructed, and a geothermal generator raised on the fixture's
-free geyser ahead of every other generator; each followed by the conduit
-plans that connect the new building.
+`power/fuel` (`go/internal/nativeaccept/cases/power`) covers the refuel
+hold natively on the blank lab. The generation shortfall on a draining
+reserve, storage for a solar-only network (one `Battery` sited indoors),
+a wind turbine on a clear catch zone and a geothermal generator on a free
+geyser ahead of every other generator are snapshot tests of the power
+planner over reviews recorded from those colonies
+(`go/internal/buildingruntime`, #747).

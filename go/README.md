@@ -411,10 +411,9 @@ not a hardcoded wood-fired default. Solar flares and player-disabled equipment
 hold proposals. Completed methods lend at most 10,000 ticks for native power
 recovery, scoped to the current load token; native consumer power establishes
 recovery. Targeted gameplay acceptance is `acceptance run power/fuel`
-(out-of-fuel generator: hold, colonists refuel, consumer recovers),
-`power/reserve` (draining battery: one more generator admitted and built) and
-`power/battery` (exhausted bank, no generator: generation added, consumer
-recovers), against `PowerFixture`. Replay of captured generation/conduit scenarios uses
+(out-of-fuel generator on the lab: hold, colonists refuel, consumer
+recovers) against `PowerFixture`; the reserve, battery, wind and geothermal
+decisions are snapshot tests in `internal/buildingruntime` (#747). Replay of captured generation/conduit scenarios uses
 `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
@@ -510,10 +509,9 @@ nutrition beyond the meals already reserved, and the defense layout treats
 unpowered turrets as absent rather than rearming them; under an eclipse
 `MaintainLighting` measures unroofed work cells too; under a psychic drone
 `EnsureMood` enters up to .15 above the break threshold for the pawns that
-bear the `PsychicDrone` thought. Targeted acceptance is `acceptance run
-condition/response` against `ConditionFixture`: all three conditions at once
-on the tribal baseline, then their end and the controller's recovery on a
-restart.
+bear the `PsychicDrone` thought. The three responses are snapshot tests in
+`internal/buildingruntime` over a review recorded with all three
+conditions active on the tribal baseline (#747).
 
 `MaintainFlooring` (`flooring` family, issue #6 slice 4) lays role-driven
 floors from the measured terrain under each room cell: `UpkeepFacts.flooring`

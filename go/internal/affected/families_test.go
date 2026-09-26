@@ -161,7 +161,7 @@ func TestSelectScopesRoutineFamilies(t *testing.T) {
 	// The areas naming lighting, plus every area whose profile composes every
 	// family (campaign/* #633, startup/* #639, ...), read by profile so a new
 	// every-family area does not stale the expectation (#668).
-	want := []string{"condition", "light"}
+	want := []string{"light"}
 	areas := filepath.Join(r, "go", "internal", "nativeaccept", "cases")
 	entries, err := os.ReadDir(areas)
 	if err != nil {
