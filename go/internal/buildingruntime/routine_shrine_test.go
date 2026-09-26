@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -79,6 +80,69 @@ func shrineTestRow(id string, sealed bool) *o.AncientShrine {
 		BreachWalls: []*o.ShrineBreachWall{{EntityId: proto.String("wall"), DefName: proto.String("Wall"), Cell: cell(30, 35), Outside: cell(29, 35)}}}
 }
 
+// #680: the journal names the shrine the planner acted on, not the first
+// shrine in identity order. A map-generated shrine that sorts first and
+// holds no_traps forever is marked skipped, the trapped one it breaches is
+// the step's shrine, and a later step that holds on it marks it held.
+func TestRoutineShrineJournalsTheShrineTheStepHeldOn(t *testing.T) {
+	reviewer, db, _, _, native := routineFixture(t)
+	v := native.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	v.Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(120), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	newRow := func(id string) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{newRow("cutter"), newRow("cutter2")}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+
+	source := &routineShrineNative{routineBlightNative: &routineBlightNative{routineNative: native}}
+	source.shrines = []*o.AncientShrine{shrineTestRow("shrine", true)}
+	reviewer.native = source
+	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearAncientShrine})
+	far := shrineTestRow("AncientShrineGroup_0", true)
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	far.Room = &o.Rectangle{Minimum: cell(70, 70), Maximum: cell(80, 80)}
+	far.BreachWalls = []*o.ShrineBreachWall{{EntityId: proto.String("farwall"), DefName: proto.String("Wall"), Cell: cell(70, 75), Outside: cell(69, 75)}}
+	source.shrines = append([]*o.AncientShrine{far}, source.shrines...)
+	source.traps = []domain.Cell{{X: 27, Z: 35}, {X: 27, Z: 36}, {X: 26, Z: 35}}
+	ctx := context.Background()
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineShrinePlanner(reviewer, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+		t.Fatal(result, err)
+	}
+	journal, err := db.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	step := journal.ShrineStep
+	if step == nil || step.Shrine != "shrine" || step.Reason != string(BuildingMethodAdmitted) || len(step.Skipped) != 1 || step.Skipped[0] != (policy.ShrineHold{Shrine: "AncientShrineGroup_0", Reason: policy.ShrineHoldNoTraps}) {
+		t.Fatalf("%+v", step)
+	}
+	marks := map[string]string{}
+	for _, row := range journal.ShrineHolds {
+		if row.Casket == "" && row.Occupant == "" {
+			marks[row.Shrine] = row.Planner
+		}
+	}
+	if marks["AncientShrineGroup_0"] != store.ShrinePlannerSkipped || marks["shrine"] != "" {
+		t.Fatal(journal.ShrineHolds)
+	}
+	// The next review recomputes the advisory rows and keeps the marks.
+	if review, err := reviewer.Step(ctx); err != nil || review.Review.ShrineStep == nil || review.Review.ShrineHolds[0].Planner != store.ShrinePlannerSkipped {
+		t.Fatal(review.Review.ShrineHolds, err)
+	}
+}
+
 // A sealed shrine touching Home under a ready gate is one method: an owned
 // draft and a move behind the trap line for every drafted defender (one
 // colonist stays free for the deconstruct job), then the breach
@@ -121,6 +185,10 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodHeld || result.Hold != policy.ShrineHoldNoTraps || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
+	journal, err := db.LoadRoutineReview(ctx)
+	if err != nil || journal.ShrineStep == nil || journal.ShrineStep.Reason != string(BuildingMethodHeld) || journal.ShrineStep.Shrine != "shrine" || journal.ShrineStep.Hold != policy.ShrineHoldNoTraps || len(journal.ShrineStep.Skipped) != 0 || journal.ShrineHolds[0].Planner != store.ShrinePlannerHeld {
+		t.Fatalf("%+v %+v %v", journal.ShrineStep, journal.ShrineHolds, err)
+	}
 
 	// Three traps outside the wall: ready. Two colonists, so one defender
 	// is drafted eight cells out along the breach line and one stays free.
@@ -134,6 +202,9 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	result, err = planner.Step(ctx)
 	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
+	}
+	if journal, err = db.LoadRoutineReview(ctx); err != nil || journal.ShrineStep == nil || journal.ShrineStep.Reason != string(BuildingMethodAdmitted) || journal.ShrineStep.Shrine != "shrine" || journal.ShrineStep.Plan != result.Plan || journal.ShrineStep.Hold != "" {
+		t.Fatalf("%+v %v", journal.ShrineStep, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
 	if err != nil || len(plan.Progress) != 3 {

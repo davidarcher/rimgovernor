@@ -3,7 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -50,7 +52,10 @@ type RoutineShrineResult struct {
 	Plan   domain.PlanID
 	// Hold is the readiness reason the planner held on (BuildingMethodHeld)
 	// and Shrine the shrine it judged.
-	Hold, Shrine    string
+	Hold, Shrine string
+	// Skipped is every candidate the step judged and passed over, with its
+	// own reason, beside the one Shrine names (#680).
+	Skipped         []policy.ShrineHold
 	NativeWorkTicks uint32
 }
 
@@ -77,7 +82,7 @@ func (r *RoutineShrinePlanner) Step(ctx context.Context) (RoutineShrineResult, e
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
-func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineShrineResult, error) {
+func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (result RoutineShrineResult, err error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -93,6 +98,28 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineShrineResult{Reason: BuildingMethodNoReview}, nil
 	}
+	// The step's own answer goes on the review it planned under (#680), so
+	// the journal names the shrine it held on rather than leaving the
+	// advisory ShrineHolds, in identity order, to read as the cause. A
+	// review filed since is the newer answer; the record yields to it.
+	// held collects the candidates the step passed over; a step that went
+	// on to act on a later shrine names every one of them skipped.
+	var held RoutineShrineResult
+	defer func() {
+		if err != nil || result.Reason == "" {
+			return
+		}
+		if result.Shrine != held.Shrine || result.Hold != held.Hold {
+			result.Skipped = append(slices.Clone(held.Skipped), result.Skipped...)
+			if held.Hold != "" && held.Shrine != result.Shrine {
+				result.Skipped = append(result.Skipped, policy.ShrineHold{Shrine: held.Shrine, Reason: held.Hold})
+			}
+		}
+		step := store.RoutineShrineStep{Tick: review.Tick, Reason: string(result.Reason), Shrine: result.Shrine, Hold: result.Hold, Plan: result.Plan, Skipped: result.Skipped}
+		if _, recordErr := p.journal.RecordShrineStep(call, review.Revision, step); recordErr != nil && !errors.Is(recordErr, store.ErrConflict) {
+			err = recordErr
+		}
+	}()
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -168,7 +195,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 			return r.claim(call, epoch, state, goal, shrine, caskets, started)
 		}
 	}
-	held := RoutineShrineResult{Reason: BuildingMethodHeld}
+	held = RoutineShrineResult{Reason: BuildingMethodHeld}
 	opens := policy.ShrineOpenTargets(candidates, r.reviewer.policy.Shrine)
 	if len(opens) > 0 {
 		squad, err := shrineSquad(call, r.native, boundary.Identity(state.Snapshot), nil)
@@ -195,9 +222,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 				if r.reviewer.policy.Shrine.HeatFallback {
 					return r.heat(call, epoch, state, goal, shrine, caskets, squad, colony.Projection, started, arbiter)
 				}
-				if held.Hold == "" {
-					held.Hold, held.Shrine = lock.Reason, shrine.ID
-				}
+				held = held.pass(shrine.ID, lock.Reason)
 				continue
 			}
 			return r.open(call, epoch, state, goal, shrine, caskets, lock, started, arbiter)
@@ -211,14 +236,23 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		shrine := candidates[i]
 		reason := policy.ShrineHoldReason(shrine, report.Readiness)
 		if reason != policy.ShrineReady {
-			if held.Hold == "" {
-				held.Hold, held.Shrine = reason, shrine.ID
-			}
+			held = held.pass(shrine.ID, reason)
 			continue
 		}
 		return r.breach(call, epoch, state, goal, shrine, report, colony.Projection, started, arbiter)
 	}
 	return held, nil
+}
+
+// pass records one candidate the step judged and moved past: the first
+// becomes the step's hold, every later one a skipped candidate.
+func (r RoutineShrineResult) pass(shrine, reason string) RoutineShrineResult {
+	if r.Hold == "" {
+		r.Hold, r.Shrine = reason, shrine
+	} else {
+		r.Skipped = append(r.Skipped, policy.ShrineHold{Shrine: shrine, Reason: reason})
+	}
+	return r
 }
 
 // claim commits one open, guard-free shrine's casket method: a

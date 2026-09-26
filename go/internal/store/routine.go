@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -36,8 +37,12 @@ type RoutineReview struct {
 	ClearanceHolds  []policy.ClearanceHold  `json:",omitempty"`
 	// SalvageTarget is the one remote ruin this review admitted by reach and
 	// demand; the clearance planner executes it against a fresh native census.
-	SalvageTarget          string                  `json:",omitempty"`
-	ShrineHolds            []policy.ShrineHold     `json:",omitempty"`
+	SalvageTarget string              `json:",omitempty"`
+	ShrineHolds   []policy.ShrineHold `json:",omitempty"`
+	// ShrineStep is the shrine planner's last step (#680): the shrine it
+	// held on and why, and the candidates it passed over. A world change
+	// clears it; otherwise a review keeps the last one.
+	ShrineStep             *RoutineShrineStep      `json:",omitempty"`
 	Recovery               *RoutineRecovery        `json:",omitempty"`
 	Disaster               *policy.DisasterHistory `json:",omitempty"`
 	Mood                   *RoutineMood            `json:",omitempty"`
@@ -201,6 +206,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256) {
 		return RoutineReview{}, errors.New("invalid routine roster history")
+	}
+	if r.ShrineStep != nil && r.ShrineStep.validate(r.Tick) != nil {
+		return RoutineReview{}, errors.New("invalid routine shrine step")
 	}
 	if r.Layout != nil && len(r.Layout.Reason) > 256 {
 		return RoutineReview{}, errors.New("invalid routine layout review")
@@ -544,6 +552,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.Mood = moodRecord(mood)
 	r.Roster = routineRoster(request, previous, reset)
 	r.Layout = previous.Layout
+	if !reset {
+		r.ShrineStep = previous.ShrineStep
+	}
 	if tidy, known := request.Facts.LayoutTidy.Value(); request.Enabled && known {
 		copied := tidy
 		r.Layout = &copied
@@ -676,10 +687,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.ClearanceHolds = previous.ClearanceHolds
 	}
 	if _, known := request.Facts.Upkeep.Shrines.Value(); known {
-		r.ShrineHolds = request.Facts.ShrineHolds
+		r.ShrineHolds = slices.Clone(request.Facts.ShrineHolds)
 	} else {
 		r.ShrineHolds = previous.ShrineHolds
 	}
+	markShrineHolds(r.ShrineHolds, r.ShrineStep)
 	data, err := json.Marshal(r)
 	if err != nil {
 		return RoutineReviewResult{}, err

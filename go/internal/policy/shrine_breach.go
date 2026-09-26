@@ -22,6 +22,10 @@ type ShrineHold struct {
 	// Occupant rows (#460) name a released humanlike and the colony decision
 	// on it (OccupantDecision).
 	Occupant string `json:",omitempty"`
+	// Planner marks a shrine row with what the shrine planner's last step
+	// did with it (#680): "held" for the shrine it held on, "skipped" for a
+	// candidate it passed over; empty for a shrine it never judged.
+	Planner string `json:",omitempty"`
 }
 
 const (
