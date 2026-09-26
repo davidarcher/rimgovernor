@@ -154,6 +154,23 @@ namespace HomeBridge.BridgeTools
                 var plant = map.listerThings.AllThings.OfType<Plant>()
                     .Where(p => ResourceAcquisitionTools.Eligible(p, map) && !ResourceAcquisitionTools.Designated(p) && p.def.plant.harvestedThingDef != null)
                     .OrderBy(p => p.Position.DistanceTo(pawn.Position)).FirstOrDefault();
+                if (plant == null)
+                {
+                    // The wiped lab has no wild plants (#768): stage a mature
+                    // berry bush away from home ground.
+                    var bushDef = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_Berry");
+                    var bushCell = GenRadial.RadialCellsAround(pawn.Position, 30, true).FirstOrDefault(c => c.DistanceTo(pawn.Position) > 10
+                        && staged.All(s => s.DistanceTo(c) > 4) && c.InBounds(map) && !c.Fogged(map) && c.GetEdifice(map) == null && c.GetThingList(map).All(t => t is Plant || t is Filth) && !c.Roofed(map) && !map.areaManager.Home[c] && c.GetTerrain(map).fertility > 0);
+                    if (bushDef != null && bushCell != default)
+                    {
+                        staged.Add(bushCell);
+                        Clear(bushCell);
+                        plant = (Plant)ThingMaker.MakeThing(bushDef);
+                        plant.Growth = 1f;
+                        GenSpawn.Spawn(plant, bushCell, map);
+                        if (!ResourceAcquisitionTools.Eligible(plant, map)) plant = null;
+                    }
+                }
                 if (plant == null) return Refuse("No eligible undesignated mature wild plant within reach.");
                 // The colony's own rocks sit under roof or against home
                 // ground, which the mining blocker protects, so the rock is

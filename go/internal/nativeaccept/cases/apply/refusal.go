@@ -33,7 +33,7 @@ func init() {
 		// fixture stages its interior, so the initial map cannot supply
 		// one untouched and the fixture's own clearing is exercised
 		// (#441); the case asserts the planting happened.
-		Start:  cases.Fixture{Op: "test/apply_refusal_prepare", Args: map[string]any{"clutter": true}},
+		Start:  cases.Fixture{Op: "test/apply_refusal_prepare", Args: map[string]any{"clutter": true}, On: cases.LabStart()},
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})

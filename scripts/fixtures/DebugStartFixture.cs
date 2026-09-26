@@ -193,6 +193,9 @@ namespace HomeBridge.BridgeTools
                 if (map.terrainGrid.foundationGrid[map.cellIndices.CellToIndex(cell)] != null) map.terrainGrid.RemoveFoundation(cell, false);
                 map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
             }
+            // Despawning the mountains marked their roofs to collapse; the
+            // roofs are gone, so the pending collapse is too (#768).
+            map.roofCollapseBuffer.Clear();
             map.fogGrid.ClearAllFog();
             map.areaManager.Home.Clear();
             foreach (var condition in map.gameConditionManager.ActiveConditions.ToList()) condition.End();
@@ -309,15 +312,16 @@ namespace HomeBridge.BridgeTools
                 else
                 {
                     var thingDef = DefDatabase<ThingDef>.GetNamedSilentFail(def ?? "") ?? throw new ArgumentException($"No PawnKindDef or ThingDef named {def}.");
-                    if (thingDef.category != ThingCategory.Building && thingDef.category != ThingCategory.Item) throw new ArgumentException($"{def} is neither a building nor an item.");
+                    if (thingDef.category != ThingCategory.Building && thingDef.category != ThingCategory.Item && thingDef.category != ThingCategory.Plant) throw new ArgumentException($"{def} is neither a building, an item nor a plant.");
                     ThingDef stuffDef = null;
                     if (thingDef.MadeFromStuff)
                         stuffDef = stuff == "" ? GenStuff.DefaultStuffFor(thingDef) : DefDatabase<ThingDef>.GetNamedSilentFail(stuff) ?? throw new ArgumentException($"No stuff named {stuff}.");
                     if (!GenAdj.OccupiedRect(cell, rot, thingDef.size).InBounds(map)) throw new ArgumentException($"{def} at {x},{z} does not fit the map.");
                     thing = ThingMaker.MakeThing(thingDef, stuffDef);
                     if (thingDef.category == ThingCategory.Item) thing.stackCount = Math.Max(1, Math.Min(count, thingDef.stackLimit));
+                    else if (thing is Plant plant) plant.Growth = 1f;
                     else if (owner != null) thing.SetFaction(owner);
-                    kind = thingDef.category == ThingCategory.Item ? "item" : "building";
+                    kind = thingDef.category == ThingCategory.Item ? "item" : thingDef.category == ThingCategory.Plant ? "plant" : "building";
                 }
                 GenSpawn.Spawn(thing, cell, map, rot);
                 return new { success = true, id = thing.GetUniqueLoadID(), thingId = thing.ThingID, kind, def = thing.def.defName,

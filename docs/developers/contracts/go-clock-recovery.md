@@ -556,8 +556,7 @@ older native's reply-carried cells also go through. Compact pages use two-byte
 flag rows, reply-local roof/zone/room and glow tables, and a sparse fertility
 array without quantization. Fogged and unchanged cells carry no other facts.
 Sparse deltas retain ordinary rows when a full flag grid would cost more.
-The 1 MiB envelope remains enforced; `tools/saveheadroom-*` compares both
-encodings for the same colony window and reports bytes per cell. The step attaches a
+The 1 MiB envelope remains enforced. The step attaches a
 refresher to its context (`observation.WithPlanningWindow`); a planning
 colony read whose reply lists no cells asks it, and the refresher reads
 natively when nothing held covers the region or when a full review step

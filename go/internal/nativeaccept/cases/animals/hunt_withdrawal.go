@@ -13,7 +13,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:        "animals/hunt-withdrawal",
 		Scope:       "Withdraw a dispatched hunt after its prey moves and authority changes; remove the designation and active Hunt job, reconcile the original and withdrawal attempts, then admit a replacement hunt.",
-		Start:       cases.Fixture{Op: "test/apply_refusal_prepare"},
+		Start:       cases.Fixture{Op: "test/apply_refusal_prepare", On: cases.LabStart()},
 		RequiredOps: []string{"test/apply_refusal_move"},
 		Budget:      2 * time.Minute,
 		Run:         huntWithdrawal,

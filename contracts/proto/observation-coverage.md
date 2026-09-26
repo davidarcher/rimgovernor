@@ -39,8 +39,7 @@ has one row for its visible passable water cells, body-wide population/capacity,
 whether any such cell belongs to a fishing zone, and reachability from the colony
 anchor. The section also reports Fishing research. Each collection is bounded
 by the requested page limit, at most 256; no per-cell fishing payload is emitted.
-`tools/foodchannels` checks Core-only baseline forage and a cow's milk fullness;
-`tools/saveheadroom-*` checks the envelope budget.
+`tools/foodchannels` checks lab berry-bush forage and a cow's milk fullness.
 
 ## Deep resources and mineral scanners
 
@@ -68,8 +67,7 @@ absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
 observed empty section establishes no discovered lumps or built scanners.
 `tools/deepresources` checks seeded aggregation, both scanner kinds and a
 yielding drill beside a depleted one, `production/drillremoval` the removal of
-a depleted drill through Hands;
-`tools/saveheadroom-*` checks the committed-save envelope budget.
+a depleted drill through Hands.
 
 ## Required semantic validation
 

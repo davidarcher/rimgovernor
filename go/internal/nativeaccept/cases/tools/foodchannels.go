@@ -9,17 +9,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func init() {
 	cases.Register(cases.Case{
-		Name: "tools/foodchannels", Scope: "Core-only food source census: baseline forage and absent Odyssey water; a fixture cow reports native milk fullness (#421).",
-		Start: cases.Save{Name: sustained.BaselineSave, From: cases.CommittedSaves()}, Budget: 3 * time.Minute,
+		Name: "tools/foodchannels", Scope: "Core-only food source census on the lab: spawned berry-bush forage and absent Odyssey water; a fixture cow reports native milk fullness (#421).",
+		Start: cases.LabStart(), Budget: 3 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()
+			c := na.LabMapSize / 2
+			for i := 0; i < 3; i++ {
+				if _, _, err := na.LabSpawn(ctx, h, na.LabThing{Def: "Plant_Berry", X: c - 6 + i, Z: c - 6, Unowned: true}); err != nil {
+					return err
+				}
+			}
 			read := func(label string) (*o.FoodChannelsFacts, error) {
 				identity, err := na.ReadIdentity(ctx, h, label+"-identity")
 				if err != nil {

@@ -472,10 +472,6 @@ by review alone.
    (10 s). An `Owned` case loads it with `na.StartLab` (`authority/warm`,
    `lifecycle/reuse`). Every op/read contract case opens on the lab (#751) except
    these, which cannot:
-   - *The save is the subject* (they measure a committed save's size or
-     content): `tools/saveheadroom-*`, `tools/foodchannels`.
-   - *The wild map is the subject* (mature wild plants, prey, natural
-     rock to mine): `apply/refusal`, `animals/hunt-withdrawal`.
    - *Failed on the lab, not yet diagnosed* (#760-#763, stay on
      their old start until fixed): `farm/blight`, `cells/planning-view-refresh`,
      `medical/plague-readback`, `upkeep/home-coverage`.
@@ -644,11 +640,7 @@ peer's save. A committed save's planning colony facts must read under 768 KiB
 (`na.CheckCommittedSaveHeadroom`): the routine review fails every step once
 that read crosses the 1 MiB envelope, and a case that starts from the save
 adds buildings and loot to it (#320). The checkpoint generator
-(`tools/defense-checkpoint`) refuses to commit
-past it, and `tools/saveheadroom-<save>` lints each committed save in ten
-seconds, reporting the largest sections (`colony_facts` in result.json) and
-the whole review bundle's bytes per family (`bundle`, the families whole;
-`bundle_masked` under the review's field masks, #360).
+(`tools/defense-checkpoint`) refuses to commit past it.
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep
