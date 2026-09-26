@@ -151,56 +151,14 @@ namespace HomeBridge.BridgeTools
             Common.Identity identity, ulong nativeGeneration, int mapWidth, int mapHeight, int minX, int minZ, int maxX, int maxZ,
             long tick, IPlanningViewSource source, PlanningViewRefreshStats stats)
         {
-            ledger.Drain(out stats.DirtyTiles, out var overflow);
-            // The watermark is read before any cell: a mutation during or
-            // after this refresh numbers past it and dirties the chunk again.
-            var watermark = ledger.Sequence;
-            stats.Resync = current == null ? "bootstrap"
-                : current.Incarnation != ticket.Incarnation ? "incarnation"
-                : !current.Serves(identity, minX, minZ, maxX, maxZ, PlanningViewRoot.PlanningMask) ? "region"
-                : current.LedgerGeneration != ledger.Generation ? "tracker"
-                : tick < current.PublishedTick ? "rewind"
-                : overflow ? "overflow"
-                : null;
-            var width = maxX - minX + 1;
-            var bands = (maxZ - minZ) / ChunkRows + 1;
-            var chunks = new PlanningViewChunk[bands];
-            var oldest = tick;
-            for (var i = 0; i < bands; i++)
-            {
-                var bandMinZ = minZ + i * ChunkRows; var bandMaxZ = Math.Min(bandMinZ + ChunkRows - 1, maxZ);
-                var old = stats.Resync == null && i < current!.ChunkCount ? current.Chunk(i) : null;
-                PlanningViewChunk? kept = null;
-                if (old != null && old.MinZ == bandMinZ && old.MaxZ == bandMaxZ)
-                {
-                    if (ledger.TopologyRevision > old.Watermark) stats.TopologyChunks++;
-                    else if (ledger.Changed(minX, bandMinZ, maxX, bandMaxZ, old.Watermark, ref stats.TilesScanned)) stats.DirtyChunks++;
-                    else if (tick - old.ValidatedTick < ValidateEveryTicks) { kept = old; stats.Reused++; }
-                    else if (Scan(source, minX, maxX, old, width, stats)) { kept = old.Revalidated(tick, watermark); stats.Validated++; }
-                }
-                if (kept == null)
-                {
-                    var cells = new PlanningViewCell[(bandMaxZ - bandMinZ + 1) * width];
-                    var next = 0;
-                    for (var z = bandMinZ; z <= bandMaxZ; z++)
-                        for (var x = minX; x <= maxX; x++) cells[next++] = source.Read(x, z);
-                    stats.CellsRead += cells.Length;
-                    stats.Rebuilt++;
-                    kept = new PlanningViewChunk(bandMinZ, bandMaxZ, ticket.Revision, tick, tick, cells, watermark);
-                }
-                chunks[i] = kept;
-                oldest = Math.Min(oldest, kept.ValidatedTick);
-                stats.RetainedBytes += (long)kept.Count * CellBytes;
-            }
-            stats.Chunks = bands;
-            stats.AgeTicks = tick - oldest;
-            return new PlanningViewRoot(identity, nativeGeneration, ticket, mapWidth, mapHeight, minX, minZ, maxX, maxZ,
-                PlanningViewRoot.PlanningMask, tick, chunks, ledger.Generation);
+            var job = new PlanningViewRefreshJob(ledger, ticket, current, identity, nativeGeneration, mapWidth, mapHeight, minX, minZ, maxX, maxZ, tick, source, stats);
+            while (!job.Step(tick)) { }
+            return job.Root!;
         }
 
         // The scan stops at the first changed cell: the band is read in
         // full then anyway.
-        private static bool Scan(IPlanningViewSource source, int minX, int maxX, PlanningViewChunk chunk, int width, PlanningViewRefreshStats stats)
+        internal static bool Scan(IPlanningViewSource source, int minX, int maxX, PlanningViewChunk chunk, int width, PlanningViewRefreshStats stats)
         {
             for (var z = chunk.MinZ; z <= chunk.MaxZ; z++)
                 for (var x = minX; x <= maxX; x++)
@@ -208,6 +166,110 @@ namespace HomeBridge.BridgeTools
                     stats.CellsScanned++;
                     if (!source.StillCurrent(x, z, chunk[(z - chunk.MinZ) * width + (x - minX)])) return false;
                 }
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// The refresh as a resumable job (#654): the resync decision and the
+    /// dirty-list drain happen once at construction; each Step then judges
+    /// and, when needed, reads one band at the tick it runs, reading the
+    /// ledger's sequence as that band's watermark before any of its cells,
+    /// so a mutation between two steps (two frames) is never lost: it
+    /// numbers past the watermark of any band already done and is seen by
+    /// any band still to come. The finished root is published at the tick
+    /// of the last step; every chunk carries its own capture and validation
+    /// ticks. Game thread only; the caller checks validity between steps.
+    /// </summary>
+    internal sealed class PlanningViewRefreshJob
+    {
+        private readonly PlanningViewLedger ledger;
+        private readonly PlanningWindowViewPublisher.Ticket ticket;
+        private readonly PlanningViewRoot? current;
+        private readonly Common.Identity identity;
+        private readonly ulong nativeGeneration;
+        private readonly int mapWidth, mapHeight, width, bands;
+        internal readonly int MinX, MinZ, MaxX, MaxZ;
+        internal readonly long StartTick;
+        private readonly IPlanningViewSource source;
+        internal readonly PlanningViewRefreshStats Stats;
+        private readonly PlanningViewChunk[] chunks;
+        private int next;
+        private long oldest = long.MaxValue, lastTick;
+
+        internal PlanningViewRefreshJob(PlanningViewLedger ledger, PlanningWindowViewPublisher.Ticket ticket, PlanningViewRoot? current,
+            Common.Identity identity, ulong nativeGeneration, int mapWidth, int mapHeight, int minX, int minZ, int maxX, int maxZ,
+            long tick, IPlanningViewSource source, PlanningViewRefreshStats stats)
+        {
+            this.ledger = ledger; this.ticket = ticket; this.current = current; this.identity = identity; this.nativeGeneration = nativeGeneration;
+            this.mapWidth = mapWidth; this.mapHeight = mapHeight; MinX = minX; MinZ = minZ; MaxX = maxX; MaxZ = maxZ;
+            StartTick = lastTick = tick; this.source = source; Stats = stats;
+            ledger.Drain(out stats.DirtyTiles, out var overflow);
+            stats.Resync = current == null ? "bootstrap"
+                : current.Incarnation != ticket.Incarnation ? "incarnation"
+                : !current.Serves(identity, minX, minZ, maxX, maxZ, PlanningViewRoot.PlanningMask) ? "region"
+                : current.LedgerGeneration != ledger.Generation ? "tracker"
+                : tick < current.PublishedTick ? "rewind"
+                : overflow ? "overflow"
+                : null;
+            width = maxX - minX + 1;
+            bands = (maxZ - minZ) / PlanningViewRefresh.ChunkRows + 1;
+            chunks = new PlanningViewChunk[bands];
+            Stats.Chunks = bands;
+        }
+
+        internal PlanningWindowViewPublisher.Ticket Ticket => ticket;
+        internal PlanningViewLedger Ledger => ledger;
+        internal int Bands => bands;
+        internal int Done => next;
+        internal bool Finished => Root != null;
+        /// The finished root, null until the last band is done.
+        internal PlanningViewRoot? Root { get; private set; }
+
+        /// Whether the job answers a request for this identity and region.
+        internal bool Serves(Common.Identity scope, int minX, int minZ, int maxX, int maxZ)
+            => scope.ColonyId == identity.ColonyId && scope.LoadToken == identity.LoadToken && scope.MapId == identity.MapId
+                && minX == MinX && minZ == MinZ && maxX == MaxX && maxZ == MaxZ;
+
+        /// One band at tick; true once the root is built. A tick before the
+        /// last step's is a rewind the caller must discard the job for.
+        internal bool Step(long tick)
+        {
+            if (Root != null) return true;
+            if (tick < lastTick) throw new InvalidOperationException("Planning view refresh rewound.");
+            lastTick = tick;
+            var i = next;
+            var bandMinZ = MinZ + i * PlanningViewRefresh.ChunkRows; var bandMaxZ = Math.Min(bandMinZ + PlanningViewRefresh.ChunkRows - 1, MaxZ);
+            // Read before any of the band's cells: a mutation during or
+            // after this step numbers past it and dirties the chunk again.
+            var watermark = ledger.Sequence;
+            var old = Stats.Resync == null && i < current!.ChunkCount ? current.Chunk(i) : null;
+            PlanningViewChunk? kept = null;
+            if (old != null && old.MinZ == bandMinZ && old.MaxZ == bandMaxZ)
+            {
+                if (ledger.TopologyRevision > old.Watermark) Stats.TopologyChunks++;
+                else if (ledger.Changed(MinX, bandMinZ, MaxX, bandMaxZ, old.Watermark, ref Stats.TilesScanned)) Stats.DirtyChunks++;
+                else if (tick - old.ValidatedTick < PlanningViewRefresh.ValidateEveryTicks) { kept = old; Stats.Reused++; }
+                else if (PlanningViewRefresh.Scan(source, MinX, MaxX, old, width, Stats)) { kept = old.Revalidated(tick, watermark); Stats.Validated++; }
+            }
+            if (kept == null)
+            {
+                var cells = new PlanningViewCell[(bandMaxZ - bandMinZ + 1) * width];
+                var at = 0;
+                for (var z = bandMinZ; z <= bandMaxZ; z++)
+                    for (var x = MinX; x <= MaxX; x++) cells[at++] = source.Read(x, z);
+                Stats.CellsRead += cells.Length;
+                Stats.Rebuilt++;
+                kept = new PlanningViewChunk(bandMinZ, bandMaxZ, ticket.Revision, tick, tick, cells, watermark);
+            }
+            chunks[i] = kept;
+            oldest = Math.Min(oldest, kept.ValidatedTick);
+            Stats.RetainedBytes += (long)kept.Count * PlanningViewRefresh.CellBytes;
+            next++;
+            if (next < bands) return false;
+            Stats.AgeTicks = tick - Math.Min(oldest, tick);
+            Root = new PlanningViewRoot(identity, nativeGeneration, ticket, mapWidth, mapHeight, MinX, MinZ, MaxX, MaxZ,
+                PlanningViewRoot.PlanningMask, tick, chunks, ledger.Generation);
             return true;
         }
     }

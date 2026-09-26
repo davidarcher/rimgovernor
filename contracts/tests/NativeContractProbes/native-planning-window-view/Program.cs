@@ -69,6 +69,7 @@ internal static partial class NativePlanningWindowViewProbe
         StaleAndIncompleteRootsRefused();
         ReadersAreBounded();
         RefreshFollowsTheLedger();
+        BudgetSpreadsCaptureAcrossFrames();
         Console.WriteLine("native-planning-window-view: " + checks + " checks passed");
     }
 
@@ -141,7 +142,7 @@ internal static partial class NativePlanningWindowViewProbe
         Check(publisher.TryPublish(newer), "newer publishes");
         Check(!publisher.TryPublish(pending), "an older revision cannot replace the current root");
         // A completion that lost the race still describes its own hop.
-        var served = PlanningWindowViewProjection.Serve(publisher, pending, Context(identity, 100));
+        var served = ServeRoot(publisher, pending, Context(identity, 100));
         Check(served != null && served.Revision == pending.Revision && ReferenceEquals(publisher.Acquire(), newer), "superseded candidate served, not published");
 
         // Reload: a capture begun before it can neither publish nor serve.
@@ -149,7 +150,7 @@ internal static partial class NativePlanningWindowViewProbe
         var reloaded = Identity("reloaded");
         var fresh = Root(publisher, reloaded, 5);
         Check(publisher.Acquire() == null, "a new identity drops the view");
-        Check(!publisher.TryPublish(beforeReload) && PlanningWindowViewProjection.Serve(publisher, beforeReload, Context(identity, 102)) == null, "old-load completion refused");
+        Check(!publisher.TryPublish(beforeReload) && ServeRoot(publisher, beforeReload, Context(identity, 102)) == null, "old-load completion refused");
         Check(publisher.TryPublish(fresh) && fresh.Incarnation > beforeReload.Incarnation, "the new load publishes");
         // Unload drops the view and every pending capture.
         var beforeUnload = Root(publisher, reloaded, 6);
@@ -157,7 +158,7 @@ internal static partial class NativePlanningWindowViewProbe
         Check(publisher.Acquire() == null && !publisher.TryPublish(beforeUnload), "unload refuses pending captures");
 
         var incomplete = Root(publisher, reloaded, 7, gap: true);
-        Check(!incomplete.Complete && !publisher.TryPublish(incomplete) && PlanningWindowViewProjection.Serve(publisher, incomplete, Context(reloaded, 7)) == null, "incomplete coverage refused");
+        Check(!incomplete.Complete && !publisher.TryPublish(incomplete) && ServeRoot(publisher, incomplete, Context(reloaded, 7)) == null, "incomplete coverage refused");
         var ticket = publisher.Begin(reloaded);
         var late = new PlanningViewChunk(MinZ, MinZ + Rows - 1, ticket.Revision, 8, 9, Cells(Rows, 1));
         var stale = new PlanningViewRoot(reloaded, 1, ticket, 250, 250, MinX, MinZ, MinX + Width - 1, MinZ + Rows - 1, PlanningViewRoot.PlanningMask, 8, new[] { late });
@@ -178,10 +179,10 @@ internal static partial class NativePlanningWindowViewProbe
         Check(publisher.TryPublish(root), "root publishes");
         var a = publisher.Open(root); var b = publisher.Open(root);
         Check(a != null && b != null && publisher.Open(root) == null && publisher.ReadersAvailable == 0, "readers bounded");
-        Check(PlanningWindowViewProjection.Serve(publisher, root, Context(identity, 1)) == null, "no slot, no projection");
+        Check(ServeRoot(publisher, root, Context(identity, 1))?.Pending == "saturated", "no slot: an explicit saturated status, no rows");
         a.Dispose(); a.Dispose();
         Check(publisher.ReadersAvailable == 1, "a reader releases exactly once");
         b.Dispose();
-        Check(PlanningWindowViewProjection.Serve(publisher, root, Context(identity, 1)) != null && publisher.ReadersAvailable == 2, "serving releases its reader");
+        Check(ServeRoot(publisher, root, Context(identity, 1)) != null && publisher.ReadersAvailable == 2, "serving releases its reader");
     }
 }

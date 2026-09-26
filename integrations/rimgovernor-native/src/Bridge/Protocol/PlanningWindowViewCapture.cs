@@ -21,45 +21,155 @@ namespace HomeBridge.BridgeTools
         internal const int MaxCells = NativeObservationTools.CellsPageLimit;
         internal const int ChunkRows = PlanningViewRefresh.ChunkRows;
 
-        /// The bundle's view section (#650), on the game thread: the
-        /// candidate its encoder publishes and serves, timed into the hop's
-        /// observation account with the cells actually read and the
-        /// refresh's work (#652).
-        internal static PlanningViewRoot? ForBundle(Map map, Obs.BundleRequest request, Common.ObservationContext context)
+        /// <summary>What a bundle hop serves for its view section (#654).</summary>
+        internal struct Served
         {
-            if (request.PlanningWindowView == null) return null;
-            var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var stats = new PlanningViewRefreshStats();
-            var root = Capture(map, request.PlanningWindowView, context, stats, out var candidates);
-            ObservationWork.Captured("planningWindowView", System.Diagnostics.Stopwatch.GetTimestamp() - began, stats.CellsRead, candidates);
-            ObservationWork.PlanningViewRefreshed(stats, root != null);
-            return root;
+            /// The root to project: the refresh this hop finished, or the
+            /// last complete root for the same region while a newer one is
+            /// still being captured. Null when neither exists.
+            internal PlanningViewRoot? Root;
+            /// Why no root is served ("capturing", "saturated"), or null.
+            internal string? Pending;
+            /// A newer capture of the region is still running.
+            internal bool Refreshing;
         }
 
-        /// The candidate root, or null when the region is invalid for map
-        /// or the cells could not be read (the view is then unavailable for
-        /// the hop, never served stale). candidates counts the region's cells.
-        internal static PlanningViewRoot? Capture(Map map, Obs.BundlePlanningWindowViewRequest request, Common.ObservationContext context, PlanningViewRefreshStats stats, out long candidates)
+        /// The bundle's view section (#650), on the game thread. The refresh
+        /// is a resumable job (#654): equivalent requests join the running
+        /// job, this hop runs its units while the frame's shared allowance
+        /// lasts, and the frame boundary carries the rest over later frames.
+        /// A job this hop cannot finish serves the last complete root for
+        /// the region, honestly aged, or an explicit pending status; never a
+        /// synchronous full capture. The hop's observation account gets the
+        /// cells this hop read and the refresh's cumulative work (#652).
+        internal static Served ForBundle(Map map, Obs.BundleRequest request, Common.ObservationContext context, Func<bool> cancelled)
         {
-            candidates = 0;
-            var min = request.Region?.Minimum; var max = request.Region?.Maximum;
-            if (min == null || max == null || !min.HasX || !min.HasZ || !max.HasX || !max.HasZ || max.X < min.X || max.Z < min.Z) return null;
-            candidates = ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1);
-            if (candidates > MaxCells || !new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return null;
-            Install();
-            var publisher = PlanningWindowViewPublisher.Shared;
-            var ticket = publisher.Begin(context.Identity);
+            var served = new Served();
+            if (request.PlanningWindowView == null) return served;
+            var began = System.Diagnostics.Stopwatch.GetTimestamp();
+            var cellsBefore = 0L;
+            PlanningViewRefreshStats? stats = null;
+            long candidates = 0;
             try
             {
-                var tracking = CellTracking.For(map);
-                // Rooms rebuild lazily on the first query after a wall
-                // changes; rebuild them now, so the topology revision the
-                // refresh compares already counts that change.
-                map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
-                return PlanningViewRefresh.Refresh(tracking.Ledger, ticket, publisher.Acquire(), context.Identity, context.NativeGeneration,
-                    map.Size.x, map.Size.z, min.X, min.Z, max.X, max.Z, context.Tick, new MapSource(map, tracking), stats);
+                if (!Region(map, request.PlanningWindowView, out var minX, out var minZ, out var maxX, out var maxZ, out candidates)) return served;
+                Install();
+                var publisher = PlanningWindowViewPublisher.Shared;
+                var scheduler = ObservationScheduling.Shared;
+                ObservationScheduling.Join();
+                var identity = context.Identity;
+                var job = active;
+                if (job != null && (job.Map != map || !job.Refresh.Serves(identity, minX, minZ, maxX, maxZ)))
+                {
+                    scheduler.Remove(job, "superseded");
+                    job = null;
+                }
+                if (job == null)
+                {
+                    job = Start(map, identity, context, minX, minZ, maxX, maxZ);
+                    if (scheduler.TryAdd(job)) active = job;
+                    else { job = null; served.Pending = "saturated"; }
+                }
+                if (job != null)
+                {
+                    stats = job.Refresh.Stats;
+                    cellsBefore = stats.CellsRead;
+                    scheduler.RunInline(job, cancelled);
+                    if (job.Published) { served.Root = job.Refresh.Root; return served; }
+                    served.Refreshing = active == job;
+                }
+                // Not finished this hop: the last complete root for the
+                // region, aged by its own chunk ticks.
+                var held = publisher.Acquire();
+                if (Holds(held, publisher, identity, minX, minZ, maxX, maxZ) && held!.PublishedTick <= context.Tick) served.Root = held;
+                else if (served.Pending == null) served.Pending = "capturing";
+                return served;
             }
-            catch (Exception) { return null; }
+            catch (Exception) { return new Served(); }
+            finally
+            {
+                ObservationWork.Captured("planningWindowView", System.Diagnostics.Stopwatch.GetTimestamp() - began, stats != null ? stats.CellsRead - cellsBefore : 0, candidates);
+                if (stats != null) ObservationWork.PlanningViewRefreshed(stats, served.Root != null);
+            }
+        }
+
+        private static bool Holds(PlanningViewRoot? held, PlanningWindowViewPublisher publisher, Common.Identity identity, int minX, int minZ, int maxX, int maxZ)
+            => held != null && held.Incarnation == publisher.Incarnation && held.Serves(identity, minX, minZ, maxX, maxZ, PlanningViewRoot.PlanningMask);
+
+        /// The job answering the current region, or null. Game thread only.
+        private static CaptureJob? active;
+
+        private static bool Region(Map map, Obs.BundlePlanningWindowViewRequest request, out int minX, out int minZ, out int maxX, out int maxZ, out long candidates)
+        {
+            minX = minZ = maxX = maxZ = 0; candidates = 0;
+            var min = request.Region?.Minimum; var max = request.Region?.Maximum;
+            if (min == null || max == null || !min.HasX || !min.HasZ || !max.HasX || !max.HasZ || max.X < min.X || max.Z < min.Z) return false;
+            candidates = ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1);
+            if (candidates > MaxCells || !new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return false;
+            minX = min.X; minZ = min.Z; maxX = max.X; maxZ = max.Z;
+            return true;
+        }
+
+        private static CaptureJob Start(Map map, Common.Identity identity, Common.ObservationContext context, int minX, int minZ, int maxX, int maxZ)
+        {
+            var publisher = PlanningWindowViewPublisher.Shared;
+            var ticket = publisher.Begin(identity);
+            var tracking = CellTracking.For(map);
+            // Rooms rebuild lazily on the first query after a wall
+            // changes; rebuild them now, so the topology revision the
+            // refresh compares already counts that change.
+            map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+            var refresh = new PlanningViewRefreshJob(tracking.Ledger, ticket, publisher.Acquire(), identity.Clone(), context.NativeGeneration,
+                map.Size.x, map.Size.z, minX, minZ, maxX, maxZ, context.Tick, new MapSource(map, tracking), new PlanningViewRefreshStats());
+            return new CaptureJob(map, tracking, refresh);
+        }
+
+        /// <summary>
+        /// One planning-view refresh on the scheduler (#654): a band per
+        /// unit, with the publisher incarnation, the map, its change ledger
+        /// and the tick checked before each. The finished root is detached
+        /// and is published here, on the game thread, before any worker
+        /// sees it; an obsolete job is discarded unpublished.
+        /// </summary>
+        private sealed class CaptureJob : IObservationJob
+        {
+            internal readonly Map Map;
+            private readonly CellTracking tracking;
+            internal readonly PlanningViewRefreshJob Refresh;
+            private long lastTick;
+            internal bool Published;
+
+            internal CaptureJob(Map map, CellTracking tracking, PlanningViewRefreshJob refresh)
+            { Map = map; this.tracking = tracking; Refresh = refresh; lastTick = refresh.StartTick; }
+
+            public string? Obsolete
+            {
+                get
+                {
+                    if (Refresh.Ticket.Incarnation != PlanningWindowViewPublisher.Shared.Incarnation) return "incarnation";
+                    if (Current.Game == null || Find.Maps == null || !Find.Maps.Contains(Map)) return "unloaded";
+                    if (CellTracking.For(Map) != tracking || tracking.Ledger != Refresh.Ledger) return "tracker";
+                    if (Find.TickManager.TicksGame < lastTick) return "rewind";
+                    return null;
+                }
+            }
+
+            public bool Step()
+            {
+                var tick = (long)Find.TickManager.TicksGame;
+                lastTick = tick;
+                Map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+                if (!Refresh.Step(tick)) return false;
+                var publisher = PlanningWindowViewPublisher.Shared;
+                Published = publisher.TryPublish(Refresh.Root!) || publisher.Acquire() == Refresh.Root;
+                if (active == this) active = null;
+                return true;
+            }
+
+            public void Abandon(string reason)
+            {
+                if (active == this) active = null;
+            }
         }
 
         /// The live map as the refresh reads it.

@@ -1872,6 +1872,12 @@ func decodePlanningWindowView(request *o.BundleRequest, loaded *o.BundleSnapshot
 		return nil
 	}
 	view, err := bridge.DecodePlanningWindowView(loaded.PlanningWindowView, request.PlanningWindowView)
+	if errors.Is(err, bridge.ErrPlanningViewPending) {
+		// The native is still capturing (#654): the window is read the
+		// usual way when it is due, and the next step asks again.
+		clockSchedulerLog("planning window view %v", err)
+		return nil
+	}
 	if err != nil {
 		clockSchedulerLog("planning window view refused: %v", err)
 		return nil

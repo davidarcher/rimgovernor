@@ -33325,6 +33325,13 @@ type PlanningWindowView struct {
 	PublishedTick *int64                       `protobuf:"varint,7,opt,name=published_tick,json=publishedTick,proto3,oneof" json:"published_tick,omitempty"` // tick the root was published
 	Complete      *bool                        `protobuf:"varint,8,opt,name=complete,proto3,oneof" json:"complete,omitempty"`                                // chunks tile the region's rows exactly, in order
 	Chunks        []*PlanningWindowChunk       `protobuf:"bytes,9,rep,name=chunks,proto3" json:"chunks,omitempty"`
+	// Frame-budgeted capture (#654). pending is set, with no chunks and
+	// complete false, when no complete root for the region exists yet: a
+	// resumable capture is running ("capturing") or the capture queue is full
+	// ("saturated"). The caller retries on its next step or reads another way.
+	// refreshing marks a served root that a newer capture is replacing.
+	Pending       *string `protobuf:"bytes,10,opt,name=pending,proto3,oneof" json:"pending,omitempty"`
+	Refreshing    *bool   `protobuf:"varint,11,opt,name=refreshing,proto3,oneof" json:"refreshing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -33420,6 +33427,20 @@ func (x *PlanningWindowView) GetChunks() []*PlanningWindowChunk {
 		return x.Chunks
 	}
 	return nil
+}
+
+func (x *PlanningWindowView) GetPending() string {
+	if x != nil && x.Pending != nil {
+		return *x.Pending
+	}
+	return ""
+}
+
+func (x *PlanningWindowView) GetRefreshing() bool {
+	if x != nil && x.Refreshing != nil {
+		return *x.Refreshing
+	}
+	return false
 }
 
 type PlanningWindowChunk struct {
@@ -39894,7 +39915,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x12changed_since_tick\x18\x02 \x01(\x03H\x00R\x10changedSinceTick\x88\x01\x01B\x15\n" +
 	"\x13_changed_since_tick\"a\n" +
 	"\x1fBundlePlanningWindowViewRequest\x12>\n" +
-	"\x06region\x18\x01 \x01(\v2&.rimgovernor.observations.v1.RectangleR\x06region\"\xc6\x04\n" +
+	"\x06region\x18\x01 \x01(\v2&.rimgovernor.observations.v1.RectangleR\x06region\"\xa5\x05\n" +
 	"\x12PlanningWindowView\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12?\n" +
 	"\bmap_size\x18\x02 \x01(\v2$.rimgovernor.observations.v1.MapSizeR\amapSize\x12>\n" +
@@ -39904,11 +39925,19 @@ const file_observations_proto_rawDesc = "" +
 	"\brevision\x18\x06 \x01(\x04H\x01R\brevision\x88\x01\x01\x12*\n" +
 	"\x0epublished_tick\x18\a \x01(\x03H\x02R\rpublishedTick\x88\x01\x01\x12\x1f\n" +
 	"\bcomplete\x18\b \x01(\bH\x03R\bcomplete\x88\x01\x01\x12H\n" +
-	"\x06chunks\x18\t \x03(\v20.rimgovernor.observations.v1.PlanningWindowChunkR\x06chunksB\x0e\n" +
+	"\x06chunks\x18\t \x03(\v20.rimgovernor.observations.v1.PlanningWindowChunkR\x06chunks\x12\x1d\n" +
+	"\apending\x18\n" +
+	" \x01(\tH\x04R\apending\x88\x01\x01\x12#\n" +
+	"\n" +
+	"refreshing\x18\v \x01(\bH\x05R\n" +
+	"refreshing\x88\x01\x01B\x0e\n" +
 	"\f_incarnationB\v\n" +
 	"\t_revisionB\x11\n" +
 	"\x0f_published_tickB\v\n" +
-	"\t_complete\"\xc7\x02\n" +
+	"\t_completeB\n" +
+	"\n" +
+	"\b_pendingB\r\n" +
+	"\v_refreshing\"\xc7\x02\n" +
 	"\x13PlanningWindowChunk\x12\x18\n" +
 	"\x05min_z\x18\x01 \x01(\x05H\x00R\x04minZ\x88\x01\x01\x12\x18\n" +
 	"\x05max_z\x18\x02 \x01(\x05H\x01R\x04maxZ\x88\x01\x01\x12\x1f\n" +

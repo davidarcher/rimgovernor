@@ -201,18 +201,31 @@ namespace HomeBridge.BridgeTools
         /// On a worker: publishes the hop's candidate and projects the root
         /// the hop serves under its own context. A candidate a newer capture
         /// already superseded still describes its hop and is served; one
-        /// from an old incarnation is withdrawn (null), as is any with no
-        /// reader slot free.
+        /// from an old incarnation is withdrawn (null). With no root, or no
+        /// reader slot free, the section is an explicit pending status for
+        /// the requested region (#654), never absent and never stale data
+        /// labelled fresh. refreshing marks a root a newer capture is replacing.
         /// </summary>
-        internal static Obs.PlanningWindowView? Serve(PlanningWindowViewPublisher publisher, PlanningViewRoot candidate, Common.ObservationContext context)
+        internal static Obs.PlanningWindowView? Serve(PlanningWindowViewPublisher publisher, PlanningViewRoot? candidate, string? pending, bool refreshing,
+            Obs.BundlePlanningWindowViewRequest request, Common.ObservationContext context)
         {
+            if (candidate == null) return pending == null ? null : Pending(request, context, pending);
             publisher.TryPublish(candidate);
             var current = publisher.Acquire();
             var root = current != null && current.Revision == candidate.Revision ? current : candidate;
             if (root.Incarnation != publisher.Incarnation || !root.Complete) return null;
             using (var reader = publisher.Open(root))
-                return reader == null ? null : Project(reader.Root, context);
+            {
+                if (reader == null) return Pending(request, context, "saturated");
+                var view = Project(reader.Root, context);
+                if (refreshing) view.Refreshing = true;
+                return view;
+            }
         }
+
+        /// The pending status: the request's region, no chunks, incomplete.
+        internal static Obs.PlanningWindowView Pending(Obs.BundlePlanningWindowViewRequest request, Common.ObservationContext context, string reason)
+            => new Obs.PlanningWindowView { Context = context.Clone(), Region = request.Region?.Clone(), AppliedFields = PlanningFields(), Complete = false, Pending = reason };
 
         internal static Obs.PlanningWindowView Project(PlanningViewRoot root, Common.ObservationContext context)
         {

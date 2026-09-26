@@ -1159,6 +1159,13 @@ message PlanningWindowView {
   optional int64 published_tick = 7; // tick the root was published
   optional bool complete = 8;        // chunks tile the region's rows exactly, in order
   repeated PlanningWindowChunk chunks = 9;
+  // Frame-budgeted capture (#654). pending is set, with no chunks and
+  // complete false, when no complete root for the region exists yet: a
+  // resumable capture is running ("capturing") or the capture queue is full
+  // ("saturated"). The caller retries on its next step or reads another way.
+  // refreshing marks a served root that a newer capture is replacing.
+  optional string pending = 10;
+  optional bool refreshing = 11;
 }
 message PlanningWindowChunk {
   optional int32 min_z = 1;

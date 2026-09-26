@@ -14,6 +14,7 @@ package cells
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -61,9 +62,28 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 	viewRequest := bridge.BundlePlanningWindowViewRequest(region)
 	rect := map[string]any{"minimum": map[string]any{"x": region.X, "z": region.Z}, "maximum": map[string]any{"x": region.X + region.Width - 1, "z": region.Z + region.Height - 1}}
 
-	// view reads a bundle carrying only the view and returns it decoded
-	// with the hop's planningView work account.
+	var viewOnce func(string) (bridge.PlanningWindowView, map[string]any, error)
+	// view reads the view until the native serves a root it finished for
+	// this request: a frame-budgeted capture (#654) may answer pending, or
+	// with the previous root while it refreshes, for a few frames first.
+	// Every attempt is bounded; overload surfaces as an error, never as
+	// fresh data.
 	view := func(label string) (bridge.PlanningWindowView, map[string]any, error) {
+		for attempt := 0; ; attempt++ {
+			got, work, err := viewOnce(fmt.Sprintf("%s-%d", label, attempt))
+			if (errors.Is(err, bridge.ErrPlanningViewPending) || err == nil && got.Refreshing) && attempt < 100 {
+				time.Sleep(50 * time.Millisecond)
+				continue
+			}
+			if work != nil {
+				work["attempts"] = attempt + 1
+			}
+			return got, work, err
+		}
+	}
+	// viewOnce reads a bundle carrying only the view and returns it decoded
+	// with the hop's planningView work account and the frame budget's.
+	viewOnce = func(label string) (bridge.PlanningWindowView, map[string]any, error) {
 		request := map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "planningWindowView": map[string]any{"region": rect}}
 		encoded, err := json.Marshal(request)
 		if err != nil {
@@ -90,6 +110,9 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 		work, _ := na.AsMap(observation["planningView"])
 		if work == nil {
 			return bridge.PlanningWindowView{}, nil, fmt.Errorf("%s: the hop's timing block carries no planningView account", label)
+		}
+		if budget, _ := na.AsMap(timing["observationBudget"]); budget != nil {
+			work["budget"] = budget
 		}
 		return decoded, work, nil
 	}

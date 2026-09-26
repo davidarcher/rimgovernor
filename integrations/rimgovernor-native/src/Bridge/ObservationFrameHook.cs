@@ -84,6 +84,16 @@ namespace HomeBridge.BridgeTools
             {
                 // Never let the account interrupt an update.
             }
+            // The optional-observation allowance opens here, and queued
+            // resumable captures (#654) spend it before the frame's ticks.
+            try
+            {
+                if (Current.Game != null) ObservationScheduling.Frame();
+            }
+            catch (Exception)
+            {
+                // Never let the account interrupt an update.
+            }
         }
     }
 }

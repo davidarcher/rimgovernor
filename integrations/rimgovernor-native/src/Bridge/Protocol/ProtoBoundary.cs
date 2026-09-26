@@ -367,6 +367,9 @@ namespace HomeBridge.BridgeTools
             if (observation != null) timing["observation"] = observation;
             var frames = FrameAccounting.Report();
             if (frames != null) timing["frames"] = frames;
+            // The optional-observation allowance's account (#654), once any
+            // resumable capture has run.
+            if (ObservationScheduling.Shared.Budget.Units > 0) timing["observationBudget"] = ObservationScheduling.Shared.Report();
             envelope[TimingField] = timing;
             return envelope;
         }

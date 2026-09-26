@@ -1,6 +1,9 @@
 package bridge
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -23,7 +26,10 @@ type PlanningWindowView struct {
 	Incarnation   uint64
 	Revision      uint64
 	PublishedTick int64
-	Chunks        []PlanningViewChunk
+	// Refreshing is set when a newer native capture of the region is
+	// still running (#654): this root is the last complete one.
+	Refreshing bool
+	Chunks     []PlanningViewChunk
 	// Cells and Filtered are every chunk's rows decoded as the planning
 	// window's (PlanningCells), row-major.
 	Cells    []policy.SiteCell
@@ -91,6 +97,12 @@ func validateBundleView(request *o.BundleRequest, v *o.BundleSnapshot) error {
 	return nil
 }
 
+// ErrPlanningViewPending is a view section that carries no root yet
+// (#654): the native's frame-budgeted capture of the region is still
+// running, or its capture queue is full. The caller reads the window
+// another way this step and asks again on its next; it is not a refusal.
+var ErrPlanningViewPending = errors.New("planning window view pending")
+
 // DecodePlanningWindowView checks a bundle's view against the request that
 // asked for it and decodes it: the requested region and planning mask, a
 // complete root whose chunks tile the region's rows in order, every chunk
@@ -105,20 +117,25 @@ func DecodePlanningWindowView(v *o.PlanningWindowView, request *o.BundlePlanning
 	if err := ValidateContext(v.Context); err != nil {
 		return PlanningWindowView{}, err
 	}
+	if v.GetPending() != "" {
+		return PlanningWindowView{}, fmt.Errorf("%w: %s", ErrPlanningViewPending, v.GetPending())
+	}
 	if !colonySize(v.MapSize) || !proto.Equal(v.Region, request.Region) || !colonyCell(v.Region.GetMinimum(), v.MapSize) || !colonyCell(v.Region.GetMaximum(), v.MapSize) {
 		return PlanningWindowView{}, contract("planning window view region differs")
 	}
 	if !proto.Equal(v.AppliedFields, planningWindowFields()) {
 		return PlanningWindowView{}, contract("planning window view mask differs")
 	}
-	if v.Incarnation == nil || v.GetIncarnation() == 0 || v.Revision == nil || v.GetRevision() == 0 || v.PublishedTick == nil || v.GetPublishedTick() != v.Context.GetTick() {
+	// A root published on an earlier frame than the serving hop is served
+	// while its successor is captured (#654); its chunks carry their ages.
+	if v.Incarnation == nil || v.GetIncarnation() == 0 || v.Revision == nil || v.GetRevision() == 0 || v.PublishedTick == nil || v.GetPublishedTick() < 0 || v.GetPublishedTick() > v.Context.GetTick() {
 		return PlanningWindowView{}, contract("invalid planning window view publication")
 	}
 	if !v.GetComplete() {
 		return PlanningWindowView{}, contract("incomplete planning window view")
 	}
 	minX, minZ, maxX, maxZ := v.Region.Minimum.GetX(), v.Region.Minimum.GetZ(), v.Region.Maximum.GetX(), v.Region.Maximum.GetZ()
-	out := PlanningWindowView{Context: v.Context, Region: policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}, Incarnation: v.GetIncarnation(), Revision: v.GetRevision(), PublishedTick: v.GetPublishedTick()}
+	out := PlanningWindowView{Context: v.Context, Region: policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}, Incarnation: v.GetIncarnation(), Revision: v.GetRevision(), PublishedTick: v.GetPublishedTick(), Refreshing: v.GetRefreshing()}
 	if int64(out.Region.Width)*int64(out.Region.Height) > PlanningWindowViewMaxCells {
 		return PlanningWindowView{}, contract("planning window view exceeds bound")
 	}

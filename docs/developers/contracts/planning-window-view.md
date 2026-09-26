@@ -21,7 +21,9 @@ fields (roof, visibility, traversal, zone, room, growth). The reply's
 | `region`, `applied_fields` | The region and field-mask key the root serves. |
 | `incarnation` | Publisher incarnation, new on every unload and identity change (reload, rewind, another map). |
 | `revision` | Publication revision, monotonic. |
-| `published_tick` | When the root was published: the hop tick. |
+| `published_tick` | When the root was published: the hop tick, or an earlier tick when the root is served while its successor is still being captured (#654). |
+| `pending` | Set, with no chunks and `complete` false, when no complete root exists for the region yet: `capturing` (a frame-budgeted capture is running) or `saturated` (the capture queue or the reader slots are full). |
+| `refreshing` | The served root is the last complete one; a newer capture of the region is running. |
 | `complete` | The chunks tile the region's rows exactly, in order. |
 | `chunks[]` | Row bands (`min_z..max_z`), each with its own `revision` (the publication that captured its content), `captured_tick` (when its cells were read) and `validated_tick` (the tick its content is known to match the map; see the dirty-chunk refresh), cells in the `CompactCells` row format. Chunk watermarks and the ledger generation (#652) stay native. |
 
@@ -39,8 +41,8 @@ tick; its age is its oldest chunk's `validated_tick`.
   refresh below (#652). The hop's observation account records
   `planningWindowView` with the cells actually read against the region's
   cells, which is the main-thread saving.
-- The encoder worker publishes the candidate (`Interlocked` swap) and
-  projects it to the wire; readers take the root once with `Volatile.Read`.
+- The capture job publishes a finished root on the game thread
+  (`Interlocked` swap, #654) and the encoder worker projects it to the wire; readers take the root once with `Volatile.Read`.
   Workers never touch game objects, `CellTracking`, the change ledger or
   live engine state.
 - After construction nothing mutates a root, a chunk or their arrays;
@@ -121,6 +123,66 @@ and `resync` when a root-level resync ran. Probe:
 `native-planning-window-view` (ledger, refresh and publication over a
 fake grid). Live parity: `cells/planning-view-refresh`.
 
+## Frame-budgeted capture (#654)
+
+The refresh is a resumable job (`PlanningViewRefreshJob`): the resync
+decision and the dirty-list drain happen once when it starts; each unit
+then judges and, when needed, reads one band at the tick it runs, reading
+the ledger sequence as that band's watermark before any of its cells. An
+edit between two units therefore numbers past the watermark of every band
+already done (the next refresh rebuilds it) and is seen by every band
+still to come. Chunks carry their own capture and validation ticks; the
+root is published at the tick of its last unit.
+
+- **Scheduler** (`ObservationScheduler`, `ObservationBudget.cs`): at most
+  `MaxJobs` (4) optional jobs, run on the game thread from the real frame
+  boundary (the `TickManager.TickManagerUpdate` prefix that drives the
+  frame account) and inline from the bundle hop that wants the result.
+  Both charge one per-frame allowance (`ObservationFrameBudget`), so the
+  allowance is per frame, never per request. The allowance is
+  `RIMGOVERNOR_OBSERVATION_BUDGET_MS` in [0.1, 50], default 1.5 ms.
+- **Overrun**: a unit (one band, at most 8 rows of the region) is not
+  preemptible. A unit starts only while allowance remains, so a frame
+  overruns by at most the one unit in progress; `maxUnitMs` and
+  `maxOverrunMs` measure it rather than pretending a stopwatch interrupts
+  a native accessor.
+- **Control first**: at the frame boundary, queued control hops
+  (`MainThreadAdmission.RunControl`) run before every optional unit, and
+  their cost is accounted apart (`controlServiced`, `controlMs`), never
+  against the optional allowance. Inline in a hop, a queued control hop ends
+  the hop's quanta instead, so the next pump serves it. Hazard and
+  authority checks are unchanged and never wait on the allowance.
+- **Progress and deadlines**: jobs run round-robin, and the boundary gives
+  each frame at least one unit even with the allowance spent, so a job
+  progresses under pressure; one unfinished after `DeadlineFrames` (600)
+  frames is abandoned as `expired`.
+- **Validity**: before every unit the job checks the publisher incarnation
+  (unload, reload, identity change), that its map is still loaded, that
+  the map's change ledger is the one it started on, and that the tick did
+  not rewind; an obsolete job is discarded unpublished. No live game
+  enumerator is held across units.
+- **Coalescing and cancellation**: a request for the same identity and
+  region joins the running job; a different region supersedes it. A
+  caller's cancellation stops only its own inline quanta; the job carries
+  on for the others. A failing unit discards its job.
+- **Serving**: a bundle whose job finished (inline or on an earlier frame)
+  serves that root. Otherwise it serves the last complete root for the
+  same region, with `refreshing` set and its own ages, or `pending`:
+  `capturing`, or `saturated` when the queue or reader slots are full. It
+  never falls back to a synchronous full capture. The legacy same-tick
+  `planning_window` band is unchanged and stays atomic.
+- **Bounds**: 4 jobs, one root slot, one region-sized candidate per job
+  (`retainedBytes`), bundle encoders plus a reader lease per projection.
+
+Telemetry: every hop reply after the first unit carries
+`timing.observationBudget` (`allowanceMs`, `frames`, `units`,
+`aggregateMs`, `maxUnitMs`, `maxOverrunMs`, `overrunFrames`,
+`deferredFrames`, `controlServiced`, `controlMs`, `pendingJobs`,
+`expired`, `abandoned`, `saturated`); the hop's `planningView` account is
+its job's cumulative work and `planningWindowView.rows` the cells that hop
+read. Probe: `native-planning-window-view` drives the scheduler over a fake
+frame source and clock and the job one band per frame.
+
 ## Controller consumption
 
 - A review step whose planning cells are stale asks for the view of the
@@ -149,6 +211,11 @@ fake grid). Live parity: `cells/planning-view-refresh`.
   event carries `panned`, `view_cells` and `read_cells`. A strip read that
   fails, or a region the view does not overlap, falls through to the one
   full read.
+- A `pending` view (#654) decodes to `bridge.ErrPlanningViewPending`: it is
+  logged, the step reads the window as it would without a view (only when
+  due), and the next step asks again; it is never a refusal, so the view
+  stays enabled. A root published before the serving hop is accepted and
+  aged by its own chunk ticks.
 - A stale, foreign or misplaced view falls through to the refresher's one
   bounded native read, exactly as without a view.
 - The view is planning evidence only. Placement, target and authority

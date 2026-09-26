@@ -213,3 +213,19 @@ func TestPlanningWindowViewServesAPannedWindow(t *testing.T) {
 		}
 	}
 }
+
+// TestPendingViewIsNotARefusal (#654): a view the native is still
+// capturing decodes to no view for the step, so the window is read the
+// usual way, and the next step still asks for the view.
+func TestPendingViewIsNotARefusal(t *testing.T) {
+	s, _ := schedulerFixture(t)
+	request, snapshot := viewTestBundle(200, 200)
+	snapshot.PlanningWindowView = &o.PlanningWindowView{Context: snapshot.Context, Region: request.PlanningWindowView.Region, Complete: proto.Bool(false), Pending: proto.String("capturing")}
+	if view := decodePlanningWindowView(request, snapshot); view != nil {
+		t.Fatal("a pending view was served", view)
+	}
+	facts.Put(s.facts.store, facts.Scope{Load: "load"}, facts.PlanningCells, facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: viewTestRegion}, AsOf: 100, Complete: true})
+	if s.facts.viewUnsupported || s.planningWindowView() == nil {
+		t.Fatal("a pending view stopped the view being asked")
+	}
+}

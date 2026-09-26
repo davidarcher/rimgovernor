@@ -343,6 +343,9 @@ namespace HomeBridge.BridgeTools
         /// thread belongs to.
         internal static ulong OpenFrame() { lock (Gate) return _updates + 1; }
 
+        /// Whether the frame boundary has driven the account at all.
+        internal static bool Hooked { get { lock (Gate) return _hooked; } }
+
         /// One main-thread observation hop took stopwatchTicks under the open
         /// interval; trace names it for the worst ring.
         internal static void Observed(long stopwatchTicks, string? trace)

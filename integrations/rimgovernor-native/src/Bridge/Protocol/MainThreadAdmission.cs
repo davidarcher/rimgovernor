@@ -124,15 +124,49 @@ namespace HomeBridge.BridgeTools
                 // Cancelled while queued: counted so the observation report
                 // separates work never done from work that ran (#642).
                 if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
-                try
-                {
-                    var reply = hop.Body();
-                    hop.Completion.TrySetResult(reply);
-                }
-                catch (OperationCanceledException) { hop.Completion.TrySetCanceled(); }
-                catch (Exception e) { hop.Completion.TrySetException(e); }
+                Run(hop);
                 return null!;
             }
+        }
+
+        // Whether a control hop is queued: an optional quantum yields to it
+        // (#654).
+        internal static bool ControlPending()
+        {
+            lock (Gate) return Pending[0].Count > 0;
+        }
+
+        // Runs every queued control hop now, on the game thread, at an
+        // optional-work yield point (#654); returns how many ran. Their
+        // pumps, when the host runs them, find the hops gone and return,
+        // so every hop still runs exactly once.
+        internal static int RunControl()
+        {
+            var ran = 0;
+            while (true)
+            {
+                Hop? hop;
+                lock (Gate)
+                {
+                    if (Pending[0].Count == 0) return ran;
+                    hop = Pending[0][0];
+                    Pending[0].RemoveAt(0);
+                }
+                if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
+                Run(hop);
+                ran++;
+            }
+        }
+
+        private static void Run(Hop hop)
+        {
+            try
+            {
+                var reply = hop.Body();
+                hop.Completion.TrySetResult(reply);
+            }
+            catch (OperationCanceledException) { hop.Completion.TrySetCanceled(); }
+            catch (Exception e) { hop.Completion.TrySetException(e); }
         }
 
         // Pending hops per class, for a status line.

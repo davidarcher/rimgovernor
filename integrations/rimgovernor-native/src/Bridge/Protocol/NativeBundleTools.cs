@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
             if (lease == null) return Saturated();
             try
             {
-                var first = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, waitMs), cancellationToken).ConfigureAwait(false);
+                var first = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, waitMs, cancellationToken), cancellationToken).ConfigureAwait(false);
                 ReplyEncoder.Lease owned;
                 if (first.Value.Wake == null)
                 {
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
                 await Supervisor.AwaitWake(first.Value.Wake, waitMs, cancellationToken).ConfigureAwait(false);
                 lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
                 if (lease == null) return Saturated();
-                var woken = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, 0), cancellationToken).ConfigureAwait(false);
+                var woken = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, 0, cancellationToken), cancellationToken).ConfigureAwait(false);
                 owned = lease; lease = null;
                 return await ProtoBoundary.EncodeDetached(woken, owned, Encode, cancellationToken).ConfigureAwait(false);
             }
@@ -96,7 +96,8 @@ namespace HomeBridge.BridgeTools
             internal readonly Obs.BundleReply Reply;
             internal readonly bool Step, Families;
             internal readonly Task<bool>? Wake;
-            internal PlanningViewRoot? View; // the planning window view's candidate (#650)
+            internal PlanningWindowViewCapture.Served View; // the planning window view's root or pending status (#650, #654)
+            internal Obs.BundlePlanningWindowViewRequest? ViewRequest;
             internal Capture(Obs.BundleReply reply, bool step = false, bool families = false, Task<bool>? wake = null)
             { Reply = reply; Step = step; Families = families; Wake = wake; }
         }
@@ -121,7 +122,7 @@ namespace HomeBridge.BridgeTools
 
         // On the main thread. Every section shares the context read here.
         // Only reads: formatting and the envelope bound are Encode's.
-        private static Capture Read(Obs.BundleRequest request, int waitMs)
+        private static Capture Read(Obs.BundleRequest request, int waitMs, CancellationToken cancellationToken)
         {
             Task<bool>? wake = null;
             Map? map;
@@ -189,7 +190,8 @@ namespace HomeBridge.BridgeTools
             }
             var families = ReadFamilies(map, request, context, observed);
             var step = ReadStepFamilies(map, request, context, observed);
-            return new Capture(new Obs.BundleReply { Observed = observed }, step || request.PlanningWindowView != null, families) { View = PlanningWindowViewCapture.ForBundle(map, request, context) };
+            return new Capture(new Obs.BundleReply { Observed = observed }, step || request.PlanningWindowView != null, families) 
+                { View = PlanningWindowViewCapture.ForBundle(map, request, context, () => cancellationToken.IsCancellationRequested), ViewRequest = request.PlanningWindowView };
         }
 
         // On an encoder worker (#644), once per hop: formats the captured
@@ -202,7 +204,8 @@ namespace HomeBridge.BridgeTools
             var observed = capture.Reply.Observed;
             if (observed == null) return ProtoBoundary.Encode(capture.Reply);
             if (observed.ClockStatus != null) observed.ClockStatus = NativeClockTools.Bounded(observed.ClockStatus, observed.Context);
-            if (capture.View != null) observed.PlanningWindowView = PlanningWindowViewProjection.Serve(PlanningWindowViewPublisher.Shared, capture.View, observed.Context);
+            if (capture.ViewRequest != null)
+                observed.PlanningWindowView = PlanningWindowViewProjection.Serve(PlanningWindowViewPublisher.Shared, capture.View.Root, capture.View.Pending, capture.View.Refreshing, capture.ViewRequest, observed.Context);
             NativeColonyObservationTools.Bound(observed.ColonyFacts);
             var drops = new List<Func<int>>(2);
             if (capture.Step) drops.Add(() => DropStepFamilies(observed));

@@ -62,12 +62,27 @@ func TestDecodePlanningWindowView(t *testing.T) {
 	if view, err = DecodePlanningWindowView(stale, request); err != nil || view.Validated() != tick-30 {
 		t.Fatalf("%+v %v", view, err)
 	}
+	// A root published frames before the serving hop, while a newer
+	// capture runs (#654), is served with its own ages.
+	earlier := valid()
+	earlier.PublishedTick, earlier.Refreshing = proto.Int64(tick-5), proto.Bool(true)
+	for _, chunk := range earlier.Chunks {
+		chunk.ValidatedTick = proto.Int64(min(chunk.GetValidatedTick(), tick-5))
+		chunk.CapturedTick = proto.Int64(min(chunk.GetCapturedTick(), tick-5))
+	}
+	if view, err = DecodePlanningWindowView(earlier, request); err != nil || !view.Refreshing || view.Validated() != tick-5 {
+		t.Fatalf("earlier root: %+v %v", view, err)
+	}
+	pending := &o.PlanningWindowView{Context: valid().Context, Region: request.Region, AppliedFields: planningWindowFields(), Complete: proto.Bool(false), Pending: proto.String("capturing")}
+	if _, err := DecodePlanningWindowView(pending, request); !errors.Is(err, ErrPlanningViewPending) || errors.Is(err, ErrContract) {
+		t.Fatal("pending", err)
+	}
 	for name, mutate := range map[string]func(*o.PlanningWindowView){
 		"region differs":          func(v *o.PlanningWindowView) { v.Region.Maximum.X = proto.Int32(13) },
 		"mask differs":            func(v *o.PlanningWindowView) { v.AppliedFields.Terrain = proto.Bool(true) },
 		"incomplete":              func(v *o.PlanningWindowView) { v.Complete = proto.Bool(false) },
 		"no incarnation":          func(v *o.PlanningWindowView) { v.Incarnation = nil },
-		"published off the hop":   func(v *o.PlanningWindowView) { v.PublishedTick = proto.Int64(tick - 1) },
+		"published after the hop": func(v *o.PlanningWindowView) { v.PublishedTick = proto.Int64(tick + 1) },
 		"chunk gap":               func(v *o.PlanningWindowView) { v.Chunks = append(v.Chunks[:1], v.Chunks[2:]...) },
 		"rows short":              func(v *o.PlanningWindowView) { v.Chunks = v.Chunks[:2] },
 		"validated after publish": func(v *o.PlanningWindowView) { v.Chunks[1].ValidatedTick = proto.Int64(tick + 1) },
