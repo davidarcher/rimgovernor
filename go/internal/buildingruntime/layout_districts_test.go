@@ -64,6 +64,45 @@ func districtProjection(tier policy.BuildTier) observation.ColonyProjection {
 	return p
 }
 
+func TestLayoutAnchorReadsTheLayoutPlan(t *testing.T) {
+	p := districtProjection(policy.BuildTierMasonry)
+	p.LayoutPlan = domain.Known(policy.LayoutPlan{
+		Rooms: []policy.LayoutRoom{
+			{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 10, Z: 10, Width: 5, Height: 5}},
+			{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 20, Z: 10, Width: 5, Height: 5}},
+			{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 30, Z: 10, Width: 4, Height: 4}},
+		},
+		Zones: []policy.LayoutZone{{Kind: policy.ZoneField, Runs: []policy.RowRun{{Z: 70, X: 60, Length: 10}}}},
+	})
+	if c := layoutAnchor(p, policy.DistrictHousing); c != (domain.Cell{X: 12, Z: 12}) {
+		t.Fatalf("housing %v", c)
+	}
+	if c := layoutAnchor(p, policy.DistrictStorage); c != (domain.Cell{X: 32, Z: 12}) {
+		t.Fatalf("storage %v", c)
+	}
+	if c := layoutAnchor(p, policy.DistrictFields); c != (domain.Cell{X: 65, Z: 70}) {
+		t.Fatalf("fields %v", c)
+	}
+	// A wall in the first barracks moves housing to the second.
+	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 11, Z: 11}, domain.North, "WoodLog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "w", Building: wall, Cells: []domain.Cell{{X: 11, Z: 11}}}}})
+	if c := layoutAnchor(p, policy.DistrictHousing); c != (domain.Cell{X: 22, Z: 12}) {
+		t.Fatalf("next housing %v", c)
+	}
+	// Production has no planned room here: the grid module anchors it.
+	if c := layoutAnchor(p, policy.DistrictProduction); c != (domain.Cell{X: 62, Z: 46}) {
+		t.Fatalf("production %v", c)
+	}
+	// Camp ignores the plan.
+	p.BuildTier = domain.Known(policy.BuildTierCamp)
+	if layoutAnchor(p, policy.DistrictHousing) != p.Center {
+		t.Fatal("camp anchors on the centre")
+	}
+}
+
 func TestLayoutAnchorSitesEachDistrictOrFallsBack(t *testing.T) {
 	p := districtProjection(policy.BuildTierMasonry)
 	housing := layoutAnchor(p, policy.RoomDistrict(policy.RoomRoleBedroom))

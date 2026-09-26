@@ -127,6 +127,11 @@ func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.
 			}
 		}
 	}
+	if layout, ok, err := r.layoutPlan(ctx, snapshot, tick); err != nil {
+		return err
+	} else if ok {
+		projection.LayoutPlan = domain.Known(layout.Plan)
+	}
 	projection.ColonyPlan = domain.Known(plan)
 	r.drawLayoutOverlay(ctx, snapshot, projection)
 	return nil

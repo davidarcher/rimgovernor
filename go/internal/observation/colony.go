@@ -72,6 +72,9 @@ type ColonyProjection struct {
 	// when the grid came from the starter shell or the native serves no
 	// map survey.
 	ColonyPlan domain.Fact[policy.MasterPlan]
+	// LayoutPlan is the persisted v2 layout (#783), served by the routine
+	// review; unknown until one is derived. layoutAnchor reads it (#785).
+	LayoutPlan domain.Fact[policy.LayoutPlan]
 	Facts      policy.RoutineFacts
 	Workers    domain.Fact[int]
 	Bounds     policy.Bounds

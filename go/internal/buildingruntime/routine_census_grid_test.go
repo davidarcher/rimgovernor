@@ -15,7 +15,7 @@ func TestRoutineCensusServesReviewedGrid(t *testing.T) {
 	var s routineCensusStore
 	review := observation.Identity{Colony: "c", Map: 0, Load: "l", Tick: 15}
 	grid := policy.ColonyGrid{Origin: domain.Cell{X: 117, Z: 133}, Pitch: policy.GridPitch}
-	s.rememberGrid(review, domain.Known(grid))
+	s.rememberGrid(review, domain.Known(grid), domain.Unknown[policy.LayoutPlan]())
 
 	fresh := observation.ColonyProjection{Identity: observation.Identity{Colony: "c", Map: 0, Load: "l", Tick: 16}, ColonyGrid: domain.Unknown[policy.ColonyGrid]()}
 	s.serveGrid(&fresh)

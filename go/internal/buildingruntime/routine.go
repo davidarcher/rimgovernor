@@ -290,7 +290,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Sections.Colony.Value.ColonyGrid = reading.Projection.ColonyGrid
-	r.census.rememberGrid(reading.Projection.Identity, reading.Projection.ColonyGrid)
+	reading.Sections.Colony.Value.LayoutPlan = reading.Projection.LayoutPlan
+	r.census.rememberGrid(reading.Projection.Identity, reading.Projection.ColonyGrid, reading.Projection.LayoutPlan)
 	if err = r.reviewTidy(ctx, state.Snapshot, &reading.Projection, tidyBusy(definitions, plans, state.Snapshot, playerPlans)); err != nil {
 		clockSchedulerLog("routine.step: tidy err=%v", err)
 		return store.RoutineReviewResult{}, err

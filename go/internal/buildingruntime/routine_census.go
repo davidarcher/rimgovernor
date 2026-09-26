@@ -41,13 +41,14 @@ type routineCensusStore struct {
 	// a planner whose read misses the census plans on it too, so a fresh
 	// read never drops the grid the review already fixed.
 	grid      domain.Fact[policy.ColonyGrid]
+	layout    domain.Fact[policy.LayoutPlan]
 	gridScope observation.Identity
 }
 
-// rememberGrid keeps the grid the review served under its identity.
-func (s *routineCensusStore) rememberGrid(identity observation.Identity, grid domain.Fact[policy.ColonyGrid]) {
+// rememberGrid keeps the grid and v2 layout plan the review served under its identity.
+func (s *routineCensusStore) rememberGrid(identity observation.Identity, grid domain.Fact[policy.ColonyGrid], layout domain.Fact[policy.LayoutPlan]) {
 	s.mu.Lock()
-	s.grid, s.gridScope = grid, identity
+	s.grid, s.layout, s.gridScope = grid, layout, identity
 	s.mu.Unlock()
 }
 
@@ -59,11 +60,12 @@ func (s *routineCensusStore) serveGrid(projection *observation.ColonyProjection)
 		return
 	}
 	s.mu.Lock()
-	grid, scope := s.grid, s.gridScope
+	grid, layout, scope := s.grid, s.layout, s.gridScope
 	s.mu.Unlock()
 	id := projection.Identity
 	if _, known := grid.Value(); known && scope.Colony == id.Colony && scope.Map == id.Map && scope.Load == id.Load {
 		projection.ColonyGrid = grid
+		projection.LayoutPlan = layout
 	}
 }
 
