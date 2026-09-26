@@ -626,6 +626,12 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		// the raid worker picks. A raider arriving behind the cover row
 		// rightly gets no hold (#681).
 		raidArgs["x"], raidArgs["z"] = int(layout.Entry.X), int(layout.Entry.Z)
+		// The nearest edge to the entry can be a flank one cell closer
+		// than the edge the corridor faces; a raider walking in from the
+		// side crosses the cover row far off the line and rightly gets no
+		// hold (#714), so pin the edge the corridor faces: Toward runs from
+		// that edge toward Home.
+		raidArgs["side"] = edgeSide(layout.Toward)
 	}
 	if v.breach {
 		// The breach observer moves a raider still alive once the hold

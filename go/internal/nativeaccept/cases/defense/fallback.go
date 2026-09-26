@@ -371,3 +371,19 @@ func runBreach(ctx context.Context, svc *service, reopenHarness func() error,
 	}
 	return nil
 }
+
+// edgeSide names the map side a corridor facing toward (the direction from
+// the edge toward Home) opens onto, as the fixture's raid side (#714).
+func edgeSide(toward domain.Rotation) string {
+	switch toward {
+	case domain.North:
+		return "south"
+	case domain.South:
+		return "north"
+	case domain.East:
+		return "west"
+	case domain.West:
+		return "east"
+	}
+	return ""
+}

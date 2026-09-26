@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude|cover.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600, int dx = 0, int dz = 1)
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600, int dx = 0, int dz = 1, string side = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
                     case "stock": return Stock(map, center);
                     case "scaling": return ScalingStock(map, center, points);
                     case "ranged": return Ranged(map, colonists, rifles);
-                    case "raid": return Raid(map, strategy, arrival, points, x < 0 ? IntVec3.Invalid : new IntVec3(x, 0, z));
+                    case "raid": return Raid(map, strategy, arrival, points, x < 0 ? IntVec3.Invalid : new IntVec3(x, 0, z), side);
                     case "predator": return Predator(map, colonists, kind);
                     case "damage": return Damage(map, wall);
                     case "breach": return Breach(map);
@@ -279,18 +279,36 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
+        // OnSide keeps an edge cell on the named map side (north, east,
+        // south, west); an empty side keeps every edge cell.
+        private static bool OnSide(Map map, IntVec3 c, string side)
+        {
+            switch (side)
+            {
+                case "": return true;
+                case "north": return c.z == map.Size.z - 1;
+                case "south": return c.z == 0;
+                case "east": return c.x == map.Size.x - 1;
+                case "west": return c.x == 0;
+                default: return false;
+            }
+        }
+
         // Raid stages the game's own raid incident. With a `near` cell a
         // walk-in arrival starts at the standable map-edge cell closest to it
         // that reaches it (the raid's own worker otherwise picks any edge,
         // and a raid that walks in behind the colony never meets the
         // corridor the #61 turrets cover); a drop arrival lands its pods on
-        // the near cell itself (#118). The faction is the lowest-tech
+        // the near cell itself (#118). A side restricts the walk-in edge to
+        // that map side: the nearest edge to the corridor entry can be a
+        // flank one cell closer than the edge the corridor faces (#714).
+        // The faction is the lowest-tech
         // hostile humanlike faction the chosen strategy and arrival accept
         // natively (a siege needs canSiege, a centre drop an industrial
         // faction: pirates, not the tribe), at the strategy's point floor.
         // Pod pawns are not spawned until the pods open, so a drop arrival
         // reports the pawns inside the incoming pods as added.
-        private static object Raid(Map map, string strategy, string arrival, int points, IntVec3 near)
+        private static object Raid(Map map, string strategy, string arrival, int points, IntVec3 near, string side = "")
         {
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy");
             var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
@@ -303,7 +321,7 @@ namespace HomeBridge.BridgeTools
                 if (drop) parms.spawnCenter = near;
                 else
                 {
-                    var edge = CellRect.WholeMap(map).EdgeCells.Where(c => c.Standable(map) && !c.Fogged(map)
+                    var edge = CellRect.WholeMap(map).EdgeCells.Where(c => OnSide(map, c, side) && c.Standable(map) && !c.Fogged(map)
                             && map.reachability.CanReach(c, near, Verse.AI.PathEndMode.OnCell, TraverseMode.PassDoors, Danger.Deadly))
                         .OrderBy(c => c.DistanceToSquared(near)).FirstOrDefault();
                     if (!edge.IsValid) return Refuse("No standable map-edge cell reaches the near cell.");
