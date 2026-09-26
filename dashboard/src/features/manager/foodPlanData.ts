@@ -1,7 +1,7 @@
 // The controller owns admission and rates; this decoder only validates its view.
 export type FoodDecision = 'Open' | 'Hold' | 'Close';
 export type FoodChannel = {kind: string; id: string; decision: FoodDecision; reason: string; deliveredPerDay: number};
-export type PetShortfall = {id: string; runwayDays: number; nutritionPerDay: number};
+export type PetShortfall = {id: string; label: string | null; runwayDays: number; nutritionPerDay: number};
 export type FoodPlan = {portfolio: FoodChannel[]; unknown: FoodChannel[]; deliveredPerDay: number; demandPerDay: number; gapPerDay: number; explain: string; petShortfalls: PetShortfall[]};
 export type FoodPlanStatus = {tick: number | null; plan: FoodPlan | null};
 function object(v: unknown): Record<string, unknown> {if (typeof v !== 'object' || v === null || Array.isArray(v)) throw Error('Invalid food plan'); return v as Record<string, unknown>;}
@@ -21,7 +21,7 @@ function rows(v: unknown): FoodChannel[] {
 function pets(v: unknown): PetShortfall[] {
   if (v === undefined) return [];
   if (!Array.isArray(v) || v.length > 256) throw Error('Invalid pet shortfalls');
-  return v.map((item: unknown): PetShortfall => {const r = object(item); return {id: text(r.id), runwayDays: number(r.runwayDays), nutritionPerDay: number(r.nutritionPerDay)};});
+  return v.map((item: unknown): PetShortfall => {const r = object(item); return {id: text(r.id), label: r.label === undefined || r.label === null ? null : text(r.label), runwayDays: number(r.runwayDays), nutritionPerDay: number(r.nutritionPerDay)};});
 }
 export function readFoodPlanStatus(raw: unknown): FoodPlanStatus {
   const v = object(raw);

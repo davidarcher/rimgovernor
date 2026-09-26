@@ -117,7 +117,7 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		}
 	}
 	if plan, known := v.FoodPlan.Value(); known {
-		out.FoodPlan = projectFoodPlan(plan)
+		out.FoodPlan = projectFoodPlan(plan, v.PetLabels)
 	}
 	moodSum, moodCount := 0.0, 0
 	for _, pawn := range v.Pawns {
@@ -151,9 +151,11 @@ type foodPlanDTO struct {
 }
 
 type petShortfallDTO struct {
-	ID              policy.PawnID `json:"id"`
-	RunwayDays      float64       `json:"runwayDays"`
-	NutritionPerDay float64       `json:"nutritionPerDay"`
+	ID policy.PawnID `json:"id"`
+	// Label is the pet's display name, null when the census gave none.
+	Label           *string `json:"label"`
+	RunwayDays      float64 `json:"runwayDays"`
+	NutritionPerDay float64 `json:"nutritionPerDay"`
 }
 
 type foodPlanEntryDTO struct {
@@ -169,7 +171,7 @@ type foodPlanEntryDTO struct {
 	Terms           []policy.FoodPlanTerm   `json:"terms"`
 }
 
-func projectFoodPlan(p policy.FoodPlan) *foodPlanDTO {
+func projectFoodPlan(p policy.FoodPlan, labels map[policy.PawnID]string) *foodPlanDTO {
 	project := func(rows []policy.FoodPlanEntry) []foodPlanEntryDTO {
 		out := make([]foodPlanEntryDTO, 0, len(rows))
 		for _, row := range rows {
@@ -182,7 +184,7 @@ func projectFoodPlan(p policy.FoodPlan) *foodPlanDTO {
 	}
 	pets := make([]petShortfallDTO, 0, len(p.Forecast.PetShortfalls))
 	for _, row := range p.Forecast.PetShortfalls {
-		pets = append(pets, petShortfallDTO{ID: row.ID, RunwayDays: row.RunwayDays, NutritionPerDay: row.NutritionPerDay})
+		pets = append(pets, petShortfallDTO{ID: row.ID, Label: labelPointer(labels, row.ID), RunwayDays: row.RunwayDays, NutritionPerDay: row.NutritionPerDay})
 	}
 	return &foodPlanDTO{Portfolio: project(p.Portfolio), Unknown: project(p.Unknown), DeliveredPerDay: p.DeliveredPerDay, DemandPerDay: p.DemandPerDay, GapPerDay: p.GapPerDay, Explain: p.Explain(), PetShortfalls: pets}
 }
@@ -200,4 +202,11 @@ func (s *Server) handleColonyStatus(ctx context.Context, w http.ResponseWriter, 
 		return
 	}
 	s.write(w, r, 200, projectColonyStatus(report))
+}
+
+func labelPointer(labels map[policy.PawnID]string, id policy.PawnID) *string {
+	if label, ok := labels[id]; ok {
+		return &label
+	}
+	return nil
 }

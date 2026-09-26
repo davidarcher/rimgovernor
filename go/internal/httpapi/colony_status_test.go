@@ -94,11 +94,11 @@ func TestColonyStatusReportsPetShortfalls(t *testing.T) {
 		want string
 	}{
 		{nil, `"petShortfalls":[]`},
-		{[]policy.ConsumerFoodForecast{{ID: "Thing_Cat5169", NutritionPerDay: 0.3}}, `"petShortfalls":[{"id":"Thing_Cat5169","runwayDays":0,"nutritionPerDay":0.3}]`},
+		{[]policy.ConsumerFoodForecast{{ID: "Thing_Cat5169", NutritionPerDay: 0.3}}, `"petShortfalls":[{"id":"Thing_Cat5169","label":"Whiskers","runwayDays":0,"nutritionPerDay":0.3}]`},
 	} {
 		s, _ := playerAPI(t)
 		plan := policy.FoodPlan{Forecast: policy.FoodForecast{PetShortfalls: test.pets}}
-		s.config.ColonyStatus = &colonyStatusFixture{report: buildingruntime.ColonyStatusReport{Tick: 1, FoodPlan: domain.Known(plan)}}
+		s.config.ColonyStatus = &colonyStatusFixture{report: buildingruntime.ColonyStatusReport{Tick: 1, FoodPlan: domain.Known(plan), PetLabels: map[policy.PawnID]string{"Thing_Cat5169": "Whiskers"}}}
 		w := httptest.NewRecorder()
 		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1/api/player/colony", nil))
 		if w.Code != 200 || !strings.Contains(w.Body.String(), test.want) {

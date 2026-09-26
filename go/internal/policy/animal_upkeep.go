@@ -12,10 +12,12 @@ const (
 )
 
 type UpkeepAnimal struct {
-	SupportsAreas                              domain.Fact[bool]
-	AllowedArea                                domain.Fact[string]
-	ID                                         PawnID
-	Definition                                 Resource
+	SupportsAreas domain.Fact[bool]
+	AllowedArea   domain.Fact[string]
+	ID            PawnID
+	Definition    Resource
+	// Label is the native display name; empty when the census omits it.
+	Label                                      string
 	RequiresPen, Contained, Release, Slaughter domain.Fact[bool]
 	Pen, SuitablePen                           domain.Fact[string]
 	// SafeToSlaughter and Training carry MaintainHerd-*'s husbandry

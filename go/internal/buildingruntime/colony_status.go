@@ -41,6 +41,9 @@ type ColonyStatus struct {
 type ColonyStatusReport struct {
 	FoodPlan     domain.Fact[policy.FoodPlan]
 	FoodPlanTick domain.Fact[domain.Tick]
+	// PetLabels names the held census's animals for the food plan's
+	// pet shortfalls (#708); an animal without a label is absent.
+	PetLabels map[policy.PawnID]string
 	// Tick is the colony census's tick; RosterTick the roster read's, equal
 	// under a stopped clock and a few ticks later under a running window.
 	Tick, RosterTick     domain.Tick
@@ -158,6 +161,14 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			if ak && bk && a == b {
 				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
+				if animals, known := held.Value.Facts.AnimalUpkeep.Animals.Value(); known {
+					report.PetLabels = map[policy.PawnID]string{}
+					for _, animal := range animals {
+						if animal.Label != "" {
+							report.PetLabels[animal.ID] = animal.Label
+						}
+					}
+				}
 				if _, known := report.FoodPlan.Value(); known {
 					report.FoodPlanTick = domain.Known(id.Tick)
 				}
