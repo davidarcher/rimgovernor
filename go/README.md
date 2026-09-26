@@ -747,13 +747,8 @@ needs. `MaintainEquipment` remains visible as `method_unavailable` until its
 execution family is connected; it does not consume an optional development slot.
 The comfort goals' decisions are colony snapshot tests
 (`buildingruntime/routine_facility_snapshot_test.go`, #750).
-`go run ./internal/nativeaccept/cmd/acceptance run facility/workshop -root <abs .rimgovernor/bridge>
--rimgovernor <abs binary> -output <fresh dir>` runs the startup ladder's
-composition plus `resource,workshop,gear` with `--routine-resource-target
-MeleeWeapon_Club:3` and watches `MaintainResource`; the audit requires the live
-club count from `home/colony_facts` to exceed the pre-service baseline and a
-`CraftingSpot` inside a native `Workshop` room to carry the
-`Make_MeleeWeapon_Club` bill. Replay a captured `upkeep-replay.json` through the Go
+The workshop target ranking is a colony snapshot test
+(`buildingruntime/routine_workshop_snapshot_test.go`, #738). Replay a captured `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
 The replay checks target ordering and metrics, all five direct upkeep needs,
