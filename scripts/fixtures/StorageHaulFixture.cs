@@ -407,8 +407,10 @@ namespace HomeBridge.BridgeTools
                         ruin.Destroy(DestroyMode.Vanish);
                     var readiness = RaiseReadiness(map);
                     if (readiness is string reason) return Refuse(reason);
+                    // A random start may field a colonist with no work
+                    // settings at all (#716), as RaiseReadiness already allows.
                     foreach (var p in map.mapPawns.FreeColonistsSpawned)
-                        if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                        if (p.workSettings != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                     // The ruin must pass the same counterfactual roof-support
                     // check the census applies (#337): a wall the map's roofs
                     // lean on is a legitimate hold, not a salvage candidate.
