@@ -206,6 +206,9 @@ func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 			return fmt.Errorf("observation report incomplete: %s", strings.Join(problems, "; "))
 		}
 	}
+	if ratios := na.CeilingRatios(metrics, 0); ratios != nil {
+		m.report["ceiling_ratios"] = ratios
+	}
 	if problems := na.CompareOutcomes(m.outcomes, tolerance); len(problems) > 0 {
 		m.report["outcome_problems"] = problems
 		return fmt.Errorf("pawn outcomes differ across speeds: %s", strings.Join(problems, "; "))

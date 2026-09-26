@@ -47,6 +47,10 @@ type ClockSchedulerConfig struct {
 	// keeps the critical evidence inside (issue #627); zero is
 	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
 	PaceHorizonTicks domain.Tick
+	// SpeedPolicy, when set, raises the requested speed above Start per
+	// window while readmit and observe latency hold (#635). Ignored under
+	// Start.PlayerAccelerated, whose backoff owns the pace.
+	SpeedPolicy *SpeedPolicyConfig
 	MaxAge           time.Duration
 	// Worker is set when a routine Worker reconciles and dispatches beside
 	// this scheduler: a review then defers admission while the Worker owes
@@ -332,6 +336,8 @@ type ClockScheduler struct {
 	// window, kept across stops so the next window starts with a drift
 	// (seedLiveDrift) instead of the stopped clock's zero.
 	pacePerSecond float64
+	// speed is the speed policy's state (#635), under the player gate.
+	speed speedPolicy
 	// livePaceTicks is the pace the running window widens the step's
 	// bounds by (domain.ReadValidity.Pace): pacePerSecond while a window
 	// runs, zero under a stopped clock. Touched only under the player gate.
@@ -1400,6 +1406,15 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		start.MaxTicks = out.Decision.MaxTicks
 	}
+	var speedNext speedPolicy
+	if sp := s.config.SpeedPolicy; sp != nil && !start.PlayerAccelerated {
+		s.speed.config = *sp
+		sample := speedLatency{Readmit: paused, Observe: facts.ObservedAt.Sub(started)}
+		var level int
+		level, speedNext = s.speed.next(speedLevel(start.Speed, start.TestAcceleration), sample)
+		start.Speed, start.TestAcceleration = speedOfLevel(level)
+		clockSchedulerLog("speed policy: readmit=%s observe=%s -> %s accel=%v", sample.Readmit, sample.Observe, start.Speed, start.TestAcceleration)
+	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: start.MaxTicks}
 	key, err := clockSchedulerKey(admission, fingerprint, start)
 	if err != nil {
@@ -1448,6 +1463,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	s.running.Store(err == nil)
 	if err == nil {
+		if s.config.SpeedPolicy != nil && !start.PlayerAccelerated {
+			s.speed = speedNext
+		}
 		s.seedLiveDrift(status.Context.GetTick())
 	}
 	return out, err

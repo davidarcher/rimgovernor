@@ -643,3 +643,39 @@ const (
 	ObservationLoadReaders  = 3
 	ObservationLoadInterval = 250 * time.Millisecond
 )
+
+// CeilingRatio is one governed row's achieved wall TPS against the
+// governor-off ceiling of the same fixture (#635): the number that judges
+// the controller's speed policy, reported beside paused_fraction_native.
+type CeilingRatio struct {
+	Case                 string  `json:"case"`
+	AchievedTPS          float64 `json:"achieved_tps"`
+	CeilingTPS           float64 `json:"ceiling_tps"`
+	Ratio                float64 `json:"ratio"`
+	PausedFractionNative float64 `json:"paused_fraction_native"`
+}
+
+// CeilingRatios reports achieved_tps / ceiling_tps for every governed row
+// that advanced, the ceiling being ceiling (a recorded governor-off TPS)
+// when positive, else the "governor-off" row's own wall TPS. Nil when no
+// ceiling is known.
+func CeilingRatios(rows []SpeedMetrics, ceiling float64) []CeilingRatio {
+	if ceiling <= 0 {
+		for _, row := range rows {
+			if row.Case == "governor-off" {
+				ceiling = row.WallTPS
+			}
+		}
+	}
+	if ceiling <= 0 {
+		return nil
+	}
+	var out []CeilingRatio
+	for _, row := range rows {
+		if row.Case == "governor-off" || row.WallTPS <= 0 {
+			continue
+		}
+		out = append(out, CeilingRatio{Case: row.Case, AchievedTPS: row.WallTPS, CeilingTPS: ceiling, Ratio: row.WallTPS / ceiling, PausedFractionNative: row.PausedShare()})
+	}
+	return out
+}
