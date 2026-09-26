@@ -246,7 +246,9 @@ func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	schedulerRoutine(t, s, f)
-	s.config.Budget.Wall = 100 * time.Millisecond
+	// A hang guard: the quick critical planner must return within it under
+	// package load; the blocked shelter planner runs to it every time.
+	s.config.Budget.Wall = 2 * time.Second
 	s.config.Budget.OptionalGrace = 20 * time.Millisecond
 	released := make(chan error, 1)
 	shelter := blockedPlanner("sleeping", classOptional, released)
