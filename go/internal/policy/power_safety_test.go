@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -92,5 +93,35 @@ func TestShortCircuitTracksBurningDamageAndDoesNotReplayArchive(t *testing.T) {
 	fresh, err := ReviewDisaster(noConditions, domain.Known([]RecoveryBuilding{b}), disasterGates(), same, 13, domain.Known(domain.Tick(13)))
 	if err != nil || fresh.Phase != DisasterRecovering {
 		t.Fatal(fresh, err)
+	}
+}
+
+func TestPowerConnectsConsumerToLiveNetBeforeUpgrading(t *testing.T) {
+	var cells []SiteCell
+	for x := int32(1); x <= 10; x++ {
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true)})
+	}
+	plain := []domain.Cell{{X: 7, Z: 2}, {X: 8, Z: 2}, {X: 9, Z: 2}}
+	cooler := powerSite("cooler", 2, -200, 0, "")
+	v := PowerTopology{Buildings: []PowerSite{cooler, powerSite("gen", 10, 1000, 1000, "a")}, Conduits: plain, UnsafeConduits: plain, Blackout: domain.Known(false)}
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	want := []domain.Cell{{X: 6, Z: 2}, {X: 5, Z: 2}, {X: 4, Z: 2}, {X: 3, Z: 2}, {X: 2, Z: 2}}
+	if err != nil || p.Method != PowerConnect || p.Target != "cooler" || !reflect.DeepEqual(p.Cells, want) {
+		t.Fatal(p, err)
+	}
+	// A plain conduit the new cells would join to the live net is new
+	// exposure: upgrade first.
+	v.Conduits = append(append([]domain.Cell(nil), plain...), domain.Cell{X: 4, Z: 2})
+	v.UnsafeConduits = v.Conduits
+	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	if err != nil || p.Method != PowerConnect || p.Target != "" || len(p.Cells) != 4 {
+		t.Fatal(p, err)
+	}
+	// A dead producer: upgrade first.
+	v.Conduits, v.UnsafeConduits = plain, plain
+	v.Buildings[1] = powerSite("gen", 10, 1000, 0, "a")
+	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	if err != nil || p.Target != "" || len(p.Cells) != 3 {
+		t.Fatal(p, err)
 	}
 }

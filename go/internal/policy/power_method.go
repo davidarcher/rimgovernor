@@ -391,6 +391,14 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		return PowerProposal{Method: PowerShelter, Target: b.ID, Center: b.Cell, Room: room, Key: powerMethodKey("shelter", b.ID+fmt.Sprint(room))}, nil
 	}
 	if len(v.UnsafeConduits) > 0 {
+		// An unpowered, unconnected consumer joins a live network first when
+		// every ordinary conduit its route crosses is already contiguous with
+		// the live producer: the new cells are HiddenConduit, so connecting
+		// adds no zzztt exposure and the consumer does not wait out the
+		// upgrade plans (#698).
+		if p, ok := connectLiveBeforeUpgrade(v, existing, unsafeSeen, route); ok {
+			return p, nil
+		}
 		upgrade := append([]domain.Cell(nil), v.UnsafeConduits...)
 		sort.Slice(upgrade, func(i, j int) bool { return cellLess(upgrade[i], upgrade[j]) })
 		upgrade = upgrade[:min(len(upgrade), 8)]
@@ -549,6 +557,61 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		return generate(p, target, producers, planning, v.Geysers, route)
 	}
 	return result, nil
+}
+
+// connectLiveBeforeUpgrade is the connect proposal for the first switched-on,
+// unforbidden, unconnected consumer whose route reaches a producer already
+// outputting power, provided no ordinary conduit on the route lies beyond the
+// first new cell (such a conduit would be newly energized).
+func connectLiveBeforeUpgrade(v PowerTopology, existing, unsafe, route map[domain.Cell]bool) (PowerProposal, bool) {
+	occupied := map[domain.Cell]bool{}
+	destinations := map[domain.Cell]bool{}
+	for _, b := range v.Buildings {
+		w, _ := b.BaseW.Value()
+		out, _ := b.OutputW.Value()
+		powered, _ := b.Powered.Value()
+		f, _ := b.Forbidden.Value()
+		s, _ := b.SwitchedOn.Value()
+		if w <= 0 || out <= 0 || !powered || f || !s {
+			continue
+		}
+		destinations[b.Cell] = true
+		for _, c := range b.Occupied {
+			occupied[c] = true
+		}
+	}
+	if len(destinations) == 0 {
+		return PowerProposal{}, false
+	}
+	for _, target := range v.Buildings {
+		base, _ := target.BaseW.Value()
+		connected, ck := target.Connected.Value()
+		f, _ := target.Forbidden.Value()
+		s, _ := target.SwitchedOn.Value()
+		if base >= 0 || !ck || connected || f || !s {
+			continue
+		}
+		path := powerRoute(target.Cell, destinations, route)
+		var cells []domain.Cell
+		safe := true
+		for _, c := range path {
+			if existing[c] || occupied[c] {
+				if unsafe[c] && len(cells) > 0 {
+					safe = false
+					break
+				}
+				continue
+			}
+			if len(cells) < 8 {
+				cells = append(cells, c)
+			}
+		}
+		if !safe || len(cells) == 0 {
+			continue
+		}
+		return PowerProposal{Method: PowerConnect, Target: target.ID, Center: target.Cell, Cells: cells, Key: powerMethodKey("connect", fmt.Sprint(cells))}, true
+	}
+	return PowerProposal{}, false
 }
 
 // A narrow, supported enclosure leaves an aisle around the equipment and a
