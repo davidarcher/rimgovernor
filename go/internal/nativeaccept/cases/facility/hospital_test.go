@@ -1,6 +1,11 @@
 package facility
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+)
 
 // Only a completed plan made entirely of bed_medical patches ends the
 // watch; the ladder's shell and bed plans share the prefix and never do.
@@ -18,5 +23,27 @@ func TestBedConvertedSeesOnlyCompletedMedicalPatches(t *testing.T) {
 	}
 	if bedConverted(map[string]any{}) {
 		t.Fatal("empty sample counted")
+	}
+}
+
+// The shelter stage serves every family but hospital, so the conversion
+// cannot land in the review that first reads the shell recovered (#704);
+// the tail serves the full spec, hospital included.
+func TestShelterStageWithholdsHospitalFamily(t *testing.T) {
+	t.Parallel()
+	spec := na.ServeSpec{Families: []string{hospitalFamilies}}
+	shelterStageSpec(&spec)
+	for _, family := range strings.Split(strings.Join(spec.Families, ","), ",") {
+		if family == "hospital" {
+			t.Fatalf("shelter stage serves the hospital family: %v", spec.Families)
+		}
+	}
+	for _, want := range []string{"sleeping", "shelter", "tend", "rescue", "medical"} {
+		if !strings.Contains(","+strings.Join(spec.Families, ",")+",", ","+want+",") {
+			t.Fatalf("shelter stage dropped %s: %v", want, spec.Families)
+		}
+	}
+	if !strings.HasSuffix(hospitalFamilies, ",hospital") {
+		t.Fatalf("tail families lost hospital: %s", hospitalFamilies)
 	}
 }

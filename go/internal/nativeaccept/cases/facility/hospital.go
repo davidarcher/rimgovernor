@@ -27,7 +27,20 @@ import (
 // MaintainMedicalCare deficit walks through: tend and rescue own the
 // patients, medical the medicine reserve, hospital the hosted bed, work the
 // Doctor coverage the reserve and tending need.
-const hospitalFamilies = "sleeping,shelter,temperature,comfort,work,supply,tend,rescue,medical,hospital"
+const hospitalFamilies = shelterFamilies + ",hospital"
+
+// shelterFamilies serves the shelter stage without the hospital family
+// (#704): the review that first reads the shell recovered is the one whose
+// room census already hosts a bed, so with the hospital planner live the
+// conversion landed in the same step the stage's Until could first see,
+// and the checkpoint held a converted bed a hit could never watch convert.
+const shelterFamilies = "sleeping,shelter,temperature,comfort,work,supply,tend,rescue,medical"
+
+// shelterStageSpec withholds the hospital family for the shelter stage;
+// the tail serves the case's full spec and owns the conversion.
+func shelterStageSpec(spec *na.ServeSpec) {
+	spec.Families = []string{shelterFamilies}
+}
 
 // settle is the wall-clock window after the service stops for a patient to
 // reach the hospital bed under the game's own AI.
@@ -67,6 +80,7 @@ func init() {
 			if err := s.Stage(ctx, shelterStage, func(ctx context.Context) error {
 				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 					WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainMedicalCare, Extra: []policy.GoalID{policy.EnsureInitialShelter}, Until: shelterRecovered},
+					Spec:        shelterStageSpec,
 					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 						hosted, err := hospitalBeds(ctx, h, "baseline")
 						if err != nil {
