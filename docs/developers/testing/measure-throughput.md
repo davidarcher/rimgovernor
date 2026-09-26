@@ -454,6 +454,44 @@ reading the colony rather than in encoding. The viewer row is not
 measurably worse than the plain governed row, so video streaming is not a
 contributor here.
 
+### Hitch, load and stale-action evidence (#656)
+
+The same case carries #656's rows and checks; there is no separate runner.
+A fourth row, `observation-load`, is the `viewer` row (same speed,
+acceleration, save, mod set and camera) plus three concurrent readers
+polling `/api/state` every 250 ms and a second, stalled video lease that
+holds its socket and never reads: several readers and a deliberately slow
+consumer beside the controller. Its row adds `readers` (reads, errors,
+read p50/p95/max) and `stalled_viewer`; a load row that made no successful
+read fails. Rows: `governor-off,uncapped,viewer,observation-load,player`.
+
+Frame tails come from a cumulative interval histogram the companion keeps
+beside the slow counts (1 ms buckets to 50 ms, 5 ms to 250, 50 ms to 1 s,
+then overflow), differenced over the recording, so each row reports
+`frame_p95_ms`, `frame_p99_ms`, `frame_max_interval_ms` and
+`frame_interval_samples`. A second histogram counts only the updates that
+ran main-thread observation work, reported as `observed_frame_p95_ms`,
+`observed_frame_p99_ms`, `observed_frame_max_ms` and
+`observed_frame_samples`: a tail that lives in those updates is
+observation-caused, one that does not is not. A quantile is its bucket's
+upper edge (it overstates by at most one bucket). `encode_queue_p95_ms` and
+`encode_p95_ms` are the detached encoder's worker cost. `phases` prints both
+tails under the frames line.
+
+The case refuses an incomplete report: a row without interval samples (no
+frame hook or an older companion) or a governed row without observation
+hops fails as `observation report incomplete`, never reads as zero cost.
+Thresholds come from a baseline run of this case on a declared runner, never
+from the candidate being judged; a unit test does not fail on a busy CI.
+
+Stale-action safety is dependency-scoped: a proposal carries the section
+versions it planned from, and a changed relevant section refuses it once
+with the section named (`TestClockSchedulerRefusesStaleProposalOnceAt150x`);
+a cell change outside the held planning window moves neither the window's
+value nor its version (`TestApplyRectangle`), so an unrelated edit does not
+force a replan. Cell-level preconditions are revalidated natively when the
+actions apply.
+
 To isolate emergency-only work from a full bundle, narrow the rows with
 `RIMGOVERNOR_SPEED_MATRIX` and read the `sections` split, which already
 separates `emergency` from every other family: the normal controller ships

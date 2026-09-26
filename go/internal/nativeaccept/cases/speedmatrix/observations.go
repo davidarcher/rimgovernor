@@ -39,7 +39,7 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 // matrix (so the useful work is the work that matrix already measures) kept
 // in its own save, and the three rows compared.
 var observationsProfile = profile{items: items, segments: segments, ticks: ticks,
-	save: "RimGovernor-observations-stage", speeds: "governor-off,uncapped,viewer,player"}
+	save: "RimGovernor-observations-stage", speeds: "governor-off,uncapped,viewer,observation-load,player", observations: true}
 
 func init() {
 	cases.Register(cases.Case{
@@ -76,7 +76,13 @@ func observationRow(obs bridge.ObservationSample, frames bridge.FrameSample) map
 		"queue_p95_ms": obs.Queue.P95, "execute_p95_ms": obs.Execute.P95,
 		"format_passes": obs.FormatPasses, "payload_bytes": obs.PayloadBytes,
 		"frame_updates": frames.Updates, "frame_updates_per_second": frames.UpdatesPerSecond(),
-		"frame_max_interval_ms": frames.MaxIntervalMs, "frame_observation_share": frames.ObservationShare(),
+		"frame_max_interval_ms": frames.MaxIntervalMs,
+		// Interval tails (#656): all updates, then only those that ran
+		// main-thread observation work, so a tail is attributable.
+		"frame_interval_samples": frames.Intervals.Samples, "frame_p95_ms": frames.Intervals.P95, "frame_p99_ms": frames.Intervals.P99,
+		"observed_frame_samples": frames.Observed.Samples, "observed_frame_p95_ms": frames.Observed.P95,
+		"observed_frame_p99_ms": frames.Observed.P99, "observed_frame_max_ms": frames.Observed.Max,
+		"encode_queue_p95_ms": obs.EncodeQueue.P95, "encode_p95_ms": obs.Encode.P95, "frame_observation_share": frames.ObservationShare(),
 		"frame_recorder_ms": frames.RecorderMs, "frame_cancelled_hops": frames.Cancelled,
 		// Frame blocking and intentional pauses are separate measures: the
 		// clock's own paused_ms/paused_fraction_native on this row is the
@@ -107,7 +113,9 @@ func (m *matrix) provenance() map[string]any {
 		"warmup": "the reload, the needs freeze, the plan submission and the resume precede the measured interval",
 		"measured_interval": "per row: wall_seconds from resume to the tick budget; the frames and observation blocks are " +
 			"differenced over the service's flight recording, which starts when the service attaches",
-		"viewer": "the viewer row holds one dashboard video lease at the default cadence for the whole row; the other rows hold none",
+		"viewer": "the viewer row holds one dashboard video lease at the default cadence for the whole row; the observation-load row " +
+			"adds a stalled second video lease and concurrent /api/state readers (#656); the other rows hold none",
+		"readers": map[string]any{"count": na.ObservationLoadReaders, "interval_ms": na.ObservationLoadInterval.Milliseconds()},
 	}
 	// The mod set the launch activated: the headless profile when the run is
 	// headless, the windowed profile otherwise.
@@ -124,4 +132,27 @@ func (m *matrix) provenance() map[string]any {
 		out["launch_args"] = game["args"]
 	}
 	return out
+}
+
+// observationRowProblems rejects an observation report that cannot support
+// a comparison (#656): every row must carry update-interval samples, and
+// every governed row observation hops, so an absent frame hook or an
+// unaccounted controller reads as a failure rather than as zero cost.
+func observationRowProblems(rows []map[string]any) []string {
+	var problems []string
+	for _, row := range rows {
+		name, _ := row["case"].(string)
+		if samples, _ := row["frame_interval_samples"].(uint64); samples == 0 {
+			problems = append(problems, name+": no update-interval samples (frame histogram absent)")
+		}
+		if off, _ := row["governor_off"].(bool); !off {
+			if hops, _ := row["observation_hops"].(uint64); hops == 0 {
+				problems = append(problems, name+": no observation hops recorded")
+			}
+		}
+	}
+	if len(rows) == 0 {
+		problems = append(problems, "no rows")
+	}
+	return problems
 }

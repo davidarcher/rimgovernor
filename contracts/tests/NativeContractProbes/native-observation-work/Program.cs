@@ -158,6 +158,20 @@ internal static class NativeObservationWorkProbe
         Check(Near(carried["intervalMs"], 20) && Near(carried["observationMs"], 15), "work charged to its own interval");
         Check((string)carried["trace"] == "trace-a/1", "the most expensive observation names the interval");
         Check((int)carried["tick"] == 101, "the interval carries the tick it opened at");
+        // The cumulative interval histogram (#656): 10 ms, 20 ms and 120 ms
+        // land in the buckets whose upper edges are 10, 20 and 120; only the
+        // 20 ms interval ran observation work.
+        var histogram = (Dictionary<string, object>)report["histogram"];
+        var edges = (List<object>)histogram["edgesMs"];
+        var all = (List<object>)histogram["counts"];
+        var observed = (List<object>)histogram["observedCounts"];
+        Check(all.Count == edges.Count + 1 && observed.Count == all.Count, "one count per bucket plus overflow");
+        ulong CountAt(List<object> list, double edge) => (ulong)list[edges.FindIndex(e => (double)e == edge)];
+        Check(CountAt(all, 10) == 1 && CountAt(all, 20) == 1 && CountAt(all, 120) == 1, "intervals land in their buckets");
+        ulong total = 0, observedTotal = 0;
+        foreach (var c in all) total += (ulong)c;
+        foreach (var c in observed) observedTotal += (ulong)c;
+        Check(total == 3 && observedTotal == 1 && CountAt(observed, 20) == 1, "only the observation interval is in the observed histogram");
         // Consecutive hops inside one update share one immutable report.
         Check(ReferenceEquals(report, FrameAccounting.Report()), "the report is memoized per update");
     }

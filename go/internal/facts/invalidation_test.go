@@ -108,8 +108,14 @@ func TestApplyRectangle(t *testing.T) {
 	s := fullColonyStore(t)
 	outside := Rect{MinX: 30, MinZ: 30, MaxX: 31, MaxZ: 31}
 	s.Apply(Invalidation{Families: []bridge.FactFamily{bridge.FactColony}, Rect: &outside})
+	before := s.Versions()[string(PlanningCells)]
 	if !s.Fresh(PlanningCells, 10) {
 		t.Fatal("a disjoint rectangle must leave the window fresh")
+	}
+	// And at its version (#656): a proposal planned from the window must
+	// not be refused because an unrelated cell changed.
+	if after := s.Versions()[string(PlanningCells)]; after != before {
+		t.Fatalf("a disjoint rectangle moved the window version %d -> %d", before, after)
 	}
 	for _, section := range []Section{Colony, Zones, Buildings} {
 		if held, _ := Get[string](s, section); !held.Stale.All {

@@ -251,3 +251,29 @@ func TestCheckLiveStepCost(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// TestObservationLoadRow pins the #656 row: governed, at the viewer row's
+// speed and acceleration, with the viewer and the extra load, and compared.
+func TestObservationLoadRow(t *testing.T) {
+	cases, err := ParseSpeedCases("viewer,observation-load")
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewer, load := cases[0], cases[1]
+	if !load.ObservationLoad || !load.Viewer || load.GovernorOff || !load.Compared() {
+		t.Fatalf("observation-load row: %+v", load)
+	}
+	if load.Speed != viewer.Speed || load.TestAcceleration != viewer.TestAcceleration {
+		t.Fatalf("load row must match the viewer row's speed: %+v vs %+v", load, viewer)
+	}
+}
+
+// TestReaderProblemsRefusesNoReads checks a load row that read nothing fails.
+func TestReaderProblemsRefusesNoReads(t *testing.T) {
+	if len(ReaderProblems(map[string]any{"reads": uint64(0), "errors": uint64(4)})) == 0 {
+		t.Fatal("zero reads accepted")
+	}
+	if len(ReaderProblems(map[string]any{"reads": uint64(3)})) != 0 {
+		t.Fatal("reads refused")
+	}
+}

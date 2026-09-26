@@ -193,6 +193,8 @@ type FrameSample struct {
 	Observations  uint64            `json:"observations"`
 	Cancelled     uint64            `json:"cancelled_hops"`
 	RecorderMs    float64           `json:"recorder_ms"`
+	Intervals     Quantiles         `json:"intervals"`
+	Observed      Quantiles         `json:"observed_intervals"`
 	Slow          []SlowFrameBucket `json:"slow,omitempty"`
 	Worst         []SlowFrame       `json:"worst,omitempty"`
 }
@@ -293,6 +295,9 @@ type frameRecord struct {
 	elapsedMs, maxIntervalMs, observationMs, recorderMs float64
 	slow                                                map[float64]uint64
 	worst                                               []SlowFrame
+	histEdges                                           []float64
+	histCounts                                          []uint64
+	histObserved                                        []uint64
 }
 
 // readFrames reads the "native_frames" block out of a flight row's timing.
@@ -327,6 +332,24 @@ func readFrames(timing map[string]any) (frameRecord, bool) {
 				continue
 			}
 			out.slow[threshold] = countOf(body["count"])
+		}
+	}
+	if hist, ok := raw["histogram"].(map[string]any); ok {
+		edges, _ := hist["edgesMs"].([]any)
+		counts, _ := hist["counts"].([]any)
+		if len(counts) == len(edges)+1 {
+			for _, edge := range edges {
+				value, _ := number(edge)
+				out.histEdges = append(out.histEdges, value)
+			}
+			for _, count := range counts {
+				out.histCounts = append(out.histCounts, countOf(count))
+			}
+			if observed, _ := hist["observedCounts"].([]any); len(observed) == len(counts) {
+				for _, count := range observed {
+					out.histObserved = append(out.histObserved, countOf(count))
+				}
+			}
 		}
 	}
 	if worst, ok := raw["worst"].([]any); ok {
@@ -477,6 +500,13 @@ func (a *frameAccumulator) result() FrameSample {
 		}
 		out.Slow = append(out.Slow, SlowFrameBucket{ThresholdMs: threshold, Count: span(a.last.slow[threshold], a.first.slow[threshold])})
 	}
+	out.Intervals = histogramQuantiles(a.first.histCounts, a.last.histCounts, a.last.histEdges, a.first.updates <= a.last.updates, out.MaxIntervalMs, out.ElapsedMs)
+	out.Observed = histogramQuantiles(a.first.histObserved, a.last.histObserved, a.last.histEdges, a.first.updates <= a.last.updates, out.MaxIntervalMs, 0)
+	// The whole recording's widest interval is exact; the observed
+	// frames' widest is their top bucket, since the ring is session-wide.
+	if out.Intervals.Samples > 0 {
+		out.Intervals.Max = out.MaxIntervalMs
+	}
 	return out
 }
 
@@ -495,4 +525,48 @@ func spanMs(last, first float64) float64 {
 		return last
 	}
 	return last - first
+}
+
+// histogramQuantiles is the nearest-rank p50/p95/p99 of the update
+// intervals between two samples, differenced from the companion's
+// cumulative interval histogram (#656). A quantile reports its bucket's
+// upper edge, so it overstates by at most one bucket width (1 ms below
+// 50 ms); Max is the top
+// occupied bucket, and the overflow bucket reports maxMs, the widest
+// interval seen. Samples of 0 means the companion sent no histogram or no
+// interval closed between the two samples.
+func histogramQuantiles(first, last []uint64, edges []float64, sameSession bool, maxMs, sumMs float64) Quantiles {
+	if len(last) == 0 {
+		return Quantiles{}
+	}
+	counts := make([]uint64, len(last))
+	var total uint64
+	for i, count := range last {
+		if sameSession && len(first) == len(last) && count >= first[i] {
+			count -= first[i]
+		}
+		counts[i] = count
+		total += count
+	}
+	if total == 0 {
+		return Quantiles{}
+	}
+	edge := func(q float64) float64 {
+		rank := uint64(math.Ceil(q * float64(total)))
+		if rank < 1 {
+			rank = 1
+		}
+		var seen uint64
+		for i, count := range counts {
+			seen += count
+			if seen >= rank {
+				if i < len(edges) {
+					return math.Min(edges[i], maxMs)
+				}
+				return maxMs
+			}
+		}
+		return maxMs
+	}
+	return Quantiles{Samples: total, P50: edge(0.50), P95: edge(0.95), P99: edge(0.99), Max: edge(1), Sum: sumMs}
 }

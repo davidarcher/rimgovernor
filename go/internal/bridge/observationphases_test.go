@@ -335,3 +335,36 @@ func TestThreatScanAggregated(t *testing.T) {
 		t.Fatalf("threat scan without counters: %+v", none.Observation.Threats)
 	}
 }
+
+// TestFrameIntervalQuantilesFromHistogram checks p95/p99 come from the
+// histogram differenced between the first and last sample (#656): only the
+// window's intervals count, a quantile reports its bucket's upper edge, and
+// the overflow bucket reports the widest interval.
+func TestFrameIntervalQuantilesFromHistogram(t *testing.T) {
+	edges := []any{1.0, 2.0, 50.0}
+	row := func(updates uint64, maxUpdate float64, observed []any, counts ...float64) TimelineRecord {
+		record := frameSampleRow(updates, 0, 0, float64(updates)*10, maxUpdate, 0, 0, nil, nil)
+		frames := record.Payload["timing"].(map[string]any)["native_frames"].(map[string]any)
+		values := make([]any, len(counts))
+		for i, count := range counts {
+			values[i] = count
+		}
+		frames["histogram"] = map[string]any{"edgesMs": edges, "counts": values, "observedCounts": observed}
+		return record
+	}
+	// 500 earlier intervals all in the slowest bucket are the baseline; the
+	// window adds 90 at <=1 ms, 8 at <=2 ms, 1 at <=50 ms and 1 overflow.
+	rows := []TimelineRecord{row(500, 400, []any{0.0, 0.0, 0.0, 0.0}, 0, 0, 0, 500), row(600, 400, []any{0.0, 2.0, 1.0, 0.0}, 90, 8, 1, 501)}
+	frames := SummarizePhases(rows).Frames
+	got := frames.Intervals
+	if got.Samples != 100 || got.P50 != 1 || got.P95 != 2 || got.P99 != 50 || got.Max != 400 {
+		t.Fatalf("interval quantiles: %+v", got)
+	}
+	// The three observation frames: two at <=2 ms and the 50 ms one.
+	if obs := frames.Observed; obs.Samples != 3 || obs.P50 != 2 || obs.P99 != 50 || obs.Max != 50 {
+		t.Fatalf("observed quantiles: %+v", obs)
+	}
+	if none := SummarizePhases([]TimelineRecord{frameSampleRow(5, 0, 0, 1, 1, 0, 0, nil, nil)}).Frames.Intervals; none.Samples != 0 {
+		t.Fatalf("no histogram must be unknown: %+v", none)
+	}
+}

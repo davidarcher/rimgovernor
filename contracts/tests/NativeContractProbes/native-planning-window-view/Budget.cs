@@ -176,6 +176,12 @@ internal static partial class NativePlanningWindowViewProbe
         var stats = new PlanningViewRefreshStats();
         var job = new PlanningViewRefreshJob(ledger, publisher.Begin(identity), null, identity, 1, MapSize, MapSize, RMinX, RMinZ, RMaxX, RMaxZ, 100, world, stats);
         Check(job.Bands == 3 && !job.Step(100) && job.Root == null && world.Reads == 20 * 8, "bootstrap: one band per unit");
+        // Multiple requesters (#654/#656): a second caller for the same load
+        // and region joins the running job, so its read adds no capture work;
+        // another region or load does not, and supersedes it instead.
+        Check(job.Serves(identity, RMinX, RMinZ, RMaxX, RMaxZ), "a same-region requester joins the running job");
+        Check(!job.Serves(identity, RMinX, RMinZ + 1, RMaxX, RMaxZ + 1) && !job.Serves(Identity("reload"), RMinX, RMinZ, RMaxX, RMaxZ),
+            "another region or load is not joined");
         world.Set(ledger, 12, 18, Cell("done-band"));
         world.Set(ledger, 12, 36, Cell("later-band"));
         Check(!job.Step(101) && job.Step(102) && job.Root != null && job.Root.Complete, "the remaining bands finish on later frames");

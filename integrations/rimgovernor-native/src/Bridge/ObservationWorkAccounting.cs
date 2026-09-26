@@ -271,6 +271,32 @@ namespace HomeBridge.BridgeTools
         private static ulong _observations, _cancelled;
         private static readonly ulong[] Slow = new ulong[4];
 
+        /// Upper edges (ms) of the cumulative interval histogram: 1 ms steps
+        /// to 50, 5 ms to 250, 50 ms to 1000; a last bucket holds the rest.
+        /// Cumulative counts let a reader difference two samples and take
+        /// p95/p99 of the window between them (#656).
+        internal static readonly double[] HistogramEdgesMs = BuildEdges();
+        private static readonly ulong[] Histogram = new ulong[HistogramEdgesMs.Length + 1];
+        // The same histogram over only the intervals that ran main-thread
+        // observation work, so a tail can be attributed to observation frames.
+        private static readonly ulong[] ObservedHistogram = new ulong[HistogramEdgesMs.Length + 1];
+
+        private static double[] BuildEdges()
+        {
+            var edges = new List<double>();
+            for (var ms = 1; ms <= 50; ms++) edges.Add(ms);
+            for (var ms = 55; ms <= 250; ms += 5) edges.Add(ms);
+            for (var ms = 300; ms <= 1000; ms += 50) edges.Add(ms);
+            return edges.ToArray();
+        }
+
+        private static int Bucket(double ms)
+        {
+            int lo = 0, hi = HistogramEdgesMs.Length;
+            while (lo < hi) { var mid = (lo + hi) / 2; if (ms <= HistogramEdgesMs[mid]) hi = mid; else lo = mid + 1; }
+            return lo;
+        }
+
         // The open interval: work charged to it and the most expensive
         // observation's trace, for the worst ring.
         private static long _openObservationTicks;
@@ -300,6 +326,7 @@ namespace HomeBridge.BridgeTools
                 _session = session; _last = 0; _updates = 0; _elapsedTicks = 0; _observationTicks = 0; _recorderTicks = 0;
                 _maxIntervalMs = 0; _observations = 0; _cancelled = 0;
                 for (var i = 0; i < Slow.Length; i++) Slow[i] = 0;
+                for (var i = 0; i < Histogram.Length; i++) { Histogram[i] = 0; ObservedHistogram[i] = 0; }
                 _openObservationTicks = 0; _openTrace = null; _openTraceTicks = 0; _openTick = 0;
                 WorstFrames.Clear();
                 _report = null; _reportUpdates = ulong.MaxValue;
@@ -331,6 +358,9 @@ namespace HomeBridge.BridgeTools
                     var ms = ObservationWork.Ms(ticks);
                     if (ms > _maxIntervalMs) _maxIntervalMs = ms;
                     for (var i = 0; i < Thresholds.Length; i++) if (ms > Thresholds[i]) Slow[i]++;
+                    var bucket = Bucket(ms);
+                    Histogram[bucket]++;
+                    if (_openObservationTicks > 0) ObservedHistogram[bucket]++;
                     Keep(_updates, ms, ObservationWork.Ms(_openObservationTicks), _openTick, _openTrace);
                 }
                 _last = now;
@@ -411,6 +441,12 @@ namespace HomeBridge.BridgeTools
                     ["recorderMs"] = ObservationWork.Ms(_recorderTicks),
                     ["slow"] = slow,
                     ["worst"] = worst,
+                    ["histogram"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["edgesMs"] = new List<object?>(Array.ConvertAll(HistogramEdgesMs, e => (object?)e)),
+                        ["counts"] = new List<object?>(Array.ConvertAll(Histogram, c => (object?)c)),
+                        ["observedCounts"] = new List<object?>(Array.ConvertAll(ObservedHistogram, c => (object?)c)),
+                    },
                 };
                 _reportUpdates = _updates;
                 return _report;

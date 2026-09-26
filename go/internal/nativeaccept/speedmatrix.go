@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
@@ -33,6 +34,10 @@ type SpeedCase struct {
 	GovernorOff      bool   `json:"governor_off,omitempty"`
 	Viewer           bool   `json:"viewer,omitempty"`
 	Player           bool   `json:"player,omitempty"`
+	// ObservationLoad (#656) adds ObservationLoadReaders concurrent state
+	// readers and a second, stalled video viewer (a consumer that holds its
+	// socket and never reads) beside the Viewer row's draining one.
+	ObservationLoad bool `json:"observation_load,omitempty"`
 }
 
 // Compared reports whether the case's pawn outcome takes part in the
@@ -51,15 +56,16 @@ const RegulatedBlindTicks = 300
 // refusing unknown names and repeats.
 func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 	known := map[string]SpeedCase{
-		"normal":       {Name: "Normal", Speed: "Normal"},
-		"fast":         {Name: "Fast", Speed: "Fast"},
-		"superfast":    {Name: "Superfast", Speed: "Superfast"},
-		"ultrafast":    {Name: "Ultrafast", Speed: "Ultrafast"},
-		"uncapped":     {Name: "uncapped", Speed: "Ultrafast", TestAcceleration: true},
-		"regulated":    {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
-		"governor-off": {Name: "governor-off", Speed: "Ultrafast", TestAcceleration: true, GovernorOff: true},
-		"viewer":       {Name: "viewer", Speed: "Ultrafast", TestAcceleration: true, Viewer: true},
-		"player":       {Name: "player", Speed: "Ultrafast", Player: true},
+		"normal":           {Name: "Normal", Speed: "Normal"},
+		"fast":             {Name: "Fast", Speed: "Fast"},
+		"superfast":        {Name: "Superfast", Speed: "Superfast"},
+		"ultrafast":        {Name: "Ultrafast", Speed: "Ultrafast"},
+		"uncapped":         {Name: "uncapped", Speed: "Ultrafast", TestAcceleration: true},
+		"regulated":        {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
+		"governor-off":     {Name: "governor-off", Speed: "Ultrafast", TestAcceleration: true, GovernorOff: true},
+		"viewer":           {Name: "viewer", Speed: "Ultrafast", TestAcceleration: true, Viewer: true},
+		"player":           {Name: "player", Speed: "Ultrafast", Player: true},
+		"observation-load": {Name: "observation-load", Speed: "Ultrafast", TestAcceleration: true, Viewer: true, ObservationLoad: true},
 	}
 	var cases []SpeedCase
 	seen := map[string]bool{}
@@ -70,7 +76,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		}
 		c, ok := known[key]
 		if !ok {
-			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off, viewer or player)", strings.TrimSpace(part))
+			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off, viewer, observation-load or player)", strings.TrimSpace(part))
 		}
 		if seen[key] {
 			return nil, fmt.Errorf("speed %q listed twice", c.Name)
@@ -629,3 +635,11 @@ func CheckSpeedMetrics(rows []SpeedMetrics, maxPausedFraction, minUltrafastRatio
 	}
 	return problems
 }
+
+// The observation-load row's reader count and polling interval (#656):
+// several dashboards' worth of state reads, well above the dashboard's own
+// cadence, so readers contend with the controller's refreshes.
+const (
+	ObservationLoadReaders  = 3
+	ObservationLoadInterval = 250 * time.Millisecond
+)

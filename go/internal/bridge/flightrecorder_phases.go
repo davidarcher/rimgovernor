@@ -904,6 +904,16 @@ func writeObservationReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, ", >%.1fms %d", bucket.ThresholdMs, bucket.Count)
 	}
 	fmt.Fprintln(w)
+	// The interval tails (#656), whole recording and only the updates that
+	// ran observation work, from the companion's interval histogram.
+	for _, tail := range []struct {
+		name string
+		q    Quantiles
+	}{{"update intervals", frames.Intervals}, {"observation updates", frames.Observed}} {
+		if tail.q.Samples > 0 {
+			fmt.Fprintf(w, "  %s: p95 %.0fms p99 %.0fms max %.1fms (%d intervals)\n", tail.name, tail.q.P95, tail.q.P99, tail.q.Max, tail.q.Samples)
+		}
+	}
 	for _, worst := range frames.Worst {
 		fmt.Fprintf(w, "  worst update %d: %.1fms (observation %.1fms, tick %d", worst.Frame, worst.IntervalMs, worst.ObservationMs, worst.Tick)
 		if worst.Trace != "" {

@@ -100,6 +100,9 @@ type profile struct {
 	items, segments int
 	ticks           uint64
 	save, speeds    string
+	// observations (#642/#656) requires every row to carry the frame and
+	// observation accounts, rejecting an empty report.
+	observations bool
 }
 
 var plainProfile = profile{items: items, segments: segments, ticks: ticks, save: stageSave, speeds: na.DefaultSpeedMatrix}
@@ -196,6 +199,12 @@ func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 	if problems := na.SpeedRowProblems(m.cases, m.outcomes, metrics); len(problems) > 0 {
 		m.report["row_problems"] = problems
 		return fmt.Errorf("speed rows missing or empty: %s", strings.Join(problems, "; "))
+	}
+	if m.p.observations {
+		if problems := observationRowProblems(rows); len(problems) > 0 {
+			m.report["row_problems"] = problems
+			return fmt.Errorf("observation report incomplete: %s", strings.Join(problems, "; "))
+		}
 	}
 	if problems := na.CompareOutcomes(m.outcomes, tolerance); len(problems) > 0 {
 		m.report["outcome_problems"] = problems
@@ -366,6 +375,21 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 			}
 		}()
 	}
+	// The observation-load row (#656): concurrent state readers and a
+	// stalled second viewer, a consumer whose encoder backlog must stay
+	// bounded without holding up control or the draining viewer.
+	var readers *na.ObservationReaders
+	var stalled *na.ViewerClient
+	if c.ObservationLoad {
+		readers = na.StartObservationReaders(ctx, service, na.ObservationLoadReaders, na.ObservationLoadInterval)
+		stalled = na.StartViewerWith(ctx, service, token, na.ViewerOptions{ID: "observation-load-stalled", Stalled: true})
+		defer func() {
+			if readers != nil {
+				report["readers"] = readers.Stop()
+				report["stalled_viewer"] = stalled.Stop()
+			}
+		}()
+	}
 	resumedAt := time.Now()
 	keepAlive := &na.AuthorityKeepAlive{Service: service, Prefix: prefix, Identity: identity, Token: token}
 	stopKeepAlive := keepAlive.Start(ctx)
@@ -431,6 +455,12 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		report["viewer"] = viewerSummary
 		viewer = nil
 	}
+	var readerSummary, stalledSummary map[string]any
+	if readers != nil {
+		readerSummary, stalledSummary = readers.Stop(), stalled.Stop()
+		report["readers"], report["stalled_viewer"] = readerSummary, stalledSummary
+		readers = nil
+	}
 	service.Stop()
 	rows, err := bridge.ReadTimeline(na.FlightRecorderPath(output))
 	if err != nil {
@@ -447,6 +477,12 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	if viewerSummary != nil {
 		metrics["viewer"] = viewerSummary
+	}
+	if readerSummary != nil {
+		metrics["readers"], metrics["stalled_viewer"] = readerSummary, stalledSummary
+		if problems := na.ReaderProblems(readerSummary); len(problems) > 0 {
+			return outcome, fmt.Errorf("observation-load row: %s", strings.Join(problems, "; "))
+		}
 	}
 	report["metrics"] = metrics
 	appendMetrics(m.report, metrics)

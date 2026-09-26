@@ -502,13 +502,16 @@ func (s *Store) Apply(inv Invalidation) {
 		}
 		switch {
 		case section.Cells() && inv.Rect != nil:
-			if inv.Rect.Intersects(r.region) {
-				marked := *inv.Rect
-				if r.stale.Rect != nil {
-					marked = marked.Union(*r.stale.Rect)
-				}
-				r.stale.Rect = &marked
+			if !inv.Rect.Intersects(r.region) {
+				// Disjoint: the held window is unchanged, value and
+				// version both, so proposals planned from it hold (#656).
+				continue
 			}
+			marked := *inv.Rect
+			if r.stale.Rect != nil {
+				marked = marked.Union(*r.stale.Rect)
+			}
+			r.stale.Rect = &marked
 		case !section.Cells() && len(inv.IDs) > 0:
 			for _, id := range inv.IDs {
 				if !containsID(r.stale.IDs, id) {
