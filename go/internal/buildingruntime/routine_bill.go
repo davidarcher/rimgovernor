@@ -144,6 +144,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	projection := read.Projection
+	recordStepRead("bill", r.need, state.Snapshot, projection)
 	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}

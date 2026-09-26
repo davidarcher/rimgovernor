@@ -13,11 +13,10 @@
 //	              survive untouched. (The grace path itself is unit-tested:
 //	              a rested pawn works through Sleep and Joy slots, so no
 //	              fixture can hold coverage back for 30000 ticks.)
-//	separation -- one kitchen holds both a stove and a butcher spot, the
-//	              colony has no food and an armed colonist. The food-supply
-//	              family must admit a fresh ButcherSpot outside the kitchen
-//	              instead of counting the co-located one, and the butcher
-//	              bill must land on the separated spot.
+//
+// The kitchen/butcher separation rule is a snapshot test over the
+// food-supply step's own read (TestSnapshotCleanSeparationAdmitsSeparatedSpot
+// in internal/buildingruntime, #794).
 //
 // Uses the private disposable test/cleanliness_prepare fixture
 // (CleanlinessFixture.cs). The case's own bridge session and the
@@ -41,24 +40,20 @@ import (
 const prefix = "clean-accept"
 
 func init() {
-	// Passing runs hold a journal signature up to 39s (filthy) and 124s
-	// (separation) while the routine cleans or rebuilds (#353).
-	for scenario, stall := range map[string]time.Duration{"filthy": 90 * time.Second, "separation": 3 * time.Minute} {
-		scenario := scenario
-		cases.Register(cases.Case{
-			Name: "clean/" + scenario,
-			Scope: "Native MaintainCleanFacilities vertical (" + scenario + "): blood filth in a kitchen with no cleaners " +
-				"drives the live Go routine reviewer/planner to latch the kitchen alone and order its filth cleaned one " +
-				"target at a time until the measured cleanliness releases the latch (filthy), or a co-located butcher spot " +
-				"has the food-supply family admit a separated ButcherSpot that takes the bill (separation); " +
-				"confirmed by an independent native read.",
-			Start:   cases.Fixture{On: cases.LabStart(), Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
-			Service: true,
-			Budget:  5 * time.Minute,
-			Stall:   stall,
-			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
-		})
-	}
+	// Passing runs hold a journal signature up to 39s while the routine
+	// cleans (#353).
+	scenario := "filthy"
+	cases.Register(cases.Case{
+		Name: "clean/" + scenario,
+		Scope: "Native MaintainCleanFacilities vertical (" + scenario + "): blood filth in a kitchen with no cleaners " +
+			"drives the live Go routine reviewer/planner to latch the kitchen alone and order its filth cleaned one " +
+			"target at a time until the measured cleanliness releases the latch; confirmed by an independent native read.",
+		Start:   cases.Fixture{On: cases.LabStart(), Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
+		Service: true,
+		Budget:  5 * time.Minute,
+		Stall:   90 * time.Second,
+		Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
+	})
 }
 
 func run(ctx context.Context, s cases.Session, scenario string) error {
@@ -181,14 +176,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		}
 	}
 
-	families := []string{"clean"}
-	if scenario == "separation" {
-		// "work" rides along because every building method's builder check
-		// requires the colony's work priorities to match the controller's own
-		// assignment, which only the work family applies.
-		families = []string{"bill", "work"}
-	}
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"clean"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -225,12 +213,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	reviewData, _ := json.Marshal(review)
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
-	if scenario == "filthy" {
-		err = runFilthy(ctx, journal, service, report, kitchenID, butcheryID, kitchenFilth, inKitchen, cleanliness)
-	} else {
-		err = runSeparation(ctx, journal, service, report, inKitchen)
-	}
-	if err != nil {
+	if err = runFilthy(ctx, journal, service, report, kitchenID, butcheryID, kitchenFilth, inKitchen, cleanliness); err != nil {
 		return err
 	}
 	if err := na.AssertRoutineRunning(service.Get); err != nil {
@@ -273,32 +256,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		}
 		if butchery, ok := roomsAfter[butcheryID]; !ok || butchery.cleanliness > cleanliness.EnterC {
 			return fmt.Errorf("rooms-after: butchery %s is no longer dirty: %+v", butcheryID, roomsAfter[butcheryID])
-		}
-	} else {
-		benches, err := readButcherBenches(ctx, h, identity)
-		if err != nil {
-			return err
-		}
-		report["butcher_benches_after"] = benches
-		var separated []string
-		for _, b := range benches {
-			if roomsAfter.key(b.room) != kitchenID {
-				separated = append(separated, b.id)
-			}
-		}
-		if len(separated) != 1 {
-			return fmt.Errorf("expected exactly one butcher bench outside kitchen %s, observed %d: %+v", kitchenID, len(separated), benches)
-		}
-		if report["butcher_bill_bench"] != separated[0] {
-			return fmt.Errorf("the butcher bill landed on %v, not the separated bench %s", report["butcher_bill_bench"], separated[0])
-		}
-		for _, b := range benches {
-			if b.id == separated[0] && b.bills == 0 {
-				return fmt.Errorf("separated bench %s holds no bill natively: %+v", b.id, benches)
-			}
-			if b.id != separated[0] && b.bills != 0 {
-				return fmt.Errorf("co-located bench %s holds %d bills; butchery must leave the kitchen: %+v", b.id, b.bills, benches)
-			}
 		}
 	}
 	return checkStartupLog(s)
@@ -411,87 +368,6 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 	}
 }
 
-// runSeparation follows the food-supply family: a ButcherSpot build outside
-// the kitchen rectangle, its completion, then a butcher bill on the new
-// bench (recorded in report["butcher_bill_bench"] for the native check).
-func runSeparation(ctx context.Context, journal *store.Store, service *na.ServiceProcess, report na.Report, inKitchen func(domain.Cell) bool) error {
-	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	defer methodCancel()
-	var previous *domain.GoalMethod
-	var built domain.Cell
-	for {
-		goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.EnsureFoodSupply, previous)
-		if err != nil {
-			return fmt.Errorf("butcher spot method: %w", err)
-		}
-		previous = &method
-		plan, err := journal.LoadPlan(ctx, method.Plan)
-		if err != nil {
-			return err
-		}
-		actions := plan.Spec.Actions()
-		if len(actions) != 1 {
-			continue
-		}
-		b, ok := actions[0].Building()
-		if !ok || b.Definition() != "ButcherSpot" {
-			continue
-		}
-		if method.Method != "butcher-spot-separated" {
-			return fmt.Errorf("butcher spot admitted under method %s, expected butcher-spot-separated", method.Method)
-		}
-		built = b.Cell()
-		if inKitchen(built) {
-			return fmt.Errorf("butcher spot placed at %v, inside the kitchen", built)
-		}
-		report["goal_id"] = string(goalID)
-		report["butcher_spot_cell"] = map[string]any{"x": built.X, "z": built.Z}
-		doneCtx, doneCancel := context.WithTimeout(ctx, 8*time.Minute)
-		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
-		doneCancel()
-		if err != nil {
-			return fmt.Errorf("butcher spot plan: %w", err)
-		}
-		if incidental {
-			continue
-		}
-		report["butcher_spot_plan"] = string(method.Plan)
-		report["butcher_spot_completed_tick"] = int64(state.Progress[0].View().Tick)
-		break
-	}
-	billCtx, billCancel := context.WithTimeout(ctx, 6*time.Minute)
-	defer billCancel()
-	for {
-		_, method, err := na.WaitGoalMethod(billCtx, journal, policy.EnsureFoodSupply, previous)
-		if err != nil {
-			return fmt.Errorf("butcher bill method: %w", err)
-		}
-		previous = &method
-		plan, err := journal.LoadPlan(ctx, method.Plan)
-		if err != nil {
-			return err
-		}
-		for _, action := range plan.Spec.Actions() {
-			bill, ok := action.ProductionBill()
-			if !ok || bill.Mode() != domain.ButcherForever {
-				continue
-			}
-			report["butcher_bill_bench"] = bill.Bench()
-			report["butcher_bill_plan"] = string(method.Plan)
-			// A forever butcher bill stays pending until a corpse is
-			// processed, which the fixture never supplies: the accepted
-			// receipt plus the native bench read below are the evidence.
-			doneCtx, doneCancel := context.WithTimeout(ctx, 3*time.Minute)
-			err := waitAcceptedReceipt(doneCtx, journal, service, method.Plan)
-			doneCancel()
-			if err != nil {
-				return fmt.Errorf("butcher bill plan: %w", err)
-			}
-			return nil
-		}
-	}
-}
-
 // checkStartupLog is the run's last assertion: no native error in the
 // game's startup log.
 func checkStartupLog(s cases.Session) error {
@@ -595,29 +471,6 @@ func readFilth(ctx context.Context, h *na.Harness, identity map[string]any, labe
 	return rows, nil
 }
 
-type benchRow struct {
-	id, room string
-	bills    int
-}
-
-func (b benchRow) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]any{"id": b.id, "room": b.room, "bills": b.bills})
-}
-
-func readButcherBenches(ctx context.Context, h *na.Harness, identity map[string]any) ([]benchRow, error) {
-	observed, err := readColonyFacts(ctx, h, identity, "butchering-after")
-	if err != nil {
-		return nil, err
-	}
-	var rows []benchRow
-	for _, raw := range na.AsSlice(observed["butchering"]) {
-		row, _ := na.AsMap(raw)
-		bench, _ := na.AsMap(row["bench"])
-		rows = append(rows, benchRow{id: na.AsString(bench["id"]), room: na.AsString(row["roomId"]), bills: len(na.AsSlice(row["bills"]))})
-	}
-	return rows, nil
-}
-
 func readColonyFacts(ctx context.Context, h *na.Harness, identity map[string]any, label string) (map[string]any, error) {
 	reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
 		"scope": map[string]any{"expectedIdentity": identity}, "planning": false, "page": map[string]any{"limit": 256},
@@ -667,25 +520,4 @@ func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess
 		return review, fmt.Errorf("room %s still latched (revision %d): %w", room, review.Revision, err)
 	}
 	return review, nil
-}
-
-// waitAcceptedReceipt polls until every action of plan has an accepted
-// receipt (or has completed); an unsuccessful or cancelled action fails.
-func waitAcceptedReceipt(ctx context.Context, s *store.Store, service *na.ServiceProcess, planID domain.PlanID) error {
-	_, err := na.WaitPlan(ctx, s, storeWait(service), planID, func(state store.PlanState) (string, bool, error) {
-		accepted := len(state.Progress) > 0
-		for _, progress := range state.Progress {
-			view := progress.View()
-			switch view.Stage {
-			case domain.Unsuccessful, domain.Cancelled:
-				return "", false, fmt.Errorf("plan %s reached %s before its receipt", planID, view.Stage)
-			case domain.Completed:
-			default:
-				receipt, known := view.Receipt.Value()
-				accepted = accepted && known && receipt == domain.ReceiptAccepted
-			}
-		}
-		return na.PlanSignature(state), accepted, nil
-	})
-	return err
 }

@@ -93,6 +93,20 @@ policy function on the recorded request. Under the acceptance harness the
 recording directory gets `<area>/<case>` appended per case. Commit
 recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.
 
+## Planner step reads
+
+The building and bill planners decide from their own colony read at step
+time, which carries what the review's read lacks: rooms, the step's own
+definitions (every policy lamp for lighting), fresh benches. With the
+recording variable set, each such step also writes
+`step-<building|bill>-<goal>-<tick>-<seq>.json` (`snapshot.Step`, #794):
+the projection it read, Facts included. `trim` recognises the `step-`
+prefix and drops the site cells unless `-keep-cells` (a lighting or
+placement test needs them). A test loads it with `loadStep` in
+`internal/buildingruntime/routine_snapshot_test.go` and calls the
+selector on `step.Projection`, taking the policy and latches from the
+review recording of the same run (`loadRecorded`, `recordedPlanner`).
+
 ## Defense snapshots
 
 A threat response is not a routine review: `RoutineDefensePlanner` reads

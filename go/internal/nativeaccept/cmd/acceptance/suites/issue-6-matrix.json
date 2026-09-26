@@ -8,10 +8,6 @@
     "acceptance": "filthy vs inherently dirty rooms: a filthy kitchen is cleaned, butchery and barn are never latched"
   },
   {
-    "name": "clean/separation",
-    "acceptance": "kitchen/butcher separation: a co-located butcher bench is replaced by one outside the kitchen"
-  },
-  {
     "name": "floor/kitchen",
     "acceptance": "role-driven floors: the clean tier floors the kitchen from the measured terrain census"
   },

@@ -1,14 +1,17 @@
-// Command trim copies a recorded routine snapshot into testdata as gzipped
-// compact JSON without its planning cells (-keep-cells keeps them for a
+// Command trim copies a recorded routine snapshot, or a planner step read
+// (step-<goal>-<tick>-<seq>.json, #794), into testdata as gzipped compact
+// JSON without its planning cells (-keep-cells keeps them for a
 // site-search test):
 //
-//	go run ./internal/snapshot/cmd/trim <routine-<tick>.json> <testdata/name.json.gz>
+//	go run ./internal/snapshot/cmd/trim <routine-<tick>-<seq>.json|step-...json> <testdata/name.json.gz>
 package main
 
 import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
@@ -27,16 +30,26 @@ func main() {
 }
 
 func run(in, out string, keep bool) error {
-	r, err := snapshot.Load(in)
-	if err != nil {
-		return err
-	}
-	if !keep {
-		r.TrimCells()
-	}
-	data, err := snapshot.Compress(r)
-	if err != nil {
-		return err
+	var data []byte
+	if strings.HasPrefix(filepath.Base(in), "step-") {
+		s, err := snapshot.LoadStep(in)
+		if err != nil {
+			return err
+		}
+		if data, err = snapshot.CompressStep(s, keep); err != nil {
+			return err
+		}
+	} else {
+		r, err := snapshot.Load(in)
+		if err != nil {
+			return err
+		}
+		if !keep {
+			r.TrimCells()
+		}
+		if data, err = snapshot.Compress(r); err != nil {
+			return err
+		}
 	}
 	return os.WriteFile(out, data, 0o644)
 }

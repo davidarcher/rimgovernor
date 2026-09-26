@@ -360,6 +360,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
+	recordStepRead("building", r.goal, state.Snapshot, facts)
 	if r.goal == policy.EnsureCooking {
 		resolved, reason := r.selectPaste(facts)
 		if reason != "" {

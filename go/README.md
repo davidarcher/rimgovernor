@@ -481,7 +481,8 @@ butcher bill defers (`butcher_separation_pending`) until that method has been
 tried and then prefers a bench whose room holds no cooking bench. Deconstructing
 the co-located bench needs a generic deconstruct action the tree lacks
 (follow-up under #6). Targeted acceptance is `acceptance run
-clean/filthy|separation` against `CleanlinessFixture`.
+clean/filthy` against `CleanlinessFixture`; separation is the snapshot test
+`TestSnapshotCleanSeparationAdmitsSeparatedSpot` (#794).
 
 `MaintainLighting` (`lighting` family, issue #6 slice 3) keeps work-bench
 interaction cells lit from the measured native glow: `UpkeepFacts.lighting`

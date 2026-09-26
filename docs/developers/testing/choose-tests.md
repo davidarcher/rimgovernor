@@ -995,7 +995,7 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
 acceptance matrix: one row per criterion in the issue text (dark and
 partially lit benches, protected fungus rooms, lighting repair after a
 layout change (#161), filthy vs inherently dirty
-rooms, kitchen/butcher separation, unreachable stores, disconnected
+rooms, unreachable stores, disconnected
 consumers, exhausted fuel and batteries, hot-weather freezer failure), each
 mapped to the case that exercises it; `suite_test.go` fails
 when a criterion loses its row. The mod build for it needs

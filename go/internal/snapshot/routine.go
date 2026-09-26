@@ -158,7 +158,20 @@ func Compress(r Routine) ([]byte, error) {
 		trimmed.Facts = policy.RoutineFacts{}
 		r.Projection = &trimmed
 	}
-	data, err := Encode(r)
+	return compress(r)
+}
+
+// CompressStep is s as committed testdata, without its planning cells
+// unless keepCells (a site-search test needs them).
+func CompressStep(s Step, keepCells bool) ([]byte, error) {
+	if !keepCells {
+		s.Projection.Cells = nil
+	}
+	return compress(s)
+}
+
+func compress(v any) ([]byte, error) {
+	data, err := Encode(v)
 	if err != nil {
 		return nil, err
 	}

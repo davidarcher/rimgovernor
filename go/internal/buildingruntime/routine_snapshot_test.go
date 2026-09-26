@@ -42,6 +42,45 @@ func recordedPlanner(r snapshot.Routine, goal policy.GoalID) *RoutineBuildingPla
 	return &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: r.Policy}, goal: goal}
 }
 
+// loadStep loads testdata/<name>.json.gz, a planner step's own colony read
+// (#794), for a test to replay a select* over in place of the review's.
+func loadStep(t *testing.T, name string, goal policy.GoalID) snapshot.Step {
+	t.Helper()
+	s, err := snapshot.LoadStep("testdata/" + name + ".json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Goal != goal {
+		t.Fatalf("%s: recorded %s's step, want %s", name, s.Goal, goal)
+	}
+	return s
+}
+
+// clean/separation: the kitchen holds both a stove and the only butcher
+// spot. The food-supply step reads rooms (the review does not), sees every
+// butcher bench share a room with cooking and admits a separated
+// ButcherSpot, which the placement keeps out of the protected kitchen;
+// over the review's projection alone the selector answers
+// existing_facility. Recorded at ecef484fd plus this change (review tick 28157, step tick
+// 34157).
+func TestSnapshotCleanSeparationAdmitsSeparatedSpot(t *testing.T) {
+	t.Parallel()
+	r := loadRecorded(t, "clean-separation-colocated")
+	step := loadStep(t, "clean-separation-step-butcher", policy.EnsureFoodSupply)
+	planner := recordedPlanner(r, policy.EnsureFoodSupply)
+	planner.definition = "ButcherSpot"
+	benches, known := step.Projection.ButcheringBenches.Value()
+	if !known || len(benches) == 0 || !butchersAllColocated(benches, step.Projection.Rooms) {
+		t.Fatalf("step read: benches %+v, want every butcher bench in the kitchen", benches)
+	}
+	if _, method, reason := planner.selection(step.Projection); method != "butcher-spot-separated" {
+		t.Fatalf("step read: method %q reason %q, want butcher-spot-separated", method, reason)
+	}
+	if _, method, reason := planner.selection(*r.Projection); reason != BuildingExistingFacility {
+		t.Fatalf("review projection: method %q reason %q, want %s", method, reason, BuildingExistingFacility)
+	}
+}
+
 // light/outage: an unpowered StandingLamp in reach of the dark stove. The
 // review latches the stove, and the lighting planner holds for the power
 // family (lamp_power_needed) instead of doubling up with a torch.
@@ -284,6 +323,14 @@ func TestSnapshotConditionResponse(t *testing.T) {
 	}
 	if struck == 0 || struck == len(pawns) {
 		t.Fatalf("%d of %d pawns drone-struck, want some of each", struck, len(pawns))
+	}
+	// The lighting step's own read (#759, #794) requests every policy lamp,
+	// so under the eclipse it finds TorchLamp and admits one for the dark
+	// stove; the review's read holds only StandingLamp.
+	step := loadStep(t, "condition-response-step-lighting", policy.MaintainLighting)
+	resolved, reason, err := recordedPlanner(r, policy.MaintainLighting).selectLighting(step.Projection, r.Review.Latches)
+	if err != nil || resolved == nil || resolved.definition != "TorchLamp" {
+		t.Fatalf("eclipse lighting: resolved %v reason %q err %v, want a TorchLamp", resolved != nil, reason, err)
 	}
 	if after := loadRecorded(t, "condition-response-recovered"); len(after.Review.Latches.Lighting) != 0 {
 		t.Fatalf("stove still latched after the conditions: %v", after.Review.Latches.Lighting)
