@@ -1,0 +1,119 @@
+{
+ "ChunkDumps": [
+  {
+   "Chunks": [
+    {
+     "Cell": {
+      "X": 109,
+      "Z": 133
+     },
+     "DefName": "ChunkSlate",
+     "EntityID": "Thing_ChunkSlate43408"
+    },
+    {
+     "Cell": {
+      "X": 112,
+      "Z": 131
+     },
+     "DefName": "ChunkGranite",
+     "Destination": true,
+     "EntityID": "Thing_ChunkGranite44690"
+    },
+    {
+     "Cell": {
+      "X": 113,
+      "Z": 131
+     },
+     "DefName": "ChunkLimestone",
+     "Destination": true,
+     "EntityID": "Thing_ChunkLimestone44691"
+    },
+    {
+     "Cell": {
+      "X": 114,
+      "Z": 131
+     },
+     "DefName": "ChunkSlagSteel",
+     "Destination": true,
+     "EntityID": "Thing_ChunkSlagSteel44692"
+    }
+   ],
+   "DumpSites": [
+    {
+     "X": 110,
+     "Z": 133
+    },
+    {
+     "X": 110,
+     "Z": 134
+    },
+    {
+     "X": 111,
+     "Z": 133
+    },
+    {
+     "X": 110,
+     "Z": 132
+    },
+    {
+     "X": 110,
+     "Z": 135
+    },
+    {
+     "X": 111,
+     "Z": 134
+    },
+    {
+     "X": 109,
+     "Z": 134
+    },
+    {
+     "X": 112,
+     "Z": 133
+    },
+    {
+     "X": 111,
+     "Z": 132
+    },
+    {
+     "X": 110,
+     "Z": 131
+    },
+    {
+     "X": 109,
+     "Z": 132
+    },
+    {
+     "X": 111,
+     "Z": 135
+    },
+    {
+     "X": 109,
+     "Z": 135
+    },
+    {
+     "X": 112,
+     "Z": 134
+    },
+    {
+     "X": 108,
+     "Z": 134
+    },
+    {
+     "X": 111,
+     "Z": 131
+    }
+   ]
+  }
+ ],
+ "Goal": "ClearHomeObstructions",
+ "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load 437af6e4ea004da5957a62e3fe994864 map 0 tick 15",
+ "Snapshot": {
+  "Colony": "7f60d09eec774440b7135c426cb600bc",
+  "Load": "437af6e4ea004da5957a62e3fe994864",
+  "Native": 77,
+  "Plan": "root/7f60d09eec774440b7135c426cb600bc/437af6e4ea004da5957a62e3fe994864/0",
+  "Revision": 1
+ },
+ "Tick": 15
+}

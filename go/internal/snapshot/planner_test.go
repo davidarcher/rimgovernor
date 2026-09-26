@@ -23,7 +23,7 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	if err := finish(domain.GenerationSnapshot{Colony: "c"}, 120); err != nil {
 		t.Fatal(err)
 	}
-	p, err := LoadPlanner(dir + "/planner-EnsureInitialShelter-120.json")
+	p, err := LoadPlanner(dir + "/planner-EnsureInitialShelter-120-1.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,5 +41,26 @@ func TestPlannerRecordsNothingWhenUnset(t *testing.T) {
 	NoteShelter(ctx, policy.StarterRequest{})
 	if err := finish(domain.GenerationSnapshot{}, 1); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPlannerRecordsPlannerPickInputs(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(DirEnv, dir)
+	ctx, finish := StartPlanner(context.Background(), policy.ClearAncientShrine)
+	NoteChunkDump(ctx, ChunkDumpCall{DumpSites: []domain.Cell{{X: 1, Z: 2}}})
+	NoteAnimalFeed(ctx, AnimalFeedCall{Have: map[policy.Resource]int64{"Kibble": 3}})
+	NoteSecureSupplies(ctx, SecureSuppliesCall{Pawns: []policy.SecureSuppliesHaulerFacts{{Pawn: "p1"}}})
+	NoteShrineSquad(ctx, []policy.ShrineDefenderFacts{{ID: "p2"}})
+	NoteShrineReadiness(ctx, policy.ShrineReadinessRequest{Center: domain.Cell{X: 7, Z: 8}})
+	if err := finish(domain.GenerationSnapshot{Colony: "c"}, 9); err != nil {
+		t.Fatal(err)
+	}
+	p, err := LoadPlanner(dir + "/planner-ClearAncientShrine-9-1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.ChunkDumps) != 1 || p.AnimalFeed[0].Have["Kibble"] != 3 || p.SecureSupplies[0].Pawns[0].Pawn != "p1" || p.ShrineSquads[0][0].ID != "p2" || p.ShrineReadiness[0].Center.X != 7 {
+		t.Fatalf("planner %+v", p)
 	}
 }

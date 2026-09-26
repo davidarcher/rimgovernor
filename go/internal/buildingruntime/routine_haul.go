@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -105,6 +106,8 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.MaintainStorage, state.Snapshot, review.Tick)
+	defer recorded()
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -245,6 +248,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		}
 		pawns = append(pawns, facts)
 	}
+	snap.NoteSecureSupplies(call, snap.SecureSuppliesCall{Items: items, Pawns: pawns})
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
 	if !ok {
 		return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}, nil

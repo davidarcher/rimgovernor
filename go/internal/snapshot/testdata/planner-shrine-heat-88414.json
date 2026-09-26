@@ -1,0 +1,392 @@
+{
+ "Goal": "ClearAncientShrine",
+ "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load 974b4ba7da114339ada7294c3c90e6aa map 0 tick 88414",
+ "ShrineSquads": [
+  [
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human724",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human726",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human728",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human730",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human735",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human737",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human743",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   },
+   {
+    "SquadDefenderFacts": {
+     "Armed": {
+      "v": true
+     },
+     "Dead": {
+      "v": false
+     },
+     "Downed": {
+      "v": false
+     },
+     "DraftOwned": {
+      "v": false
+     },
+     "Drafted": {
+      "v": false
+     },
+     "HealthFraction": {
+      "v": 1
+     },
+     "ID": "Thing_Human745",
+     "MeleeEquipped": {
+      "v": true
+     },
+     "MentalState": {
+      "v": false
+     },
+     "NeedsTend": {
+      "v": false
+     },
+     "PlayerForced": {
+      "v": false
+     },
+     "QueuedJobs": {
+      "v": 0
+     },
+     "RangedEquipped": {
+      "v": true
+     },
+     "ViolenceCapable": {
+      "v": true
+     }
+    },
+    "WeaponRange": {
+     "v": 30.899999618530273
+    }
+   }
+  ]
+ ],
+ "Snapshot": {
+  "Colony": "7f60d09eec774440b7135c426cb600bc",
+  "Load": "974b4ba7da114339ada7294c3c90e6aa",
+  "Native": 13,
+  "Plan": "root/7f60d09eec774440b7135c426cb600bc/974b4ba7da114339ada7294c3c90e6aa/0",
+  "Revision": 1
+ },
+ "Tick": 88414
+}

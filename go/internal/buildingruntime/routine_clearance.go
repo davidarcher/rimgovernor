@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -60,6 +61,8 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineClearanceResult{Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.ClearHomeObstructions, state.Snapshot, review.Tick)
+	defer recorded()
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -184,6 +187,7 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
+	snap.NoteChunkDump(call, snap.ChunkDumpCall{Chunks: census.Chunks, DumpSites: census.DumpSites, Protected: protected})
 	cells, allow, ok := policy.SelectChunkDump(census.Chunks, census.DumpSites, protected)
 	if !ok {
 		return RoutineClearanceResult{Reason: BuildingMethodNoSpace}, nil

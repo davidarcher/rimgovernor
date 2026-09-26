@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -59,6 +60,8 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineResourceResult{Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.MaintainAnimalFeed, state.Snapshot, review.Tick)
+	defer recorded()
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -155,6 +158,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	for _, row := range rows {
 		have[row.Resource] = row.Count
 	}
+	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Targets: targets, Stocks: supply.Stocks, Have: have, Stopped: r.reviewer.policy.StoppedResources})
 	choice, err := policy.SelectAnimalFeedMethod(targets, supply.Stocks, have, r.reviewer.policy.StoppedResources)
 	if err != nil {
 		return RoutineResourceResult{}, err

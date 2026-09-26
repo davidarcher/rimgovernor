@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -121,6 +122,7 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 			}
 			report.Traps = request.Traps
 		}
+		snap.NoteShrineReadiness(ctx, request)
 		report.Readiness = policy.ShrineBreachReadiness(request)
 		out = append(out, report)
 	}

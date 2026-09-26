@@ -2,7 +2,9 @@ package snapshot
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -30,6 +32,20 @@ type Planner struct {
 	Sites []ExcavationRead
 	// Choices is every dig-or-shell choice the step made.
 	Choices []ExcavationChoice
+	// ChunkDumps is every policy.SelectChunkDump call: the census chunks,
+	// native dump sites and reserved footprints it chose among (#746).
+	ChunkDumps []ChunkDumpCall
+	// AnimalFeed is every policy.SelectAnimalFeedMethod call.
+	AnimalFeed []AnimalFeedCall
+	// SecureSupplies is every policy.SelectSecureSupplies call: the exposed
+	// items and the hauler candidates.
+	SecureSupplies []SecureSuppliesCall
+	// CoveredStorage is every policy.CoveredStorageSites request.
+	CoveredStorage []policy.CoveredStorageRequest
+	// ShrineSquads is every shrine defender read, in order.
+	ShrineSquads [][]policy.ShrineDefenderFacts
+	// ShrineReadiness is every policy.ShrineBreachReadiness request.
+	ShrineReadiness []policy.ShrineReadinessRequest
 }
 
 // ExcavationRead is one native excavation site read: what was asked
@@ -71,7 +87,7 @@ func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, fun
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.Choices) == 0 {
+		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.Choices)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+len(p.CoveredStorage) == 0 {
 			return nil
 		}
 		p.Snapshot, p.Tick = current, tick
@@ -117,7 +133,59 @@ func NoteChoice(ctx context.Context, c ExcavationChoice) {
 	recorder(ctx).add(func(p *Planner) { p.Choices = append(p.Choices, c) })
 }
 
-// RecordPlanner writes p into dir as planner-<goal>-<tick>.json.
+// ChunkDumpCall is one policy.SelectChunkDump call's inputs.
+type ChunkDumpCall struct {
+	Chunks    []policy.ClearanceChunk
+	DumpSites []domain.Cell
+	Protected []domain.Cell
+}
+
+// AnimalFeedCall is one policy.SelectAnimalFeedMethod call's inputs.
+type AnimalFeedCall struct {
+	Targets []policy.AnimalFeedTarget
+	Stocks  []policy.FoodStock
+	Have    map[policy.Resource]int64
+	Stopped []policy.Resource
+}
+
+// SecureSuppliesCall is one policy.SelectSecureSupplies call's inputs.
+type SecureSuppliesCall struct {
+	Items []policy.UpkeepItem
+	Pawns []policy.SecureSuppliesHaulerFacts
+}
+
+// NoteChunkDump records a chunk dump selection's inputs.
+func NoteChunkDump(ctx context.Context, c ChunkDumpCall) {
+	recorder(ctx).add(func(p *Planner) { p.ChunkDumps = append(p.ChunkDumps, c) })
+}
+
+// NoteAnimalFeed records an animal feed method selection's inputs.
+func NoteAnimalFeed(ctx context.Context, c AnimalFeedCall) {
+	recorder(ctx).add(func(p *Planner) { p.AnimalFeed = append(p.AnimalFeed, c) })
+}
+
+// NoteSecureSupplies records a secure-supplies hauler selection's inputs.
+func NoteSecureSupplies(ctx context.Context, c SecureSuppliesCall) {
+	recorder(ctx).add(func(p *Planner) { p.SecureSupplies = append(p.SecureSupplies, c) })
+}
+
+// NoteCoveredStorage records a covered storage site search.
+func NoteCoveredStorage(ctx context.Context, r policy.CoveredStorageRequest) {
+	recorder(ctx).add(func(p *Planner) { p.CoveredStorage = append(p.CoveredStorage, r) })
+}
+
+// NoteShrineSquad records a shrine defender read.
+func NoteShrineSquad(ctx context.Context, squad []policy.ShrineDefenderFacts) {
+	recorder(ctx).add(func(p *Planner) { p.ShrineSquads = append(p.ShrineSquads, squad) })
+}
+
+// NoteShrineReadiness records a shrine breach readiness request.
+func NoteShrineReadiness(ctx context.Context, r policy.ShrineReadinessRequest) {
+	recorder(ctx).add(func(p *Planner) { p.ShrineReadiness = append(p.ShrineReadiness, r) })
+}
+
+// RecordPlanner writes p into dir as planner-<goal>-<tick>-<seq>.json,
+// seq the first from 1 not already taken.
 func RecordPlanner(dir string, p Planner) error {
 	data, err := Encode(p)
 	if err != nil {
@@ -126,7 +194,18 @@ func RecordPlanner(dir string, p Planner) error {
 	if err = os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, fmt.Sprintf("planner-%s-%d.json", p.Goal, p.Tick)), data, 0o644)
+	// Several steps at one paused tick each keep their own file.
+	for seq := 1; ; seq++ {
+		f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("planner-%s-%d-%d.json", p.Goal, p.Tick, seq)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, fs.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_, err = f.Write(data)
+		return errors.Join(err, f.Close())
+	}
 }
 
 // LoadPlanner reads a recorded planner step.

@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -98,6 +99,8 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineShrineResult{Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.ClearAncientShrine, state.Snapshot, review.Tick)
+	defer recorded()
 	// The step's own answer goes on the review it planned under (#680), so
 	// the journal names the shrine it held on rather than leaving the
 	// advisory ShrineHolds, in identity order, to read as the cause. A
@@ -211,6 +214,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
+		snap.NoteShrineSquad(call, squad)
 		// Completed heat plans are retired, so a started fallback shows in
 		// the epoch's history rather than the active methods (#679).
 		history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
