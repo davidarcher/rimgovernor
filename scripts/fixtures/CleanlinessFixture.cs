@@ -10,7 +10,8 @@ namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds the rooms cleanaccept needs
     // to exercise MaintainCleanFacilities' bounded response and the
-    // kitchen/butcher separation rule (issue #6 slice 2):
+    // kitchen/butcher rooms (issue #6 slice 2; the separation scenario is a
+    // snapshot test since #794):
     //
     //   filthy     -- an enclosed roofed kitchen (fuelled stove) and an
     //                 enclosed roofed butchery (butcher spot), each with blood
@@ -22,24 +23,19 @@ namespace HomeBridge.BridgeTools
     //                 player-forced order are what gets tested, and the
     //                 butchery's filth must stay untouched as inherently
     //                 dirty.
-    //   separation -- one enclosed kitchen holding both a fuelled stove and
-    //                 a butcher spot, no colony food and an armed colonist,
-    //                 so the food-supply family wants butchery and must admit
-    //                 a fresh ButcherSpot outside the kitchen rather than
-    //                 count the co-located one.
     //
     // Nothing here orders, cleans or places anything on the controller's
     // behalf.
     public sealed class CleanlinessFixture
     {
-        [Tool("test/cleanliness_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build a filthy kitchen and a filthy butchery with every colonist's Cleaning priority at 0 (filthy), or one kitchen sharing a stove and a butcher spot with no colony food and an armed colonist (separation).")]
+        [Tool("test/cleanliness_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build a filthy kitchen and a filthy butchery with every colonist's Cleaning priority at 0 (filthy).")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "filthy", int filthPerRoom = 3)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
                 if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
                     return Refuse("A paused disposable colony map is required.");
-                if (scenario != "filthy" && scenario != "separation") return Refuse("scenario must be filthy or separation.");
+                if (scenario != "filthy") return Refuse("scenario must be filthy.");
                 if (filthPerRoom < 1 || filthPerRoom > 6) return Refuse("filthPerRoom must be 1..6.");
                 var colonists = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed).OrderBy(p => p.thingIDNumber).ToList();
                 var builder = colonists.FirstOrDefault(p => !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction));
@@ -110,61 +106,29 @@ namespace HomeBridge.BridgeTools
                 // FueledStove is 3x1: centred on (3,3) it occupies (2..4, 3).
                 var stove = Spawn(stoveDef, At(3, 3), Rot4.North);
                 stove.TryGetComp<CompRefuelable>()?.Refuel(stove.TryGetComp<CompRefuelable>().Props.fuelCapacity);
-                Thing sharedSpot = null, butcherSpot = null;
-                CellRect butchery = default;
-                var kitchenFilth = new List<string>();
-                var butcheryFilth = new List<string>();
-                if (scenario == "filthy")
-                {
-                    butchery = new CellRect(origin.x + 7, origin.z + 2, 6, 4);
-                    BuildRoom(butchery);
-                    butcherSpot = Spawn(butcherDef, At(10, 4), Rot4.North);
-                }
-                else
-                {
-                    sharedSpot = Spawn(butcherDef, At(1, 4), Rot4.North);
-                }
+                var butchery = new CellRect(origin.x + 7, origin.z + 2, 6, 4);
+                BuildRoom(butchery);
+                var butcherSpot = Spawn(butcherDef, At(10, 4), Rot4.North);
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 var kitchenRoom = At(2, 4).GetRoom(map);
                 if (kitchenRoom == null || kitchenRoom.OpenRoofCount > 0 || kitchenRoom.TouchesMapEdge || kitchenRoom.PsychologicallyOutdoors)
                     return Refuse("Fixture kitchen is not enclosed after construction.");
-                Room butcheryRoom = null;
-                if (scenario == "filthy")
-                {
-                    butcheryRoom = At(9, 4).GetRoom(map);
-                    if (butcheryRoom == null || butcheryRoom.OpenRoofCount > 0 || butcheryRoom.TouchesMapEdge || butcheryRoom.PsychologicallyOutdoors || butcheryRoom.ID == kitchenRoom.ID)
-                        return Refuse("Fixture butchery is not a separate enclosed room after construction.");
-                    // Filth on the interior floor cells the benches do not occupy:
-                    // the kitchen's row 4 (x 1..4) and the butchery's row 3.
-                    kitchenFilth = MakeFilth(new CellRect(origin.x + 1, origin.z + 4, 4, 1), filthPerRoom);
-                    butcheryFilth = MakeFilth(new CellRect(origin.x + 8, origin.z + 3, 4, 1), filthPerRoom);
-                    if (kitchenFilth.Count != filthPerRoom || butcheryFilth.Count != filthPerRoom)
-                        return Refuse("Fixture filth did not spawn as requested.");
-                    // Cleaning at priority 0 for everyone: no ordinary
-                    // work coverage exists, while a direct player-forced
-                    // order still runs (the Work tab priority is not a
-                    // capability).
-                    foreach (var pawn in colonists)
-                        if (pawn.workSettings != null && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning))
-                            pawn.workSettings.SetPriority(WorkTypeDefOf.Cleaning, 0);
-                }
-                else
-                {
-                    // No colony food: the food-supply family's butchery path
-                    // gates on runway under the target and an armed hunter.
-                    foreach (var thing in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible && !(t is Corpse)).ToList())
-                        thing.Destroy();
-                    if (builder.equipment != null && builder.equipment.Primary == null)
-                    {
-                        var bowDef = DefDatabase<ThingDef>.GetNamedSilentFail("Bow_Short");
-                        if (bowDef == null) return Refuse("Bow_Short unavailable in this ruleset.");
-                        builder.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(bowDef));
-                    }
-                    var construction = builder.skills?.GetSkill(SkillDefOf.Construction);
-                    if (construction != null && construction.Level < 4) { construction.Level = 4; construction.xpSinceLastLevel = 0f; }
-                    if (builder.workSettings != null && builder.workSettings.GetPriority(WorkTypeDefOf.Construction) == 0)
-                        builder.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
-                }
+                var butcheryRoom = At(9, 4).GetRoom(map);
+                if (butcheryRoom == null || butcheryRoom.OpenRoofCount > 0 || butcheryRoom.TouchesMapEdge || butcheryRoom.PsychologicallyOutdoors || butcheryRoom.ID == kitchenRoom.ID)
+                    return Refuse("Fixture butchery is not a separate enclosed room after construction.");
+                // Filth on the interior floor cells the benches do not occupy:
+                // the kitchen's row 4 (x 1..4) and the butchery's row 3.
+                var kitchenFilth = MakeFilth(new CellRect(origin.x + 1, origin.z + 4, 4, 1), filthPerRoom);
+                var butcheryFilth = MakeFilth(new CellRect(origin.x + 8, origin.z + 3, 4, 1), filthPerRoom);
+                if (kitchenFilth.Count != filthPerRoom || butcheryFilth.Count != filthPerRoom)
+                    return Refuse("Fixture filth did not spawn as requested.");
+                // Cleaning at priority 0 for everyone: no ordinary
+                // work coverage exists, while a direct player-forced
+                // order still runs (the Work tab priority is not a
+                // capability).
+                foreach (var pawn in colonists)
+                    if (pawn.workSettings != null && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Cleaning))
+                        pawn.workSettings.SetPriority(WorkTypeDefOf.Cleaning, 0);
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 kitchenRoom = At(2, 4).GetRoom(map);
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
@@ -173,11 +137,11 @@ namespace HomeBridge.BridgeTools
                     tick = Find.TickManager.TicksGame, builder = builder.GetUniqueLoadID(), scenario,
                     kitchenRoomId = kitchenRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), kitchen = Cells(kitchen),
                     kitchenRole = kitchenRoom.Role?.defName, kitchenCleanliness = kitchenRoom.GetStat(RoomStatDefOf.Cleanliness),
-                    butcheryRoomId = butcheryRoom?.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), butchery = butcheryRoom != null ? Cells(butchery) : null,
-                    stove = stove.GetUniqueLoadID(), butcherSpot = butcherSpot?.GetUniqueLoadID(), sharedButcherSpot = sharedSpot?.GetUniqueLoadID(),
+                    butcheryRoomId = butcheryRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), butchery = Cells(butchery),
+                    stove = stove.GetUniqueLoadID(), butcherSpot = butcherSpot.GetUniqueLoadID(),
                     kitchenFilth, butcheryFilth, colonists = colonists.Select(p => p.GetUniqueLoadID()).ToList(),
                     spareCell = new { x = At(13, 0).x, z = At(13, 0).z },
-                    setup = "Test-only enclosed rooms with a fuelled stove, butcher spot and blood filth (filthy: Cleaning priority 0 for every colonist; separation: no colony food, armed colonist); every clean order, latch and placement remains the controller's.",
+                    setup = "Test-only enclosed rooms with a fuelled stove, butcher spot and blood filth with Cleaning priority 0 for every colonist; every clean order, latch and placement remains the controller's.",
                 };
             }, cancellationToken).ConfigureAwait(false);
         }
