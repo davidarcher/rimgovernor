@@ -80,6 +80,10 @@ type RoutineReview struct {
 	// stage; a disabled review keeps the last one. Absent before any
 	// enabled review filed one.
 	Stage *policy.ColonyStageRecord `json:",omitempty"`
+	// ReadyWork is the shadow ready-work projection (#645) of this
+	// enabled review's plans and unserved goals, bounded by
+	// policy.DefaultReadyBounds. Diagnostics only: no admission reads it.
+	ReadyWork *policy.ReadyWorkReport `json:",omitempty"`
 }
 
 type RoutineReviewRequest struct {
@@ -651,11 +655,13 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		stage := policy.ReviewColonyStage(previousStage, policy.StageColonyFacts(needs, request.Facts, r.Progress), request.Policy.Stages(), request.Tick)
 		r.Stage = &stage
 		var development policy.DevelopmentState
-		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, policy.StageDevelopmentLimit(stage.Stage, baseLimit))
+		var ready policy.ReadyWorkReport
+		development, ready, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress), stage, policy.StageDevelopmentLimit(stage.Stage, baseLimit))
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
 		r.Development = developmentRecord(development)
+		r.ReadyWork = &ready
 		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r.Goals, result.Goals, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err

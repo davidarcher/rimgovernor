@@ -14,23 +14,26 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoutineGoal) ([]policy.Commitment, error) {
+// routinePlan is one current-world, non-retired plan and the need (or
+// player project) it serves.
+type routinePlan struct {
+	state    PlanState
+	goal     domain.GoalID
+	source   domain.GoalSource
+	priority int
+}
+
+// routinePlans maps every non-retired plan of the current world to its
+// goal: routine plans to their bound need, player submissions to a
+// per-plan project id. Plans of another world, and plans with neither a
+// goal method nor a submission, are skipped.
+func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoutineGoal) ([]routinePlan, error) {
 	plans, err := loadPlans(ctx, tx, 256)
 	if err != nil {
 		return nil, err
 	}
-	var result []policy.Commitment
+	var result []routinePlan
 	for _, plan := range plans {
-		var open domain.Progress
-		for _, p := range plan.Progress {
-			if domain.GoalWorkOpen([]domain.Progress{p}) {
-				open = p
-				break
-			}
-		}
-		if open.View().Stage == "" || developmentExemptMethod(plan.Spec) {
-			continue
-		}
 		var goalID domain.GoalID
 		source, priority := domain.PlayerGoal, 3
 		world := World{}
@@ -63,8 +66,34 @@ func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if world != (World{Colony: current.Colony, Load: current.Load, Map: current.Map}) {
 			continue
 		}
-		labor := policy.GoalLabor(goalID)
-		if source == domain.PlayerGoal && labor == nil {
+		result = append(result, routinePlan{plan, goalID, source, priority})
+	}
+	return result, nil
+}
+
+func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoutineGoal) ([]policy.Commitment, error) {
+	plans, err := routinePlans(ctx, tx, current, bindings)
+	if err != nil {
+		return nil, err
+	}
+	return commitmentsOf(ctx, tx, plans)
+}
+
+func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]policy.Commitment, error) {
+	var result []policy.Commitment
+	for _, plan := range plans {
+		var open domain.Progress
+		for _, p := range plan.state.Progress {
+			if domain.GoalWorkOpen([]domain.Progress{p}) {
+				open = p
+				break
+			}
+		}
+		if open.View().Stage == "" || developmentExemptMethod(plan.state.Spec) {
+			continue
+		}
+		labor := policy.GoalLabor(plan.goal)
+		if plan.source == domain.PlayerGoal && labor == nil {
 			labor = policy.LaborProfile{policy.WorkConstruction}
 		}
 		dispatched, err := dispatchTick(ctx, tx, open.View().Action)
@@ -72,14 +101,32 @@ func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.Generati
 			return nil, err
 		}
 		targets := domain.Unknown[policy.WorkTargets]()
-		for _, a := range plan.Spec.Actions() {
+		for _, a := range plan.state.Spec.Actions() {
 			if a.ID() == open.View().Action {
 				targets = policy.ActionWorkTargets(a)
 			}
 		}
-		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open, Labor: labor, Dispatched: dispatched, Targets: targets})
+		result = append(result, policy.Commitment{Goal: plan.goal, Source: plan.source, Priority: plan.priority, Progress: open, Labor: labor, Dispatched: dispatched, Targets: targets})
 	}
 	return result, nil
+}
+
+// readyWorkOf is the shadow ready-work projection (#645) of the review's
+// plans: recorded beside the development rows, read by no admission.
+// Stage inputs (bill ingredients, crop readiness) are not observed here
+// yet, so staged work reads awaiting_observation rather than ready.
+func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.DevelopmentGoal) policy.ReadyWorkReport {
+	var ready []policy.ReadyPlan
+	for _, p := range plans {
+		ready = append(ready, policy.ReadyPlan{Goal: p.goal, Spec: p.state.Spec, Progress: p.state.Progress})
+	}
+	var unserved []domain.GoalID
+	for _, g := range goals {
+		if !g.Served && !g.Blocked && g.Labor != nil {
+			unserved = append(unserved, g.ID)
+		}
+	}
+	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved})
 }
 
 // DispatchTick is the tick of the action's latest dispatch transition,
@@ -117,14 +164,18 @@ func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (doma
 	return result, rows.Err()
 }
 
-func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, limit int) (policy.DevelopmentState, error) {
+func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, limit int) (policy.DevelopmentState, policy.ReadyWorkReport, error) {
 	var bindings []RoutineGoal
 	for i, n := range needs.Assessments {
 		bindings = append(bindings, RoutineGoal{Need: n.ID, Goal: states[i].Goal.ID})
 	}
-	commitments, err := routineCommitments(ctx, tx, r.Current, bindings)
+	plans, err := routinePlans(ctx, tx, r.Current, bindings)
 	if err != nil {
-		return policy.DevelopmentState{}, err
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
+	}
+	commitments, err := commitmentsOf(ctx, tx, plans)
+	if err != nil {
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
 	}
 	goals := append([]policy.DevelopmentGoal(nil), needs.Goals...)
 	for i := range goals {
@@ -137,13 +188,17 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 				// campfire plan completed and retired is served, not owed.
 				var served int
 				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE goal_id=? AND epoch=?", g.ID, strconv.FormatUint(g.Epoch, 10)).Scan(&served); err != nil {
-					return policy.DevelopmentState{}, err
+					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
 				}
 				goals[i].Served = served > 0
 			}
 		}
 	}
-	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld})
+	state, err := policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: limit, Stage: stage, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners, Withheld: withheld})
+	if err != nil {
+		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, err
+	}
+	return state, readyWorkOf(r, plans, goals), nil
 }
 
 // developmentExemptMethod reports a method that is no development project:
