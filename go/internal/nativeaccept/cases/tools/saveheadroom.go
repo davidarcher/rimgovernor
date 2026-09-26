@@ -13,7 +13,7 @@ import (
 // CommittedSaveNames are the saves under cases.CommittedSavesDir that the
 // tools/saveheadroom-<save> lint loads; a new committed save is added here.
 // The checkpoint generators run the same check before committing.
-var CommittedSaveNames = []string{sustained.BaselineSave, "RimGovernor-facility-startup", "RimGovernor-defense-layout"}
+var CommittedSaveNames = []string{sustained.BaselineSave, "RimGovernor-defense-layout"}
 
 func init() {
 	for _, save := range CommittedSaveNames {

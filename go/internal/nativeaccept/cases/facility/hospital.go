@@ -129,7 +129,7 @@ func init() {
 // shell stands.
 func shelterRecovered(sample map[string]any) bool {
 	shelter, _ := sample[string(policy.EnsureInitialShelter)].(map[string]any)
-	return comfortRecovered(shelter)
+	return goalRecovered(shelter)
 }
 
 // lastSample is the newest timeline row the watch left on the report.

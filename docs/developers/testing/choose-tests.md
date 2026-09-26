@@ -643,8 +643,8 @@ Medium`, quiet); `Prepare`/`PrepareRendered` stage it into
 peer's save. A committed save's planning colony facts must read under 768 KiB
 (`na.CheckCommittedSaveHeadroom`): the routine review fails every step once
 that read crosses the 1 MiB envelope, and a case that starts from the save
-adds buildings and loot to it (#320). The checkpoint generators
-(`tools/facility-checkpoint`, `tools/defense-checkpoint`) refuse to commit
+adds buildings and loot to it (#320). The checkpoint generator
+(`tools/defense-checkpoint`) refuses to commit
 past it, and `tools/saveheadroom-<save>` lints each committed save in ten
 seconds, reporting the largest sections (`colony_facts` in result.json) and
 the whole review bundle's bytes per family (`bundle`, the families whole;
@@ -981,9 +981,8 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
   Neither land nor full runs them.
 - **off-tier** (#739): fixture generators and diagnostics no tier runs
   (`offTier` in `cmd/acceptance/tier.go`). The generators
-  (`tools/variantsavegen-*`, `tools/defense-checkpoint`,
-  `tools/facility-checkpoint`) run through `acceptance setup generate
-  <variantsave-<save>|variantsave-all|defense-checkpoint|facility-checkpoint>`
+  (`tools/variantsavegen-*`, `tools/defense-checkpoint`) run through
+  `acceptance setup generate <variantsave-<save>|variantsave-all|defense-checkpoint>`
   followed by the usual run flags; the diagnostics (`sustained/colony`,
   `sustained/colony-loud`, `sustained/food`, `sustained/matrix-*`,
   `speedmatrix/*`, `lifecycle/headless-soak`, `video/source-spike`,
@@ -1261,25 +1260,6 @@ raid assertions need) to `root/profile/Saves` and to the committed
 when it lacks them, loads the save, re-runs the cheap layout audits and goes
 straight to the raid; the checkpoint is fixture-mod state, so rebuild it
 after fixture or save-format changes.
-
-The same shape serves a goal that ranks behind the whole startup ladder:
-`tools/facility-checkpoint` (`acceptance setup generate facility-checkpoint`) plays the tribal8 baseline under the comfort
-case's families until RankDevelopment first admits `EnsureComfort` (every
-priority-0..2 goal served: shelter, campfire, storage, fields, work
-assignments), saves through the service's lifecycle save and commits
-`RimGovernor-facility-startup.rws`; `facility/comfort` opens on it so its
-12-minute watch covers comfort's own planning and use instead of the
-ladder (#201). Regenerate it when the startup ladder's goals, the
-`comfortFamilies` composition or the save format change; until the
-ladder can complete on the baseline (#217) the save is not committed and
-`facility/comfort` fails at staging.
-`facility/basic-comfort` needs no such save: its fixture (`UpkeepFixture` build
-flag) stands a roofed wood hut with no furniture, seeds an AteWithoutTable
-memory and, once the table and seat stand, re-seeds hunger one colonist at a
-time (one seat). The watch ends at recovery; with no work left the served
-families stop advancing the clock, so the audit drives the meals itself with
-`Advance` and then asserts every colonist ate at the table and gained no
-AteWithoutTable memory after it stood (#232). About 90 s on a quiet host.
 
 ## Available checks
 

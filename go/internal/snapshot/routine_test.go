@@ -10,7 +10,7 @@ import (
 
 // Recorded from acceptance run clean/filthy at e24c531b (the last review of
 // the run, tick 158107): blood filth in a kitchen with no cleaner.
-const cleanFilthy = "testdata/clean-filthy-kitchen.json"
+const cleanFilthy = "testdata/clean-filthy-kitchen.json.gz"
 
 func TestReplayReproducesTheRecordedReview(t *testing.T) {
 	r, err := Load(cleanFilthy)

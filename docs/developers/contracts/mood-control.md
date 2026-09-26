@@ -58,7 +58,7 @@ mood state records it instead (`Unowned`) and, once no measured need method
 remains, the proposal is the explicit `unowned_thought_pressure` blocker naming
 the thought rather than `no_measured_correctable_need`; measured relief still
 runs first. Apparel and social memories stay native relief and recovery
-evidence. The served comfort ladder (`facility/comfort`) audits the raise: every
+evidence. The served comfort ladder (formerly `facility/comfort`, now a snapshot test, #750) audited the raise: every
 review that provisions `EnsureComfort` must rank it with a deficit at least the
 provisioned fraction, and the report counts the reviews where that fraction is
 the ranked deficit. Schedules are never written.

@@ -48,10 +48,12 @@ RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance
 records every review of that case. A checkpoint save is recorded the same
 way: resume or `acceptance dev` the case from the bundle, or serve the save
 by hand, with the variable set. Pick the tick that shows the decision under
-test, gzip that file into the consuming package's `testdata/` (`Load`
-reads `.json.gz`; a recording with its projection runs to megabytes) with a name
-saying what it shows (`clean-filthy-kitchen.json`), and name the case and
-commit it came from in the test's comment.
+test and copy it into the consuming package's `testdata/` with
+`go run ./internal/snapshot/cmd/trim <recording> testdata/<name>.json.gz`,
+naming what it shows (`clean-filthy-kitchen.json.gz`); name the case and
+commit it came from in the test's comment. Trim writes gzipped compact
+JSON without the site cells (tens of KB instead of megabytes);
+`-keep-cells` keeps them for a test that runs a site search.
 
 Re-record when a load fails on a renamed or removed field, or when the
 recorded facts no longer describe what the review now reads. Rerun the

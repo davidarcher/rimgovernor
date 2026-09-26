@@ -15,6 +15,9 @@ import (
 	"sort"
 	"strconv"
 	"unsafe"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // factHook and factSetter are domain.Fact's codec hooks. Fact has no JSON
@@ -32,6 +35,7 @@ var (
 	jsonUnmarshalType = reflect.TypeFor[json.Unmarshaler]()
 	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
 	textUnmarshalType = reflect.TypeFor[encoding.TextUnmarshaler]()
+	protoMessageType  = reflect.TypeFor[proto.Message]()
 )
 
 // Encode writes v as indented JSON with every Fact carried. Struct fields
@@ -72,6 +76,18 @@ func encode(v reflect.Value, path string) (any, error) {
 		return nil, nil
 	}
 	t := v.Type()
+	if t.Kind() == reflect.Pointer && t.Implements(protoMessageType) {
+		// A protobuf message (a bridge read's rows) is its protojson form;
+		// its internal state holds reflect values the walk cannot carry.
+		if v.IsNil() {
+			return nil, nil
+		}
+		data, err := protojson.Marshal(v.Interface().(proto.Message))
+		if err != nil {
+			return nil, fmt.Errorf("snapshot: %s: %w", path, err)
+		}
+		return json.RawMessage(data), nil
+	}
 	if t.Implements(factHookType) {
 		value, known := v.Interface().(factHook).SnapshotFact()
 		if !known {
@@ -227,6 +243,13 @@ func decode(data []byte, v reflect.Value, path string) error {
 	}
 	if v.Kind() != reflect.Pointer && (reflect.PointerTo(t).Implements(jsonUnmarshalType) || reflect.PointerTo(t).Implements(textUnmarshalType)) {
 		if err := json.Unmarshal(data, v.Addr().Interface()); err != nil {
+			return fmt.Errorf("snapshot: %s: %w", path, err)
+		}
+		return nil
+	}
+	if t.Kind() == reflect.Pointer && t.Implements(protoMessageType) {
+		v.Set(reflect.New(t.Elem()))
+		if err := protojson.Unmarshal(data, v.Interface().(proto.Message)); err != nil {
 			return fmt.Errorf("snapshot: %s: %w", path, err)
 		}
 		return nil

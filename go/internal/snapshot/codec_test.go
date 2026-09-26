@@ -6,7 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 type codecInner struct {
@@ -65,5 +68,21 @@ func TestCodecRefusesWhatItCannotReplay(t *testing.T) {
 	var out codecInner
 	if err := Decode([]byte(`{"Renamed":1}`), &out); err == nil || !strings.Contains(err.Error(), "re-record") {
 		t.Fatal(err)
+	}
+}
+
+func TestCodecRoundTripsProtobufRows(t *testing.T) {
+	id, crop := "Zone_7", "Plant_Rice"
+	in := bridge.ZonesRead{Rows: []*observationspb.ZoneState{{Id: &id, CropDefName: &crop}}, AsOf: 42}
+	data, err := Encode(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bridge.ZonesRead
+	if err = Decode(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.AsOf != 42 || len(out.Rows) != 1 || !proto.Equal(out.Rows[0], in.Rows[0]) {
+		t.Fatalf("zones read did not round-trip: %s", data)
 	}
 }

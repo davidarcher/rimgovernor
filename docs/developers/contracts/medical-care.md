@@ -90,14 +90,9 @@ severity progression and immunity gain remain ordinary RimWorld simulation;
 medicine selection follows the tier rules above. Missing patients or health
 observations cannot establish recovery, and death is a failure.
 
-`medical/disease` starts from the Core-only tribal8 baseline with Plague on two
-colonists, both untended, and exactly five herbal plus five industrial medicine.
-The disposable `test/medical_plague_prepare` survival variant supplies medical
-sleeping spots and disables bed rest initially. The case observes Auto selecting
-`NormalOrWorse` while industrial stock remains, subsequent native tending and
-bed rest, and explicit full immunity for both patients with all eight original
-colonists alive. Needs are frozen and the storyteller is quiet to isolate the
-disease race. Contagion and organ-decay or blood-rot surgery are outside this case.
+The Plague tier decision (two Plague patients, industrial medicine in stock:
+both and only they go to NormalOrWorse) is a colony snapshot test,
+`TestSnapshotDiseaseSelectsIndustrialCare` (#750).
 
 ## Surgery
 

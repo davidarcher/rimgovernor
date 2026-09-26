@@ -744,15 +744,10 @@ The paused gear read is compared against native upkeep for the exact pawn/loadou
 census, deficit flags, eligible candidate identities and gains, and replacement
 needs. `MaintainEquipment` remains visible as `method_unavailable` until its
 execution family is connected; it does not consume an optional development slot.
-`go run ./internal/nativeaccept/cmd/acceptance run facility/comfort -root <abs .rimgovernor/bridge>
--rimgovernor <abs binary> -output <fresh dir>` runs the autonomous service on the
-tribal8 baseline save and watches `EnsureComfort` until it recovers. After the
-service stops it audits the journal's dining/recreation use proofs against live
-`home/colony_facts` and `home/list_rooms`: each proof facility must sit in a room
-whose native role hosts it, and every eligible colonist needs an accessible
-hosted facility of each kind. Blueprints and labels prove nothing there.
-Recreation previews require native playing-cell access, separate from placement
-legality. `acceptance run facility/workshop` (same flags) runs the same
+The comfort goals' decisions are colony snapshot tests
+(`buildingruntime/routine_facility_snapshot_test.go`, #750).
+`go run ./internal/nativeaccept/cmd/acceptance run facility/workshop -root <abs .rimgovernor/bridge>
+-rimgovernor <abs binary> -output <fresh dir>` runs the startup ladder's
 composition plus `resource,workshop,gear` with `--routine-resource-target
 MeleeWeapon_Club:3` and watches `MaintainResource`; the audit requires the live
 club count from `home/colony_facts` to exceed the pre-service baseline and a

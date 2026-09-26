@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -137,4 +138,40 @@ func (r Routine) Assessment(id policy.GoalID) (policy.RoutineAssessment, error) 
 		}
 	}
 	return policy.RoutineAssessment{}, errors.New("snapshot: review assessed no " + string(id))
+}
+
+// TrimCells drops the planning window's site cells, most of a recording's
+// size: a committed snapshot keeps them only when its test runs a site
+// search.
+func (r *Routine) TrimCells() {
+	if r.Projection != nil {
+		r.Projection.Cells = nil
+	}
+}
+
+// Compress is r as committed testdata: compact JSON, gzipped (a .json.gz
+// file Load reads), a tenth of the indented recording.
+func Compress(r Routine) ([]byte, error) {
+	if r.Projection != nil {
+		// Facts ride once, as in Record.
+		trimmed := *r.Projection
+		trimmed.Facts = policy.RoutineFacts{}
+		r.Projection = &trimmed
+	}
+	data, err := Encode(r)
+	if err != nil {
+		return nil, err
+	}
+	var compact, out bytes.Buffer
+	if err = json.Compact(&compact, data); err != nil {
+		return nil, err
+	}
+	zw, _ := gzip.NewWriterLevel(&out, gzip.BestCompression)
+	if _, err = zw.Write(compact.Bytes()); err != nil {
+		return nil, err
+	}
+	if err = zw.Close(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
 }
