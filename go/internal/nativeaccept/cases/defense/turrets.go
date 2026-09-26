@@ -26,9 +26,11 @@ import (
 // finally a turret's barrel is emptied with the game's auto-refuel off and
 // the layout's own rearm order (#205) is observed to refill it.
 const (
-	turretTimeout      = 15 * time.Minute
-	turretDefinition   = "Turret_MiniTurret"
-	conduitDefinition  = "PowerConduit"
+	turretTimeout    = 15 * time.Minute
+	turretDefinition = "Turret_MiniTurret"
+	// conduitDefinition matches the planner's defenseConduitDefinition
+	// (HiddenConduit since #405); the fixture's generator stub stays plain.
+	conduitDefinition  = "HiddenConduit"
 	generatorDistance  = 28
 	turretTierMinCount = 1
 )

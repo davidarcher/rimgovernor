@@ -730,7 +730,7 @@ namespace HomeBridge.BridgeTools
         private static object Depower(Map map, IntVec3 cell)
         {
             Find.PlaySettings.autoRebuild = false;
-            var conduit = cell.InBounds(map) ? cell.GetThingList(map).OfType<Building>().FirstOrDefault(b => b.def.defName == "PowerConduit" && b.Faction == Faction.OfPlayer) : null;
+            var conduit = cell.InBounds(map) ? cell.GetThingList(map).OfType<Building>().FirstOrDefault(b => (b.def.defName == "PowerConduit" || b.def.defName == "HiddenConduit") && b.Faction == Faction.OfPlayer) : null;
             if (conduit == null) return Refuse("No player conduit on the requested cell.");
             conduit.Destroy(DestroyMode.Vanish);
             if (!conduit.Destroyed) return Refuse("Conduit was not destroyed.");
