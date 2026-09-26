@@ -118,6 +118,17 @@ type RoutineReviewResult struct {
 	// empty when nothing did. The development rows only say "emergency", so
 	// this is the log's answer to which need held the colony (#221).
 	Emergency []policy.GoalID
+	// Detection is what an enabled review passed policy.DetectRoutine: the
+	// journal-enriched facts, the prior latches and the staged policy. Not
+	// journalled; a colony snapshot (internal/snapshot) records it.
+	Detection *RoutineDetection
+}
+
+// RoutineDetection is one DetectRoutine call's input.
+type RoutineDetection struct {
+	Facts   policy.RoutineFacts
+	Latches policy.RoutineLatches
+	Policy  policy.RoutinePolicy
 }
 
 func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
@@ -412,6 +423,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	baseLimit := request.Policy.MaxDevelopmentProjects
 	request.Policy = policy.StageRoutinePolicy(request.Policy, previousStage.Stage)
 	needs := policy.RoutineNeeds{}
+	var detection *RoutineDetection
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
 		request.Facts.ResourceRunways, err = resourceRunways(ctx, tx, request)
@@ -483,6 +495,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				return RoutineReviewResult{}, err
 			}
 		}
+		detection = &RoutineDetection{Facts: request.Facts, Latches: latches, Policy: request.Policy}
 		needs, err = policy.DetectRoutine(request.Facts, latches, request.Policy)
 		if err != nil {
 			return RoutineReviewResult{}, err
@@ -603,7 +616,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 	}
-	result := RoutineReviewResult{Needs: needs}
+	result := RoutineReviewResult{Needs: needs, Detection: detection}
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
 		r.Goals = previous.Goals

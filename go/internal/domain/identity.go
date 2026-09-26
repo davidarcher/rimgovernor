@@ -29,6 +29,21 @@ func Known[T any](value T) Fact[T] { return Fact[T]{value: value, known: true} }
 func Unknown[T any]() Fact[T]      { return Fact[T]{} }
 func (f Fact[T]) Value() (T, bool) { return f.value, f.known }
 
+// SnapshotFact and SetSnapshotFact are the colony-snapshot codec's hooks
+// (internal/snapshot). Fact has no JSON form of its own: journal payloads
+// are canonical, and a Fact field in them must keep encoding as it does.
+func (f Fact[T]) SnapshotFact() (any, bool) { return f.value, f.known }
+
+// SetSnapshotFact makes f known with the value decode fills.
+func (f *Fact[T]) SetSnapshotFact(decode func(any) error) error {
+	var v T
+	if err := decode(&v); err != nil {
+		return err
+	}
+	*f = Known(v)
+	return nil
+}
+
 // GenerationSnapshot scopes in-flight work to one loaded world (colony, map,
 // load token), the plan revision it serves and the native order generation it
 // was issued under. There is one author of orders, so no per-acquisition

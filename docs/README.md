@@ -29,7 +29,8 @@ its contracts and run the relevant checks.
 - [Generated wire contracts](../contracts/schema-generation.md)
 - [Choose tests](developers/testing/choose-tests.md) (which check a change owes,
   what a result proves, and full/cached/resumed provenance),
-  [shelter coverage map](developers/testing/shelter-coverage.md) (which check owns which claim) and
+  [shelter coverage map](developers/testing/shelter-coverage.md) (which check owns which claim),
+  [colony snapshots](developers/testing/colony-snapshots.md) (record a review's facts natively, replay planners in `go test`) and
   [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix, the case timeline page)
 - [Go controller development](../go/README.md), including its testing pyramid;
   native acceptance tooling is tracked in

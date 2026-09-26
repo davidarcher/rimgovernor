@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"math"
+	"os"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -467,6 +469,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		// and becomes visible the moment a section takes another source.
 		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency), "as_of", routineAsOf(asOf), "as_of_min", asOfMin, "as_of_spread", asOfSpread}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
+		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result)
 	}
 	return result, err
 }
@@ -552,4 +555,19 @@ func routineJoinerDefenseTiers(ctx context.Context, journal *store.Store, snapsh
 		}
 	}
 	return domain.Known(tiers), nil
+}
+
+// recordRoutineSnapshot writes the review's colony snapshot when
+// snapshot.DirEnv names a directory (#742); a failed write is logged, never
+// the review's error.
+func recordRoutineSnapshot(ctx context.Context, current domain.GenerationSnapshot, tick domain.Tick, result store.RoutineReviewResult) {
+	dir := os.Getenv(snapshot.DirEnv)
+	if dir == "" {
+		return
+	}
+	if recorded, ok := snapshot.FromReview(current, tick, result); ok {
+		if err := snapshot.Record(dir, recorded); err != nil {
+			clockEvent(ctx, "routine", "snapshot", "colony snapshot not recorded: "+err.Error(), "tick", int64(tick))
+		}
+	}
 }

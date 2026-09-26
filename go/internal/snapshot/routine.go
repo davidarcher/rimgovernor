@@ -1,0 +1,93 @@
+package snapshot
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+)
+
+// DirEnv names the directory a serve records every enabled routine
+// review's snapshot into, as routine-<tick>.json; unset records nothing.
+const DirEnv = "RIMGOVERNOR_SNAPSHOT_DIR"
+
+// Routine is one enabled routine review as recorded: the input the review
+// passed policy.DetectRoutine and, optionally, the journal's review cursor
+// it filed. Facts carry every census the planners of that tick read
+// (ColonyGrid, Upkeep, Research, ...).
+type Routine struct {
+	// Recorded is provenance: the world and tick, and whatever the
+	// recorder adds (a case name, a commit).
+	Recorded string
+	Snapshot domain.GenerationSnapshot
+	Tick     domain.Tick
+	Facts    policy.RoutineFacts
+	Latches  policy.RoutineLatches
+	// Policy is the staged policy the review detected against.
+	Policy policy.RoutinePolicy
+	// Review is the journal's routine review after this one filed.
+	Review *store.RoutineReview
+}
+
+// FromReview is the snapshot of an enabled review's result; false when
+// the review detected nothing (disabled).
+func FromReview(current domain.GenerationSnapshot, tick domain.Tick, result store.RoutineReviewResult) (Routine, bool) {
+	if result.Detection == nil {
+		return Routine{}, false
+	}
+	review := result.Review
+	return Routine{
+		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick),
+		Snapshot: current, Tick: tick,
+		Facts: result.Detection.Facts, Latches: result.Detection.Latches, Policy: result.Detection.Policy,
+		Review: &review,
+	}, true
+}
+
+// Record writes r into dir as routine-<tick>.json.
+func Record(dir string, r Routine) error {
+	data, err := Encode(r)
+	if err != nil {
+		return err
+	}
+	if err = os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, fmt.Sprintf("routine-%d.json", r.Tick)), data, 0o644)
+}
+
+// Load reads a recorded routine snapshot.
+func Load(path string) (Routine, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Routine{}, err
+	}
+	var r Routine
+	if err = Decode(data, &r); err != nil {
+		return Routine{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return r, nil
+}
+
+// Detect replays the review's need detection over the recorded facts.
+func (r Routine) Detect() (policy.RoutineNeeds, error) {
+	return policy.DetectRoutine(r.Facts, r.Latches, r.Policy)
+}
+
+// Assessment is the replayed review's assessment of one goal.
+func (r Routine) Assessment(id policy.GoalID) (policy.RoutineAssessment, error) {
+	needs, err := r.Detect()
+	if err != nil {
+		return policy.RoutineAssessment{}, err
+	}
+	for _, a := range needs.Assessments {
+		if a.ID == id {
+			return a, nil
+		}
+	}
+	return policy.RoutineAssessment{}, errors.New("snapshot: review assessed no " + string(id))
+}
