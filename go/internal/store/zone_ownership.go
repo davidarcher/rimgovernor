@@ -10,8 +10,9 @@ import (
 
 // stockpileClaims mirrors constructionClaims: it joins durable autopilot goal
 // methods for the current world scope to find completed ZoneCreate actions of
-// kind StockpileZone, so ReviewHomeCoverage can protect player edits to a zone
-// this colony already created instead of silently reclaiming or recreating it.
+// kind StockpileZone, so ReviewHomeCoverage keeps Home over the zones this
+// colony created, at their current geometry (#719: an edited zone is
+// reconciled, never exempted).
 // The claim's ID is the native zone identity the completion receipt returned
 // (the zone's unique load id), the same form the Home coverage census names
 // stockpiles by (#315); a completion recorded without one owns nothing.
@@ -46,7 +47,7 @@ type OwnedZone struct {
 
 // zoneClaims lists every completed autopilot zone_create of the current
 // world scope by the native zone identity its receipt returned; the layout
-// tidy (#611) treats only these zones as managed.
+// tidy (#611) reads a zone's kind and crop from these when it has one.
 func zoneClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]OwnedZone], error) {
 	unknown := domain.Unknown[[]OwnedZone]()
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.goal_id FROM goal_methods m JOIN goals g ON g.id=m.goal_id

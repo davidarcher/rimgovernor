@@ -3,10 +3,11 @@ package domain
 import "errors"
 
 // ZoneDelete is an immutable, comparable value: a one-shot deletion of one
-// exact managed zone (native DeleteZone, #611), CAS-gated by the zone's
+// exact zone (native DeleteZone, #611), CAS-gated by the zone's
 // own already-observed snapshot token the same way ClaimBuilding gates a
-// building patch. The token covers the zone's cells and settings, so a
-// zone the player edited since the read is refused rather than deleted.
+// building patch. The token covers the zone's cells and settings; it is a
+// stale-read guard only (#719): a refused delete re-reads the zone and
+// retries on the fresh token, whoever edited it.
 type ZoneDelete struct {
 	zone   string
 	before string

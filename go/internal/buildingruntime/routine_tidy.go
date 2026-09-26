@@ -277,7 +277,7 @@ func (r *RoutineTidyPlanner) record(call context.Context, state ControlState, ti
 // journaled done once it is gone.
 func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlState, goal store.GoalState, tick domain.Tick, t store.LayoutTidy) (RoutineTidyResult, error) {
 	p := r.reviewer.player
-	proposal := policy.TidyProposal{Item: policy.TidyItem{Kind: t.Kind, ID: t.Item, Footprint: t.From, Crop: t.Crop, Managed: true}, Target: t.To, Explanation: t.Explanation}
+	proposal := policy.TidyProposal{Item: policy.TidyItem{Kind: t.Kind, ID: t.Item, Footprint: t.From, Crop: t.Crop}, Target: t.To, Explanation: t.Explanation}
 	createMethod, deleteMethod := tidyMethodID(t.Item, "create"), tidyMethodID(t.Item, "delete")
 	load := func(method domain.MethodID) (*store.PlanState, error) {
 		plan, err := p.journal.LoadPlan(call, tidyPlanID(goal, method))

@@ -18,7 +18,7 @@ func tidyFixture() TidyRequest {
 			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Fertility: domain.Known(1.0)})
 		}
 	}
-	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_7", Footprint: Rectangle{20, 5, 2, 2}, Cells: 4, Crop: "Plant_Rice", Managed: true}}
+	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_7", Footprint: Rectangle{20, 5, 2, 2}, Cells: 4, Crop: "Plant_Rice"}}
 	return tidyZoned(r, Rectangle{20, 5, 2, 2}, "Zone_7")
 }
 
@@ -86,14 +86,12 @@ func TestTidyLayoutBusyColonyOrInFlightProposesNothing(t *testing.T) {
 	}
 }
 
-func TestTidyLayoutNeverTouchesPlayerZonesRoomsInUseOrTidiedItems(t *testing.T) {
+func TestTidyLayoutNeverTouchesRoomsInUseOrTidiedItems(t *testing.T) {
 	r := tidyFixture()
 	r.Items = []TidyItem{
-		{Kind: TidyField, ID: "Zone_7", Footprint: Rectangle{20, 5, 2, 2}, Cells: 4, Crop: "Plant_Rice"},
-		{Kind: TidyStockpile, ID: "Zone_8", Footprint: Rectangle{3, 30, 3, 3}, Cells: 9},
-		{Kind: TidyShell, ID: "Room_2", Footprint: Rectangle{40, 40, 7, 7}, Managed: true, InUse: true, Replaced: true},
-		{Kind: TidyShell, ID: "Room_3", Footprint: Rectangle{50, 40, 7, 7}, Managed: true, Replaced: false},
-		{Kind: TidyField, ID: "Zone_9", Footprint: Rectangle{20, 40, 2, 2}, Cells: 4, Crop: "Plant_Rice", Managed: true},
+		{Kind: TidyShell, ID: "Room_2", Footprint: Rectangle{40, 40, 7, 7}, InUse: true, Replaced: true},
+		{Kind: TidyShell, ID: "Room_3", Footprint: Rectangle{50, 40, 7, 7}, Replaced: false},
+		{Kind: TidyField, ID: "Zone_9", Footprint: Rectangle{20, 40, 2, 2}, Cells: 4, Crop: "Plant_Rice"},
 	}
 	r.Tidied = []string{"Zone_9"}
 	review := PlanTidyLayout(r)
@@ -133,12 +131,12 @@ func TestTidyLayoutGatesOnTierAndGrid(t *testing.T) {
 func TestTidyLayoutAnOnGridWholeModuleFieldIsNotACandidateButASmallOneIs(t *testing.T) {
 	r := tidyFixture()
 	// A whole-module field on a grid intersection needs nothing.
-	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_1", Footprint: Rectangle{17, 1, 11, 11}, Cells: 121, Crop: "Plant_Rice", Managed: true}}
+	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_1", Footprint: Rectangle{17, 1, 11, 11}, Cells: 121, Crop: "Plant_Rice"}}
 	if review := PlanTidyLayout(r); review.Active || review.Candidates != 0 {
 		t.Fatalf("aligned module review %+v", review)
 	}
 	// A 2x2 on an intersection is smaller than the half module: re-sited.
-	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_1", Footprint: Rectangle{17, 1, 2, 2}, Cells: 4, Crop: "Plant_Rice", Managed: true}}
+	r.Items = []TidyItem{{Kind: TidyField, ID: "Zone_1", Footprint: Rectangle{17, 1, 2, 2}, Cells: 4, Crop: "Plant_Rice"}}
 	r = tidyZoned(r, Rectangle{17, 1, 2, 2}, "Zone_1")
 	review := PlanTidyLayout(r)
 	proposal := review.Proposal
@@ -149,7 +147,7 @@ func TestTidyLayoutAnOnGridWholeModuleFieldIsNotACandidateButASmallOneIs(t *test
 
 func TestTidyLayoutReplacedEmptyShellIsDeconstructedWithoutATarget(t *testing.T) {
 	r := tidyFixture()
-	r.Items = []TidyItem{{Kind: TidyShell, ID: "Room_1", Footprint: Rectangle{40, 40, 7, 7}, Managed: true, Replaced: true}}
+	r.Items = []TidyItem{{Kind: TidyShell, ID: "Room_1", Footprint: Rectangle{40, 40, 7, 7}, Replaced: true}}
 	review := PlanTidyLayout(r)
 	proposal := review.Proposal
 	if !review.Active || proposal.Item.Kind != TidyShell || proposal.Target != (Rectangle{}) || proposal.Gain <= 0 || !strings.Contains(proposal.Explanation, "deconstruct") {
@@ -159,7 +157,7 @@ func TestTidyLayoutReplacedEmptyShellIsDeconstructedWithoutATarget(t *testing.T)
 
 func TestTidyLayoutStockpileMovesToStorageAndNoFreeModuleIsReported(t *testing.T) {
 	r := tidyFixture()
-	r.Items = []TidyItem{{Kind: TidyStockpile, ID: "Zone_5", Footprint: Rectangle{3, 30, 3, 3}, Cells: 9, Managed: true}}
+	r.Items = []TidyItem{{Kind: TidyStockpile, ID: "Zone_5", Footprint: Rectangle{3, 30, 3, 3}, Cells: 9}}
 	r = tidyZoned(r, Rectangle{3, 30, 3, 3}, "Zone_5")
 	review := PlanTidyLayout(r)
 	proposal := review.Proposal

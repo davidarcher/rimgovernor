@@ -18,11 +18,11 @@ func tidyZoneRow(id, kind string, x, z, w, h int32, farm *o.FarmFacts) *o.ZoneSt
 	return &o.ZoneState{Id: proto.String(id), Type: proto.String(kind), Bounds: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Maximum: &c.Cell{X: proto.Int32(x + w - 1), Z: proto.Int32(z + h - 1)}}, Farm: farm}
 }
 
-// TestTidyZoneItemsMeasureOnlyManagedZonesStillListed: a claimed growing
-// zone becomes a field item with the census footprint and farm crop, a
-// claimed stockpile a stockpile item, an unclaimed (player) zone nothing,
-// and a claim the census no longer lists nothing.
-func TestTidyZoneItemsMeasureOnlyManagedZonesStillListed(t *testing.T) {
+// TestTidyZoneItemsMeasureEveryListedZone: a claimed growing zone becomes a
+// field item with the census footprint and farm crop, a claimed stockpile a
+// stockpile item, an unclaimed (player) zone a field item too (#719), and a
+// claim the census no longer lists nothing.
+func TestTidyZoneItemsMeasureEveryListedZone(t *testing.T) {
 	projection := &observation.ColonyProjection{Zones: facts.Held[bridge.ZonesRead]{Complete: true, Value: bridge.ZonesRead{Rows: []*o.ZoneState{
 		tidyZoneRow("Zone_7", "growing", 20, 5, 2, 2, &o.FarmFacts{Crop: proto.String("Plant_Rice"), UsableCells: proto.Uint32(4)}),
 		tidyZoneRow("Zone_8", "stockpile", 30, 30, 3, 3, nil),
@@ -34,14 +34,17 @@ func TestTidyZoneItemsMeasureOnlyManagedZonesStillListed(t *testing.T) {
 		{ID: "Zone_3", Kind: domain.GrowingZone, Cells: make([]domain.Cell, 4)},
 	}
 	items := tidyZoneItems(owned, projection)
-	if len(items) != 2 {
+	if len(items) != 3 {
 		t.Fatalf("items %+v", items)
 	}
-	if items[0] != (policy.TidyItem{Kind: policy.TidyField, ID: "Zone_7", Footprint: policy.Rectangle{X: 20, Z: 5, Width: 2, Height: 2}, Cells: 4, Crop: "Plant_Rice", Managed: true}) {
+	if items[0] != (policy.TidyItem{Kind: policy.TidyField, ID: "Zone_7", Footprint: policy.Rectangle{X: 20, Z: 5, Width: 2, Height: 2}, Cells: 4, Crop: "Plant_Rice"}) {
 		t.Fatalf("field %+v", items[0])
 	}
-	if items[1] != (policy.TidyItem{Kind: policy.TidyStockpile, ID: "Zone_8", Footprint: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}, Cells: 9, Managed: true}) {
+	if items[1] != (policy.TidyItem{Kind: policy.TidyStockpile, ID: "Zone_8", Footprint: policy.Rectangle{X: 30, Z: 30, Width: 3, Height: 3}, Cells: 9}) {
 		t.Fatalf("stockpile %+v", items[1])
+	}
+	if items[2] != (policy.TidyItem{Kind: policy.TidyField, ID: "Zone_9", Footprint: policy.Rectangle{X: 40, Z: 40, Width: 5, Height: 5}, Cells: 25}) {
+		t.Fatalf("player field %+v", items[2])
 	}
 	projection.Zones.Complete = false
 	if items := tidyZoneItems(owned, projection); items != nil {
@@ -72,9 +75,9 @@ func tidyRing(x, z, w, h int32) []domain.Cell {
 }
 
 // TestTidyShellItemsMarkClaimedRingsReplacedByAnOnGridPeer: a room ringed
-// by claimed walls is a managed shell; it is Replaced once an empty
+// by claimed walls is a built shell; it is Replaced once an empty
 // enclosed room of the same role sits on the grid; a room in use or with
-// an unclaimed ring cell is never Replaced/managed.
+// an unclaimed ring cell is never a shell unless the colony census holds that wall (#719).
 func TestTidyShellItemsMarkClaimedRingsReplacedByAnOnGridPeer(t *testing.T) {
 	grid := policy.ColonyGrid{Origin: domain.Cell{X: 16, Z: 16}, Pitch: policy.GridPitch, Axes: policy.ColonyGridAxes}
 	// Old shell interior 3x3 at (5,5) -> exterior (4,4) 5x5 off grid; the
@@ -84,7 +87,7 @@ func TestTidyShellItemsMarkClaimedRingsReplacedByAnOnGridPeer(t *testing.T) {
 	claims := []policy.ConstructionClaim{{Cells: tidyRing(5, 5, 3, 3)}}
 	projection := &observation.ColonyProjection{ColonyGrid: domain.Known(grid), Rooms: domain.Known(policy.RoomObservation{Rooms: []policy.Room{old, replacement}}), Facts: policy.RoutineFacts{ConstructionClaims: domain.Known(claims)}}
 	items := tidyShellItems(projection)
-	if len(items) != 1 || items[0].ID != "Room_1" || !items[0].Managed || !items[0].Replaced || items[0].InUse || items[0].Footprint != (policy.Rectangle{X: 4, Z: 4, Width: 5, Height: 5}) {
+	if len(items) != 1 || items[0].ID != "Room_1" || !items[0].Replaced || items[0].InUse || items[0].Footprint != (policy.Rectangle{X: 4, Z: 4, Width: 5, Height: 5}) {
 		t.Fatalf("items %+v", items)
 	}
 	replacement.Beds = []string{"Bed_1"}
@@ -96,6 +99,10 @@ func TestTidyShellItemsMarkClaimedRingsReplacedByAnOnGridPeer(t *testing.T) {
 	ring := tidyRing(5, 5, 3, 3)
 	projection.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Cells: append(ring[:1:1], ring[2:]...)}})
 	if items := tidyShellItems(projection); len(items) != 0 {
-		t.Fatalf("player ring managed %+v", items)
+		t.Fatalf("open ring measured %+v", items)
+	}
+	projection.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall_1", Cells: ring[1:2]}}})
+	if items := tidyShellItems(projection); len(items) != 1 || items[0].ID != "Room_1" {
+		t.Fatalf("player-built wall not owned %+v", items)
 	}
 }

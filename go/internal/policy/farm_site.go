@@ -9,14 +9,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// FarmZone is an existing growing zone the site census can see. Managed zones
-// were created by the controller; a candidate patch touching a managed zone
-// growing the same crop is a contiguous addition rather than a new fragment.
-// Player zones (unmanaged, or an explicitly chosen crop) are never extended and
-// their cells never become free land.
+// FarmZone is an existing growing zone the site census can see. A candidate
+// patch touching a zone growing the same crop is a contiguous addition rather
+// than a new fragment, whoever zoned it (#719: the autopilot extends player
+// fields too).
 type FarmZone struct {
 	ID, Crop string
-	Managed  bool
 }
 
 // FarmSiteWeights express every penalty as a fraction of one normal-soil
@@ -32,7 +30,7 @@ type FarmSiteWeights struct {
 	// Fragment is a fixed charge per separate patch; Perimeter per edge cell.
 	Fragment, Perimeter float64
 	// Contiguity is credited per cell of a patch that adjoins a compatible
-	// managed zone, and such a patch is not charged the fixed Fragment cost.
+	// zone, and such a patch is not charged the fixed Fragment cost.
 	// On the colony grid (#608) the same weight credits a module patch
 	// sharing a full co-linear edge with an aligned compatible zone (the
 	// "row" term) and touch-based contiguity is not scored.
@@ -86,8 +84,8 @@ type FarmSiteRequest struct {
 	Anchor  domain.Cell
 	Storage domain.Fact[domain.Cell]
 	Cells   []SiteCell
-	// Protected cells are never planted: accepted footprints, player
-	// exclusions, walkways, entrances and reserved routes.
+	// Protected cells are never planted: accepted footprints,
+	// walkways, entrances and reserved routes.
 	Protected    []domain.Cell
 	Zones        []FarmZone
 	Crop         CropChoice
@@ -110,7 +108,7 @@ type FarmSiteCandidate struct {
 	Patch          Rectangle
 	Score, Density float64
 	Terms          []FarmSiteTerm
-	// Adjacent names the compatible managed zone the patch touches, if any.
+	// Adjacent names the compatible zone the patch touches, if any.
 	Adjacent string
 }
 
@@ -153,7 +151,7 @@ const farmSitePatchLimit = 32
 // bounded, explainable score shared by the starter template and expansion.
 // Reward is the crop's fertility-adjusted nutrition rate over the patch;
 // penalties are walked travel from the anchor, hauling to storage and
-// fragmentation. Patches touching a compatible managed zone are contiguous
+// fragmentation. Patches touching a compatible zone are contiguous
 // additions. Isolated 1x1 cells are only used once no larger patch can meet
 // the crop's fertility floor. Missing, unreachable, occupied, zoned, roofed
 // and protected cells never become free land. Output is independent of
@@ -208,7 +206,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	}
 	compatible := map[string]bool{}
 	for _, z := range r.Zones {
-		if z.Managed && z.Crop == r.Crop.Name && z.ID != "" {
+		if z.Crop == r.Crop.Name && z.ID != "" {
 			compatible[z.ID] = true
 		}
 	}
@@ -288,7 +286,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	}
 	taken := map[domain.Cell]bool{}
 	// A zoned census cell adjoining the patch is a contiguity partner only if
-	// it belongs to a compatible managed zone.
+	// it belongs to a compatible zone.
 	adjacentZone := func(patch Rectangle) string {
 		best := ""
 		for _, c := range rectCells(patch) {

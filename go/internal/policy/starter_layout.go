@@ -59,7 +59,7 @@ type StarterRequest struct {
 	Bounds Bounds
 	Anchor domain.Cell
 	Cells  []SiteCell
-	// Protected contains accepted footprints, player exclusions and walkways.
+	// Protected contains accepted footprints and walkways.
 	Protected                                                     []domain.Cell
 	NutritionPerDay, CropGrowDays, HarvestNutrition, FertilityMin domain.Fact[float64]
 	// Shelter is the preferred shape family; empty means the rectangle.

@@ -11,8 +11,8 @@ import (
 )
 
 // reviewTidy serves the TidyLayout review (#611) on the projection: the
-// managed zones this colony created (zone claims still listed by the zone
-// census) and the Camp shells it built (rooms ringed by claimed walls)
+// colony's zones (every zone the census lists) and its built shells
+// (rooms ringed by owned walls)
 // measured against the colony grid, with the tidies the timeline already
 // recorded held out. The colony counts busy while any project definition
 // or open building, haul or zone action stands, and while the zone census
@@ -70,8 +70,9 @@ func (r *RoutineReviewer) reviewTidy(ctx context.Context, snapshot domain.Genera
 	return nil
 }
 
-// tidyZoneItems measures the managed zones the census still lists: the
-// footprint is the census bounding box, the cell count the claim's cells
+// tidyZoneItems measures every zone the census lists (#719: player-made
+// zones included): the footprint is the census bounding box, the cell count
+// the claim's cells when this colony created the zone, else the box area
 // (a growing zone's usable cells when the census serves them).
 func tidyZoneItems(owned []store.OwnedZone, projection *observation.ColonyProjection) []policy.TidyItem {
 	if !projection.Zones.Complete {
@@ -83,15 +84,18 @@ func tidyZoneItems(owned []store.OwnedZone, projection *observation.ColonyProjec
 	}
 	var out []policy.TidyItem
 	for _, row := range projection.Zones.Value.Rows {
-		claim, managed := claims[row.GetId()]
-		if !managed || row.GetBounds() == nil {
+		claim, claimed := claims[row.GetId()]
+		if row.GetBounds() == nil {
 			continue
 		}
-		item := policy.TidyItem{ID: row.GetId(), Managed: true, Cells: len(claim.Cells), Crop: claim.Crop}
+		item := policy.TidyItem{ID: row.GetId(), Cells: len(claim.Cells), Crop: claim.Crop}
 		lo, hi := row.GetBounds().GetMinimum(), row.GetBounds().GetMaximum()
 		item.Footprint = policy.Rectangle{X: lo.GetX(), Z: lo.GetZ(), Width: hi.GetX() - lo.GetX() + 1, Height: hi.GetZ() - lo.GetZ() + 1}
+		if !claimed {
+			item.Cells = int(item.Footprint.Width * item.Footprint.Height)
+		}
 		switch {
-		case row.GetType() == "growing" && claim.Kind == domain.GrowingZone:
+		case row.GetType() == "growing" && (!claimed || claim.Kind == domain.GrowingZone):
 			item.Kind = policy.TidyField
 			if farm := row.GetFarm(); farm != nil {
 				if farm.GetCrop() != "" {
@@ -101,7 +105,7 @@ func tidyZoneItems(owned []store.OwnedZone, projection *observation.ColonyProjec
 					item.Cells = int(farm.GetUsableCells())
 				}
 			}
-		case row.GetType() == "stockpile" && claim.Kind == domain.StockpileZone:
+		case row.GetType() == "stockpile" && (!claimed || claim.Kind == domain.StockpileZone):
 			item.Kind = policy.TidyStockpile
 		default:
 			continue
@@ -112,9 +116,10 @@ func tidyZoneItems(owned []store.OwnedZone, projection *observation.ColonyProjec
 	return out
 }
 
-// tidyShellItems measures the Camp shells this controller built: an
+// tidyShellItems measures the colony's built shells (#719: the current
+// player-faction census counts, not only journal claims): an
 // enclosed room whose every ring cell (the interior's outer neighbours)
-// stands on a construction claim. InUse marks beds or contents; Replaced
+// stands on a construction claim or a building of the colony census. InUse marks beds or contents; Replaced
 // marks another enclosed, unused room of the same role whose exterior
 // sits on the grid.
 func tidyShellItems(projection *observation.ColonyProjection) []policy.TidyItem {
@@ -130,9 +135,17 @@ func tidyShellItems(projection *observation.ColonyProjection) []policy.TidyItem 
 			claimed[cell] = true
 		}
 	}
+	if census, known := projection.Facts.CurrentConstruction.Value(); known && census.Colony {
+		for _, b := range census.Buildings {
+			for _, cell := range b.Cells {
+				claimed[cell] = true
+			}
+		}
+	}
 	type shell struct {
-		item policy.TidyItem
-		role policy.RoomRole
+		item  policy.TidyItem
+		role  policy.RoomRole
+		built bool
 	}
 	var shells []shell
 	for _, room := range rooms.Rooms {
@@ -148,21 +161,21 @@ func tidyShellItems(projection *observation.ColonyProjection) []policy.TidyItem 
 			lo.X, hi.X = min(lo.X, c.X), max(hi.X, c.X)
 			lo.Z, hi.Z = min(lo.Z, c.Z), max(hi.Z, c.Z)
 		}
-		managed := true
+		built := true
 		for _, c := range room.Cells {
 			for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
 				if !interior[n] && !claimed[n] {
-					managed = false
+					built = false
 				}
 			}
 		}
 		contents, _ := room.Contents.Value()
-		item := policy.TidyItem{Kind: policy.TidyShell, ID: room.ID, Managed: managed, InUse: len(room.Beds) > 0 || len(contents) > 0, Cells: len(room.Cells), Footprint: policy.Rectangle{X: lo.X - 1, Z: lo.Z - 1, Width: hi.X - lo.X + 3, Height: hi.Z - lo.Z + 3}}
-		shells = append(shells, shell{item, role})
+		item := policy.TidyItem{Kind: policy.TidyShell, ID: room.ID, InUse: len(room.Beds) > 0 || len(contents) > 0, Cells: len(room.Cells), Footprint: policy.Rectangle{X: lo.X - 1, Z: lo.Z - 1, Width: hi.X - lo.X + 3, Height: hi.Z - lo.Z + 3}}
+		shells = append(shells, shell{item, role, built})
 	}
 	var out []policy.TidyItem
 	for i, s := range shells {
-		if !s.item.Managed {
+		if !s.built {
 			continue
 		}
 		for j, other := range shells {

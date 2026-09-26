@@ -77,12 +77,14 @@ func TestHomeCoverageUnknownsAndMalformedGeometry(t *testing.T) {
 	}
 }
 
-func TestHomeCoverageBlocksChangedOwnedStockpileFootprint(t *testing.T) {
+// An edited owned stockpile is reconciled at its current geometry, never
+// blocked as a player edit (#719).
+func TestHomeCoverageReconcilesChangedOwnedStockpileFootprint(t *testing.T) {
 	zone := OwnedStockpile{ID: "zone", Cells: []domain.Cell{{X: 3, Z: 7}}}
 	row := HomeCoverageTarget{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 8}}}
 	got, err := ReviewHomeCoverage(domain.Known([]ConstructionClaim{}), domain.Known([]OwnedStockpile{zone}), domain.Known(HomeCoverageObservation{Targets: []HomeCoverageTarget{row}}))
 	rows, known := got.Value()
-	if err != nil || !known || len(rows) != 1 || rows[0].Blocker == "" {
+	if err != nil || !known || len(rows) != 1 || rows[0].Blocker != "" || rows[0].Cells[0] != (domain.Cell{X: 3, Z: 8}) {
 		t.Fatal(rows, known, err)
 	}
 }

@@ -8,15 +8,15 @@ import (
 )
 
 // TidyLayout re-sites a settled colony's early off-grid sprawl one item at
-// a time (#611): a managed field patch smaller than the module or off the
+// a time (#611): a field patch smaller than the module or off the
 // grid is re-zoned onto the nearest free module in Fields keeping its crop,
-// a managed stockpile off the grid is re-sited, and a Camp shell whose
+// a stockpile off the grid is re-sited, and a Camp shell whose
 // same-role replacement module stands complete and empty is deconstructed.
 // It ranks below every production, upkeep and defense goal (maintenance
 // priority, no deficit) and is active only at tier >= Masonry, with a known
 // grid, when the colony has no unfilled construction or hauling work. It
-// never dissolves a room in use, never touches an unmanaged (player) zone
-// or building, holds one re-site in flight and never re-sites an item
+// never dissolves a room in use and treats every zone and shell as its own
+// (#719, player-made ones included); it holds one re-site in flight and never re-sites an item
 // already tidied.
 const TidyLayout GoalID = "TidyLayout"
 
@@ -38,11 +38,9 @@ const (
 	TidyShell     TidyKind = "shell"
 )
 
-// TidyItem is one managed item the review measures against the grid: a
+// TidyItem is one item the review measures against the grid: a
 // zone by native id with its bounding footprint and cell count, or a Camp
-// shell by room id with its exterior footprint. Managed marks an item this
-// colony created (a zone from a completed zone_create, a shell of claimed
-// walls); an unmanaged item is never a candidate. InUse marks a shell room
+// shell by room id with its exterior footprint. InUse marks a shell room
 // holding beds or contents; Replaced marks a shell whose same-role
 // replacement module stands complete and empty.
 type TidyItem struct {
@@ -51,7 +49,6 @@ type TidyItem struct {
 	Footprint Rectangle
 	Cells     int
 	Crop      string
-	Managed   bool
 	InUse     bool
 	Replaced  bool
 }
@@ -98,7 +95,7 @@ type TidyReview struct {
 	// so the review survives its JSON round trip through the journal.
 	Proposal *TidyProposal `json:",omitempty"`
 	Reason   string
-	// Candidates counts the managed items measured off the grid.
+	// Candidates counts the items measured off the grid.
 	Candidates int
 }
 
@@ -123,11 +120,11 @@ func tidyAlignment(grid ColonyGrid, item TidyItem) int {
 	return corner(u) + corner(v)
 }
 
-// tidyCandidate reports whether an item is worth re-siting: a managed
-// item off its grid alignment, or a managed field patch smaller than a
+// tidyCandidate reports whether an item is worth re-siting: an
+// item off its grid alignment, or a field patch smaller than a
 // half module, that is not tidied, not in use and (for a shell) replaced.
 func tidyCandidate(grid ColonyGrid, item TidyItem, tidied map[string]bool) bool {
-	if !item.Managed || item.ID == "" || tidied[item.ID] || item.Footprint.Width <= 0 || item.Footprint.Height <= 0 {
+	if item.ID == "" || tidied[item.ID] || item.Footprint.Width <= 0 || item.Footprint.Height <= 0 {
 		return false
 	}
 	offGrid := tidyAlignment(grid, item) > 0

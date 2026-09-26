@@ -7,7 +7,7 @@
 // otherwise tied role (passion), traits forbidding roles and lifting
 // fitness (traits), every core role covered and the matrix stable across
 // reviews (coverage), and the schedule planner's timetables written beside
-// the priorities with a player edit left alone (nightowl, schedule.go).
+// the priorities overwriting a player-edited hour (nightowl, schedule.go).
 package workers
 
 import (

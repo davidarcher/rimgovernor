@@ -118,8 +118,8 @@ func TestFarmSiteFragmentedTerrainFallsBackToSingleCells(t *testing.T) {
 	}
 }
 
-func TestFarmSiteContiguousManagedExpansion(t *testing.T) {
-	// A managed rice zone sits at x 20..23; a 4x4 beside it should win over the
+func TestFarmSiteContiguousExpansion(t *testing.T) {
+	// A rice zone sits at x 20..23; a 4x4 beside it should win over the
 	// equally fertile soil nearer the anchor because it is not a new fragment.
 	r := farmSiteFixture()
 	zone := func(id string, x0, x1 int32) {
@@ -131,7 +131,7 @@ func TestFarmSiteContiguousManagedExpansion(t *testing.T) {
 		}
 	}
 	zone("farm-a", 20, 24)
-	r.Zones = []FarmZone{{ID: "farm-a", Crop: "Plant_Rice", Managed: true}}
+	r.Zones = []FarmZone{{ID: "farm-a", Crop: "Plant_Rice"}}
 	r.Weights = DefaultFarmSiteWeights()
 	r.Weights.Travel, r.Weights.Hauling = 0.005, 0
 	r.Weights.Blight = 0 // Isolate contiguity from separation.
@@ -149,8 +149,8 @@ func TestFarmSiteContiguousManagedExpansion(t *testing.T) {
 			t.Fatal("existing zone cell replanted", c)
 		}
 	}
-	// A different crop, or a player zone, is not a contiguity partner.
-	for _, zones := range [][]FarmZone{{{ID: "farm-a", Crop: "Plant_Corn", Managed: true}}, {{ID: "farm-a", Crop: "Plant_Rice", Managed: false}}, nil} {
+	// A different crop is not a contiguity partner.
+	for _, zones := range [][]FarmZone{{{ID: "farm-a", Crop: "Plant_Corn"}}, nil} {
 		r.Zones = zones
 		plan = PlanFarmSites(r)
 		if plan.Selected[0].Adjacent != "" || plan.Patches[0].X > 8 {
@@ -159,7 +159,7 @@ func TestFarmSiteContiguousManagedExpansion(t *testing.T) {
 	}
 }
 
-func TestFarmSitePreservesPlayerZonesProtectedAndOccupiedCells(t *testing.T) {
+func TestFarmSiteSkipsZonedProtectedAndOccupiedCells(t *testing.T) {
 	r := farmSiteFixture()
 	r.Needed = 400
 	for i := range r.Cells {
@@ -299,7 +299,7 @@ func TestFieldLaborAndCookingTerms(t *testing.T) {
 
 func TestFarmSiteSeparationAndFirebreak(t *testing.T) {
 	r := farmSiteFixture()
-	r.Zones = []FarmZone{{ID: "field", Crop: r.Crop.Name, Managed: true}}
+	r.Zones = []FarmZone{{ID: "field", Crop: r.Crop.Name}}
 	for i := range r.Cells {
 		s := &r.Cells[i]
 		if s.Cell.X < 4 {

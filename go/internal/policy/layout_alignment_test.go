@@ -190,7 +190,7 @@ func zoneCells(r *FarmSiteRequest, id string, rect Rectangle) {
 			r.Cells[i].Zone, r.Cells[i].ZoneID = domain.Known(true), domain.Known(id)
 		}
 	}
-	r.Zones = append(r.Zones, FarmZone{ID: id, Crop: r.Crop.Name, Managed: true})
+	r.Zones = append(r.Zones, FarmZone{ID: id, Crop: r.Crop.Name})
 }
 
 func TestFieldModuleCells(t *testing.T) {

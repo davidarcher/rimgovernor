@@ -137,7 +137,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		blocked = !foodPlanAdditionalField(projection, openPlans)
 	}
-	wait, managed, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
+	wait, _, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
@@ -186,7 +186,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
 	var zones []policy.FarmZone
 	for _, farm := range projection.Farms {
-		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop, Managed: managed[farm.ID]})
+		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop})
 	}
 	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: layoutProtected(projection, protected), Zones: zones, Weights: layoutFarmWeights(projection)}
 	site.Grid, _ = layoutAlignment(projection)

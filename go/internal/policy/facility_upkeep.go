@@ -64,7 +64,6 @@ func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fac
 		return unknown, errors.New("owned facilities exceed bound")
 	}
 	ids := map[string]bool{}
-	footprints := map[string]map[domain.Cell]bool{}
 	for _, b := range buildings {
 		if !foodID(b.Identity.Current) || ids[b.Identity.Current] {
 			return unknown, errors.New("invalid owned building")
@@ -76,10 +75,6 @@ func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fac
 			return unknown, errors.New("invalid owned stockpile")
 		}
 		ids[z.ID] = true
-		footprints[z.ID] = map[domain.Cell]bool{}
-		for _, c := range z.Cells {
-			footprints[z.ID][c] = true
-		}
 	}
 	if len(ids) == 0 {
 		return domain.Known([]HomeCoverageTarget{}), nil
@@ -109,15 +104,6 @@ func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fac
 		}
 		if !foodID(shape) || excluded < 0 || excluded > missing || missing < 0 || missing > int64(len(row.Cells)) {
 			return unknown, errors.New("invalid Home target geometry or counts")
-		}
-		if original, zone := footprints[row.ID]; zone {
-			changed := len(original) != len(row.Cells)
-			for _, cell := range row.Cells {
-				changed = changed || !original[cell]
-			}
-			if changed {
-				row.Blocker = "Owned stockpile geometry changed; preserve player edits"
-			}
 		}
 		if missing > 0 || row.Blocker != "" {
 			row.Cells = append([]domain.Cell{}, row.Cells...)
