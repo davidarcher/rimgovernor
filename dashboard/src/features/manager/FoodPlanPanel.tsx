@@ -39,6 +39,8 @@ export default function FoodPlanPanel({active}: {active: boolean}) {
         </div>
         <p className="food-reason">{row.id} · {row.reason}</p>
       </li>)}</ul>
+      <h3>Pet shortfalls ({p.petShortfalls.length})</h3>
+      {p.petShortfalls.length ? <ul className="food-pets">{p.petShortfalls.map(pet => <li key={pet.id}><strong>{pet.id}</strong> · {rate(pet.runwayDays)} days of food · needs {rate(pet.nutritionPerDay)} nutrition/day</li>)}</ul> : <p>No pet below the minimum food runway.</p>}
       <h3>Unknown ({p.unknown.length})</h3>
       {p.unknown.length ? <ul className="food-unknown">{p.unknown.map(row => <li key={JSON.stringify([row.kind, row.id])}><strong>{row.kind}</strong> · {row.id} — {row.reason}</li>)}</ul> : <p>No unknown channels.</p>}
       <details><summary>Controller explanation</summary><p className="food-explain">{p.explain}</p></details>

@@ -54,3 +54,16 @@ it('accepts surplus gaps but rejects malformed rates, decisions and tick/plan pa
   expect(() => readFoodPlanStatus({...census, foodPlanTick: null})).toThrow();
   expect(() => readFoodPlanStatus({...census, foodPlan: null})).toThrow();
 });
+it('lists pet shortfalls the colony runway no longer carries (#708)', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({...census, foodPlan: {...census.foodPlan, petShortfalls: [{id: 'Thing_Cat5169', runwayDays: 0, nutritionPerDay: 0.3}]}})));
+  render(<FoodPlanPanel active/>);
+  expect(await screen.findByText('Pet shortfalls (1)')).toBeInTheDocument();
+  expect(screen.getByText('Thing_Cat5169').closest('li')).toHaveTextContent('Thing_Cat5169 · 0 days of food · needs 0.3 nutrition/day');
+});
+it('reads a missing petShortfalls as none and rejects malformed rows', async () => {
+  expect(readFoodPlanStatus(census).plan?.petShortfalls).toEqual([]);
+  expect(() => readFoodPlanStatus({...census, foodPlan: {...census.foodPlan, petShortfalls: [{id: 'cat', runwayDays: -1, nutritionPerDay: 0.3}]}})).toThrow();
+  vi.stubGlobal('fetch', vi.fn(() => reply(census)));
+  render(<FoodPlanPanel active/>);
+  expect(await screen.findByText('No pet below the minimum food runway.')).toBeInTheDocument();
+});
