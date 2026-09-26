@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
         // missing bed, ownership must follow, and the goal recovers only once
         // every colonist has been observed sleeping in their own bed.
         [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with one bed fewer than colonists (bedsForAll: one each), and construction wood. couple: the first two colonists become lovers, both bedless, beside one vacant double bed.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool bedsForAll = false, bool couple = false)
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool bedsForAll = false, bool couple = false, bool greedy = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {
@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
                     // edifices, zones, pawns and terrain disqualify a site;
                     // the radius covers a wooded or rocky landing.
                     var site = GenRadial.RadialCellsAround(center, 45, true).Where(c => c.DistanceToSquared(center) >= 36).Cast<IntVec3?>().FirstOrDefault(c =>
-                        new CellRect(c.Value.x, c.Value.z, connectedRooms ? 19 : size, size).Cells.All(v => v.InBounds(map)
+                        new CellRect(c.Value.x, c.Value.z, connectedRooms || greedy ? 19 : size, size).Cells.All(v => v.InBounds(map)
                             && !v.Fogged(map) && v.GetEdifice(map) == null
                             && v.GetThingList(map).All(t => t is Plant || t.def.category == ThingCategory.Item)
                             && map.zoneManager.ZoneAt(v) == null && v.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
@@ -112,6 +112,8 @@ namespace HomeBridge.BridgeTools
                         doubleBed = dbl.GetUniqueLoadID();
                     }
                     if (connectedRooms) PrepareHomeRooms(map, origin, rect);
+                    string greedyBed = null;
+                    if (greedy) greedyBed = PrepareGreedyBedroom(map, origin, p);
                     foreach (var worker in people) {
                         worker.playerSettings.AreaRestrictionInPawnCurrentMap = null;
                         worker.needs.rest.CurLevelPercentage = .95f;
@@ -120,7 +122,7 @@ namespace HomeBridge.BridgeTools
                         if (!worker.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) worker.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                         worker.jobs.EndCurrentJob(JobCondition.InterruptForced);
                     }
-                    return new { success = true, pawn = p.GetUniqueLoadID(), partner = couple ? people[1].GetUniqueLoadID() : null, doubleBed, colonists = people.Count, ownedBeds = owned, research = prerequisites?.Select(r => r.defName).ToArray(),
+                    return new { success = true, pawn = p.GetUniqueLoadID(), partner = couple ? people[1].GetUniqueLoadID() : null, doubleBed, greedyBed, colonists = people.Count, ownedBeds = owned, research = prerequisites?.Select(r => r.defName).ToArray(),
                         x = floorCell.x, z = floorCell.z, roomTemperatureC = floorCell.GetRoom(map).Temperature,
                         room = new { x = origin.x, z = origin.z, width = size, height = size },
                         corridor = new { x = origin.x + 12, z = origin.z + 3 },
@@ -161,6 +163,55 @@ namespace HomeBridge.BridgeTools
             map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
             foreach (var c in footprint)
                 if (c.GetRoom(map) is Room room && !room.TouchesMapEdge) room.Temperature = 21f;
+        }
+
+        // Greedy bedroom (#814): the fixture pawn turns Greedy and owns a
+        // wooden bed in a bare 5x4 room east of the dormitory (door south),
+        // with the end table, dresser and lamp research done and wood and
+        // steel beside it. Only the controller's upgrades raise the room.
+        private static string PrepareGreedyBedroom(Map map, IntVec3 origin, Pawn pawn)
+        {
+            if (!pawn.story.traits.HasTrait(TraitDefOf.Greedy)) pawn.story.traits.GainTrait(new Trait(TraitDefOf.Greedy));
+            foreach (var def in new[] { "EndTable", "Dresser", "StandingLamp" })
+                foreach (var project in DefDatabase<ThingDef>.GetNamed(def).researchPrerequisites ?? new System.Collections.Generic.List<ResearchProjectDef>())
+                    Find.ResearchManager.FinishProject(project, false);
+            var outer = new CellRect(origin.x + 10, origin.z, 7, 6);
+            foreach (var c in outer) {
+                foreach (var thing in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) thing.Destroy();
+                map.areaManager.Home[c] = true;
+                map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+            }
+            foreach (var c in outer.EdgeCells) {
+                var wall = ThingMaker.MakeThing(c == new IntVec3(origin.x + 13, 0, origin.z) ? ThingDefOf.Door : ThingDefOf.Wall, ThingDefOf.WoodLog);
+                wall.SetFaction(Faction.OfPlayerSilentFail);
+                GenSpawn.Spawn(wall, c, map);
+            }
+            map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+            var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
+            bed.SetFaction(Faction.OfPlayerSilentFail);
+            GenSpawn.Spawn(bed, new IntVec3(origin.x + 13, 0, origin.z + 4), map, Rot4.South);
+            if (!pawn.ownership.ClaimBedIfNonMedical(bed) || pawn.ownership.OwnedBed != bed) throw new InvalidOperationException("Greedy colonist could not claim the bedroom bed.");
+            foreach (var def in new[] { ThingDefOf.WoodLog, ThingDefOf.Steel }) {
+                var stock = ThingMaker.MakeThing(def);
+                stock.stackCount = def.stackLimit;
+                GenPlace.TryPlaceThing(stock, new IntVec3(origin.x + 13, 0, origin.z - 2), map, ThingPlaceMode.Near);
+                stock.SetForbidden(false, false);
+            }
+            var room = bed.GetRoom();
+            if (room != null) room.Temperature = 21f;
+            return bed.GetUniqueLoadID();
+        }
+
+        [Tool("test/sleeping_greedy_status", Description = "Report the impressiveness of an exact test colonist's bedroom and whether their Greedy thought is active.")]
+        public async Task<object> GreedyStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Exact fixture pawn ID.")] string pawn)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var p = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Single(x => x.GetUniqueLoadID() == pawn);
+                var room = p.ownership.OwnedRoom;
+                var thought = DefDatabase<ThoughtDef>.GetNamed("Greedy");
+                return new { success = true, room = room?.ID, impressiveness = room?.GetStat(RoomStatDefOf.Impressiveness) ?? 0f, greedyThought = thought.Worker.CurrentState(p).Active };
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         [Tool("test/sleeping_need", Description = "Prepare low rest on an exact disposable test colonist.")]

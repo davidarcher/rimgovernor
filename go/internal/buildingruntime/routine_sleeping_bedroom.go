@@ -41,6 +41,9 @@ func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		if _, swap := bedroomSwap(facts); swap {
 			return domain.Known(true)
 		}
+		if _, upgrade := roomUpgrade(facts); upgrade {
+			return domain.Known(true)
+		}
 	}
 	return owed
 }

@@ -252,6 +252,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.EnsureCooking) {
 		readDefinitions = append(append([]string(nil), definitions...), "NutrientPasteDispenser", "Hopper")
 	}
+	if r.roomsEnabled() {
+		readDefinitions = append(append([]string(nil), readDefinitions...), policy.RoomUpgradeDefinitions...)
+	}
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
 		// Directly created plans have no player submission or saved overrides.

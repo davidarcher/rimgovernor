@@ -272,7 +272,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append([]string{"Wall", "Door", policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append([]string{"Wall", "Door", policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...), policy.RoomUpgradeDefinitions...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -308,6 +308,9 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		default:
 			swap, ok := bedroomSwap(facts)
 			if !ok {
+				if upgrade, due := roomUpgrade(facts); due {
+					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
+				}
 				return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
 			}
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: swap.Pawn, Bed: swap.Bed, PreviousBed: swap.PreviousBed}
