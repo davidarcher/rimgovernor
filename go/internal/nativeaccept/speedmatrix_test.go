@@ -230,3 +230,24 @@ func TestCheckSpeedMetricsPrefersNativePausedFraction(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// CheckLiveStepCost bounds the costliest live step's native reads per row,
+// skips a row that ran no live step, and is off at a zero bound (#593).
+func TestCheckLiveStepCost(t *testing.T) {
+	rows := SpeedMetricsFromRows([]map[string]any{
+		{"case": "Normal", "live_steps": 12.0, "max_live_step_reads": 2.0, "live_step_ms_mean": 120.0},
+		{"case": "uncapped", "live_steps": 2.0, "max_live_step_reads": 9.0, "live_step_ms_mean": 380.0},
+		{"case": "governor-off", "live_steps": 0.0, "max_live_step_reads": 40.0},
+	})
+	if got := CheckLiveStepCost(rows, 0); len(got) != 0 {
+		t.Fatal(got)
+	}
+	got := CheckLiveStepCost(rows, 5)
+	if len(got) != 1 || got[0] != "uncapped: a live step issued 9 native reads, over 5 (2 live steps, wall mean 380ms)" {
+		t.Fatal(got)
+	}
+	rows[1].MaxLiveStepReads = 5
+	if got := CheckLiveStepCost(rows, 5); len(got) != 0 {
+		t.Fatal(got)
+	}
+}

@@ -11,6 +11,11 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
+// liveStepReason is the clock_step "reason" a step that planned under a
+// running window carries (buildingruntime.StepLive); this package cannot
+// import buildingruntime, which records the rows.
+const liveStepReason = "live"
+
 // ToolPhases aggregates the recorded call phases for one native tool.
 // Milliseconds are summed over Calls; divide for means. NativeQueueMs and
 // NativeExecuteMs are the companion's own split of the round trip (main
@@ -89,6 +94,47 @@ type StepSample struct {
 	// slowest step's.
 	JournalMs    float64 `json:"journal_ms"`
 	MaxJournalMs float64 `json:"max_journal_ms"`
+	// The step's own wall time (clock_step "elapsed_ms") summed and at
+	// most, and the wait for the player gate before it began
+	// ("gate_wait_ms", #593): a step whose wall is mostly gate wait was
+	// queued behind the Worker's dispatch step, not slow itself.
+	ElapsedMs     float64 `json:"elapsed_ms"`
+	MaxElapsedMs  float64 `json:"max_elapsed_ms"`
+	GateWaitMs    float64 `json:"gate_wait_ms"`
+	MaxGateWaitMs float64 `json:"max_gate_wait_ms"`
+	// The live steps alone (reason "live": planning under a running
+	// window, the steps whose cost bounds throughput at speed, #593).
+	// Cold and stopped steps read whole families and are not comparable.
+	LiveSteps        uint64  `json:"live_steps"`
+	LiveReads        uint64  `json:"live_reads"`
+	MaxLiveReads     uint64  `json:"max_live_reads"`
+	LiveElapsedMs    float64 `json:"live_elapsed_ms"`
+	MaxLiveElapsedMs float64 `json:"max_live_elapsed_ms"`
+}
+
+// LiveReadsPerStep is the native round trips a live step issued on average,
+// the reads-per-step measure of #593; 0 without a live step.
+func (s StepSample) LiveReadsPerStep() float64 {
+	if s.LiveSteps == 0 {
+		return 0
+	}
+	return float64(s.LiveReads) / float64(s.LiveSteps)
+}
+
+// LiveStepMs is the mean wall time of a live step; 0 without one.
+func (s StepSample) LiveStepMs() float64 {
+	if s.LiveSteps == 0 {
+		return 0
+	}
+	return s.LiveElapsedMs / float64(s.LiveSteps)
+}
+
+// StepMs is the mean wall time of a step of any reason; 0 without one.
+func (s StepSample) StepMs() float64 {
+	if s.Steps == 0 {
+		return 0
+	}
+	return s.ElapsedMs / float64(s.Steps)
 }
 
 // DispatchSample aggregates the "worker_dispatch" rows the routine Worker
@@ -346,11 +392,28 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					steps.Tools[tool] += uint64(field(tools, tool))
 				}
 			}
+			elapsed := field(row.Payload, "elapsed_ms")
+			steps.ElapsedMs += elapsed
+			steps.MaxElapsedMs = math.Max(steps.MaxElapsedMs, elapsed)
+			if gate := field(row.Payload, "gate_wait_ms"); gate > 0 {
+				steps.GateWaitMs += gate
+				steps.MaxGateWaitMs = math.Max(steps.MaxGateWaitMs, gate)
+			}
 			if reason, ok := row.Payload["reason"].(string); ok && reason != "" {
 				if steps.Reasons == nil {
 					steps.Reasons = map[string]uint64{}
 				}
 				steps.Reasons[reason]++
+				// The live steps carry the cost that bounds throughput at
+				// speed (#593); keep their reads and wall apart from the
+				// cold and stopped steps, which read whole families.
+				if reason == liveStepReason {
+					steps.LiveSteps++
+					steps.LiveReads += reads
+					steps.MaxLiveReads = max(steps.MaxLiveReads, reads)
+					steps.LiveElapsedMs += elapsed
+					steps.MaxLiveElapsedMs = math.Max(steps.MaxLiveElapsedMs, elapsed)
+				}
 			}
 			if stop, _ := row.Payload["stop"].(bool); stop {
 				steps.Stops.Count++
@@ -630,6 +693,15 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 			fmt.Fprint(w, ", by reason")
 			for _, reason := range reasons {
 				fmt.Fprintf(w, " %s=%d", reason, steps.Reasons[reason])
+			}
+		}
+		if steps.ElapsedMs > 0 {
+			fmt.Fprintf(w, "\nstep wall: mean %.0fms max %.0fms", steps.StepMs(), steps.MaxElapsedMs)
+			if steps.GateWaitMs > 0 {
+				fmt.Fprintf(w, ", player-gate wait mean %.0fms max %.0fms", steps.GateWaitMs/float64(steps.Steps), steps.MaxGateWaitMs)
+			}
+			if steps.LiveSteps > 0 {
+				fmt.Fprintf(w, "; %d live steps: reads mean %.1f max %d, wall mean %.0fms max %.0fms", steps.LiveSteps, steps.LiveReadsPerStep(), steps.MaxLiveReads, steps.LiveStepMs(), steps.MaxLiveElapsedMs)
 			}
 		}
 		if stops := steps.Stops; stops.Count > 0 {

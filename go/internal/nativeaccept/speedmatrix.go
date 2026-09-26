@@ -429,6 +429,13 @@ type SpeedMetrics struct {
 	PausedFraction       float64
 	PausedFractionNative float64
 	NativePauseSamples   float64
+	// The live steps of #593: how many the row ran, the native round trips
+	// the costliest issued and the mean wall of one. A row without a live
+	// step (no running window was planned under) leaves LiveSteps at 0 and
+	// CheckLiveStepCost skips it.
+	LiveSteps        float64
+	MaxLiveStepReads float64
+	LiveStepMs       float64
 }
 
 // PausedShare is the paused fraction a threshold bounds: native's account
@@ -441,13 +448,15 @@ func (m SpeedMetrics) PausedShare() float64 {
 }
 
 // SpeedMetricsFromRows decodes the "case", "speed", "wall_tps",
-// "ticks_advanced", "paused_fraction", "paused_fraction_native" and
-// "native_pause_samples" fields of each metrics row.
+// "ticks_advanced", "paused_fraction", "paused_fraction_native",
+// "native_pause_samples", "live_steps", "max_live_step_reads" and
+// "live_step_ms_mean" fields of each metrics row.
 func SpeedMetricsFromRows(rows []map[string]any) []SpeedMetrics {
 	out := make([]SpeedMetrics, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, SpeedMetrics{Case: AsString(row["case"]), Speed: AsString(row["speed"]), WallTPS: AsNumber(row["wall_tps"]), TicksAdvanced: AsNumber(row["ticks_advanced"]),
-			PausedFraction: AsNumber(row["paused_fraction"]), PausedFractionNative: AsNumber(row["paused_fraction_native"]), NativePauseSamples: AsNumber(row["native_pause_samples"])})
+			PausedFraction: AsNumber(row["paused_fraction"]), PausedFractionNative: AsNumber(row["paused_fraction_native"]), NativePauseSamples: AsNumber(row["native_pause_samples"]),
+			LiveSteps: AsNumber(row["live_steps"]), MaxLiveStepReads: AsNumber(row["max_live_step_reads"]), LiveStepMs: AsNumber(row["live_step_ms_mean"])})
 	}
 	return out
 }
@@ -477,6 +486,31 @@ func SpeedRowProblems(required []SpeedCase, outcomes []SpeedOutcome, metrics []S
 		}
 		if c.Compared() && !outcomeByCase[c.Name] {
 			problems = append(problems, fmt.Sprintf("%s: no outcome row", c.Name))
+		}
+	}
+	return problems
+}
+
+// CheckLiveStepCost lists the rows whose costliest live step issued more
+// than maxReads native round trips, the step-cost bound of issue #593: a
+// live step plans under a running window off the facts its one review
+// bundle carries, so its round trips are the bundle plus what an event
+// within the step made stale. Rows that ran no live step are skipped, and a
+// maxReads of 0 disables the check. The step's wall time is reported beside
+// it (live_step_ms_mean) but not bounded: wall measures the box and the
+// GABS transport floor, the call count measures this repository.
+func CheckLiveStepCost(rows []SpeedMetrics, maxReads float64) []string {
+	if maxReads <= 0 {
+		return nil
+	}
+	var problems []string
+	for _, row := range rows {
+		if row.LiveSteps <= 0 {
+			continue
+		}
+		if row.MaxLiveStepReads > maxReads {
+			problems = append(problems, fmt.Sprintf("%s: a live step issued %.0f native reads, over %.0f (%.0f live steps, wall mean %.0fms)",
+				row.Case, row.MaxLiveStepReads, maxReads, row.LiveSteps, row.LiveStepMs))
 		}
 	}
 	return problems

@@ -83,6 +83,12 @@ const (
 	// enforced.
 	maxPausedFraction    = 0
 	minUltrafastTPSRatio = 0
+	// maxLiveStepReads is the step-cost bound of issue #593: a step
+	// planning under a running window reads its one review bundle plus at
+	// most the families an event within the step made stale. The step's
+	// wall time is reported, not bounded; it measures the box and the GABS
+	// transport floor rather than this repository.
+	maxLiveStepReads = 5
 )
 
 func init() {
@@ -131,6 +137,7 @@ func run(ctx context.Context, s cases.Session) error {
 	m.report["tick_budget"] = ticks
 	m.report["tolerance"] = tolerance
 	m.report["max_paused_fraction"] = maxPausedFraction
+	m.report["max_live_step_reads"] = maxLiveStepReads
 	m.report["min_ultrafast_tps_ratio"] = minUltrafastTPSRatio
 	if !na.Contains(s.Names(), controlTool) {
 		return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture ThroughputFixture", controlTool)
@@ -181,6 +188,10 @@ func run(ctx context.Context, s cases.Session) error {
 	if problems := na.CheckSpeedMetrics(metrics, maxPausedFraction, minUltrafastTPSRatio); len(problems) > 0 {
 		m.report["metric_problems"] = problems
 		return fmt.Errorf("clock throughput short of the thresholds: %s", strings.Join(problems, "; "))
+	}
+	if problems := na.CheckLiveStepCost(metrics, maxLiveStepReads); len(problems) > 0 {
+		m.report["live_step_problems"] = problems
+		return fmt.Errorf("live steps over the read bound: %s", strings.Join(problems, "; "))
 	}
 	return checkStartupLog(s)
 }
@@ -601,9 +612,10 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 
 // caseMetrics is the per-speed row the issue asks for.
 func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummary, startTick, lastTick uint64, wallSeconds float64) map[string]any {
-	readsPerStep := 0.0
+	readsPerStep, gateWaitMean := 0.0, 0.0
 	if phases.Steps.Steps > 0 {
 		readsPerStep = float64(phases.Steps.Reads) / float64(phases.Steps.Steps)
+		gateWaitMean = phases.Steps.GateWaitMs / float64(phases.Steps.Steps)
 	}
 	// Time-weighted (bridge.ClockSample.PausedFraction): the count ratio
 	// over-represents pauses, when the service issues most of its reads.
@@ -643,6 +655,14 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"paused_fraction": pausedFraction, "paused_fraction_sampling": "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure",
 		"paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,
+		// The step cost that bounds throughput at speed (#593): the live
+		// steps apart from the cold and stopped ones, their reads and wall,
+		// and the player-gate wait a step spent queued behind the Worker's
+		// dispatch step. maxLiveStepReads bounds max_live_step_reads.
+		"live_steps": phases.Steps.LiveSteps, "live_step_reads_mean": phases.Steps.LiveReadsPerStep(), "max_live_step_reads": phases.Steps.MaxLiveReads,
+		"live_step_ms_mean": phases.Steps.LiveStepMs(), "live_step_ms_max": phases.Steps.MaxLiveElapsedMs,
+		"step_ms_mean": phases.Steps.StepMs(), "step_ms_max": phases.Steps.MaxElapsedMs,
+		"gate_wait_ms_mean": gateWaitMean, "gate_wait_ms_max": phases.Steps.MaxGateWaitMs,
 		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks,
 		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,

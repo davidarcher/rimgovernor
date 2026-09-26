@@ -289,3 +289,30 @@ func TestSummarizePhasesNativePauseAccount(t *testing.T) {
 		t.Fatalf("older native: %+v", old)
 	}
 }
+
+// The step sample splits the live steps out of the timeline with their own
+// reads and wall, and carries the player-gate wait a step spent queued
+// behind the Worker's dispatch step (#593).
+func TestSummarizePhasesLiveStepCost(t *testing.T) {
+	rows := []TimelineRecord{
+		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"reads": 11.0, "reason": "full", "elapsed_ms": 900.0}},
+		{Kind: "clock_step", WallTime: 2, Payload: map[string]any{"reads": 2.0, "reason": "live", "elapsed_ms": 300.0, "gate_wait_ms": 400.0}},
+		{Kind: "clock_step", WallTime: 3, Payload: map[string]any{"reads": 4.0, "reason": "live", "elapsed_ms": 500.0}},
+		{Kind: "clock_step", WallTime: 4, Payload: map[string]any{"reads": 1.0, "reason": "timer", "elapsed_ms": 100.0}},
+	}
+	steps := SummarizePhases(rows).Steps
+	if steps.LiveSteps != 2 || steps.LiveReads != 6 || steps.MaxLiveReads != 4 {
+		t.Fatalf("live reads: %+v", steps)
+	}
+	if steps.LiveReadsPerStep() != 3 || steps.LiveStepMs() != 400 || steps.MaxLiveElapsedMs != 500 {
+		t.Fatalf("live wall: %+v", steps)
+	}
+	if steps.StepMs() != 450 || steps.MaxElapsedMs != 900 || steps.GateWaitMs != 400 || steps.MaxGateWaitMs != 400 {
+		t.Fatalf("step wall: %+v", steps)
+	}
+	var report strings.Builder
+	WritePhaseReport(&report, SummarizePhases(rows))
+	if !strings.Contains(report.String(), "step wall: mean 450ms max 900ms, player-gate wait mean 100ms max 400ms; 2 live steps: reads mean 3.0 max 4, wall mean 400ms max 500ms") {
+		t.Fatal(report.String())
+	}
+}
