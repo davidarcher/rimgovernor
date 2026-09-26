@@ -17,14 +17,26 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The hut cases are the native acceptance for issues #7 and #175: a tribal
-// (Neolithic) colony's first shelter under the live autopilot is a
-// circular/oval hut (or, in constrained terrain, a concave template or an
-// irregular grown footprint) that the game itself reports as one proper,
-// fully roofed room whose cells are exactly the planned interior,
-// furnished without blocking the entrance aisle, surviving a controller
-// restart and a player edit or a material shortage mid-construction
-// without duplicate or missing orders.
+// The hut cases are the native acceptance for issues #7 and #175: how
+// RimWorld observes a shelter geometry the routine sited, and how the
+// routine recovers a ring it began earlier. Every one of them stages the
+// ring nearly finished (step 2 below) and leaves the controller a few
+// load-bearing cells, so what they prove is geometry observation
+// (one proper, fully roofed room whose cells are exactly the planned
+// interior, a doorway room on the door cell, beds off the entrance aisle)
+// and recovery (adoption across a restart, exactly one cancelled wall
+// reissued, a plan held through a material shortage), each with no
+// duplicate or missing orders.
+//
+// They do not prove that the controller builds a whole shell from unbuilt
+// ground: construction order, ordinary roofing work and the capacity the
+// finished room owes the colony are shelter/bunks-first, which stages
+// nothing (#615). The shape assertions here are the planner's deliberate
+// selection rules per terrain (a nine-cell strip takes the low oval, an
+// L-shaped clearing the concave template); the shape-blind properties of a
+// sited shell are checked below the game boundary in
+// buildingruntime.TestRoutineShelterShellInvariantsAcrossSites and
+// policy.TestStarterShellInvariantsAcrossSitesAndStyles.
 //
 // Sequence, all against the loaded tribal8 baseline (staged, #174), for
 // the cases that edit the shell mid-build (variant.edit "cancel"; the
@@ -76,7 +88,10 @@ const (
 	furnishWait = 15 * time.Minute
 	// shortageTicks is how long the shortage variant watches the resumed
 	// plan hold with no wood on the map: long enough for several review
-	// windows to pass without a second shell plan or a second order.
+	// windows to pass without a second shell plan or a second order. Taking
+	// the WoodLog alone is a true shortage: a frame demands the stuff its
+	// blueprint was placed with, so the stone and steel elsewhere on the map
+	// cannot finish a wooden wall.
 	shortageTicks = 6000
 )
 
@@ -116,9 +131,10 @@ func init() {
 	}
 	cases.Register(cases.Case{
 		Name: "shelter/hut",
-		Scope: "Issue #7: the live autopilot raises a natively enclosed, roofed and furnished oval hut " +
-			"(or grown irregular shell) for the tribal " + sustained.BaselineSave + " colony, reissuing exactly one cancelled wall " +
-			"across a controller restart.",
+		Scope: "Issue #7: an oval hut ring (or grown irregular shell) sited by the autopilot for the tribal " +
+			sustained.BaselineSave + " colony and staged nearly finished is completed by the builders, adopted across a controller " +
+			"restart with exactly one cancelled wall reissued, and observed natively as one enclosed, roofed and furnished room. " +
+			"Complete construction from unbuilt ground is shelter/bunks-first.",
 		Start: cases.Save{Name: sustained.BaselineSave},
 		// Every need is frozen (#131): the assertion is the placement of the
 		// bed, not a sleeper in it, and with Rest live the whole colony
@@ -134,8 +150,9 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "shelter/hut-corridor",
 		Scope: "Issue #7 under corridor terrain: granite rows leave five-cell corridors in which no hut template or " +
-			"9x9 rectangle fits, so the shelter routine must grow an irregular shell confined to a corridor, " +
-			"reissuing exactly one cancelled wall across a controller restart.",
+			"9x9 rectangle fits, so the shelter routine must grow an irregular shell confined to a corridor. The ring is " +
+			"staged nearly finished; the case proves the grown geometry the game observes and the adoption of that ring " +
+			"across a controller restart, reissuing exactly one cancelled wall.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 6}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-corridor"),
 		Stages: []string{ringStage},
@@ -148,8 +165,9 @@ func init() {
 	})
 	cases.Register(cases.Case{
 		Name: "shelter/hut-shortage",
-		Scope: "Issue #175: the wood runs out while the hut's last walls are pending; the shell plan holds under the " +
-			"live controller with no second shell or order, then completes once wood is back, every wall built once.",
+		Scope: "Issue #175: with the ring staged nearly finished, the wood runs out while the hut's last walls are pending; " +
+			"the shell plan holds under the live controller with no second shell or order, then completes once wood is back, " +
+			"every remaining wall built once.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  spec("hut-shortage"),
 		Stages: []string{ringStage},
@@ -160,8 +178,9 @@ func init() {
 	})
 	cases.Register(cases.Case{
 		Name: "shelter/hut-oval",
-		Scope: "Issue #175: granite rows every eleventh cell leave ten-cell strips in which the circle does not fit and " +
-			"the shelter routine sites the medium east-west oval (hut-template-2), built, roofed and furnished natively.",
+		Scope: "Issue #175: granite rows every eleventh cell leave ten-cell strips in which the circle does not fit, so the " +
+			"shelter routine's deliberate selection is the medium east-west oval (hut-template-2); its staged ring is finished " +
+			"by the builders and observed natively as one roofed, furnished room.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 11}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-oval"),
 		Stages: []string{ringStage},
@@ -173,7 +192,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "shelter/hut-low-oval",
 		Scope: "Issue #175: granite rows every ninth cell leave eight-cell strips in which only the low east-west oval " +
-			"(hut-template-7, radius two across and six along) fits with its door on open ground, built, roofed and furnished natively.",
+			"(hut-template-7, radius two across and six along) fits with its door on open ground; its staged ring is finished " +
+			"by the builders and observed natively as one roofed, furnished room.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 9}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-low-oval"),
 		Stages: []string{ringStage},
@@ -185,7 +205,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "shelter/hut-concave",
 		Scope: "Issue #175: granite everywhere but an L-shaped clearing, so no hut or 9x9 fits and the shelter routine " +
-			"sites the concave L template (concave-l-ne), a proper roofed room furnished off its aisle natively.",
+			"sites the concave L template (concave-l-ne); its staged ring is finished by the builders and observed natively as " +
+			"a proper roofed room furnished off its aisle.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "pocket-l"}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-concave"),
 		Stages: []string{ringStage},
@@ -197,7 +218,8 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "shelter/hut-connector",
 		Scope: "Issue #175: granite everywhere but two small clearings a cell apart, so the shelter routine sites the " +
-			"two-chamber connector template (connector-ew), one proper roofed room across its one-cell passage, furnished natively.",
+			"two-chamber connector template (connector-ew); its staged ring is finished by the builders and observed natively as " +
+			"one proper roofed room across its one-cell passage, furnished.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "pocket-connector"}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-connector"),
 		Stages: []string{ringStage},

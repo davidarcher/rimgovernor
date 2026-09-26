@@ -27,7 +27,8 @@ its contracts and run the relevant checks.
 - [Remote Windows workflow](developers/testing/remote-workflow.md), activation and artifact diagnostics
 - [Encrypted bundles and Windows bootstrap](developers/remote-bundles.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
-- [Choose tests](developers/testing/choose-tests.md) and
+- [Choose tests](developers/testing/choose-tests.md),
+  [shelter coverage map](developers/testing/shelter-coverage.md) (which check owns which claim) and
   [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix, the case timeline page)
 - [Go controller development](../go/README.md), including its testing pyramid;
   native acceptance tooling is tracked in

@@ -25,9 +25,11 @@ const bunkWood = 200
 func init() {
 	cases.Register(cases.Case{
 		Name: "shelter/bunks-first",
-		Scope: "Issue #612: the initial shelter places sleeping spots at the first review, builds the wooden beds " +
-			"as its first construction and only then raises the shell around them, no bed on a ring corner; " +
-			"every colonist of the tribal " + sustained.BaselineSave + " colony is housed when the roof lands.",
+		Scope: "Issues #612 and #615: the one complete-construction path. From the tribal " + sustained.BaselineSave +
+			" baseline, which houses nobody indoors at the start (asserted), the initial shelter places sleeping spots at " +
+			"the first review, builds the wooden beds as its first construction and only then raises the whole shell around " +
+			"them -- every wall by ordinary pawn work, nothing staged -- no bed on a ring corner; the game roofs the room and " +
+			"the native census then holds one bed per colonist inside it.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: []string{families}, NativeTimeout: 60 * time.Second, Prefix: "bunks"},
 		Budget: 25 * time.Minute,
@@ -46,6 +48,13 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	w := waits{build: buildWait, furnish: furnishWait, stall: na.StallBudget()}
 	if err := allowSupplies(ctx, s.Harness(), "allow-supplies", report); err != nil {
+		return err
+	}
+	// The precondition must not already satisfy the outcome: the colony
+	// starts with no roofed room holding a bed, so every bed the final
+	// census counts was built during this run (#615).
+	colonists, err := unhousedColony(ctx, s, report)
+	if err != nil {
 		return err
 	}
 	service, err := start(ctx, s, nil)
@@ -158,13 +167,57 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	colonists := len(na.AsSlice(listed["pawns"]))
+	after := len(na.AsSlice(listed["pawns"]))
+	if after != colonists {
+		return fmt.Errorf("the colony changed size during the run: %d colonists, %d before", after, colonists)
+	}
+	// Capacity for this fixture: one bed per colonist, all of them inside
+	// the one roofed room verifyNative checked. A roofed room with a bed in
+	// it is not shelter for eight tribals.
 	housed, _ := report["native_beds"].([]map[string]any)
 	report["colonists"], report["housed"] = colonists, len(housed)
 	if colonists == 0 || len(housed) < colonists {
 		return fmt.Errorf("%d beds in the roofed hut for %d colonists", len(housed), colonists)
 	}
 	return nil
+}
+
+// unhousedColony reads the colony before the controller starts and returns
+// its colonist count, refusing a baseline that already meets the outcome:
+// no native room may be a proper roofed indoor room holding a bed. Without
+// this the run could pass on shelter it never built (#615).
+func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int, error) {
+	h := s.Harness()
+	reply, err := h.Wire(ctx, "rooms-before", "observations_list_rooms", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
+	if err != nil {
+		return 0, err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return 0, err
+	}
+	rooms, indoorBeds := 0, 0
+	for _, raw := range na.AsSlice(observed["rooms"]) {
+		row, _ := na.AsMap(raw)
+		if !boolOf(row["properRoom"]) || boolOf(row["outdoors"]) || na.AsNumber(row["openRoofCount"]) != 0 {
+			continue
+		}
+		rooms++
+		indoorBeds += len(na.AsSlice(row["beds"]))
+	}
+	listed, err := h.Call(ctx, "colonists-before", "home/list_pawns", map[string]any{"colonistsOnly": true})
+	if err != nil {
+		return 0, err
+	}
+	colonists := len(na.AsSlice(listed["pawns"]))
+	report["precondition"] = map[string]any{"colonists": colonists, "roofed_rooms": rooms, "indoor_beds": indoorBeds}
+	if colonists == 0 {
+		return 0, errors.New("the baseline has no colonists to shelter")
+	}
+	if indoorBeds > 0 {
+		return 0, fmt.Errorf("the baseline already holds %d beds in %d roofed rooms: the precondition satisfies the outcome", indoorBeds, rooms)
+	}
+	return colonists, nil
 }
 
 // waitBunks polls the store until the shelter goal binds the named bunk
