@@ -173,6 +173,13 @@ commit, not a file-by-file narrative.
   follows the performance checklist in choose-tests: Core-only, quiet
   storyteller, stall-bounded waits, minute-scale budgets. Playing a colony
   into its precondition for 20 minutes is a fixture bug.
+- Snapshot first (#738). A new native case states, in its scope text, why
+  a Go snapshot test over recorded colony facts cannot cover it (a native
+  op or read contract, an end-to-end signal, vanilla physics). A planner
+  decision is a snapshot test, not a case.
+- A failing planner-decision case (bucket A in #738) is replaced by a
+  snapshot test and deregistered, not fixed: do not repair its fixture,
+  budget or staging.
 - Checks named in old commits or issues may no longer exist; trust
   `go/internal/nativeaccept/cmd/` over history.
 
