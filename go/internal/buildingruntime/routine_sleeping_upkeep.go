@@ -87,6 +87,17 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	if err != nil {
 		return nil, "", err
 	}
+	if choice.Method == policy.SleepingNoDemand {
+		// A planned bedroom standing empty takes one bed (#786).
+		if step := bedroomStep(facts); step.Kind == policy.BedroomFurnish {
+			choice.Method, choice.Cells, choice.Definition = policy.SleepingBuild, step.Cells, policy.SleepingBedDefinitions[0]
+			resolved, reason, err := r.resolveSleeping(facts, choice)
+			if resolved != nil {
+				resolved.bedroom = &step
+			}
+			return resolved, reason, err
+		}
+	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
 		return nil, BuildingMethodUnknown, nil
@@ -97,6 +108,11 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	case policy.SleepingUnavailable:
 		return nil, BuildingSleepingUnavailable, nil
 	}
+	return r.resolveSleeping(facts, choice)
+}
+
+// resolveSleeping is the building ladder resolved for a SleepingBuild choice.
+func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProjection, choice policy.SleepingChoice) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	if len(choice.Cells) == 0 {
 		return nil, BuildingMethodNoSpace, nil
 	}
@@ -226,7 +242,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), policy.SleepingBedDefinitions...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append([]string{"Wall", "Door"}, policy.SleepingBedDefinitions...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -246,7 +262,22 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	case policy.SleepingUnknown:
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	case policy.SleepingNoDemand:
-		return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
+		// Everyone owns a bed: walk them into planned bedrooms (#786).
+		step := bedroomStep(facts)
+		switch step.Kind {
+		case policy.BedroomMove:
+			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: step.Pawn, Bed: step.Bed, PreviousBed: step.PreviousBed}
+		case policy.BedroomFurnish:
+			// The indoor rung alone: a bed the room refuses is no reason to
+			// raise some other shell.
+			indoor := *r.building
+			indoor.shelter, indoor.definition = false, "SleepingSpot"
+			return indoor.step(call, epoch, arbiter)
+		case policy.BedroomShell:
+			return r.shellBedroom(call, epoch, state, review, goal, reading, step)
+		default:
+			return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
+		}
 	case policy.SleepingUnavailable:
 		return RoutineBuildingResult{Reason: BuildingSleepingUnavailable}, nil
 	case policy.SleepingBuild:

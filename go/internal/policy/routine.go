@@ -365,9 +365,12 @@ type RoutineFacts struct {
 	CurrentConstruction  domain.Fact[CurrentConstruction]
 	Sleeping             domain.Fact[SleepingObservation]
 	SleepingRecovered    domain.Fact[bool]
-	AnimalUpkeep         AnimalUpkeepObservation
-	FoodStorageUpkeep    FoodStorageObservation
-	MedicalReserve       MedicalReserveObservation
+	// BedroomsOwed: a planned individual bedroom step is due (#786); it
+	// keeps MaintainSleeping open once everyone owns a barracks bed.
+	BedroomsOwed      domain.Fact[bool]
+	AnimalUpkeep      AnimalUpkeepObservation
+	FoodStorageUpkeep FoodStorageObservation
+	MedicalReserve    MedicalReserveObservation
 	// Prisoners carries Population-*'s recruit/maintain census: unlike
 	// AnimalUpkeep, this has no generic per-tick colony read to piggyback on
 	// (recruitable/current-interaction facts live only on the dedicated

@@ -114,6 +114,8 @@ type RoutineBuildingPlanner struct {
 	workshop *workshopSelection
 	// sleeping holds the MaintainSleeping choice this step builds for.
 	sleeping *policy.SleepingChoice
+	// bedroom is the planned bedroom a MaintainSleeping step furnishes (#786).
+	bedroom *policy.BedroomStep
 }
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {

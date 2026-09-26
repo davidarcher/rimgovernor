@@ -124,6 +124,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/service"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/settlement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/shelter"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sleeping"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/speedmatrix"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/startup"

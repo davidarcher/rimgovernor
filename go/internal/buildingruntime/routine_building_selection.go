@@ -136,6 +136,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		if r.sleeping == nil {
 			return 0, "", BuildingMethodUnknown
 		}
+		if r.bedroom != nil {
+			return 1, bedroomMethod(r.bedroom.Kind, r.bedroom.Room), ""
+		}
 		return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), ""
 	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()

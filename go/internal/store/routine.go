@@ -445,6 +445,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		sleeping = sleepingReview.History
 		request.Facts.SleepingRecovered = sleepingReview.Recovered()
+		if owed, known := request.Facts.BedroomsOwed.Value(); known && owed {
+			request.Facts.SleepingRecovered = domain.Known(false)
+		}
 		comfortReview, comfortErr := policy.ReviewComfort(request.Facts.Comfort, comfort, request.Tick)
 		if comfortErr != nil {
 			return RoutineReviewResult{}, comfortErr
