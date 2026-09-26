@@ -56,7 +56,7 @@ func PlanCore(zones []LayoutZone, pawns int) LayoutPlan {
 // A plan with no spine gets one near the core candidates' centre. Rooms
 // that no longer fit are left out.
 func Grow(plan LayoutPlan, pawns int) LayoutPlan {
-	g := newCoreGrid(plan.Zones)
+	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
 		return plan
 	}
@@ -105,7 +105,8 @@ type coreGrid struct {
 	core, rock map[domain.Cell]bool
 }
 
-func newCoreGrid(zones []LayoutZone) coreGrid {
+// newCoreGrid takes reserved sites out of the core candidates.
+func newCoreGrid(zones []LayoutZone, reserved []LayoutReservation) coreGrid {
 	g := coreGrid{core: map[domain.Cell]bool{}, rock: map[domain.Cell]bool{}}
 	for _, z := range zones {
 		var set map[domain.Cell]bool
@@ -120,6 +121,13 @@ func newCoreGrid(zones []LayoutZone) coreGrid {
 		for _, r := range z.Runs {
 			for x := r.X; x < r.X+r.Length; x++ {
 				set[domain.Cell{X: x, Z: r.Z}] = true
+			}
+		}
+	}
+	for _, r := range reserved {
+		for x := r.Area.X; x < r.Area.X+r.Area.Width; x++ {
+			for z := r.Area.Z; z < r.Area.Z+r.Area.Height; z++ {
+				delete(g.core, domain.Cell{X: x, Z: z})
 			}
 		}
 	}
@@ -165,7 +173,10 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 // place puts role's room in the next slot east of the rooms (then west),
 // extending seg over it.
 func (g coreGrid) place(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool) {
-	size := coreRoomSize[role]
+	return g.placeSized(seg, rooms, role, coreRoomSize[role])
+}
+
+func (g coreGrid) placeSized(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole, size [2]int32) (LayoutRoom, bool) {
 	w, d := size[0], size[1]
 	z0 := seg.From.Z
 	// Wall rows: the hallway spans z0-1..z0+1, so side walls start at z0±2.
