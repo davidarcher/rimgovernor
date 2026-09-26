@@ -135,12 +135,18 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var journal = Journal;
-                if (journal == null) return new { initialized = false };
+                // waiters is how many clock_read_events long polls the host is
+                // holding right now (#617): a caller establishes a held poll by
+                // observing it rather than by elapsed time, and the observation
+                // itself travels on a concurrent call.
+                var waiters = WaitersHeldLocked();
+                if (journal == null) return new { initialized = false, waiters };
                 return new
                 {
                     initialized = true,
                     newestCursor = journal.Newest.ToString(CultureInfo.InvariantCulture),
-                    corruptRows = journal.Corrupt.Select(c => new { cursor = c.Key.ToString(CultureInfo.InvariantCulture), error = c.Value }).ToArray()
+                    corruptRows = journal.Corrupt.Select(c => new { cursor = c.Key.ToString(CultureInfo.InvariantCulture), error = c.Value }).ToArray(),
+                    waiters
                 };
             }
         }

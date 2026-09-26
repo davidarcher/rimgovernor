@@ -489,6 +489,59 @@ func TestConcurrentNativeCallsDoNotCrossTalk(t *testing.T) {
 	}
 }
 
+// TestIndependentCallAnsweredWhileLongPollHeld is the deterministic mirror of
+// the smoke/dispatch acceptance case (#227, #617): with one call established
+// as held in the handler, an independent call is issued and must be answered
+// before the held one is released. The ordering is decided by synchronization
+// (the handler reports entry, the test releases it only after the independent
+// result is in hand), not by elapsed time; the deadlines here are hang guards.
+// The native case keeps the same claim over the installed RimBridgeServer
+// path, where the handler cannot be instrumented.
+func TestIndependentCallAnsweredWhileLongPollHeld(t *testing.T) {
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+		if args.Tool == "clock/read_events" {
+			entered <- struct{}{}
+			<-release
+			return structured(`{"page":{}}`), nil
+		}
+		return structured(`{"identity":{}}`), nil
+	}}
+	client := testClient(t, s, testBudget)
+
+	poll := make(chan error, 1)
+	go func() {
+		_, err := client.NativeCall(context.Background(), "clock/read_events", json.RawMessage(`{"waitMs":8000}`))
+		poll <- err
+	}()
+	select {
+	case <-entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the held call never reached the handler; the precondition was never established")
+	}
+
+	if _, err := client.NativeCall(context.Background(), "lifecycle/read_identity", json.RawMessage(`{}`)); err != nil {
+		t.Fatalf("independent read under a held poll: %v", err)
+	}
+	// The read is answered and the poll is still outstanding: nothing has
+	// been sent on poll because nothing has released the handler yet.
+	select {
+	case err := <-poll:
+		t.Fatalf("the held call completed before the independent read: %v", err)
+	default:
+	}
+	close(release)
+	select {
+	case err := <-poll:
+		if err != nil {
+			t.Fatalf("held call: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the released call never returned")
+	}
+}
+
 func assertContains(t *testing.T, values []string, want string) {
 	t.Helper()
 	for _, v := range values {

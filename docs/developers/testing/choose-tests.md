@@ -29,6 +29,131 @@ edit loop before a 15-minute case does (#282). The transcripts under
 `go/internal/nativeaccept/testdata/transcripts/` are the harness's own
 unit fixtures; the game stays the oracle for anything native.
 
+## What a result proves
+
+Four questions decide whether a check is the right one, and a reviewer should
+be able to answer them from the result alone: what behavior is proved, what is
+the cheapest credible boundary for it, which real-game assumption still needs
+native evidence, and how a failure identifies the broken contract.
+
+The levels are purposes, not a hierarchy of speed:
+
+- **Policy and component tests** decide a planner's or adviser's own logic from
+  constructed inputs. An exact planner decision — which shell a layout planner
+  selects, which bill a production ladder queues — belongs here, not in native
+  acceptance: the game cannot tell you why a choice was made, and a case that
+  asserts on the choice fails on unrelated map variation.
+- **Boundary integration tests** decide the contract at a boundary — the bridge
+  client, the transport, the store, the clock scheduler — with the far side
+  controllable. Anything that needs a *scheduling* outcome (a call overlapping
+  another, a wait released by an event) belongs here, where the scenario can be
+  synchronized instead of timed.
+- **Focused product acceptance** (`nativeaccept` cases) decides one gameplay
+  outcome against a real headless RimWorld from a staged precondition.
+- **Cross-policy campaign acceptance** decides a whole chain over one preserved
+  colony and journal, where the property *is* the continuity: a recurring
+  deficit may legitimately reopen, and the requirement each campaign states is
+  either uninterrupted safety or bounded recovery. Splitting a campaign into
+  independent fresh fixtures, or asserting only that journal statuses closed,
+  deletes the property it exists for.
+
+The [shelter coverage map](shelter-coverage.md) is the worked example of that
+split for one subsystem: every planner branch and input combination below the
+game boundary, and native cases kept only for what a real room, roof, doorway
+and access handling can fail at. An area that grows past a handful of cases
+earns a map like it; a case's own claim stays in its `Scope`.
+
+Orthogonal to all four: whether the check needs the real game, which mod and
+DLC configuration it runs under, what process isolation it needs, and how often
+it runs. `-tier smoke`/`land`/`nightly` is a *selection*; `Matrix` is a
+*parameter set*. Neither is a kind of correctness, and moving a case between
+selections must state which proof moved and where it is still obtained.
+
+### Setup, behavior, verification
+
+Keep the three separate in every case. Setup may create the shortage, the
+obstacle or the half-built structure; it must not supply the outcome under test.
+A declared intervention (replenishing a resource mid-run) is part of the
+scenario and says so.
+
+Validate the precondition directly rather than assuming the fixture produced
+it: a shortage fixture that quietly leaves another usable stock source tests
+nothing, and a construction case that opens with its claimed structure already
+standing passes for free. Verify the outcome from authoritative native state.
+Controller reports and journal rows explain *why* something happened and are
+worth recording, but a receipt is not completed pawn work: construction,
+production, safety and recovery are proved by reading the game.
+
+A few targeted negative controls keep the assertions honest — accepted-but-
+unfinished work must not satisfy a completion assertion, an open roof must fail
+a full-roofing requirement. A handful is the point; this is not a mutation
+suite.
+
+### Full, cached and resumed runs
+
+Every `result.json` carries a derived `provenance` block
+(`cases.Provenance`): the `execution` segment the run covers, a one-line
+`proves`, the `native_ops` the installed package had to register for it to
+start, the `isolation` it got and why, and any `routine_families` the
+controller was restricted to. It states what the registry and the run already
+record; it is not a second catalog to maintain.
+
+The four executions prove different things:
+
+| `execution` | Opened on | Proves |
+| --- | --- | --- |
+| `full` | the declared `Start` | the whole case from its precondition |
+| `cached-precondition` | a stage bundle | behavior after that stage only |
+| `resumed-suffix` | a ring checkpoint | behavior past the checkpoint only |
+| `postmortem-only` / `dev-iteration` | a failed or pinned bundle | the reads, or nothing — an edit loop |
+
+A cached fixture may supply the declared precondition, but it never proves the
+behavior that produced it: reusing a planner-selected shell cannot validate a
+changed planner's selection, and a suffix pass cannot validate changed early
+behavior. Reuse is invalidated automatically when the installed native package,
+the case's `Start` or the profile's expansions change (`na.Fingerprint`); a
+change to controller behavior *before* the pickup point is not caught by the
+fingerprint, so run that fresh (`-fresh`, or the land suite's default). `main`
+moving on its own is never a reason to rerun anything.
+
+A fresh world and a fresh game process are separate dimensions. A map reload is
+not a process reset: a case that depends on native static state initialized at
+startup declares `NoKeep` (see [Keeping the process between
+runs](#keeping-the-process-between-runs)), and its provenance says so.
+
+None of this rejects resumed evidence. The landing lane records resumed rows,
+names them in the commit and accepts them; the provenance block only makes the
+segment they cover explicit.
+
+### Deadlines, ordering and latency
+
+Three different things, kept apart:
+
+- **Gameplay deadlines** are game ticks. Wall clock in a case measures the
+  machine.
+- **Wall clock** is for a dead game, process or transport, and for hang guards.
+  Widen a guard that trips under load; never tighten one per test.
+- **Latency** is asserted only where it is an intentional performance
+  requirement, and then measured deliberately (see
+  [measure-throughput](measure-throughput.md)).
+
+An *ordering* claim needs synchronization, not a bound. `smoke/dispatch` is the
+worked example: the claim is that an independent call is answered while a
+`clock_read_events` long poll is held. It establishes the held poll by
+observing it — `home/runtime_health` reports `journal.waiters`, the polls the
+host holds right now, and the observation itself rides on a concurrent call —
+and then decides the claim by comparing the two completion instants, which a
+serial host can only produce in the opposite order. Failing to establish the
+held poll fails the case; it never passes for want of a precondition, and every
+attempt stays in the report. The controllable version of the same scenario
+lives in `internal/bridge` (`TestIndependentCallAnsweredWhileLongPollHeld`),
+where the handler can be instrumented; the native case keeps the claim over the
+installed RimBridgeServer path. Where a real boundary cannot expose the
+synchronization, keep the timing approximation and say in the report that it is
+one — `smoke/dispatch` falls back to a settle, a held-poll floor and a read
+bound on a build without `journal.waiters`, and records
+`held_poll_precondition: timing-approximation`.
+
 ## Shrine clearance fixtures
 
 `clearance/shrine-breach` and `clearance/shrine-claim` use `ShrineFixture`'s

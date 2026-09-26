@@ -34,6 +34,11 @@ namespace HomeBridge.BridgeTools
             wake = waiter.Source.Task;
             return true;
         }
+        // Registered long-poll waiters, for home/runtime_health (#617): the
+        // synchronization signal an acceptance case needs to establish that
+        // the host has entered and is holding a clock_read_events poll,
+        // instead of inferring it from elapsed time. The caller holds Gate.
+        internal static int WaitersHeldLocked() => Waiters.Count;
         private static void SignalWaiters(long newest)
         {
             if (Waiters.Count == 0) return;

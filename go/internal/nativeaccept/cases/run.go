@@ -213,6 +213,9 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	opened := false
 	code := func() int {
 		report["wait_stats"] = na.WaitStats()
+		// What this result proves, derived from the case and from what the
+		// run recorded about resume/stage/dev origin (#617).
+		Provenance(c, report)
 		if opened {
 			gameLog.Close(output, report)
 		}
