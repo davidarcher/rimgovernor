@@ -89,13 +89,25 @@ namespace HomeBridge.BridgeTools
         internal Receipts.EffectEvidence Evidence;
         internal string? Failure;
         internal bool Opened;
-        // Walks issued so far; a walk the game ends short of the trader is
-        // reissued from the next inspection, up to MaxWalks in all.
+        // Consecutive walks that ended no nearer the trader; a walk the game
+        // ends short of it is reissued from the next inspection, and one
+        // that closed the gap (a caravan still walking in) resets the count,
+        // so only MaxWalks walks without progress fail the open.
         internal int Walks;
         internal const int MaxWalks = 4;
+        private int gap = int.MaxValue;
         internal NativeTradeApproach(Pawn trader, Pawn negotiator, bool giftMode, Common.Identity identity, Map map, Job job, Receipts.EffectEvidence evidence, Common.ObservationContext context)
         { Trader = trader; Negotiator = negotiator; GiftMode = giftMode; Identity = identity.Clone(); Map = map; Job = job; jobId = job.loadID; Evidence = evidence; admitted = context.Clone(); }
-        internal void Walked(Job job) { Job = job; jobId = job.loadID; Walks++; }
+        internal void Walked(Job job, int distance) { Job = job; jobId = job.loadID; Progressed(distance); }
+        // A walk re-aimed at the trader in place; false once the budget of
+        // walks without progress is spent.
+        internal bool Repathed(int distance) { Progressed(distance); return Walks <= MaxWalks; }
+        private void Progressed(int distance)
+        {
+            Walks = distance < gap ? 1 : Walks + 1;
+            gap = Math.Min(gap, distance);
+        }
+        internal ulong AdmittedGeneration => admitted.NativeGeneration;
         // RimWorld pools Job instances: the same object can return as another
         // job under a new loadID, so identity alone never proves the walk is
         // still the issued one.
@@ -180,11 +192,10 @@ namespace HomeBridge.BridgeTools
 
         // -------------------------------------------------------- tokens
         private static string TraderToken(Pawn trader) => "trade-trader-" + Hash(trader.GetUniqueLoadID()
-            + "|cantrade=" + SafeCanTradeNow(trader) + "|dismissed=" + SafeBool(() => trader.mindState != null && trader.mindState.traderDismissed)
-            + "|pos=" + trader.Position);
+            + "|cantrade=" + SafeCanTradeNow(trader) + "|dismissed=" + SafeBool(() => trader.mindState != null && trader.mindState.traderDismissed));
 
         private static string NegotiatorToken(Pawn negotiator) => "trade-negotiator-" + Hash(negotiator.GetUniqueLoadID()
-            + "|pos=" + negotiator.Position + "|downed=" + SafeBool(() => negotiator.Downed) + "|dead=" + SafeBool(() => negotiator.Dead)
+            + "|downed=" + SafeBool(() => negotiator.Downed) + "|dead=" + SafeBool(() => negotiator.Dead)
             + "|mental=" + SafeBool(() => negotiator.InMentalState) + "|socialDisabled=" + SafeBool(() => negotiator.WorkTagIsDisabled(WorkTags.Social)));
 
         // Coarse session identity: stable across SetTradeLines calls.
@@ -262,7 +273,7 @@ namespace HomeBridge.BridgeTools
                 || !ProtoBoundary.IsLoaded(_sessionMap))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade session, map or load changed; do not reuse a stale session."); return false; }
             var trader = _sessionTrader!; var negotiator = _sessionNegotiator!;
-            if (!trader.Spawned || trader.Map != _sessionMap || !SafeCanTradeNow(trader) || Find.TickManager == null || !Find.TickManager.Paused
+            if (!trader.Spawned || trader.Map != _sessionMap || !SafeCanTradeNow(trader)
                 || SafeBool(() => trader.mindState != null && trader.mindState.traderDismissed)
                 || !negotiator.CanTradeWith(trader.Faction, trader.TraderKind).Accepted)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Trader or negotiator departed or became unavailable."); return false; }
@@ -297,7 +308,6 @@ namespace HomeBridge.BridgeTools
             if (_approach != null && _approach.Current()) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A negotiator is already walking to a trader; observe that open first."); return false; }
             if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is already open on screen."); return false; }
             if (TradeSession.Active) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A TradeSession is already open outside this adapter."); return false; }
-            if (Find.TickManager == null || !Find.TickManager.Paused) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pause before opening a trade."); return false; }
             var map = ProtoBoundary.ResolveMap(identity);
             if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No current map."); return false; }
             trader = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Trader.EntityId && p.trader != null && p.trader.traderKind != null);
@@ -346,16 +356,33 @@ namespace HomeBridge.BridgeTools
             {
                 var target = AccessTools.Method(typeof(Pawn_PathFollower), "PatherArrived");
                 if (target == null) return false;
-                new Harmony(ArrivalHookOwner).Patch(target, postfix: new HarmonyMethod(AccessTools.Method(typeof(NativeTradeOperations), nameof(AfterArrived))));
+                new Harmony(ArrivalHookOwner).Patch(target, prefix: new HarmonyMethod(AccessTools.Method(typeof(NativeTradeOperations), nameof(BeforeArrived))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(NativeTradeOperations), nameof(AfterArrived))));
                 _arrivalHook = true;
             }
             catch { _arrivalHook = false; }
             return _arrivalHook;
         }
+        // A walk that reaches where a moving trader was, short of it, is
+        // re-aimed at the trader inside the same Goto before the job driver
+        // hears of the arrival: no new order, so no authority revocation,
+        // and no wait for the next inspection while the caravan walks on.
+        private static bool BeforeArrived(Pawn_PathFollower __instance)
+        {
+            var approach = _approach;
+            if (approach == null || !ReferenceEquals(__instance, approach.Negotiator.pather) || !approach.Current()) return true;
+            var trader = approach.Trader; var negotiator = approach.Negotiator;
+            // Beside the trader: open now, while the pair still stands together.
+            if (Adjacent(trader, negotiator)) { Arrived(approach, "The negotiator arrived but could not open the session"); return true; }
+            if (!trader.Spawned || trader.Map != negotiator.Map || !SafeCanTradeNow(trader)
+                || !approach.Repathed(Chebyshev(negotiator.Position, trader.Position))) return true;
+            try { __instance.StartPath(trader, PathEndMode.Touch); return false; }
+            catch { return true; }
+        }
         private static void AfterArrived(Pawn_PathFollower __instance)
         {
             var approach = _approach;
-            if (approach == null) return;
+            if (approach == null || __instance.Moving) return;
             if (!ReferenceEquals(__instance, approach.Negotiator.pather) || !approach.Current()) return;
             Arrived(approach, "The negotiator arrived but could not open the session");
         }
@@ -371,9 +398,16 @@ namespace HomeBridge.BridgeTools
             { Arrived(approach, "The walk to the trader ended before arrival (walk " + approach.Walks + " of " + NativeTradeApproach.MaxWalks + ")"); return; }
             try
             {
-                var job = Walk(trader, negotiator);
+                // A reissued walk is the admitted open's own order: it runs in
+                // the owned scope of the generation that admitted it, never as
+                // an external order that revokes authority.
+                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null
+                    || !authority.Check(approach.AdmittedGeneration).Success)
+                { Arrived(approach, "Native authority changed while the negotiator walked to the trader"); return; }
+                Job? job;
+                using (authority.Owned()) job = Walk(trader, negotiator);
                 if (job == null) { Arrived(approach, "The negotiator would not walk to the trader again"); return; }
-                approach.Walked(job);
+                approach.Walked(job, Chebyshev(negotiator.Position, trader.Position));
             }
             catch (Exception error) { approach.Failure = "Walking to the trader again threw " + error.GetType().Name + "."; if (ReferenceEquals(_approach, approach)) _approach = null; }
         }
@@ -635,7 +669,7 @@ namespace HomeBridge.BridgeTools
                             try { walked = Walk(trader, negotiator); }
                             catch (Exception e) { _approach = null; throw new InvalidOperationException("Ordered Goto threw: " + e.GetType().Name, e); }
                             if (walked == null) { _approach = null; throw new InvalidOperationException("The negotiator did not take the walk to the trader."); }
-                            approach.Walked(walked);
+                            approach.Walked(walked, Chebyshev(negotiator.Position, trader.Position));
                             if (approach.Opened) { evidence = approach.Evidence; state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(evidence)); }
                             else if (approach.Failure != null) throw new InvalidOperationException(approach.Failure);
                             else state.Trade.Add(pre.Attempt.Clone(), new NativeTradeRecord(approach));

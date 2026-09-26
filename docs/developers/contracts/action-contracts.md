@@ -88,7 +88,8 @@ yet and follows the Allow list when it lands.
 
 ## Trades
 
-Map trades require a paused game. Opening requires a reachable, eligible
+Map trades dispatch under a running clock like every routine kind (#244);
+accept revalidates each staged thing at apply time. Opening requires a reachable, eligible
 negotiator: an adjacent one opens the session at once; otherwise native walks
 it to the trader with a goto that tracks the trader and opens the session on
 arrival, and the open stays pending during the walk (a walk that ends without

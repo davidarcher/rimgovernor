@@ -77,11 +77,15 @@ namespace HomeBridge.BridgeTools
                             foreach (var held in colonist.inventory.innerContainer.Where(t => t.def == ThingDefOf.Steel).ToList()) held.Destroy();
                             colonist.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Construction"), 0);
                         }
-                        var hoard = ThingMaker.MakeThing(ThingDefOf.Steel);
-                        hoard.stackCount = steel;
-                        GenSpawn.Spawn(hoard, silverCell, map);
-                        hoard.SetForbidden(false, false);
-                        map.areaManager.Home[hoard.Position] = true;
+                        // GenSpawn clamps an oversized stack to the stack limit (75).
+                        for (var remaining = steel; remaining > 0; remaining -= ThingDefOf.Steel.stackLimit)
+                        {
+                            var hoard = ThingMaker.MakeThing(ThingDefOf.Steel);
+                            hoard.stackCount = Math.Min(remaining, ThingDefOf.Steel.stackLimit);
+                            if (!GenPlace.TryPlaceThing(hoard, silverCell, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Steel placement failed.");
+                            hoard.SetForbidden(false, false);
+                            map.areaManager.Home[hoard.Position] = true;
+                        }
                     }
                     var foodUnits = 0;
                     var dailyNutrition = map.mapPawns.FreeColonistsSpawned.Sum(p => (double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000);

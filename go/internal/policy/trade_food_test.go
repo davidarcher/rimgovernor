@@ -62,6 +62,13 @@ func TestTradeFoodBridgeWaitsForExhaustion(t *testing.T) {
 			p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: c, Decision: FoodPlanOpen})
 			r.Plan = domain.Known(p)
 		}, 0},
+		{"meagre forage now", func(r *TradeFoodContext) {
+			p, _ := r.Plan.Value()
+			c := foodPlanChannel("bush", 2, 10, 0, false)
+			c.Kind = FoodForage
+			p.Portfolio = append(p.Portfolio, FoodPlanEntry{Channel: c, Decision: FoodPlanOpen})
+			r.Plan = domain.Known(p)
+		}, 48},
 		{"at exhaustion", func(r *TradeFoodContext) {
 			p, _ := r.Plan.Value()
 			p.Portfolio[0].Channel.LeadDays = domain.Known(1.0)

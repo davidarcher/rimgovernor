@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	constructionDeficitPageLimit = 512
-	constructionDeficitMaxPages  = 16
+	constructionDeficitMaxPages = 16
 )
 
 // ConstructionDeficitRead is native's own view of what the colony's still
@@ -43,7 +42,7 @@ func (client *Client) ReadConstructionDeficits(ctx context.Context, identity *c.
 			Scope:      &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
 			Statuses:   []string{"blueprint", "frame"},
 			PlayerOnly: proto.Bool(true),
-			Page:       &c.PageRequest{Limit: proto.Uint32(constructionDeficitPageLimit)},
+			Page:       &c.PageRequest{Limit: proto.Uint32(buildingsPage)},
 		}
 		if cursor != "" {
 			request.Page.Cursor = proto.String(cursor)

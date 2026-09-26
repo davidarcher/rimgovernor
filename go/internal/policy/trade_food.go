@@ -95,7 +95,10 @@ func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 	}
 	need := TradeFoodNeed{}
 	if runway < r.MinDays && plan.GapPerDay > 0 && len(plan.Unknown) == 0 {
-		earliest := math.Inf(1)
+		// The bridge lasts until producers covering daily demand arrive: a
+		// few ripe bushes available now do not end an emergency.
+		type producer struct{ lead, nutrition float64 }
+		var producers []producer
 		for _, entry := range plan.Portfolio {
 			if entry.Decision == FoodPlanClose || entry.Channel.Kind == FoodTrade || entry.Channel.Kind == FoodReserve || entry.Channel.Kind == FoodCook {
 				continue
@@ -106,7 +109,15 @@ func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 				return TradeFoodNeed{}
 			}
 			if nutrition > 0 {
-				earliest = math.Min(earliest, lead)
+				producers = append(producers, producer{lead, nutrition})
+			}
+		}
+		sort.Slice(producers, func(i, j int) bool { return producers[i].lead < producers[j].lead })
+		earliest, supplied := math.Inf(1), 0.0
+		for _, p := range producers {
+			if supplied += p.nutrition; supplied >= plan.DemandPerDay {
+				earliest = p.lead
+				break
 			}
 		}
 		if earliest > runway {

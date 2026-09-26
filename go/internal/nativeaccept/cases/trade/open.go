@@ -322,9 +322,9 @@ func failureCode(ctx context.Context, h *na.Harness, label string, request map[s
 }
 
 // tradeTokens reproduces NativeTradeOperations.TraderToken/NegotiatorToken
-// exactly (same joined-string SHA256 hex, IntVec3.ToString()'s
-// "(x, y, z)" position format, lowercase booleans) from a test/trade_fixture
-// "state" reply alone. The fixture's "state" action does not echo back the
+// exactly (same joined-string SHA256 hex, lowercase booleans) from a
+// test/trade_fixture "state" reply alone. Positions are left out: pawns
+// move under the running clock, and open revalidates reachability itself. The fixture's "state" action does not echo back the
 // ids it was asked for, so the caller supplies them (the same traderId/
 // pawnId already threaded through every other test/trade_fixture call).
 func tradeTokens(traderID, negotiatorID string, state map[string]any) (traderToken, negotiatorToken string, err error) {
@@ -336,23 +336,17 @@ func tradeTokens(traderID, negotiatorID string, state map[string]any) (traderTok
 	if !ok {
 		return "", "", fmt.Errorf("tradeTokens: missing negotiator state: %#v", state)
 	}
-	traderPos := position(trader)
 	traderCanTrade, _ := na.AsBool(trader["canTradeNow"])
 	traderDismissed, _ := na.AsBool(trader["dismissed"])
-	negotiatorPos := position(negotiator)
 	negotiatorDowned, _ := na.AsBool(negotiator["downed"])
 	negotiatorDead, _ := na.AsBool(negotiator["dead"])
 	negotiatorMental, _ := na.AsBool(negotiator["mental"])
 	negotiatorSocialDisabled, _ := na.AsBool(negotiator["socialDisabled"])
 
-	traderInput := traderID + "|cantrade=" + boolText(traderCanTrade) + "|dismissed=" + boolText(traderDismissed) + "|pos=" + traderPos
-	negotiatorInput := negotiatorID + "|pos=" + negotiatorPos + "|downed=" + boolText(negotiatorDowned) +
+	traderInput := traderID + "|cantrade=" + boolText(traderCanTrade) + "|dismissed=" + boolText(traderDismissed)
+	negotiatorInput := negotiatorID + "|downed=" + boolText(negotiatorDowned) +
 		"|dead=" + boolText(negotiatorDead) + "|mental=" + boolText(negotiatorMental) + "|socialDisabled=" + boolText(negotiatorSocialDisabled)
 	return "trade-trader-" + hash(traderInput), "trade-negotiator-" + hash(negotiatorInput), nil
-}
-
-func position(m map[string]any) string {
-	return fmt.Sprintf("(%d, %d, %d)", int64(na.AsNumber(m["x"])), int64(na.AsNumber(m["y"])), int64(na.AsNumber(m["z"])))
 }
 
 // boolText mirrors C#'s bool.ToString() interpolation ("True"/"False"), the
