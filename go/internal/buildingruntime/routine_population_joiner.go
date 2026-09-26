@@ -71,6 +71,11 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
+	if found {
+		if err = cancelRefusedQuestAccepts(call, p.journal, goal); err != nil {
+			return RoutinePopulationJoinerResult{}, err
+		}
+	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodNoDeficit}, nil
 	}
@@ -150,6 +155,32 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// cancelRefusedQuestAccepts settles every quest accept native refused: a refused
+// receipt is proof the offer was not accepted (it expired or was withdrawn),
+// and left pending the action kept the method open, holding the planner on
+// existing_work and the Worker re-authorizing it every step once the goal
+// stopped binding (#717). Whether the census still lists the offer, the
+// next attempt is a fresh method.
+func cancelRefusedQuestAccepts(call context.Context, journal *store.Store, goal store.GoalState) error {
+	for _, method := range goal.Methods {
+		plan, err := journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return err
+		}
+		for _, progress := range plan.Progress {
+			v := progress.View()
+			receipt, known := v.Receipt.Value()
+			if progress.Action().Kind() != domain.QuestAcceptAction || v.Stage != domain.Pending || !known || receipt != domain.ReceiptRefused {
+				continue
+			}
+			if _, err = journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.GoalState, letter policy.JoinerLetterOffer, started time.Time) (RoutinePopulationJoinerResult, error) {
