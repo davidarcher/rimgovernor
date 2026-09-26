@@ -73,6 +73,17 @@ say what in the commit body; do not open an issue for it. The next
 full-suite pass (#363, acceptance on CI) verifies every unverified landing
 at once; per-landing issues only pile up until then.
 
+## Simplify before you extend
+
+Before adding a layer (flag, fallback, retry, cache, special case, wrapper,
+parallel path), check whether the problem comes from an earlier layer that
+should not exist; if so, say so and propose removing it instead. Cite the
+issue text or user message that asks for any new behaviour; if you cannot,
+it is an assumption: flag it, do not build on it silently. When a second
+fix for the same symptom would add another guard, stop and explain why the
+first fix failed. Every landing report ends with one line:
+`Complexity: added X / removed Y / deletion candidate: Z` (or `none`).
+
 ## Never
 
 - Open a pull request, or push to GitHub. GitHub holds issues only; the
