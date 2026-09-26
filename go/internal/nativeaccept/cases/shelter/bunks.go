@@ -16,8 +16,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// bunkWood is the WoodLog dropped beside the sleeping spots once they are
-// placed: the baseline's 500 covers eight wooden beds (45 each) but not
+// bunkWood is the WoodLog dropped beside a colonist before the service
+// starts: the baseline's 500 covers eight wooden beds (45 each) but not
 // the hut ring after them, and the frames would otherwise hold for wood
 // the colony has no routine to cut here.
 const bunkWood = 200
@@ -53,10 +53,21 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	// The precondition must not already satisfy the outcome: the colony
 	// starts with no roofed room holding a bed, so every bed the final
 	// census counts was built during this run (#615).
-	colonists, err := unhousedColony(ctx, s, report)
+	colonists, beside, err := unhousedColony(ctx, s, report)
 	if err != nil {
 		return err
 	}
+	// Wood for the ring, dropped before the service takes the sole GABP
+	// slot (no fixture op can run while it holds it, #676): beside a
+	// colonist, near where the spots will be sited, since a restart to
+	// drop it later would cancel the shelter plan this run asserts on.
+	dropped, err := s.Harness().Call(ctx, "drop-wood", "test/hut_shell_fixture", map[string]any{
+		"action": "wood", "door": fmt.Sprintf("%d,%d", beside.X, beside.Z), "wood": bunkWood,
+	})
+	if err != nil {
+		return err
+	}
+	report["dropped_wood"] = dropped
 	service, err := start(ctx, s, nil)
 	if err != nil {
 		return err
@@ -78,15 +89,6 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 		service.Stop()
 		return err
 	}
-	// Wood for the ring, beside the site the spots mark out.
-	dropped, err := s.Harness().Call(ctx, "drop-wood", "test/hut_shell_fixture", map[string]any{
-		"action": "wood", "door": fmt.Sprintf("%d,%d", spots[0].cells[0].X, spots[0].cells[0].Z), "walls": cellArg(bunkCells(spots)), "wood": bunkWood,
-	})
-	if err != nil {
-		service.Stop()
-		return err
-	}
-	report["dropped_wood"] = dropped
 	// 2. The beds are the first construction, completed on the site.
 	beds, err := waitBunks(ctx, st, buildingruntime.ShelterBedsMethod(), "Bed", true, w.wait(w.build, service))
 	if err != nil {
@@ -183,18 +185,18 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 }
 
 // unhousedColony reads the colony before the controller starts and returns
-// its colonist count, refusing a baseline that already meets the outcome:
+// its colonist count and the first colonist's cell, refusing a baseline that already meets the outcome:
 // no native room may be a proper roofed indoor room holding a bed. Without
 // this the run could pass on shelter it never built (#615).
-func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int, error) {
+func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int, domain.Cell, error) {
 	h := s.Harness()
 	reply, err := h.Wire(ctx, "rooms-before", "observations_list_rooms", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
 	if err != nil {
-		return 0, err
+		return 0, domain.Cell{}, err
 	}
 	_, observed, err := na.Outcome(reply, "observed")
 	if err != nil {
-		return 0, err
+		return 0, domain.Cell{}, err
 	}
 	rooms, indoorBeds := 0, 0
 	for _, raw := range na.AsSlice(observed["rooms"]) {
@@ -207,17 +209,19 @@ func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int
 	}
 	listed, err := h.Call(ctx, "colonists-before", "home/list_pawns", map[string]any{"colonistsOnly": true})
 	if err != nil {
-		return 0, err
+		return 0, domain.Cell{}, err
 	}
 	colonists := len(na.AsSlice(listed["pawns"]))
 	report["precondition"] = map[string]any{"colonists": colonists, "roofed_rooms": rooms, "indoor_beds": indoorBeds}
 	if colonists == 0 {
-		return 0, errors.New("the baseline has no colonists to shelter")
+		return 0, domain.Cell{}, errors.New("the baseline has no colonists to shelter")
 	}
 	if indoorBeds > 0 {
-		return 0, fmt.Errorf("the baseline already holds %d beds in %d roofed rooms: the precondition satisfies the outcome", indoorBeds, rooms)
+		return 0, domain.Cell{}, fmt.Errorf("the baseline already holds %d beds in %d roofed rooms: the precondition satisfies the outcome", indoorBeds, rooms)
 	}
-	return colonists, nil
+	first, _ := na.AsMap(na.AsSlice(listed["pawns"])[0])
+	position, _ := na.AsMap(first["position"])
+	return colonists, domain.Cell{X: int32(na.AsNumber(position["x"])), Z: int32(na.AsNumber(position["z"]))}, nil
 }
 
 // waitBunks polls the store until the shelter goal binds the named bunk
@@ -294,14 +298,6 @@ func noShellYet(ctx context.Context, st *store.Store, after string) error {
 		}
 	}
 	return nil
-}
-
-func bunkCells(bunks []bunk) []domain.Cell {
-	var cells []domain.Cell
-	for _, b := range bunks {
-		cells = append(cells, b.cells...)
-	}
-	return cells
 }
 
 func describeBunks(bunks []bunk) []map[string]any {
