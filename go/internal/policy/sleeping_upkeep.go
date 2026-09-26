@@ -14,6 +14,15 @@ type SleepingPerson struct {
 	ID                             PawnID
 	OwnedBed                       domain.Fact[string]
 	ComfortableMin, ComfortableMax domain.Fact[float64]
+	// Partners are the lover, spouse and fiance relations to living pawns
+	// on the same map.
+	Partners []PawnID
+	// BedSharingAllowed is the native willingness (ideo precepts) to share
+	// a bed with every partner; true without Ideology.
+	BedSharingAllowed domain.Fact[bool]
+	// Title is the most senior royal title; nil without one or without
+	// Royalty.
+	Title *RoyalTitle
 }
 type SleepingBed struct {
 	ID                                    string
@@ -21,11 +30,16 @@ type SleepingBed struct {
 	Humanlike, Medical, Prisoners, Roofed domain.Fact[bool]
 	RestEffectiveness, Temperature        domain.Fact[float64]
 	Owners, Users, AccessibleTo           []PawnID
+	// Room is the native room id (RoomQuality.ID); Quality the native
+	// QualityCategory name, unknown for a bed without quality.
+	Room, Quality domain.Fact[string]
 }
 type SleepingObservation struct {
 	Colonists int
 	People    []SleepingPerson
 	Beds      []SleepingBed
+	// Rooms is the room quality census, unknown when its section is.
+	Rooms domain.Fact[[]UpkeepRoom]
 }
 type SleepingUse struct {
 	Pawn PawnID

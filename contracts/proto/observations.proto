@@ -830,14 +830,24 @@ message JoyBuildingMethod { string definition = 1; string kind = 2; double power
 message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; repeated JoyBuildingMethod methods = 3; }
 message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; Completeness completeness = 5; RecreationCensus joy = 6; }
 message UpkeepItem { EntityRef item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional double base_deterioration_rate = 8; optional int64 rot_ticks = 9; optional bool perishable = 10; optional double temperature_c = 11; optional bool forbidden = 12; optional bool medicine = 13; optional bool nutrition_giving = 14; optional bool burning = 15; }
-message UpkeepBed { EntityRef bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated string owners = 7; repeated string users = 8; repeated string accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; }
+message UpkeepBed { EntityRef bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated string owners = 7; repeated string users = 8; repeated string accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; optional string room_id = 12; optional string quality = 13; }
 message StorageCell { rimgovernor.common.v1.Cell cell = 1; optional bool roofed = 2; optional bool occupied = 3; }
 message ItemStorageCapacity { optional string item_id = 1; optional int64 unreserved_covered_capacity = 2; optional uint32 accepting_cells = 3; }
 message UpkeepStructure { BuildingState building = 1; optional bool home = 2; optional bool holds_roof = 3; optional int32 repair_priority = 4; optional double flammability = 5; optional bool roofed = 6; }
 message FireState { EntityRef fire = 1; optional double size = 2; optional bool home = 3; repeated string safe_workers = 4; }
 message FilthState { EntityRef filth = 1; optional bool home = 2; optional uint32 thickness = 3; optional string room_role = 4; optional bool cleanable = 5; optional string room_id = 6; }
 message ProtectedCell { rimgovernor.common.v1.Cell cell = 1; optional bool home = 2; optional bool roofed = 3; }
-message UpkeepPerson { PawnState pawn = 1; optional string owned_bed_id = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; }
+// partner_ids: lover, spouse and fiance relations to living pawns on the same
+// map (native direct relations). bed_sharing_allowed: the native willingness
+// to share a bed with every listed partner (the SharedBed precepts; with no
+// partner, the plain SharedBed precept), true without Ideology. title: the
+// most senior royal title, absent without one or when Royalty is inactive.
+message UpkeepPerson { PawnState pawn = 1; optional string owned_bed_id = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; repeated string partner_ids = 6; optional bool bed_sharing_allowed = 7; RoyalTitleFacts title = 8; }
+// Bedroom requirements read from RoyalTitleDef.GetBedroomRequirements for the
+// holder (none for an ascetic), skipping requirements an ideo precept disables.
+// things: each row is one requirement met by count of any listed def.
+message BedroomThingRequirement { repeated string any_of = 1; optional int32 count = 2; }
+message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority = 2; optional int32 bedroom_min_area = 3; optional int32 bedroom_min_impressiveness = 4; optional bool bedroom_floored = 5; repeated BedroomThingRequirement bedroom_things = 6; }
 message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated string eater_ids = 3; }
 // reachable_bench_ids lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
@@ -968,6 +978,12 @@ message RoomQuality { optional double space = 1; optional double beauty = 2; opt
 message FloorRoom { optional string room_id = 1; optional string role = 2; repeated FloorCell cells = 3; RoomQuality quality = 4; }
 message FloorTerrain { optional string def_name = 1; optional double cleanliness = 2; optional int32 path_cost = 3; optional double beauty = 4; optional double flammability = 5; optional bool natural = 6; }
 message FlooringFacts { repeated FloorRoom rooms = 1; repeated FloorTerrain terrains = 2; Completeness completeness = 3; }
+// Room quality census: every room holding a colonist bed or carrying a common
+// role (dining, rec room), with the native room stats. Bound 256 rooms; past it
+// the section is unavailable (issue "rooms"), never truncated.
+message UpkeepRoom { optional string room_id = 1; optional string role = 2; RoomQuality quality = 3; optional uint32 cell_count = 4; repeated string bed_ids = 5; }
+message UpkeepRoomsFacts { repeated UpkeepRoom rooms = 1; Completeness completeness = 2; }
+message UpkeepRoomsSection { oneof outcome { UpkeepRoomsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Routes census (issue #6 slice 5): each colony facility a colonist must
 // reach (bed, work bench, storage, dining surface, defence emplacement) with
@@ -990,7 +1006,7 @@ message UpkeepFacts {
   repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
   repeated AnimalFeed animals = 13; Completeness completeness = 14; repeated ReadIssue issues = 15;
   HaulingSection hauling = 16; WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
-  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22;
+  repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; UpkeepRoomsSection rooms = 23;
 }
 message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Threat facts (#395): the colony wealth the storyteller scales raids by

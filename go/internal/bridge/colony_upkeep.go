@@ -21,6 +21,9 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.Routes != nil {
 		counts["routes"] = 1
 	}
+	if v.Rooms != nil {
+		counts["rooms"] = 1
+	}
 	for _, n := range counts {
 		if n > 256 {
 			return contract("upkeep census exceeds bound")
@@ -85,13 +88,13 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		return true
 	}
 	for _, row := range v.People {
-		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || !proto.Equal(row.Pawn, &o.PawnState{Pawn: row.Pawn.Pawn}) || row.OwnedBedId != nil && row.GetOwnedBedId() != "" && validID(row.GetOwnedBedId()) != nil || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBedId: row.OwnedBedId, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC}) {
+		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || !proto.Equal(row.Pawn, &o.PawnState{Pawn: row.Pawn.Pawn}) || row.OwnedBedId != nil && row.GetOwnedBedId() != "" && validID(row.GetOwnedBedId()) != nil || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !ids(row.PartnerIds) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBedId: row.OwnedBedId, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, PartnerIds: row.PartnerIds, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
 		}
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Beds {
-		if row == nil || !entity(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !ids(row.Owners) || !ids(row.Users) || !ids(row.AccessibleTo) || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo}) {
+		if row == nil || !entity(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !ids(row.Owners) || !ids(row.Users) || !ids(row.AccessibleTo) || row.RoomId != nil && validID(row.GetRoomId()) != nil || row.Quality != nil && validID(row.GetQuality()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, RoomId: row.RoomId, Quality: row.Quality}) {
 			return contract("invalid upkeep bed")
 		}
 	}
@@ -205,9 +208,84 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 			return err
 		}
 	}
+	if v.Rooms != nil {
+		if err := validateUpkeepRooms(v.Rooms); err != nil {
+			return err
+		}
+	}
 	if v.Routes != nil {
 		if err := validateRoutes(v.Routes, size, mapID, entity); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// validTitle checks a royal title row: a definition, a non-negative
+// seniority and bedroom requirements that are non-negative, with each thing
+// requirement naming 1-16 unique definitions and a positive count.
+func validTitle(t *o.RoyalTitleFacts) bool {
+	if t == nil {
+		return true
+	}
+	if t.DefName == nil || validID(t.GetDefName()) != nil || t.Seniority != nil && t.GetSeniority() < 0 || t.BedroomMinArea != nil && t.GetBedroomMinArea() < 0 || t.BedroomMinImpressiveness != nil && t.GetBedroomMinImpressiveness() < 0 || len(t.BedroomThings) > 16 ||
+		!proto.Equal(t, &o.RoyalTitleFacts{DefName: t.DefName, Seniority: t.Seniority, BedroomMinArea: t.BedroomMinArea, BedroomMinImpressiveness: t.BedroomMinImpressiveness, BedroomFloored: t.BedroomFloored, BedroomThings: t.BedroomThings}) {
+		return false
+	}
+	for _, req := range t.BedroomThings {
+		if req == nil || len(req.AnyOf) == 0 || len(req.AnyOf) > 16 || req.Count == nil || req.GetCount() < 1 || !proto.Equal(req, &o.BedroomThingRequirement{AnyOf: req.AnyOf, Count: req.Count}) {
+			return false
+		}
+		seen := map[string]bool{}
+		for _, def := range req.AnyOf {
+			if validID(def) != nil || seen[def] {
+				return false
+			}
+			seen[def] = true
+		}
+	}
+	return true
+}
+
+// validateUpkeepRooms checks the upkeep room census: at most 256 unique
+// rooms with finite quality stats, a non-negative space and wealth, and bed
+// ids unique across the whole census.
+func validateUpkeepRooms(section *o.UpkeepRoomsSection) error {
+	f := section.GetObserved()
+	if f == nil {
+		return validateUnavailable(section.GetUnavailable())
+	}
+	if colonyCounts(f.Completeness, len(f.Rooms), 256) != nil || !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms, Completeness: f.Completeness}) {
+		return contract("invalid room quality census")
+	}
+	rooms := map[string]bool{}
+	beds := map[string]bool{}
+	for _, r := range f.Rooms {
+		if r == nil || validID(r.GetRoomId()) != nil || rooms[r.GetRoomId()] || r.Role != nil && validID(r.GetRole()) != nil || len(r.BedIds) > 256 ||
+			!proto.Equal(r, &o.UpkeepRoom{RoomId: r.RoomId, Role: r.Role, Quality: r.Quality, CellCount: r.CellCount, BedIds: r.BedIds}) {
+			return contract("invalid room quality row")
+		}
+		rooms[r.GetRoomId()] = true
+		q := r.GetQuality()
+		if q != nil && !proto.Equal(q, &o.RoomQuality{Space: q.Space, Beauty: q.Beauty, Cleanliness: q.Cleanliness, Wealth: q.Wealth, Impressiveness: q.Impressiveness}) {
+			return contract("invalid room quality")
+		}
+		if q == nil {
+			q = &o.RoomQuality{}
+		}
+		for _, value := range []*float64{q.Impressiveness, q.Wealth, q.Beauty, q.Space, q.Cleanliness} {
+			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e9) {
+				return contract("invalid room quality stat")
+			}
+		}
+		if q.GetWealth() < 0 || q.GetSpace() < 0 {
+			return contract("invalid room quality stat")
+		}
+		for _, id := range r.BedIds {
+			if validID(id) != nil || beds[id] {
+				return contract("invalid room quality bed")
+			}
+			beds[id] = true
 		}
 	}
 	return nil

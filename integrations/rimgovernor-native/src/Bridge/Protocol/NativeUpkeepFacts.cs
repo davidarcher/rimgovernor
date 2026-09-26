@@ -362,6 +362,7 @@ namespace HomeBridge.BridgeTools
                     ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
                 }).ToList();
+                for (var i = 0; i < people.Count; i++) SleepingRelations(people[i], values[i]);
                 result.People.AddRange(values);
             });
             Read("beds", result, () => {
@@ -373,6 +374,9 @@ namespace HomeBridge.BridgeTools
                         Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
                         Medical = b.Medical, Prisoners = b.ForPrisoners, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
                         TemperatureC = Number(b.AmbientTemperature) };
+                    var room = b.GetRoom();
+                    if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (b.TryGetQuality(out var quality)) row.Quality = quality.ToString();
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
                     Require(owners.Count, 256); row.Owners.AddRange(owners);
                     row.Users.AddRange(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())));
@@ -380,6 +384,32 @@ namespace HomeBridge.BridgeTools
                     return row;
                 }).ToList();
                 result.Beds.AddRange(values);
+            });
+            Read("rooms", result, () => {
+                // Every room holding a colonist bed (humanlike, not medical,
+                // not for prisoners) or carrying a common role (dining, rec
+                // room), with the native room stats room-quality goals read.
+                var colonistBeds = things.OfType<Building_Bed>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.building.bed_humanlike
+                    && !b.Medical && !b.ForPrisoners).OrderBy(b => b.thingIDNumber).ToList();
+                var rooms = new Dictionary<int, Room>();
+                foreach (var b in colonistBeds) { var r = b.GetRoom(); if (r != null) rooms[r.ID] = r; }
+                foreach (var r in map.regionGrid.AllRooms.Where(r => !r.Fogged && (r.Role?.defName == "DiningRoom" || r.Role?.defName == "RecRoom"))) rooms[r.ID] = r;
+                Require(rooms.Count, 256);
+                var facts = new Obs.UpkeepRoomsFacts();
+                foreach (var r in rooms.Values.OrderBy(r => r.ID)) {
+                    var row = new Obs.UpkeepRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), CellCount = checked((uint)r.CellCount),
+                        Quality = new Obs.RoomQuality {
+                            Space = Number(r.GetStat(RoomStatDefOf.Space)), Beauty = Number(r.GetStat(RoomStatDefOf.Beauty)),
+                            Cleanliness = Number(r.GetStat(RoomStatDefOf.Cleanliness)), Wealth = Number(r.GetStat(RoomStatDefOf.Wealth)),
+                            Impressiveness = Number(r.GetStat(RoomStatDefOf.Impressiveness)) } };
+                    if (r.Role != null) row.Role = Id(r.Role.defName);
+                    var beds = colonistBeds.Where(b => b.GetRoom() == r).Select(b => Id(b.GetUniqueLoadID())).ToList();
+                    Require(beds.Count, 256);
+                    row.BedIds.AddRange(beds);
+                    facts.Rooms.Add(row);
+                }
+                facts.Completeness = Complete(rooms.Count);
+                result.Rooms = new Obs.UpkeepRoomsSection { Observed = facts };
             });
             Read("animals", result, () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
@@ -520,6 +550,46 @@ namespace HomeBridge.BridgeTools
                 }
             }
             return result;
+        }
+
+        // SleepingRelations fills a colonist's partners (lover, spouse and
+        // fiance relations to living pawns on the same map), the native
+        // willingness to share a bed with each of them (the plain SharedBed
+        // precept when there is none) and the most senior royal title.
+        private static void SleepingRelations(Pawn p, Obs.UpkeepPerson row)
+        {
+            var partners = (p.relations?.DirectRelations ?? new List<DirectPawnRelation>())
+                .Where(r => (r.def == PawnRelationDefOf.Lover || r.def == PawnRelationDefOf.Spouse || r.def == PawnRelationDefOf.Fiance)
+                    && r.otherPawn != null && !r.otherPawn.Dead && r.otherPawn.Spawned && r.otherPawn.Map == p.Map)
+                .Select(r => r.otherPawn).Distinct().OrderBy(o => o.thingIDNumber).ToList();
+            Require(partners.Count, 256);
+            row.PartnerIds.AddRange(partners.Select(o => Id(o.GetUniqueLoadID())));
+            row.BedSharingAllowed = partners.Count == 0 ? IdeoUtility.DoerWillingToDo(HistoryEventDefOf.SharedBed, p) : partners.All(o => BedUtility.WillingToShareBed(p, o));
+            if (!ModsConfig.RoyaltyActive) return;
+            var title = p.royalty?.MostSeniorTitle?.def;
+            if (title == null) return;
+            var facts = new Obs.RoyalTitleFacts { DefName = Id(title.defName), Seniority = title.seniority };
+            foreach (var req in title.GetBedroomRequirements(p) ?? Enumerable.Empty<RoomRequirement>()) {
+                if (req.disablingPrecepts != null && p.Ideo != null && p.Ideo.PreceptsListForReading.Any(x => req.disablingPrecepts.Contains(x.def))) continue;
+                switch (req) {
+                    case RoomRequirement_Area area: facts.BedroomMinArea = Math.Max(facts.BedroomMinArea, area.area); break;
+                    case RoomRequirement_Impressiveness imp: facts.BedroomMinImpressiveness = Math.Max(facts.BedroomMinImpressiveness, imp.impressiveness); break;
+                    case RoomRequirement_TerrainWithTags _: facts.BedroomFloored = true; break;
+                    case RoomRequirement_AllThingsAnyOfAreGlowing _: case RoomRequirement_HasAssignedThroneAnyOf _: break;
+                    case RoomRequirement_ThingAnyOfCount anyCount: facts.BedroomThings.Add(Things(anyCount.things, anyCount.count)); break;
+                    case RoomRequirement_ThingAnyOf any: facts.BedroomThings.Add(Things(any.things, 1)); break;
+                    case RoomRequirement_ThingCount count: facts.BedroomThings.Add(Things(new List<ThingDef> { count.thingDef }, count.count)); break;
+                    case RoomRequirement_Thing thing: facts.BedroomThings.Add(Things(new List<ThingDef> { thing.thingDef }, 1)); break;
+                }
+            }
+            row.Title = facts;
+        }
+
+        private static Obs.BedroomThingRequirement Things(List<ThingDef> defs, int count)
+        {
+            var row = new Obs.BedroomThingRequirement { Count = count };
+            row.AnyOf.AddRange(defs.Where(d => d != null).Select(d => Id(d.defName)));
+            return row;
         }
 
         private static Obs.EntityRef Ref(Thing thing) => new Obs.EntityRef {
