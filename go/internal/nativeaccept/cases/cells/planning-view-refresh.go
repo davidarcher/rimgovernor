@@ -7,8 +7,10 @@
 // bundle's view equal, row for row, to an authoritative compact get_cells
 // read of the same region, room ids and indoors included, with the
 // refresh's work and any resync reason reported from the hop's timing
-// block. Region changes, reload, rewind, overflow and the scheduled scan
-// are proven offline by the native-planning-window-view probe.
+// block. A final hop pans the region down one map-aligned band (#710) and
+// must reuse the overlapping bands without a resync. Column changes,
+// reload, rewind, overflow and the scheduled scan are proven offline by
+// the native-planning-window-view probe.
 package cells
 
 import (
@@ -32,7 +34,7 @@ func init() {
 		Name: "cells/planning-view-refresh",
 		Scope: "Planning-window view dirty-chunk refresh: a stable paused view reuses every band and reads no cell, and after " +
 			"each of the fixture's mutation rounds the next bundle's view equals an authoritative compact get_cells read of the " +
-			"region row for row, with the refresh's work counts in the hop's timing block.",
+			"region row for row, with the refresh's work counts in the hop's timing block; a view panned one band reuses its overlap.",
 		Start:  cases.Fixture{Op: "test/cells_prepare"},
 		Budget: 3 * time.Minute,
 		Run:    runPlanningViewRefresh,
@@ -54,13 +56,20 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 	if size <= 0 {
 		return fmt.Errorf("prepare: missing fixture site: %#v", prepared)
 	}
-	// Three bands of eight rows: the site's and one on each side.
+	// The site's rows and eight on each side; bands are map rows (z/8), so
+	// the region spans three or four of them.
 	region := policy.Rectangle{X: ox - 4, Z: oz - 8, Width: size + 8, Height: 24}
-	if region.X < 0 || region.Z < 0 {
+	bands := func() float64 { return float64((region.Z+region.Height-1)/8 - region.Z/8 + 1) }
+	if region.X < 0 || region.Z < 8 {
 		return fmt.Errorf("fixture site %d,%d too close to the map edge for the view region", ox, oz)
 	}
-	viewRequest := bridge.BundlePlanningWindowViewRequest(region)
-	rect := map[string]any{"minimum": map[string]any{"x": region.X, "z": region.Z}, "maximum": map[string]any{"x": region.X + region.Width - 1, "z": region.Z + region.Height - 1}}
+	var viewRequest *o.BundlePlanningWindowViewRequest
+	var rect map[string]any
+	setRegion := func() {
+		viewRequest = bridge.BundlePlanningWindowViewRequest(region)
+		rect = map[string]any{"minimum": map[string]any{"x": region.X, "z": region.Z}, "maximum": map[string]any{"x": region.X + region.Width - 1, "z": region.Z + region.Height - 1}}
+	}
+	setRegion()
 
 	var viewOnce func(string) (bridge.PlanningWindowView, map[string]any, error)
 	// view reads the view until the native serves a root it finished for
@@ -215,7 +224,7 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	chunks := na.AsNumber(stable["chunks"])
-	if chunks != 3 || na.AsNumber(stable["rebuilt"]) != 0 || na.AsNumber(stable["cellsRead"]) != 0 || na.AsNumber(stable["reused"]) != chunks || stable["resync"] != nil {
+	if chunks != bands() || na.AsNumber(stable["rebuilt"]) != 0 || na.AsNumber(stable["cellsRead"]) != 0 || na.AsNumber(stable["reused"]) != chunks || stable["resync"] != nil {
 		return fmt.Errorf("a stable paused view did work: %v", stable)
 	}
 	for _, phase := range []string{"first", "second"} {
@@ -230,6 +239,18 @@ func runPlanningViewRefresh(ctx context.Context, s cases.Session) error {
 		if na.AsNumber(work["rebuilt"]) < 1 || na.AsNumber(work["cellsRead"]) > float64(region.Width*region.Height) {
 			return fmt.Errorf("after the %s round the view rebuilt nothing or read past the region: %v", phase, work)
 		}
+	}
+	// Pan down one band: the rows still covered keep their map-aligned
+	// bands, so the overlap is carried over (or scanned) with no resync.
+	region.Z -= 8
+	setRegion()
+	panned, err := parity("view-panned")
+	report["panned"] = panned
+	if err != nil {
+		return err
+	}
+	if panned["resync"] != nil || na.AsNumber(panned["reused"]) < 1 || na.AsNumber(panned["rebuilt"]) >= bands() {
+		return fmt.Errorf("a one-band pan did not reuse its overlapping bands: %v", panned)
 	}
 	return nil
 }

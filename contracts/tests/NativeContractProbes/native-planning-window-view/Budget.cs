@@ -176,12 +176,12 @@ internal static partial class NativePlanningWindowViewProbe
         var stats = new PlanningViewRefreshStats();
         var job = new PlanningViewRefreshJob(ledger, publisher.Begin(identity), null, identity, 1, MapSize, MapSize, RMinX, RMinZ, RMaxX, RMaxZ, 100, world, stats);
         Check(job.Bands == 3 && !job.Step(100) && job.Root == null && world.Reads == 20 * 8, "bootstrap: one band per unit");
-        world.Set(ledger, 12, 22, Cell("done-band"));
-        world.Set(ledger, 12, 40, Cell("later-band"));
+        world.Set(ledger, 12, 18, Cell("done-band"));
+        world.Set(ledger, 12, 36, Cell("later-band"));
         Check(!job.Step(101) && job.Step(102) && job.Root != null && job.Root.Complete, "the remaining bands finish on later frames");
         var root = job.Root;
         Check(root.PublishedTick == 102 && root.Chunk(0).CapturedTick == 100 && root.Chunk(2).CapturedTick == 102, "each chunk carries the tick it was read at");
-        Check(root.Chunk(2)[(40 - 36) * 20 + 2].ZoneId == "later-band" && root.Chunk(0)[2 * 20 + 2].ZoneId != "done-band", "a later band sees the edit; a finished band holds its read");
+        Check(root.Chunk(2)[(36 - 32) * 20 + 2].ZoneId == "later-band" && root.Chunk(0)[2 * 20 + 2].ZoneId != "done-band", "a later band sees the edit; a finished band holds its read");
         Check(publisher.TryPublish(root), "the finished root publishes");
         var next = Refresh(publisher, ledger, world, 103, out var nextStats);
         Check(nextStats.Rebuilt == 1 && nextStats.DirtyChunks == 1 && Current(next, world), "the next refresh rebuilds only the band finished before the edit and matches a full read");

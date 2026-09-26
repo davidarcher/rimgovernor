@@ -70,20 +70,26 @@ is current at (its watermark), read before any cell of the refresh, so a
 mutation during or after a capture numbers past it and dirties the chunk
 again whichever order the hops publish in.
 
-`PlanningViewRefresh`, per eight-row band of the region, in order:
+`PlanningViewRefresh` works in map-aligned bands (#710): a band is one
+tile row (`z / 8`) clipped to the region, so the first and last band may
+be partial, and a Z-panned region keeps the bands of the rows it still
+covers. Per band, in order:
 
 1. A root-level resync rebuilds every band: `bootstrap` (no current root,
-   including after unload), `incarnation`, `region` (region or mask
-   differs), `tracker` (the root was counted in another ledger: a new map
+   including after unload), `incarnation`, `region` (identity or mask
+   differs), `columns` (the region's x range differs: an X pan rebuilds
+   rather than splicing columns into the held bands), `tracker` (the root was counted in another ledger: a new map
    object, a reload), `rewind` (the tick is before the root's
    publication) or `overflow` (more than 1024 distinct tiles went dirty
    between refreshes).
-2. A band whose tiles, the whole map (broad) or room topology changed after
+2. A band the held root has no chunk with the same rows for (a Z pan's
+   new rows, a partial edge band that grew or shrank) is read.
+3. A band whose tiles, the whole map (broad) or room topology changed after
    its watermark is rebuilt (`dirtyChunks`, `topologyChunks`).
-3. A band validated 250 ticks or more ago (`ValidateEveryTicks`, the
+4. A band validated 250 ticks or more ago (`ValidateEveryTicks`, the
    controller's tightest planning tolerance) is scanned for the unhooked
    fields; unchanged it is revalidated at the tick, otherwise rebuilt.
-4. Any other band is carried over as the same object; its
+5. Any other band is carried over as the same object; its
    `validated_tick` does not move.
 
 So a chunk's content is always what the map held at its `validated_tick`:

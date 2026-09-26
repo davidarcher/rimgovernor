@@ -12,9 +12,9 @@ using Common = RimGovernor.Protocol.Common;
 // counts, never in elapsed time.
 internal static partial class NativePlanningWindowViewProbe
 {
-    // A 64x64 map; the region spans x 10..29, z 20..43: three bands of
-    // eight rows (20-27, 28-35, 36-43) over tile rows 16-23 .. 40-47.
-    private const int MapSize = 64, RMinX = 10, RMinZ = 20, RMaxX = 29, RMaxZ = 43;
+    // A 64x64 map; the region spans x 10..29, z 16..39: three map-aligned
+    // bands (16-23, 24-31, 32-39), each one tile row.
+    private const int MapSize = 64, RMinX = 10, RMinZ = 16, RMaxX = 29, RMaxZ = 39;
 
     private sealed class FakeWorld : IPlanningViewSource
     {
@@ -40,11 +40,11 @@ internal static partial class NativePlanningWindowViewProbe
     private static PlanningViewCell Cell(string zone, double glow = 0.5, int flags = PlanningViewCell.Walkable) => new PlanningViewCell(false, flags, null, zone, "1", glow, 0);
 
     private static PlanningViewRoot Refresh(PlanningWindowViewPublisher publisher, PlanningViewLedger ledger, FakeWorld world, long tick, out PlanningViewRefreshStats stats,
-        PlanningViewRoot current = null, int maxZ = RMaxZ, bool publish = true)
+        PlanningViewRoot current = null, int maxZ = RMaxZ, bool publish = true, int minZ = RMinZ, int minX = RMinX, int maxX = RMaxX)
     {
         stats = new PlanningViewRefreshStats();
         var identity = Identity("load");
-        var root = PlanningViewRefresh.Refresh(ledger, publisher.Begin(identity), current ?? publisher.Acquire(), identity, 1, MapSize, MapSize, RMinX, RMinZ, RMaxX, maxZ, tick, world, stats);
+        var root = PlanningViewRefresh.Refresh(ledger, publisher.Begin(identity), current ?? publisher.Acquire(), identity, 1, MapSize, MapSize, minX, minZ, maxX, maxZ, tick, world, stats);
         if (publish) Check(publisher.TryPublish(root), "refreshed root publishes");
         return root;
     }
@@ -74,6 +74,7 @@ internal static partial class NativePlanningWindowViewProbe
         UnhookedFieldsWaitForTheScan();
         ResyncReasons();
         RedirtyBetweenCaptureAndPublication();
+        PannedWindowReusesItsBands();
     }
 
     private static void StableWindowCostsNothing()
@@ -101,25 +102,25 @@ internal static partial class NativePlanningWindowViewProbe
         var ledger = new PlanningViewLedger(MapSize, MapSize);
         var world = new FakeWorld();
         var first = Refresh(publisher, ledger, world, 100, out _);
-        // z 21 lies in tile row 16-23, which only band 20-27 overlaps.
-        world.Set(ledger, 12, 21, Cell("zone"));
+        // z 17 lies in tile row 16-23, band 16-23 only.
+        world.Set(ledger, 12, 17, Cell("zone"));
         var second = Refresh(publisher, ledger, world, 100, out var stats);
         Check(stats.Rebuilt == 1 && stats.DirtyChunks == 1 && stats.Reused == 2 && stats.CellsRead == 20 * 8 && stats.DirtyTiles == 1, "one local change rebuilds its band only");
         Check(second.Chunk(0).Revision == second.Revision && ReferenceEquals(second.Chunk(1), first.Chunk(1)) && Current(second, world), "the rebuilt band is current (same tick)");
         // Two edits in one tick after a refresh at that tick: counted by
         // sequence, not by tick, so neither is lost.
-        world.Set(ledger, 12, 41, Cell("a"));
-        world.Set(ledger, 12, 41, Cell("b"));
+        world.Set(ledger, 12, 37, Cell("a"));
+        world.Set(ledger, 12, 37, Cell("b"));
         var third = Refresh(publisher, ledger, world, 100, out stats);
         Check(stats.Rebuilt == 1 && third.Chunk(2)[5 * 20 + 2].ZoneId == "b" && Current(third, world), "same-tick edits after a same-tick capture are seen");
-        // A mark outside the region dirties nothing in it; one on a tile
-        // two bands share rebuilds both, the documented tile bound.
+        // A mark outside the region dirties nothing in it; bands are tile
+        // rows, so a mark on a band's last row rebuilds that band alone.
         world.Set(ledger, 50, 50, Cell("far"));
         Refresh(publisher, ledger, world, 101, out stats);
         Check(stats.Rebuilt == 0, "a change outside the region rebuilds nothing");
-        world.Set(ledger, 12, 26, Cell("shared"));
+        world.Set(ledger, 12, 23, Cell("edge"));
         var fourth = Refresh(publisher, ledger, world, 102, out stats);
-        Check(stats.Rebuilt == 2 && stats.Reused == 1 && Current(fourth, world), "a tile two bands share rebuilds both");
+        Check(stats.Rebuilt == 1 && stats.Reused == 2 && Current(fourth, world), "a band's edge row rebuilds that band alone");
     }
 
     private static void BroadAndTopologyChangesRebuildAll()
@@ -147,8 +148,8 @@ internal static partial class NativePlanningWindowViewProbe
         var world = new FakeWorld();
         var first = Refresh(publisher, ledger, world, 100, out _);
         // Glow moves with no event; pollution and indoors likewise.
-        world.Cells[15, 38] = Cell(null, glow: 0.9);
-        world.Cells[15, 30] = Cell(null, flags: PlanningViewCell.Walkable | PlanningViewCell.Indoors);
+        world.Cells[15, 34] = Cell(null, glow: 0.9);
+        world.Cells[15, 26] = Cell(null, flags: PlanningViewCell.Walkable | PlanningViewCell.Indoors);
         var early = Refresh(publisher, ledger, world, 100 + PlanningViewRefresh.ValidateEveryTicks - 1, out var stats);
         Check(stats.Rebuilt == 0 && stats.CellsScanned == 0 && early.Chunk(2).ValidatedTick == 100, "before the cadence the view claims only its validation tick");
         var due = 100 + PlanningViewRefresh.ValidateEveryTicks;
@@ -164,8 +165,8 @@ internal static partial class NativePlanningWindowViewProbe
         var ledger = new PlanningViewLedger(MapSize, MapSize);
         var world = new FakeWorld();
         var root = Refresh(publisher, ledger, world, 100, out _);
-        Refresh(publisher, ledger, world, 110, out var stats, maxZ: RMaxZ - 1);
-        Check(stats.Resync == "region" && stats.Rebuilt == 3, "a region change rebuilds");
+        Refresh(publisher, ledger, world, 110, out var stats, maxX: RMaxX - 1);
+        Check(stats.Resync == "columns" && stats.Rebuilt == 3, "a column change rebuilds");
         Refresh(publisher, ledger, world, 120, out _);
         // A new tracker (a new map object, a reload) cannot vouch for the old watermarks.
         Refresh(publisher, new PlanningViewLedger(MapSize, MapSize), world, 130, out stats);
@@ -199,13 +200,46 @@ internal static partial class NativePlanningWindowViewProbe
         var world = new FakeWorld();
         var held = Refresh(publisher, ledger, world, 100, out _);
         var a = Refresh(publisher, ledger, world, 101, out _, current: held, publish: false);
-        world.Set(ledger, 20, 42, Cell("first"));
+        world.Set(ledger, 20, 38, Cell("first"));
         var b = Refresh(publisher, ledger, world, 102, out var stats, current: held, publish: false);
         Check(stats.Rebuilt == 1 && Current(b, world), "the later capture rebuilds the redirtied band");
-        world.Set(ledger, 20, 42, Cell("second"));
+        world.Set(ledger, 20, 38, Cell("second"));
         Check(publisher.TryPublish(b) && !publisher.TryPublish(a) && ReferenceEquals(publisher.Acquire(), b), "the older completion cannot replace the newer");
         Check(ReferenceEquals(held.Chunk(2), a.Chunk(2)) && held.Chunk(2)[6 * 20 + 10].ZoneId == null, "a held reader's graph is unchanged");
         var next = Refresh(publisher, ledger, world, 103, out stats);
         Check(stats.Rebuilt == 1 && Current(next, world), "a mutation after capture, before publication, is not lost");
+    }
+
+    // A panned window (#710). A pure Z pan keeps the map-aligned bands of
+    // the rows it still covers: the overlap is carried over by reference,
+    // only the new rows and a grown partial edge band are read, and there
+    // is no resync. An X pan changes every band's width and rebuilds.
+    private static void PannedWindowReusesItsBands()
+    {
+        var publisher = new PlanningWindowViewPublisher(2);
+        var ledger = new PlanningViewLedger(MapSize, MapSize);
+        var world = new FakeWorld();
+        var first = Refresh(publisher, ledger, world, 100, out _);
+        // Down one band: 24..47 keeps 24-31 and 32-39, reads 40-47.
+        var down = Refresh(publisher, ledger, world, 110, out var stats, minZ: RMinZ + 8, maxZ: RMaxZ + 8);
+        Check(stats.Resync == null && stats.Chunks == 3 && stats.Reused == 2 && stats.Rebuilt == 1 && stats.CellsRead == 20 * 8 && Current(down, world),
+            "a one-band Z pan reuses the two overlapping bands and reads one (" + stats.Reused + "/" + stats.Rebuilt + ")");
+        Check(ReferenceEquals(down.Chunk(0), first.Chunk(1)) && ReferenceEquals(down.Chunk(1), first.Chunk(2)) && down.Complete, "the overlap is the same immutable chunks");
+        // Up three rows: 21..44 has partial edge bands 21-23 and 40-44;
+        // 24-31 and 32-39 are carried over, the edges read.
+        var up = Refresh(publisher, ledger, world, 120, out stats, minZ: RMinZ + 5, maxZ: RMaxZ + 5);
+        Check(stats.Resync == null && stats.Chunks == 4 && stats.Reused == 2 && stats.Rebuilt == 2 && stats.CellsRead == 20 * (3 + 5) && up.Complete && Current(up, world),
+            "a partial Z pan reads only its edge bands (" + stats.CellsRead + ")");
+        Check(up.Chunk(0).MinZ == 21 && up.Chunk(0).MaxZ == 23 && up.Chunk(3).MinZ == 40 && up.Chunk(3).MaxZ == 44, "partial edge bands tile from min_z");
+        // Back down: the overlap is still judged by the ledger, and the
+        // partial 40-44 band grows to 40-47 and is read.
+        world.Set(ledger, 12, 30, Cell("panned"));
+        var dirty = Refresh(publisher, ledger, world, 130, out stats, minZ: RMinZ + 8, maxZ: RMaxZ + 8);
+        Check(stats.Resync == null && stats.DirtyChunks == 1 && stats.Reused == 1 && stats.Rebuilt == 2 && stats.CellsRead == 20 * 16 && Current(dirty, world),
+            "a Z pan over a dirtied band rebuilds it with the grown edge band (" + stats.Reused + "/" + stats.Rebuilt + ")");
+        // X pan: every band changes width, one rebuild of the region.
+        var side = Refresh(publisher, ledger, world, 140, out stats, minZ: RMinZ + 8, maxZ: RMaxZ + 8, minX: RMinX + 4, maxX: RMaxX + 4);
+        Check(stats.Resync == "columns" && stats.Reused == 0 && stats.Rebuilt == 3 && stats.CellsRead == 20 * 24 && Current(side, world),
+            "an X pan rebuilds the region (" + stats.CellsRead + ")");
     }
 }

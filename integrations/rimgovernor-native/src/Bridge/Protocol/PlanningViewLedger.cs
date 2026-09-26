@@ -120,11 +120,16 @@ namespace HomeBridge.BridgeTools
     }
 
     /// <summary>
-    /// The refresh itself (#652), pure over a ledger and a source. Per
-    /// chunk of the region's row bands:
-    ///   - a root-level resync (bootstrap, region or mask change, another
-    ///     incarnation or ledger, a rewound tick, a dirty-list overflow)
+    /// The refresh itself (#652), pure over a ledger and a source. Bands
+    /// are map-aligned (#710): band rows are z / ChunkRows, the ledger's
+    /// tile rows, so the first and last band may be partial and a panned
+    /// region keeps the boundaries of the rows it still covers. Per band:
+    ///   - a root-level resync (bootstrap, identity or mask change, another
+    ///     incarnation or ledger, a rewound tick, a dirty-list overflow, or
+    ///     a column change: an X pan rebuilds rather than splicing columns)
     ///     rebuilds every chunk;
+    ///   - a band the held root has no chunk of the same rows for (a Z pan's
+    ///     new rows, a partial edge band that grew) is read;
     ///   - a chunk whose tiles, the whole map, or room topology changed
     ///     after its watermark is rebuilt;
     ///   - a chunk validated ValidateEveryTicks or more before the tick is
@@ -207,13 +212,14 @@ namespace HomeBridge.BridgeTools
             ledger.Drain(out stats.DirtyTiles, out var overflow);
             stats.Resync = current == null ? "bootstrap"
                 : current.Incarnation != ticket.Incarnation ? "incarnation"
-                : !current.Serves(identity, minX, minZ, maxX, maxZ, PlanningViewRoot.PlanningMask) ? "region"
+                : !current.SameIdentity(identity) || current.Mask != PlanningViewRoot.PlanningMask ? "region"
+                : current.MinX != minX || current.MaxX != maxX ? "columns"
                 : current.LedgerGeneration != ledger.Generation ? "tracker"
                 : tick < current.PublishedTick ? "rewind"
                 : overflow ? "overflow"
                 : null;
             width = maxX - minX + 1;
-            bands = (maxZ - minZ) / PlanningViewRefresh.ChunkRows + 1;
+            bands = maxZ / PlanningViewRefresh.ChunkRows - minZ / PlanningViewRefresh.ChunkRows + 1;
             chunks = new PlanningViewChunk[bands];
             Stats.Chunks = bands;
         }
@@ -239,11 +245,15 @@ namespace HomeBridge.BridgeTools
             if (tick < lastTick) throw new InvalidOperationException("Planning view refresh rewound.");
             lastTick = tick;
             var i = next;
-            var bandMinZ = MinZ + i * PlanningViewRefresh.ChunkRows; var bandMaxZ = Math.Min(bandMinZ + PlanningViewRefresh.ChunkRows - 1, MaxZ);
+            var row = MinZ / PlanningViewRefresh.ChunkRows + i;
+            var bandMinZ = Math.Max(MinZ, row * PlanningViewRefresh.ChunkRows); var bandMaxZ = Math.Min(row * PlanningViewRefresh.ChunkRows + PlanningViewRefresh.ChunkRows - 1, MaxZ);
             // Read before any of the band's cells: a mutation during or
             // after this step numbers past it and dirties the chunk again.
             var watermark = ledger.Sequence;
-            var old = Stats.Resync == null && i < current!.ChunkCount ? current.Chunk(i) : null;
+            // The held root is aligned the same way: its chunk for this map
+            // row sits at the row's offset from its own first row.
+            var at0 = Stats.Resync == null ? row - current!.MinZ / PlanningViewRefresh.ChunkRows : -1;
+            var old = at0 >= 0 && at0 < current!.ChunkCount ? current.Chunk(at0) : null;
             PlanningViewChunk? kept = null;
             if (old != null && old.MinZ == bandMinZ && old.MaxZ == bandMaxZ)
             {
