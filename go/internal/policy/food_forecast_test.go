@@ -108,3 +108,33 @@ func TestFoodForecastUnknownAndInvalidInputsNeverCertifyRunway(t *testing.T) {
 		t.Fatal("empty selection recovered food")
 	}
 }
+
+// #708: a carnivore pet with no meat must not read the colony as 0 days.
+func TestFoodForecastGateOnColonistsReportsPetShortfall(t *testing.T) {
+	s := FoodSupply{Complete: domain.Known(true), Consumers: []FoodConsumer{
+		{ID: "colonist", NutritionPerDay: domain.Known(1.6)}, {ID: "dog", NutritionPerDay: domain.Known(0.5)}, {ID: "cat", NutritionPerDay: domain.Known(0.3)},
+	}, Stocks: []FoodStock{durableFood("rice", 21, "", "colonist", "dog")}}
+	all, err := ForecastFood(s, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runway, _ := all.RunwayDays.Value(); runway != 0 {
+		t.Fatalf("all-consumer runway = %v, want the cat's 0", runway)
+	}
+	gated := all.GateOnColonists([]PawnID{"colonist"}, 5)
+	if runway, known := gated.RunwayDays.Value(); !known || math.Abs(runway-10) > 1e-9 {
+		t.Fatalf("colonist runway = %v %v, want 10", runway, known)
+	}
+	if len(gated.PetShortfalls) != 1 || gated.PetShortfalls[0].ID != "cat" {
+		t.Fatalf("pet shortfalls = %+v, want the cat only", gated.PetShortfalls)
+	}
+	if len(gated.Consumers) != 3 || gated.UsableNutrition != all.UsableNutrition {
+		t.Fatalf("gating changed the allocation: %+v", gated)
+	}
+	if kept := all.GateOnColonists(nil, 5); !reflect.DeepEqual(kept, all) {
+		t.Fatalf("empty census changed the forecast: %+v", kept)
+	}
+	if _, known := all.GateOnColonists([]PawnID{"absent"}, 5).RunwayDays.Value(); known {
+		t.Fatal("census with no rows kept a runway")
+	}
+}

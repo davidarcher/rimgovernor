@@ -67,6 +67,9 @@ type FoodForecast struct {
 	RunwayDays                                           domain.Fact[float64]
 	UsableNutrition, AtRiskNutrition, InventoryNutrition float64
 	Consumers                                            []ConsumerFoodForecast
+	// PetShortfalls lists non-colonist rows below the minimum runway once
+	// GateOnColonists has taken the colony runway over colonists only.
+	PetShortfalls []ConsumerFoodForecast
 }
 
 func foodNumber(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) && n >= 0 }
@@ -219,4 +222,34 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 		return fail()
 	}
 	return result, nil
+}
+
+// GateOnColonists returns the forecast with RunwayDays taken over the
+// colonists' rows only (#708): one unfed pet must not read the colony as
+// starving. Every other row whose runway falls below minDays is reported in
+// PetShortfalls as its own need. The allocation itself is unchanged, so pets
+// still compete for shared stock. An empty census keeps the all-consumer
+// minimum, and a census with no fed rows leaves the runway unknown.
+func (f FoodForecast) GateOnColonists(colonists []PawnID, minDays float64) FoodForecast {
+	if len(colonists) == 0 {
+		return f
+	}
+	human := map[PawnID]bool{}
+	for _, id := range colonists {
+		human[id] = true
+	}
+	out := f
+	out.RunwayDays, out.PetShortfalls = domain.Unknown[float64](), nil
+	for _, row := range f.Consumers {
+		if !human[row.ID] {
+			if row.RunwayDays < minDays {
+				out.PetShortfalls = append(out.PetShortfalls, row)
+			}
+			continue
+		}
+		if minimum, known := out.RunwayDays.Value(); !known || row.RunwayDays < minimum {
+			out.RunwayDays = domain.Known(row.RunwayDays)
+		}
+	}
+	return out
 }

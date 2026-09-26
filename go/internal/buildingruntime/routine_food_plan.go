@@ -47,6 +47,9 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 	if err != nil {
 		return domain.Unknown[policy.FoodPlan]()
 	}
+	if human, hk := p.FoodSupply.Value(); hk {
+		forecast = forecast.GateOnColonists(foodConsumerIDs(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays)
+	}
 	channels := append(policy.ForageChannels(sources), policy.HuntChannels(sources)...)
 	if benches, bk := p.ProductionBenches.Value(); bk {
 		if human, hk := p.FoodSupply.Value(); hk {
@@ -183,4 +186,12 @@ func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanS
 		}
 	}
 	return gap > 0
+}
+
+func foodConsumerIDs(supply policy.FoodSupply) []policy.PawnID {
+	ids := make([]policy.PawnID, 0, len(supply.Consumers))
+	for _, c := range supply.Consumers {
+		ids = append(ids, c.ID)
+	}
+	return ids
 }

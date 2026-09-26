@@ -42,6 +42,13 @@ func (p ColonyProjection) MealRequest(minDays, targetDays float64) policy.MealTi
 		}
 		if complete {
 			if f, err := policy.ForecastFood(raw, nil); err == nil {
+				if human, hk := p.FoodSupply.Value(); hk {
+					ids := make([]policy.PawnID, 0, len(human.Consumers))
+					for _, c := range human.Consumers {
+						ids = append(ids, c.ID)
+					}
+					f = f.GateOnColonists(ids, minDays)
+				}
 				r.RawRunwayDays = f.RunwayDays
 			}
 		}
