@@ -188,9 +188,10 @@ type PlanSpec struct {
 // the required one: an id the earlier write produced, a position it
 // reached. Ordering alone is not coupling, and the count of orders in a
 // step never is: an ordered-only dependent dispatches live once its
-// prerequisite's outcome arrives, while a coupled one has the clock stopped
-// at the prerequisite's completion so it is prepared against a frozen read
-// of that result (#244, controller-contracts.md "Coupled orders").
+// prerequisite's outcome arrives, while a coupled one is planned at the
+// first step after that outcome, ahead of the planner wave's own cadence,
+// and relies on the native CAS evidence of its admission rather than on a
+// stopped clock (#584; it stopped the epoch until then, #244).
 type ActionDependency struct {
 	Action, Requires ActionID
 	Coupled          bool
@@ -431,9 +432,9 @@ var ErrDependency = errors.New("action prerequisite has not completed in the cur
 
 // CoupledPending names the actions of this plan's coupled dependencies that
 // are ready to dispatch: every prerequisite has completed in the current
-// world and the action itself has not been dispatched. They are the orders a
-// running clock window stops for (#244); a plan without coupled
-// dependencies never has any.
+// world and the action itself has not been dispatched. They are the orders
+// a running clock window plans live for at once (#584); a plan without
+// coupled dependencies never has any.
 func (p PlanSpec) CoupledPending(progress []Progress, current GenerationSnapshot, tick Tick) []ActionID {
 	var ready []ActionID
 	seen := map[ActionID]bool{}

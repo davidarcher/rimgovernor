@@ -203,11 +203,14 @@ type ClockSchedulerResult struct {
 	Dialog                           *RoutineDialogResult
 	Trade                            *RoutineTradeResult
 	Running, Reconciled, Cleaned     bool
-	// Coupled is set with Cleaned when the step stopped its own running
-	// window because a coupled order's prerequisite completed under it
-	// (domain.ActionDependency.Coupled, #244): the Worker prepares the
-	// order against the stopped map and the next step admits again.
+	// Coupled is set when a coupled order's prerequisite completed under
+	// the step's own running window (domain.ActionDependency.Coupled): the
+	// step plans live for it at once and the window runs on (#584); the
+	// order's native CAS evidence refuses a read the world has left behind.
 	Coupled bool
+	// CoupledOrders is how many such orders were ready, the count the
+	// stop-reason breakdown reads from the step row (#584).
+	CoupledOrders int
 	// Unwatched counts the dispatched attempts of a watched kind the
 	// running window does not watch: every one under a routine window,
 	// which arms no watches (#244), and those dispatched after a combat
@@ -814,6 +817,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if out.Unwatched != 0 {
 			extra["unwatched"] = out.Unwatched
 		}
+		// The coupled orders ready under this step's window, and whether
+		// the step ended the window for them (#584): the stop-reason
+		// breakdown counts coupled stops from these fields, since the stop
+		// native journals for one is the controller's own cleanup.
+		if out.CoupledOrders > 0 {
+			extra["coupled_orders"] = out.CoupledOrders
+			if out.Coupled && out.Cleaned {
+				extra["coupled_stop"] = true
+			}
+		}
 		// The stop-to-readmit pause this step closed: the wall time from
 		// the stop of a window this scheduler owed to the admission it
 		// dispatched (issue #162). Absent when the step admitted nothing or
@@ -1010,13 +1023,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			}
 			if len(coupled) > 0 {
 				// A coupled order is written against what its prerequisite
-				// produced, so it is prepared against a frozen read of that
-				// result: stop the window at the completion (#244). The
-				// Worker wakes on the stop and the next step admits again.
-				clockSchedulerLog("coupled orders %v ready under the running window -> stopping", coupled)
-				out.Cleaned = true
+				// produced, so it was prepared at a stop, against a frozen
+				// read of that result (#244). It no longer stops the epoch
+				// (#584): the prerequisite's own OperationOutcome row is
+				// the wake, this step plans live at once, and the native
+				// CAS evidence the dependent's admission carries is what
+				// keeps the order honest against a world that moved since
+				// the read -- a stale read is refused, not obeyed.
+				clockSchedulerLog("coupled orders %v ready under the running window -> live review", coupled)
 				out.Coupled = true
-				return out, s.session.CleanupClockObserved(call, status)
+				out.CoupledOrders = len(coupled)
 			}
 		}
 		out.Running = true
@@ -1028,12 +1044,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 				return out, err
 			}
 		}
-		if status.GetStopping() != nil || !s.livePlanningDue(reason, sel) {
+		// A coupled order ready under the window is planned live whatever
+		// the wave's own cadence says (#584): it is the work the stop used
+		// to be spent on, and it waits for no timer and no pace.
+		coupledDue := out.Coupled && sel.planners
+		if status.GetStopping() != nil || !coupledDue && !s.livePlanningDue(reason, sel) {
 			clockSchedulerLog("clock already running under our own epoch -> no planners this step")
 			out.Waiting = sel.waiting
 			return out, nil
 		}
-		if ticks, paced := s.livePlanningPaced(); paced {
+		if ticks, paced := s.livePlanningPaced(); paced && !coupledDue {
 			// The game outruns the wave: the facts it would plan on go
 			// stale by a fraction of a day before its planners commit,
 			// and the player gate it holds meanwhile keeps the Worker
@@ -1970,8 +1990,8 @@ func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.Attempt
 // step evidence only, and it skips the plan when the watch list is already
 // at the native bound (more attempts than that go unwatched by design). The
 // names are the coupled orders whose prerequisite has completed at the
-// epoch's current tick (domain.PlanSpec.CoupledPending), the one routine
-// reason a running window stops. Both are empty when the plan no longer
+// epoch's current tick (domain.PlanSpec.CoupledPending), which the step
+// plans live for without ending the window (#584). Both are empty when the plan no longer
 // matches the admitted snapshot (the admission tail reports that as
 // evidence on its own).
 func (s *ClockScheduler) runningWork(call context.Context, snapshot domain.GenerationSnapshot, status *k.Status, epoch *k.Epoch) (int, []domain.ActionID, error) {

@@ -375,12 +375,12 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 	}
 }
 
-// A coupled order (domain.ActionDependency.Coupled) is the one routine
-// reason a running window stops: once its prerequisite completes under the
-// window, the step pauses the epoch so the order is prepared against a
-// frozen read of the result (#244). An ordering-only dependency leaves the
-// window running.
-func TestClockSchedulerStopsARunningWindowForACoupledOrder(t *testing.T) {
+// A coupled order (domain.ActionDependency.Coupled) no longer stops the
+// running window (#584): once its prerequisite completes under the window
+// the step reports it and plans live, and the order's own native CAS
+// evidence refuses a stale read. An ordering-only dependency reports
+// nothing and leaves the window running just the same.
+func TestClockSchedulerKeepsARunningWindowForACoupledOrder(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	for _, coupled := range []bool{false, true} {
@@ -423,11 +423,14 @@ func TestClockSchedulerStopsARunningWindowForACoupledOrder(t *testing.T) {
 		if err != nil {
 			t.Fatal(coupled, got, err)
 		}
-		if coupled && (!got.Cleaned || !got.Coupled || got.Running || f.pauses != 1) {
-			t.Fatal("coupled order did not stop the window", got, f.pauses)
+		if got.Cleaned || !got.Running || f.pauses != 0 {
+			t.Fatal("a dependency stopped the window", coupled, got, f.pauses)
 		}
-		if !coupled && (got.Cleaned || got.Coupled || !got.Running || f.pauses != 0) {
-			t.Fatal("ordered dependency stopped the window", got, f.pauses)
+		if coupled && (!got.Coupled || got.CoupledOrders != 1) {
+			t.Fatal("coupled order not reported", got)
+		}
+		if !coupled && (got.Coupled || got.CoupledOrders != 0) {
+			t.Fatal("ordered dependency reported as coupled", got)
 		}
 	}
 }

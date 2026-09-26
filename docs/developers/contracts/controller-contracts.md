@@ -417,11 +417,14 @@ written against the result of the earlier one in the same plan: an id the
 earlier write produced (create a zone, then set its settings), a position it
 reached (draft, then move). An ordering-only dependency, where the later order
 merely waits for the earlier one to complete, is not coupled, and no routine
-planner emits a coupled dependency today. Only a coupled order requests a
-stop: when its prerequisite completes under a running window the scheduler
-stops the window at that completion (`ClockSchedulerResult.Coupled`), the
-worker prepares the order against the stopped map, and the next step admits a
-window again.
+planner emits a coupled dependency today. A coupled order stops nothing
+either (#584): when its prerequisite completes under a running window the
+step reports the ready orders (`ClockSchedulerResult.Coupled`,
+`CoupledOrders`) and plans for them live at once, ahead of the planner
+wave's own cadence, and the window runs on. What keeps such an order honest
+against a world that moved between the read and the write is the CAS
+evidence its admission carries: native refuses a stale order rather than
+obeying it, and the planner prepares it again.
 
 ## Native execution
 

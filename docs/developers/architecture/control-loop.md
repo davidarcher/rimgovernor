@@ -47,7 +47,7 @@ sleeping planner uses the existing bed-assignment operation for ordinary beds.
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock
-lease. Danger, injury, a coupled order and player input can stop a window
+lease. Danger, injury and player input can stop a window
 early (the stop tier, #240); lease expiry also stops a controller that
 becomes unresponsive. Reviews and routine orders happen at the stop between
 windows and under a running window alike (#243, #244): the planners read
@@ -91,11 +91,14 @@ next step starts at the outcome tick. A routine window watches nothing
 (#244): a completed order is not a reason to stop the clock, the
 `OperationOutcome` row the poll carries wakes the worker under the running
 window, and the step records the dispatched attempts the window does not
-watch (`unwatched` on the `clock_step` row) as evidence. The one routine
-stop is a coupled order, a plan action written against what an earlier
-action in the same plan produced (`ActionDependency.Coupled`): the step
-pauses the epoch when the prerequisite completes so the order is prepared
-against a frozen read of the result, and the next step admits again.
+watch (`unwatched` on the `clock_step` row) as evidence.
+A coupled order, a plan action written against what an earlier action in
+the same plan produced (`ActionDependency.Coupled`), stops nothing either
+(#584): the prerequisite's `OperationOutcome` row is the wake, the step
+that sees the order ready plans live for it ahead of the planner wave's own
+cadence, and the CAS evidence its admission carries is what refuses an
+order whose read the world has left behind. The step row names the orders
+(`coupled_orders`).
 Authority
 changes observed while no epoch is running are journaled as
 owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
@@ -114,7 +117,7 @@ planning tolerance (`bridge.PlanningTickTolerance`, the tightest fact
 family's: 250 ticks) or a window has since outrun them; the scheduler's
 `MaxAge` bounds only the admission reads. A routine window runs
 `--clock-window-ticks` (default and maximum one game day, 60000 ticks, the
-#126 bound) unless danger, a coupled order or player input stops it
+#126 bound) unless danger or player input stops it
 earlier: there is no wall-time budget and no `--clock-window-seconds` any
 more (#244), since reviews and routine orders happen under the running
 window. Each step's flight-recorder `clock_step` row carries the window it

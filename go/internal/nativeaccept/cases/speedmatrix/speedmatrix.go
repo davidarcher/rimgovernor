@@ -666,6 +666,10 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks,
 		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
+		// The controller's own coupled-order stops (#584): native journals
+		// them as its cleanup, so they are counted from the step rows and
+		// stand beside the native reason breakdown.
+		"coupled_stops": phases.Steps.Stops.Coupled, "coupled_orders": phases.Steps.Stops.Orders,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
 		// Per stop (#621): detect_ticks, stop_ticks, observe_ms, readmit_ms.
 		"stop_latencies":      stops.Latencies,

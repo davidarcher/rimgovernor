@@ -705,13 +705,14 @@ a completed order is not a reason to stop the clock, and the
 running window. The step counts the dispatched construction and haul
 attempts a running window does not watch (`ClockSchedulerResult.Unwatched`,
 the `clock_step` row's `unwatched`), evidence only; the pause-and-rearm
-cycle of #207 is gone with the routine watches. The one routine reason a
-running window stops is a coupled order (`domain.ActionDependency.Coupled`,
-controller-contracts.md "Coupled orders"): when its prerequisite has
-completed at the epoch's current tick and the order is still undispatched
-(`PlanSpec.CoupledPending`), the step pauses the epoch through the cleanup
-path and reports `Cleaned` with `Coupled`, the worker wakes on the stop and
-prepares the order against the stopped map, and the next step admits again.
+cycle of #207 is gone with the routine watches. A coupled order
+(`domain.ActionDependency.Coupled`, controller-contracts.md "Coupled
+orders") no longer stops the window either (#584): when its prerequisite
+has completed at the epoch's current tick and the order is still
+undispatched (`PlanSpec.CoupledPending`), the step reports `Coupled` with
+`CoupledOrders`, plans live for it whatever the wave's cadence or the pace
+skip would say, and leaves the epoch running; the order's own CAS evidence
+refuses a read the world has left behind.
 
 A step that finds its own window running plans under it (#243): the
 planners read the bundle's snapshot (one main-thread hop, so its sections

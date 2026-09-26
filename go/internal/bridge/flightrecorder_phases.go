@@ -167,7 +167,15 @@ func (d DispatchSample) RefusedFraction() float64 {
 // it, over the rows that carried "stop_latency_ms" (LatencySamples; a
 // negative sample, clock skew, is dropped).
 type StopSample struct {
-	Count          uint64  `json:"count"`
+	Count uint64 `json:"count"`
+	// Orders counts the coupled orders that became ready under a running
+	// window (clock_step "coupled_orders") and Coupled the steps that
+	// ended the window for them ("coupled_stop"). Native journals such a
+	// stop as the controller's own cleanup, so the step row is the only
+	// place a coupled stop is distinguishable; a ready order with no stop
+	// was prepared live (#584).
+	Coupled        uint64  `json:"coupled"`
+	Orders         uint64  `json:"coupled_orders"`
 	LatencySamples uint64  `json:"latency_samples"`
 	MeanLatencyMs  float64 `json:"mean_latency_ms"`
 	MaxLatencyMs   float64 `json:"max_latency_ms"`
@@ -413,6 +421,12 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					steps.MaxLiveReads = max(steps.MaxLiveReads, reads)
 					steps.LiveElapsedMs += elapsed
 					steps.MaxLiveElapsedMs = math.Max(steps.MaxLiveElapsedMs, elapsed)
+				}
+			}
+			if orders := uint64(field(row.Payload, "coupled_orders")); orders > 0 {
+				steps.Stops.Orders += orders
+				if coupled, _ := row.Payload["coupled_stop"].(bool); coupled {
+					steps.Stops.Coupled++
 				}
 			}
 			if stop, _ := row.Payload["stop"].(bool); stop {
@@ -704,10 +718,13 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 				fmt.Fprintf(w, "; %d live steps: reads mean %.1f max %d, wall mean %.0fms max %.0fms", steps.LiveSteps, steps.LiveReadsPerStep(), steps.MaxLiveReads, steps.LiveStepMs(), steps.MaxLiveElapsedMs)
 			}
 		}
-		if stops := steps.Stops; stops.Count > 0 {
+		if stops := steps.Stops; stops.Count > 0 || stops.Coupled > 0 {
 			fmt.Fprintf(w, "\nstops: %d woke a step", stops.Count)
 			if stops.LatencySamples > 0 {
 				fmt.Fprintf(w, ", stop->step latency mean %.1fms max %.1fms over %d samples", stops.MeanLatencyMs, stops.MaxLatencyMs, stops.LatencySamples)
+			}
+			if stops.Coupled > 0 {
+				fmt.Fprintf(w, ", %d raised for %d coupled order(s)", stops.Coupled, stops.Orders)
 			}
 		}
 		names := make([]string, 0, len(steps.Tools))
