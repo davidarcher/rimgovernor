@@ -458,7 +458,8 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 				return
 			}
 			if problems := na.PlayerRowProblems(na.PlayerRow{HazardGaps: phases.Clock.NativeHazardGaps, SpeedChanges: stops.SpeedChanges, Ticks: lastTick - startTick,
-				PacedFrames: phases.Clock.NativePacedFrames, OverBudget: phases.Clock.NativePacedOverBudget, LastPacingReason: na.LastPacingReason(rows)}); len(problems) > 0 {
+				PacedFrames: phases.Clock.NativePacedFrames, OverBudget: phases.Clock.NativePacedOverBudget, LastPacingReason: na.LastPacingReason(rows),
+				Dispatch: phases.Observation.Queue}); len(problems) > 0 {
 				err = fmt.Errorf("player row: %s", strings.Join(problems, "; "))
 			}
 		}()

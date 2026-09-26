@@ -110,6 +110,9 @@ func (c SpeedCase) ServeArgs() []string {
 const (
 	MaxPlayerOverBudgetShare     = 0.05
 	MaxPlayerSpeedChangesPer6000 = 6
+	// PlayerFrameBudgetMS is native's default frame budget, the one the
+	// player row runs under (it passes no --clock-frame-budget).
+	PlayerFrameBudgetMS = 30
 )
 
 // PlayerRow is what the player row's checks read.
@@ -121,6 +124,10 @@ type PlayerRow struct {
 	// LastPacingReason is the pacing reason of the last step that found a
 	// window running.
 	LastPacingReason string
+	// Dispatch is the main-thread queue wait of the commands the row's
+	// service queued while the clock ran (the observation hops' queueMs):
+	// its p95 must land inside the frame budget.
+	Dispatch bridge.Quantiles
 }
 
 // PlayerRowProblems lists every player-row bound the run broke.
@@ -135,6 +142,11 @@ func PlayerRowProblems(row PlayerRow) []string {
 		problems = append(problems, "no frame ran under player pacing")
 	} else if share := float64(row.OverBudget) / float64(row.PacedFrames); share > MaxPlayerOverBudgetShare {
 		problems = append(problems, fmt.Sprintf("%d of %d paced frames (%.1f%%) exceeded the frame budget", row.OverBudget, row.PacedFrames, share*100))
+	}
+	if row.Dispatch.Samples == 0 {
+		problems = append(problems, "no queued command reported its main-thread dispatch wait")
+	} else if row.Dispatch.P95 > PlayerFrameBudgetMS {
+		problems = append(problems, fmt.Sprintf("queued commands waited %.1fms (p95 over %d) for dispatch, past the %dms frame budget", row.Dispatch.P95, row.Dispatch.Samples, PlayerFrameBudgetMS))
 	}
 	if row.Ticks > 0 {
 		if per := float64(row.SpeedChanges) * 6000 / float64(row.Ticks); per > MaxPlayerSpeedChangesPer6000 {
