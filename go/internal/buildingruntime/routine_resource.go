@@ -308,7 +308,27 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		if beer && choice.Kind == policy.ResourceMethodWait {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 		}
-		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, nil)
+		var pre *sourceSelection
+		if !beer && benchFilter == nil {
+			remote, err := r.miningReach(call, state, reviewTick)
+			if err != nil {
+				return RoutineResourceResult{}, err
+			}
+			selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
+			if !ok {
+				r.reviewer.bids.bid(state.Snapshot, resource, bidResource, 0, "", reviewTick)
+				return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+			}
+			pre = &sourceSelection{selected, sourceStorage}
+			ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, target-resourceCount(stock, resource)), policy.MineCandidates(resource, selected, domain.Known(sourceStorage.Capacity)), policy.AcquisitionCompetition{})
+			if err != nil {
+				return RoutineResourceResult{}, err
+			}
+			if r.outbid(goal, state, resource, ranked, reviewTick) {
+				return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+			}
+		}
+		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, pre)
 		return result, err
 	}
 	// Both a bill and a deposit can cover the deficit (smelting against
@@ -329,6 +349,9 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, deficit), candidates, policy.AcquisitionCompetition{})
 		if err != nil {
 			return RoutineResourceResult{}, err
+		}
+		if r.outbid(goal, state, resource, ranked, reviewTick) {
+			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 		}
 		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
 			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Goal.ID, resource, ranked[0].ID, ranked[0].Score)
@@ -401,6 +424,21 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		return RoutineResourceResult{}, err
 	}
 	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// outbid posts this planner's best catalog score for resource on the joint
+// board (#728) and reports whether the acquisition planner's chop, harvest
+// or hunt bid beats it: the resource is then left to that planner.
+func (r *RoutineResourcePlanner) outbid(goal store.GoalState, state ControlState, resource policy.Resource, ranked []policy.AcquisitionScore, tick domain.Tick) bool {
+	var best policy.AcquisitionScore
+	if len(ranked) > 0 {
+		best = ranked[0]
+	}
+	rival, yield := r.reviewer.bids.bid(state.Snapshot, resource, bidResource, best.Score, best.Kind, tick)
+	if yield {
+		clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", goal.Goal.ID, resource, best.Kind, best.Score, rival.kind, rival.score)
+	}
+	return yield
 }
 
 // resourceCount is resource's units in a known census, 0 otherwise.

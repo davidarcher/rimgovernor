@@ -41,6 +41,9 @@ type RoutineReviewer struct {
 	// stageLogged is the last stage record logged; the service log records
 	// a change once, not every review.
 	stageLogged domain.Fact[policy.ColonyStageRecord]
+	// bids is MaintainResource's joint ranking across its two planners
+	// (#728); see acquisitionBoard.
+	bids acquisitionBoard
 }
 
 // staged is the configured policy with its goal budgets set by the colony

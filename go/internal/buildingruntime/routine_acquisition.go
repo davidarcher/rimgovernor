@@ -279,7 +279,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	var selected []policy.AcquisitionSource
 	if stockGoal {
-		selected, err = r.resourceSelection(call, state.Snapshot, projection, held, slots)
+		selected, err = r.resourceSelection(call, state.Snapshot, expected.Tick, projection, held, slots)
 	} else if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
 	} else {
@@ -358,8 +358,9 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 
 // resourceSelection is MaintainResource's census selection: the floors
 // worst-covered first, and for the first with chop, harvest or hunt
-// sources, policy.SelectCatalogAcquisition against its deficit.
-func (r *RoutineAcquisitionPlanner) resourceSelection(ctx context.Context, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, held map[string]bool, slots domain.Fact[int]) ([]policy.AcquisitionSource, error) {
+// sources the bill and mine planner does not outbid,
+// policy.SelectCatalogAcquisition against its deficit.
+func (r *RoutineAcquisitionPlanner) resourceSelection(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, projection observation.ColonyProjection, held map[string]bool, slots domain.Fact[int]) ([]policy.AcquisitionSource, error) {
 	rows, known := projection.Acquisition.Value()
 	if !known {
 		return nil, errors.New("acquisition census unknown")
@@ -375,11 +376,17 @@ func (r *RoutineAcquisitionPlanner) resourceSelection(ctx context.Context, snaps
 	}
 	hunts, _ := slots.Value()
 	for _, row := range ranked {
-		selected, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), projection.Center, held, hunts)
+		selected, best, err := policy.SelectCatalogAcquisition(rows, row.Resource, row.Target-resourceCount(stock, row.Resource), projection.Center, held, hunts)
 		if err != nil {
 			return nil, err
 		}
 		clockSchedulerLog("%s: catalog %s target=%d selected=%d", r.need, row.Resource, row.Target, len(selected))
+		// Joint ranking with the bill and mine planner (#728): a resource
+		// its fresh bid scores higher is left to it.
+		if rival, yield := r.reviewer.bids.bid(snapshot, row.Resource, bidAcquisition, best.Score, best.Kind, tick); yield {
+			clockSchedulerLog("%s: %s %s %.3f yields to %s %.3f", r.need, row.Resource, best.Kind, best.Score, rival.kind, rival.score)
+			continue
+		}
 		if len(selected) > 0 {
 			return selected, nil
 		}

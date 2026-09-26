@@ -60,21 +60,21 @@ func TestSelectCatalogAcquisition(t *testing.T) {
 		{ID: "done", Resource: "WoodLog", Tree: true, Designated: true, Yield: 20},
 		{ID: "held", Resource: "WoodLog", Tree: true, Yield: 30, Cell: domain.Cell{X: 1}},
 	}
-	got, err := SelectCatalogAcquisition(rows, "WoodLog", 70, domain.Cell{}, map[string]bool{"held": true}, 0)
-	if err != nil || len(got) != 2 || got[0].ID != "near" || got[1].ID != "mid" {
+	got, best, err := SelectCatalogAcquisition(rows, "WoodLog", 70, domain.Cell{}, map[string]bool{"held": true}, 0)
+	if err != nil || len(got) != 2 || got[0].ID != "near" || got[1].ID != "mid" || best.ID != "near" || best.Score <= 0 {
 		t.Fatalf("%+v %v", got, err)
 	}
-	if got, _ := SelectCatalogAcquisition(rows, "WoodLog", 20, domain.Cell{}, nil, 0); len(got) != 0 {
+	if got, _, _ := SelectCatalogAcquisition(rows, "WoodLog", 20, domain.Cell{}, nil, 0); len(got) != 0 {
 		t.Fatal("designated yield covers the need", got)
 	}
 	hunts := []AcquisitionSource{
 		{ID: "a", Resource: "Meat_Hare", Hunt: true, Food: true, Yield: 1, NutritionYield: 1},
 		{ID: "b", Resource: "Meat_Hare", Hunt: true, Food: true, Yield: 1, NutritionYield: 1},
 	}
-	if got, _ := SelectCatalogAcquisition(hunts, "Meat_Hare", 5, domain.Cell{}, nil, 1); len(got) != 1 {
+	if got, _, _ := SelectCatalogAcquisition(hunts, "Meat_Hare", 5, domain.Cell{}, nil, 1); len(got) != 1 {
 		t.Fatal("hunt slots exceeded", got)
 	}
-	if got, _ := SelectCatalogAcquisition(hunts, "Meat_Hare", 5, domain.Cell{}, nil, 0); len(got) != 0 {
+	if got, _, _ := SelectCatalogAcquisition(hunts, "Meat_Hare", 5, domain.Cell{}, nil, 0); len(got) != 0 {
 		t.Fatal("hunted without a slot", got)
 	}
 }

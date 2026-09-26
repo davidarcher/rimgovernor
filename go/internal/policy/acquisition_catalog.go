@@ -124,8 +124,9 @@ const maxCatalogSelection = 8
 // yielding it is a catalog candidate, ranked by RankResourceCandidates
 // against need less the yield already designated, and taken best first
 // until the rest of the need is covered, at most huntSlots hunts and
-// maxCatalogSelection rows.
-func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need int64, home domain.Cell, held map[string]bool, huntSlots int) ([]AcquisitionSource, error) {
+// maxCatalogSelection rows. best is the top-ranked selected row's score,
+// the bid MaintainResource's joint ranking compares (#728).
+func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need int64, home domain.Cell, held map[string]bool, huntSlots int) (selected []AcquisitionSource, best AcquisitionScore, err error) {
 	byID := map[string]AcquisitionSource{}
 	var open []AcquisitionSource
 	for _, row := range rows {
@@ -143,11 +144,11 @@ func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need 
 		open = append(open, row)
 	}
 	if need <= 0 || len(open) == 0 {
-		return nil, nil
+		return nil, AcquisitionScore{}, nil
 	}
 	ranked, err := RankResourceCandidates(ResourceDeficitDemand(resource, need), AcquisitionSourceCandidates(resource, open, home, domain.Known(need)), AcquisitionCompetition{})
 	if err != nil {
-		return nil, err
+		return nil, AcquisitionScore{}, err
 	}
 	var out []AcquisitionSource
 	for _, s := range ranked {
@@ -158,11 +159,14 @@ func SelectCatalogAcquisition(rows []AcquisitionSource, resource Resource, need 
 			}
 			huntSlots--
 		}
+		if len(out) == 0 {
+			best = s
+		}
 		out = append(out, row)
 		need -= int64(math.Round(row.Yield))
 		if need <= 0 || len(out) == maxCatalogSelection {
 			break
 		}
 	}
-	return out, nil
+	return out, best, nil
 }
