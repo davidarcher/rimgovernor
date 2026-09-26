@@ -29,6 +29,9 @@ type RoutineClearancePlanner struct {
 type RoutineClearanceResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks asks for game time while ordinary hauling moves
+	// designated chunks into their store.
+	NativeWorkTicks uint32
 }
 
 func NewRoutineClearancePlanner(reviewer *RoutineReviewer, native RoutineClearanceSource) (*RoutineClearancePlanner, error) {
@@ -202,6 +205,10 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	return RoutineClearanceResult{Reason: result.Reason, Plan: result.Plan}, err
 }
 
+// chunkHaulWorkTicks bounds one clock window spent letting ordinary hauling
+// carry designated chunks; the next review re-reads which are stored.
+const chunkHaulWorkTicks = 2500
+
 // maxChunkHaulBatch bounds one chunk-haul method; the next review designates
 // the rest.
 const maxChunkHaulBatch = 8
@@ -228,7 +235,7 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	method := domain.MethodID(fmt.Sprintf("chunk-haul-%x", hash[:16]))
 	for _, m := range goal.Methods {
 		if m.Method == method {
-			return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+			return RoutineClearanceResult{Reason: BuildingMethodUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
 		}
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))

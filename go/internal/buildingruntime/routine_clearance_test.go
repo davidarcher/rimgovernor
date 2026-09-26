@@ -116,7 +116,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 	v.Planning.GetObserved().ZoneMapSnapshot = &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String(fmt.Sprintf("map-%d", v.Context.Identity.GetMapId())), Token: proto.String("zone-map")}
 
 	source := &routineClearanceNative{routineBlightNative: &routineBlightNative{routineNative: native}}
-	source.chunks = []*o.ClearanceChunk{clearanceChunk("hauled", 40, 40, false, false, true), clearanceChunk("stored", 41, 40, false, true, false)}
+	source.chunks = []*o.ClearanceChunk{clearanceChunk("forbidden", 40, 40, true, false, true), clearanceChunk("stored", 41, 40, false, true, false)}
 	reviewer.native = source
 	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearHomeObstructions})
 	ctx := context.Background()
@@ -129,7 +129,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 			continue
 		}
 		if goal, err := db.LoadGoal(ctx, binding.Goal); err != nil || goal.Goal.Need == domain.NeedDeficit {
-			t.Fatal("hauled and stored chunks are no clearance deficit", goal, err)
+			t.Fatal("forbidden and stored chunks are no clearance deficit", goal, err)
 		}
 	}
 

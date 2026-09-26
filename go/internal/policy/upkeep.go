@@ -322,7 +322,10 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 				if !valid(seen, row.EntityID) {
 					return r, errors.New("invalid clearance chunk")
 				}
-				if ChunkHoldReason(row) == "" {
+				// A chunk a store takes still needs the Haul designation
+				// ordinary hauling waits for (#702), so only a stored or
+				// forbidden stack is off the deficit (#764).
+				if !row.Stored && !row.Forbidden {
 					selected = append(selected, row.EntityID)
 				}
 			}

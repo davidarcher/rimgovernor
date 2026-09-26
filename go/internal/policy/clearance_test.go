@@ -100,7 +100,13 @@ func TestChunkHoldsAndPendingDeficit(t *testing.T) {
 	if err != nil || !r.History.Clearance {
 		t.Fatal(r, err)
 	}
-	r, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Chunks: domain.Known(rows[1:4])}, UpkeepHistory{}, nil)
+	// A chunk a store takes stays a deficit until stored: it still needs
+	// the Haul designation ordinary hauling waits for (#702, #764).
+	r, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Chunks: domain.Known(rows[3:4])}, UpkeepHistory{}, nil)
+	if err != nil || !r.History.Clearance {
+		t.Fatal(r, err)
+	}
+	r, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Chunks: domain.Known(rows[1:3])}, UpkeepHistory{}, nil)
 	if err != nil || r.History.Clearance {
 		t.Fatal(r, err)
 	}

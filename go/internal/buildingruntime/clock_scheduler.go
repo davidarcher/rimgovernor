@@ -1221,6 +1221,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Fields != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Fields.NativeWorkTicks)
 	}
+	// Designated chunks are carried by ordinary hauling (#702, #764).
+	if out.Clearance != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Clearance.NativeWorkTicks)
+	}
 	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.BasicComfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)

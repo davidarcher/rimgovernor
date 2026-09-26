@@ -723,11 +723,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		recoveryServiceCapabilities = client.recoveryService
 	}
 	// The defensive layout clears raider cover inside the engagement zone
-	// once every tier stands (#581).
+	// once every tier stands (#581); routine clearance designates chunks for
+	// hauling with the same action (#702, #764).
 	var coverClearanceCapabilities *coverclearance.CoverClearanceCapabilities
-	if config.routineDefensiveLayoutPlans {
+	if config.routineDefensiveLayoutPlans || config.routineClearancePlans {
 		if client.coverClearance == nil {
-			return errors.New("defensive-layout plans require typed cover clearance capabilities")
+			return errors.New("defensive-layout and clearance plans require typed cover clearance capabilities")
 		}
 		coverClearanceCapabilities = client.coverClearance
 	}

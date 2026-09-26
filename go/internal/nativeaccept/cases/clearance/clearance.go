@@ -143,7 +143,7 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 	if err != nil {
 		return err
 	}
-	admitted := false
+	admitted, designated := false, false
 	err = na.WaitProgress(ctx, wait(service), func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
 		if err != nil {
@@ -162,8 +162,15 @@ func runChunks(ctx context.Context, s cases.Session, fixture, before map[string]
 				return "", false, err
 			}
 			admitted = admitted || len(plans) > 0
+			// A dump alone never moves a chunk (#702): the haul plan designates
+			// them, so the service must run until it is admitted too.
+			hauls, err := journal.PlanHistoryWithPrefix(ctx, "routine-chunk-haul", 256)
+			if err != nil {
+				return "", false, err
+			}
+			designated = designated || len(hauls) > 0
 			s.Report()["chunk_goal"] = goal.Goal
-			return na.Signature(goal.Goal.Need, len(goal.Methods)), admitted && goal.Goal.Need == domain.NeedRecovered, nil
+			return na.Signature(goal.Goal.Need, len(goal.Methods), designated), admitted && designated && goal.Goal.Need == domain.NeedRecovered, nil
 		}
 		return "waiting for chunk goal", false, nil
 	})

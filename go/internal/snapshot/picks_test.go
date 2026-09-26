@@ -65,9 +65,9 @@ func TestPickFeedZoneThenDelivery(t *testing.T) {
 	}
 }
 
-// clearance/chunk-dump, tick 15: the dump allows the pending chunk kinds
-// no existing store takes, plus slag (#702), on four native dump sites
-// clear of every reserved footprint.
+// clearance/chunk-dump, tick 15: the three fixture chunks no store takes
+// get one dump allowing exactly their kinds (slag is always allowed,
+// #702), on four native dump sites clear of every reserved footprint.
 func TestPickChunkDumpForUnstoredKinds(t *testing.T) {
 	p := planner(t, "testdata/planner-chunk-dump.json")
 	if len(p.ChunkDumps) != 1 {
@@ -78,12 +78,10 @@ func TestPickChunkDumpForUnstoredKinds(t *testing.T) {
 	if !ok {
 		t.Fatal("no dump selected")
 	}
-	// Only the stray slate chunk is pending: the fixture chunks already
-	// have a store and are left to hauling. Slag is always allowed.
-	if pending := policy.PendingChunks(c.Chunks); len(pending) != 1 || pending[0].EntityID != "Thing_ChunkSlate43408" {
-		t.Errorf("pending %v, want the slate chunk", pending)
+	if pending := policy.PendingChunks(c.Chunks); len(pending) != 3 {
+		t.Errorf("pending %v, want the three fixture chunks", pending)
 	}
-	if !reflect.DeepEqual(allow, []string{"ChunkSlagSteel", "ChunkSlate"}) {
+	if !reflect.DeepEqual(allow, []string{"ChunkGranite", "ChunkLimestone", "ChunkSlagSteel"}) {
 		t.Errorf("dump allows %v", allow)
 	}
 	if len(cells) != 4 {

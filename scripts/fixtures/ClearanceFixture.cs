@@ -51,8 +51,15 @@ namespace HomeBridge.BridgeTools
                     var rocks = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.thingCategories?.Contains(ThingCategoryDefOf.StoneChunks) == true).OrderBy(d => d.defName).Take(2).ToList();
                     if (rocks.Count != 2) throw new InvalidOperationException("Two stone chunk definitions required.");
                     rocks.Add(DefDatabase<ThingDef>.GetNamed("ChunkSlagSteel"));
-                    foreach (var zone in map.zoneManager.AllZones.OfType<Zone_Stockpile>())
-                        foreach (var def in rocks) zone.GetStoreSettings().filter.SetAllow(def, false);
+                    // No store may take the fixture chunks, or the census reads them as
+                    // hauling rather than pending (#764): every haul destination, shelves
+                    // and other storage buildings as well as stockpile zones.
+                    foreach (var store in map.haulDestinationManager.AllHaulDestinationsListForReading.OfType<IStoreSettingsParent>())
+                        foreach (var def in rocks) store.GetStoreSettings()?.filter.SetAllow(def, false);
+                    // A stray baseline chunk near the site joins the census once Home
+                    // grows around it; clear every chunk well past the staged square.
+                    foreach (var t in GenRadial.RadialDistinctThingsAround(site, map, 12, true).Where(t => t.def.category == ThingCategory.Item && t.def.IsWithinCategory(ThingCategoryDefOf.Chunks)).ToList())
+                        t.Destroy(DestroyMode.Vanish);
                     for (int i = 0; i < rocks.Count; i++) {
                         var chunk = GenSpawn.Spawn(ThingMaker.MakeThing(rocks[i]), site + IntVec3.East * (i - 1), map);
                         chunk.SetForbidden(false, false); ids.Add(chunk.GetUniqueLoadID()); defs.Add(chunk.def.defName);
