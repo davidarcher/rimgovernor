@@ -46,12 +46,16 @@ type ToolPhases struct {
 	// ObservationHops whose reply carried the observation account: reading
 	// game state, then ProtoJSON formatting and its UTF-8 size checks, the
 	// formatting passes and the payload bytes they produced. Zero
-	// ObservationHops means absent, not free.
+	// ObservationHops means absent, not free. FormatMs is always formatting
+	// on the game thread; a detached reply's worker formatting (#644) is
+	// EncodeMs over EncodeHops, outside the execute leg.
 	ObservationHops uint64  `json:"observation_hops"`
 	CaptureMs       float64 `json:"capture_ms"`
 	FormatMs        float64 `json:"format_ms"`
 	FormatPasses    uint64  `json:"format_passes"`
 	PayloadBytes    uint64  `json:"payload_bytes"`
+	EncodeHops      uint64  `json:"encode_hops,omitempty"`
+	EncodeMs        float64 `json:"encode_ms,omitempty"`
 }
 
 // PhaseSummary is a read-only aggregation of one flight-recorder timeline:
@@ -352,6 +356,10 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					entry.FormatMs += account.formatMs
 					entry.FormatPasses += account.formatPasses
 					entry.PayloadBytes += account.payloadBytes
+					if account.detached {
+						entry.EncodeHops++
+						entry.EncodeMs += account.encodeMs
+					}
 					observation.hop(account)
 				}
 				if account, ok := readFrames(timing); ok {
@@ -814,6 +822,12 @@ func writeObservationReport(w io.Writer, summary PhaseSummary) {
 		writeQuantiles(w, "queue", obs.Queue)
 		writeQuantiles(w, "exec", obs.Execute)
 		fmt.Fprintln(w)
+		if obs.EncodeHops > 0 {
+			fmt.Fprintf(w, "  off-thread encode: %d hops", obs.EncodeHops)
+			writeQuantiles(w, "queue", obs.EncodeQueue)
+			writeQuantiles(w, "encode", obs.Encode)
+			fmt.Fprintf(w, ", %d formatting passes (%.1fms)\n", obs.EncodeFormatPasses, obs.EncodeFormatMs)
+		}
 		if obs.Hops > 0 {
 			fmt.Fprintf(w, "  %d formatting passes, %.1f MiB returned", obs.FormatPasses, float64(obs.PayloadBytes)/(1024*1024))
 			if obs.Dropped > 0 {

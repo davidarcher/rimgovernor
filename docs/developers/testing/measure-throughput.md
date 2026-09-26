@@ -214,7 +214,8 @@ Observation capture (`observation`, from each hop's `native_observation`):
 | `hops` | Replies that carried a capture account. `0` with a `queue`/`exec` distribution present means the recording predates the account: the split is unknown, not zero. |
 | `capture`, `format` | Where the hop's main-thread time went: reading game state, and ProtoJSON formatting plus the UTF-8 size checks that precede it. Each is a `Quantiles`: `samples`, `p50_ms`, `p95_ms`, `p99_ms`, `max_ms`, `sum_ms`, **nearest rank** -- with `n` samples sorted ascending the `q` quantile is the sample at 1-based index `ceil(q*n)`, so a small sample set names an actual observed hop rather than an interpolated one. `samples` of 0 prints `unknown`. |
 | `queue`, `exec` | The same distributions over the companion's `queueMs`/`executeMs` (#631), which every timed reply carries, so they cover more hops than `capture` does. `exec` is main-thread elapsed work; `queue` is the wait for the main thread. When the capture moves off the main thread these stay distinct: `exec` remains the main-thread leg. |
-| `format_passes`, `payload_bytes` | Formatting passes paid for (a size check that reformats counts again) and the UTF-8 bytes actually returned. |
+| `format_passes`, `payload_bytes` | Main-thread formatting passes paid for (a size check that reformats counts again) and the UTF-8 bytes actually returned. |
+| `encode_hops`, `encode_queue`, `encode`, `encode_format_passes`, `encode_format_ms` | Detached replies (#644, the scheduler bundle): captured on the main thread, then formatted on a bounded encoder worker. Per hop, the wait for the worker and its wall, plus the worker's own formatting passes and time. None of it is in `exec`, and for these hops `format`/`format_passes` count only formatting still left on the main thread. A reply without the block formatted on the main thread, so older recordings read as before. The text report prints an `off-thread encode` line only when a reply carried the block. |
 | `dropped_sections` | Sections the companion dropped to stay inside the 1 MiB envelope. |
 | `sections` | Per requested section: `hops`, `ms`, `max_ms`, `rows` returned and `candidates` it could have returned. `candidates` is absent (`-`) where the section has no candidate set to compare against, never 0 -- only `colonistPawns` (the ids asked for) and `planningWindow` (the requested rectangle's cells) know theirs. |
 | `outcomes` | Hops by outcome: `ok`, `failure`, `unavailable`, `error` (a hop that threw is accounted, not dropped). |
@@ -252,7 +253,11 @@ the clock block (`native_paused_ms`, `paused_fraction_native`) and in
 - A slow bundle: compare `capture` with `format` for the same hops. A high
   `capture` p95 with a dominant row in `sections` is a read (that section);
   a high `format` p95 with `format_passes` above `hops` is encoding, paid
-  twice by a size check. `queue` p95 well above `exec` is a busy main
+  twice by a size check. A detached bundle formats once on its encoder
+  (`encode_format_passes` equal to `encode_hops` unless the envelope forced
+  a drop), so its `format` is near zero; a large `encode_queue` is the
+  encoders saturated, which refuses a bundle rather than delaying the main
+  thread. `queue` p95 well above `exec` is a busy main
   thread, not an expensive observation.
 - A hitch: read `frames` `slow` counts and `worst`. An interval whose
   `observation_ms` is most of its `interval_ms` was blocked by that hop, and

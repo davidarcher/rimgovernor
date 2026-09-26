@@ -12,6 +12,13 @@ import (
 // each requested section produced -- and, cumulatively for the loaded game
 // session, the update-to-update intervals its frame recorder measured.
 //
+// A detached reply (#644) is captured on the game thread and formatted on an
+// encoder worker: its account adds an "encode" block (the worker's queue
+// wait, its wall, and its own formatting passes and time), and its formatMs
+// and formatPasses then count only formatting that still ran on the game
+// thread. A reply without the block formatted on the game thread, which is
+// what formatMs has always meant, so older recordings read unchanged.
+//
 // Every field here is additive and optional. A recording written by a
 // companion that predates the account carries none of it, which the report
 // shows as unknown (sample counts of zero, "-" in the text report), never as
@@ -116,6 +123,15 @@ type ObservationSample struct {
 	Execute  Quantiles         `json:"execute"`
 	Sections []SectionPhases   `json:"sections,omitempty"`
 	Outcomes map[string]uint64 `json:"outcomes,omitempty"`
+	// The detached encode (#644), over the EncodeHops whose account carried
+	// the encode block: worker queue wait and wall per hop, and the passes
+	// and time the worker spent formatting. None of it ran on the game
+	// thread, so none of it is in Execute.
+	EncodeHops         uint64    `json:"encode_hops,omitempty"`
+	EncodeFormatPasses uint64    `json:"encode_format_passes,omitempty"`
+	EncodeFormatMs     float64   `json:"encode_format_ms,omitempty"`
+	EncodeQueue        Quantiles `json:"encode_queue"`
+	Encode             Quantiles `json:"encode"`
 	// Threats is the status read's threat classification work (#646),
 	// absent when no hop reported one.
 	Threats *ThreatScan `json:"threat_scan,omitempty"`
@@ -211,7 +227,11 @@ type observationRecord struct {
 	dropped             uint64
 	outcome             string
 	sections            []SectionPhases
-	threats             *ThreatScan
+	// The encode block, when the reply was detached.
+	detached                           bool
+	encodeQueueMs, encodeMs, encFormat float64
+	encodeFormatPasses                 uint64
+	threats                            *ThreatScan
 }
 
 // readObservation reads the "native_observation" block the service copies
@@ -233,6 +253,15 @@ func readObservation(timing map[string]any) (observationRecord, bool) {
 	out.payloadBytes = countOf(raw["payloadBytes"])
 	out.dropped = countOf(raw["droppedSections"])
 	out.outcome, _ = raw["outcome"].(string)
+	if encode, ok := raw["encode"].(map[string]any); ok {
+		queue, hasQueue := number(encode["queueMs"])
+		ms, hasMs := number(encode["ms"])
+		if hasQueue && hasMs && queue >= 0 && ms >= 0 {
+			out.detached, out.encodeQueueMs, out.encodeMs = true, queue, ms
+			out.encFormat, _ = number(encode["formatMs"])
+			out.encodeFormatPasses = countOf(encode["formatPasses"])
+		}
+	}
 	if scan, ok := raw["threatScan"].(map[string]any); ok {
 		out.threats = &ThreatScan{Hops: 1, Examined: countOf(scan["examined"]), Candidates: countOf(scan["candidates"]),
 			Projections: countOf(scan["projections"]), ProximityChecks: countOf(scan["proximityChecks"])}
@@ -251,7 +280,7 @@ func readObservation(timing map[string]any) (observationRecord, bool) {
 				Rows: countOf(body["rows"]), Candidates: countOf(body["candidates"])})
 		}
 	}
-	if !hasCapture && !hasFormat && out.payloadBytes == 0 && len(out.sections) == 0 {
+	if !hasCapture && !hasFormat && !out.detached && out.payloadBytes == 0 && len(out.sections) == 0 {
 		return observationRecord{}, false
 	}
 	return out, true
@@ -332,6 +361,7 @@ func countOf(value any) uint64 {
 type observationAccumulator struct {
 	sample                          ObservationSample
 	capture, format, queue, execute []float64
+	encodeQueue, encode             []float64
 	sections                        map[string]*SectionPhases
 }
 
@@ -346,6 +376,13 @@ func (a *observationAccumulator) hop(record observationRecord) {
 		a.capture = append(a.capture, record.captureMs)
 	}
 	a.format = append(a.format, record.formatMs)
+	if record.detached {
+		a.sample.EncodeHops++
+		a.sample.EncodeFormatPasses += record.encodeFormatPasses
+		a.sample.EncodeFormatMs += math.Max(0, record.encFormat)
+		a.encodeQueue = append(a.encodeQueue, record.encodeQueueMs)
+		a.encode = append(a.encode, record.encodeMs)
+	}
 	if record.outcome != "" {
 		if a.sample.Outcomes == nil {
 			a.sample.Outcomes = map[string]uint64{}
@@ -390,6 +427,7 @@ func (a *observationAccumulator) result() ObservationSample {
 	out := a.sample
 	out.Capture, out.Format = quantiles(a.capture), quantiles(a.format)
 	out.Queue, out.Execute = quantiles(a.queue), quantiles(a.execute)
+	out.EncodeQueue, out.Encode = quantiles(a.encodeQueue), quantiles(a.encode)
 	for _, section := range a.sections {
 		out.Sections = append(out.Sections, *section)
 	}

@@ -1,4 +1,6 @@
 #nullable enable
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -53,11 +55,49 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.BundleRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.BundleReply { Failure = failure });
             var waitMs = parsed.Events != null && parsed.Events.HasWaitMs ? (int)parsed.Events.WaitMs : 0;
-            Task<bool>? wake = null;
-            var first = await ProtoBoundary.OnMainThread(ctx, () => Read(parsed, waitMs, out wake), cancellationToken).ConfigureAwait(false);
-            if (wake == null) return first;
-            await Supervisor.AwaitWake(wake, waitMs, cancellationToken).ConfigureAwait(false);
-            return await ProtoBoundary.OnMainThread(ctx, () => Read(parsed, 0, out _), cancellationToken).ConfigureAwait(false);
+            // An encoder slot is reserved before the capture is admitted, so
+            // no captured reply ever waits for an encoder (#644).
+            var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
+            if (lease == null) return Saturated();
+            try
+            {
+                var first = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, waitMs), cancellationToken).ConfigureAwait(false);
+                ReplyEncoder.Lease owned;
+                if (first.Value.Wake == null)
+                {
+                    owned = lease; lease = null;
+                    return await ProtoBoundary.EncodeDetached(first, owned, Encode, cancellationToken).ConfigureAwait(false);
+                }
+                // A held poll's page is discarded, so it holds no encoder
+                // while it waits; the hop after the wake reserves again.
+                lease.Dispose(); lease = null;
+                await Supervisor.AwaitWake(first.Value.Wake, waitMs, cancellationToken).ConfigureAwait(false);
+                lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
+                if (lease == null) return Saturated();
+                var woken = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, 0), cancellationToken).ConfigureAwait(false);
+                owned = lease; lease = null;
+                return await ProtoBoundary.EncodeDetached(woken, owned, Encode, cancellationToken).ConfigureAwait(false);
+            }
+            finally { lease?.Dispose(); }
+        }
+
+        private static object Saturated() => ProtoBoundary.Encode(new Obs.BundleReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
+            "Bundle reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
+
+        // What one game-thread hop captured: the detached reply, which step
+        // and census groups it may drop for the envelope, and a held poll's
+        // wake. The reply owns everything it references: every section is
+        // built for this hop from the game (events are parsed from the
+        // journal's stored text, the clock status clones its epoch), so no
+        // live game object, engine collection or shared cache crosses to the
+        // encoder.
+        private sealed class Capture
+        {
+            internal readonly Obs.BundleReply Reply;
+            internal readonly bool Step, Families;
+            internal readonly Task<bool>? Wake;
+            internal Capture(Obs.BundleReply reply, bool step = false, bool families = false, Task<bool>? wake = null)
+            { Reply = reply; Step = step; Families = families; Wake = wake; }
         }
 
         private static bool Validate(Obs.BundleRequest request, out Common.Failure failure)
@@ -79,9 +119,10 @@ namespace HomeBridge.BridgeTools
         }
 
         // On the main thread. Every section shares the context read here.
-        private static object Read(Obs.BundleRequest request, int waitMs, out Task<bool>? wake)
+        // Only reads: formatting and the envelope bound are Encode's.
+        private static Capture Read(Obs.BundleRequest request, int waitMs)
         {
-            wake = null;
+            Task<bool>? wake = null;
             Map? map;
             Common.ObservationContext? context;
             if (request.Scope != null)
@@ -89,7 +130,7 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out map, out context, out var failure))
                 {
                     ObservationWork.Outcome("failure");
-                    return ProtoBoundary.Encode(new Obs.BundleReply { Failure = failure });
+                    return new Capture(new Obs.BundleReply { Failure = failure });
                 }
             }
             else
@@ -98,12 +139,12 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.TryReadContext(map, out context, out var unavailable))
                 {
                     ObservationWork.Outcome("unavailable");
-                    return ProtoBoundary.Encode(new Obs.BundleReply { Unavailable = unavailable });
+                    return new Capture(new Obs.BundleReply { Unavailable = unavailable });
                 }
                 if (map == null)
                 {
                     ObservationWork.Outcome("unavailable");
-                    return ProtoBoundary.Encode(new Obs.BundleReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." } });
+                    return new Capture(new Obs.BundleReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." } });
                 }
             }
             Supervisor.NoteControllerRead();
@@ -111,7 +152,7 @@ namespace HomeBridge.BridgeTools
             if (request.HasClockStatus && request.ClockStatus)
             {
                 var began = Now();
-                observed.ClockStatus = NativeClockTools.Read(context);
+                observed.ClockStatus = NativeClockTools.Capture(context);
                 ObservationWork.Captured("clockStatus", Now() - began);
             }
             if (request.HasEmergency && request.Emergency)
@@ -124,7 +165,7 @@ namespace HomeBridge.BridgeTools
                 if (!read)
                 {
                     ObservationWork.Outcome("unavailable");
-                    return ProtoBoundary.Encode(new Obs.BundleReply { Unavailable = unavailable });
+                    return new Capture(new Obs.BundleReply { Unavailable = unavailable });
                 }
                 observed.Emergency = emergency;
             }
@@ -137,51 +178,54 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("events", Now() - began, page.Page != null ? page.Page.Events.Count : 0);
                 if (page.Failure != null)
                 {
-                    wake = null;
                     ObservationWork.Outcome("failure");
-                    return ProtoBoundary.Encode(new Obs.BundleReply { Failure = page.Failure });
+                    return new Capture(new Obs.BundleReply { Failure = page.Failure });
                 }
                 observed.Events = page.Page;
+                // A held poll's page is discarded: the hop after the wake
+                // reads the whole bundle, families included.
+                if (wake != null) return new Capture(new Obs.BundleReply { Observed = observed }, wake: wake);
             }
-            var families = wake == null && ReadFamilies(map, request, context, observed);
-            var step = wake == null && ReadStepFamilies(map, request, context, observed);
-            var reply = new Obs.BundleReply { Observed = observed };
-            if (step && Oversized(reply))
-            {
-                var dropped = (observed.Buildings != null ? 1 : 0) + (observed.BuiltBuildings != null ? 1 : 0) + (observed.Bills != null ? 1 : 0)
-                    + (observed.Zones != null ? 1 : 0) + (observed.Traders != null ? 1 : 0) + (observed.WorldProgression != null ? 1 : 0)
-                    + observed.ResourceSources.Count + (observed.PlanningWindow != null ? 1 : 0);
-                observed.Buildings = null; observed.BuiltBuildings = null; observed.Bills = null; observed.Zones = null;
-                observed.Traders = null; observed.WorldProgression = null; observed.ResourceSources.Clear(); observed.PlanningWindow = null;
-                ObservationWork.DroppedSections(dropped);
-            }
-            if (families && Oversized(reply))
-            {
-                var dropped = (observed.ColonyFacts != null ? 1 : 0) + (observed.Population != null ? 1 : 0)
-                    + (observed.Research != null ? 1 : 0) + (observed.ColonistPawns != null ? 1 : 0);
-                observed.ColonyFacts = null; observed.Population = null; observed.Research = null; observed.ColonistPawns = null;
-                ObservationWork.DroppedSections(dropped);
-            }
-            if (Oversized(reply))
-            {
-                wake = null;
-                ObservationWork.Outcome("failure");
-                return ProtoBoundary.Encode(new Obs.BundleReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Bundle exceeds the bounded reply envelope; no rows were omitted.") });
-            }
-            ObservationWork.Outcome("ok");
-            return ProtoBoundary.Encode(reply, compact: true);
+            var families = ReadFamilies(map, request, context, observed);
+            var step = ReadStepFamilies(map, request, context, observed);
+            return new Capture(new Obs.BundleReply { Observed = observed }, step, families);
         }
 
-        // The size check the bundle pays once per drop stage: its formatting
-        // pass and its byte count are both charged to the hop (#642), which
-        // is how a report shows repeated formatting.
-        private static bool Oversized(Obs.BundleReply reply)
+        // On an encoder worker (#644), once per hop: formats the captured
+        // reply once, and only when it outgrows the envelope drops the step
+        // families, then the census families, formatting again after each
+        // actual removal. Still oversized, the bundle is a capacity failure.
+        // A failure or unavailable capture encodes as it always has.
+        private static Dictionary<string, object?> Encode(Capture capture)
         {
-            var payload = ProtoBoundary.Format(reply, compact: true);
-            var began = Now();
-            var bytes = new System.Text.UTF8Encoding(false, true).GetByteCount(payload);
-            ObservationWork.SizeChecked(Now() - began);
-            return bytes > ProtoBoundary.MaximumEnvelopeBytes;
+            var observed = capture.Reply.Observed;
+            if (observed == null) return ProtoBoundary.Encode(capture.Reply);
+            if (observed.ClockStatus != null) observed.ClockStatus = NativeClockTools.Bounded(observed.ClockStatus, observed.Context);
+            var drops = new List<Func<int>>(2);
+            if (capture.Step) drops.Add(() => DropStepFamilies(observed));
+            if (capture.Families) drops.Add(() => DropFamilies(observed));
+            var envelope = ProtoBoundary.EncodeBounded(capture.Reply, drops, () => new Obs.BundleReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
+                "Bundle exceeds the bounded reply envelope; no rows were omitted.") }, out var fits);
+            ObservationWork.Outcome(fits ? "ok" : "failure");
+            return envelope;
+        }
+
+        private static int DropStepFamilies(Obs.BundleSnapshot observed)
+        {
+            var dropped = (observed.Buildings != null ? 1 : 0) + (observed.BuiltBuildings != null ? 1 : 0) + (observed.Bills != null ? 1 : 0)
+                + (observed.Zones != null ? 1 : 0) + (observed.Traders != null ? 1 : 0) + (observed.WorldProgression != null ? 1 : 0)
+                + observed.ResourceSources.Count + (observed.PlanningWindow != null ? 1 : 0);
+            observed.Buildings = null; observed.BuiltBuildings = null; observed.Bills = null; observed.Zones = null;
+            observed.Traders = null; observed.WorldProgression = null; observed.ResourceSources.Clear(); observed.PlanningWindow = null;
+            return dropped;
+        }
+
+        private static int DropFamilies(Obs.BundleSnapshot observed)
+        {
+            var dropped = (observed.ColonyFacts != null ? 1 : 0) + (observed.Population != null ? 1 : 0)
+                + (observed.Research != null ? 1 : 0) + (observed.ColonistPawns != null ? 1 : 0);
+            observed.ColonyFacts = null; observed.Population = null; observed.Research = null; observed.ColonistPawns = null;
+            return dropped;
         }
 
         // On the main thread. Adds the requested census families to observed,

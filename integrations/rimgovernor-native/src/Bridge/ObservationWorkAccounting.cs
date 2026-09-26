@@ -15,9 +15,14 @@ namespace HomeBridge.BridgeTools
     /// slow bundle can be attributed to the colony read or to the encoding
     /// without any per-pawn logging.
     ///
-    /// The scope is thread-static and a hop runs to completion on the game
-    /// thread, so no locking is needed and nothing outlives the hop. A hop
-    /// that declares nothing reports nothing: absent is not zero.
+    /// The scope is thread-static. A hop's capture runs to completion on the
+    /// game thread; a detached reply (#644) is then encoded on one encoder
+    /// worker, which resumes the same hop after the game thread has closed it,
+    /// so the two never record at once and no locking is needed. Formatting
+    /// on the game thread stays formatMs/formatPasses, the meaning it has
+    /// always had; the worker's formatting and its queue wait are the
+    /// separate encode block. A hop that declares nothing reports nothing:
+    /// absent is not zero.
     internal static class ObservationWork
     {
         /// Bounds the section list so a malformed request cannot grow the
@@ -41,6 +46,10 @@ namespace HomeBridge.BridgeTools
             internal string? Outcome;
             internal readonly List<Section> Sections = new List<Section>();
             internal ulong Frame;
+            // The detached encode (#644): set once a worker resumed the hop.
+            internal bool Detached, Encoding;
+            internal long EncodeQueueTicks, EncodeTicks, EncodeFormatTicks;
+            internal int EncodeFormatPasses;
             internal long ThreatExamined = -1, ThreatCandidates, ThreatProjections, ThreatProximityChecks;
         }
 
@@ -57,6 +66,16 @@ namespace HomeBridge.BridgeTools
             var hop = new Hop { Frame = FrameAccounting.OpenFrame() };
             _current = hop;
             return hop;
+        }
+
+        /// Reopens a hop the game thread closed, on the encoder worker that now
+        /// owns its detached reply; every format pass and size check until
+        /// End is the worker's.
+        internal static void Resume(Hop hop)
+        {
+            hop.Detached = true;
+            hop.Encoding = true;
+            _current = hop;
         }
 
         /// Closes the scope and returns the hop's account, or null when no
@@ -107,6 +126,7 @@ namespace HomeBridge.BridgeTools
         {
             var hop = _current;
             if (hop == null) return;
+            if (hop.Encoding) { hop.EncodeFormatPasses++; hop.EncodeFormatTicks += Math.Max(0, stopwatchTicks); return; }
             hop.FormatPasses++;
             hop.FormatTicks += Math.Max(0, stopwatchTicks);
         }
@@ -116,7 +136,9 @@ namespace HomeBridge.BridgeTools
         internal static void SizeChecked(long stopwatchTicks)
         {
             var hop = _current;
-            if (hop != null) hop.FormatTicks += Math.Max(0, stopwatchTicks);
+            if (hop == null) return;
+            if (hop.Encoding) hop.EncodeFormatTicks += Math.Max(0, stopwatchTicks);
+            else hop.FormatTicks += Math.Max(0, stopwatchTicks);
         }
 
         /// The payload the hop is returning is bytes UTF-8 bytes long. The
@@ -146,7 +168,7 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, object?>? Report(Hop? hop)
         {
             if (hop == null) return null;
-            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null && hop.ThreatExamined < 0) return null;
+            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null && !hop.Detached && hop.ThreatExamined < 0) return null;
             var report = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["captureMs"] = Ms(hop.CaptureTicks),
@@ -157,6 +179,14 @@ namespace HomeBridge.BridgeTools
             if (hop.PayloadBytes >= 0) report["payloadBytes"] = hop.PayloadBytes;
             if (hop.DroppedSections > 0) report["droppedSections"] = hop.DroppedSections;
             if (hop.Outcome != null) report["outcome"] = hop.Outcome;
+            if (hop.Detached)
+                report["encode"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["queueMs"] = Ms(hop.EncodeQueueTicks),
+                    ["ms"] = Ms(hop.EncodeTicks),
+                    ["formatMs"] = Ms(hop.EncodeFormatTicks),
+                    ["formatPasses"] = hop.EncodeFormatPasses,
+                };
             if (hop.ThreatExamined >= 0)
                 report["threatScan"] = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {

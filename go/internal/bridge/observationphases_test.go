@@ -137,6 +137,51 @@ func TestObservationAccountAbsentStaysUnknown(t *testing.T) {
 	}
 }
 
+// TestObservationEncodeBlockSplitsOffThread checks a detached reply's encode
+// block (#644) is summarized apart from the game-thread phases, and that a
+// pre-#644 record beside it keeps formatMs as game-thread formatting with
+// no encode sample of its own.
+func TestObservationEncodeBlockSplitsOffThread(t *testing.T) {
+	legacy := map[string]any{"captureMs": 4.0, "formatMs": 3.0, "formatPasses": 2.0, "payloadBytes": 500.0, "outcome": "ok"}
+	detached := func(queue, ms float64) map[string]any {
+		return map[string]any{"captureMs": 4.0, "formatMs": 0.0, "formatPasses": 0.0, "payloadBytes": 500.0, "outcome": "ok",
+			"encode": map[string]any{"queueMs": queue, "ms": ms, "formatMs": ms / 2, "formatPasses": 1.0}}
+	}
+	rows := []TimelineRecord{
+		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 7), legacy)),
+		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), detached(0.5, 2))),
+		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), detached(1.5, 6))),
+		// A malformed encode block is not a measurement.
+		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), map[string]any{"captureMs": 4.0,
+			"encode": map[string]any{"queueMs": -1.0, "ms": 2.0}})),
+	}
+	summary := SummarizePhases(rows)
+	obs := summary.Observation
+	if obs.Hops != 4 || obs.FormatMs != 3 || obs.FormatPasses != 2 {
+		t.Fatalf("game-thread formatting: %+v", obs)
+	}
+	if obs.EncodeHops != 2 || obs.EncodeFormatPasses != 2 || obs.EncodeFormatMs != 4 {
+		t.Fatalf("encode totals: %+v", obs)
+	}
+	if obs.Encode.Samples != 2 || obs.Encode.Max != 6 || obs.Encode.Sum != 8 || obs.EncodeQueue.Max != 1.5 {
+		t.Fatalf("encode quantiles: %+v %+v", obs.Encode, obs.EncodeQueue)
+	}
+	if tool := summary.Tools[0]; tool.EncodeHops != 2 || tool.EncodeMs != 8 || tool.FormatMs != 3 {
+		t.Fatalf("tool split: %+v", tool)
+	}
+	var text bytes.Buffer
+	WritePhaseReport(&text, summary)
+	if !strings.Contains(text.String(), "off-thread encode: 2 hops") {
+		t.Fatalf("encode line missing:\n%s", text.String())
+	}
+	// Without any detached reply the report prints no encode line.
+	text.Reset()
+	WritePhaseReport(&text, SummarizePhases(rows[:1]))
+	if strings.Contains(text.String(), "off-thread encode") {
+		t.Fatalf("encode line printed for a legacy recording:\n%s", text.String())
+	}
+}
+
 // frameSampleRow builds a native_response row carrying a frame-recorder
 // sample with the given cumulative counters.
 func frameSampleRow(updates, observations, cancelled uint64, elapsed, maxUpdate, observationMs, recorder float64, slow map[float64]uint64, worst []any) TimelineRecord {

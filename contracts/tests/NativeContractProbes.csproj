@@ -82,6 +82,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ReplyEncoder.cs" Link="Production/ReplyEncoder.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockPauseAccounting.cs" Link="Production/ClockPauseAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockProbeAccounting.cs" Link="Production/ClockProbeAccounting.cs" />
@@ -104,6 +105,7 @@
     <Compile Include="NativeContractProbes/native-authority-status/Program.cs" />
     <Compile Include="NativeContractProbes/native-clock/Program.cs" />
     <Compile Include="NativeContractProbes/native-observation-work/Program.cs" />
+    <Compile Include="NativeContractProbes/native-reply-encoder/Program.cs" />
     <Compile Include="NativeContractProbes/native-threat-classifier/Program.cs" />
     <Compile Include="NativeContractProbes/native-attempt-ledger/Program.cs" />
     <Compile Include="NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs" />

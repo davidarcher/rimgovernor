@@ -164,16 +164,26 @@ namespace HomeBridge.BridgeTools
                     "Admitted clock control requires inspection: " + error.GetType().Name) };
             }
         }
-        internal static Clock.Status Read(Common.ObservationContext context)
+        internal static Clock.Status Read(Common.ObservationContext context) => Bounded(Capture(context), context);
+
+        // The game-thread half of Read: the status as captured, unbounded.
+        // The bundle (#644) bounds it with Bounded on its encoder instead.
+        internal static Clock.Status Capture(Common.ObservationContext context)
         {
-            try {
-                var status = Supervisor.TypedStatus(context);
-                if (!Fits(new Clock.StatusReply { Status = status })) throw new InvalidOperationException("Clock status exceeds bounded envelope");
-                return status;
-            }
-            catch (Exception) { return new Clock.Status { Context = context.Clone(), Unavailable = new Common.Unavailable
-                { Reason = Common.UnavailableReason.ReadFailed, Detail = "Clock status could not be read completely." } }; }
+            try { return Supervisor.TypedStatus(context); }
+            catch (Exception) { return Unreadable(context); }
         }
+
+        // The status, or ReadFailed when its own reply would exceed the
+        // envelope. Formats, so it belongs off the game thread where it can.
+        internal static Clock.Status Bounded(Clock.Status status, Common.ObservationContext context)
+        {
+            try { return Fits(new Clock.StatusReply { Status = status }) ? status : Unreadable(context); }
+            catch (Exception) { return Unreadable(context); }
+        }
+
+        private static Clock.Status Unreadable(Common.ObservationContext context) => new Clock.Status { Context = context.Clone(), Unavailable = new Common.Unavailable
+            { Reason = Common.UnavailableReason.ReadFailed, Detail = "Clock status could not be read completely." } };
         private static Common.Failure Invalid(string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail);
         private static bool Fits(IMessage message) => new UTF8Encoding(false, true).GetByteCount(JsonFormatter.Default.Format(message)) <= ProtoBoundary.MaximumEnvelopeBytes;
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? attempt) => attempt != null && attempt.HasControllerSessionId

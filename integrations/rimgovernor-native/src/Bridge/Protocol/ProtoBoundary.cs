@@ -115,7 +115,36 @@ namespace HomeBridge.BridgeTools
             var payload = Format(reply, compact);
             if (Measure(payload) > MaximumEnvelopeBytes)
                 throw new InvalidOperationException("Reply exceeds the one MiB control envelope limit.");
-            return new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
+            return Envelope(payload);
+        }
+
+        private static Dictionary<string, object?> Envelope(string payload)
+            => new Dictionary<string, object?>(StringComparer.Ordinal) { ["payload"] = payload };
+
+        /// <summary>
+        /// A compact reply that may carry optional groups (#644): formatted
+        /// once, and that exact string's strict UTF-8 length is the envelope
+        /// check and the returned payload. While it is oversized, each drop in
+        /// order removes one group and returns how many sections it removed;
+        /// the reply is formatted again only after an actual removal. A reply
+        /// still oversized with nothing left to drop encodes oversized()
+        /// instead, the caller's typed capacity failure, and fits is false.
+        /// </summary>
+        internal static Dictionary<string, object?> EncodeBounded(IMessage reply, IReadOnlyList<Func<int>> drops, Func<IMessage> oversized, out bool fits)
+        {
+            var payload = Format(reply, compact: true);
+            var bytes = Measure(payload);
+            foreach (var drop in drops)
+            {
+                if (bytes <= MaximumEnvelopeBytes) break;
+                var removed = drop();
+                if (removed <= 0) continue;
+                ObservationWork.DroppedSections(removed);
+                payload = Format(reply, compact: true);
+                bytes = Measure(payload);
+            }
+            fits = bytes <= MaximumEnvelopeBytes;
+            return fits ? Envelope(payload) : Encode(oversized());
         }
 
         // The payload's UTF-8 length, charged to the open hop as the size
@@ -146,7 +175,9 @@ namespace HomeBridge.BridgeTools
         // Timing is reported beside the payload so the Go sampler can split
         // native main-thread scheduling from tool execution: queueMs is the
         // wait between requesting the main thread and the body starting,
-        // executeMs is the body itself including ProtoJSON formatting,
+        // executeMs is the body itself including ProtoJSON formatting (a
+        // detached hop's formatting runs on an encoder worker instead and is
+        // reported apart, in the observation account's encode block),
         // class is the admission class the hop ran under and queueDepth how
         // many hops were pending when it was queued (#631). It
         // covers every tool whose single main-thread hop goes through
@@ -161,6 +192,87 @@ namespace HomeBridge.BridgeTools
         // observation, media) through MainThreadAdmission, so a queued
         // renew or stop runs before the reads queued ahead of it.
         internal static Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
+            => RunHop(ctx, body, (reply, hop) => WithTiming(reply, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, hop.Work), cancellationToken);
+
+        /// <summary>One main-thread hop's timing and account, for its reply's timing block.</summary>
+        internal sealed class HopTiming
+        {
+            internal long Queued, Started, Finished;
+            internal string? Trace, Class;
+            internal int Depth;
+            internal ObservationWork.Hop? Work;
+            internal int GameThread;
+        }
+
+        /// <summary>
+        /// A value captured on the game thread for an encoder to own (#644),
+        /// with the hop that captured it. The value must not reference live
+        /// game objects, engine collections, deferred iterators or state that
+        /// anything else mutates: it is read on another thread after the game
+        /// thread has moved on.
+        /// </summary>
+        internal sealed class Captured<T>
+        {
+            internal readonly T Value;
+            internal readonly HopTiming Hop;
+            internal Captured(T value, HopTiming hop) { Value = value; Hop = hop; }
+        }
+
+        /// <summary>
+        /// The first half of a detached hop (#644): capture runs on the game
+        /// thread under the hop's admission class, watchdog and observation
+        /// account, and must only read (no formatting, no byte counting, no
+        /// waiting on a worker). Its main-thread time is the hop's executeMs.
+        /// </summary>
+        internal static async Task<Captured<T>> CaptureOnMainThread<T>(IRimBridgeContext ctx, Func<T> capture, CancellationToken cancellationToken)
+            => (Captured<T>)await RunHop(ctx, () => capture()!, (value, hop) => new Captured<T>((T)value, hop), cancellationToken).ConfigureAwait(false);
+
+        /// <summary>
+        /// The second half: encode formats the captured value into its
+        /// envelope on an encoder worker the lease reserved, never on the game
+        /// thread (checked by thread identity), and the envelope carries the
+        /// capture hop's timing with the worker's queue wait and encode time
+        /// in its encode block. The lease is owned from this call on and
+        /// released when the encode settles, however it settles; a token
+        /// cancelled before the worker starts skips the encode.
+        /// </summary>
+        internal static Task<object> EncodeDetached<T>(Captured<T> captured, ReplyEncoder.Lease lease, Func<T, Dictionary<string, object?>> encode, CancellationToken cancellationToken)
+        {
+            var queued = Stopwatch.GetTimestamp();
+            var hop = captured.Hop;
+            Task<object> task;
+            try
+            {
+                task = ReplyEncoder.Run(() =>
+                {
+                    if (Thread.CurrentThread.ManagedThreadId == hop.GameThread)
+                        throw new InvalidOperationException("A detached reply must not encode on the game thread.");
+                    var work = hop.Work ?? new ObservationWork.Hop();
+                    var started = Stopwatch.GetTimestamp();
+                    ObservationWork.Resume(work);
+                    Dictionary<string, object?> envelope;
+                    try { envelope = encode(captured.Value); }
+                    catch (Exception) { ObservationWork.Outcome("error"); throw; }
+                    finally
+                    {
+                        work.EncodeQueueTicks = Math.Max(0, started - queued);
+                        work.EncodeTicks = Math.Max(0, Stopwatch.GetTimestamp() - started);
+                        work.Encoding = false;
+                        ObservationWork.End();
+                    }
+                    return WithTiming(envelope, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, work);
+                }, cancellationToken);
+            }
+            catch (Exception)
+            {
+                lease.Dispose();
+                throw;
+            }
+            task.ContinueWith(_ => lease.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            return task;
+        }
+
+        private static Task<object> RunHop(IRimBridgeContext ctx, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken)
         {
             var queued = Stopwatch.GetTimestamp();
             var trace = TraceOf(ctx);
@@ -184,7 +296,8 @@ namespace HomeBridge.BridgeTools
                     var reply = body();
                     var finished = Stopwatch.GetTimestamp();
                     FrameAccounting.Observed(finished - started, trace);
-                    return WithTiming(reply, queued, started, finished, trace, MainThreadAdmission.ClassOf(rank), depth, ObservationWork.End());
+                    return complete(reply, new HopTiming { Queued = queued, Started = started, Finished = finished, Trace = trace,
+                        Class = MainThreadAdmission.ClassOf(rank), Depth = depth, Work = ObservationWork.End(), GameThread = Thread.CurrentThread.ManagedThreadId });
                 }
                 catch (Exception)
                 {

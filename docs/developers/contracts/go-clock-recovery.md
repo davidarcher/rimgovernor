@@ -430,7 +430,10 @@ native reply. Observations are not bracketed by identity reads: each reply's
 own `ObservationContext` is validated against the identity the step read on
 entry. That entry read is one `observations_read_bundle` (issue #127): the
 scope `lifecycle_read_tick` reports plus the owned clock status and the
-emergency census, taken in one main-thread hop so all describe one tick. The
+emergency census, captured in one main-thread hop so all describe one tick
+(the companion formats that capture once, on a bounded encoder worker off
+the main thread (#644); a bundle refused with `CAPACITY_EXHAUSTED` because
+the encoders stayed saturated read nothing). The
 event poll's bundle carries the scope and the events page after the review's
 cursor; the renewal's carries the scope and the clock status. The bundle
 itself is never memoized (its clock sections are live controller state), but
