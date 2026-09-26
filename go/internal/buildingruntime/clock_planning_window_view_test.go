@@ -144,3 +144,72 @@ func TestReadStepBundleFallsBackToTheLegacyBand(t *testing.T) {
 		t.Fatal("a refusal other than an invalid request fell back")
 	}
 }
+
+// TestPlanningWindowViewServesAPannedWindow (#706): a planner that panned
+// past the view's slack is served the view's overlapping rows plus one
+// native read per uncovered strip, filed as of the oldest of them; a
+// region the view does not overlap is read natively in full.
+func TestPlanningWindowViewServesAPannedWindow(t *testing.T) {
+	identity := viewTestContext(0).Identity
+	scope := facts.Scope{Load: "load", Generation: 1}
+	viewRegion := policy.Rectangle{X: 0, Z: 0, Width: 10, Height: 10}
+	step := domain.WithReadValidity(context.Background(), domain.ReadValidity{Scope: domain.ReadScope{Colony: "colony", Map: 0, Load: "load", Native: 1}, Tick: 5000})
+	refresher := func() (*planningWindow, *planningWindowFake) {
+		view := &bridge.PlanningWindowView{Context: viewTestContext(5000), Region: viewRegion, Incarnation: 2, Revision: 7, PublishedTick: 5000,
+			Chunks: []bridge.PlanningViewChunk{{MinZ: 0, MaxZ: 9, Revision: 5, Captured: 4800, Validated: 4900}}}
+		for z := range viewRegion.Height {
+			for x := range viewRegion.Width {
+				view.Cells = append(view.Cells, policy.SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true)})
+			}
+		}
+		native := &planningWindowFake{tick: 5000}
+		return &planningWindow{native: native, store: facts.NewStore(), scope: scope, tick: 5000, review: true, view: view}, native
+	}
+	for name, tc := range map[string]struct {
+		region     policy.Rectangle
+		strips     []policy.Rectangle
+		viewCells  int
+		fullReads  int
+		wantSource string
+	}{
+		"z pan":      {region: policy.Rectangle{X: 0, Z: 6, Width: 10, Height: 10}, strips: []policy.Rectangle{{X: 0, Z: 10, Width: 10, Height: 6}}, viewCells: 40, wantSource: planningWindowViewSource},
+		"x pan":      {region: policy.Rectangle{X: -6, Z: 0, Width: 10, Height: 10}, strips: []policy.Rectangle{{X: -6, Z: 0, Width: 6, Height: 10}}, viewCells: 40, wantSource: planningWindowViewSource},
+		"diagonal":   {region: policy.Rectangle{X: 6, Z: 6, Width: 10, Height: 10}, strips: []policy.Rectangle{{X: 6, Z: 10, Width: 10, Height: 6}, {X: 10, Z: 6, Width: 6, Height: 4}}, viewCells: 16, wantSource: planningWindowViewSource},
+		"no overlap": {region: policy.Rectangle{X: 20, Z: 20, Width: 10, Height: 10}, fullReads: 1, wantSource: "rimgovernor/observations_get_cells"},
+	} {
+		w, native := refresher()
+		held, err := w.PlanningWindow(step, identity, tc.region)
+		if err != nil || held.Source != tc.wantSource || held.Value.Region != tc.region {
+			t.Errorf("%s: %+v %v", name, held, err)
+			continue
+		}
+		if tc.fullReads > 0 {
+			if native.reads != tc.fullReads || native.region != tc.region || held.AsOf != 5000 {
+				t.Errorf("%s: reads=%d region=%+v asOf=%d", name, native.reads, native.region, held.AsOf)
+			}
+			continue
+		}
+		strips := planningWindowUncovered(tc.region, func() policy.Rectangle { r, _ := planningWindowOverlap(viewRegion, tc.region); return r }())
+		if native.reads != len(tc.strips) || len(strips) != len(tc.strips) || held.AsOf != 4900 || w.view != nil {
+			t.Errorf("%s: reads=%d strips=%+v asOf=%d", name, native.reads, strips, held.AsOf)
+			continue
+		}
+		covered := int32(0)
+		for i, strip := range strips {
+			if strip != tc.strips[i] {
+				t.Errorf("%s: strip %d = %+v, want %+v", name, i, strip, tc.strips[i])
+			}
+			covered += strip.Width * strip.Height
+		}
+		// The strips and the view's rows tile the region exactly; the
+		// fake answers one row per strip read.
+		if int(covered)+tc.viewCells != int(tc.region.Width*tc.region.Height) || len(held.Value.Cells) != tc.viewCells+len(tc.strips) {
+			t.Errorf("%s: %d view + %d read cells for %d", name, tc.viewCells, covered, tc.region.Width*tc.region.Height)
+		}
+		for _, row := range held.Value.Cells {
+			if !planningRectContains(tc.region, row.Cell) {
+				t.Errorf("%s: row %+v outside the region", name, row.Cell)
+			}
+		}
+	}
+}

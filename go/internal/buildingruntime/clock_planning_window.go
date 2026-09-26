@@ -100,7 +100,7 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 	if !planningWindowRead(p.review, ok, ok && p.store.Fresh(facts.PlanningCells, p.tick)) {
 		return held, nil
 	}
-	if out, stale := p.fromView(ctx, region); stale == "" {
+	if out, stale := p.fromView(ctx, identity, region); stale == "" {
 		return out, nil
 	} else if p.view != nil {
 		clockSchedulerLog("planning window view unused (%s): reading natively", stale)
@@ -152,13 +152,20 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 // planning tolerance where none is carried. The store takes the view's
 // rows as of that oldest validation tick, its actual age, never the step
 // tick. The reason it cannot serve is returned instead, empty on success.
-func (p *planningWindow) fromView(ctx context.Context, region policy.Rectangle) (facts.Held[observation.PlanningCells], string) {
+//
+// A planner that panned past the view (#706) is served the view's rows
+// inside its region plus one native read per uncovered strip
+// (planningWindowUncovered: at most four, together fewer cells than the
+// region), filed as of the oldest of the view and those reads. A region
+// the view does not overlap at all is read natively in full.
+func (p *planningWindow) fromView(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[observation.PlanningCells], string) {
 	view := p.view
 	if view == nil {
 		return facts.Held[observation.PlanningCells]{}, "no view"
 	}
-	if !planningWindowCovers(view.Region, region) {
-		return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("region %+v does not cover %+v", view.Region, region)
+	covered := planningWindowCovers(view.Region, region)
+	if _, overlaps := planningWindowOverlap(view.Region, region); !covered && !overlaps {
+		return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("region %+v does not overlap %+v", view.Region, region)
 	}
 	validated := domain.Tick(view.Validated())
 	if validity, ok := domain.ReadValidityFrom(ctx); ok {
@@ -167,6 +174,9 @@ func (p *planningWindow) fromView(ctx context.Context, region policy.Rectangle) 
 		}
 	} else if factsScope(view.Context) != p.scope || !domain.CoversIn(ctx, domain.AgeInventory, validated, domain.Tick(p.tick)) {
 		return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("validated at %d, step is at %d", validated, p.tick)
+	}
+	if !covered {
+		return p.fromPannedView(ctx, identity, view, region, int64(validated))
 	}
 	// One view fills the store once; a later ask in the step is served held.
 	p.view = nil
@@ -179,6 +189,71 @@ func (p *planningWindow) fromView(ctx context.Context, region policy.Rectangle) 
 
 // planningWindowViewSource is the provenance a view-filled window carries.
 const planningWindowViewSource = "rimgovernor/observations_read_bundle#planning_window_view"
+
+// fromPannedView serves region from the view's overlapping rows and a
+// native read of each uncovered strip (#706). A strip read that fails
+// leaves the view unused, so the caller's one full read serves instead.
+func (p *planningWindow) fromPannedView(ctx context.Context, identity *c.Identity, view *bridge.PlanningWindowView, region policy.Rectangle, validated int64) (facts.Held[observation.PlanningCells], string) {
+	overlap, _ := planningWindowOverlap(view.Region, region)
+	cells := make([]policy.SiteCell, 0, len(view.Cells))
+	for _, row := range view.Cells {
+		if planningRectContains(overlap, row.Cell) {
+			cells = append(cells, row)
+		}
+	}
+	reused := len(cells)
+	asOf, read := validated, 0
+	for _, strip := range planningWindowUncovered(region, overlap) {
+		window, _, err := p.native.ReadPlanningWindow(ctx, identity, strip, 0)
+		if err != nil {
+			return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("strip %+v read failed: %v", strip, err)
+		}
+		cells = append(cells, window.Cells...)
+		asOf = min(asOf, window.Context.GetTick())
+		read += int(strip.Width * strip.Height)
+	}
+	bridge.SortSiteCells(cells)
+	p.view = nil
+	clockEvent(ctx, "facts", "planning_window_view", fmt.Sprintf("planning window view served panned: %d cells from the view, %d read natively, validated %d ticks before the step", reused, read, p.tick-validated),
+		"revision", view.Revision, "incarnation", view.Incarnation, "chunks", len(view.Chunks), "reused", view.Reused(), "age", p.tick-validated,
+		"panned", true, "view_cells", int(overlap.Width*overlap.Height), "read_cells", read)
+	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: region, Cells: cells}, AsOf: asOf, Complete: true, Source: planningWindowViewSource, Region: planningRegionRect(region)}
+	facts.Put(p.store, p.scope, facts.PlanningCells, out)
+	return out, ""
+}
+
+// planningWindowOverlap is the intersection of two regions, and whether
+// it holds any cell.
+func planningWindowOverlap(a, b policy.Rectangle) (policy.Rectangle, bool) {
+	minX, minZ := max(a.X, b.X), max(a.Z, b.Z)
+	maxX, maxZ := min(a.X+a.Width, b.X+b.Width), min(a.Z+a.Height, b.Z+b.Height)
+	if maxX <= minX || maxZ <= minZ {
+		return policy.Rectangle{}, false
+	}
+	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX, Height: maxZ - minZ}, true
+}
+
+// planningWindowUncovered tiles the cells of region outside overlap (which
+// lies inside region) with at most four strips: whole rows below and
+// above it, then the columns left and right of it within its rows. A pure
+// Z or X pan leaves one strip, a diagonal pan two.
+func planningWindowUncovered(region, overlap policy.Rectangle) []policy.Rectangle {
+	var strips []policy.Rectangle
+	add := func(r policy.Rectangle) {
+		if r.Width > 0 && r.Height > 0 {
+			strips = append(strips, r)
+		}
+	}
+	add(policy.Rectangle{X: region.X, Z: region.Z, Width: region.Width, Height: overlap.Z - region.Z})
+	add(policy.Rectangle{X: region.X, Z: overlap.Z + overlap.Height, Width: region.Width, Height: region.Z + region.Height - overlap.Z - overlap.Height})
+	add(policy.Rectangle{X: region.X, Z: overlap.Z, Width: overlap.X - region.X, Height: overlap.Height})
+	add(policy.Rectangle{X: overlap.X + overlap.Width, Z: overlap.Z, Width: region.X + region.Width - overlap.X - overlap.Width, Height: overlap.Height})
+	return strips
+}
+
+func planningRectContains(r policy.Rectangle, cell domain.Cell) bool {
+	return cell.X >= r.X && cell.X < r.X+r.Width && cell.Z >= r.Z && cell.Z < r.Z+r.Height
+}
 
 // viewScope is the read scope an observation context names.
 func viewScope(context *c.ObservationContext) domain.ReadScope {

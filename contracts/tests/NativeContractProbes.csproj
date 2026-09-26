@@ -107,7 +107,9 @@
     <Compile Include="NativeContractProbes/native-observation-work/Program.cs" />
     <Compile Include="NativeContractProbes/native-reply-encoder/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/PlanningWindowView.cs" Link="Production/PlanningWindowView.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/PlanningViewLedger.cs" Link="Production/PlanningViewLedger.cs" />
     <Compile Include="NativeContractProbes/native-planning-window-view/Program.cs" />
+    <Compile Include="NativeContractProbes/native-planning-window-view/Refresh.cs" />
     <Compile Include="NativeContractProbes/native-threat-classifier/Program.cs" />
     <Compile Include="NativeContractProbes/native-acquisition-token/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAcquisitionToken.cs" Link="Production/NativeAcquisitionToken.cs" />

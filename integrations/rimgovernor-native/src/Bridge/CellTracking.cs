@@ -28,6 +28,9 @@ namespace HomeBridge.BridgeTools
     // new id), so a cell omitted as unchanged may carry a stale room_id
     // and a reader that keys on it must read in full. The store's periodic
     // full resync (Go) is the backstop against anything this list misses.
+    // Every bump also numbers its tile in Ledger, the planning-window
+    // view's change ledger (#652), which additionally counts room rebuilds
+    // (RegionsRoomsChanged) so the view never reuses a stale room_id.
     internal sealed class CellTracking
     {
         private static readonly ConditionalWeakTable<Map, CellTracking> Maps = new ConditionalWeakTable<Map, CellTracking>();
@@ -38,6 +41,10 @@ namespace HomeBridge.BridgeTools
         private readonly bool[] indoors, roomSeen;
         private readonly bool[] polluted, growthSeen;
         private readonly float[] glow;
+
+        // The planning-window view's change ledger (#652): every bump below
+        // also numbers the cell's tile there, in O(1).
+        internal readonly PlanningViewLedger Ledger;
 
         // Since is the tick every cell was stamped with at creation.
         internal readonly int Since;
@@ -61,6 +68,7 @@ namespace HomeBridge.BridgeTools
             polluted = new bool[count];
             growthSeen = new bool[count];
             glow = new float[count];
+            Ledger = new PlanningViewLedger(map.Size.x, map.Size.z);
             var events = map.events;
             events.TerrainChanged += Bump;
             events.RoofChanged += Bump;
@@ -69,6 +77,7 @@ namespace HomeBridge.BridgeTools
             events.MapFogged += BumpAll;
             events.ThingSpawned += Thing;
             events.ThingDespawned += Thing;
+            events.RegionsRoomsChanged += Ledger.MarkTopology;
         }
 
         // Unchanged reports a cell whose row is the same as at tick since
@@ -116,18 +125,24 @@ namespace HomeBridge.BridgeTools
 
         private void Bump(IntVec3 cell)
         {
-            if (cell.InBounds(map)) lastChanged[map.cellIndices.CellToIndex(cell)] = Find.TickManager.TicksGame;
+            if (!cell.InBounds(map)) return;
+            lastChanged[map.cellIndices.CellToIndex(cell)] = Find.TickManager.TicksGame;
+            Ledger.Mark(cell.x, cell.z);
         }
 
         private void Bump(int index)
         {
-            if (index >= 0 && index < lastChanged.Length) lastChanged[index] = Find.TickManager.TicksGame;
+            if (index < 0 || index >= lastChanged.Length) return;
+            lastChanged[index] = Find.TickManager.TicksGame;
+            var cell = map.cellIndices.IndexToCell(index);
+            Ledger.Mark(cell.x, cell.z);
         }
 
         private void BumpAll()
         {
             int now = Find.TickManager.TicksGame;
             for (int i = 0; i < lastChanged.Length; i++) lastChanged[i] = now;
+            Ledger.MarkBroad();
         }
 
         private void Thing(Thing thing)

@@ -37,31 +37,34 @@ namespace HomeBridge.BridgeTools
     /// A band of whole region rows with its own content revision, capture
     /// tick and last validation tick. The cell array is owned: the
     /// constructor copies the builder's, nothing exposes it, and a
-    /// revalidated chunk shares it read-only.
+    /// revalidated chunk shares it read-only. Watermark is the change
+    /// ledger sequence (#652) the content is known current at: a ledger
+    /// mutation numbered past it may have changed the chunk.
     /// </summary>
     internal sealed class PlanningViewChunk
     {
         internal readonly int MinZ, MaxZ;
         internal readonly ulong Revision;
-        internal readonly long CapturedTick, ValidatedTick;
+        internal readonly long CapturedTick, ValidatedTick, Watermark;
         private readonly PlanningViewCell[] cells;
 
-        internal PlanningViewChunk(int minZ, int maxZ, ulong revision, long capturedTick, long validatedTick, PlanningViewCell[] built)
-            : this(minZ, maxZ, revision, capturedTick, validatedTick, built, copy: true) { }
+        internal PlanningViewChunk(int minZ, int maxZ, ulong revision, long capturedTick, long validatedTick, PlanningViewCell[] built, long watermark = 0)
+            : this(minZ, maxZ, revision, capturedTick, validatedTick, built, watermark, copy: true) { }
 
-        private PlanningViewChunk(int minZ, int maxZ, ulong revision, long capturedTick, long validatedTick, PlanningViewCell[] source, bool copy)
+        private PlanningViewChunk(int minZ, int maxZ, ulong revision, long capturedTick, long validatedTick, PlanningViewCell[] source, long watermark, bool copy)
         {
             if (maxZ < minZ || validatedTick < capturedTick || source == null || source.Length == 0 || source.Length % (maxZ - minZ + 1) != 0)
                 throw new ArgumentException("Invalid planning view chunk.");
-            MinZ = minZ; MaxZ = maxZ; Revision = revision; CapturedTick = capturedTick; ValidatedTick = validatedTick;
+            MinZ = minZ; MaxZ = maxZ; Revision = revision; CapturedTick = capturedTick; ValidatedTick = validatedTick; Watermark = watermark;
             cells = copy ? (PlanningViewCell[])source.Clone() : source;
         }
 
         internal int Count => cells.Length;
         internal PlanningViewCell this[int index] => cells[index];
 
-        /// The same content confirmed unchanged at tick.
-        internal PlanningViewChunk Revalidated(long tick) => new PlanningViewChunk(MinZ, MaxZ, Revision, CapturedTick, Math.Max(tick, ValidatedTick), cells, copy: false);
+        /// The same content confirmed unchanged at tick, current as of the
+        /// ledger sequence watermark.
+        internal PlanningViewChunk Revalidated(long tick, long watermark = 0) => new PlanningViewChunk(MinZ, MaxZ, Revision, CapturedTick, Math.Max(tick, ValidatedTick), cells, Math.Max(watermark, Watermark), copy: false);
     }
 
     /// <summary>A fully constructed, immutable view root.</summary>
@@ -73,16 +76,18 @@ namespace HomeBridge.BridgeTools
         internal readonly string ColonyId, LoadToken, Mask;
         internal readonly int MapId, MapWidth, MapHeight, MinX, MinZ, MaxX, MaxZ;
         internal readonly ulong Incarnation, Revision, NativeGeneration;
+        /// The change ledger (#652) the chunk watermarks count in; 0 is none.
+        internal readonly long LedgerGeneration;
         internal readonly long PublishedTick;
         internal readonly bool Complete;
         private readonly PlanningViewChunk[] chunks;
 
         internal PlanningViewRoot(Common.Identity identity, ulong nativeGeneration, PlanningWindowViewPublisher.Ticket ticket, int mapWidth, int mapHeight,
-            int minX, int minZ, int maxX, int maxZ, string mask, long publishedTick, PlanningViewChunk[] built)
+            int minX, int minZ, int maxX, int maxZ, string mask, long publishedTick, PlanningViewChunk[] built, long ledgerGeneration = 0)
         {
             ColonyId = identity.ColonyId; LoadToken = identity.LoadToken; MapId = identity.MapId; NativeGeneration = nativeGeneration;
             Incarnation = ticket.Incarnation; Revision = ticket.Revision; MapWidth = mapWidth; MapHeight = mapHeight;
-            MinX = minX; MinZ = minZ; MaxX = maxX; MaxZ = maxZ; Mask = mask; PublishedTick = publishedTick; chunks = (PlanningViewChunk[])built.Clone();
+            MinX = minX; MinZ = minZ; MaxX = maxX; MaxZ = maxZ; Mask = mask; PublishedTick = publishedTick; chunks = (PlanningViewChunk[])built.Clone(); LedgerGeneration = ledgerGeneration;
             // Complete: the chunks tile the rows in order, each row the
             // region's width, and no chunk postdates publication.
             var z = minZ; var complete = chunks.Length > 0;

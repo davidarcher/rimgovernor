@@ -51,6 +51,9 @@ namespace HomeBridge.BridgeTools
             internal long EncodeQueueTicks, EncodeTicks, EncodeFormatTicks;
             internal int EncodeFormatPasses;
             internal long ThreatExamined = -1, ThreatCandidates, ThreatProjections, ThreatProximityChecks;
+            // The planning-window view refresh (#652), when the hop captured one.
+            internal PlanningViewRefreshStats? PlanningView;
+            internal bool PlanningViewAvailable;
         }
 
         [ThreadStatic] private static Hop? _current;
@@ -121,6 +124,17 @@ namespace HomeBridge.BridgeTools
             hop.ThreatProjections += projections; hop.ThreatProximityChecks += proximityChecks;
         }
 
+        /// The hop's planning-window view refresh (#652): chunks reused,
+        /// scanned or rebuilt, the cells and tiles that took, and why a
+        /// resync rebuilt everything. available is false when no root was
+        /// captured (the view is unavailable for the hop).
+        internal static void PlanningViewRefreshed(PlanningViewRefreshStats stats, bool available)
+        {
+            var hop = _current;
+            if (hop == null) return;
+            hop.PlanningView = stats; hop.PlanningViewAvailable = available;
+        }
+
         /// One ProtoJSON formatting pass took stopwatchTicks.
         internal static void Formatted(long stopwatchTicks)
         {
@@ -168,7 +182,7 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, object?>? Report(Hop? hop)
         {
             if (hop == null) return null;
-            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null && !hop.Detached && hop.ThreatExamined < 0) return null;
+            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null && !hop.Detached && hop.ThreatExamined < 0 && hop.PlanningView == null) return null;
             var report = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["captureMs"] = Ms(hop.CaptureTicks),
@@ -193,6 +207,18 @@ namespace HomeBridge.BridgeTools
                     ["examined"] = hop.ThreatExamined, ["candidates"] = hop.ThreatCandidates,
                     ["projections"] = hop.ThreatProjections, ["proximityChecks"] = hop.ThreatProximityChecks,
                 };
+            if (hop.PlanningView is PlanningViewRefreshStats view)
+            {
+                var entry = new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["available"] = hop.PlanningViewAvailable, ["chunks"] = view.Chunks, ["reused"] = view.Reused, ["validated"] = view.Validated,
+                    ["rebuilt"] = view.Rebuilt, ["dirtyChunks"] = view.DirtyChunks, ["topologyChunks"] = view.TopologyChunks,
+                    ["dirtyTiles"] = view.DirtyTiles, ["tilesScanned"] = view.TilesScanned, ["cellsScanned"] = view.CellsScanned,
+                    ["cellsRead"] = view.CellsRead, ["ageTicks"] = view.AgeTicks, ["retainedBytes"] = view.RetainedBytes,
+                };
+                if (view.Resync != null) entry["resync"] = view.Resync;
+                report["planningView"] = entry;
+            }
             if (hop.Sections.Count > 0)
             {
                 var sections = new Dictionary<string, object?>(StringComparer.Ordinal);

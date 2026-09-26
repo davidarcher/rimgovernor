@@ -9,38 +9,39 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The game-thread half of the planning-window view (#650): builds a
-    /// candidate root of detached cell values in bands of ChunkRows rows.
-    /// A band of the published root whose every cell the change grid
-    /// (CellTracking) shows unchanged since the band's capture is carried
-    /// over, revalidated at this tick, without reading its cells again;
-    /// every other band is read as get_cells reads the planning fields,
-    /// under the same visibility and absence rules. The candidate is
-    /// published by the worker that projects it.
+    /// The game-thread half of the planning-window view (#650, #652): the
+    /// map's change ledger (CellTracking.Ledger) decides which bands of the
+    /// published root are carried over, scanned for the unhooked fields or
+    /// read again (PlanningViewRefresh); a read band is read as get_cells
+    /// reads the planning fields, under the same visibility and absence
+    /// rules. The candidate is published by the worker that projects it.
     /// </summary>
     internal static class PlanningWindowViewCapture
     {
         internal const int MaxCells = NativeObservationTools.CellsPageLimit;
-        internal const int ChunkRows = 8;
+        internal const int ChunkRows = PlanningViewRefresh.ChunkRows;
 
         /// The bundle's view section (#650), on the game thread: the
         /// candidate its encoder publishes and serves, timed into the hop's
-        /// observation account with the cells actually read.
+        /// observation account with the cells actually read and the
+        /// refresh's work (#652).
         internal static PlanningViewRoot? ForBundle(Map map, Obs.BundleRequest request, Common.ObservationContext context)
         {
             if (request.PlanningWindowView == null) return null;
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var root = Capture(map, request.PlanningWindowView, context, out var captured, out var candidates);
-            ObservationWork.Captured("planningWindowView", System.Diagnostics.Stopwatch.GetTimestamp() - began, captured, candidates);
+            var stats = new PlanningViewRefreshStats();
+            var root = Capture(map, request.PlanningWindowView, context, stats, out var candidates);
+            ObservationWork.Captured("planningWindowView", System.Diagnostics.Stopwatch.GetTimestamp() - began, stats.CellsRead, candidates);
+            ObservationWork.PlanningViewRefreshed(stats, root != null);
             return root;
         }
 
         /// The candidate root, or null when the region is invalid for map
-        /// or the cells could not be read. captured counts the cells read,
-        /// candidates the region's cells.
-        internal static PlanningViewRoot? Capture(Map map, Obs.BundlePlanningWindowViewRequest request, Common.ObservationContext context, out int captured, out long candidates)
+        /// or the cells could not be read (the view is then unavailable for
+        /// the hop, never served stale). candidates counts the region's cells.
+        internal static PlanningViewRoot? Capture(Map map, Obs.BundlePlanningWindowViewRequest request, Common.ObservationContext context, PlanningViewRefreshStats stats, out long candidates)
         {
-            captured = 0; candidates = 0;
+            candidates = 0;
             var min = request.Region?.Minimum; var max = request.Region?.Maximum;
             if (min == null || max == null || !min.HasX || !min.HasZ || !max.HasX || !max.HasZ || max.X < min.X || max.Z < min.Z) return null;
             candidates = ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1);
@@ -48,49 +49,39 @@ namespace HomeBridge.BridgeTools
             Install();
             var publisher = PlanningWindowViewPublisher.Shared;
             var ticket = publisher.Begin(context.Identity);
-            var held = publisher.Acquire();
-            if (held != null && (held.Incarnation != ticket.Incarnation || !held.Serves(context.Identity, min.X, min.Z, max.X, max.Z, PlanningViewRoot.PlanningMask))) held = null;
-            var tick = context.Tick;
             try
             {
                 var tracking = CellTracking.For(map);
-                var bands = (max.Z - min.Z) / ChunkRows + 1;
-                var chunks = new PlanningViewChunk[bands];
-                for (var i = 0; i < bands; i++)
-                {
-                    var minZ = min.Z + i * ChunkRows; var maxZ = Math.Min(minZ + ChunkRows - 1, max.Z);
-                    var old = held != null && i < held.ChunkCount ? held.Chunk(i) : null;
-                    if (old != null && old.MinZ == minZ && old.MaxZ == maxZ && Unchanged(map, tracking, min.X, max.X, old))
-                    {
-                        chunks[i] = old.Revalidated(tick);
-                        continue;
-                    }
-                    var cells = new PlanningViewCell[(maxZ - minZ + 1) * (max.X - min.X + 1)];
-                    var next = 0;
-                    for (var z = minZ; z <= maxZ; z++)
-                        for (var x = min.X; x <= max.X; x++) cells[next++] = Read(map, tracking, new IntVec3(x, 0, z));
-                    captured += cells.Length;
-                    chunks[i] = new PlanningViewChunk(minZ, maxZ, ticket.Revision, tick, tick, cells);
-                }
-                return new PlanningViewRoot(context.Identity, context.NativeGeneration, ticket, map.Size.x, map.Size.z, min.X, min.Z, max.X, max.Z,
-                    PlanningViewRoot.PlanningMask, tick, chunks);
+                // Rooms rebuild lazily on the first query after a wall
+                // changes; rebuild them now, so the topology revision the
+                // refresh compares already counts that change.
+                map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+                return PlanningViewRefresh.Refresh(tracking.Ledger, ticket, publisher.Acquire(), context.Identity, context.NativeGeneration,
+                    map.Size.x, map.Size.z, min.X, min.Z, max.X, max.Z, context.Tick, new MapSource(map, tracking), stats);
             }
             catch (Exception) { return null; }
         }
 
-        // Every cell is checked, not the first changed one: both checks
-        // stamp a cell whose indoors, pollution or glow moved, so a later
-        // changed_since_tick reader sees the change this read noticed.
-        private static bool Unchanged(Map map, CellTracking tracking, int minX, int maxX, PlanningViewChunk chunk)
+        /// The live map as the refresh reads it.
+        private sealed class MapSource : IPlanningViewSource
         {
-            var unchanged = true;
-            for (var z = chunk.MinZ; z <= chunk.MaxZ; z++)
-                for (var x = minX; x <= maxX; x++)
-                {
-                    var cell = new IntVec3(x, 0, z);
-                    unchanged &= tracking.Unchanged(cell, chunk.CapturedTick) & tracking.GrowthUnchanged(cell);
-                }
-            return unchanged;
+            private readonly Map map;
+            private readonly CellTracking tracking;
+            internal MapSource(Map map, CellTracking tracking) { this.map = map; this.tracking = tracking; }
+
+            public PlanningViewCell Read(int x, int z) => PlanningWindowViewCapture.Read(map, tracking, new IntVec3(x, 0, z));
+
+            // Glow, pollution and indoors have no complete event stream:
+            // compare their live values with the held row.
+            public bool StillCurrent(int x, int z, in PlanningViewCell held)
+            {
+                if (held.Fogged) return true;
+                var cell = new IntVec3(x, 0, z);
+                var glow = (double)map.glowGrid.GroundGlowAt(cell);
+                var polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
+                return glow == held.Glow && polluted == ((held.Flags & PlanningViewCell.Polluted) != 0)
+                    && CellTracking.Indoors(cell.GetRoom(map)) == ((held.Flags & PlanningViewCell.Indoors) != 0);
+            }
         }
 
         // The planning fields of one cell, as NativeObservationTools.ReadCells

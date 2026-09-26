@@ -23,7 +23,7 @@ fields (roof, visibility, traversal, zone, room, growth). The reply's
 | `revision` | Publication revision, monotonic. |
 | `published_tick` | When the root was published: the hop tick. |
 | `complete` | The chunks tile the region's rows exactly, in order. |
-| `chunks[]` | Row bands (`min_z..max_z`), each with its own `revision` (the publication that captured its content), `captured_tick` (when its cells were read) and `validated_tick` (the last tick the change grid confirmed them unchanged), cells in the `CompactCells` row format. |
+| `chunks[]` | Row bands (`min_z..max_z`), each with its own `revision` (the publication that captured its content), `captured_tick` (when its cells were read) and `validated_tick` (the tick its content is known to match the map; see the dirty-chunk refresh), cells in the `CompactCells` row format. Chunk watermarks and the ledger generation (#652) stay native. |
 
 Content revision, publication time and validation time are distinct: a
 chunk carried over unchanged keeps its revision and capture tick and moves
@@ -35,18 +35,18 @@ tick; its age is its oldest chunk's `validated_tick`.
 - The game thread captures a candidate root inside the bundle hop
   (`PlanningWindowViewCapture`): detached primitive cell values under the
   same visibility and absence rules as `observations_get_cells` (a fogged
-  cell carries only its fog). A band of the current root whose every cell
-  `CellTracking` shows unchanged since its capture is revalidated instead
-  of read; every other band is read in full. The hop's observation account
-  records `planningWindowView` with the cells actually read against the
-  region's cells, which is the main-thread saving.
+  cell carries only its fog). Which bands it reads is the dirty-chunk
+  refresh below (#652). The hop's observation account records
+  `planningWindowView` with the cells actually read against the region's
+  cells, which is the main-thread saving.
 - The encoder worker publishes the candidate (`Interlocked` swap) and
   projects it to the wire; readers take the root once with `Volatile.Read`.
-  Workers never touch game objects, `CellTracking` or live engine state.
+  Workers never touch game objects, `CellTracking`, the change ledger or
+  live engine state.
 - After construction nothing mutates a root, a chunk or their arrays;
-  constructors copy what their builders hand them, and a revalidated chunk
-  shares its predecessor's cell array read-only. Only the current root is
-  retained and chunks keep no parent.
+  constructors copy what their builders hand them, and a carried-over chunk
+  is the same object or shares its predecessor's cell array read-only. Only
+  the current root is retained and chunks keep no parent.
 - A candidate publishes only when it is complete, from the current
   incarnation and newer than the current root. A superseded candidate of
   the current incarnation is still served to its own hop; one from an old
@@ -54,6 +54,72 @@ tick; its age is its oldest chunk's `validated_tick`.
   invalidate the view and every pending capture.
 - Bounds: one slot, one region and mask per root, 4096 cells per root,
   bundle encoders (`ReplyEncoder`) plus a reader lease per projection.
+
+## Dirty-chunk refresh (#652)
+
+`CellTracking` owns one `PlanningViewLedger` per map: map-fixed tiles of
+8x8 cells, each holding the sequence number of the last mutation that
+touched it. Its hooks mark in O(1) per cell and never read or allocate a
+view. The sequence is a counter, not the game tick, so two edits in one
+tick are distinct and a rewound tick cannot make an old mutation look new.
+`MapFogged` is one broad revision and a room rebuild one topology
+revision, not a loop. Each chunk records the ledger sequence its content
+is current at (its watermark), read before any cell of the refresh, so a
+mutation during or after a capture numbers past it and dirties the chunk
+again whichever order the hops publish in.
+
+`PlanningViewRefresh`, per eight-row band of the region, in order:
+
+1. A root-level resync rebuilds every band: `bootstrap` (no current root,
+   including after unload), `incarnation`, `region` (region or mask
+   differs), `tracker` (the root was counted in another ledger: a new map
+   object, a reload), `rewind` (the tick is before the root's
+   publication) or `overflow` (more than 1024 distinct tiles went dirty
+   between refreshes).
+2. A band whose tiles, the whole map (broad) or room topology changed after
+   its watermark is rebuilt (`dirtyChunks`, `topologyChunks`).
+3. A band validated 250 ticks or more ago (`ValidateEveryTicks`, the
+   controller's tightest planning tolerance) is scanned for the unhooked
+   fields; unchanged it is revalidated at the tick, otherwise rebuilt.
+4. Any other band is carried over as the same object; its
+   `validated_tick` does not move.
+
+So a chunk's content is always what the map held at its `validated_tick`:
+hooked fields could not have changed since without rebuilding it, and
+unhooked ones are compared at least every 250 ticks. Nothing is marked
+fresh because no event arrived. A root the refresh cannot build (a read
+throws, the tracker is unavailable) is no view for the hop, never a stale
+one. The captured `room_id` is never reused across a room rebuild.
+
+| Field | Invalidation |
+| --- | --- |
+| terrain, `supports_light` | `TerrainChanged` marks the cell. |
+| `roof` | `RoofChanged` and the `RoofGrid.RemoveRoofUnsafe` patch mark the cell. |
+| fog (`visibility`) | `CellFogChanged` marks the cell; `MapFogged` is broad. |
+| `occupied`, `doorway` | Spawn/despawn of any edifice, blueprint or frame marks its rect. |
+| `walkable`, passable | Those spawns plus anything with a path cost or non-standable passability, and `PathCostRecalculate`. |
+| `zone_id` | The `ZoneManager.AddZoneGridCell` / `ClearZoneGridCell` patches mark the cell. |
+| `storage_empty` | Spawn/despawn of items, plants, buildings, blueprints and frames. |
+| `fertility` | Terrain and building spawns as above; pollution's effect via the scan. |
+| `room_id` | `RegionsRoomsChanged` (every region/room rebuild; the capture forces a pending lazy rebuild first) is a topology revision: every band rebuilds. |
+| `indoors` | Room rebuilds as `room_id`; a roof or role change far from the cell (no rebuild) by the 250-tick scan. |
+| `glow` | No event (sky light moves every tick): the 250-tick scan. |
+| `polluted` | No per-cell event wired: the 250-tick scan. |
+
+Complexity: a refresh costs the tiles under each band (a handful per band)
+plus the cells of dirty, topology-invalidated and expired bands, plus the
+worker's projection of the whole root. A bootstrap, a resync, a room
+rebuild or a map-wide change is O(region); the projection is always
+O(region), so this is not O(changes) on the wire, only on the game
+thread.
+
+Telemetry (#642): the hop's `timing.observation.planningView` carries
+`available`, `chunks`, `reused`, `validated`, `rebuilt`, `dirtyChunks`,
+`topologyChunks`, `dirtyTiles`, `tilesScanned`, `cellsScanned`,
+`cellsRead`, `ageTicks` (to the oldest band validation), `retainedBytes`
+and `resync` when a root-level resync ran. Probe:
+`native-planning-window-view` (ledger, refresh and publication over a
+fake grid). Live parity: `cells/planning-view-refresh`.
 
 ## Controller consumption
 
@@ -76,6 +142,13 @@ tick; its age is its oldest chunk's `validated_tick`.
   `rimgovernor/observations_read_bundle#planning_window_view`, and emits a
   `planning_window_view` event with the reused chunk count and age. It
   never seeds the step read cache's `observations_get_cells` key.
+- A planner that panned past the view's slack (#706) is served the view's
+  rows inside its region plus one native `get_cells` read per uncovered
+  strip (at most four, together fewer cells than the region), filed as of
+  the oldest of the view and those reads; the `planning_window_view`
+  event carries `panned`, `view_cells` and `read_cells`. A strip read that
+  fails, or a region the view does not overlap, falls through to the one
+  full read.
 - A stale, foreign or misplaced view falls through to the refresher's one
   bounded native read, exactly as without a view.
 - The view is planning evidence only. Placement, target and authority

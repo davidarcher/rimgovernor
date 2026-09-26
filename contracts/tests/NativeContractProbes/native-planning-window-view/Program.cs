@@ -13,7 +13,7 @@ using Common = RimGovernor.Protocol.Common;
 // incomplete roots refused, reader capacity released exactly once.
 // Ordering is proven with gates, never with sleeps; waits carry a hang
 // guard only.
-internal static class NativePlanningWindowViewProbe
+internal static partial class NativePlanningWindowViewProbe
 {
     private static int checks;
     private static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
@@ -68,6 +68,7 @@ internal static class NativePlanningWindowViewProbe
         CaptureIsDetached();
         StaleAndIncompleteRootsRefused();
         ReadersAreBounded();
+        RefreshFollowsTheLedger();
         Console.WriteLine("native-planning-window-view: " + checks + " checks passed");
     }
 
