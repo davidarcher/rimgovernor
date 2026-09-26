@@ -387,11 +387,25 @@ func StageReserveScale(stage ColonyStage) float64 {
 	return 1
 }
 
+// StageGoalStallScale is the factor GoalStallTicks shrinks by at a stage:
+// one in-game hour (1/24 of the configured deadline, which defaults to one
+// day) at Foothold, so a stuck method rotates within the hour rather than
+// waiting out a full day while the colony has no shelter or starvation
+// runway yet; unchanged from Reserves on, once the food ladder and the rest
+// of production have room to wait out a slower method.
+func StageGoalStallScale(stage ColonyStage) float64 {
+	if stage == StageFoothold {
+		return 1.0 / 24
+	}
+	return 1
+}
+
 // StageRoutinePolicy is p with its budgets set by the stage: the project
-// limit (StageDevelopmentLimit), the research ladder (StageResearchLadder)
-// and the reserve targets (StageReserveScale over FoodReserveDays, WoodTarget
-// and WoodMax, within the policy's own bounds). A stage that has not been
-// reviewed yet (the zero record) is Foothold.
+// limit (StageDevelopmentLimit), the research ladder (StageResearchLadder),
+// the reserve targets (StageReserveScale over FoodReserveDays, WoodTarget
+// and WoodMax, within the policy's own bounds) and the goal-progress stall
+// deadline (StageGoalStallScale over GoalStallTicks). A stage that has not
+// been reviewed yet (the zero record) is Foothold.
 func StageRoutinePolicy(p RoutinePolicy, stage ColonyStage) RoutinePolicy {
 	p.MaxDevelopmentProjects = StageDevelopmentLimit(stage, p.MaxDevelopmentProjects)
 	p.ResearchLadder = StageResearchLadder(stage, p.ResearchLadder)
@@ -400,6 +414,9 @@ func StageRoutinePolicy(p RoutinePolicy, stage ColonyStage) RoutinePolicy {
 		p.FoodReserveDays = math.Min(60, p.FoodReserveDays*scale)
 		p.WoodTarget = int64(math.Ceil(float64(p.WoodTarget) * scale))
 		p.WoodMax = max(p.WoodMax, int64(math.Ceil(float64(p.WoodMax)*scale)))
+	}
+	if stallScale := StageGoalStallScale(stage); stallScale != 1 && p.GoalStallTicks > 0 {
+		p.GoalStallTicks = int64(math.Ceil(float64(p.GoalStallTicks) * stallScale))
 	}
 	return p
 }

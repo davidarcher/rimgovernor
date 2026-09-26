@@ -36,7 +36,10 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	r.Facts.Cooking = domain.Known(false)
 	first := reviewRoutine(t, s, &r)
 	food := progressRecord(t, first.Review, policy.EnsureFoodSupply)
-	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks || food.Expected == "" {
+	// A fresh colony reviews at Foothold, where StageGoalStallScale cuts the
+	// deadline to one in-game hour so a stuck rung rotates quickly, not
+	// after a full day.
+	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks/24 || food.Expected == "" {
 		t.Fatalf("food record %+v", food)
 	}
 	expansion := developmentRow(t, first.Review, policy.EnsureExpansion)
@@ -134,7 +137,8 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1})
 	second := reviewRoutine(t, s, &r)
 	wood = progressRecord(t, second.Review, policy.MaintainWood)
-	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != second.Review.Tick || wood.NextReview != second.Review.Tick+policy.DevelopmentStallTicks {
+	// Still Foothold: the one-hour deadline applies here too.
+	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != second.Review.Tick || wood.NextReview != second.Review.Tick+policy.DevelopmentStallTicks/24 {
 		t.Fatalf("issued cut with no plant cutter must be blocked: %+v", wood)
 	}
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})

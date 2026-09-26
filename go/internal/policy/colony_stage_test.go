@@ -174,15 +174,16 @@ func TestStageRoutinePolicyBudgets(t *testing.T) {
 		rungs   int
 		reserve float64
 		wood    int64
+		stall   int64
 	}{
-		{StageFoothold, 2, 2, 5, 350},
-		{StageReserves, 2, 5, 5, 350},
-		{StageStable, 2, 8, 7.5, 525},
-		{StageDevelopment, 3, len(DefaultResearchLadder()), 10, 700},
+		{StageFoothold, 2, 2, 5, 350, base.GoalStallTicks / 24},
+		{StageReserves, 2, 5, 5, 350, base.GoalStallTicks},
+		{StageStable, 2, 8, 7.5, 525, base.GoalStallTicks},
+		{StageDevelopment, 3, len(DefaultResearchLadder()), 10, 700, base.GoalStallTicks},
 	} {
 		p := StageRoutinePolicy(base, tc.stage)
-		if p.MaxDevelopmentProjects != tc.limit || len(p.ResearchLadder) != tc.rungs || p.FoodReserveDays != tc.reserve || p.WoodTarget != tc.wood || p.WoodMax < p.WoodTarget {
-			t.Fatalf("%s: limit %d rungs %d reserve %v wood %d/%d", tc.stage, p.MaxDevelopmentProjects, len(p.ResearchLadder), p.FoodReserveDays, p.WoodTarget, p.WoodMax)
+		if p.MaxDevelopmentProjects != tc.limit || len(p.ResearchLadder) != tc.rungs || p.FoodReserveDays != tc.reserve || p.WoodTarget != tc.wood || p.WoodMax < p.WoodTarget || p.GoalStallTicks != tc.stall {
+			t.Fatalf("%s: limit %d rungs %d reserve %v wood %d/%d stall %d", tc.stage, p.MaxDevelopmentProjects, len(p.ResearchLadder), p.FoodReserveDays, p.WoodTarget, p.WoodMax, p.GoalStallTicks)
 		}
 		if err := p.Validate(); err != nil {
 			t.Fatal(tc.stage, err)

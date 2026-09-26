@@ -345,26 +345,28 @@ func FoodProgress(g FootholdGates, f RoutineFacts, p RoutinePolicy) (ProgressCon
 	if owed(g.Cooking) {
 		prerequisite = EnsureCooking
 	}
+	deadline := domain.Tick(p.GoalStallTicks)
 	switch {
 	case HumanFoodPending(f.FoodPlan) || !positive(g.Food):
-		return ProgressContract{Method: "acquire", Expected: "food days rise toward the target", Deadline: DevelopmentStallTicks}, prerequisite, observed
+		return ProgressContract{Method: "acquire", Expected: "food days rise toward the target", Deadline: deadline}, prerequisite, observed
 	case owed(g.Cooking):
-		return ProgressContract{Method: "cook", Expected: "meals cooked at a bench", Deadline: DevelopmentStallTicks}, prerequisite, observed
+		return ProgressContract{Method: "cook", Expected: "meals cooked at a bench", Deadline: deadline}, prerequisite, observed
 	case owed(g.Storage):
-		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: DevelopmentStallTicks}, EnsureFoodStorage, observed
+		return ProgressContract{Method: "store", Expected: "raw food stored under a roof", Deadline: deadline}, EnsureFoodStorage, observed
 	default:
-		return ProgressContract{Method: "grow", Expected: "growing zone planted to the field target", Deadline: DevelopmentStallTicks}, prerequisite, observed
+		return ProgressContract{Method: "grow", Expected: "growing zone planted to the field target", Deadline: deadline}, prerequisite, observed
 	}
 }
 
 // GoalProgressContract is the default contract for a goal's method: the
-// method id as the method, the goal's deficit as the observable, one game
-// day (DevelopmentStallTicks) without progress as the deadline.
-func GoalProgressContract(method string) ProgressContract {
+// method id as the method, the goal's deficit as the observable,
+// RoutinePolicy.GoalStallTicks (scaled by colony stage) without progress as
+// the deadline.
+func GoalProgressContract(method string, p RoutinePolicy) ProgressContract {
 	if method == "" {
 		method = "assess"
 	}
-	return ProgressContract{Method: method, Expected: "deficit shrinks or the method's work settles", Deadline: DevelopmentStallTicks}
+	return ProgressContract{Method: method, Expected: "deficit shrinks or the method's work settles", Deadline: domain.Tick(p.GoalStallTicks)}
 }
 
 // WithheldLabor is the labor a blocked prerequisite keeps out of optional

@@ -84,7 +84,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			}
 			evidence.WorkerAvailable = domain.Known(available)
 		}
-		contract := policy.GoalProgressContract(methodLabel(method))
+		contract := policy.GoalProgressContract(methodLabel(method), request.Policy)
 		if n.ID == policy.EnsureFoodSupply {
 			contract, evidence.Prerequisite, evidence.Observed = policy.FoodProgress(needs.Gates, request.Facts, request.Policy)
 		}

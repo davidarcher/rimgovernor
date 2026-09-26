@@ -97,6 +97,17 @@ type RoutinePolicy struct {
 	// planners cancel it so the goal re-plans from another source instead
 	// of waiting on one plant (#291: wild healroot pending 120k ticks).
 	AcquisitionStallTicks int64
+	// GoalStallTicks bounds how long a goal's progress record (#629) may go
+	// without native evidence advancing its expected observable before
+	// ExpireGoalProgress rotates the method (or keys the failed situation
+	// out with a cooldown): GoalProgressContract's default contract and the
+	// food ladder's rungs (FoodProgress) both use it as their deadline.
+	// StageRoutinePolicy scales it down during StageFoothold
+	// (StageGoalStallScale) so a stuck method rotates in a fraction of a
+	// day rather than the full day this defaults to, while starvation risk
+	// is highest; it returns to this value once the colony reaches
+	// Reserves.
+	GoalStallTicks int64
 	// ResearchTarget is an operator-declared desired native ResearchProjectDef
 	// name; empty disables EnsureResearch's routine dispatch. The need is
 	// measured against RoutineFacts.Research each review (idle tab with the
@@ -195,7 +206,7 @@ type RoutinePolicy struct {
 
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, ResearchLadder: DefaultResearchLadder()}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder()}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -238,6 +249,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.AcquisitionStallTicks <= 0 {
 		return errors.New("invalid acquisition stall grace")
+	}
+	if p.GoalStallTicks <= 0 {
+		return errors.New("invalid goal stall grace")
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")
