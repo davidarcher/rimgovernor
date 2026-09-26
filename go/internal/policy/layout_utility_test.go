@@ -38,6 +38,75 @@ func TestPlannedPowerSites(t *testing.T) {
 	}
 }
 
+// TestPlannedCoolerSites: the freezer's cooler stands in its back wall with
+// the cold side in the room and the hot side on the exhaust (#791).
+func TestPlannedCoolerSites(t *testing.T) {
+	p := PlanUtilities(PlanCore(coreTestZones(), 3), UtilityWants{})
+	sites := PlannedCoolerSites(p)
+	if len(sites) != 1 {
+		t.Fatal(sites)
+	}
+	var freezer LayoutRoom
+	var exhaust Rectangle
+	for _, r := range p.Rooms {
+		if r.Role == ModuleFreezer {
+			freezer = r
+		}
+	}
+	for _, r := range p.Reservations {
+		if r.Kind == ReserveExhaust {
+			exhaust = r.Area
+		}
+	}
+	c := RefrigerationCooler{Position: sites[0].Cell, Rotation: sites[0].Rotation}
+	if !inRect(freezer.Interior, c.Cold()) || !inRect(exhaust, c.Hot()) || inRect(roomWalls(freezer), c.Hot()) || !inRect(roomWalls(freezer), c.Position) {
+		t.Fatal(sites[0], freezer, exhaust)
+	}
+}
+
+// TestRefrigerationPrefersPlannedCooler: a planned site with an open hot
+// side beats the lowest-sorted vented wall; a closed one falls back.
+func TestRefrigerationPrefersPlannedCooler(t *testing.T) {
+	room := Room{ID: "r", Enclosed: domain.Known(true)}
+	var cells []SiteCell
+	for x := int32(0); x < 5; x++ {
+		for z := int32(0); z < 5; z++ {
+			c := domain.Cell{X: x, Z: z}
+			in := x >= 1 && x <= 3 && z >= 1 && z <= 3
+			wall := !in && (x == 0 || x == 4 || z == 0 || z == 4)
+			if in {
+				room.Cells = append(room.Cells, c)
+			}
+			cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(!wall), Occupied: domain.Known(wall), Indoors: domain.Known(in), Roofed: domain.Known(in)})
+		}
+	}
+	for x := int32(-1); x <= 5; x++ {
+		for _, z := range []int32{-1, 5} {
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
+		}
+	}
+	for z := int32(0); z < 5; z++ {
+		for _, x := range []int32{-1, 5} {
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Indoors: domain.Known(false), Roofed: domain.Known(false)})
+		}
+	}
+	review := RefrigerationReview{Active: true, Rooms: []string{"r"}}
+	obs := RefrigerationObservation{Rooms: []Room{room}, Cells: cells, CoolerAvailable: domain.Known(true), Planned: []PlannedCoolerSite{{Cell: domain.Cell{X: 2, Z: 4}, Rotation: domain.North}}}
+	got, err := SelectRefrigerationMethod(review, domain.Known(obs), FoodStoragePolicy{}, false)
+	if err != nil || got.Cell != (domain.Cell{X: 2, Z: 4}) || got.Rotation != domain.North {
+		t.Fatal(got, err)
+	}
+	for i := range obs.Cells {
+		if obs.Cells[i].Cell == (domain.Cell{X: 2, Z: 5}) {
+			obs.Cells[i].Walkable = domain.Known(false) // undug shaft
+		}
+	}
+	got, err = SelectRefrigerationMethod(review, domain.Known(obs), FoodStoragePolicy{}, false)
+	if err != nil || got.Method != RefrigerationBuild || got.Cell == (domain.Cell{X: 2, Z: 4}) {
+		t.Fatal(got, err)
+	}
+}
+
 func inRect(r Rectangle, c domain.Cell) bool {
 	return c.X >= r.X && c.Z >= r.Z && c.X < r.X+r.Width && c.Z < r.Z+r.Height
 }

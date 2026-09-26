@@ -175,6 +175,10 @@ type RefrigerationObservation struct {
 	// while it is true, so no cooler method is proposed. Unknown when the
 	// environment census was not read; the method then proceeds as before.
 	Blackout domain.Fact[bool]
+	// Planned are the layout plan's cooler sites (#791); a room whose back
+	// wall holds one takes it over any other vented wall once its hot side
+	// is open (the outer face, or a dug exhaust shaft).
+	Planned []PlannedCoolerSite
 }
 
 type RefrigerationMethod string
@@ -311,7 +315,10 @@ func SelectRefrigerationMethod(review RefrigerationReview, fact domain.Fact[Refr
 		for _, cooler := range v.Coolers {
 			taken[cooler.Position] = true
 		}
-		cell, rotation, ok := ventedWall(room, cellRoom, cells, taken)
+		cell, rotation, ok := plannedWall(room, v.Planned, cells, taken)
+		if !ok {
+			cell, rotation, ok = ventedWall(room, cellRoom, cells, taken)
+		}
 		if !ok {
 			deferred = firstReason(deferred, RefrigerationNoWall)
 			continue
@@ -414,6 +421,33 @@ func heatRejectionBlocked(cooler RefrigerationCooler, rooms map[string]Room, cel
 		}
 	}
 	return false, false
+}
+
+// plannedWall is the first planned cooler site whose cold side is in room,
+// not taken, standing in a known wall with a known walkable hot side.
+func plannedWall(room Room, planned []PlannedCoolerSite, cells map[domain.Cell]SiteCell, taken map[domain.Cell]bool) (domain.Cell, domain.Rotation, bool) {
+	inside := map[domain.Cell]bool{}
+	for _, c := range room.Cells {
+		inside[c] = true
+	}
+	for _, s := range planned {
+		cooler := RefrigerationCooler{Position: s.Cell, Rotation: s.Rotation}
+		if taken[s.Cell] || !inside[cooler.Cold()] {
+			continue
+		}
+		if w, ok := cells[s.Cell]; !ok {
+			continue
+		} else if walkable, known := w.Walkable.Value(); !known || walkable {
+			continue
+		}
+		if o, ok := cells[cooler.Hot()]; !ok {
+			continue
+		} else if walkable, known := o.Walkable.Value(); !known || !walkable {
+			continue
+		}
+		return s.Cell, s.Rotation, true
+	}
+	return domain.Cell{}, "", false
 }
 
 // ventedWall picks the lowest-sorted wall cell of the room whose outward

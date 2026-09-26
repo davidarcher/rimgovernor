@@ -248,6 +248,39 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 	return out
 }
 
+// PlannedCoolerSite is a cooled room's planned cooler (#791): the cell in
+// its back wall in front of the exhaust reservation, turned so the hot side
+// faces the exhaust and the cold side the room.
+type PlannedCoolerSite struct {
+	Cell     domain.Cell
+	Rotation domain.Rotation
+}
+
+// PlannedCoolerSites lists a cooler site per cooling room whose exhaust
+// the plan reserved, in plan order.
+func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
+	var out []PlannedCoolerSite
+	for _, role := range coolingRoles {
+		for _, r := range plan.Rooms {
+			if r.Role != role {
+				continue
+			}
+			in := r.Interior
+			x, wall, first, rot := in.X+in.Width/2, in.Z+in.Height, in.Z+in.Height+1, domain.North
+			if r.DoorRot == domain.North {
+				wall, first, rot = in.Z-1, in.Z-2, domain.South
+			}
+			for _, e := range plan.Reservations {
+				if e.Kind == ReserveExhaust && e.Area.X == x && (e.Area.Z == first || e.Area.Z+e.Area.Height-1 == first) {
+					out = append(out, PlannedCoolerSite{Cell: domain.Cell{X: x, Z: wall}, Rotation: rot})
+					break
+				}
+			}
+		}
+	}
+	return out
+}
+
 // SolarDefinition is the solar generator, planned on its 4x4 plots.
 const SolarDefinition = "SolarGenerator"
 
