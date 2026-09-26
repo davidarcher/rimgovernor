@@ -33,18 +33,40 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
-                try {
-                    var reply = new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) };
-                    Bound(reply.Observed);
-                    if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Colony facts exceed1MiB; largest sections (wire bytes): " + LargestSections(reply.Observed) + ".");
-                    return ProtoBoundary.Encode(reply, compact: true);
-                }
-                catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }); }
-            }, cancellationToken).ConfigureAwait(false);
+            // Read on the game thread; bound, delta (#773) and format on an
+            // encoder worker (#644), since the delta digests the whole reply.
+            var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
+            if (lease == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
+                "Colony facts reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
+            try
+            {
+                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => {
+                    if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
+                        return new Obs.ColonyFactsReply { Failure = invalid };
+                    try { return new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) }; }
+                    catch (ReadLimit e) { return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }; }
+                    catch (Exception) { return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }; }
+                }, cancellationToken).ConfigureAwait(false);
+                var owned = lease; lease = null;
+                return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodeFacts(reply, parsed), cancellationToken).ConfigureAwait(false);
+            }
+            finally { lease?.Dispose(); }
+        }
+
+        private static Dictionary<string, object?> EncodeFacts(Obs.ColonyFactsReply reply, Obs.ColonyFactsRequest parsed)
+        {
+            if (reply.Observed == null) return ProtoBoundary.Encode(reply);
+            try
+            {
+                Bound(reply.Observed);
+                var shape = parsed.Clone(); shape.ChangedSince = null;
+                reply.Observed.Delta = SectionDelta.Apply(SectionDelta.Shape(ToolName, reply.Observed.Context.Identity, shape), parsed.ChangedSince, reply.Observed, reply.Observed.Context);
+                if (reply.Observed.Delta == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "Colony facts changed-since watermark is older than the tombstone window; read in full.") });
+                if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes) throw new ReadLimit("Colony facts exceed1MiB; largest sections (wire bytes): " + LargestSections(reply.Observed) + ".");
+                return ProtoBoundary.Encode(reply, compact: true);
+            }
+            catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }); }
+            catch (Exception) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }); }
         }
 
         // Encoder-side bounds of a captured snapshot (#683): the comfort joy

@@ -230,7 +230,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 	}
 	cache := StepReadCacheFrom(ctx)
 	if cache == nil || !cacheableRead(name) {
-		return caller.protoCall(ctx, name, request, reply)
+		return caller.readCall(ctx, name, request, reply)
 	}
 	return caller.cachedRead(ctx, cache, name, request, reply)
 }
@@ -270,7 +270,7 @@ func (caller *Client) cachedRead(ctx context.Context, cache *StepReadCache, name
 			}
 		}
 		// The leader failed or its reply was uncacheable: read natively.
-		return caller.protoCall(ctx, name, request, reply)
+		return caller.readCall(ctx, name, request, reply)
 	}
 	if payload, result, ok := cache.fromParent(key, entry); ok {
 		if err = proto.Unmarshal(payload, reply); err == nil {
@@ -279,7 +279,7 @@ func (caller *Client) cachedRead(ctx context.Context, cache *StepReadCache, name
 		}
 		return Result{}, contract("cached reply decoding: %v", err)
 	}
-	result, err := caller.protoCall(ctx, name, request, reply)
+	result, err := caller.readCall(ctx, name, request, reply)
 	if err != nil {
 		cache.complete(key, entry, nil, nil, Result{})
 		return result, err

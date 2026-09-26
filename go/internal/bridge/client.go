@@ -214,6 +214,8 @@ type Client struct {
 	timeout    time.Duration
 	gate       *admission
 
+	deltas deltaStore
+
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
 	transcript       *Transcript

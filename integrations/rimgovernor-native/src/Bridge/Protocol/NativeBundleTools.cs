@@ -98,6 +98,8 @@ namespace HomeBridge.BridgeTools
             internal readonly Task<bool>? Wake;
             internal PlanningWindowViewCapture.Served View; // the planning window view's root or pending status (#650, #654)
             internal Obs.BundlePlanningWindowViewRequest? ViewRequest;
+            internal string? DeltaShape; // the read's SectionDelta shape and ask (#773)
+            internal Obs.SectionDeltaAsk? DeltaAsk;
             internal Capture(Obs.BundleReply reply, bool step = false, bool families = false, Task<bool>? wake = null)
             { Reply = reply; Step = step; Families = families; Wake = wake; }
         }
@@ -191,7 +193,8 @@ namespace HomeBridge.BridgeTools
             var families = ReadFamilies(map, request, context, observed);
             var step = ReadStepFamilies(map, request, context, observed);
             return new Capture(new Obs.BundleReply { Observed = observed }, step || request.PlanningWindowView != null, families) 
-                { View = PlanningWindowViewCapture.ForBundle(map, request, context, () => cancellationToken.IsCancellationRequested), ViewRequest = request.PlanningWindowView };
+                { View = PlanningWindowViewCapture.ForBundle(map, request, context, () => cancellationToken.IsCancellationRequested), ViewRequest = request.PlanningWindowView,
+                  DeltaShape = DeltaShape(request, context!), DeltaAsk = request.ChangedSince };
         }
 
         // On an encoder worker (#644), once per hop: formats the captured
@@ -207,6 +210,12 @@ namespace HomeBridge.BridgeTools
             if (capture.ViewRequest != null)
                 observed.PlanningWindowView = PlanningWindowViewProjection.Serve(PlanningWindowViewPublisher.Shared, capture.View.Root, capture.View.Pending, capture.View.Refreshing, capture.ViewRequest, observed.Context);
             NativeColonyObservationTools.Bound(observed.ColonyFacts);
+            if (capture.DeltaShape != null)
+            {
+                observed.Delta = SectionDelta.Apply(capture.DeltaShape, capture.DeltaAsk, observed, observed.Context);
+                if (observed.Delta == null) return ProtoBoundary.Encode(new Obs.BundleReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.Stale,
+                    Detail = "Bundle changed-since watermark is older than the tombstone window; read in full." } });
+            }
             var drops = new List<Func<int>>(2);
             if (capture.Step) drops.Add(() => DropStepFamilies(observed));
             if (capture.Families) drops.Add(() => DropFamilies(observed));
@@ -214,6 +223,16 @@ namespace HomeBridge.BridgeTools
                 "Bundle exceeds the bounded reply envelope; no rows were omitted.") }, out var fits);
             ObservationWork.Outcome(fits ? "ok" : "failure");
             return envelope;
+        }
+
+        // DeltaShape keys a tracked bundle by what its sections read: the
+        // events page and the planning window's since tick move every read.
+        private static string DeltaShape(Obs.BundleRequest request, Common.ObservationContext context)
+        {
+            var shape = request.Clone();
+            shape.ChangedSince = null; shape.Events = null;
+            if (shape.PlanningWindow != null) shape.PlanningWindow.ClearChangedSinceTick();
+            return SectionDelta.Shape(ToolName, context.Identity, shape);
         }
 
         private static int DropStepFamilies(Obs.BundleSnapshot observed)

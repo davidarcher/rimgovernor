@@ -12,6 +12,26 @@ import "clock.proto";
 // Native definition/enum names remain open strings, resolved by the game.
 // Reconciliation survives tick advancement and authority revocation.
 message ReadScope { rimgovernor.common.v1.Identity expected_identity = 1; }
+// Changed-since reads of whole snapshots (#773). Every colony facts, pawn
+// list and bundle reply carries delta: the watermark of this read and the
+// tracker that stamped it. A request passing both back as changed_since gets
+// a reply that omits every part unchanged since, listed in held. A held path
+// is dot-separated field numbers from the snapshot root; a segment N[key] is
+// the element of repeated field N whose key is key (its string `id`, else
+// the `id` of its first message field that has one: pawn and thing ids). A
+// held singular field or whole repeated field is absent from the reply; a
+// held element stays in place as a stub carrying only its key, so ranked
+// lists keep their native order. removed lists the keyed elements that left
+// their list since the watermark (tombstones), kept 2500 ticks as for the
+// entity lists (#358); an ask older than that is refused as STALE and the
+// caller reads in full. Every ObservationContext inside a held part that
+// equalled the root context then equals the root context now. An ask naming
+// a tracker the native no longer has (reload, restart, eviction) gets a
+// full reply.
+// A watermark orders reads: the tick, then seq within that tick.
+message Watermark { optional int64 tick = 1; optional uint64 seq = 2; }
+message SectionDeltaAsk { optional string tracker = 1; Watermark since = 2; }
+message SectionDelta { optional string tracker = 1; Watermark as_of = 2; Watermark since = 3; repeated string held = 4; repeated string removed = 5; optional double digest_ms = 6; optional uint32 tracked = 7; }
 message SnapshotRef {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional string entity_id = 2;
@@ -371,8 +391,8 @@ message PawnDetails {
   // quadratic in the page and is bounded to 64 rows.
   optional bool tend = 11;
 }
-message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; }
-message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; }
+message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; SectionDelta delta = 4; }
+message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; SectionDeltaAsk changed_since = 5; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message HeldStock { EntityRef holder = 1; optional string holder_kind = 2; optional int64 units = 3; }
@@ -1057,10 +1077,11 @@ message ColonyFactsSnapshot {
   FoodChannelsSection food_channels = 45;
   DeepResourcesSection deep_resources = 46;
   optional uint32 fermenting_barrels = 47;
+  SectionDelta delta = 48;
 }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
-message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
+message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; SectionDeltaAsk changed_since = 5; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
@@ -1151,6 +1172,9 @@ message BundleRequest {
   // Opt-in published planning-window view (#650), distinct from the same-tick
   // planning_window band above; see PlanningWindowView.
   BundlePlanningWindowViewRequest planning_window_view = 20;
+  // SectionDelta over the whole bundle (#773); events and the planning
+  // window's since tick do not shape the tracking.
+  SectionDeltaAsk changed_since = 21;
 }
 // The planning window's one get_cells band: the region (at most 65536
 // cells) with the planning fields, compact, optionally as a delta.
@@ -1209,6 +1233,7 @@ message BundleSnapshot {
   repeated ResourceSourcesSnapshot resource_sources = 16;
   CellsSnapshot planning_window = 17;
   PlanningWindowView planning_window_view = 18;
+  SectionDelta delta = 19;
 }
 message BundleReply { oneof outcome { BundleSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ObservationBatchSnapshot {

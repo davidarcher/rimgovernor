@@ -25,14 +25,36 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_list_pawns", request!, Obs.ListPawnsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
-                    return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
-                try { return Encode(new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }); }
-                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
-                catch (Exception error) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
-                    PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }); }
-            }, cancellationToken).ConfigureAwait(false);
+            // Read on the game thread; delta (#773) and format on an encoder
+            // worker (#644), since the delta digests the whole reply.
+            var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
+            if (lease == null) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
+                "Pawn reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
+            try
+            {
+                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => {
+                    if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
+                        return new Obs.ListPawnsReply { Failure = invalid };
+                    try { return new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }; }
+                    catch (ReadLimit error) { return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }; }
+                    catch (Exception error) { return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
+                        PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
+                }, cancellationToken).ConfigureAwait(false);
+                var owned = lease; lease = null;
+                return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodePawns(reply, parsed), cancellationToken).ConfigureAwait(false);
+            }
+            finally { lease?.Dispose(); }
+        }
+
+        private static Dictionary<string, object?> EncodePawns(Obs.ListPawnsReply reply, Obs.ListPawnsRequest parsed)
+        {
+            if (reply.Observed == null) return ProtoBoundary.Encode(reply);
+            var shape = parsed.Clone(); shape.ChangedSince = null;
+            reply.Observed.Delta = SectionDelta.Apply(SectionDelta.Shape("rimgovernor/observations_list_pawns", reply.Observed.Context.Identity, shape), parsed.ChangedSince, reply.Observed, reply.Observed.Context);
+            if (reply.Observed.Delta == null) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "Pawn changed-since watermark is older than the tombstone window; read in full.") });
+            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
+                return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Pawn reply exceeds one MiB.") });
+            return ProtoBoundary.Encode(reply);
         }
 
         // The pawn list as a bundle section (issue #180): the same rows the
