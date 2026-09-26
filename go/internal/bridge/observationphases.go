@@ -116,6 +116,21 @@ type ObservationSample struct {
 	Execute  Quantiles         `json:"execute"`
 	Sections []SectionPhases   `json:"sections,omitempty"`
 	Outcomes map[string]uint64 `json:"outcomes,omitempty"`
+	// Threats is the status read's threat classification work (#646),
+	// absent when no hop reported one.
+	Threats *ThreatScan `json:"threat_scan,omitempty"`
+}
+
+// ThreatScan sums the threat classifier's counters over the hops that ran
+// it (#646): pawns examined, those kept as threat rows, full pawn/control
+// projections paid for and nearest-colonist distance scans run. Projections
+// above Candidates would mean discarded pawns were projected.
+type ThreatScan struct {
+	Hops            uint64 `json:"hops"`
+	Examined        uint64 `json:"examined"`
+	Candidates      uint64 `json:"candidates"`
+	Projections     uint64 `json:"projections"`
+	ProximityChecks uint64 `json:"proximity_checks"`
 }
 
 // SlowFrameBucket is one declared threshold and how many update-to-update
@@ -196,6 +211,7 @@ type observationRecord struct {
 	dropped             uint64
 	outcome             string
 	sections            []SectionPhases
+	threats             *ThreatScan
 }
 
 // readObservation reads the "native_observation" block the service copies
@@ -217,6 +233,10 @@ func readObservation(timing map[string]any) (observationRecord, bool) {
 	out.payloadBytes = countOf(raw["payloadBytes"])
 	out.dropped = countOf(raw["droppedSections"])
 	out.outcome, _ = raw["outcome"].(string)
+	if scan, ok := raw["threatScan"].(map[string]any); ok {
+		out.threats = &ThreatScan{Hops: 1, Examined: countOf(scan["examined"]), Candidates: countOf(scan["candidates"]),
+			Projections: countOf(scan["projections"]), ProximityChecks: countOf(scan["proximityChecks"])}
+	}
 	if sections, ok := raw["sections"].(map[string]any); ok {
 		for name, entry := range sections {
 			body, ok := entry.(map[string]any)
@@ -331,6 +351,16 @@ func (a *observationAccumulator) hop(record observationRecord) {
 			a.sample.Outcomes = map[string]uint64{}
 		}
 		a.sample.Outcomes[record.outcome]++
+	}
+	if t := record.threats; t != nil {
+		if a.sample.Threats == nil {
+			a.sample.Threats = &ThreatScan{}
+		}
+		a.sample.Threats.Hops += t.Hops
+		a.sample.Threats.Examined += t.Examined
+		a.sample.Threats.Candidates += t.Candidates
+		a.sample.Threats.Projections += t.Projections
+		a.sample.Threats.ProximityChecks += t.ProximityChecks
 	}
 	for _, section := range record.sections {
 		if a.sections == nil {

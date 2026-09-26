@@ -41,6 +41,7 @@ namespace HomeBridge.BridgeTools
             internal string? Outcome;
             internal readonly List<Section> Sections = new List<Section>();
             internal ulong Frame;
+            internal long ThreatExamined = -1, ThreatCandidates, ThreatProjections, ThreatProximityChecks;
         }
 
         [ThreadStatic] private static Hop? _current;
@@ -89,6 +90,18 @@ namespace HomeBridge.BridgeTools
             entry.Candidates += Math.Max(0, candidates);
         }
 
+        /// One threat classification pass (#646): pawns examined, those kept
+        /// as threat rows, full pawn projections paid for and nearest-colonist
+        /// scans run. Summed across the hop's passes.
+        internal static void ThreatScan(long examined, long candidates, long projections, long proximityChecks)
+        {
+            var hop = _current;
+            if (hop == null) return;
+            if (hop.ThreatExamined < 0) hop.ThreatExamined = 0;
+            hop.ThreatExamined += examined; hop.ThreatCandidates += candidates;
+            hop.ThreatProjections += projections; hop.ThreatProximityChecks += proximityChecks;
+        }
+
         /// One ProtoJSON formatting pass took stopwatchTicks.
         internal static void Formatted(long stopwatchTicks)
         {
@@ -133,7 +146,7 @@ namespace HomeBridge.BridgeTools
         internal static Dictionary<string, object?>? Report(Hop? hop)
         {
             if (hop == null) return null;
-            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null) return null;
+            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null && hop.ThreatExamined < 0) return null;
             var report = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["captureMs"] = Ms(hop.CaptureTicks),
@@ -144,6 +157,12 @@ namespace HomeBridge.BridgeTools
             if (hop.PayloadBytes >= 0) report["payloadBytes"] = hop.PayloadBytes;
             if (hop.DroppedSections > 0) report["droppedSections"] = hop.DroppedSections;
             if (hop.Outcome != null) report["outcome"] = hop.Outcome;
+            if (hop.ThreatExamined >= 0)
+                report["threatScan"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["examined"] = hop.ThreatExamined, ["candidates"] = hop.ThreatCandidates,
+                    ["projections"] = hop.ThreatProjections, ["proximityChecks"] = hop.ThreatProximityChecks,
+                };
             if (hop.Sections.Count > 0)
             {
                 var sections = new Dictionary<string, object?>(StringComparer.Ordinal);

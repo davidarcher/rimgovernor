@@ -227,26 +227,9 @@ namespace HomeBridge.BridgeTools
             if (!wantThreats) { result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var threats = new Obs.ThreatsSnapshot(); var radius = request.HasPredatorRadius ? request.PredatorRadius : 30;
-            foreach (var pawn in spawned.Where(p => !p.Dead && !p.IsColonist)) {
-                var row = PawnRow(pawn, false, context); var nearest = colonists.Count == 0 ? (int?)null : colonists.Min(p => Math.Max(Math.Abs(p.Position.x-pawn.Position.x),Math.Abs(p.Position.z-pawn.Position.z)));
-                if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
-                var ours = pawn.Faction == player; var mental = pawn.MentalStateDef?.defName;
-                var hostile = mental?.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0 || pawn.Faction != null && !ours && pawn.Faction.HostileTo(player);
-                row.Hostile = hostile;
-                var threat = new Obs.ThreatPawn { Pawn = row };
-                if (hostile) { row.HostileReason = mental?.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0 ? "manhunter:"+mental : "faction:"+pawn.Faction!.GetUniqueLoadID(); threats.Hostiles.Add(threat); }
-                else if (pawn.CurJobDef?.defName == "PredatorHunt") {
-                    var target = pawn.CurJob.targetA.Thing; var prey = target as Pawn ?? (target as Corpse)?.InnerPawn;
-                    threat.PredatorIsOurs = ours;
-                    if (prey != null) { threat.Prey = Entity(prey); threat.PreyIsOurs = prey.Faction == player || prey.HostFaction == player; }
-                    row.HostileReason = "predatorHunt";
-                    if (ours || prey != null && !threat.PreyIsOurs) { threat.IgnoredReason = ours ? "player-owned predator" : "prey is not player-owned"; threats.IgnoredHunters.Add(threat); }
-                    else threats.HuntingPredators.Add(threat);
-                } else if (radius > 0 && nearest.HasValue && nearest.Value <= radius && !ours) {
-                    if (pawn.Downed) { var downed = threat.Clone(); downed.Pawn.HostileReason = "downed"; threats.DownedNear.Add(downed); }
-                    if (pawn.RaceProps.predator) { row.HostileReason = "predator_near"; threats.WildPredatorsNear.Add(threat); }
-                }
-            }
+            var colonistCells = colonists.Select(p => (p.Position.x, p.Position.z)).ToList();
+            NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
+                colonistCells, radius, pawn => PawnRow(pawn, false, context), pawn => Entity(HuntedPawn(pawn)!), threats);
             foreach (var building in HostileBuildings(map, player)) {
                 var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
                     HitPoints = building.HitPoints, MaxHitPoints = building.MaxHitPoints };
@@ -258,6 +241,20 @@ namespace HomeBridge.BridgeTools
             var count = threats.Hostiles.Count+threats.HuntingPredators.Count+threats.IgnoredHunters.Count+threats.DownedNear.Count+threats.WildPredatorsNear.Count+threats.HostileBuildings.Count;
             RequireCount(count,limit); threats.Completeness=Complete(count); result.Threats=threats; return result;
         }
+
+        // The cheap facts the threat classifier branches on (#646); the full
+        // PawnRow is built only for a pawn it keeps.
+        private static ThreatFacts ThreatFactsOf(Pawn pawn, Faction player)
+        {
+            var ours = pawn.Faction == player; var hunt = pawn.CurJobDef?.defName == "PredatorHunt";
+            var facts = new ThreatFacts { Ours = ours, Mental = pawn.MentalStateDef?.defName,
+                FactionHostile = pawn.Faction != null && !ours && pawn.Faction.HostileTo(player), PredatorHunt = hunt,
+                Downed = pawn.Downed, Predator = pawn.RaceProps.predator, X = pawn.Position.x, Z = pawn.Position.z };
+            if (facts.FactionHostile) facts.FactionId = pawn.Faction!.GetUniqueLoadID();
+            if (hunt) { var prey = HuntedPawn(pawn); if (prey != null) { facts.HasPrey = true; facts.PreyOurs = prey.Faction == player || prey.HostFaction == player; } }
+            return facts;
+        }
+        private static Pawn? HuntedPawn(Pawn pawn) { var target = pawn.CurJob?.targetA.Thing; return target as Pawn ?? (target as Corpse)?.InnerPawn; }
 
         // A hostile building is a combat target in its own right: an insect
         // hive (RimWorld.Hive is a ThingWithComps, so it is read by def, not

@@ -264,3 +264,29 @@ func TestNativeTimingCarriesObservationBlocks(t *testing.T) {
 		t.Fatalf("absent blocks invented: %+v", plain)
 	}
 }
+
+// The threat classifier's counters (#646) sum over the hops that ran it and
+// print as one line; a recording without them prints none.
+func TestThreatScanAggregated(t *testing.T) {
+	var rows []TimelineRecord
+	for i := 0; i < 3; i++ {
+		account := map[string]any{"captureMs": 1.0, "formatMs": 0.5}
+		if i < 2 {
+			account["threatScan"] = map[string]any{"examined": 500.0, "candidates": 3.0, "projections": 3.0, "proximityChecks": 4.0}
+		}
+		rows = append(rows, response("rimgovernor/observations_read_bundle", observed(nativeTimed(0.1, 1), account)))
+	}
+	summary := SummarizePhases(rows)
+	got := summary.Observation.Threats
+	if got == nil || *got != (ThreatScan{Hops: 2, Examined: 1000, Candidates: 6, Projections: 6, ProximityChecks: 8}) {
+		t.Fatalf("threat scan: %+v", got)
+	}
+	var text bytes.Buffer
+	WritePhaseReport(&text, summary)
+	if !strings.Contains(text.String(), "threats: 2 scans examined 1000 pawns, kept 6, projected 6, 8 distance scans") {
+		t.Fatalf("threat line missing:\n%s", text.String())
+	}
+	if none := SummarizePhases(rows[2:]); none.Observation.Threats != nil {
+		t.Fatalf("threat scan without counters: %+v", none.Observation.Threats)
+	}
+}

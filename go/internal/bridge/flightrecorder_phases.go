@@ -832,6 +832,10 @@ func writeObservationReport(w io.Writer, summary PhaseSummary) {
 			}
 			fmt.Fprintln(w)
 		}
+		if t := obs.Threats; t != nil {
+			fmt.Fprintf(w, "  threats: %d scans examined %d pawns, kept %d, projected %d, %d distance scans\n",
+				t.Hops, t.Examined, t.Candidates, t.Projections, t.ProximityChecks)
+		}
 		if len(obs.Sections) > 0 {
 			fmt.Fprintf(w, "  %-28s %6s %9s %9s %10s %10s\n", "section", "hops", "ms", "max ms", "rows", "candidates")
 			for _, section := range obs.Sections {
