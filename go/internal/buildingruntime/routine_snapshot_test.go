@@ -300,3 +300,50 @@ func TestSnapshotPowerBatteryBanksTheNight(t *testing.T) {
 		t.Fatalf("power: %s %s, want a Battery", p.Method, p.Definition)
 	}
 }
+
+// condition/response, cook-ahead: under the solar flare the coolers are
+// dark, so MaintainRefrigeration answers the warm at-risk stock with a
+// CookMealSimple bill on one of the fixture's fuelled benches (the bill
+// planner's cook-ahead path; the case ran with no other cooking bill, so no
+// bench is already claimed).
+func TestSnapshotConditionCookAheadBill(t *testing.T) {
+	t.Parallel()
+	r := loadRecorded(t, "condition-response-flare-eclipse-drone")
+	p := r.Projection
+	if !policy.SolarFlareHold(p.Facts.DisasterConditions) {
+		t.Fatal("no flare hold")
+	}
+	reviewer := &RoutineReviewer{policy: r.Policy}
+	warm, err := policy.ReviewRefrigeration(p.Facts.FoodStorageUpkeep, r.Review.Latches.Refrigeration, r.Policy.FoodStorage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bill, known := policy.SelectProductionBill(policy.CookAheadFood, p.ProductionBenches, p.Facts.Colonists, p.Facts.FoodDays, warm.WarmNutrition, reviewer.seasonal(p.Facts).FoodTargetDays)
+	if !known || bill.Recipe != "CookMealSimple" || bill.Bench == "" || bill.Target <= 0 {
+		t.Fatalf("cook-ahead: known %v bill %+v, want a CookMealSimple bill on a bench", known, bill)
+	}
+}
+
+// refrigeration/power, after: once the conduit run powers the cooler and
+// the patched setpoint chills the room (tick 57568), the power family has
+// no deficit left and the review releases the storeroom.
+func TestSnapshotRefrigerationPowerReleasesOnceReconnected(t *testing.T) {
+	t.Parallel()
+	r := loadRecorded(t, "refrigeration-power-reconnected-cooled")
+	if r.Review.Latches.Refrigeration {
+		t.Fatal("storeroom still latched after the cooler was reconnected")
+	}
+	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingMethodNoDeficit {
+		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingMethodNoDeficit)
+	}
+}
+
+// power/battery, after: with the Battery built and charged through a night
+// (tick 60017), the power planner has nothing more to store or raise.
+func TestSnapshotPowerBatteryBankedHasNoDeficit(t *testing.T) {
+	t.Parallel()
+	r := loadRecorded(t, "power-battery-banked")
+	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingMethodNoDeficit {
+		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingMethodNoDeficit)
+	}
+}
