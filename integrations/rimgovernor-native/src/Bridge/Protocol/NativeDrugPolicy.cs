@@ -33,9 +33,11 @@ namespace HomeBridge.BridgeTools
         }
         internal static bool Matches(Pawn pawn, string name) => pawn.drugs?.CurrentPolicy is DrugPolicy p && p.label == name && Social(p) && Current.Game.drugPolicyDatabase.DefaultDrugPolicy() == p;
         internal static string Name(Pawn pawn) => pawn.drugs?.CurrentPolicy is DrugPolicy p && Social(p) && Current.Game.drugPolicyDatabase.DefaultDrugPolicy() == p ? p.label : "";
+        // Hash only this pawn's settings (#685): Apply moves the colony default, so a
+        // default-policy signature would move every sibling's token on the first write.
         internal static string Token(string work, Pawn pawn)
         {
-            using (var hash = SHA256.Create()) return "drug-" + BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(work + Signature(pawn.drugs?.CurrentPolicy) + Signature(Current.Game.drugPolicyDatabase.DefaultDrugPolicy()) + Writable(pawn)))).Replace("-", "");
+            using (var hash = SHA256.Create()) return "drug-" + BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(work + Signature(pawn.drugs?.CurrentPolicy) + "/" + Name(pawn) + "/" + Writable(pawn)))).Replace("-", "");
         }
         internal static void Apply(Pawn pawn, string name)
         {

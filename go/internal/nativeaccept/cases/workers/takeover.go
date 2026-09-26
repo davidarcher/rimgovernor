@@ -61,7 +61,8 @@ func runScheduleTakeover(ctx context.Context, s cases.Session) error {
 		for _, plan := range plans {
 			for i, action := range plan.Spec.Actions() {
 				assignment, ok := action.WorkAssignment()
-				if ok && slices.Contains(fixture.IDs, string(assignment.Pawn())) && plan.Progress[i].View().Stage == domain.Completed {
+				// A drug write goes out alone (#685); only the timetable write proves the edit.
+				if ok && len(assignment.Schedule()) != 0 && slices.Contains(fixture.IDs, string(assignment.Pawn())) && plan.Progress[i].View().Stage == domain.Completed {
 					completed[string(assignment.Pawn())] = true
 				}
 			}
