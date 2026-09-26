@@ -652,83 +652,106 @@ namespace RimGovernor.Protocol.Presentation {
             "cm5vci5wcmVzZW50YXRpb24udjEuU2NyZWVuUmVjdCKOAQoPU2NyZWVuc2hv",
             "dFJlcGx5Ej0KCnNjcmVlbnNob3QYASABKAsyJy5yaW1nb3Zlcm5vci5wcmVz",
             "ZW50YXRpb24udjEuU2NyZWVuc2hvdEgAEjEKB2ZhaWx1cmUYAiABKAsyHi5y",
-            "aW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkKB291dGNvbWUqfQoN",
-            "UG9pbnRlckJ1dHRvbhIeChpQT0lOVEVSX0JVVFRPTl9VTlNQRUNJRklFRBAA",
-            "EhcKE1BPSU5URVJfQlVUVE9OX0xFRlQQARIZChVQT0lOVEVSX0JVVFRPTl9N",
-            "SURETEUQAhIYChRQT0lOVEVSX0JVVFRPTl9SSUdIVBADKsIBCg1NZWRpYUVu",
-            "Y29kaW5nEh4KGk1FRElBX0VOQ09ESU5HX1VOU1BFQ0lGSUVEEAASFgoSTUVE",
-            "SUFfRU5DT0RJTkdfUE5HEAESFwoTTUVESUFfRU5DT0RJTkdfSlBFRxACEhcK",
-            "E01FRElBX0VOQ09ESU5HX0gyNjQQAxIjCh9NRURJQV9FTkNPRElOR19SR0JB",
-            "MzJfQk9UVE9NX1VQEAQSIgoeTUVESUFfRU5DT0RJTkdfQkdSQTMyX1RPUF9E",
-            "T1dOEAUq3AEKDUNhcHR1cmVNZXRob2QSHgoaQ0FQVFVSRV9NRVRIT0RfVU5T",
-            "UEVDSUZJRUQQABIrCidDQVBUVVJFX01FVEhPRF9QUklWQVRFX1BSRVNFTlRF",
-            "RF9XSU5ET1cQARIcChhDQVBUVVJFX01FVEhPRF9BU1lOQ19HUFUQAhIeChpD",
-            "QVBUVVJFX01FVEhPRF9SRUFEX1BJWEVMUxADEhsKF0NBUFRVUkVfTUVUSE9E",
-            "X1BPUlRSQUlUEAQSIwofQ0FQVFVSRV9NRVRIT0RfT0ZGU0NSRUVOX0ZPTExP",
-            "VxAFKokBCg9WaWRlb1NvdXJjZUtpbmQSIQodVklERU9fU09VUkNFX0tJTkRf",
-            "VU5TUEVDSUZJRUQQABIcChhWSURFT19TT1VSQ0VfS0lORF9TQ1JFRU4QARIa",
-            "ChZWSURFT19TT1VSQ0VfS0lORF9QQVdOEAISGQoVVklERU9fU09VUkNFX0tJ",
-            "TkRfTUFQEAMqUwoIUGF3blZpZXcSGQoVUEFXTl9WSUVXX1VOU1BFQ0lGSUVE",
-            "EAASFgoSUEFXTl9WSUVXX1BPUlRSQUlUEAESFAoQUEFXTl9WSUVXX0ZPTExP",
-            "VxACMtALChFQcmVzZW50YXRpb25SZWFkcxJcCgZDYW1lcmESKC5yaW1nb3Zl",
-            "cm5vci5wcmVzZW50YXRpb24udjEuUmVhZFJlcXVlc3QaKC5yaW1nb3Zlcm5v",
-            "ci5wcmVzZW50YXRpb24udjEuQ2FtZXJhUmVwbHkSYgoJU2VsZWN0aW9uEigu",
-            "cmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlJlYWRSZXF1ZXN0Gisucmlt",
-            "Z292ZXJub3IucHJlc2VudGF0aW9uLnYxLlNlbGVjdGlvblJlcGx5EnEKCUNv",
-            "bG9uaXN0cxIyLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5Db2xvbmlz",
-            "dFJvc3RlclJlcXVlc3QaMC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEu",
-            "Q29sb25pc3RSb3N0ZXJSZXBseRJdCglDYXB0dXJlVWkSKi5yaW1nb3Zlcm5v",
-            "ci5wcmVzZW50YXRpb24udjEuVWlSZWFkUmVxdWVzdBokLnJpbWdvdmVybm9y",
-            "LnByZXNlbnRhdGlvbi52MS5VaVJlcGx5Em4KEVNjcmVlblRhcmdldHNSZWFk",
-            "EigucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlJlYWRSZXF1ZXN0Gi8u",
-            "cmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlNjcmVlblRhcmdldHNSZXBs",
-            "eRJcCghNYWluVGFicxIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5U",
-            "YWJzUmVxdWVzdBomLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5UYWJz",
-            "UmVwbHkSXwoLSW5zcGVjdFRhYnMSKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRp",
-            "b24udjEuVGFic1JlcXVlc3QaJi5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24u",
-            "djEuVGFic1JlcGx5ElwKBkdpem1vcxIoLnJpbWdvdmVybm9yLnByZXNlbnRh",
-            "dGlvbi52MS5SZWFkUmVxdWVzdBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlv",
-            "bi52MS5HaXptb3NSZXBseRJiCgxEaWFsb2dGaWVsZHMSKC5yaW1nb3Zlcm5v",
-            "ci5wcmVzZW50YXRpb24udjEuUmVhZFJlcXVlc3QaKC5yaW1nb3Zlcm5vci5w",
-            "cmVzZW50YXRpb24udjEuRGlhbG9nUmVwbHkSfwoRUHJldmlld0RpYWxvZ1Rl",
-            "eHQSNS5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuRGlhbG9nVGV4dFBy",
-            "ZXZpZXdSZXF1ZXN0GjMucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLkRp",
-            "YWxvZ1RleHRQcmV2aWV3UmVwbHkScwoNUHJldmlld05hbWluZxIxLnJpbWdv",
-            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5OYW1pbmdQcmV2aWV3UmVxdWVzdBov",
-            "LnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5OYW1pbmdQcmV2aWV3UmVw",
-            "bHkScwoNTm90aWZpY2F0aW9ucxIxLnJpbWdvdmVybm9yLnByZXNlbnRhdGlv",
-            "bi52MS5Ob3RpZmljYXRpb25zUmVxdWVzdBovLnJpbWdvdmVybm9yLnByZXNl",
-            "bnRhdGlvbi52MS5Ob3RpZmljYXRpb25zUmVwbHkSYQoLUmVuZGVyU3RhdGUS",
-            "KC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuUmVhZFJlcXVlc3QaKC5y",
-            "aW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuUmVuZGVyUmVwbHkSaAoOSW5w",
-            "dXRTdGF0ZVJlYWQSKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuUmVh",
-            "ZFJlcXVlc3QaLC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuSW5wdXRT",
-            "dGF0ZVJlcGx5MsoCChJQbGF5ZXJQcmVzZW50YXRpb24SagoKTGVhc2VJbnB1",
-            "dBIuLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5JbnB1dExlYXNlUmVx",
-            "dWVzdBosLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5JbnB1dExlYXNl",
-            "UmVwbHkSYgoJU2VuZElucHV0EicucmltZ292ZXJub3IucHJlc2VudGF0aW9u",
-            "LnYxLklucHV0RXZlbnQaLC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEu",
-            "SW5wdXRFdmVudFJlcGx5EmQKBUFwcGx5EioucmltZ292ZXJub3IucHJlc2Vu",
-            "dGF0aW9uLnYxLlBsYXllckNvbW1hbmQaLy5yaW1nb3Zlcm5vci5wcmVzZW50",
-            "YXRpb24udjEuUGxheWVyQ29tbWFuZFJlcGx5MqAFChFQcmVzZW50YXRpb25N",
-            "ZWRpYRJmCg9EZW1hbmRSZW5kZXJpbmcSKS5yaW1nb3Zlcm5vci5wcmVzZW50",
-            "YXRpb24udjEuUmVuZGVyRGVtYW5kGigucmltZ292ZXJub3IucHJlc2VudGF0",
-            "aW9uLnYxLlJlbmRlclJlcGx5EmUKCkxlYXNlVmlkZW8SLi5yaW1nb3Zlcm5v",
-            "ci5wcmVzZW50YXRpb24udjEuVmlkZW9MZWFzZVJlcXVlc3QaJy5yaW1nb3Zl",
-            "cm5vci5wcmVzZW50YXRpb24udjEuVmlkZW9SZXBseRJfCglSZWFkRnJhbWUS",
-            "KS5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuRnJhbWVSZXF1ZXN0Gicu",
-            "cmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLkZyYW1lUmVwbHkSfQoQQWNr",
-            "bm93bGVkZ2VGcmFtZRIxLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5G",
-            "cmFtZUFja25vd2xlZGdlbWVudBo2LnJpbWdvdmVybm9yLnByZXNlbnRhdGlv",
-            "bi52MS5GcmFtZUFja25vd2xlZGdlbWVudFJlcGx5EmkKC0NhcHR1cmVQYXdu",
-            "Ei0ucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlBhd25JbWFnZVJlcXVl",
-            "c3QaKy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuUGF3bkltYWdlUmVw",
-            "bHkScQoRQ2FwdHVyZVNjcmVlbnNob3QSLi5yaW1nb3Zlcm5vci5wcmVzZW50",
-            "YXRpb24udjEuU2NyZWVuc2hvdFJlcXVlc3QaLC5yaW1nb3Zlcm5vci5wcmVz",
-            "ZW50YXRpb24udjEuU2NyZWVuc2hvdFJlcGx5QndaUWdpdGh1Yi5jb20vZGF2",
-            "aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9wcmVzZW50",
-            "YXRpb25wYjtwcmVzZW50YXRpb25wYqoCIVJpbUdvdmVybm9yLlByb3RvY29s",
-            "LlByZXNlbnRhdGlvbmIGcHJvdG8z"));
+            "aW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkKB291dGNvbWUiigEK",
+            "D0xheW91dFBsYW5MYXllchIWCgljb2xvcl9kZWYYASABKAlIAIgBARISCgVs",
+            "YWJlbBgCIAEoCUgBiAEBEjMKBXJlY3RzGAMgAygLMiQucmltZ292ZXJub3Iu",
+            "cHJlc2VudGF0aW9uLnYxLk1hcFJlY3RCDAoKX2NvbG9yX2RlZkIICgZfbGFi",
+            "ZWwiWAoPTGF5b3V0UGxhbkxhYmVsEhEKBHRleHQYASABKAlIAIgBARIpCgRj",
+            "ZWxsGAIgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGxCBwoFX3Rl",
+            "eHQifQoTTGF5b3V0UGxhblJvb21Db2xvchIVCghyb2xlX2RlZhgBIAEoCUgA",
+            "iAEBEhYKCWNvbG9yX2RlZhgCIAEoCUgBiAEBEhIKBWxhYmVsGAMgASgJSAKI",
+            "AQFCCwoJX3JvbGVfZGVmQgwKCl9jb2xvcl9kZWZCCAoGX2xhYmVsIqsCChFM",
+            "YXlvdXRQbGFuUmVxdWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdvdmVy",
+            "bm9yLmNvbW1vbi52MS5JZGVudGl0eRIUCgdlbmFibGVkGAIgASgISACIAQES",
+            "PAoGbGF5ZXJzGAMgAygLMiwucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYx",
+            "LkxheW91dFBsYW5MYXllchI8CgZsYWJlbHMYBCADKAsyLC5yaW1nb3Zlcm5v",
+            "ci5wcmVzZW50YXRpb24udjEuTGF5b3V0UGxhbkxhYmVsEkUKC3Jvb21fY29s",
+            "b3JzGAUgAygLMjAucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLkxheW91",
+            "dFBsYW5Sb29tQ29sb3JCCgoIX2VuYWJsZWQi7QEKEUxheW91dFBsYW5BcHBs",
+            "aWVkEjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24udjEu",
+            "T2JzZXJ2YXRpb25Db250ZXh0EhIKBXBsYW5zGAIgASgNSACIAQESEgoFY2Vs",
+            "bHMYAyABKA1IAYgBARIUCgdyZW1vdmVkGAQgASgNSAKIAQESFAoHc2tpcHBl",
+            "ZBgFIAEoDUgDiAEBEhIKBXJvb21zGAYgASgNSASIAQFCCAoGX3BsYW5zQggK",
+            "Bl9jZWxsc0IKCghfcmVtb3ZlZEIKCghfc2tpcHBlZEIICgZfcm9vbXMikgEK",
+            "D0xheW91dFBsYW5SZXBseRJBCgdhcHBsaWVkGAEgASgLMi4ucmltZ292ZXJu",
+            "b3IucHJlc2VudGF0aW9uLnYxLkxheW91dFBsYW5BcHBsaWVkSAASMQoHZmFp",
+            "bHVyZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABC",
+            "CQoHb3V0Y29tZSp9Cg1Qb2ludGVyQnV0dG9uEh4KGlBPSU5URVJfQlVUVE9O",
+            "X1VOU1BFQ0lGSUVEEAASFwoTUE9JTlRFUl9CVVRUT05fTEVGVBABEhkKFVBP",
+            "SU5URVJfQlVUVE9OX01JRERMRRACEhgKFFBPSU5URVJfQlVUVE9OX1JJR0hU",
+            "EAMqwgEKDU1lZGlhRW5jb2RpbmcSHgoaTUVESUFfRU5DT0RJTkdfVU5TUEVD",
+            "SUZJRUQQABIWChJNRURJQV9FTkNPRElOR19QTkcQARIXChNNRURJQV9FTkNP",
+            "RElOR19KUEVHEAISFwoTTUVESUFfRU5DT0RJTkdfSDI2NBADEiMKH01FRElB",
+            "X0VOQ09ESU5HX1JHQkEzMl9CT1RUT01fVVAQBBIiCh5NRURJQV9FTkNPRElO",
+            "R19CR1JBMzJfVE9QX0RPV04QBSrcAQoNQ2FwdHVyZU1ldGhvZBIeChpDQVBU",
+            "VVJFX01FVEhPRF9VTlNQRUNJRklFRBAAEisKJ0NBUFRVUkVfTUVUSE9EX1BS",
+            "SVZBVEVfUFJFU0VOVEVEX1dJTkRPVxABEhwKGENBUFRVUkVfTUVUSE9EX0FT",
+            "WU5DX0dQVRACEh4KGkNBUFRVUkVfTUVUSE9EX1JFQURfUElYRUxTEAMSGwoX",
+            "Q0FQVFVSRV9NRVRIT0RfUE9SVFJBSVQQBBIjCh9DQVBUVVJFX01FVEhPRF9P",
+            "RkZTQ1JFRU5fRk9MTE9XEAUqiQEKD1ZpZGVvU291cmNlS2luZBIhCh1WSURF",
+            "T19TT1VSQ0VfS0lORF9VTlNQRUNJRklFRBAAEhwKGFZJREVPX1NPVVJDRV9L",
+            "SU5EX1NDUkVFThABEhoKFlZJREVPX1NPVVJDRV9LSU5EX1BBV04QAhIZChVW",
+            "SURFT19TT1VSQ0VfS0lORF9NQVAQAypTCghQYXduVmlldxIZChVQQVdOX1ZJ",
+            "RVdfVU5TUEVDSUZJRUQQABIWChJQQVdOX1ZJRVdfUE9SVFJBSVQQARIUChBQ",
+            "QVdOX1ZJRVdfRk9MTE9XEAIy0AsKEVByZXNlbnRhdGlvblJlYWRzElwKBkNh",
+            "bWVyYRIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVxdWVz",
+            "dBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5DYW1lcmFSZXBseRJi",
+            "CglTZWxlY3Rpb24SKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuUmVh",
+            "ZFJlcXVlc3QaKy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuU2VsZWN0",
+            "aW9uUmVwbHkScQoJQ29sb25pc3RzEjIucmltZ292ZXJub3IucHJlc2VudGF0",
+            "aW9uLnYxLkNvbG9uaXN0Um9zdGVyUmVxdWVzdBowLnJpbWdvdmVybm9yLnBy",
+            "ZXNlbnRhdGlvbi52MS5Db2xvbmlzdFJvc3RlclJlcGx5El0KCUNhcHR1cmVV",
+            "aRIqLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5VaVJlYWRSZXF1ZXN0",
+            "GiQucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLlVpUmVwbHkSbgoRU2Ny",
+            "ZWVuVGFyZ2V0c1JlYWQSKC5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEu",
+            "UmVhZFJlcXVlc3QaLy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuU2Ny",
+            "ZWVuVGFyZ2V0c1JlcGx5ElwKCE1haW5UYWJzEigucmltZ292ZXJub3IucHJl",
+            "c2VudGF0aW9uLnYxLlRhYnNSZXF1ZXN0GiYucmltZ292ZXJub3IucHJlc2Vu",
+            "dGF0aW9uLnYxLlRhYnNSZXBseRJfCgtJbnNwZWN0VGFicxIoLnJpbWdvdmVy",
+            "bm9yLnByZXNlbnRhdGlvbi52MS5UYWJzUmVxdWVzdBomLnJpbWdvdmVybm9y",
+            "LnByZXNlbnRhdGlvbi52MS5UYWJzUmVwbHkSXAoGR2l6bW9zEigucmltZ292",
+            "ZXJub3IucHJlc2VudGF0aW9uLnYxLlJlYWRSZXF1ZXN0GigucmltZ292ZXJu",
+            "b3IucHJlc2VudGF0aW9uLnYxLkdpem1vc1JlcGx5EmIKDERpYWxvZ0ZpZWxk",
+            "cxIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZWFkUmVxdWVzdBoo",
+            "LnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5EaWFsb2dSZXBseRJ/ChFQ",
+            "cmV2aWV3RGlhbG9nVGV4dBI1LnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52",
+            "MS5EaWFsb2dUZXh0UHJldmlld1JlcXVlc3QaMy5yaW1nb3Zlcm5vci5wcmVz",
+            "ZW50YXRpb24udjEuRGlhbG9nVGV4dFByZXZpZXdSZXBseRJzCg1QcmV2aWV3",
+            "TmFtaW5nEjEucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLk5hbWluZ1By",
+            "ZXZpZXdSZXF1ZXN0Gi8ucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYxLk5h",
+            "bWluZ1ByZXZpZXdSZXBseRJzCg1Ob3RpZmljYXRpb25zEjEucmltZ292ZXJu",
+            "b3IucHJlc2VudGF0aW9uLnYxLk5vdGlmaWNhdGlvbnNSZXF1ZXN0Gi8ucmlt",
+            "Z292ZXJub3IucHJlc2VudGF0aW9uLnYxLk5vdGlmaWNhdGlvbnNSZXBseRJh",
+            "CgtSZW5kZXJTdGF0ZRIoLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5S",
+            "ZWFkUmVxdWVzdBooLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5SZW5k",
+            "ZXJSZXBseRJoCg5JbnB1dFN0YXRlUmVhZBIoLnJpbWdvdmVybm9yLnByZXNl",
+            "bnRhdGlvbi52MS5SZWFkUmVxdWVzdBosLnJpbWdvdmVybm9yLnByZXNlbnRh",
+            "dGlvbi52MS5JbnB1dFN0YXRlUmVwbHkyygIKElBsYXllclByZXNlbnRhdGlv",
+            "bhJqCgpMZWFzZUlucHV0Ei4ucmltZ292ZXJub3IucHJlc2VudGF0aW9uLnYx",
+            "LklucHV0TGVhc2VSZXF1ZXN0GiwucmltZ292ZXJub3IucHJlc2VudGF0aW9u",
+            "LnYxLklucHV0TGVhc2VSZXBseRJiCglTZW5kSW5wdXQSJy5yaW1nb3Zlcm5v",
+            "ci5wcmVzZW50YXRpb24udjEuSW5wdXRFdmVudBosLnJpbWdvdmVybm9yLnBy",
+            "ZXNlbnRhdGlvbi52MS5JbnB1dEV2ZW50UmVwbHkSZAoFQXBwbHkSKi5yaW1n",
+            "b3Zlcm5vci5wcmVzZW50YXRpb24udjEuUGxheWVyQ29tbWFuZBovLnJpbWdv",
+            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5QbGF5ZXJDb21tYW5kUmVwbHkyoAUK",
+            "EVByZXNlbnRhdGlvbk1lZGlhEmYKD0RlbWFuZFJlbmRlcmluZxIpLnJpbWdv",
+            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5SZW5kZXJEZW1hbmQaKC5yaW1nb3Zl",
+            "cm5vci5wcmVzZW50YXRpb24udjEuUmVuZGVyUmVwbHkSZQoKTGVhc2VWaWRl",
+            "bxIuLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5WaWRlb0xlYXNlUmVx",
+            "dWVzdBonLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5WaWRlb1JlcGx5",
+            "El8KCVJlYWRGcmFtZRIpLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5G",
+            "cmFtZVJlcXVlc3QaJy5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEuRnJh",
+            "bWVSZXBseRJ9ChBBY2tub3dsZWRnZUZyYW1lEjEucmltZ292ZXJub3IucHJl",
+            "c2VudGF0aW9uLnYxLkZyYW1lQWNrbm93bGVkZ2VtZW50GjYucmltZ292ZXJu",
+            "b3IucHJlc2VudGF0aW9uLnYxLkZyYW1lQWNrbm93bGVkZ2VtZW50UmVwbHkS",
+            "aQoLQ2FwdHVyZVBhd24SLS5yaW1nb3Zlcm5vci5wcmVzZW50YXRpb24udjEu",
+            "UGF3bkltYWdlUmVxdWVzdBorLnJpbWdvdmVybm9yLnByZXNlbnRhdGlvbi52",
+            "MS5QYXduSW1hZ2VSZXBseRJxChFDYXB0dXJlU2NyZWVuc2hvdBIuLnJpbWdv",
+            "dmVybm9yLnByZXNlbnRhdGlvbi52MS5TY3JlZW5zaG90UmVxdWVzdBosLnJp",
+            "bWdvdmVybm9yLnByZXNlbnRhdGlvbi52MS5TY3JlZW5zaG90UmVwbHlCd1pR",
+            "Z2l0aHViLmNvbS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5h",
+            "bC93aXJlL3ByZXNlbnRhdGlvbnBiO3ByZXNlbnRhdGlvbnBiqgIhUmltR292",
+            "ZXJub3IuUHJvdG9jb2wuUHJlc2VudGF0aW9uYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Observations.ObservationsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Presentation.PointerButton), typeof(global::RimGovernor.Protocol.Presentation.MediaEncoding), typeof(global::RimGovernor.Protocol.Presentation.CaptureMethod), typeof(global::RimGovernor.Protocol.Presentation.VideoSourceKind), typeof(global::RimGovernor.Protocol.Presentation.PawnView), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -851,7 +874,13 @@ namespace RimGovernor.Protocol.Presentation {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.PawnImageReply), global::RimGovernor.Protocol.Presentation.PawnImageReply.Parser, new[]{ "Image", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.ScreenshotRequest), global::RimGovernor.Protocol.Presentation.ScreenshotRequest.Parser, new[]{ "Captured", "ClipTargetId", "ClipPadding", "IncludeTargets" }, new[]{ "ClipTargetId", "ClipPadding", "IncludeTargets" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.Screenshot), global::RimGovernor.Protocol.Presentation.Screenshot.Parser, new[]{ "Frame", "Targets", "ClipRect" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.ScreenshotReply), global::RimGovernor.Protocol.Presentation.ScreenshotReply.Parser, new[]{ "Screenshot", "Failure" }, new[]{ "Outcome" }, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.ScreenshotReply), global::RimGovernor.Protocol.Presentation.ScreenshotReply.Parser, new[]{ "Screenshot", "Failure" }, new[]{ "Outcome" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.LayoutPlanLayer), global::RimGovernor.Protocol.Presentation.LayoutPlanLayer.Parser, new[]{ "ColorDef", "Label", "Rects" }, new[]{ "ColorDef", "Label" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.LayoutPlanLabel), global::RimGovernor.Protocol.Presentation.LayoutPlanLabel.Parser, new[]{ "Text", "Cell" }, new[]{ "Text" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor), global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor.Parser, new[]{ "RoleDef", "ColorDef", "Label" }, new[]{ "RoleDef", "ColorDef", "Label" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.LayoutPlanRequest), global::RimGovernor.Protocol.Presentation.LayoutPlanRequest.Parser, new[]{ "Identity", "Enabled", "Layers", "Labels", "RoomColors" }, new[]{ "Enabled" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.LayoutPlanApplied), global::RimGovernor.Protocol.Presentation.LayoutPlanApplied.Parser, new[]{ "Context", "Plans", "Cells", "Removed", "Skipped", "Rooms" }, new[]{ "Plans", "Cells", "Removed", "Skipped", "Rooms" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Presentation.LayoutPlanReply), global::RimGovernor.Protocol.Presentation.LayoutPlanReply.Parser, new[]{ "Applied", "Failure" }, new[]{ "Outcome" }, null, null, null)
           }));
     }
     #endregion
@@ -46919,6 +46948,2005 @@ namespace RimGovernor.Protocol.Presentation {
             }
             input.ReadMessage(subBuilder);
             Screenshot = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
+            if (outcomeCase_ == OutcomeOneofCase.Failure) {
+              subBuilder.MergeFrom(Failure);
+            }
+            input.ReadMessage(subBuilder);
+            Failure = subBuilder;
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// Layout plan overlay (#726): the colony layout drawn as native 1.6 plans
+  /// plus text labels. Output only: every call deletes the plans this tool
+  /// made (label prefix "RimGovernor") and redraws; nothing reads them back.
+  /// Cells come as inclusive rectangles, usually single-row runs.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LayoutPlanLayer : pb::IMessage<LayoutPlanLayer>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LayoutPlanLayer> _parser = new pb::MessageParser<LayoutPlanLayer>(() => new LayoutPlanLayer());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LayoutPlanLayer> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[120]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanLayer() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanLayer(LayoutPlanLayer other) : this() {
+      colorDef_ = other.colorDef_;
+      label_ = other.label_;
+      rects_ = other.rects_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanLayer Clone() {
+      return new LayoutPlanLayer(this);
+    }
+
+    /// <summary>Field number for the "color_def" field.</summary>
+    public const int ColorDefFieldNumber = 1;
+    private readonly static string ColorDefDefaultValue = "";
+
+    private string colorDef_;
+    /// <summary>
+    /// A ColorDef of colorType Planning.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ColorDef {
+      get { return colorDef_ ?? ColorDefDefaultValue; }
+      set {
+        colorDef_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "color_def" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasColorDef {
+      get { return colorDef_ != null; }
+    }
+    /// <summary>Clears the value of the "color_def" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearColorDef() {
+      colorDef_ = null;
+    }
+
+    /// <summary>Field number for the "label" field.</summary>
+    public const int LabelFieldNumber = 2;
+    private readonly static string LabelDefaultValue = "";
+
+    private string label_;
+    /// <summary>
+    /// Plan label, prefixed natively.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Label {
+      get { return label_ ?? LabelDefaultValue; }
+      set {
+        label_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "label" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasLabel {
+      get { return label_ != null; }
+    }
+    /// <summary>Clears the value of the "label" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearLabel() {
+      label_ = null;
+    }
+
+    /// <summary>Field number for the "rects" field.</summary>
+    public const int RectsFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Presentation.MapRect> _repeated_rects_codec
+        = pb::FieldCodec.ForMessage(26, global::RimGovernor.Protocol.Presentation.MapRect.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.MapRect> rects_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.MapRect>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.MapRect> Rects {
+      get { return rects_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LayoutPlanLayer);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LayoutPlanLayer other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (ColorDef != other.ColorDef) return false;
+      if (Label != other.Label) return false;
+      if(!rects_.Equals(other.rects_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasColorDef) hash ^= ColorDef.GetHashCode();
+      if (HasLabel) hash ^= Label.GetHashCode();
+      hash ^= rects_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasColorDef) {
+        output.WriteRawTag(10);
+        output.WriteString(ColorDef);
+      }
+      if (HasLabel) {
+        output.WriteRawTag(18);
+        output.WriteString(Label);
+      }
+      rects_.WriteTo(output, _repeated_rects_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasColorDef) {
+        output.WriteRawTag(10);
+        output.WriteString(ColorDef);
+      }
+      if (HasLabel) {
+        output.WriteRawTag(18);
+        output.WriteString(Label);
+      }
+      rects_.WriteTo(ref output, _repeated_rects_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasColorDef) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ColorDef);
+      }
+      if (HasLabel) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Label);
+      }
+      size += rects_.CalculateSize(_repeated_rects_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LayoutPlanLayer other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasColorDef) {
+        ColorDef = other.ColorDef;
+      }
+      if (other.HasLabel) {
+        Label = other.Label;
+      }
+      rects_.Add(other.rects_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            ColorDef = input.ReadString();
+            break;
+          }
+          case 18: {
+            Label = input.ReadString();
+            break;
+          }
+          case 26: {
+            rects_.AddEntriesFrom(input, _repeated_rects_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            ColorDef = input.ReadString();
+            break;
+          }
+          case 18: {
+            Label = input.ReadString();
+            break;
+          }
+          case 26: {
+            rects_.AddEntriesFrom(ref input, _repeated_rects_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// A text label drawn at a map cell while the overlay is on.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LayoutPlanLabel : pb::IMessage<LayoutPlanLabel>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LayoutPlanLabel> _parser = new pb::MessageParser<LayoutPlanLabel>(() => new LayoutPlanLabel());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LayoutPlanLabel> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[121]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanLabel() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanLabel(LayoutPlanLabel other) : this() {
+      text_ = other.text_;
+      cell_ = other.cell_ != null ? other.cell_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanLabel Clone() {
+      return new LayoutPlanLabel(this);
+    }
+
+    /// <summary>Field number for the "text" field.</summary>
+    public const int TextFieldNumber = 1;
+    private readonly static string TextDefaultValue = "";
+
+    private string text_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Text {
+      get { return text_ ?? TextDefaultValue; }
+      set {
+        text_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "text" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasText {
+      get { return text_ != null; }
+    }
+    /// <summary>Clears the value of the "text" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearText() {
+      text_ = null;
+    }
+
+    /// <summary>Field number for the "cell" field.</summary>
+    public const int CellFieldNumber = 2;
+    private global::RimGovernor.Protocol.Common.Cell cell_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell Cell {
+      get { return cell_; }
+      set {
+        cell_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LayoutPlanLabel);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LayoutPlanLabel other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Text != other.Text) return false;
+      if (!object.Equals(Cell, other.Cell)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasText) hash ^= Text.GetHashCode();
+      if (cell_ != null) hash ^= Cell.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasText) {
+        output.WriteRawTag(10);
+        output.WriteString(Text);
+      }
+      if (cell_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Cell);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasText) {
+        output.WriteRawTag(10);
+        output.WriteString(Text);
+      }
+      if (cell_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Cell);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasText) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Text);
+      }
+      if (cell_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cell);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LayoutPlanLabel other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasText) {
+        Text = other.Text;
+      }
+      if (other.cell_ != null) {
+        if (cell_ == null) {
+          Cell = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        Cell.MergeFrom(other.Cell);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Text = input.ReadString();
+            break;
+          }
+          case 18: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Text = input.ReadString();
+            break;
+          }
+          case 18: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// Colors existing player rooms by their native RoomRoleDef.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LayoutPlanRoomColor : pb::IMessage<LayoutPlanRoomColor>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LayoutPlanRoomColor> _parser = new pb::MessageParser<LayoutPlanRoomColor>(() => new LayoutPlanRoomColor());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LayoutPlanRoomColor> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[122]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanRoomColor() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanRoomColor(LayoutPlanRoomColor other) : this() {
+      roleDef_ = other.roleDef_;
+      colorDef_ = other.colorDef_;
+      label_ = other.label_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanRoomColor Clone() {
+      return new LayoutPlanRoomColor(this);
+    }
+
+    /// <summary>Field number for the "role_def" field.</summary>
+    public const int RoleDefFieldNumber = 1;
+    private readonly static string RoleDefDefaultValue = "";
+
+    private string roleDef_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RoleDef {
+      get { return roleDef_ ?? RoleDefDefaultValue; }
+      set {
+        roleDef_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "role_def" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRoleDef {
+      get { return roleDef_ != null; }
+    }
+    /// <summary>Clears the value of the "role_def" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRoleDef() {
+      roleDef_ = null;
+    }
+
+    /// <summary>Field number for the "color_def" field.</summary>
+    public const int ColorDefFieldNumber = 2;
+    private readonly static string ColorDefDefaultValue = "";
+
+    private string colorDef_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ColorDef {
+      get { return colorDef_ ?? ColorDefDefaultValue; }
+      set {
+        colorDef_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "color_def" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasColorDef {
+      get { return colorDef_ != null; }
+    }
+    /// <summary>Clears the value of the "color_def" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearColorDef() {
+      colorDef_ = null;
+    }
+
+    /// <summary>Field number for the "label" field.</summary>
+    public const int LabelFieldNumber = 3;
+    private readonly static string LabelDefaultValue = "";
+
+    private string label_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Label {
+      get { return label_ ?? LabelDefaultValue; }
+      set {
+        label_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "label" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasLabel {
+      get { return label_ != null; }
+    }
+    /// <summary>Clears the value of the "label" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearLabel() {
+      label_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LayoutPlanRoomColor);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LayoutPlanRoomColor other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (RoleDef != other.RoleDef) return false;
+      if (ColorDef != other.ColorDef) return false;
+      if (Label != other.Label) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasRoleDef) hash ^= RoleDef.GetHashCode();
+      if (HasColorDef) hash ^= ColorDef.GetHashCode();
+      if (HasLabel) hash ^= Label.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasRoleDef) {
+        output.WriteRawTag(10);
+        output.WriteString(RoleDef);
+      }
+      if (HasColorDef) {
+        output.WriteRawTag(18);
+        output.WriteString(ColorDef);
+      }
+      if (HasLabel) {
+        output.WriteRawTag(26);
+        output.WriteString(Label);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasRoleDef) {
+        output.WriteRawTag(10);
+        output.WriteString(RoleDef);
+      }
+      if (HasColorDef) {
+        output.WriteRawTag(18);
+        output.WriteString(ColorDef);
+      }
+      if (HasLabel) {
+        output.WriteRawTag(26);
+        output.WriteString(Label);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasRoleDef) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RoleDef);
+      }
+      if (HasColorDef) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ColorDef);
+      }
+      if (HasLabel) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Label);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LayoutPlanRoomColor other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasRoleDef) {
+        RoleDef = other.RoleDef;
+      }
+      if (other.HasColorDef) {
+        ColorDef = other.ColorDef;
+      }
+      if (other.HasLabel) {
+        Label = other.Label;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            RoleDef = input.ReadString();
+            break;
+          }
+          case 18: {
+            ColorDef = input.ReadString();
+            break;
+          }
+          case 26: {
+            Label = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            RoleDef = input.ReadString();
+            break;
+          }
+          case 18: {
+            ColorDef = input.ReadString();
+            break;
+          }
+          case 26: {
+            Label = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LayoutPlanRequest : pb::IMessage<LayoutPlanRequest>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LayoutPlanRequest> _parser = new pb::MessageParser<LayoutPlanRequest>(() => new LayoutPlanRequest());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LayoutPlanRequest> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[123]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanRequest(LayoutPlanRequest other) : this() {
+      _hasBits0 = other._hasBits0;
+      identity_ = other.identity_ != null ? other.identity_.Clone() : null;
+      enabled_ = other.enabled_;
+      layers_ = other.layers_.Clone();
+      labels_ = other.labels_.Clone();
+      roomColors_ = other.roomColors_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanRequest Clone() {
+      return new LayoutPlanRequest(this);
+    }
+
+    /// <summary>Field number for the "identity" field.</summary>
+    public const int IdentityFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.Identity identity_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Identity Identity {
+      get { return identity_; }
+      set {
+        identity_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "enabled" field.</summary>
+    public const int EnabledFieldNumber = 2;
+    private readonly static bool EnabledDefaultValue = false;
+
+    private bool enabled_;
+    /// <summary>
+    /// false removes every owned plan and label.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Enabled {
+      get { if ((_hasBits0 & 1) != 0) { return enabled_; } else { return EnabledDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        enabled_ = value;
+      }
+    }
+    /// <summary>Gets whether the "enabled" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasEnabled {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "enabled" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearEnabled() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "layers" field.</summary>
+    public const int LayersFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Presentation.LayoutPlanLayer> _repeated_layers_codec
+        = pb::FieldCodec.ForMessage(26, global::RimGovernor.Protocol.Presentation.LayoutPlanLayer.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanLayer> layers_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanLayer>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanLayer> Layers {
+      get { return layers_; }
+    }
+
+    /// <summary>Field number for the "labels" field.</summary>
+    public const int LabelsFieldNumber = 4;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Presentation.LayoutPlanLabel> _repeated_labels_codec
+        = pb::FieldCodec.ForMessage(34, global::RimGovernor.Protocol.Presentation.LayoutPlanLabel.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanLabel> labels_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanLabel>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanLabel> Labels {
+      get { return labels_; }
+    }
+
+    /// <summary>Field number for the "room_colors" field.</summary>
+    public const int RoomColorsFieldNumber = 5;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor> _repeated_roomColors_codec
+        = pb::FieldCodec.ForMessage(42, global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor> roomColors_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Presentation.LayoutPlanRoomColor> RoomColors {
+      get { return roomColors_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LayoutPlanRequest);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LayoutPlanRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Identity, other.Identity)) return false;
+      if (Enabled != other.Enabled) return false;
+      if(!layers_.Equals(other.layers_)) return false;
+      if(!labels_.Equals(other.labels_)) return false;
+      if(!roomColors_.Equals(other.roomColors_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (identity_ != null) hash ^= Identity.GetHashCode();
+      if (HasEnabled) hash ^= Enabled.GetHashCode();
+      hash ^= layers_.GetHashCode();
+      hash ^= labels_.GetHashCode();
+      hash ^= roomColors_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (identity_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Identity);
+      }
+      if (HasEnabled) {
+        output.WriteRawTag(16);
+        output.WriteBool(Enabled);
+      }
+      layers_.WriteTo(output, _repeated_layers_codec);
+      labels_.WriteTo(output, _repeated_labels_codec);
+      roomColors_.WriteTo(output, _repeated_roomColors_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (identity_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Identity);
+      }
+      if (HasEnabled) {
+        output.WriteRawTag(16);
+        output.WriteBool(Enabled);
+      }
+      layers_.WriteTo(ref output, _repeated_layers_codec);
+      labels_.WriteTo(ref output, _repeated_labels_codec);
+      roomColors_.WriteTo(ref output, _repeated_roomColors_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (identity_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Identity);
+      }
+      if (HasEnabled) {
+        size += 1 + 1;
+      }
+      size += layers_.CalculateSize(_repeated_layers_codec);
+      size += labels_.CalculateSize(_repeated_labels_codec);
+      size += roomColors_.CalculateSize(_repeated_roomColors_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LayoutPlanRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.identity_ != null) {
+        if (identity_ == null) {
+          Identity = new global::RimGovernor.Protocol.Common.Identity();
+        }
+        Identity.MergeFrom(other.Identity);
+      }
+      if (other.HasEnabled) {
+        Enabled = other.Enabled;
+      }
+      layers_.Add(other.layers_);
+      labels_.Add(other.labels_);
+      roomColors_.Add(other.roomColors_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
+          case 16: {
+            Enabled = input.ReadBool();
+            break;
+          }
+          case 26: {
+            layers_.AddEntriesFrom(input, _repeated_layers_codec);
+            break;
+          }
+          case 34: {
+            labels_.AddEntriesFrom(input, _repeated_labels_codec);
+            break;
+          }
+          case 42: {
+            roomColors_.AddEntriesFrom(input, _repeated_roomColors_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
+          case 16: {
+            Enabled = input.ReadBool();
+            break;
+          }
+          case 26: {
+            layers_.AddEntriesFrom(ref input, _repeated_layers_codec);
+            break;
+          }
+          case 34: {
+            labels_.AddEntriesFrom(ref input, _repeated_labels_codec);
+            break;
+          }
+          case 42: {
+            roomColors_.AddEntriesFrom(ref input, _repeated_roomColors_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LayoutPlanApplied : pb::IMessage<LayoutPlanApplied>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LayoutPlanApplied> _parser = new pb::MessageParser<LayoutPlanApplied>(() => new LayoutPlanApplied());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LayoutPlanApplied> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[124]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanApplied() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanApplied(LayoutPlanApplied other) : this() {
+      _hasBits0 = other._hasBits0;
+      context_ = other.context_ != null ? other.context_.Clone() : null;
+      plans_ = other.plans_;
+      cells_ = other.cells_;
+      removed_ = other.removed_;
+      skipped_ = other.skipped_;
+      rooms_ = other.rooms_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanApplied Clone() {
+      return new LayoutPlanApplied(this);
+    }
+
+    /// <summary>Field number for the "context" field.</summary>
+    public const int ContextFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.ObservationContext context_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.ObservationContext Context {
+      get { return context_; }
+      set {
+        context_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "plans" field.</summary>
+    public const int PlansFieldNumber = 2;
+    private readonly static uint PlansDefaultValue = 0;
+
+    private uint plans_;
+    /// <summary>
+    /// Owned plans after the call.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Plans {
+      get { if ((_hasBits0 & 1) != 0) { return plans_; } else { return PlansDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        plans_ = value;
+      }
+    }
+    /// <summary>Gets whether the "plans" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPlans {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "plans" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPlans() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "cells" field.</summary>
+    public const int CellsFieldNumber = 3;
+    private readonly static uint CellsDefaultValue = 0;
+
+    private uint cells_;
+    /// <summary>
+    /// Cells those plans hold.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Cells {
+      get { if ((_hasBits0 & 2) != 0) { return cells_; } else { return CellsDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        cells_ = value;
+      }
+    }
+    /// <summary>Gets whether the "cells" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasCells {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "cells" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearCells() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "removed" field.</summary>
+    public const int RemovedFieldNumber = 4;
+    private readonly static uint RemovedDefaultValue = 0;
+
+    private uint removed_;
+    /// <summary>
+    /// Owned plans deleted first.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Removed {
+      get { if ((_hasBits0 & 4) != 0) { return removed_; } else { return RemovedDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        removed_ = value;
+      }
+    }
+    /// <summary>Gets whether the "removed" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRemoved {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "removed" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRemoved() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "skipped" field.</summary>
+    public const int SkippedFieldNumber = 5;
+    private readonly static uint SkippedDefaultValue = 0;
+
+    private uint skipped_;
+    /// <summary>
+    /// Cells left to a player plan or off the map.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Skipped {
+      get { if ((_hasBits0 & 8) != 0) { return skipped_; } else { return SkippedDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        skipped_ = value;
+      }
+    }
+    /// <summary>Gets whether the "skipped" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSkipped {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "skipped" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSkipped() {
+      _hasBits0 &= ~8;
+    }
+
+    /// <summary>Field number for the "rooms" field.</summary>
+    public const int RoomsFieldNumber = 6;
+    private readonly static uint RoomsDefaultValue = 0;
+
+    private uint rooms_;
+    /// <summary>
+    /// Existing rooms colored.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint Rooms {
+      get { if ((_hasBits0 & 16) != 0) { return rooms_; } else { return RoomsDefaultValue; } }
+      set {
+        _hasBits0 |= 16;
+        rooms_ = value;
+      }
+    }
+    /// <summary>Gets whether the "rooms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRooms {
+      get { return (_hasBits0 & 16) != 0; }
+    }
+    /// <summary>Clears the value of the "rooms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRooms() {
+      _hasBits0 &= ~16;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LayoutPlanApplied);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LayoutPlanApplied other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Context, other.Context)) return false;
+      if (Plans != other.Plans) return false;
+      if (Cells != other.Cells) return false;
+      if (Removed != other.Removed) return false;
+      if (Skipped != other.Skipped) return false;
+      if (Rooms != other.Rooms) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (context_ != null) hash ^= Context.GetHashCode();
+      if (HasPlans) hash ^= Plans.GetHashCode();
+      if (HasCells) hash ^= Cells.GetHashCode();
+      if (HasRemoved) hash ^= Removed.GetHashCode();
+      if (HasSkipped) hash ^= Skipped.GetHashCode();
+      if (HasRooms) hash ^= Rooms.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
+      }
+      if (HasPlans) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(Plans);
+      }
+      if (HasCells) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(Cells);
+      }
+      if (HasRemoved) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Removed);
+      }
+      if (HasSkipped) {
+        output.WriteRawTag(40);
+        output.WriteUInt32(Skipped);
+      }
+      if (HasRooms) {
+        output.WriteRawTag(48);
+        output.WriteUInt32(Rooms);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
+      }
+      if (HasPlans) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(Plans);
+      }
+      if (HasCells) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(Cells);
+      }
+      if (HasRemoved) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(Removed);
+      }
+      if (HasSkipped) {
+        output.WriteRawTag(40);
+        output.WriteUInt32(Skipped);
+      }
+      if (HasRooms) {
+        output.WriteRawTag(48);
+        output.WriteUInt32(Rooms);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (context_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Context);
+      }
+      if (HasPlans) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Plans);
+      }
+      if (HasCells) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Cells);
+      }
+      if (HasRemoved) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Removed);
+      }
+      if (HasSkipped) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Skipped);
+      }
+      if (HasRooms) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Rooms);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LayoutPlanApplied other) {
+      if (other == null) {
+        return;
+      }
+      if (other.context_ != null) {
+        if (context_ == null) {
+          Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+        }
+        Context.MergeFrom(other.Context);
+      }
+      if (other.HasPlans) {
+        Plans = other.Plans;
+      }
+      if (other.HasCells) {
+        Cells = other.Cells;
+      }
+      if (other.HasRemoved) {
+        Removed = other.Removed;
+      }
+      if (other.HasSkipped) {
+        Skipped = other.Skipped;
+      }
+      if (other.HasRooms) {
+        Rooms = other.Rooms;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+          case 16: {
+            Plans = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            Cells = input.ReadUInt32();
+            break;
+          }
+          case 32: {
+            Removed = input.ReadUInt32();
+            break;
+          }
+          case 40: {
+            Skipped = input.ReadUInt32();
+            break;
+          }
+          case 48: {
+            Rooms = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+          case 16: {
+            Plans = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            Cells = input.ReadUInt32();
+            break;
+          }
+          case 32: {
+            Removed = input.ReadUInt32();
+            break;
+          }
+          case 40: {
+            Skipped = input.ReadUInt32();
+            break;
+          }
+          case 48: {
+            Rooms = input.ReadUInt32();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class LayoutPlanReply : pb::IMessage<LayoutPlanReply>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<LayoutPlanReply> _parser = new pb::MessageParser<LayoutPlanReply>(() => new LayoutPlanReply());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<LayoutPlanReply> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Presentation.PresentationReflection.Descriptor.MessageTypes[125]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanReply() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanReply(LayoutPlanReply other) : this() {
+      switch (other.OutcomeCase) {
+        case OutcomeOneofCase.Applied:
+          Applied = other.Applied.Clone();
+          break;
+        case OutcomeOneofCase.Failure:
+          Failure = other.Failure.Clone();
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public LayoutPlanReply Clone() {
+      return new LayoutPlanReply(this);
+    }
+
+    /// <summary>Field number for the "applied" field.</summary>
+    public const int AppliedFieldNumber = 1;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Presentation.LayoutPlanApplied Applied {
+      get { return outcomeCase_ == OutcomeOneofCase.Applied ? (global::RimGovernor.Protocol.Presentation.LayoutPlanApplied) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Applied;
+      }
+    }
+
+    /// <summary>Field number for the "failure" field.</summary>
+    public const int FailureFieldNumber = 2;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Failure Failure {
+      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Common.Failure) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Failure;
+      }
+    }
+
+    private object outcome_;
+    /// <summary>Enum of possible cases for the "outcome" oneof.</summary>
+    public enum OutcomeOneofCase {
+      None = 0,
+      Applied = 1,
+      Failure = 2,
+    }
+    private OutcomeOneofCase outcomeCase_ = OutcomeOneofCase.None;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OutcomeOneofCase OutcomeCase {
+      get { return outcomeCase_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearOutcome() {
+      outcomeCase_ = OutcomeOneofCase.None;
+      outcome_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as LayoutPlanReply);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(LayoutPlanReply other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Applied, other.Applied)) return false;
+      if (!object.Equals(Failure, other.Failure)) return false;
+      if (OutcomeCase != other.OutcomeCase) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (outcomeCase_ == OutcomeOneofCase.Applied) hash ^= Applied.GetHashCode();
+      if (outcomeCase_ == OutcomeOneofCase.Failure) hash ^= Failure.GetHashCode();
+      hash ^= (int) outcomeCase_;
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (outcomeCase_ == OutcomeOneofCase.Applied) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Applied);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Failure);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (outcomeCase_ == OutcomeOneofCase.Applied) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Applied);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Failure);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (outcomeCase_ == OutcomeOneofCase.Applied) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Applied);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Failure);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(LayoutPlanReply other) {
+      if (other == null) {
+        return;
+      }
+      switch (other.OutcomeCase) {
+        case OutcomeOneofCase.Applied:
+          if (Applied == null) {
+            Applied = new global::RimGovernor.Protocol.Presentation.LayoutPlanApplied();
+          }
+          Applied.MergeFrom(other.Applied);
+          break;
+        case OutcomeOneofCase.Failure:
+          if (Failure == null) {
+            Failure = new global::RimGovernor.Protocol.Common.Failure();
+          }
+          Failure.MergeFrom(other.Failure);
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Presentation.LayoutPlanApplied subBuilder = new global::RimGovernor.Protocol.Presentation.LayoutPlanApplied();
+            if (outcomeCase_ == OutcomeOneofCase.Applied) {
+              subBuilder.MergeFrom(Applied);
+            }
+            input.ReadMessage(subBuilder);
+            Applied = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
+            if (outcomeCase_ == OutcomeOneofCase.Failure) {
+              subBuilder.MergeFrom(Failure);
+            }
+            input.ReadMessage(subBuilder);
+            Failure = subBuilder;
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Presentation.LayoutPlanApplied subBuilder = new global::RimGovernor.Protocol.Presentation.LayoutPlanApplied();
+            if (outcomeCase_ == OutcomeOneofCase.Applied) {
+              subBuilder.MergeFrom(Applied);
+            }
+            input.ReadMessage(subBuilder);
+            Applied = subBuilder;
             break;
           }
           case 18: {

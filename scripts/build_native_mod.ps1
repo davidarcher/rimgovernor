@@ -49,7 +49,7 @@ New-Item -ItemType Directory -Path $taskBuild, $taskPackage -Force | Out-Null
 $taskCopyRoot = Join-Path $taskBuild 'source'
 $taskCopyNative = Join-Path $taskCopyRoot 'integrations/rimgovernor-native'
 New-Item -ItemType Directory -Path $taskCopyNative -Force | Out-Null
-foreach ($taskDirectory in @('src', 'About', 'Notices')) {
+foreach ($taskDirectory in @('src', 'About', 'Defs', 'Notices')) {
     $taskFrom = Join-Path $taskSource $taskDirectory
     foreach ($taskFile in Get-ChildItem -LiteralPath $taskFrom -Recurse -File | Where-Object {
         $_.FullName -notmatch '[\\/](obj|bin|Assemblies|BridgeTools)[\\/]'
@@ -131,7 +131,7 @@ foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime
     Copy-Item -LiteralPath $taskDll -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
     $taskRuntimeDependencies += [ordered]@{ package = $taskFields[0]; version = $taskFields[1]; file = $taskFields[2] }
 }
-Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
+Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage
 $taskSnapshot = Join-Path $taskPackage 'Source'
 New-Item -ItemType Directory -Path $taskSnapshot -Force | Out-Null

@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 )
 
 // masterReplanEvery is the fewest ticks between replans (one game day):
@@ -73,11 +74,15 @@ func (r *RoutineReviewer) establishMasterPlan(ctx context.Context, snapshot doma
 func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) error {
 	grid, _ := projection.ColonyGrid.Value()
 	if grid.Source != policy.ColonyGridFromSurvey {
+		r.drawLayoutOverlay(ctx, snapshot, projection)
 		return nil
 	}
 	tick := projection.Identity.Tick
 	record, ok, err := r.player.journal.ColonyPlan(ctx, snapshot, tick)
 	if err != nil || !ok {
+		if err == nil {
+			r.drawLayoutOverlay(ctx, snapshot, projection)
+		}
 		return err
 	}
 	plan := policy.MasterPlan{Grid: grid, Radius: record.Radius, Modules: record.Modules}
@@ -105,5 +110,49 @@ func (r *RoutineReviewer) reviewMasterPlan(ctx context.Context, snapshot domain.
 		}
 	}
 	projection.ColonyPlan = domain.Known(plan)
+	r.drawLayoutOverlay(ctx, snapshot, projection)
 	return nil
+}
+
+// overlayRedrawEvery is how often an unchanged plan's overlay is redrawn
+// (one game day), so rooms built since take their colors and labels.
+const overlayRedrawEvery domain.Tick = 60000
+
+// LayoutOverlayNative draws the master plan as native plan designations
+// (#726, bridge.Client.DrawLayoutPlan).
+type LayoutOverlayNative interface {
+	DrawLayoutPlan(context.Context, *c.Identity, policy.LayoutOverlay, bool) (*p.LayoutPlanApplied, bridge.Result, error)
+}
+
+// drawLayoutOverlay rewrites the overlay when the plan changed or a day
+// passed since the last draw; with the overlay off it deletes the owned
+// plans once per process. Output only: a failure is logged, never fatal.
+func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) {
+	native, ok := r.native.(LayoutOverlayNative)
+	if !ok {
+		return
+	}
+	tick := projection.Identity.Tick
+	plan, known := projection.ColonyPlan.Value()
+	if !r.layoutOverlay || !known {
+		if !r.overlayCleared {
+			if _, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), policy.LayoutOverlay{}, false); err != nil {
+				clockSchedulerLog("layout overlay not cleared: %v", err)
+				return
+			}
+			r.overlayCleared = true
+		}
+		return
+	}
+	key := fmt.Sprint(plan.Grid, plan.Radius, plan.Modules)
+	if key == r.overlayKey && tick >= r.overlayDrawn && tick-r.overlayDrawn < overlayRedrawEvery {
+		return
+	}
+	applied, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), plan.Overlay(projection.Bounds), true)
+	if err != nil {
+		clockSchedulerLog("layout overlay not drawn: %v", err)
+		return
+	}
+	r.overlayKey, r.overlayDrawn, r.overlayCleared = key, tick, false
+	clockSchedulerLog("layout overlay drawn plans=%d cells=%d rooms=%d skipped=%d removed=%d", applied.GetPlans(), applied.GetCells(), applied.GetRooms(), applied.GetSkipped(), applied.GetRemoved())
 }

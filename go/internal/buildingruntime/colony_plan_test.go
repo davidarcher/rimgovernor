@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 )
 
 // surveyNative serves a flat open map; its other reads are never called.
@@ -113,5 +114,56 @@ func TestReviewMasterPlanTerrainCheckReplansAQuadrumLater(t *testing.T) {
 		if m.U == storage.U && m.V == storage.V && m.Role == policy.ModuleStorage {
 			t.Fatal("storage stayed on marsh")
 		}
+	}
+}
+
+// overlayNative records layout overlay draws.
+type overlayNative struct {
+	surveyNative
+	draws, clears int
+}
+
+func (n *overlayNative) DrawLayoutPlan(_ context.Context, _ *c.Identity, _ policy.LayoutOverlay, enabled bool) (*p.LayoutPlanApplied, bridge.Result, error) {
+	if enabled {
+		n.draws++
+	} else {
+		n.clears++
+	}
+	return &p.LayoutPlanApplied{}, bridge.Result{}, nil
+}
+
+func TestLayoutOverlayRedrawsOnChangeAndDaily(t *testing.T) {
+	s, _ := schedulerFixture(t)
+	ctx := context.Background()
+	native := &overlayNative{}
+	r := &RoutineReviewer{player: s.player, native: native, layoutOverlay: true}
+	snapshot := s.player.session.State().Snapshot
+	review := func(tick domain.Tick, pawns int64) {
+		t.Helper()
+		p := observation.ColonyProjection{Identity: observation.Identity{Colony: snapshot.Colony, Map: snapshot.Map, Load: snapshot.Load, Tick: tick}, Bounds: policy.Bounds{Width: 160, Height: 160}}
+		p.Facts.Colonists = domain.Known(pawns)
+		if err := r.reviewColonyGrid(ctx, snapshot, &p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	review(100, 3)
+	review(200, 3)
+	if native.draws != 1 {
+		t.Fatalf("draws %d", native.draws)
+	}
+	review(100+masterReplanEvery, 60) // replanned: redraw
+	review(100+masterReplanEvery+10, 60)
+	if native.draws != 2 {
+		t.Fatalf("draws after replan %d", native.draws)
+	}
+	review(100+masterReplanEvery+overlayRedrawEvery, 60)
+	if native.draws != 3 {
+		t.Fatalf("daily draws %d", native.draws)
+	}
+	r.layoutOverlay = false
+	review(100+masterReplanEvery+overlayRedrawEvery+10, 60)
+	review(100+masterReplanEvery+overlayRedrawEvery+20, 60)
+	if native.clears != 1 || native.draws != 3 {
+		t.Fatalf("toggle off: clears %d draws %d", native.clears, native.draws)
 	}
 }

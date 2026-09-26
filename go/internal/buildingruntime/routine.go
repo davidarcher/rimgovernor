@@ -49,6 +49,12 @@ type RoutineReviewer struct {
 	// planChecked is the tick of the last master-plan terrain check this
 	// process read (#727); see reviewMasterPlan.
 	planChecked domain.Tick
+	// layoutOverlay draws the master plan as native plans (#726); the
+	// overlay fields record the last draw. See drawLayoutOverlay.
+	layoutOverlay  bool
+	overlayKey     string
+	overlayDrawn   domain.Tick
+	overlayCleared bool
 }
 
 // staged is the configured policy with its goal budgets set by the colony
@@ -145,6 +151,9 @@ func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool) observatio
 type RoutineCapabilities struct {
 	Methods   []policy.GoalID
 	Longitude domain.Fact[float64]
+	// LayoutOverlay draws the master plan as native plan designations
+	// (#726, serve --layout-overlay).
+	LayoutOverlay bool
 }
 
 func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*RoutineReviewer, error) {
@@ -157,10 +166,12 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	}
 	methods := domain.Unknown[[]policy.GoalID]()
 	longitude := domain.Unknown[float64]()
+	reviewerOverlay := false
 	if len(capabilities) > 1 {
 		return nil, ErrControl
 	}
 	if len(capabilities) == 1 {
+		reviewerOverlay = capabilities[0].LayoutOverlay
 		methods = domain.Known(append([]policy.GoalID{}, capabilities[0].Methods...))
 		if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: methods}, policy.RoutineLatches{}, thresholds); err != nil {
 			return nil, err
@@ -172,7 +183,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 			longitude = capabilities[0].Longitude
 		}
 	}
-	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...), longitude: longitude}
+	reviewer := &RoutineReviewer{methods: methods, player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...), longitude: longitude, layoutOverlay: reviewerOverlay}
 	if reviewer.roomsEnabled() {
 		if _, ok := native.(observation.TemperatureSource); !ok {
 			return nil, ErrControl

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Planning colors the layout overlay (#726) needs beyond the nine vanilla ones.
+     They load with the mod, before any save, so a saved plan always resolves its color. -->
+<Defs>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanLightBlue</defName>
+    <label>light blue</label>
+    <color>(0.55, 0.8, 1.0, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanAmber</defName>
+    <label>amber</label>
+    <color>(1.0, 0.72, 0.1, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanWhite</defName>
+    <label>white</label>
+    <color>(1.0, 1.0, 1.0, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanDarkPurple</defName>
+    <label>dark purple</label>
+    <color>(0.35, 0.1, 0.5, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanBrown</defName>
+    <label>brown</label>
+    <color>(0.55, 0.35, 0.15, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanTan</defName>
+    <label>tan</label>
+    <color>(0.82, 0.7, 0.5, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanViolet</defName>
+    <label>violet</label>
+    <color>(0.75, 0.5, 1.0, 0.4)</color>
+  </ColorDef>
+  <ColorDef ParentName="PlanningColorDefBase">
+    <defName>RimGovernor_PlanLime</defName>
+    <label>lime</label>
+    <color>(0.65, 1.0, 0.2, 0.4)</color>
+  </ColorDef>
+</Defs>

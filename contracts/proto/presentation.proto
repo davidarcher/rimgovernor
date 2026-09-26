@@ -494,3 +494,33 @@ service PresentationMedia {
   rpc CapturePawn(PawnImageRequest) returns (PawnImageReply);
   rpc CaptureScreenshot(ScreenshotRequest) returns (ScreenshotReply);
 }
+
+// Layout plan overlay (#726): the colony layout drawn as native 1.6 plans
+// plus text labels. Output only: every call deletes the plans this tool
+// made (label prefix "RimGovernor") and redraws; nothing reads them back.
+// Cells come as inclusive rectangles, usually single-row runs.
+message LayoutPlanLayer {
+  optional string color_def = 1; // A ColorDef of colorType Planning.
+  optional string label = 2;     // Plan label, prefixed natively.
+  repeated MapRect rects = 3;
+}
+// A text label drawn at a map cell while the overlay is on.
+message LayoutPlanLabel { optional string text = 1; rimgovernor.common.v1.Cell cell = 2; }
+// Colors existing player rooms by their native RoomRoleDef.
+message LayoutPlanRoomColor { optional string role_def = 1; optional string color_def = 2; optional string label = 3; }
+message LayoutPlanRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional bool enabled = 2; // false removes every owned plan and label.
+  repeated LayoutPlanLayer layers = 3;
+  repeated LayoutPlanLabel labels = 4;
+  repeated LayoutPlanRoomColor room_colors = 5;
+}
+message LayoutPlanApplied {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional uint32 plans = 2;   // Owned plans after the call.
+  optional uint32 cells = 3;   // Cells those plans hold.
+  optional uint32 removed = 4; // Owned plans deleted first.
+  optional uint32 skipped = 5; // Cells left to a player plan or off the map.
+  optional uint32 rooms = 6;   // Existing rooms colored.
+}
+message LayoutPlanReply { oneof outcome { LayoutPlanApplied applied = 1; rimgovernor.common.v1.Failure failure = 2; } }

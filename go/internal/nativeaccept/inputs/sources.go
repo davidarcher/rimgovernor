@@ -51,6 +51,7 @@ func fixtureSource(relative string) bool {
 var nativeSourceInputs = []nativeSourceInput{
 	{repo: "integrations/rimgovernor-native/src", copy: "integrations/rimgovernor-native/src", keep: notNativeBuildOutput},
 	{repo: "integrations/rimgovernor-native/About", copy: "integrations/rimgovernor-native/About", keep: notNativeBuildOutput},
+	{repo: "integrations/rimgovernor-native/Defs", copy: "integrations/rimgovernor-native/Defs", keep: notNativeBuildOutput},
 	{repo: "integrations/rimgovernor-native/Notices", copy: "integrations/rimgovernor-native/Notices", keep: notNativeBuildOutput},
 	{repo: "integrations/rimgovernor-native/README.md", copy: "integrations/rimgovernor-native/README.md"},
 	{repo: "contracts/proto", copy: "contracts/proto", keep: contractSource},

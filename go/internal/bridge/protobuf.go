@@ -373,6 +373,7 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/observations_list_traders":            true,
 	"rimgovernor/observations_read_excavation_site":    true,
 	"rimgovernor/lifecycle_save":                       true,
+	"rimgovernor/presentation_layout_plan":             true,
 	"rimgovernor/lifecycle_read_save":                  true,
 	"rimgovernor/lifecycle_load":                       true,
 	"rimgovernor/lifecycle_read_load":                  true,
