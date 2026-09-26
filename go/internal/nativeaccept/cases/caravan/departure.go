@@ -139,6 +139,9 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 	// hit points, ingredients or rot stage); fold them per definition,
 	// keeping the reserve group's id so the pack order can be checked.
 	groups := map[string]policy.CaravanCargoGroup{}
+	// Unforbidden groups fold apart too: the start may hold a forbidden
+	// stack of survival meals beside the fixture's unforbidden 60 (#717).
+	open := map[string]policy.CaravanCargoGroup{}
 	for _, group := range catalog.CargoGroups {
 		nutrition := domain.Unknown[float64]()
 		if group.Nutrition != nil {
@@ -151,6 +154,15 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		row := policy.CaravanCargoGroup{GroupID: group.GetGroupId(), Definition: group.GetDefName(), Count: group.GetCount(), Nutrition: nutrition, Perishable: group.GetPerishable(), RotDays: rot, Reserve: group.GetReserve()}
 		for _, eater := range group.EaterIds {
 			row.Eaters = append(row.Eaters, domain.PawnID(eater))
+		}
+		if !row.Reserve {
+			folded := row
+			if prior, seen := open[row.Definition]; seen {
+				folded.Count += prior.Count
+				folded.Perishable = folded.Perishable || prior.Perishable
+				folded.Eaters = append(folded.Eaters, prior.Eaters...)
+			}
+			open[row.Definition] = folded
 		}
 		if prior, seen := groups[row.Definition]; seen {
 			row.Count += prior.Count
@@ -166,7 +178,7 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		}
 		groups[row.Definition] = row
 	}
-	pemmican, survival, meals, wood := groups["Pemmican"], groups["MealSurvivalPack"], groups["MealSimple"], groups["WoodLog"]
+	pemmican, survival, meals, wood := groups["Pemmican"], open["MealSurvivalPack"], groups["MealSimple"], groups["WoodLog"]
 	if wood.Count < 10 {
 		return fmt.Errorf("catalog-before: expected a WoodLog cargo group with at least 10 available, got %#v", groups)
 	}

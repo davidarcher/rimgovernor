@@ -28,6 +28,9 @@ namespace HomeBridge.BridgeTools
                     var plague = HediffMaker.MakeHediff(def, pawn);
                     plague.Severity = .2f;
                     pawn.health.AddHediff(plague);
+                    // Pin the rolled progression factor so the readback rate is exact (#717).
+                    typeof(HediffComp_Immunizable).GetField("severityPerDayNotImmuneRandomFactor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                        .SetValue(plague.TryGetComp<HediffComp_Immunizable>(), 1f);
                     // Seed the precondition normally created on the first immunity tick.
                     pawn.health.immunity.TryAddImmunityRecord(def, def);
                     pawn.health.immunity.GetImmunityRecord(def).immunity = .1f;
