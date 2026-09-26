@@ -1157,7 +1157,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				continue
 			}
 			for _, p := range plan.Pieces {
-				if p.Def == r.definition {
+				if p.Accepts(r.definition) {
 					slots = append(slots, p)
 				}
 			}
