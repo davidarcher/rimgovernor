@@ -675,3 +675,76 @@ func TestDevelopmentExemptHusbandrySettingsWrite(t *testing.T) {
 		t.Fatal("tame gained the settings-write exemption")
 	}
 }
+
+// The labor-idle deadline is durable game-tick history: it survives a store
+// restart and still releases on time. Release frees only the slot: the
+// dispatched action keeps its admission (material and cell claims) and its
+// progress, and when labor returns the same attempt takes the slot back
+// with no second dispatch (#643).
+func TestRoutineDevelopmentIdleReleaseSurvivesRestartAndKeepsClaims(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	path := memoryPath(t)
+	s := open(t, path)
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	out := reviewRoutine(t, s, &r)
+	wood := routineGoal(t, out, policy.MaintainWood)
+	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+		t.Fatal(err)
+	}
+	const woodPlan domain.PlanID = "wood"
+	woodScope := scope()
+	woodScope.Plan = woodPlan
+	claim := evidence(r.Tick, 40)
+	claim.Snapshot = woodScope
+	if _, err := s.ReserveAndPrepare(ctx, woodPlan, "wood-action", claim); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, woodPlan, "wood-action", woodScope, r.Tick); err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.LoadPlan(ctx, woodPlan)
+	if err != nil || len(before.Admissions) != 1 {
+		t.Fatal(before, err)
+	}
+	r.Facts.Colonists = domain.Known(int64(3))
+	r.Facts.Armed = domain.Known(int64(0))
+	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkConstruction: 1}, Idle: map[policy.WorkType]int{policy.WorkPlantCutting: 2}})
+	r.Tick += 10
+	since := r.Tick
+	out = reviewRoutine(t, s, &r)
+	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+		t.Fatal("first idle review", out.Review.Development)
+	}
+
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s = open(t, path)
+	r.Tick = since + policy.DevelopmentIdleTicks/2
+	out = reviewRoutine(t, s, &r)
+	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+		t.Fatal("restart moved the idle deadline", out.Review.Development)
+	}
+	r.Tick = since + policy.DevelopmentIdleTicks
+	out = reviewRoutine(t, s, &r)
+	if row := developmentRow(t, out.Review, policy.MaintainWood); row.Committed || row.Reason != policy.DevelopmentLaborIdle || row.LaborIdleSince == nil || *row.LaborIdleSince != since {
+		t.Fatal("the restored deadline did not release on time", out.Review.Development)
+	}
+	released, err := s.LoadPlan(ctx, woodPlan)
+	if err != nil || !reflect.DeepEqual(before, released) {
+		t.Fatal("releasing the slot touched the action's progress or claims", err)
+	}
+
+	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkPlantCutting: 1}, Idle: map[policy.WorkType]int{}})
+	r.Tick += 10
+	out = reviewRoutine(t, s, &r)
+	if row := developmentRow(t, out.Review, policy.MaintainWood); !row.Committed || row.LaborIdleSince != nil {
+		t.Fatal("resumed work should commit again", out.Review.Development)
+	}
+	resumed, err := s.LoadPlan(ctx, woodPlan)
+	if err != nil || !reflect.DeepEqual(before, resumed) {
+		t.Fatal("resumed work was dispatched again or lost its claims", err)
+	}
+}

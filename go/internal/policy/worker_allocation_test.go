@@ -305,3 +305,34 @@ func BenchmarkAllocateAtBounds(b *testing.B) {
 		b.Fatalf("ops %d over contract", r.Ops)
 	}
 }
+
+// A released worker's positions go unfilled; the workers left keep what
+// they are serving.
+func TestAllocateRemovingWorkerOnlyUnfillsItsPositions(t *testing.T) {
+	ready := allocReady(allocCand("cook", WorkCooking, 1), allocCand("build", WorkConstruction, 2), allocCand("haul", WorkHauling, 1))
+	all := []AllocWorker{allocWorker("a", WorkCooking, WorkConstruction), allocWorker("b", WorkCooking), allocWorker("c", WorkHauling, WorkConstruction), allocWorker("d", WorkConstruction)}
+	full := assigned(AllocateWorkers(AllocRequest{Workers: all, Ready: ready}))
+	if len(full) != 4 {
+		t.Fatalf("full = %v", full)
+	}
+	for _, gone := range all {
+		var rest []AllocWorker
+		for _, w := range all {
+			if w.ID != gone.ID {
+				w.Occupancy, w.Serving = OccupancyServing, full[w.ID]
+				rest = append(rest, w)
+			}
+		}
+		r := AllocateWorkers(AllocRequest{Workers: rest, Ready: ready})
+		checkDistinct(t, r)
+		next := assigned(r)
+		for pawn, work := range full {
+			if pawn != gone.ID && next[pawn] != work {
+				t.Fatalf("removing %s moved %s off %s: %v", gone.ID, pawn, work, next)
+			}
+		}
+		if len(next) != len(full)-1 {
+			t.Fatalf("removing %s: assigned %v, want %d", gone.ID, next, len(full)-1)
+		}
+	}
+}

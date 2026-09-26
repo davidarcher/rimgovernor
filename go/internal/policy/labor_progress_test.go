@@ -113,3 +113,72 @@ func TestJobTargetMatchesThingOrCell(t *testing.T) {
 		}
 	}
 }
+
+// A pawn whose job stays aimed at the commitment's own thing is activity,
+// not progress: it keeps the slot, but once the effect has stayed pending
+// past DevelopmentStallTicks the stall bound releases it anyway (#643).
+func TestMatchedButStuckActivityFollowsTheStallBound(t *testing.T) {
+	s := newDevelopmentSim(t, 1, simGoal("supplies", 0.5, GoalLabor(SecureSupplies)), simGoal("storage", 0.9, GoalLabor(MaintainStorage)))
+	s.tick = 5000
+	c := s.commitment("supplies", AutopilotGoal, 4, true)
+	c.Labor, c.Targets, c.Dispatched = GoalLabor(SecureSupplies), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}}), domain.Known(s.tick)
+	p, err := c.Progress.Observe(domain.Observation{Action: c.Progress.View().Action, Attempt: 1, Snapshot: s.snapshot, Tick: s.tick, Effect: domain.EffectPending, Causality: domain.AfterDispatch}, s.snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Progress = p
+	if effect, _ := c.Progress.View().Effect.Value(); effect != domain.EffectPending {
+		t.Fatal("fixture: effect", effect)
+	}
+	stuck := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Steel1"})})}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 1, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{stuck})}
+	state := rank(t, r)
+	for _, tick := range []domain.Tick{DevelopmentIdleTicks, DevelopmentStallTicks / 2, DevelopmentStallTicks} {
+		r.Previous, r.Tick = state, 5000+tick
+		state = rank(t, r)
+		if row := s.row(state, "supplies"); !row.Committed || row.LaborEvidence != LaborAttributed || row.LaborIdleSince != domain.Unknown[domain.Tick]() {
+			t.Fatal("matched activity within the stall bound", tick, row)
+		}
+	}
+	r.Previous, r.Tick = state, 5000+DevelopmentStallTicks+1
+	state = rank(t, r)
+	if row := s.row(state, "supplies"); row.Committed || len(state.Committed) != 0 {
+		t.Fatal("matched-but-stuck activity held the slot past the stall bound", row)
+	}
+	requireSelected(t, state, "storage")
+}
+
+// The idle deadline is game-tick history: a rewind or a world change
+// discards it and the next idle review starts a fresh one (#643).
+func TestLaborIdleSinceResetsOnRewindAndWorldChange(t *testing.T) {
+	s := newDevelopmentSim(t, 1, simGoal("supplies", 0.5, GoalLabor(SecureSupplies)))
+	s.tick = 5000
+	c := s.commitment("supplies", AutopilotGoal, 4, true)
+	c.Labor, c.Targets = GoalLabor(SecureSupplies), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}})
+	other := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Other9"})})}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Limit: 1, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{other})}
+	first := rank(t, r)
+	if row := s.row(first, "supplies"); row.LaborIdleSince != domain.Known(domain.Tick(5000)) {
+		t.Fatal(row)
+	}
+	later := r
+	later.Previous, later.Tick = first, 6000
+	if row := s.row(rank(t, later), "supplies"); row.LaborIdleSince != domain.Known(domain.Tick(5000)) {
+		t.Fatal("a later review lost the deadline", row)
+	}
+	rewound := r
+	rewound.Previous, rewound.Tick = rank(t, later), 5500
+	if row := s.row(rank(t, rewound), "supplies"); row.LaborIdleSince != domain.Known(domain.Tick(5500)) || !row.Committed {
+		t.Fatal("a rewind kept the old deadline", row)
+	}
+	for _, snap := range []domain.GenerationSnapshot{
+		{Colony: "colony", Map: 1, Load: "reloaded", Plan: "plan"},
+		{Colony: "other", Map: 1, Load: "load", Plan: "plan"},
+	} {
+		changed := r
+		changed.Snapshot, changed.Previous, changed.Tick = snap, first, 5000+DevelopmentIdleTicks
+		if row := s.row(rank(t, changed), "supplies"); row.LaborIdleSince != domain.Known(changed.Tick) || !row.Committed {
+			t.Fatal("a world change kept the old deadline", snap, row)
+		}
+	}
+}
