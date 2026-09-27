@@ -18,7 +18,7 @@ const maxPopulationFoodDays = 120
 // Action constructor and no executor/bridge boundary, which makes it the
 // first value in this package that is player intent without being a plan
 // action. Every other player command value here (BuildingTemperature,
-// ZoneEdit, QuestAccept, SettlementGift, ...) names a native entity and
+// ZoneEdit, QuestAccept, ...) names a native entity and
 // carries an already-observed CAS before-token, because applying it issues
 // a native RimWorld call whose receipt and effect evidence the executor
 // must verify. Setting a population policy issues no native call at all:

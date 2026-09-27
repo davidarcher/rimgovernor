@@ -11,7 +11,7 @@ import (
 func TestLayoutTidiesFollowTheSavedTimelineAndKeepTheLatestState(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := caravanTrackingFixture(t)
+	db := open(t, memoryPath(t))
 	first := extentWorld("colony", "load-1", 1)
 	if _, err := db.EstablishColonyExtent(ctx, first, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
 		t.Fatal(err)
@@ -71,7 +71,7 @@ func TestLayoutTidiesFollowTheSavedTimelineAndKeepTheLatestState(t *testing.T) {
 func TestLayoutTidiesIgnoreRetiredStockpileRows(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := caravanTrackingFixture(t)
+	db := open(t, memoryPath(t))
 	world := extentWorld("colony", "load-1", 1)
 	if _, err := db.EstablishColonyExtent(ctx, world, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
 		t.Fatal(err)

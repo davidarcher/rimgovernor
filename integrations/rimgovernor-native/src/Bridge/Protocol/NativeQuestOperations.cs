@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Exact quest acceptance-relevant state, the snapshot token the
-        // world-progression census reports and FulfillQuest checks.
+        // world-progression census reports.
         internal static string Token(Quest quest) => "quest-" + Hash(string.Join("|",
             quest.GetUniqueLoadID(), quest.State.ToString(), quest.acceptanceTick.ToString(),
             QuestUtility.CanAcceptQuest(quest).Accepted.ToString()));

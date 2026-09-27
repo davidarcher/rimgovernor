@@ -36,7 +36,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 130
+const schemaVersion = 131
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -275,8 +275,6 @@ CREATE TABLE work_preferences(plan_id TEXT PRIMARY KEY REFERENCES plans(id), pay
 CREATE TABLE work_preference_requests(request_id TEXT PRIMARY KEY, payload BLOB NOT NULL) STRICT;
 CREATE TABLE population_policy_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, maximum INTEGER NOT NULL, food_days REAL NOT NULL, raid_threshold REAL NOT NULL) STRICT;
 CREATE TABLE population_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, request_id TEXT NOT NULL REFERENCES population_policy_submissions(request_id), maximum INTEGER NOT NULL, food_days REAL NOT NULL, raid_threshold REAL NOT NULL, PRIMARY KEY(colony,load_token,map_id)) STRICT;
-CREATE TABLE expedition_policy_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, patch BLOB NOT NULL, minimum_home_colonists INTEGER NOT NULL, minimum_home_food_days REAL NOT NULL, travel_food_margin_days REAL NOT NULL, maximum_travel_days REAL NOT NULL, maximum_caravans INTEGER NOT NULL, minimum_goodwill INTEGER NOT NULL, minimum_destination_temperature REAL NOT NULL, maximum_destination_temperature REAL NOT NULL, keep_home_doctor INTEGER NOT NULL CHECK(keep_home_doctor IN (0,1)), require_return_storage INTEGER NOT NULL CHECK(require_return_storage IN (0,1))) STRICT;
-CREATE TABLE expedition_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, request_id TEXT NOT NULL REFERENCES expedition_policy_submissions(request_id), minimum_home_colonists INTEGER NOT NULL, minimum_home_food_days REAL NOT NULL, travel_food_margin_days REAL NOT NULL, maximum_travel_days REAL NOT NULL, maximum_caravans INTEGER NOT NULL, minimum_goodwill INTEGER NOT NULL, minimum_destination_temperature REAL NOT NULL, maximum_destination_temperature REAL NOT NULL, keep_home_doctor INTEGER NOT NULL CHECK(keep_home_doctor IN (0,1)), require_return_storage INTEGER NOT NULL CHECK(require_return_storage IN (0,1)), PRIMARY KEY(colony,load_token,map_id)) STRICT;
 CREATE TABLE population_decision_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, pawn TEXT NOT NULL, decision TEXT NOT NULL CHECK(decision IN ('rescue','capture','recruit','ignore'))) STRICT;
 CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, pawn TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES population_decision_submissions(request_id), decision TEXT NOT NULL CHECK(decision IN ('rescue','capture','recruit','ignore')), PRIMARY KEY(colony,load_token,map_id,pawn)) STRICT;`)
 		if err != nil {
@@ -295,9 +293,6 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 			return err
 		}
 		if err = clock.InitializeCheckpoint(ctx, tx); err != nil {
-			return err
-		}
-		if err = initializeCaravanTracking(ctx, tx); err != nil {
 			return err
 		}
 		if err = initializeColonyExtent(ctx, tx); err != nil {
@@ -354,9 +349,6 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		return err
 	}
 	if err = clock.CheckCheckpointSchema(ctx, tx); err != nil {
-		return err
-	}
-	if err = checkCaravanTrackingSchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkColonyExtentSchema(ctx, tx); err != nil {

@@ -7,15 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func (t *CaravanJourneyTracker) Step(ctx context.Context) (CaravanJourneyResult, error) {
-	call, epoch, done, err := t.player.enter(ctx, false)
-	if err != nil {
-		return CaravanJourneyResult{}, err
-	}
-	defer done()
-	return t.step(call, epoch, newStepArbiter())
-}
-
 // Step runs one full scheduling decision; see StepWithReason.
 func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error) {
 	return s.StepWithReason(ctx, StepReason{Cause: StepFull})

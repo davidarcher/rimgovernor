@@ -31,9 +31,7 @@ type WorldEvaluationNative interface {
 // and colony-facts censuses into policy.EvaluateWorld's read-only advisory
 // report. It never claims a plan slot or competes with a goal the way
 // RoutineBuildingPlanner implementations do; it is a plain read gated only
-// by Player.enter's existing native-call serialization, the same
-// concurrency discipline CaravanJourneyTracker uses for its own
-// world-progression poll.
+// by Player.enter's existing native-call serialization.
 type WorldEvaluation struct {
 	player *Player
 	native WorldEvaluationNative
@@ -50,8 +48,7 @@ func NewWorldEvaluation(player *Player, native WorldEvaluationNative, p policy.W
 }
 
 // Read reports the current read-only world-evaluation advisory. It does not
-// require player control to be enabled -- unlike CaravanJourneyTracker's
-// background reconciliation, nothing here writes local tracking state, so
+// require player control to be enabled: nothing here writes local state, so
 // there is no store consistency this read needs an active control epoch to
 // protect. It still serializes through Player.enter so this read never
 // interleaves with an in-flight native write.

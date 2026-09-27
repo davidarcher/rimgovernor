@@ -22,10 +22,9 @@ control uses these routes.
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
 | GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
-| POST | `/api/chat` | Answer one plain-language message with an explanation and at most one applied policy nudge (goal activate/cancel, population, expedition, population decision); never a build or order |
+| POST | `/api/chat` | Answer one plain-language message with an explanation and at most one applied policy nudge (goal activate/cancel, population, population decision); never a build or order |
 | GET/POST | `/api/player/goals`, `/api/player/goals/activate`, `/api/player/goals/cancel` | Maintained goal activation and cancellation |
 | GET/POST | `/api/player/population-policy`, `…/replace` | Population capacity policy |
-| GET/POST | `/api/player/expedition-policy`, `…/update` | Expedition risk limits |
 | GET/POST | `/api/player/population-decision`, `…/replace` | Per-pawn population decision |
 | GET/POST | `/api/player/work-preferences`, `…/replace` | Work preferences |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
@@ -83,9 +82,7 @@ no effect; clients recover by reading the same request ID without automatic POST
 ## Colony configuration
 
 Configuration routes record player intent; they issue no per-pawn order.
-Population policy is a full replacement. Expedition policy is a patch merged
-over the policy in force (an unset field keeps its value; a world with no
-policy starts from the documented defaults). A population decision for
+Population policy is a full replacement. A population decision for
 rescue, capture or recruit requires an established population policy; ignore
 never does, so a direction can always be withdrawn. The autopilot owns resource stock
 targets; there is no player resource-policy route. Work

@@ -100,7 +100,6 @@ export type ChatGoal = {goalId: string; source: string; status: string; need: st
 export type ChatGuidance =
   | {kind: 'activate_goal' | 'cancel_goal'; goal: ChatGoal}
   | {kind: 'set_population_policy'; populationPolicy: {maximum: number; foodDays: number}}
-  | {kind: 'set_expedition_policy'; expeditionPolicy: Record<string, number | boolean>}
   | {kind: 'set_population_decision'; populationDecision: {pawn: string; decision: string}};
 export type ChatReply = {requestId: string; expected: World; explanation: string; guidance: ChatGuidance | null};
 function number(value: unknown): number {if (typeof value !== 'number' || !Number.isFinite(value)) throw Error('Invalid number'); return value;}
@@ -113,11 +112,6 @@ function readChatGuidance(value: unknown): ChatGuidance {
   switch (value.kind) {
     case 'activate_goal': case 'cancel_goal': return {kind: value.kind, goal: readChatGoal(object(value, ['kind', 'goal']).goal)};
     case 'set_population_policy': {const p = object(object(value, ['kind', 'populationPolicy']).populationPolicy, ['maximum', 'foodDays']); return {kind: value.kind, populationPolicy: {maximum: integer(p.maximum), foodDays: number(p.foodDays)}};}
-    case 'set_expedition_policy': {
-      const p = object(value, ['kind', 'expeditionPolicy']).expeditionPolicy;
-      if (!isObject(p) || Object.values(p).some(item => typeof item !== 'number' && typeof item !== 'boolean')) throw Error('Invalid expedition policy');
-      return {kind: value.kind, expeditionPolicy: p as Record<string, number | boolean>};
-    }
     case 'set_population_decision': {const p = object(object(value, ['kind', 'populationDecision']).populationDecision, ['pawn', 'decision']); return {kind: value.kind, populationDecision: {pawn: id(p.pawn), decision: id(p.decision)}};}
     default: throw Error('Unknown chat guidance kind');
   }

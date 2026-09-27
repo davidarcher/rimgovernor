@@ -784,17 +784,6 @@ message TradeSessionReply { oneof outcome { TradeSession observed = 1; rimgovern
 message TradeSheet { SnapshotRef snapshot = 1; optional string session_id = 2; EntityRef trader = 3; EntityRef negotiator = 4; optional bool gift_mode = 5; optional bool negotiator_adjacent = 6; optional bool can_trade_now = 7; optional double balance = 8; optional bool colony_can_afford = 9; optional bool trader_has_enough_silver = 10; repeated TradeLine lines = 11; reserved 12; optional string deal_signature = 13; }
 message TradeSheetRequest { ReadScope scope = 1; optional string session_id = 2; optional bool include_untradeable = 3; optional bool only_changed = 4; optional string name_contains = 5; reserved 6; }
 message TradeSheetReply { oneof outcome { TradeSheet observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message CaravanPawnEligibility { PawnState pawn = 1; optional bool available = 2; optional string reason = 3; }
-// Food facts (#464): nutrition is per unit for a nutrition-giving ingestible
-// (absent otherwise); perishable groups carry rot_days, the shortest
-// remaining unrefrigerated shelf life of any stack in the group; reserve
-// marks a group holding forbidden pemmican or survival meals (the food
-// reserve MaintainFoodStorage holds); eater_ids lists the free colonists
-// whose diet and food restriction allow the food.
-message CargoGroup { optional string group_id = 1; repeated EntityRef items = 2; optional string def_name = 3; optional int64 count = 4; optional double mass = 5; optional double nutrition = 6; optional bool perishable = 7; optional double rot_days = 8; optional bool reserve = 9; repeated string eater_ids = 10; }
-message CaravanCatalog { SnapshotRef snapshot = 1; repeated CaravanPawnEligibility pawns = 2; repeated ResourceStock cargo = 3; repeated WorldRoute routes = 4; repeated Settlement settlements = 5; repeated StorageCapacity return_storage = 6; reserved 7; repeated CargoGroup cargo_groups = 8; SnapshotRef return_storage_snapshot = 9; }
-message CaravanCatalogRequest { ReadScope scope = 1; optional int32 destination = 2; reserved 3; }
-message CaravanCatalogReply { oneof outcome { CaravanCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message FoodConsumer { optional string pawn_id = 1; optional double nutrition_per_day = 2; optional bool human_meat_acceptable = 3; }
 message FoodStock { EntityRef item = 1; optional int64 count = 2; optional string holder_id = 3; optional double nutrition = 4; repeated string eater_ids = 5; optional bool perishable = 6; optional int64 rot_ticks = 7; optional double temperature_c = 8; optional bool roofed = 9; optional string room_id = 10; optional bool reserve = 11; optional bool corpse = 12; optional bool forbidden = 13; optional double meat_amount = 14; optional double body_size = 15; optional int64 tile_footprint = 16; optional bool is_human_meat = 18; optional bool is_humanlike = 19; optional bool vegetable = 20; optional bool raw_meat = 21; optional FoodIngredientClass raw_class = 17; }
@@ -1242,7 +1231,6 @@ service Observations {
   rpc ListTraders(TradersRequest) returns (TradersReply);
   rpc ReadTradeSheet(TradeSheetRequest) returns (TradeSheetReply);
   rpc ReadTradeSession(TradeSessionRequest) returns (TradeSessionReply);
-  rpc ReadCaravanCatalog(CaravanCatalogRequest) returns (CaravanCatalogReply);
 }
 
 // Native definition classification for bounded food purchases and crop exports.

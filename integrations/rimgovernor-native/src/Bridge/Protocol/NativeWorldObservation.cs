@@ -18,8 +18,8 @@ namespace HomeBridge.BridgeTools
     // Settlement message (including its snapshot/faction_snapshot CAS tokens)
     // were already fully defined with no native handler and no Go consumer
     // (confirmed by exhaustive search before writing this file) -- the same
-    // "proto ahead of consumer" pattern NativeWorldProgressionObservation and
-    // NativeCaravanCatalog already closed for their own requests. This handler
+    // "proto ahead of consumer" pattern NativeWorldProgressionObservation
+    // already closed for its own request. This handler
     // only surfaces settlements near a requested tile with fresh CAS tokens;
     // WorldTile terrain facts remain unimplemented (a distinct, unrelated
     // follow-up, not needed by any current consumer).
@@ -49,9 +49,8 @@ namespace HomeBridge.BridgeTools
             faction.IsPlayer ? "" : faction.PlayerGoodwill.ToString(), faction.HostileTo(Faction.OfPlayer).ToString()));
 
         // Recomputable the same way from Settlement facts (id, tile, faction id,
-        // CanTradeNow); GiftCaravanSilver's Execute recomputes and compares this
-        // exact token, so a settlement that changed trade eligibility since the
-        // read is refused rather than acted on.
+        // CanTradeNow), so a settlement whose trade eligibility changed reads a
+        // new token.
         internal static string SettlementToken(Settlement settlement) => "settlement-" + Hash(string.Join("|",
             settlement.GetUniqueLoadID(), settlement.Tile.tileId.ToString(),
             settlement.Faction != null ? settlement.Faction.GetUniqueLoadID() : "", settlement.CanTradeNow.ToString()));

@@ -31,7 +31,6 @@ type ChatFactsJournal interface {
 	LoadGoal(context.Context, domain.GoalID) (store.GoalState, error)
 	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]domain.GoalID, error)
 	CurrentPopulationPolicy(context.Context, store.World) (domain.PopulationPolicy, error)
-	CurrentExpeditionPolicy(context.Context, store.World) (domain.ExpeditionPolicy, error)
 	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
 }
 
@@ -179,17 +178,6 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 	}
 	if err == nil && population.Set() {
 		facts.PopulationPolicy = &interpreter.PopulationPolicy{Maximum: population.Maximum(), FoodDays: population.FoodDays()}
-	}
-	expedition, err := journal.CurrentExpeditionPolicy(ctx, world)
-	if err != nil {
-		return none, domain.GenerationSnapshot{}, err
-	}
-	facts.ExpeditionPolicy = interpreter.ExpeditionPolicy{
-		MinimumHomeColonists: expedition.MinimumHomeColonists(), MinimumHomeFoodDays: expedition.MinimumHomeFoodDays(),
-		TravelFoodMarginDays: expedition.TravelFoodMarginDays(), MaximumTravelDays: expedition.MaximumTravelDays(),
-		MaximumCaravans: expedition.MaximumCaravans(), MinimumGoodwill: expedition.MinimumGoodwill(),
-		MinimumDestinationTemperature: expedition.MinimumDestinationTemperature(), MaximumDestinationTemperature: expedition.MaximumDestinationTemperature(),
-		KeepHomeDoctor: expedition.KeepHomeDoctor(), RequireReturnStorage: expedition.RequireReturnStorage(),
 	}
 	decisions, err := journal.PopulationDecisions(ctx, world)
 	if err != nil {

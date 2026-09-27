@@ -19,7 +19,7 @@ what each action must observe.
 
 | Upkeep native operations | `upkeep_target` waits for protected stock, repaired target health, or cleaned target absence. Ownership, quantity and unknown-state rules are in [upkeep contracts](upkeep-contracts.md). |
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |
-| Caravan formation and travel | Exact living crew with observed loaded departure, destination arrival or home-map return; assembly and route receipts alone do not complete travel. |
+| Caravan formation | Exact living crew with an observed loaded departure; an assembly receipt alone does not complete formation. |
 | Quest acceptance | Fresh scoped acceptance tick; native quest success remains a separate observed state. |
 | `movement` (Actions/Apply `MoveIntent`) | Walk-to-cell order for a pawn on its plan's owned draft, an intent-mode kind: native applies it when the pawn is alive, spawned, drafted under an owned claim and the cell is standable and reachable, and applies an order that already matches (the pawn stands there or is walking there) as a no-op. The applied receipt is terminal and says nothing about arrival. A shrine plan's breach or opening depends on its moves, and the worker holds that final action until every mover stands on its cell, re-sending the move of a drafted pawn idle elsewhere. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |

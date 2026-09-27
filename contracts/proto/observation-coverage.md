@@ -134,8 +134,8 @@ Sources in this table are under
 | WasteTools.cs / waste_state | ReadWaste; WasteItem with exposed/relocated/buried state | waste, waste_outcome |
 | RecoveryTools.cs / recovery_state | ReadRecovery; RecoveryArea, RecoveryRestriction, BuildingState | recovery, service_recovery |
 | PopulationTool.cs / population without interaction | ReadPopulation; PopulationPerson, supported interactions | population, sleeping_upkeep |
-| WorldTool.cs / world without show | ReadWorld; WorldTile, Settlement | world_progression, expedition_policy |
-| WorldProgressionTool.cs / world_progression | ReadWorldProgression; WorldMap, FactionState, CaravanState, QuestState, CaravanAssembly | world_progression, expedition_policy, trade_policy |
+| WorldTool.cs / world without show | ReadWorld; WorldTile, Settlement | world_progression |
+| WorldProgressionTool.cs / world_progression | ReadWorldProgression; WorldMap, FactionState, CaravanState, QuestState, CaravanAssembly | world_progression, trade_policy |
 | PlacementPreviewsTool.cs / placement_previews | placement.proto; exact ordered candidate request and evaluated/failure result | placement_previews, construction_preflight |
 | PawnImageTool.cs / pawn_image | presentation.proto; scoped render capture and unavailable | player presentation |
 | BillsTool.cs / bills list and recipes | ReadBills / ReadRecipes; BillStack, BillState, RecipeState, IngredientRequirement (native handler `NativeBillsObservationTools.cs`; recipe ingredient rows carry required counts only, no stock scan; the `bills/census` acceptance case covers it) | colony_skills, gear/medical/resource benches, player inspections |
@@ -143,13 +143,12 @@ Sources in this table are under
 | PawnConfigTool.cs / pawn_config read | ReadPawnSettings; PawnSettings, scoped token | pawn_config, medical/work/settings readers |
 | OrderTool.cs / order resolve | ResolveTarget; exact typed target or explicit ambiguity | hands, target resolution, player inspections |
 | TradeTool.cs / list_traders, sheet, status | ListTraders / ReadTradeSheet / ReadTradeSession; TradeLine absolute index, session snapshot token, validated native food nutrition/class/preparation/perishability/crop facts | trade_policy, trade_outcome, player inspections |
-| CaravanTool.cs / caravan catalog | ReadCaravanCatalog; PawnEligibility, stock/routes/return storage, scoped token | expedition_policy, caravan outcomes |
 | GearUpkeepTool.cs / gear_upkeep inspection | ReadGear; GearLoadout, GearCandidate, snapshot token | gear_upkeep, colony_facts planning |
 | MedicalOperationsTool.cs / medical_operations catalog | ReadMedicalCatalog; MedicalCatalog, MedicalRecipe, exact body-part/medicine/practitioner facts | medical_operations, medical_outcome |
 
-The remaining 22 production exports are operations/presentation-owned:
-accept_quest, acquire_resource, cancel_construction, caravan_gift,
-confirm_colony_names, dialog_text, fulfill_quest, husbandry_config, manage_waste,
+The remaining 20 production exports are operations/presentation-owned:
+accept_quest, acquire_resource, cancel_construction,
+confirm_colony_names, dialog_text, husbandry_config, manage_waste,
 place_building, play_until_event, player_input, recover_service,
 recovery_area, relieve_need, render_demand, upkeep_bed, upkeep_home, upkeep_wall,
 video_stream, zone_cells. Trade preview is operation preview, not a mutation branch
@@ -201,7 +200,7 @@ their own narrow typed receipts, without an import cycle.
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries
   these; operation admission does not stand in for later recovered need levels.
 - BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout, MedicalCatalog,
-  ResearchSnapshot, TradeSheet and CaravanCatalog expose SnapshotRef for exact
+  ResearchSnapshot and TradeSheet expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
 - Gear loadouts carry an explicitly present native deficit and an optional blocker;
   blocked pawns can still have equipment needs. Complete candidate and replacement
@@ -310,15 +309,11 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
 | SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
-| FormCaravanIntent pawns/cargo | ReadCaravanCatalog pawn IDs; cargo_groups.def_name |
-| TravelCaravan/GiftCaravanSilver/FulfillQuest.caravan | ReadWorldProgression.caravan.snapshot |
-| GiftCaravanSilver.faction | ReadWorldProgression.faction.snapshot or ReadWorld.settlement.faction_snapshot |
-| FulfillQuest.quest | ReadWorldProgression.quest.snapshot |
 | ReleaseOwnedDraft | ListPawns.draft_claim.owned claim_id/Owner and pawn_snapshot; known unowned differs from unavailable |
 
 PlaceBuilding uses its placement preview and write authority precondition; it has
 no separate EntityPrecondition. Preview preparation return-storage/catalog tokens
-are also available from CaravanCatalog.return_storage_snapshot/MedicalCatalog.
+are also available from MedicalCatalog.
 
 New producer obligations are explicit:
 

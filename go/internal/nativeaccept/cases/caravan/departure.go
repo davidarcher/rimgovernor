@@ -1,14 +1,12 @@
 // The caravan/departure case exercises the FormCaravanIntent arm of
-// Actions/Apply (#942) end to end against a live game: the native caravan
-// catalog with its food facts (NativeCaravanCatalog.cs, #464), the pack a
-// planner composes from them (policy.PlanCaravanCargo: WoodLog trade cargo
-// plus the crew's journey food, reserve first, simple meals left home), the
-// intent applied through rimgovernor/operations_apply, and finally native's
-// own caravan inventory census, which must carry exactly the composed pack.
+// Actions/Apply (#942) end to end against a live game: a fixed pack
+// (WoodLog trade cargo, the forbidden pemmican reserve and survival meals,
+// simple meals left home) applied through rimgovernor/operations_apply, and
+// native's own caravan inventory census, which must carry exactly that pack.
 // Uses a private disposable fixture (test/caravan_departure_prepare) to
-// guarantee a colony shaped for it (leave >=1 home colonist, the routine
-// food floor kept at home) with a forbidden pemmican reserve, survival
-// meals, simple meals and WoodLog cargo, and a real reachable destination.
+// guarantee a colony shaped for it (leave >=1 home colonist) with a
+// forbidden pemmican reserve, survival meals, simple meals and WoodLog
+// cargo, and a real reachable destination.
 package caravan
 
 import (
@@ -19,10 +17,8 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -30,10 +26,9 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "caravan/departure",
-		Scope: "Native FormCaravanIntent: catalog food facts, a pack composed reserve-first (pemmican, " +
-			"then survival meals, simple meals left home) over the routine home food floor, an actual " +
-			"formation through Actions/Apply, native's caravan inventory carrying exactly that pack, " +
-			"native's home-staffing refusal, replay and a departed crew applied again.",
+		Scope: "Native FormCaravanIntent: a fixed pack (WoodLog, the forbidden pemmican reserve, survival " +
+			"meals, simple meals left home) formed through Actions/Apply, native's caravan inventory " +
+			"carrying exactly that pack, native's home-staffing refusal, replay and a departed crew applied again.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/caravan_departure_prepare", Args: map[string]any{"crewCount": 1}},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
@@ -42,10 +37,7 @@ func init() {
 }
 
 func runDeparture(ctx context.Context, s cases.Session) error {
-	h, identity, names, prepared := s.Harness(), s.Identity(), s.Names(), s.Prepared()
-	if !na.Contains(names, "rimgovernor/observations_read_caravan_catalog") {
-		return fmt.Errorf("missing rimgovernor/observations_read_caravan_catalog in discovery")
-	}
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 
 	var crewPawnIDs, remainingPawnIDs []string
 	for _, raw := range na.AsSlice(prepared["crewPawnIds"]) {
@@ -71,143 +63,9 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// The catalog's food facts, the pack is composed from.
-	catalog, _, err := h.Client.ReadCaravanCatalog(ctx, id, int32(destinationTile))
-	if err != nil {
-		return fmt.Errorf("catalog-before: %w", err)
-	}
-	// One definition may span several groups (RimWorld splits stacks by
-	// hit points, ingredients or rot stage); fold them per definition,
-	// keeping the reserve group's id so the pack order can be checked.
-	groups := map[string]policy.CaravanCargoGroup{}
-	// Unforbidden groups fold apart too: the start may hold a forbidden
-	// stack of survival meals beside the fixture's unforbidden 60 (#717).
-	open := map[string]policy.CaravanCargoGroup{}
-	for _, group := range catalog.CargoGroups {
-		nutrition := domain.Unknown[float64]()
-		if group.Nutrition != nil {
-			nutrition = domain.Known(group.GetNutrition())
-		}
-		rot := domain.Unknown[float64]()
-		if group.RotDays != nil {
-			rot = domain.Known(group.GetRotDays())
-		}
-		row := policy.CaravanCargoGroup{GroupID: group.GetGroupId(), Definition: group.GetDefName(), Count: group.GetCount(), Nutrition: nutrition, Perishable: group.GetPerishable(), RotDays: rot, Reserve: group.GetReserve()}
-		for _, eater := range group.EaterIds {
-			row.Eaters = append(row.Eaters, domain.PawnID(eater))
-		}
-		if !row.Reserve {
-			folded := row
-			if prior, seen := open[row.Definition]; seen {
-				folded.Count += prior.Count
-				folded.Perishable = folded.Perishable || prior.Perishable
-				folded.Eaters = append(folded.Eaters, prior.Eaters...)
-			}
-			open[row.Definition] = folded
-		}
-		if prior, seen := groups[row.Definition]; seen {
-			row.Count += prior.Count
-			row.Reserve = row.Reserve || prior.Reserve
-			row.Perishable = row.Perishable || prior.Perishable
-			if !row.Reserve || prior.Reserve {
-				row.GroupID = prior.GroupID
-			}
-			if prior.Reserve {
-				row.RotDays = prior.RotDays
-			}
-			row.Eaters = append(row.Eaters, prior.Eaters...)
-		}
-		groups[row.Definition] = row
-	}
-	pemmican, survival, meals, wood := groups["Pemmican"], open["MealSurvivalPack"], groups["MealSimple"], groups["WoodLog"]
-	if wood.Count < 10 {
-		return fmt.Errorf("catalog-before: expected a WoodLog cargo group with at least 10 available, got %#v", groups)
-	}
-	if _, known := wood.Nutrition.Value(); known {
-		return fmt.Errorf("catalog-before: WoodLog carries a nutrition fact: %#v", wood)
-	}
-	crewEats := func(g policy.CaravanCargoGroup) bool {
-		for _, eater := range g.Eaters {
-			if string(eater) == crewPawnIDs[0] {
-				return true
-			}
-		}
-		return false
-	}
-	if n, known := pemmican.Nutrition.Value(); pemmican.Count != 20 || !known || n <= 0 || !pemmican.Reserve || !pemmican.Perishable || !crewEats(pemmican) {
-		return fmt.Errorf("catalog-before: expected the forbidden pemmican stack as a crew-eligible perishable reserve group, got %#v", pemmican)
-	}
-	if rot, known := pemmican.RotDays.Value(); !known || rot < 30 {
-		return fmt.Errorf("catalog-before: expected pemmican's unrefrigerated shelf life (>=30 days), got %#v", pemmican)
-	}
-	// The start may hold survival meals of its own beside the fixture's 60.
-	if n, known := survival.Nutrition.Value(); survival.Count < 60 || !known || n <= 0 || survival.Reserve || survival.Perishable || !crewEats(survival) {
-		return fmt.Errorf("catalog-before: expected at least 60 unforbidden non-perishable survival meals, got %#v", survival)
-	}
-	if rot, known := meals.RotDays.Value(); meals.Count < 5 || meals.Reserve || !meals.Perishable || !known || rot <= 0 || rot > 5 || !crewEats(meals) {
-		return fmt.Errorf("catalog-before: expected perishable simple meals with a few days of shelf life, got %#v", meals)
-	}
-
-	// Compose the pack the way a planner would (policy.PlanCaravanCargo,
-	// #464): the WoodLog trade cargo plus the crew's journey food, reserve
-	// first, with the routine food floor kept at home.
-	colony, _, err := h.Client.ReadColonyFacts(ctx, id, false, nil)
-	if err != nil {
-		return fmt.Errorf("colony-facts: %w", err)
-	}
-	demand := map[domain.PawnID]float64{}
-	for _, consumer := range colony.GetObserved().GetFoodSupply().GetObserved().GetConsumers() {
-		if consumer.NutritionPerDay != nil {
-			demand[domain.PawnID(consumer.GetPawnId())] = consumer.GetNutritionPerDay()
-		}
-	}
-	journeyDays := 0.0
-	for _, route := range catalog.Routes {
-		if route.GetDestination() == int32(destinationTile) && route.EstimatedTicks != nil {
-			journeyDays = float64(route.GetEstimatedTicks())/60000 + 1
-		}
-	}
-	if journeyDays == 0 {
-		return fmt.Errorf("catalog-before: no travel estimate to the destination: %+v", catalog.Routes)
-	}
-	var rows []policy.CaravanCargoGroup
-	for _, group := range catalog.CargoGroups {
-		nutrition := domain.Unknown[float64]()
-		if group.Nutrition != nil {
-			nutrition = domain.Known(group.GetNutrition())
-		}
-		rot := domain.Unknown[float64]()
-		if group.RotDays != nil {
-			rot = domain.Known(group.GetRotDays())
-		}
-		row := policy.CaravanCargoGroup{GroupID: group.GetGroupId(), Definition: group.GetDefName(), Count: group.GetCount(), Nutrition: nutrition, Perishable: group.GetPerishable(), RotDays: rot, Reserve: group.GetReserve()}
-		for _, eater := range group.EaterIds {
-			row.Eaters = append(row.Eaters, domain.PawnID(eater))
-		}
-		rows = append(rows, row)
-	}
-	floor := policy.DefaultRoutinePolicy().FoodMinDays
-	pack, refusal := policy.PlanCaravanCargo(policy.CaravanCargoRequest{Crew: []domain.PawnID{domain.PawnID(crewPawnIDs[0])}, Cargo: []domain.CargoItem{{Definition: "WoodLog", Count: 10}}, Groups: rows, Demand: demand, JourneyDays: journeyDays, HomeFoodMinDays: floor})
-	if refusal != "" {
-		return fmt.Errorf("pack: refused %s (demand %v, journey %.1f days)", refusal, demand, journeyDays)
-	}
-	if pack.HomeRunwayDays < floor {
-		return fmt.Errorf("pack: home food floor %v not kept: runway %v", floor, pack.HomeRunwayDays)
-	}
-	if len(pack.Food) == 0 || pack.Food[0].GroupID != pemmican.GroupID {
-		return fmt.Errorf("pack: expected the pemmican reserve packed first, got %+v", pack.Food)
-	}
-	packed := map[string]int64{}
-	for _, line := range pack.Cargo {
-		packed[line.Definition] += line.Count
-	}
-	if packed["WoodLog"] != 10 || packed["MealSimple"] != 0 || packed["Pemmican"] == 0 {
-		return fmt.Errorf("pack: unexpected pack %v (food %+v)", packed, pack.Food)
-	}
-	if packed["Pemmican"] < 20 && packed["MealSurvivalPack"] != 0 {
-		return fmt.Errorf("pack: survival meals packed before the reserve was exhausted: %v", packed)
-	}
-	fmt.Fprintf(os.Stderr, "pack: %v, home runway %.1f days\n", packed, pack.HomeRunwayDays)
+	// The fixture's whole forbidden pemmican stack (20) plus enough survival
+	// meals for native's one-day food floor; simple meals stay home.
+	packed := map[string]int64{"WoodLog": 10, "Pemmican": 20, "MealSurvivalPack": 10}
 	var cargo []map[string]any
 	for def, count := range packed {
 		cargo = append(cargo, map[string]any{"defName": def, "count": count})

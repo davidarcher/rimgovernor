@@ -22,18 +22,16 @@ type TradeInspection struct {
 	Facts                 policy.TradeAdmissionFacts
 }
 
-// TradeBoundary is optionally composed, like SettlementGiftBoundary/
-// QuestFulfillBoundary: the routine upstream has already selected the
-// trader/negotiator/lines/floors, so this family attaches without a hard
-// NewWith constructor.
+// TradeBoundary is optionally composed: the routine upstream has already
+// selected the trader/negotiator/lines/floors, so this family attaches
+// without a hard NewWith constructor.
 type TradeBoundary interface {
 	InspectTrade(context.Context, Target) (TradeInspection, error)
 	WriteTrade(context.Context, Placement) (Receipt, error)
 }
 
-// EnableTrade activates the trade capability; see EnableQuestFulfill for why
-// capabilities are wired this way instead of inferred from a composed
-// Boundary.
+// EnableTrade activates the trade capability; capabilities are wired this way
+// instead of inferred from a composed Boundary.
 func (e *Executor) EnableTrade(trade TradeBoundary) error {
 	if trade == nil {
 		return errors.New("trade boundary required")

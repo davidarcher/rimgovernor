@@ -29,8 +29,8 @@ func serveBase(dir string) []string {
 }
 
 // serve with no mode flag is the autonomous composition: player control,
-// supervised clock, routine reviews and methods, every planner family, world
-// evaluation and caravan tracking.
+// supervised clock, routine reviews and methods, every planner family and world
+// evaluation.
 func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
@@ -38,7 +38,7 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods || !c.caravanJourneyTracking || !c.worldEvaluation || c.chat {
+	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods || !c.worldEvaluation || c.chat {
 		t.Fatalf("autonomous composition: %+v", c)
 	}
 	families := routineFamilies(&c)

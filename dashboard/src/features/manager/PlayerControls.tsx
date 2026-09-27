@@ -11,7 +11,6 @@ function describeGuidance(value: ChatGuidance): string {
     case 'activate_goal': return `Activated goal ${value.goal.goalId} (${value.goal.status}, ${value.goal.need})`;
     case 'cancel_goal': return `Cancelled goal ${value.goal.goalId}`;
     case 'set_population_policy': return `Population policy: up to ${value.populationPolicy.maximum} colonists, ${value.populationPolicy.foodDays} food days`;
-    case 'set_expedition_policy': return `Expedition limits: ${Object.entries(value.expeditionPolicy).map(([key, item]) => `${key} ${item}`).join(', ')}`;
     case 'set_population_decision': return `Population decision: ${value.populationDecision.decision} ${value.populationDecision.pawn}`;
   }
 }
@@ -173,7 +172,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
     {submitIntent && <p>Submission request: <code>{submitIntent.requestId}</code> {rejectedRequests.includes(submitIntent.requestId) && '· Rejected before admission'} <button type="button" disabled={submitting} onClick={() => void recoverSubmission()}>Check submission result</button></p>}
     {submission && <div><h3>Submitted building</h3><p>{submission.building.defName} · {submission.building.stuff || 'No material specified'} · ({submission.building.x}, {submission.building.z}) · {submission.building.rotation}</p><p>Plan {submission.planId} · Revision {submission.revision}</p>{!sameSubmissionWorld && <p>This submission belongs to a different observed world.</p>}</div>}
     {!chatDisabled && <><h3>Chat</h3>
-      <p>Ask the adviser what the autopilot is doing and why, or nudge its policy: activate or cancel a maintained goal, cap the population, set expedition limits, decide for a named pawn, or reserve or restrict a resource. It never places buildings or issues orders.</p>
+      <p>Ask the adviser what the autopilot is doing and why, or nudge its policy: activate or cancel a maintained goal, cap the population, decide for a named pawn, or reserve or restrict a resource. It never places buildings or issues orders.</p>
       <form onSubmit={event => {event.preventDefault(); void sendChat();}}>
         <label>Message<input value={chatMessage} onChange={event => setChatMessage(event.target.value)} placeholder="e.g. why is nobody cooking?"/></label>
         <button type="submit" disabled={!token || !freshWorld || chatSubmitting || !chatMessage.trim()}>{chatSubmitting ? 'Thinking…' : 'Send'}</button>

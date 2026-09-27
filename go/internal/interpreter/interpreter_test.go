@@ -94,7 +94,7 @@ func mustJSON(value string) []byte { data, _ := json.Marshal(value); return data
 
 func TestExplainOnlyCarriesNoNudge(t *testing.T) {
 	guidance, err := replying(t, explainOnly).Interpret(context.Background(), inputFixture())
-	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationPolicy.Set() || !guidance.ExpeditionPolicy.Empty() || guidance.PopulationDecision.Set() {
+	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationPolicy.Set() || guidance.PopulationDecision.Set() {
 		t.Fatalf("%+v %v", guidance, err)
 	}
 	if !strings.Contains(guidance.Explanation, "rice") {
@@ -111,11 +111,6 @@ func TestEveryNudgeKindDecodesToItsPolicyInput(t *testing.T) {
 		{"cancel", `{"kind":"cancel_goal","goalId":"goal-food"}`, func(g Guidance) bool { return g.Kind == CancelGoal && g.CancelGoal == "goal-food" }},
 		{"population policy", `{"kind":"set_population_policy","maximum":8,"foodDays":20}`, func(g Guidance) bool {
 			return g.Kind == SetPopulationPolicy && g.PopulationPolicy.Maximum() == 8 && g.PopulationPolicy.FoodDays() == 20
-		}},
-		{"expedition", `{"kind":"set_expedition_policy","maximumTravelDays":3,"keepHomeDoctor":true}`, func(g Guidance) bool {
-			days, ok := g.ExpeditionPolicy.MaximumTravelDays.Get()
-			doctor, ok2 := g.ExpeditionPolicy.KeepHomeDoctor.Get()
-			return g.Kind == SetExpeditionPolicy && ok && days == 3 && ok2 && doctor && !g.ExpeditionPolicy.MaximumCaravans.Present()
 		}},
 		{"decision", `{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}`, func(g Guidance) bool {
 			return g.Kind == SetPopulationDecision && g.PopulationDecision.Pawn() == "Thing_Human9" && g.PopulationDecision.Decision() == domain.PopulationRescue
@@ -201,9 +196,6 @@ func TestRefusesUnresolvedOrMalformedReplies(t *testing.T) {
 		{"cancel with extra field", wrap(`{"kind":"cancel_goal","goalId":"goal-food","revision":1}`), InvalidGuidance},
 		{"population out of range", wrap(`{"kind":"set_population_policy","maximum":500,"foodDays":20}`), InvalidGuidance},
 		{"population fraction", wrap(`{"kind":"set_population_policy","maximum":5.5,"foodDays":20}`), InvalidGuidance},
-		{"expedition unknown limit", wrap(`{"kind":"set_expedition_policy","maximumWalkingDays":3}`), InvalidGuidance},
-		{"expedition empty", wrap(`{"kind":"set_expedition_policy"}`), InvalidGuidance},
-		{"expedition out of range", wrap(`{"kind":"set_expedition_policy","maximumCaravans":99}`), InvalidGuidance},
 		{"unknown pawn", wrap(`{"kind":"set_population_decision","pawn":"Bob","decision":"rescue"}`), UnknownFacts},
 		{"unknown decision", wrap(`{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"execute"}`), InvalidGuidance},
 		{"too large", strings.Repeat(" ", 65537), InvalidGuidance},

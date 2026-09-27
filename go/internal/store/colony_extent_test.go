@@ -122,7 +122,7 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 func TestColonyExtentRewindRestoresOnlyThatGenerationsHistory(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := caravanTrackingFixture(t)
+	db := open(t, memoryPath(t))
 	first := extentWorld("colony", "load-1", 1)
 	for i, tick := range []domain.Tick{100, 200, 300} {
 		if tick == 300 {
@@ -182,7 +182,7 @@ func TestColonyExtentRewindRestoresOnlyThatGenerationsHistory(t *testing.T) {
 func TestColonyExtentIsolatesWorlds(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := caravanTrackingFixture(t)
+	db := open(t, memoryPath(t))
 	world := extentWorld("colony", "load-1", 1)
 	if _, err := db.EstablishColonyExtent(ctx, world, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
 		t.Fatal(err)
@@ -221,7 +221,7 @@ func TestColonyExtentIsolatesWorlds(t *testing.T) {
 func TestExpansionAreaLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	db := caravanTrackingFixture(t)
+	db := open(t, memoryPath(t))
 	world := extentWorld("colony", "load-1", 1)
 	cells := []domain.Cell{{X: 1, Z: 1}}
 	if err := db.RemoveExpansionArea(ctx, world, 10, "area", "nothing to remove"); !errors.Is(err, ErrNotFound) {

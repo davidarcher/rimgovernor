@@ -99,22 +99,3 @@ func TestReleasedReserveDoesNotImmediatelyBecomeHeld(t *testing.T) {
 		t.Fatal(r, err)
 	}
 }
-
-func TestCaravanFoodPrefersReserveAndSurvivingJourney(t *testing.T) {
-	stocks := []CaravanFoodStock{
-		{GroupID: "simple", Count: 20, Nutrition: 1, Perishable: true, RotDays: domain.Known(4.)},
-		{GroupID: "survival", Count: 20, Nutrition: 1},
-		{GroupID: "pemmican", Count: 3, Nutrition: 1, Perishable: true, RotDays: domain.Known(70.), Reserve: true},
-	}
-	got, ok := SelectCaravanFood(stocks, 2, 5)
-	want := []CaravanFoodCargo{{"pemmican", 3}, {"survival", 7}}
-	if !ok || !reflect.DeepEqual(got, want) {
-		t.Fatal(got, ok)
-	}
-	if got, ok = SelectCaravanFood(stocks[:1], 2, 5); ok || got != nil {
-		t.Fatal("perished food accepted", got)
-	}
-	if got, ok = SelectCaravanFood(stocks, 20, 5); ok || got != nil {
-		t.Fatal("partial pack accepted", got)
-	}
-}

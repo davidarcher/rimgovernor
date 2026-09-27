@@ -6,8 +6,6 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // modelReply is the untrusted decoded shape of one model response: the
@@ -27,27 +25,9 @@ type modelGuidance struct {
 	// Maximum/FoodDays hold set_population_policy's cap and food reserve.
 	Maximum  *int32
 	FoodDays *float64
-	// Expedition holds set_expedition_policy's partial patch.
-	Expedition *modelExpeditionPolicy
 	// Pawn/Decision hold set_population_decision's named individual and
 	// direction.
 	Pawn, Decision *string
-}
-
-// modelExpeditionPolicy is an untrusted partial expedition policy request.
-// Pointers distinguish a limit the player asked to change from one that must
-// keep whatever value is already in force; at least one must be present.
-type modelExpeditionPolicy struct {
-	MinimumHomeColonists          *int32   `json:"minimumHomeColonists"`
-	MinimumHomeFoodDays           *float64 `json:"minimumHomeFoodDays"`
-	TravelFoodMarginDays          *float64 `json:"travelFoodMarginDays"`
-	MaximumTravelDays             *float64 `json:"maximumTravelDays"`
-	MaximumCaravans               *int32   `json:"maximumCaravans"`
-	MinimumGoodwill               *int32   `json:"minimumGoodwill"`
-	MinimumDestinationTemperature *float64 `json:"minimumDestinationTemperature"`
-	MaximumDestinationTemperature *float64 `json:"maximumDestinationTemperature"`
-	KeepHomeDoctor                *bool    `json:"keepHomeDoctor"`
-	RequireReturnStorage          *bool    `json:"requireReturnStorage"`
 }
 
 const maxExplanationBytes = 16384
@@ -97,8 +77,6 @@ func decode(text string) (modelReply, error) {
 		guidance, err = decodeOneString(guidanceFields, CancelGoal, "goalId")
 	case SetPopulationPolicy:
 		guidance, err = decodeSetPopulationPolicy(guidanceFields)
-	case SetExpeditionPolicy:
-		guidance, err = decodeSetExpeditionPolicy(guidanceFields)
 	case SetPopulationDecision:
 		guidance, err = decodeSetPopulationDecision(guidanceFields)
 	default:
@@ -164,54 +142,6 @@ func decodeSetPopulationDecision(fields map[string]json.RawMessage) (modelGuidan
 		return modelGuidance{}, fail(InvalidGuidance, "invalid decision field")
 	}
 	return modelGuidance{Kind: SetPopulationDecision, Pawn: &pawn, Decision: &decision}, nil
-}
-
-// optionalField turns a decoded partial-request pointer into the comparable
-// domain.Optional the domain and store layers carry.
-func optionalField[T comparable](value *T) domain.Optional[T] {
-	if value == nil {
-		return domain.Optional[T]{}
-	}
-	return domain.Some(*value)
-}
-
-// expeditionPolicyFieldNames is the closed set of limits a
-// set_expedition_policy request may name.
-var expeditionPolicyFieldNames = map[string]bool{
-	"minimumHomeColonists": true, "minimumHomeFoodDays": true, "travelFoodMarginDays": true,
-	"maximumTravelDays": true, "maximumCaravans": true, "minimumGoodwill": true,
-	"minimumDestinationTemperature": true, "maximumDestinationTemperature": true,
-	"keepHomeDoctor": true, "requireReturnStorage": true,
-}
-
-// decodeSetExpeditionPolicy reads the subset of expedition limits the request
-// names. The field set is variable because the request is a partial patch:
-// an absent limit keeps whatever value is already in force, so only unknown
-// names, nulls and an empty request are refused on shape. Ranges and the
-// destination-temperature cross-check belong to domain.ExpeditionPolicyPatch.
-func decodeSetExpeditionPolicy(fields map[string]json.RawMessage) (modelGuidance, error) {
-	if len(fields) < 2 {
-		return modelGuidance{}, fail(InvalidGuidance, "unexpected guidance fields")
-	}
-	supplied := make(map[string]json.RawMessage, len(fields)-1)
-	for key, value := range fields {
-		if key == "kind" {
-			continue
-		}
-		if !expeditionPolicyFieldNames[key] || isNull(value) {
-			return modelGuidance{}, fail(InvalidGuidance, "unexpected guidance fields")
-		}
-		supplied[key] = value
-	}
-	payload, err := json.Marshal(supplied)
-	if err != nil {
-		return modelGuidance{}, fail(InvalidGuidance, "unexpected guidance fields")
-	}
-	var policy modelExpeditionPolicy
-	if err = json.Unmarshal(payload, &policy); err != nil {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid expedition policy field")
-	}
-	return modelGuidance{Kind: SetExpeditionPolicy, Expedition: &policy}, nil
 }
 
 // Generic JSON token inspection is confined to this external text boundary.

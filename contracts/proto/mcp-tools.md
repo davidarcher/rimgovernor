@@ -77,7 +77,6 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_read_excavation_site` | `rimgovernor.observations.v1.Observations/ReadExcavationSite` | `rimgovernor.observations.v1.ExcavationSiteRequest` | `rimgovernor.observations.v1.ExcavationSiteReply` |
 | `rimgovernor/observations_read_bills` | `rimgovernor.observations.v1.Observations/ReadBills` | `rimgovernor.observations.v1.BillsRequest` | `rimgovernor.observations.v1.BillsReply` |
 | `rimgovernor/observations_read_building_settings` | `rimgovernor.observations.v1.Observations/ReadBuildingSettings` | `rimgovernor.observations.v1.BuildingSettingsRequest` | `rimgovernor.observations.v1.BuildingSettingsReply` |
-| `rimgovernor/observations_read_caravan_catalog` | `rimgovernor.observations.v1.Observations/ReadCaravanCatalog` | `rimgovernor.observations.v1.CaravanCatalogRequest` | `rimgovernor.observations.v1.CaravanCatalogReply` |
 | `rimgovernor/observations_read_colony_facts` | `rimgovernor.observations.v1.Observations/ReadColonyFacts` | `rimgovernor.observations.v1.ColonyFactsRequest` | `rimgovernor.observations.v1.ColonyFactsReply` |
 | `rimgovernor/observations_read_defense_site` | `rimgovernor.observations.v1.Observations/ReadDefenseSite` | `rimgovernor.observations.v1.DefenseSiteRequest` | `rimgovernor.observations.v1.DefenseSiteReply` |
 | `rimgovernor/observations_read_gear` | `rimgovernor.observations.v1.Observations/ReadGear` | `rimgovernor.observations.v1.GearRequest` | `rimgovernor.observations.v1.GearReply` |

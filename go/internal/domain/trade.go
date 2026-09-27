@@ -12,7 +12,7 @@ import (
 // already-computed set of line adjustments, accepting an already-observed
 // deal, or ending the session. Trade is RimWorld's single global session
 // (only one TradeSession can be open at a time -- see bridge/trade.go's
-// package doc), so unlike CaravanDeparture/TravelCaravan this action never
+// package doc), so this action never
 // carries a session id: every operation names the trader and negotiator of
 // "the" live session and native refuses when they no longer hold it.
 type TradeOperationKind string
@@ -66,8 +66,8 @@ type TradeEconomicFloor struct {
 
 // Trade is explicit intent to run one of the four trade sub-operations
 // against RimWorld's single global session. Fields outside the selected
-// Kind's scope are always zero -- the same discipline TravelCaravan's
-// sentinel destinationTile uses -- so Action stays comparable and each
+// Kind's scope are always zero
+// so Action stays comparable and each
 // variant carries only the intent it needs. Lines and EconomicFloors are
 // canonical JSON-encoded sorted, deduplicated collections, the same
 // encoding CaravanDeparture uses for its crew/cargo lists. This action never

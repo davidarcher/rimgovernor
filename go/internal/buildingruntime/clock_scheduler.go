@@ -128,7 +128,6 @@ type ClockSchedulerConfig struct {
 	StorageShelves      *RoutineStorageShelvesPlanner
 	Resource            *RoutineResourcePlanner
 	AnimalFeed          *RoutineAnimalFeedPlanner
-	CaravanJourney      *CaravanJourneyTracker
 	HomeCoverage        *RoutineHomeCoveragePlanner
 	StoneShell          *RoutineStoneShellPlanner
 	Tidy                *RoutineTidyPlanner
@@ -199,7 +198,6 @@ type ClockSchedulerResult struct {
 	StorageShelves               *RoutineStorageShelvesResult
 	Resource                     *RoutineResourceResult
 	AnimalFeed                   *RoutineResourceResult
-	CaravanJourney               *CaravanJourneyResult
 	HomeCoverage                 *RoutineHomeCoverageResult
 	StoneShell                   *RoutineStoneShellResult
 	Tidy                         *RoutineTidyResult
@@ -378,9 +376,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
-		return nil, ErrControl
-	}
-	if config.CaravanJourney != nil && config.CaravanJourney.player != player {
 		return nil, ErrControl
 	}
 	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills} {

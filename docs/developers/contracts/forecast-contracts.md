@@ -101,23 +101,8 @@ an emergency. Reserve access has foothold priority and does not wait for a
 standing preservation bill. Forbidden stock is already excluded from the forecast,
 so the portfolio does not subtract the reserve a second time.
 
-`SelectCaravanFood` accepts observed transfer groups eligible for the entire
-crew, per-unit nutrition and unrefrigerated remaining shelf life. It packs
-reserve groups first, then the longest-lived food, and returns no selection
-when the journey cannot be covered.
-
-The caravan catalog (`observations_read_caravan_catalog`) carries those facts
-per cargo group: nutrition, perishability, unrefrigerated rot days, the reserve
-flag and the pawns eligible to eat it. `PlanCaravanCargo` combines trade
-cargo with a `SelectCaravanFood` pack for the crew over the route's estimated
-days plus a travel margin, then checks the home runway remaining after the
-pack (excluding reserve stock, counting kibble only when a home eater remains)
-against the routine food floor (`RoutinePolicy.FoodMinDays`); an unknown
-journey, an uncoverable journey or a breached floor returns no pack. The
-composed pack, by definition, is the caravan departure's cargo; native fills
-each definition reserve stock first when the `FormCaravanIntent` applies
-(#942). No production planner composes a departure yet. Packing the reserve
-is how it leaves home: MaintainFoodStorage
+A caravan formed with `FormCaravanIntent` takes reserve stock first for each
+cargo definition (#942); MaintainFoodStorage
 observes the reduced reserve stock afterwards and refills it through its
 ordinary holds and preservation bills.
 

@@ -735,16 +735,6 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalFeed = &method
 			return method.Reason, nil
 		}},
-	{name: "caravanJourney", class: classOptional, priority: plannerMaintenance, families: []bridge.FactFamily{bridge.FactWorld},
-		configured: func(c *ClockSchedulerConfig) bool { return c.CaravanJourney != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
-			method, err := s.config.CaravanJourney.step(ctx, epoch, arbiter)
-			if err != nil {
-				return "", err
-			}
-			out.CaravanJourney = &method
-			return "", nil
-		}},
 	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.HomeCoverageAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

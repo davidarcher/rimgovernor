@@ -75,6 +75,9 @@ message Operation {
   // (AcceptQuestIntent, FormCaravanIntent, #942).
   reserved 41, 44;
   reserved "form_caravan", "accept_quest";
+  // Caravan travel, settlement gifts and quest fulfilment had no Go sender (#942).
+  reserved 42, 43, 45;
+  reserved "travel_caravan", "gift_caravan_silver", "fulfill_quest";
   oneof command {
     InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
@@ -92,9 +95,6 @@ message Operation {
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
     PawnTargetOrder pawn_target_order = 36;
-    TravelCaravan travel_caravan = 42;
-    GiftCaravanSilver gift_caravan_silver = 43;
-    FulfillQuest fulfill_quest = 45;
     ExcavateCell excavate_cell = 47;
     CancelAcquisition cancel_acquisition = 54;
     Deconstruct deconstruct = 55;
@@ -328,10 +328,6 @@ message AcceptTrade { reserved 1, 6, 7; reserved "trader_id", "negotiator_id"; o
 enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
 // A cancel with no live session is a no-op, not a refusal.
 message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
-enum TravelKind { TRAVEL_KIND_UNSPECIFIED = 0; TRAVEL_KIND_MOVE = 1; TRAVEL_KIND_VISIT = 2; TRAVEL_KIND_RETURN_HOME = 3; TRAVEL_KIND_STOP = 4; }
-message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind = 2; optional int32 destination_tile = 3; }
-message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
-message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
 
 // Safe cleanup may run after authority revocation, only for an unchanged native
 // claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether

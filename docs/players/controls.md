@@ -32,7 +32,7 @@ Viewing a colony does not take control of it.
 
 Chat needs the configured local model in LM Studio. Ask what the autopilot is
 doing and why, or nudge it: activate or cancel a maintained goal, cap the
-population, set expedition limits, decide for a named pawn, or reserve or
+population, decide for a named pawn, or reserve or
 restrict a resource. Each reply explains, and shows the one policy change it
 applied, if any. Chat never places buildings or issues orders; the autopilot
 reads the changed policy on its next review, so check Work for the result.

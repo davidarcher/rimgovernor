@@ -242,7 +242,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	flooring := sc.routineFlooringPlans
 	routes := sc.routineRoutesPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
-	caravanJourneyTracking, resourceTargets := sc.caravanJourneyTracking, sc.resourceTargetsConfigured()
+	resourceTargets := sc.resourceTargetsConfigured()
 	animalFeedPlans := sc.routineAnimalFeedPlans
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
@@ -276,17 +276,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if caravanJourneyTracking {
-		native, ok := reads.(buildingruntime.CaravanJourneyNative)
-		if !ok {
-			return nil, errors.New("caravan journey tracking requires typed world progression and home colonist observations")
-		}
-		tracker, err := buildingruntime.NewCaravanJourneyTracker(player, native, journal, wallClock{}, config.MaxAge)
-		if err != nil {
-			return nil, err
-		}
-		config.CaravanJourney = tracker
-	}
 	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}

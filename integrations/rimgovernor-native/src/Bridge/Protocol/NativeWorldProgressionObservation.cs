@@ -17,9 +17,8 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     // Ports the legacy home/world_progression JSON tool (WorldProgressionTools
-    // in ../WorldProgressionTool.cs) behind the typed ReadScope boundary, the
-    // same "proto ahead of use" closing pattern already used for
-    // NativeCaravanCatalog. observations.proto's WorldProgressionRequest/
+    // in ../WorldProgressionTool.cs) behind the typed ReadScope boundary.
+    // observations.proto's WorldProgressionRequest/
     // Reply, WorldMap, FactionState, CaravanState, CaravanAssembly and
     // QuestState were already fully defined; this closes the gap that no
     // native handler yet answered rimgovernor/observations_read_world_progression
@@ -154,17 +153,13 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        // Only a still-active request is reported: once
-        // NativeQuestFulfillOperations.Execute fulfills the live
-        // TradeRequestComp, the QuestPart_InitiateTradeRequest itself
+        // Only a still-active request is reported: once the live
+        // TradeRequestComp is fulfilled, the QuestPart_InitiateTradeRequest itself
         // typically remains on the quest (removing it is the responsibility
         // of whatever quest-script listener chain reacts to the settlement's
         // fulfillment signal, which a minimal quest need not carry), so
         // reporting on the part's mere presence would keep HasTradeRequest
-        // (world_progression.go) true forever after a real fulfillment --
-        // exactly the signal policy.EvaluateQuestFulfill's admission check
-        // relies on to know the objective is done. Mirrors Observe()'s own
-        // ActiveRequest check so both accessors agree.
+        // (world_progression.go) true forever after a real fulfillment.
         private static List<Obs.QuestTradeRequest> TradeRequests(Quest quest)
         {
             var rows = new List<Obs.QuestTradeRequest>();
@@ -189,7 +184,7 @@ namespace HomeBridge.BridgeTools
                     State = q.State.ToString(), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
-                    // FulfillQuest re-checks this exact token as its CAS.
+                    // The quest row's identity-and-state token.
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)

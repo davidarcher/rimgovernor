@@ -92,7 +92,6 @@ type serveConfig struct {
 	routineResourcePlans            bool
 	routineAnimalFeedPlans          bool
 	routineMethods                  bool
-	caravanJourneyTracking          bool
 	worldEvaluation                 bool
 	refresh                         time.Duration
 	clockTestAcceleration           bool
@@ -163,7 +162,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 		}
 	} else {
 		c.playerControl, c.clockControl, c.routineReviews, c.routineMethods = true, true, true, true
-		c.caravanJourneyTracking, c.worldEvaluation = true, true
+		c.worldEvaluation = true
 		c.chat = c.chatModel != ""
 		if err := c.selectRoutineFamilies(lookupEnv(routineFamiliesEnv)); err != nil {
 			return c, err

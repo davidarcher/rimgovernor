@@ -20,7 +20,7 @@ paired backups, manifests or archive tables.
   conflict.
 - **The routine review cursor and policy inputs.** Latches, recovery
   histories and the current goal bindings let the next review continue where
-  the last one stopped; population, expedition and resource policies and
+  the last one stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
 - **Clock inbox and source cursors.** Native clock reads journal fetched
   events with their source cursor before advancing; delivery consumes the

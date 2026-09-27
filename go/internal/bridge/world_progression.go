@@ -83,9 +83,8 @@ type CaravanJourney struct {
 // [0, ChoiceCount) via QuestAccept.RewardChoice, whether that count is one
 // option or many -- native itself refuses any quest exposing two or more
 // separate QuestPart_Choice parts, so ChoiceCount never needs to represent
-// that shape), and whether it also carries a settlement trade objective
-// (FulfillQuest territory, out of scope for acceptance). It does not surface
-// reward item contents or trade destination; nothing here picks a quest or a
+// that shape), and whether it also carries a settlement trade objective.
+// It does not surface reward item contents; nothing here picks a quest or a
 // reward, it only proves facts about one already-selected quest and option.
 type QuestOffer struct {
 	ID string
@@ -98,22 +97,8 @@ type QuestOffer struct {
 	CanAccept        bool
 	ChoiceCount      int32
 	HasTradeRequest  bool
-	// TradeDestinationTile/TradeDestinationKnown are populated only when the
-	// quest carries exactly one native settlement trade objective
-	// (QuestPart_InitiateTradeRequest) with a known destination tile;
-	// FulfillQuest's boundary uses this to prove an already-visiting
-	// caravan sits at the exact requested settlement, the same "read what a
-	// boundary can validate and use" discipline as every other census field
-	// here. Two or more trade requests, or one with no destination, leaves
-	// it unknown -- never guessed.
-	TradeDestinationTile  int32
-	TradeDestinationKnown bool
 	// TradeRequests is the quest's full native settlement trade objective
-	// list (QuestTradeRequest rows), kept alongside HasTradeRequest/
-	// TradeDestinationTile rather than replacing them -- FulfillQuest's
-	// boundary depends on those existing fields, and the read-only
-	// world-evaluation advisory needs the full resource/count list they
-	// summarize instead.
+	// list (QuestTradeRequest rows) the world-evaluation advisory reads.
 	TradeRequests   []QuestTradeRequestFact
 	EligiblePawnIDs []string
 	SnapshotToken   string
@@ -149,11 +134,9 @@ type WorldMap struct {
 }
 
 // WorldProgressionRead is the validated subset of one rimgovernor/
-// observations_read_world_progression census this round's caravan-journey
-// tracking and quest-accept boundary need. It does not surface
-// WorldProgressionSnapshot.factions or assemblies; those remain unread
-// until a later slice needs them, the same "read only what a boundary can
-// validate and use" discipline as CaravanCatalogRead. Maps is read only for
+// observations_read_world_progression census world evaluation and the
+// quest boundaries need. It does not surface
+// WorldProgressionSnapshot.factions or assemblies. Maps is read only for
 // its pawn rosters (see WorldMap): a caravan whose world object has
 // disappeared but whose crew is visible on some non-home map is known to be
 // on a live map (an encounter/ambush map, most likely), not lost -- without
@@ -332,13 +315,9 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
 			ChoiceCount: int32(len(choices)), HasTradeRequest: len(row.TradeRequests) > 0, EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
-		if len(row.TradeRequests) == 1 && row.TradeRequests[0] != nil && row.TradeRequests[0].Destination != nil {
-			quest.TradeDestinationTile, quest.TradeDestinationKnown = row.TradeRequests[0].GetDestination(), true
-		}
 		requests := make([]QuestTradeRequestFact, len(row.TradeRequests))
 		for k, request := range row.TradeRequests {
-			// Matches the existing TradeDestinationTile/TradeDestinationKnown
-			// tolerance above: a missing resource, count or destination on one
+			// A missing resource, count or destination on one
 			// row is not malformed evidence (native's own QuestTradeRequest
 			// fields are all optional), only a negative count/destination is.
 			if request == nil || request.GetCount() < 0 || request.GetDestination() < 0 {

@@ -90,7 +90,7 @@ func projectPopulationPolicySubmission(v store.PopulationPolicySubmission) (popu
 }
 
 // policyWorld reads a colonyId/loadToken/mapId query triple, shared by the
-// population and expedition policy reads. A current policy is scoped per
+// population and resource policy reads. A current policy is scoped per
 // world rather than per plan, so a read cannot borrow work-preferences'
 // single planId query shape.
 func policyWorld(query url.Values) (store.World, error) {

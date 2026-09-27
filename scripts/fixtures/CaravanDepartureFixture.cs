@@ -86,11 +86,9 @@ namespace HomeBridge.BridgeTools
                 // A candidate must have an actual native path from the home
                 // tile, not merely exist and be non-hostile: on a random world
                 // seed the nearest/first-by-id candidate can be unreachable
-                // (across water, blocked terrain), which the real
-                // CaravanCatalog observation would then correctly refuse at
-                // catalog time -- mirrors NativeCaravanCatalog.RouteFacts'
-                // reachability check so this fixture cannot hand out a
-                // destination the vertical itself would reject as unreachable.
+                // (across water, blocked terrain), which formation would
+                // refuse, so this fixture never hands out an unreachable
+                // destination.
                 Settlement settlement = null;
                 foreach (var candidate in Find.WorldObjects.SettlementBases
                     .Where(s => s.Faction != null && s.Faction != player && !s.Faction.HostileTo(player) && s.Visitable && s.Tile != map.Tile)

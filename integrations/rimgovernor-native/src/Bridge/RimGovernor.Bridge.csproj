@@ -70,13 +70,10 @@
     <Compile Include="../../../../scripts/fixtures/InspectorFixture.cs" Condition="'$(InspectorFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ModalFixture.cs" Condition="'$(ModalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CampaignMetricsFixture.cs" Condition="'$(CampaignMetricsFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/QuestFulfillFixture.cs" Condition="'$(QuestFulfillFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuildingTemperatureFixture.cs" Condition="'$(BuildingTemperatureFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/CaravanControlFixture.cs" Condition="'$(CaravanControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CaravanDepartureFixture.cs" Condition="'$(CaravanDepartureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryServiceFixture.cs" Condition="'$(RecoveryServiceFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestAcceptFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/SettlementGiftFixture.cs" Condition="'$(SettlementGiftFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ZoneDeleteFixture.cs" Condition="'$(ZoneDeleteFixture)' == 'true'" />
