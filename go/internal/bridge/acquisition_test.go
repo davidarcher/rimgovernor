@@ -10,7 +10,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,7 +23,7 @@ func acquisitionTestEffect() *r.EffectEvidence {
 func TestAcquisitionFixedWriteAndExactAdmission(t *testing.T) {
 	receipt := draftTestReceipt()
 	receipt.Outcome = &r.Receipt_Applied{Applied: &r.Applied{Observed: acquisitionTestEffect()}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
 		}

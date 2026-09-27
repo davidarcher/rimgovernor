@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         private static int historyCount;
         private static long historyBytes;
 
-        // Passive private-fixture capture avoids a second GABS connection and
+        // Passive private-fixture capture avoids a second bridge connection and
         // preserves SDK events beyond its bounded diagnostic query window.
         private static void StartHistory()
         {

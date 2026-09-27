@@ -86,7 +86,7 @@ const (
 	// maxLiveStepReads is the step-cost bound of issue #593: a step
 	// planning under a running window reads its one review bundle plus at
 	// most the families an event within the step made stale. The step's
-	// wall time is reported, not bounded; it measures the box and the GABS
+	// wall time is reported, not bounded; it measures the box and the GABP
 	// transport floor rather than this repository.
 	maxLiveStepReads = 5
 )

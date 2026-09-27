@@ -12,14 +12,13 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestPresentationReadsExactAndPartial(t *testing.T) {
 	calls := 0
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		var outer struct {
 			Request string `json:"request"`
@@ -78,7 +77,7 @@ func TestPresentationReadInvalidAndRefused(t *testing.T) {
 		{"refused", &p.CameraReply{Outcome: &p.CameraReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}}}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(tc.reply), nil }}, time.Second)
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return pbResult(tc.reply), nil }}, time.Second)
 			v, raw, e := client.ReadCamera(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
 			if e == nil || len(raw.Envelope) == 0 {
 				t.Fatal(v, e)
@@ -141,8 +140,8 @@ func TestPresentationFactValidation(t *testing.T) {
 
 func TestPresentationMalformedProtoBoundary(t *testing.T) {
 	for _, payload := range []string{`{"camera":{"context":null}}`, `{"camera":{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":0},"tick":"1"},"rootSize":1,"rootSize":2}}`, `{"camera":{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":2147483648},"tick":"1"}}}`} {
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
-			return &mcp.CallToolResult{StructuredContent: encode(struct {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
+			return &callResult{StructuredContent: encode(struct {
 				Payload string `json:"payload"`
 			}{payload})}, nil
 		}}, time.Second)
@@ -173,13 +172,13 @@ func TestPresentationMCPErrorPreservesOnlyTypedFailure(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, variant := range []string{"typed", "malformed", "success"} {
 				t.Run(variant, func(t *testing.T) {
-					server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+					server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 						reply := pbResult(tc.failed)
 						if variant == "success" {
 							reply = pbResult(tc.success)
 						}
 						if variant == "malformed" {
-							reply = &mcp.CallToolResult{StructuredContent: encode(struct {
+							reply = &callResult{StructuredContent: encode(struct {
 								Payload string `json:"payload"`
 							}{`{"failure":`})}
 						}

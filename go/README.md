@@ -1,7 +1,7 @@
 # Go controller development
 
-`go/` is the RimGovernor runtime: it observes the colony through
-GABS/RimBridgeServer, runs deterministic routine policy, executes admitted work
+`go/` is the RimGovernor runtime: it observes the colony over
+GABP from RimBridgeServer, runs deterministic routine policy, executes admitted work
 through Hands, and serves the dashboard and player API. The launcher
 (`cmd/launcher`, built as `RimGovernorLauncher.exe`) and the Docker `go-controller` target start this binary
 directly. Start from the [source map](../docs/developers/source-map.md) and
@@ -39,10 +39,10 @@ go build -ldflags -H=windowsgui -o ..\RimGovernorLauncher.exe ./cmd/launcher
 ```
 
 The launcher rebuilds the controller, the production native mod, the dashboard
-(`dashboard/dist`, with `pnpm`), GABS and the game layout when stale, then
+(`dashboard/dist`, with `pnpm`) and the game layout when stale, then
 starts `serve` with the settings it keeps in `.rimgovernor/launcher.json`
-([setup](../docs/players/setup.md)). GABS is a native executable dependency of
-the controller.
+([setup](../docs/players/setup.md)). The controller launches RimWorld itself
+and talks GABP to RimBridgeServer directly.
 
 `rimgovernor serve` has two modes; `serve -h` is the authoritative flag list.
 
@@ -59,7 +59,7 @@ the controller.
 
 | Flag | Effect |
 | --- | --- |
-| `--gabs`, `--config`, `--game`, `--state` | Absolute GABS, config and state paths and the configured game ID (both modes). |
+| `--config`, `--game`, `--state` | Absolute game configuration directory and state path and the configured game ID (both modes). |
 | `--profile` | Absolute shared game profile; required for autonomous play. |
 | `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
 | `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast. Otherwise each window runs at the speed the player last chose in game (Ultrafast under player pacing when none was chosen, #875). |
@@ -97,11 +97,11 @@ docker run --rm rimgovernor-go:local version
 ```
 
 `containers/go-controller.compose.yaml` runs a real `serve --observe` session
-with bind-mounted GABS/config/state inputs using `network_mode: host`, because
+with bind-mounted config/state inputs using `network_mode: host`, because
 `--listen` only accepts a loopback address (the compose file's comments cover
 the Docker Desktop caveat).
 
-**No licensed game files here**: without a real GABS build and prepared save,
+**No licensed game files here**: without a real game install and prepared save,
 `serve` fails at the native bridge handshake (`bridge transport failure:
 initialize: ...`). That failure, `go build`, `go vet`, `go test ./cmd/...` and
 an image build reaching the same clean failure are compilation/protocol/wiring
@@ -842,8 +842,8 @@ models. Proposals remain unsubmitted until a player runtime admits them.
 ## Observation service
 
 Build the executable above, then use `rimgovernor serve --observe` with absolute
-`--gabs`, `--config` and `--state` paths plus the configured `--game` ID. It attaches
-through GABS to the running game and opens a fresh Go SQLite database. An optional
+`--config` and `--state` paths plus the configured `--game` ID. It attaches
+over GABP to the running game and opens a fresh Go SQLite database. An optional
 absolute `--assets` directory serves a built dashboard containing `index.html`.
 `--listen` defaults to `127.0.0.1:0`; startup prints the selected local URL. Only
 loopback IP addresses and numeric ports are accepted.
@@ -897,7 +897,7 @@ unbounded. See `bridge.FlightRecorder` for the writer and `bridge.ReadTimeline` 
 ## Guarded player components
 
 `rimgovernor serve --profile <absolute-game-profile>` (autonomous play) includes
-the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
+the building service. Supply the same `--config`, `--game`, `--state`,
 `--listen` and optional `--assets` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
 lock. The service starts paused; it never restores a live lease from SQLite.
@@ -1022,7 +1022,7 @@ renewal and scheduling independently, with joined retryable shutdown. Autonomous
 ## Isolated building acceptance
 
 Build `./internal/buildingruntime/cmd/buildingsmoke` for the native scenario host.
-`--mode place --execute` requires absolute `--gabs`, `--config`, `--profile`,
+`--mode place --execute` requires absolute `--config`, `--profile`,
 `--state`, `--request` and fresh `--output` paths plus the configured `--game`.
 The profile is the shared running game's real profile directory. The state file
 must be new. The request is one official ProtoJSON `PlacementCandidate` naming
@@ -1035,7 +1035,8 @@ state/profile/game paths and a new output directory, omitting `--execute` and
 acquiring a write lease. It normally requires correlated completed construction.
 Use `--expected-outcome cancelled` or `interrupted` to require that exact observed
 terminal outcome instead; unknown or pending evidence never passes.
-`--force-takeover` is for an explicitly coordinated GABS fixture handoff. Both
+`--force-takeover` is accepted for compatibility and changes nothing (there is
+no attachment lease). Both
 modes retain raw call evidence and a report; neither starts a game or advances ticks.
 
 ## Optional evidence replay

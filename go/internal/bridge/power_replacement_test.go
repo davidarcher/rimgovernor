@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -32,7 +31,7 @@ func TestHiddenConduitReplacementOnlyAllowsFinishedOrdinaryConduit(t *testing.T)
 				blocker.DefName = proto.String(tc.def)
 			}
 			reply.GetBatch().Results[0].GetEvaluated().Rotations[0].BlockingThings = []*p.PlacementBlocker{blocker}
-			server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(reply), nil }}
+			server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return pbResult(reply), nil }}
 			preview, _, err := testClient(t, server, testBudget).PreviewBuilding(context.Background(), a, snapshot)
 			if err != nil {
 				t.Fatal(err)

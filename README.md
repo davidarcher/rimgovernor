@@ -13,8 +13,8 @@ Double-click `RimGovernor.cmd` and press Play (see [setup](docs/players/setup.md
 Open [the dashboard](http://127.0.0.1:8787). It starts in Manual; choose Automate
 to enable routine control. Autopilot needs no model.
 
-This is a development setup requiring licensed RimWorld files, native mods,
-GABS and a prepared save. See the [player guide](docs/players/README.md) for
+This is a development setup requiring licensed RimWorld files, native mods
+and a prepared save. See the [player guide](docs/players/README.md) for
 controls, saving and troubleshooting. Broader survival coverage remains tracked in
 [GitHub issues](https://github.com/davidarcher/rimgovernor/issues).
 
@@ -23,7 +23,7 @@ controls, saving and troubleshooting. Broader survival coverage remains tracked 
 Use the [developer guide](docs/developers/README.md) to find the architecture,
 source and checks for your change. Go runs the production controller
 (started by `RimGovernorLauncher.exe`, built from `go/cmd/launcher`); React/TypeScript runs the dashboard, and C#
-supplies native game tools through GABS/RimBridgeServer. See
+supplies native game tools through RimBridgeServer over GABP. See
 [the Go module guide](go/README.md) for building, running and testing it.
 
 You can run checks without installing the game from `go/`:

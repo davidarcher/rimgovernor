@@ -7,13 +7,12 @@ import (
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestArrestPreviewReusesNativeOperation(t *testing.T) {
 	command := &o.Arrest{Pawn: &o.EntityPrecondition{EntityId: proto.String("warden")}, Target: &o.EntityPrecondition{EntityId: proto.String("ancient")}, Bed: &o.EntityPrecondition{EntityId: proto.String("prison")}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(ctx context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(ctx context.Context, arg nativeArgument) (*callResult, error) {
 		draftTestRequest(t, arg, &o.PreviewRequest{Identity: pbIdentity(), Operation: &o.Operation{Command: &o.Operation_Arrest{Arrest: command}}})
 		return pbResult(&o.PreviewReply{Outcome: &o.PreviewReply_Evaluated{Evaluated: &o.PreviewEvaluation{Context: buildingAdmission().AdmittedContext, Accepted: proto.Bool(true)}}}), nil
 	}}, time.Second)

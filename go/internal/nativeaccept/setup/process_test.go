@@ -7,7 +7,7 @@ import (
 
 func TestParseProcesses(t *testing.T) {
 	out := "66460\tRimWorldWin64.exe\t120365056\t100660937500\t2026-09-19T13:21:37.1234567Z\tC:\\wt\\a\\.rimgovernor\\native-rimworld\\RimWorldWin64.exe\t\"C:\\wt\\a\\.rimgovernor\\native-rimworld\\RimWorldWin64.exe\" -savedatafolder=C:\\wt\\a\\.rimgovernor\\bridge\\profile\r\n" +
-		"12\tgabs.exe\t\t0\t\t\t\r\n" +
+		"12\trimgovernor.exe\t\t0\t\t\t\r\n" +
 		"garbage line\r\n"
 	procs := parseProcesses(out)
 	if len(procs) != 2 {
@@ -26,7 +26,7 @@ func TestParseProcesses(t *testing.T) {
 	if !p.Under("C:/wt/a/.rimgovernor/native-rimworld") || p.Under("C:/wt/b") {
 		t.Errorf("Under mismatch for %q", p.Path)
 	}
-	if procs[1].PID != 12 || procs[1].Name != "gabs.exe" || !procs[1].Started.IsZero() {
+	if procs[1].PID != 12 || procs[1].Name != "rimgovernor.exe" || !procs[1].Started.IsZero() {
 		t.Errorf("row 1 = %+v", procs[1])
 	}
 }

@@ -10,7 +10,6 @@ import (
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -33,7 +32,7 @@ func clockEventPage(count int) *k.EventsPage {
 }
 func TestClockEventsFixedSDKRead(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		if arg.Tool != "rimgovernor/clock_read_events" {
 			t.Fatal(arg.Tool)
@@ -163,7 +162,7 @@ func TestClockEventVariantsAndPartialFacts(t *testing.T) {
 	}
 }
 func TestClockEventsValidationAndTypedRefusal(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		r := pbResult(&k.EventsReply{Outcome: &k.EventsReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_STALE_IDENTITY.Enum()}}})
 		r.IsError = true
 		return r, nil
@@ -190,7 +189,7 @@ func TestClockEventsOptionalOldestCursor(t *testing.T) {
 	for _, count := range []int{0, 2} {
 		page := clockEventPage(count)
 		page.OldestCursor = nil
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			return pbResult(&k.EventsReply{Outcome: &k.EventsReply_Page{Page: page}}), nil
 		}}, time.Second)
 		reply, _, err := client.ReadClockEvents(context.Background(), clockEventsRequest())

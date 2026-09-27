@@ -9,7 +9,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -43,7 +42,7 @@ func TestMovementFixedSDKPreviewExecuteLookupProgress(t *testing.T) {
 	for _, noChange := range []bool{false, true} {
 		t.Run(map[bool]string{false: "issued", true: "already there"}[noChange], func(t *testing.T) {
 			calls := 0
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				calls++
 				switch arg.Tool {
 				case "rimgovernor/operations_preview":
@@ -125,7 +124,7 @@ func TestMovementPendingInterruptionAndUnknownSDK(t *testing.T) {
 			case "absent":
 				v.Effect = &r.Progress_Absent{Absent: &r.AbsentEffect{InspectionToken: proto.String("inspection")}}
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: v}}), nil
 			}}, time.Second)
 			got, _, err := client.ObserveMovementProgress(context.Background(), movementTestAttempt(), movementTestReceipt(false))
@@ -137,7 +136,7 @@ func TestMovementPendingInterruptionAndUnknownSDK(t *testing.T) {
 }
 func TestMovementMalformedRequestNeverCalls(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) { calls++; return nil, nil }}, time.Second)
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) { calls++; return nil, nil }}, time.Second)
 	for _, command := range []*o.MovePawn{nil, {Pawn: draftTestPawn()}, {Pawn: draftTestPawn(), Destination: &c.Cell{X: proto.Int32(0)}}, {Pawn: draftTestPawn(), Destination: &c.Cell{X: proto.Int32(-1), Z: proto.Int32(0)}}} {
 		if _, _, err := client.PreviewMovement(context.Background(), pbIdentity(), command); !errors.Is(err, ErrContract) {
 			t.Fatal(err)
@@ -160,7 +159,7 @@ func TestMovementLookupUnknownInflightAndRefusal(t *testing.T) {
 			case "failure":
 				reply.Outcome = &r.LookupReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum(), Detail: proto.String("unavailable")}}
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) { return pbResult(reply), nil }}, time.Second)
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) { return pbResult(reply), nil }}, time.Second)
 			got, _, err := client.LookupMovementAttempt(context.Background(), movementTestAttempt())
 			if kind == "failure" {
 				var failure *NativeFailure
@@ -194,7 +193,7 @@ func TestMovementUncertainWithoutReadbackCompletes(t *testing.T) {
 				original = nil
 			}
 			calls := 0
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) {
 				calls++
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: progress}}), nil
 			}}, time.Second)

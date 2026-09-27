@@ -147,7 +147,7 @@ type traceLine struct {
 // WriteTraceReport renders one trace as a waterfall: each row's offset from
 // the trace's first row, the call's duration for a native call, the span it
 // ran under (indented by nesting under the root), and what it was: the
-// native tool and its phases (gate wait, GABS round trip, the companion's
+// native tool and its phases (gate wait, GABP round trip, the companion's
 // queue and execute split when echoed), a cache hit, a step's read tally,
 // or a kinded service event with its message and attributes.
 func WriteTraceReport(w io.Writer, t TraceSummary) {
@@ -197,7 +197,7 @@ func traceLines(t TraceSummary) []traceLine {
 				break
 			}
 			// The reply names the inner rimgovernor/* tool; the request
-			// row only carries the GABS wrapper and its arguments. A call
+			// row only carries the wrapper and its arguments. A call
 			// through another wrapper (games_tool_detail describing the
 			// tool before its first use) keeps the wrapper's name.
 			line.text = "native " + toolName(reply.Payload)

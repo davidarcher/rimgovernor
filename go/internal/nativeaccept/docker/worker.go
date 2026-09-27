@@ -40,20 +40,17 @@ const baselineSave = "RimGovernor-tribal8-baseline.rws"
 // tree without ever writing to the shared, read-only input store; see
 // gameEntryMounts and the worker Dockerfile stage's comment for why one
 // mount for the whole game directory doesn't work. Nothing license-bearing
-// (game, mods, GABS binary) ever lives in the image itself.
+// (game, mods) ever lives in the image itself.
 type Inputs struct {
-	Game, Mods, Profile, Gabs string
+	Game, Mods, Profile string
 }
 
 // ConfigTemplate is a host-absolute config.json already shaped for this game
 // (its "games.<GameID>" section using the container-internal /inputs/...
-// paths this package binds Inputs to below). This package does not
-// synthesize a GABS config from scratch -- executablePath, stopProcessName
-// and any other GABS-specific keys are the operator's concern, exactly as
-// they are for the non-containerized go/internal/nativeaccept harnesses'
-// source root. Worker only overlays the batch-mode args and gabsExecutable
-// path it controls, the same fields nativeaccept.Prepare rewrites for a
-// disposable worker root.
+// paths this package binds Inputs to below). Worker overlays the
+// container-internal target, workingDir and batch-mode args the bridge
+// launches the Linux game with, the same fields nativeaccept.Prepare
+// rewrites for a disposable worker root.
 type WorkerConfig struct {
 	Docker         string // resolved via DockerBinary
 	Image          string // built/inspected image tag or ID
@@ -120,7 +117,7 @@ func freeLoopbackPort() (int, error) {
 // copied from cfg.Inputs.Profile and rewritten to activate exactly the
 // required mods, plus the baseline save), and copies cfg.ConfigTemplate's
 // games.<GameID> section into <root>/config/config.json with its
-// container-internal workingDir/args/gabsExecutable overlaid -- the same
+// container-internal target/workingDir/args overlaid -- the same
 // fields nativeaccept.Prepare rewrites for a disposable worker root.
 func prepareConfig(cfg WorkerConfig) error {
 	if err := nativeaccept.RequireNativePackage(cfg.Inputs.Mods); err != nil {
@@ -154,12 +151,6 @@ func prepareConfig(cfg WorkerConfig) error {
 		"-savedatafolder=/worker/profile", "-logFile", "/worker/HeadlessPlayer.log",
 		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", nativeaccept.IdleExitArg,
 	}
-	section, _ := config["rimgovernor"].(map[string]any)
-	if section == nil {
-		section = map[string]any{}
-		config["rimgovernor"] = section
-	}
-	section["gabsExecutable"] = "/inputs/gabs/gabs"
 
 	profileConfigDir := filepath.Join(cfg.Root, "profile", "Config")
 	profileSavesDir := filepath.Join(cfg.Root, "profile", "Saves")
@@ -283,19 +274,11 @@ func StartWorker(ctx context.Context, cfg WorkerConfig) (*Worker, error) {
 	args = append(args, gameMounts...)
 	args = append(args,
 		"-v", cfg.Inputs.Mods+":/worker/game/Mods:ro",
-		"-v", cfg.Inputs.Gabs+":/inputs/gabs:ro",
-		// Consumed by containers/worker-merge-game.sh, which runs
-		// `gabs games start` before exec'ing rimgovernor -- see that
-		// script's comment for why this can't be a bridge.Client call
-		// from this package instead.
-		"-e", "GABS_BIN=/inputs/gabs/gabs",
 		"-e", "GAME_ID="+cfg.GameID,
-		"-e", "GABS_CONFIG_DIR=/worker/config",
 		cfg.Image, "serve",
 	)
 	args = append(args,
 		"--profile", "/worker/profile",
-		"--gabs", "/inputs/gabs/gabs",
 		"--config", "/worker/config",
 		"--game", cfg.GameID,
 		"--state", "/worker/state.db",

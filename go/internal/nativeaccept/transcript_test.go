@@ -13,7 +13,7 @@ import (
 )
 
 // The transcripts under testdata/transcripts are harness-shaped recordings
-// (RecordEnv's format, the receipts shaped as GABS returns them); a live run
+// (RecordEnv's format, the receipts shaped as the bridge returns them); a live run
 // under RIMGOVERNOR_ACCEPT_RECORD replaces them with real ones. Each test
 // here runs harness code against one in milliseconds and ends with the
 // transcript fully consumed, so a wait or parser that starts making a

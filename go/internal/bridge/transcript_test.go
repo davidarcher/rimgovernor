@@ -8,11 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// A session recorded against the in-memory GABS replays call for call: the
+// A session recorded against an in-memory session replays call for call: the
 // same receipts, the same refusals, the same int64 observations, and a
 // call the recording never saw fails with the recorded row's diff.
 func TestTranscriptRecordsAndReplays(t *testing.T) {
@@ -21,12 +19,12 @@ func TestTranscriptRecordsAndReplays(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &testServer{handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		switch args.Tool {
 		case "fixture/read":
 			return structured(`{"tick":9007199254740993,"success":true}`), nil
 		case "fixture/refused":
-			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: "Tool 'fixture/refused' not found"}}, StructuredContent: json.RawMessage(`{"requested":"fixture/refused"}`)}, nil
+			return &callResult{IsError: true, Content: []content{&textContent{Text: "Tool 'fixture/refused' not found"}}, StructuredContent: json.RawMessage(`{"requested":"fixture/refused"}`)}, nil
 		}
 		return nil, errors.New("boom")
 	}}

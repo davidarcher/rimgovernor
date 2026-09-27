@@ -120,7 +120,6 @@ func Run(ctx context.Context, o Options) []Check {
 	add(c)
 	if game != nil {
 		add(gameCopyPath(gameCopy))
-		add(gabs(o))
 		add(mod(o, gameCopy))
 	}
 	add(baseline(o))
@@ -218,20 +217,6 @@ func gameCopyPath(gameCopy string) Check {
 		c.Detail = fmt.Sprintf("path is %d characters (limit %d): RimWorld cannot open its own Defs XML from it", len(gameCopy), setup.MaxGameCopyPath)
 		c.Fix = fmt.Sprintf("move the worktree under a path at most %d characters (e.g. .claude/worktrees/<name>) and rerun setup", setup.MaxGameCopyPath-len(filepath.FromSlash("/.rimgovernor/native-rimworld")))
 	}
-	return c
-}
-
-func gabs(o Options) Check {
-	c := Check{Name: "gabs"}
-	path, err := na.GABSExecutable(o.Root, "")
-	if err == nil {
-		_, err = os.Stat(path)
-	}
-	if err != nil {
-		c.Status, c.Detail, c.Fix = Fail, err.Error(), setupHint(o.Repo)
-		return c
-	}
-	c.Detail = path
 	return c
 }
 
@@ -459,7 +444,7 @@ func process(o Options, gameCopy string) (int, Check) {
 	case 1:
 		c.Detail = fmt.Sprintf("kept process pid %d running from the copy", pids[0])
 	default:
-		c.Status, c.Detail = Warn, fmt.Sprintf("%d games run from the copy (pids %v); GABS reuses one and the rest are leaks", len(pids), pids)
+		c.Status, c.Detail = Warn, fmt.Sprintf("%d games run from the copy (pids %v); a run reuses one and the rest are leaks", len(pids), pids)
 		c.Fix = "stop the extras by pid (Stop-Process -Id <pid>), never by image name"
 	}
 	if note := stuckNote(procs, time.Now()); note != "" {

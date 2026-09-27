@@ -1,5 +1,7 @@
-// Package bridge owns GABS MCP sessions. It exposes reviewed reads, never a
-// generic native call API. Discovery annotations do not grant write authority.
+// Package bridge owns the controller's session with the game: gamehost
+// launches or finds the process and a direct GABP connection carries its
+// calls. It exposes reviewed reads, never a generic native call API.
+// Discovery annotations do not grant write authority.
 package bridge
 
 import (
@@ -7,15 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/gamehost"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 var (
@@ -26,30 +27,28 @@ var (
 	ErrContract     = errors.New("bridge contract failure")
 )
 
-// ProcessConfig starts only GABS; it never launches or stops a game. Paths are
-// explicit absolute paths. Timeout bounds initialization, discovery and each read,
-// including queue time. Stderr is optional and must be safe for concurrent writes.
+// ProcessConfig names the game a Client drives. Timeout bounds connecting,
+// discovery and each read, including queue time.
 type ProcessConfig struct {
-	Executable string
-	ConfigDir  string
-	GameID     string
-	LogLevel   string
-	Timeout    time.Duration
-	Stderr     io.Writer
+	GameID string
+	// Launch is how games_start starts the game when none is running.
+	// Launch.StateDir (absolute, required) is where the running game's
+	// endpoint is recorded, so every Client sharing it finds the same
+	// process; an empty Launch.Executable makes the Client attach-only.
+	// Launch.GameID is taken from GameID. LaunchSpecFromConfig builds it
+	// from a configuration directory.
+	Launch  gamehost.Spec
+	Timeout time.Duration
 	// Recorder, when set, durably records every native request/response/error
 	// including background reads.
 	// It is opt-in: a nil Recorder records nothing and costs nothing.
 	Recorder *FlightRecorder
-	// Spawned, when set, is told the PID of each GABS process this Client
-	// starts (Open and every Reconnect/Reattach). Acceptance harnesses use it
-	// to end exactly their own GABS and prove recovery; it grants nothing.
-	Spawned func(pid int)
-	// Transcript, when set, records every tools/call and its raw receipt
+	// Transcript, when set, records every call and its raw receipt
 	// so a Replay can serve the session back without a game (#282).
 	Transcript *Transcript
 }
 
-// Result retains the complete MCP receipt at the transport boundary. Structured
+// Result retains the complete receipt at the transport boundary. Structured
 // is untrusted wire JSON until a consumer decodes its generated contract.
 type Result struct {
 	Envelope   json.RawMessage
@@ -137,80 +136,49 @@ type Discovery struct {
 	Tools           []Tool
 }
 
-// maxResponseBytes bounds the whole JSON-RPC tools/call response (envelope,
-// structured content and text combined). It must exceed ProtoBoundary's own
-// 48 MiB MaximumMediaEnvelopeBytes (raw uncompressed video frames go out
-// base64-encoded through that path) plus the MCP tool-result wrapper's own
-// overhead, or every ReadFrame call fails as "oversized" before the native
-// media bound is ever reached.
+// maxResponseBytes bounds one receipt (envelope, structured content and
+// text combined). It must exceed ProtoBoundary's own 48 MiB
+// MaximumMediaEnvelopeBytes (raw uncompressed video frames go out
+// base64-encoded through that path) plus the receipt's own overhead, or
+// every ReadFrame call fails as "oversized" before the native media bound
+// is ever reached.
 const maxResponseBytes = 50 << 20
-const maxTools = 2048
-
-type transportFactory func() mcp.Transport
-
-type connectionOwner struct {
-	mcp.Transport
-	connection *receiptConnection
-}
-
-func (t *connectionOwner) Connect(ctx context.Context) (mcp.Connection, error) {
-	connection, err := t.Transport.Connect(ctx)
-	if connection != nil {
-		t.connection = &receiptConnection{Connection: connection}
-	}
-	if err != nil {
-		return nil, err
-	}
-	return t.connection, nil
-}
-func (t *connectionOwner) close() error {
-	if t.connection != nil {
-		return t.connection.Close()
-	}
-	return nil
-}
 
 type liveSession struct {
-	sdk       *mcp.ClientSession
-	owner     *connectionOwner
+	backend   backend
 	ctx       context.Context
 	cancel    context.CancelFunc
 	discovery Discovery
 	// described records the native methods whose games_tool_detail input
 	// schema this session has already fetched and validated. Tool schemas
-	// are static for the life of a GABS session (the companion registers
-	// them once at attach), so protoCall describes each method once per
-	// session instead of before every call; a Reconnect/Reattach starts a
-	// fresh liveSession and therefore a fresh set.
+	// are static for the life of a connection, so protoCall describes each
+	// method once per session instead of before every call; a
+	// Reconnect/Reattach starts a fresh liveSession and therefore a fresh set.
 	describeMu sync.Mutex
 	described  map[string]bool
 }
 
 // MaxConcurrentCalls bounds how many native calls one Client may have in
-// flight at once. The session runs over GABS's HTTP server (gabshttp.go),
-// which handles each request concurrently, and GABS's own GABP client
-// correlates concurrent native calls by request ID (pendingReqs), as the
-// go-sdk correlates ours (jsonrpc2.Connection.outgoingCalls). So calls need
-// not be single-flight; this cap is backpressure against a caller bug
-// flooding the native bridge at once, and the slots are handed out by
-// AdmissionClass (admission.go, #631) so bulk reads and media never hold
-// every one against the control path.
+// flight at once. The GABP connection correlates concurrent requests by id,
+// so calls need not be single-flight; this cap is backpressure against a
+// caller bug flooding the native bridge at once, and the slots are handed
+// out by AdmissionClass (admission.go, #631) so bulk reads and media never
+// hold every one against the control path.
 const MaxConcurrentCalls = 8
 
 // Client owns a single session. Up to MaxConcurrentCalls calls may be in
 // flight at once; Close cancels in-flight and queued work. Reconnect is
-// explicit and never repeats a native call. A session whose transport dies
-// (GABS exiting, its HTTP endpoint gone) is dropped as soon as the SDK observes
-// it: calls then fail fast with ErrDisconnected instead of each discovering
-// the dead pipe, Disconnected reports the loss, and Reattach is the bounded
-// recovery a supervisor drives.
+// explicit and never repeats a native call. A session whose game connection
+// drops on its own is ended at once: calls then fail fast with
+// ErrDisconnected, Disconnected reports the loss, and Reattach is the
+// bounded recovery a supervisor drives.
 type Client struct {
 	lifecycle  chan struct{}
 	mu         sync.Mutex
 	live       *liveSession
 	closed     bool
 	dialCancel context.CancelFunc
-	factory    transportFactory
+	factory    backendFactory
 	gameID     string
 	timeout    time.Duration
 	gate       *admission
@@ -234,19 +202,12 @@ func (c *Client) SetRecordingContext(context func() map[string]any) {
 }
 
 func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
-	if !filepath.IsAbs(config.Executable) || !filepath.IsAbs(config.ConfigDir) {
-		return nil, fmt.Errorf("%w: absolute executable/config paths required", ErrContract)
+	if !filepath.IsAbs(config.Launch.StateDir) || config.Launch.Executable != "" && !filepath.IsAbs(config.Launch.Executable) {
+		return nil, fmt.Errorf("%w: absolute state dir and executable paths required", ErrContract)
 	}
-	if config.LogLevel == "" {
-		config.LogLevel = "error"
-	}
-	switch config.LogLevel {
-	case "debug", "info", "warn", "error":
-	default:
-		return nil, fmt.Errorf("%w: invalid log level", ErrContract)
-	}
-	client, err := open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func() mcp.Transport {
-		return &gabsHTTPTransport{executable: config.Executable, configDir: config.ConfigDir, logLevel: config.LogLevel, stderr: config.Stderr, spawned: config.Spawned}
+	launch := config.Launch
+	client, err := open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func(context.Context) (backend, error) {
+		return newGameBackend(config.GameID, launch), nil
 	})
 	if err != nil {
 		return nil, err
@@ -257,7 +218,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	return client, nil
 }
 
-func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, transcript *Transcript, factory transportFactory) (*Client, error) {
+func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, transcript *Transcript, factory backendFactory) (*Client, error) {
 	if gameID == "" || len(gameID) > 256 {
 		return nil, fmt.Errorf("%w: invalid game ID", ErrContract)
 	}
@@ -283,7 +244,7 @@ func (c *Client) closeLive() error {
 		return nil
 	}
 	live.cancel()
-	return live.sdk.Close()
+	return live.backend.close()
 }
 
 func (c *Client) Close() error {
@@ -380,16 +341,13 @@ func (c *Client) Reconnect(ctx context.Context) error {
 	c.dialCancel = cancel
 	c.mu.Unlock()
 	defer func() { c.mu.Lock(); c.dialCancel = nil; c.mu.Unlock() }()
-	owner := &connectionOwner{Transport: c.factory()}
-	sdk := mcp.NewClient(&mcp.Implementation{Name: "rimgovernor", Version: "go-read-v1"}, nil)
-	session, err := sdk.Connect(ctx, owner, nil)
+	session, err := c.factory(ctx)
 	if err != nil {
-		_ = owner.close()
 		return fmt.Errorf("%w: initialize: %w", ErrTransport, err)
 	}
-	discovery, err := discover(ctx, session)
+	discovery, err := checkDiscovery(session.discovery())
 	if err != nil {
-		_ = session.Close()
+		_ = session.close()
 		return err
 	}
 	c.transcript.session(c.gameID, discovery)
@@ -398,22 +356,22 @@ func (c *Client) Reconnect(ctx context.Context) error {
 	if c.closed {
 		c.mu.Unlock()
 		liveCancel()
-		_ = session.Close()
+		_ = session.close()
 		return ErrClosed
 	}
-	live := &liveSession{sdk: session, owner: owner, ctx: liveCtx, cancel: liveCancel, discovery: discovery}
+	live := &liveSession{backend: session, ctx: liveCtx, cancel: liveCancel, discovery: discovery}
 	c.live = live
 	c.mu.Unlock()
 	go c.watch(live)
 	return nil
 }
 
-// watch drops live once its transport has ended for any reason. Reconnect and
+// watch drops live once its session has ended for any reason. Reconnect and
 // Close end sessions themselves, in which case live is already superseded or
-// nil and this is a no-op; a session GABS ended is what makes the Client
-// disconnected.
+// nil and this is a no-op; a game connection that dropped on its own is what
+// makes the Client disconnected.
 func (c *Client) watch(live *liveSession) {
-	_ = live.sdk.Wait()
+	<-live.backend.done()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.live == live {
@@ -436,9 +394,10 @@ func (c *Client) Disconnected() <-chan struct{} {
 
 var closedChannel = func() chan struct{} { ch := make(chan struct{}); close(ch); return ch }()
 
-// Reattach restores service after the GABS session was lost: a fresh GABS
-// process, then games_start and ConnectWithPoll against the game that kept
-// running, exactly as a restarted controller attaches. It is bounded by ctx
+// Reattach restores service after the session was lost: a fresh session,
+// then games_start and ConnectWithPoll against the game that kept running
+// (relaunching it when it did not), exactly as a restarted controller
+// attaches. It is bounded by ctx
 // and the connect deadlines, never repeats a native call, and leaves the
 // Client disconnected when any step fails so the caller can retry.
 func (c *Client) Reattach(ctx context.Context) error {
@@ -476,52 +435,22 @@ func (c *Client) Discovery() (Discovery, error) {
 	return d, nil
 }
 
-func discover(ctx context.Context, session *mcp.ClientSession) (Discovery, error) {
-	init := session.InitializeResult()
-	if init == nil || init.ServerInfo == nil {
-		return Discovery{}, fmt.Errorf("%w: server identity missing", ErrContract)
-	}
-	d := Discovery{ProtocolVersion: init.ProtocolVersion, ServerName: init.ServerInfo.Name, ServerVersion: init.ServerInfo.Version}
-	cursor := ""
-	seen := map[string]bool{}
+// checkDiscovery validates a session's catalog and copies it.
+func checkDiscovery(d Discovery) (Discovery, error) {
 	names := map[string]bool{}
-	bytes := 0
-	for page := 0; page < 32; page++ {
-		result, err := session.ListTools(ctx, &mcp.ListToolsParams{Cursor: cursor})
-		if err != nil {
-			return Discovery{}, fmt.Errorf("%w: discovery: %w", ErrTransport, err)
+	tools := make([]Tool, 0, len(d.Tools))
+	for _, tool := range d.Tools {
+		if tool.Name == "" || names[tool.Name] {
+			return Discovery{}, fmt.Errorf("%w: invalid tool catalog", ErrContract)
 		}
-		if result == nil {
-			return Discovery{}, fmt.Errorf("%w: tool discovery missing", ErrContract)
-		}
-		for _, tool := range result.Tools {
-			if tool == nil || tool.Name == "" || names[tool.Name] || len(d.Tools) >= maxTools {
-				return Discovery{}, fmt.Errorf("%w: invalid tool catalog", ErrContract)
-			}
-			schema, err := json.Marshal(tool.InputSchema)
-			if err != nil {
-				return Discovery{}, fmt.Errorf("%w: tool schema: %w", ErrContract, err)
-			}
-			bytes += len(schema) + len(tool.Name)
-			if bytes > maxResponseBytes {
-				return Discovery{}, fmt.Errorf("%w: oversized tool catalog", ErrContract)
-			}
-			names[tool.Name] = true
-			d.Tools = append(d.Tools, Tool{Name: tool.Name, InputSchema: schema})
-		}
-		cursor = result.NextCursor
-		if cursor == "" {
-			if !names["games_call_tool"] || !names["games_tool_detail"] {
-				return Discovery{}, fmt.Errorf("%w: required GABS read capabilities missing", ErrContract)
-			}
-			return d, nil
-		}
-		if len(cursor) > 4096 || seen[cursor] {
-			return Discovery{}, fmt.Errorf("%w: invalid discovery cursor", ErrContract)
-		}
-		seen[cursor] = true
+		names[tool.Name] = true
+		tools = append(tools, Tool{Name: tool.Name, InputSchema: append(json.RawMessage(nil), tool.InputSchema...)})
 	}
-	return Discovery{}, fmt.Errorf("%w: discovery page limit", ErrContract)
+	if !names["games_call_tool"] || !names["games_tool_detail"] {
+		return Discovery{}, fmt.Errorf("%w: required read capabilities missing", ErrContract)
+	}
+	d.Tools = tools
+	return d, nil
 }
 
 // operation admits one call under class (the class of the native tool it
@@ -579,39 +508,7 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	return merged
 }
 
-// runtimePublishRetries bounds how many times core re-issues a GABS call
-// refused before it reached the game because GABS could not republish its
-// own runtime.json ownership claim. On Windows the rename of
-// .runtime-*.tmp over runtime.json fails with "Access is denied" while a
-// peer process (a second GABS on the same config root, an AV scan) holds the
-// file; the next attempt succeeds. Retrying is safe for writes too: the
-// claim is taken before the call is forwarded, so a claim failure proves the
-// game never saw the request.
-const runtimePublishRetries = 2
-const runtimePublishBackoff = 150 * time.Millisecond
-
 func (c *Client) core(ctx context.Context, live *liveSession, name string, arguments json.RawMessage) (Result, error) {
-	for attempt := 0; ; attempt++ {
-		result, err := c.callOnce(ctx, live, name, arguments)
-		var refusal *Refusal
-		if err == nil || attempt == runtimePublishRetries || !errors.As(err, &refusal) || !isRuntimePublishRace(refusal) {
-			return result, err
-		}
-		if err := sleepOrDone(ctx, time.Duration(attempt+1)*runtimePublishBackoff); err != nil {
-			return Result{}, err
-		}
-	}
-}
-
-// isRuntimePublishRace reports whether a refusal is GABS failing to publish
-// its runtime ownership state (the runtime.json rename race), as opposed to
-// a refusal the game or a GABS policy produced.
-func isRuntimePublishRace(refusal *Refusal) bool {
-	detail := strings.ToLower(refusalDetail(refusal))
-	return strings.Contains(detail, "failed to publish runtime state") && strings.Contains(detail, "runtime.json")
-}
-
-func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, arguments json.RawMessage) (Result, error) {
 	found := false
 	for _, tool := range live.discovery.Tools {
 		if tool.Name == name {
@@ -633,10 +530,12 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 	if timing != nil {
 		timing.request = request
 	}
-	waiter := make(chan receiptOutcome, 1)
 	callBegan := time.Now()
-	result, err := live.sdk.CallTool(withReceiptWaiter(ctx, waiter), &mcp.CallToolParams{Name: name, Arguments: arguments})
+	raw, err := live.backend.call(ctx, name, arguments)
 	callElapsed := time.Since(callBegan)
+	if err == nil && len(raw) > maxResponseBytes {
+		raw, err = nil, fmt.Errorf("%w: oversized native result", ErrContract)
+	}
 	// phases is attached to the response/error row so a timeline consumer can
 	// split the call without re-deriving it from wall clocks.
 	phases := func(decode time.Duration, bytes int) map[string]any {
@@ -656,42 +555,25 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 	} else {
 		readTallyFrom(ctx).add(c, name)
 	}
-	var raw json.RawMessage
-	var receiptErr error
-	select {
-	case outcome := <-waiter:
-		raw, receiptErr = outcome.raw, outcome.err
-	default:
-		// No response ever reached Read for this request (write failure,
-		// cancellation before reply, ...); fall through on the CallTool
-		// error below, exactly as when a receipt legitimately never arrives.
-	}
 	if c.transcript != nil {
-		transportErr := receiptErr
-		if transportErr == nil {
-			transportErr = err
-		}
-		c.transcript.call(ctx, name, arguments, raw, transportErr, callElapsed)
-	}
-	if receiptErr != nil {
-		if recording {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": receiptErr.Error(), "timing": phases(0, len(raw))})
-		}
-		return Result{}, receiptErr
+		c.transcript.call(ctx, name, arguments, raw, err, callElapsed)
 	}
 	if err != nil {
 		if recording {
 			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": err.Error(), "timing": phases(0, len(raw))})
 		}
+		if errors.Is(err, ErrContract) {
+			return Result{}, err
+		}
 		return Result{}, fmt.Errorf("%w: %s: %w", ErrTransport, name, err)
 	}
 	decodeBegan := time.Now()
-	decoded, decodeErr := decodeReceipt(name, raw, result)
+	decoded, decodeErr := decodeReceipt(name, raw)
 	decodeElapsed := time.Since(decodeBegan)
 	if recording {
 		if decodeErr != nil {
 			row := map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))}
-			// A refusal's text names its cause (a GABS ownership block, a
+			// A refusal's text names its cause (an open attention item, a
 			// tool the game no longer exposes), which the error alone hides.
 			var refusal *Refusal
 			if errors.As(decodeErr, &refusal) {
@@ -724,20 +606,28 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 	return decoded, decodeErr
 }
 
-func decodeReceipt(name string, envelope json.RawMessage, result *mcp.CallToolResult) (Result, error) {
-	if result == nil || len(envelope) == 0 || len(envelope) > maxResponseBytes {
-		return Result{}, fmt.Errorf("%w: raw MCP receipt missing or oversized", ErrContract)
+func decodeReceipt(name string, envelope json.RawMessage) (Result, error) {
+	if len(envelope) == 0 || len(envelope) > maxResponseBytes {
+		return Result{}, fmt.Errorf("%w: raw receipt missing or oversized", ErrContract)
 	}
 	var wire struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
 		Structured json.RawMessage `json:"structuredContent"`
+		IsError    bool            `json:"isError"`
 	}
 	if err := json.Unmarshal(envelope, &wire); err != nil {
-		return Result{}, fmt.Errorf("%w: invalid raw MCP receipt: %w", ErrContract, err)
+		return Result{}, fmt.Errorf("%w: invalid raw receipt: %w", ErrContract, err)
+	}
+	if string(wire.Structured) == "null" {
+		wire.Structured = nil
 	}
 	raw := Result{Envelope: envelope, Structured: wire.Structured}
-	for _, content := range result.Content {
-		if text, ok := content.(*mcp.TextContent); ok {
-			raw.Text = append(raw.Text, text.Text)
+	for _, content := range wire.Content {
+		if content.Type == "text" {
+			raw.Text = append(raw.Text, content.Text)
 		}
 	}
 	var flags struct {
@@ -749,8 +639,23 @@ func decodeReceipt(name string, envelope json.RawMessage, result *mcp.CallToolRe
 		return raw, fmt.Errorf("%w: structured result must be object", ErrContract)
 	}
 	unknown := string(flags.Unknown)
-	if result.IsError || len(result.InputRequests) > 0 || flags.Success != nil && !*flags.Success || flags.Refused || unknown != "" && unknown != "null" && unknown != "[]" && unknown != "{}" {
+	if wire.IsError || flags.Success != nil && !*flags.Success || flags.Refused || unknown != "" && unknown != "null" && unknown != "[]" && unknown != "{}" {
 		return raw, &Refusal{Tool: name, Cause: refusalCause(raw.Structured), Result: raw}
 	}
 	return raw, nil
+}
+
+// DropConnection closes the live session's game connection the way a
+// transport failure would, leaving the game running: Disconnected fires
+// and Reattach restores service. It is for transport-drop acceptance cases
+// (#87) and reports false when no game connection was open.
+func (c *Client) DropConnection() bool {
+	c.mu.Lock()
+	live := c.live
+	c.mu.Unlock()
+	if live == nil {
+		return false
+	}
+	dropper, ok := live.backend.(interface{ dropConnection() bool })
+	return ok && dropper.dropConnection()
 }

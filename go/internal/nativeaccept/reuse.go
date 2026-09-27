@@ -17,7 +17,7 @@ import (
 // RimWorld process is gone and the caller must not attempt another case.
 var ErrReuseRetired = errors.New("reusable game retired")
 
-// GameReuse keeps one owned GABS/RimWorld process alive across several
+// GameReuse keeps one owned RimWorld process alive across several
 // acceptance cases (issue #22). Every case begins with a reload of its save
 // into the same process and a reset check (ResetState/CheckReset) that the
 // reload actually gave the case a clean baseline; a case that fails, or that
@@ -36,7 +36,6 @@ var ErrReuseRetired = errors.New("reusable game retired")
 // in fresh-process mode.
 type GameReuse struct {
 	Config *Config
-	GABS   string
 	// Output holds this lifecycle's own evidence (session/retire rows); each
 	// case records under its own directory.
 	Output string
@@ -150,7 +149,7 @@ func stockDiff(want, got map[string]StockCounts) string {
 
 // OpenReusableGame launches the game once (one games_start) and returns a
 // lifecycle at the main menu; nothing is loaded until the first BeginCase.
-func OpenReusableGame(ctx context.Context, cfg *Config, gabsExecutable string) (*GameReuse, error) {
+func OpenReusableGame(ctx context.Context, cfg *Config) (*GameReuse, error) {
 	if cfg.Configuration == "" {
 		return nil, fmt.Errorf("reuse: Config.PrepareConfig must run first")
 	}
@@ -158,7 +157,7 @@ func OpenReusableGame(ctx context.Context, cfg *Config, gabsExecutable string) (
 	if err := os.MkdirAll(output, 0755); err != nil {
 		return nil, err
 	}
-	g := &GameReuse{Config: cfg, GABS: gabsExecutable, Output: output,
+	g := &GameReuse{Config: cfg, Output: output,
 		tokens: map[string]string{}, baselines: map[string]ResetState{}}
 	started := time.Now()
 	if _, err := g.Session(ctx); err != nil {
@@ -169,7 +168,7 @@ func OpenReusableGame(ctx context.Context, cfg *Config, gabsExecutable string) (
 }
 
 // Session returns the live harness session, reopening it when a case released
-// it for a service. A reopen tolerates the previous holder's GABS subprocess
+// it for a service. A reopen tolerates the previous holder's GABP connection
 // still letting go of the game (up to 30s), matching sustainedfood's reopen.
 func (g *GameReuse) Session(ctx context.Context) (*Harness, error) {
 	if g.retired {
@@ -180,7 +179,7 @@ func (g *GameReuse) Session(ctx context.Context) (*Harness, error) {
 	}
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		client, err := OpenBridgeSession(ctx, g.GABS, g.Config.Configuration, g.Config.GameID, 60*time.Second)
+		client, err := OpenBridgeSession(ctx, g.Config.Configuration, g.Config.GameID, 60*time.Second)
 		if err == nil {
 			g.client = client
 			g.harness = NewHarness(client, g.harnessOutput())
@@ -355,7 +354,7 @@ func (g *GameReuse) retire(ctx context.Context, reason string) error {
 		// A service may still be letting go; reopen just to stop.
 		deadline := time.Now().Add(30 * time.Second)
 		for g.client == nil {
-			client, err := OpenBridgeSession(stopCtx, g.GABS, g.Config.Configuration, g.Config.GameID, 60*time.Second)
+			client, err := OpenBridgeSession(stopCtx, g.Config.Configuration, g.Config.GameID, 60*time.Second)
 			if err == nil {
 				g.client = client
 				break

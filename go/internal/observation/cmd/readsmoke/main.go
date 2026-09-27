@@ -35,8 +35,7 @@ type report struct {
 }
 
 func main() {
-	executable := flag.String("gabs", "", "absolute GABS executable")
-	config := flag.String("config", "", "absolute GABS configuration directory")
+	config := flag.String("config", "", "absolute configuration directory")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	output := flag.String("output", "", "fresh report path")
 	flag.Parse()
@@ -49,9 +48,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	result := report{Scope: "Existing initialized fresh game; GABS connection/discovery and colony identity/status reads only. No game startup, stop, save, placement or clock control."}
+	result := report{Scope: "Existing initialized fresh game; game connection/discovery and colony identity/status reads only. No game startup, stop, save, placement or clock control."}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	err = observe(ctx, bridge.ProcessConfig{Executable: *executable, ConfigDir: *config, GameID: *game, Timeout: 15 * time.Second}, &result)
+	configured, err := bridge.ConfiguredProcess(*config, *game, 15*time.Second)
+	if err == nil {
+		err = observe(ctx, configured, &result)
+	}
 	cancel()
 	if err != nil {
 		result.Error = err.Error()

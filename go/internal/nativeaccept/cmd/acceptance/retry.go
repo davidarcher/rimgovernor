@@ -72,11 +72,7 @@ func stopRetryGame(ctx context.Context, root, gameID string) error {
 	if _, err := os.Stat(config); err != nil {
 		config = filepath.Join(root, "config")
 	}
-	gabs, err := na.GABSExecutable(root, config)
-	if err != nil {
-		return err
-	}
-	client, err := na.OpenBridgeSession(ctx, gabs, config, gameID, time.Minute)
+	client, err := na.OpenBridgeSession(ctx, config, gameID, time.Minute)
 	if err != nil {
 		return err
 	}

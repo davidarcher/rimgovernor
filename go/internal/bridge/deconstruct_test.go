@@ -7,7 +7,6 @@ import (
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,7 +25,7 @@ func deconstructionTestReceipt() *r.Receipt {
 	return v
 }
 func TestDeconstructionExactWriteWithoutCAS(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
 		}
@@ -83,7 +82,7 @@ func TestDeconstructionCompletionRequiresNativeJobEvidence(t *testing.T) {
 func TestDeconstructionLookupAndProgress(t *testing.T) {
 	expected := deconstructionTestAttempt()
 	receipt := deconstructionTestReceipt()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		switch arg.Tool {
 		case "rimgovernor/receipts_lookup":
 			draftTestRequest(t, arg, &r.LookupRequest{Identity: expected.Identity, Attempt: expected.Attempt})
@@ -106,7 +105,7 @@ func TestDeconstructionLookupAndProgress(t *testing.T) {
 func TestReleaseDeconstructionsValidatesCount(t *testing.T) {
 	for _, count := range []int32{0, 2, -1} {
 		t.Run(string(rune('a'+count+1)), func(t *testing.T) {
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				draftTestRequest(t, arg, &o.ExecuteRequest{Precondition: buildingPre(), Operation: &o.Operation{Command: &o.Operation_ReleaseDeconstructions{ReleaseDeconstructions: &o.ReleaseDeconstructions{}}}})
 				v := draftTestReceipt()
 				v.GetApplied().Observed = &r.EffectEvidence{Effect: &r.EffectEvidence_ReleaseDeconstructions{ReleaseDeconstructions: &r.ReleaseDeconstructionsEffect{ReleasedCount: proto.Int32(count)}}}

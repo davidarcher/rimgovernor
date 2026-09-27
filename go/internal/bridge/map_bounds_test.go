@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -21,7 +20,7 @@ func boundsSnapshot() *o.CellsSnapshot {
 }
 func TestReadMapBoundsFixedSDKQuery(t *testing.T) {
 	calls := 0
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		if arg.Tool != "rimgovernor/observations_get_cells" {
 			t.Fatal(arg.Tool)
@@ -88,7 +87,7 @@ func TestMapBoundsRegionOptionalAndWithinObservedMap(t *testing.T) {
 func TestReadMapBoundsTypedFailures(t *testing.T) {
 	for _, refused := range []bool{false, true} {
 		t.Run(map[bool]string{false: "unavailable", true: "refused"}[refused], func(t *testing.T) {
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				if refused {
 					r := pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_STALE_IDENTITY.Enum()}}})
 					r.IsError = true
@@ -108,7 +107,7 @@ func TestReadMapBoundsTypedFailures(t *testing.T) {
 	}
 }
 func TestReadMapBoundsInvalidAnchorNeverCalls(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid bounds request called native")
 		return nil, nil
 	}}, time.Second)

@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -25,7 +24,7 @@ func homeColonistsFixture() *o.PawnSnapshot {
 }
 func TestReadHomeColonistsAcceptsValidObservation(t *testing.T) {
 	snapshot := homeColonistsFixture()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_list_pawns" {
 			t.Fatal(arg.Tool)
 		}
@@ -68,7 +67,7 @@ func TestReadHomeColonistsMalformedEvidence(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			snapshot := homeColonistsFixture()
 			edit(snapshot)
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil
 			}}, time.Second)
 			if _, _, err := client.ReadHomeColonists(context.Background(), pbIdentity()); err == nil {

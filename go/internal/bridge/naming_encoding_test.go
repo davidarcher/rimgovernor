@@ -1,10 +1,10 @@
 package bridge
 
 import (
-	"bytes"
 	"encoding/json"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/gabp"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -13,8 +13,8 @@ import (
 
 // A generated faction name outside ASCII (#600: "Coalition of Ñoa") must
 // leave the native census decode and reach the ConfirmColonyNames request
-// as an ASCII-only text: the host's GABP reader short-reads any frame with
-// a multi-byte character, so the request escapes them and the game's own
+// intact through an ASCII-only frame: the host GABP reader short-reads any frame with
+// a multi-byte character, so the connection escapes them and the game's own
 // JSON parse restores the exact name.
 func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	const faction, settlement = "Coalition of Ñoa", "Red Çanga 🏹"
@@ -45,32 +45,20 @@ func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request = asciiJSON(request)
-	for _, b := range request {
-		if b >= 0x80 {
-			t.Fatalf("request text carries a non-ASCII byte: %s", request)
-		}
-	}
-	if !bytes.Contains(request, []byte("Coalition of "+`\`+"u00d1oa")) || !bytes.Contains(request, []byte(`\`+"ud83c"+`\`+"udff9")) {
-		t.Fatalf("request text lacks the escapes: %s", request)
-	}
 	args := encode(struct {
 		Request string `json:"request"`
 	}{string(request)})
-	// gabs decodes the argument map and re-encodes it into the game's
-	// frame; a string value keeps its backslashes, so the frame stays ASCII.
-	var outer struct{ Request string }
-	if err = json.Unmarshal(args, &outer); err != nil {
-		t.Fatal(err)
-	}
-	frame, err := json.Marshal(outer.Request)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The GABP connection escapes every frame to ASCII (gabp.ASCIIJSON);
+	// the game's JSON parse restores the exact text.
+	frame := gabp.ASCIIJSON(args)
 	for _, b := range frame {
 		if b >= 0x80 {
 			t.Fatalf("frame carries a non-ASCII byte: %s", frame)
 		}
+	}
+	var outer struct{ Request string }
+	if err = json.Unmarshal(frame, &outer); err != nil {
+		t.Fatal(err)
 	}
 	parsed := &op.PreviewRequest{}
 	if err = protojson.Unmarshal([]byte(outer.Request), parsed); err != nil {
@@ -78,13 +66,6 @@ func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	}
 	if got := parsed.GetOperation().GetConfirmColonyNames(); got.GetFactionName() != faction || got.GetSettlementName() != settlement {
 		t.Fatalf("native would parse %q/%q", got.GetFactionName(), got.GetSettlementName())
-	}
-}
-
-func TestASCIIJSONLeavesASCIIAlone(t *testing.T) {
-	in := []byte(`{"a":"plain \"text\" \\ 1"}`)
-	if out := asciiJSON(in); !bytes.Equal(out, in) {
-		t.Fatalf("%s", out)
 	}
 }
 

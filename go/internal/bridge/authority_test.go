@@ -9,7 +9,6 @@ import (
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,7 +22,7 @@ func authorityTestSetMode() *a.SetMode {
 func authorityTestGranted(generation uint64) *a.ControlReply {
 	return &a.ControlReply{Outcome: &a.ControlReply_Granted{Granted: &a.Granted{Context: authorityTestContext(generation), Authority: &a.ActiveAuthority{Mode: a.Mode_MODE_AUTO.Enum()}}}}
 }
-func authorityTestControl(t *testing.T, handler func(context.Context, nativeArgument) (*mcp.CallToolResult, error)) (*Client, *AuthorityControl) {
+func authorityTestControl(t *testing.T, handler func(context.Context, nativeArgument) (*callResult, error)) (*Client, *AuthorityControl) {
 	t.Helper()
 	client := testClient(t, &testServer{schema: protoSchema, handler: handler}, time.Second)
 	control, err := NewAuthorityControl(client)
@@ -34,7 +33,7 @@ func authorityTestControl(t *testing.T, handler func(context.Context, nativeArgu
 }
 func TestAuthorityFixedSDKCapabilities(t *testing.T) {
 	calls := 0
-	client, control := authorityTestControl(t, func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client, control := authorityTestControl(t, func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		var envelope struct {
 			Request string `json:"request"`
@@ -86,7 +85,7 @@ func TestAuthorityFixedSDKCapabilities(t *testing.T) {
 	}
 }
 func TestAuthorityInvalidRequestsNeverCall(t *testing.T) {
-	_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid request called native")
 		return nil, nil
 	})
@@ -117,7 +116,7 @@ func TestAuthorityBadAcknowledgementRemainsUncertain(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			calls := 0
-			_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*callResult, error) {
 				calls++
 				reply := authorityTestGranted(8)
 				edit(reply)
@@ -135,7 +134,7 @@ func TestAuthorityFailureAndLostResponse(t *testing.T) {
 	for _, lost := range []bool{false, true} {
 		t.Run(map[bool]string{false: "typed refusal", true: "lost response"}[lost], func(t *testing.T) {
 			calls := 0
-			_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*callResult, error) {
 				calls++
 				if lost {
 					return nil, errors.New("lost after possible admission")
@@ -170,7 +169,7 @@ func TestAuthorityReadRejectsStaleAndIncompleteStatus(t *testing.T) {
 		"missing state":      func(v *a.Status) { v.State = nil },
 	} {
 		t.Run(name, func(t *testing.T) {
-			client, _ := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client, _ := authorityTestControl(t, func(context.Context, nativeArgument) (*callResult, error) {
 				status := &a.Status{Context: authorityTestContext(7), State: &a.Status_Active{Active: &a.ActiveAuthority{Mode: a.Mode_MODE_AUTO.Enum()}}}
 				edit(status)
 				return pbResult(&a.StatusReply{Outcome: &a.StatusReply_Status{Status: status}}), nil
@@ -184,7 +183,7 @@ func TestAuthorityReadRejectsStaleAndIncompleteStatus(t *testing.T) {
 }
 func TestAuthorityTransportCancellationDoesNotRetry(t *testing.T) {
 	started := make(chan struct{}, 1)
-	_, control := authorityTestControl(t, func(ctx context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+	_, control := authorityTestControl(t, func(ctx context.Context, _ nativeArgument) (*callResult, error) {
 		started <- struct{}{}
 		<-ctx.Done()
 		return nil, ctx.Err()
@@ -215,7 +214,7 @@ func TestAuthorityTransportCancellationDoesNotRetry(t *testing.T) {
 	}
 }
 func TestAuthorityRevocationPreconditions(t *testing.T) {
-	_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	_, control := authorityTestControl(t, func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid control reached native")
 		return nil, nil
 	})

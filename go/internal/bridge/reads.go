@@ -28,42 +28,22 @@ type nativeArgument struct {
 	Arguments json.RawMessage `json:"arguments"`
 }
 
-// ConnectGame attaches GABS to an already-running game. It does not start, load,
-// stop or advance the game. There is no implicit reconnect or retry.
+// ConnectGame dials the running game's GABP endpoint. It does not start,
+// load, stop or advance the game. There is no implicit reconnect or retry.
 func (c *Client) ConnectGame(ctx context.Context) (Result, error) {
-	return c.connectGame(ctx, false)
+	return c.connectGame(ctx)
 }
 
-// ConnectGameWithTakeover explicitly transfers an existing GABS attachment.
-// Callers must own the external session handoff; normal runtime uses ConnectGame.
-func (c *Client) ConnectGameWithTakeover(ctx context.Context) (Result, error) {
-	return c.connectGame(ctx, true)
-}
-
-func (c *Client) connectGame(ctx context.Context, force bool) (Result, error) {
+func (c *Client) connectGame(ctx context.Context) (Result, error) {
 	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		args := struct {
-			GameID        string `json:"gameId"`
-			Timeout       int    `json:"timeout"`
-			ForceTakeover bool   `json:"forceTakeover,omitempty"`
-		}{c.gameID, int(c.timeout.Seconds()), force}
+			GameID  string `json:"gameId"`
+			Timeout int    `json:"timeout"`
+		}{c.gameID, int(c.timeout.Seconds())}
 		if args.Timeout < 1 {
 			args.Timeout = 1
 		}
-		result, err := c.core(ctx, live, "games_connect", encode(args))
-		if err != nil {
-			return result, err
-		}
-		var ownership struct {
-			ForeignOwner bool `json:"foreignOwner"`
-		}
-		if json.Unmarshal(result.Structured, &ownership) != nil {
-			return result, contract("invalid connection reply")
-		}
-		if ownership.ForeignOwner {
-			return result, &Refusal{Tool: "games_connect", Result: result}
-		}
-		return result, nil
+		return c.core(ctx, live, "games_connect", encode(args))
 	})
 }
 func (c *Client) GameStatus(ctx context.Context) (Result, error) {
@@ -77,18 +57,18 @@ type attentionArgument struct {
 	AttentionID string `json:"attentionId"`
 }
 
-// GetAttention reads the current GABS attention without acknowledging it.
+// GetAttention reads the game's open attention item without acknowledging it.
 func (c *Client) GetAttention(ctx context.Context) (Result, error) {
 	return c.operation(ctx, AdmissionControl, func(ctx context.Context, live *liveSession) (Result, error) {
 		return c.core(ctx, live, "games_get_attention", encode(gameArgument{c.gameID}))
 	})
 }
 
-// AckAttention acknowledges a blocking GABS attention item (raised when GABS
-// observes a game-side log line it treats as noteworthy, e.g. an error-level
-// message) so that games_call_tool stops refusing further calls for this
-// game on its account. It never inspects or filters what is being
-// acknowledged; callers decide that from the Refusal detail they observed.
+// AckAttention acknowledges a blocking attention item (the game opens one
+// when it logs something noteworthy, e.g. an error-level message) so that
+// games_call_tool stops refusing further calls on its account. It never
+// inspects or filters what is being acknowledged; callers decide that from
+// the Refusal detail they observed.
 func (c *Client) AckAttention(ctx context.Context, attentionID string) (Result, error) {
 	if attentionID == "" {
 		return Result{}, fmt.Errorf("%w: attention id required", ErrContract)

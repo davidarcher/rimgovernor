@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -363,7 +362,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		s.resumed = &resumed.entry
 	}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
-		QuietWorld: c.QuietWorld, Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
+		QuietWorld: c.QuietWorld}
 	s.config = cfg
 	if len(c.Expansions) > 0 {
 		cfg.Expansions = append([]string(nil), c.Expansions...)
@@ -525,7 +524,7 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor, resumed: &entry, resumeSuffix: opts.RunID(), stagePlan: staging{hit: -1}}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
-		QuietWorld: c.QuietWorld, Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
+		QuietWorld: c.QuietWorld}
 	s.config = cfg
 	report["keep"] = !c.NoKeep && na.KeepGame()
 	report["checkpointing"] = "off (postmortem-only)"
@@ -823,7 +822,6 @@ type session struct {
 	// cached runtime built on an earlier one holds a closed bridge (#597).
 	runtime        *na.ScenarioRuntime
 	runtimeHarness *na.Harness
-	gabsPID        atomic.Int64
 }
 
 func (s *session) Config() *na.Config { return s.config }
@@ -855,7 +853,6 @@ func (s *session) Spec() ServeSpec {
 	return spec
 }
 func (s *session) Rimgovernor() string      { return s.binary }
-func (s *session) GABSPID() int             { return int(s.gabsPID.Load()) }
 func (s *session) Harness() *na.Harness     { return s.Session.Harness }
 func (s *session) Names() []string          { return s.Session.Names }
 func (s *session) Identity() map[string]any { return s.Session.Identity }
@@ -904,7 +901,7 @@ func (s *session) Launch(ctx context.Context, launch na.ServiceLaunch) (*na.Serv
 	if err := s.Release(); err != nil {
 		return nil, err
 	}
-	service, err := na.LaunchService(ctx, s.config, s.Session.GABS, launch, s.report)
+	service, err := na.LaunchService(ctx, s.config, launch, s.report)
 	if err != nil {
 		return nil, err
 	}

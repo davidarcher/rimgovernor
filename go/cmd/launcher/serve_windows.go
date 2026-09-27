@@ -98,10 +98,10 @@ func (a *app) start(s Settings) error {
 		a.logf("stopping the earlier controller on port %d (pid %d)", port, pid)
 		kill(pid)
 	}
-	config := filepath.Join(a.layout.Root, "config")
-	data, err := os.ReadFile(filepath.Join(config, "config.json"))
+	config := filepath.Dir(a.configPath())
+	data, err := os.ReadFile(a.configPath())
 	if err != nil {
-		return fmt.Errorf("the GABS configuration is missing: %w", err)
+		return fmt.Errorf("the game launch configuration is missing: %w", err)
 	}
 	game, err := ConfiguredGame(data)
 	if err != nil {
@@ -111,7 +111,6 @@ func (a *app) start(s Settings) error {
 	now := time.Now()
 	paths := Paths{
 		Profile: filepath.Join(a.layout.Root, "profile"),
-		GABS:    a.gabsExe(),
 		Config:  config,
 		Game:    game,
 		State:   StatePath(goDir, s.ContinueState, now),
@@ -136,8 +135,8 @@ func (a *app) start(s Settings) error {
 	cmd := exec.Command(a.controllerExe(), args...)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = a.repo, stdout, stderr
 	// Its own hidden console (CREATE_NO_WINDOW) and process group: the
-	// controller outlives the launcher, and the game it starts through
-	// GABS outlives both.
+	// controller outlives the launcher, and the game it starts directly
+	// outlives both.
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000 | syscall.CREATE_NEW_PROCESS_GROUP}
 	a.logf("rimgovernor.exe %s", strings.Join(args, " "))
 	if err := cmd.Start(); err != nil {

@@ -30,7 +30,7 @@ actual native loading remains part of N01 package acceptance.
 - [Colony bridge source notice](integrations/rimgovernor-native/Notices/companion/PROVENANCE.md)
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
-Game files, artwork, GABS and installed SDK assemblies are supplied separately.
+Game files, artwork and installed SDK assemblies are supplied separately.
 
 ## Retired Python UI formatter notice
 

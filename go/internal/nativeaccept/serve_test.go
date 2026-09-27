@@ -48,10 +48,10 @@ func TestMain(m *testing.M) {
 func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	t.Setenv(ClockSpeedEnv, "Ultrafast")
 	cfg := &Config{Configuration: "C:/cfg", GameID: "rimworld"}
-	argv := ServeArgs(cfg, "C:/gabs.exe", "C:/out/service-profile", "C:/out/service.sqlite", "C:/out/flight.jsonl", ServeSpec{Resume: true, Extra: []string{"--routine-food-reserve-days", "2"}})
+	argv := ServeArgs(cfg, "C:/out/service-profile", "C:/out/service.sqlite", "C:/out/flight.jsonl", ServeSpec{Resume: true, Extra: []string{"--routine-food-reserve-days", "2"}})
 	joined := strings.Join(argv, " ")
 	for _, want := range []string{
-		"serve --profile C:/out/service-profile --gabs C:/gabs.exe --config C:/cfg --game rimworld --state C:/out/service.sqlite",
+		"serve --profile C:/out/service-profile --config C:/cfg --game rimworld --state C:/out/service.sqlite",
 		"--listen 127.0.0.1:0", "--timeout 15s", "--flight-recorder C:/out/flight.jsonl",
 		"--clock-test-acceleration", "--pprof", "--resume", "--routine-food-reserve-days 2",
 	} {
@@ -62,7 +62,7 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	if strings.Index(joined, "--clock-test-acceleration") > strings.Index(joined, "--routine-food-reserve-days") {
 		t.Errorf("Extra must follow the shared flags so a harness can override them: %q", joined)
 	}
-	if got := ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{NativeTimeout: 45 * time.Second}); !strings.Contains(strings.Join(got, " "), "--timeout 45s") {
+	if got := ServeArgs(cfg, "p", "s", "f", ServeSpec{NativeTimeout: 45 * time.Second}); !strings.Contains(strings.Join(got, " "), "--timeout 45s") {
 		t.Errorf("NativeTimeout not applied: %q", got)
 	}
 	// Without RIMGOVERNOR_ACCEPT_CLOCK_SPEED the boosted Ultrafast default
@@ -70,21 +70,21 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	// serve starts (#875), so no flag. A harness naming its own PlayerSpeed
 	// owns the boost flag, and one passing ClockSpeedArgs gets it once.
 	t.Setenv(ClockSpeedEnv, "")
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Count(got, "--clock-test-acceleration") != 1 || strings.Contains(got, "--clock-speed") {
+	if got := strings.Join(ServeArgs(cfg, "p", "s", "f", ServeSpec{}), " "); strings.Count(got, "--clock-test-acceleration") != 1 || strings.Contains(got, "--clock-speed") {
 		t.Errorf("default speed: %q", got)
 	}
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{Extra: ClockSpeedArgs()}), " "); strings.Count(got, "--clock-test-acceleration") != 1 {
+	if got := strings.Join(ServeArgs(cfg, "p", "s", "f", ServeSpec{Extra: ClockSpeedArgs()}), " "); strings.Count(got, "--clock-test-acceleration") != 1 {
 		t.Errorf("explicit default: %q", got)
 	}
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{PlayerSpeed: "Normal"}), " "); strings.Contains(got, "--clock-test-acceleration") {
+	if got := strings.Join(ServeArgs(cfg, "p", "s", "f", ServeSpec{PlayerSpeed: "Normal"}), " "); strings.Contains(got, "--clock-test-acceleration") {
 		t.Errorf("harness speed: %q", got)
 	}
 	t.Setenv(ClockSpeedEnv, "Fast")
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--clock-test-acceleration") {
+	if got := strings.Join(ServeArgs(cfg, "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--clock-test-acceleration") {
 		t.Errorf("env speed: %q", got)
 	}
 	t.Setenv(PprofEnv, "0")
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--pprof") {
+	if got := strings.Join(ServeArgs(cfg, "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--pprof") {
 		t.Errorf("%s=0 must drop --pprof: %q", PprofEnv, got)
 	}
 }
@@ -98,7 +98,7 @@ func TestLaunchServeCapturesProfilesAtStop(t *testing.T) {
 	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}
 	report := NewReport("test", true)
 	report.SetBudget(5 * time.Minute)
-	p, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "pprof"), 1, report)
+	p, err := launchServe(ctx, cfg, fakeServeSpec(t, "pprof"), 1, report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestLaunchServeSkipsProfilesWhenTheServiceIsGone(t *testing.T) {
 	defer cancel()
 	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}
 	report := NewReport("test", true)
-	p, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "run"), 1, report)
+	p, err := launchServe(ctx, cfg, fakeServeSpec(t, "run"), 1, report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 	defer cancel()
 	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}
 	report := NewReport("test", true)
-	p, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "run"), 1, report)
+	p, err := launchServe(ctx, cfg, fakeServeSpec(t, "run"), 1, report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestLaunchServeRecordsTheServiceAndItsExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A second launch on the same run gets its own directory and entry.
-	q, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "run"), 2, report)
+	q, err := launchServe(ctx, cfg, fakeServeSpec(t, "run"), 2, report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,13 +211,13 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	defer cancel()
 	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}
 	report := NewReport("test", true)
-	if _, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "exit"), 1, report); err == nil {
+	if _, err := launchServe(ctx, cfg, fakeServeSpec(t, "exit"), 1, report); err == nil {
 		t.Fatal("a service that exits before its startup line must fail the launch")
 	}
-	if _, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "garbage"), 1, report); err == nil || !strings.Contains(err.Error(), "unexpected service startup line") {
+	if _, err := launchServe(ctx, cfg, fakeServeSpec(t, "garbage"), 1, report); err == nil || !strings.Contains(err.Error(), "unexpected service startup line") {
 		t.Fatalf("garbage startup line: %v", err)
 	}
-	p, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "run"), 1, report)
+	p, err := launchServe(ctx, cfg, fakeServeSpec(t, "run"), 1, report)
 	if err != nil {
 		t.Fatal(err)
 	}

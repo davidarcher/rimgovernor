@@ -11,7 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// Only an explicit GABS refusal proves that retrying cannot repeat an executed order.
+// Only an explicit bridge refusal proves that retrying cannot repeat an executed order.
 func blockingAttention(err error) bool {
 	var refusal *bridge.Refusal
 	if !errors.As(err, &refusal) {

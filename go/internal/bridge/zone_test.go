@@ -9,7 +9,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -152,7 +151,7 @@ func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reply := proto.Clone(valid).(*op.PreviewReply)
 			test.change(reply)
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/operations_preview" {
 					t.Fatal(arg.Tool)
 				}

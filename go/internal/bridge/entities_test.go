@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -47,7 +46,7 @@ func zonesPageReply(rows []*o.ZoneState, complete bool, next string) *o.ListZone
 // asks for no cells, contents or filter.
 func TestReadZonesPagesAFullRead(t *testing.T) {
 	var cursors []string
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		request := decodeZonesRequest(t, arg)
 		cursors = append(cursors, request.Page.GetCursor())
 		if request.GetIncludeCells() || request.Page.GetLimit() != zonesPage || !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) {
@@ -92,7 +91,7 @@ func TestReadZonesRefusalsAndContractFaults(t *testing.T) {
 		}, []error{ErrContract}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				return pbResult(tc.reply()), nil
 			}}
 			client := testClient(t, server, testBudget)

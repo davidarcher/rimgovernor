@@ -13,14 +13,14 @@ import (
 
 // PackOptions deliberately names dependencies, never a whole profile/worktree.
 type PackOptions struct {
-	Repo, GameDir, HarmonyDLL, BridgeDir, GABS, Output      string
-	GameVersion, HarmonyVersion, BridgeVersion, GABSVersion string
-	Origin                                                  Origin
-	Recipient, KeyID                                        string
-	PartBytes                                               int64
-	Tools                                                   Tools
-	StartsDir                                               string
-	HarmonyMod                                              string
+	Repo, GameDir, HarmonyDLL, BridgeDir, Output string
+	GameVersion, HarmonyVersion, BridgeVersion   string
+	Origin                                       Origin
+	Recipient, KeyID                             string
+	PartBytes                                    int64
+	Tools                                        Tools
+	StartsDir                                    string
+	HarmonyMod                                   string
 }
 
 // CorePaths is the conservative inclusion list. No Core/Unity media is removed.
@@ -39,7 +39,7 @@ type Starts struct {
 
 func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	m := Manifest{SchemaVersion: 1, Game: Game{o.GameVersion, "windows-x64", true}, Origin: o.Origin, Encryption: Encryption{"age-v1", o.KeyID}, Inventory: Reference{Path: "inventory.json"}}
-	if o.Recipient == "" || o.KeyID == "" || o.GameVersion == "" || o.HarmonyVersion == "" || o.BridgeVersion == "" || o.GABSVersion == "" {
+	if o.Recipient == "" || o.KeyID == "" || o.GameVersion == "" || o.HarmonyVersion == "" || o.BridgeVersion == "" {
 		return m, fmt.Errorf("recipient, key ID and exact dependency versions are required")
 	}
 	if !repositoryPattern.MatchString(o.Origin.Repository) || o.Origin.ReleaseID <= 0 {
@@ -88,7 +88,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if want != got {
 		return m, fmt.Errorf("build Harmony DLL differs from the runtime package")
 	}
-	for _, pair := range [][2]string{{o.HarmonyMod, "harmony"}, {o.BridgeDir, "bridge"}, {o.GABS, "gabs/gabs.exe"}} {
+	for _, pair := range [][2]string{{o.HarmonyMod, "harmony"}, {o.BridgeDir, "bridge"}} {
 		if err := Materialize(pair[0], filepath.Join(tree, filepath.FromSlash(pair[1]))); err != nil {
 			return m, err
 		}
@@ -138,7 +138,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 	if err := WriteJSON(filepath.Join(tree, "starts", "compatibility.json"), starts); err != nil {
 		return m, err
 	}
-	m.Components = []Component{{Name: "game", Version: o.GameVersion, PathPrefix: "game/"}, {Name: "harmony", Version: o.HarmonyVersion, PathPrefix: "harmony/"}, {Name: "bridge", Version: o.BridgeVersion, PathPrefix: "bridge/"}, {Name: "gabs", Version: o.GABSVersion, PathPrefix: "gabs/"}, {Name: "starts", Version: native, PathPrefix: "starts/"}}
+	m.Components = []Component{{Name: "game", Version: o.GameVersion, PathPrefix: "game/"}, {Name: "harmony", Version: o.HarmonyVersion, PathPrefix: "harmony/"}, {Name: "bridge", Version: o.BridgeVersion, PathPrefix: "bridge/"}, {Name: "starts", Version: native, PathPrefix: "starts/"}}
 	inv, err := InventoryTree(tree)
 	if err != nil {
 		return m, err

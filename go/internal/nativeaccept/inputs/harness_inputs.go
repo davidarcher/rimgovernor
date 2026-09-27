@@ -31,7 +31,7 @@ var harnessSharedInputs = []string{
 // harnessSharedInputs. harness is a registered case "<area>/<case>"
 // (#135), whose packages are the area's under
 // go/internal/nativeaccept/cases and go/internal/nativeaccept/cmd/acceptance.
-// It does not cover the game, GABS or the machine: those are environment,
+// It does not cover the game or the machine: those are environment,
 // not inputs.
 func HarnessInputs(repo, harness string) ([]string, error) {
 	goDir := filepath.Join(repo, "go")

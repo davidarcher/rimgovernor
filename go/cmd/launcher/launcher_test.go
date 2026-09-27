@@ -11,14 +11,14 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-var testPaths = Paths{Profile: `C:\p`, GABS: `C:\g.exe`, Config: `C:\c`, Game: "rimgovernor-trial", State: `C:\s.sqlite`, Assets: `C:\a`}
+var testPaths = Paths{Profile: `C:\p`, Config: `C:\c`, Game: "rimgovernor-trial", State: `C:\s.sqlite`, Assets: `C:\a`}
 
 func TestServeArgsDefaults(t *testing.T) {
 	got, err := ServeArgs(DefaultSettings(), testPaths, 8787)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"serve", "--profile", `C:\p`, "--gabs", `C:\g.exe`, "--config", `C:\c`, "--game", "rimgovernor-trial", "--state", `C:\s.sqlite`, "--assets", `C:\a`, "--listen", "127.0.0.1:8787"}
+	want := []string{"serve", "--profile", `C:\p`, "--config", `C:\c`, "--game", "rimgovernor-trial", "--state", `C:\s.sqlite`, "--assets", `C:\a`, "--listen", "127.0.0.1:8787"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
 	}
@@ -32,9 +32,9 @@ func TestServeArgsEverything(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tail := strings.Join(got[15:], " ")
+	tail := strings.Join(got[13:], " ")
 	want := "--resume --chat-model qwen --chat-base-url http://x/v1 --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
-	if got[14] != "127.0.0.1:9000" || tail != want {
+	if got[12] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
 	if got[len(got)-1] != "a b" {
@@ -173,12 +173,6 @@ func TestPortOwners(t *testing.T) {
 		t.Fatal("a nested worktree's controller is not ours")
 	}
 	if _, err := PortOwners([]Owner{{PID: 9}}, repo, 0); err == nil || !strings.Contains(err.Error(), "path unknown") {
-		t.Fatal(err)
-	}
-}
-
-func TestUnpackGABSRefusesWrongHash(t *testing.T) {
-	if err := unpackGABS([]byte("not the release"), t.TempDir()); err == nil || !strings.Contains(err.Error(), "refusing") {
 		t.Fatal(err)
 	}
 }

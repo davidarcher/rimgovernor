@@ -236,7 +236,7 @@ its mapping independently.
 
 `home/player_input` is explicit player infrastructure outside model capabilities.
 Only a private Linux display and its process-owned game window admit direct input.
-GABS establishes ownership; an ordered shared-memory mailbox dispatches events on the
+The bridge session establishes ownership; an ordered shared-memory mailbox dispatches events on the
 native main thread without another game-order owner. Frame age, source, map/load,
 camera matrices, window state and UI event revision guard gesture beginnings.
 Matching key releases and context-menu right-button releases tolerate their own view

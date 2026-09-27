@@ -37,13 +37,16 @@ startup and again after every load without a dashboard click; otherwise it
 waits for **Resume**. Attached sessions have a separate unchanged-game
 reconnect contract.
 
-The bridge client runs each GABS process as `gabs server http` on a loopback
-port and exchanges every JSON-RPC message by one POST, because GABS's stdio
-server answers one message at a time and a held `clock_read_events` long poll
-would stall every planner read behind it (issue #115). Closing the client kills
-its GABS, and on Windows a job object kills GABS however the controller ends;
-the game GABS launched keeps running either way, as it does when GABS exits
-on its own. On the game side RimBridgeServer would run each companion-mod
+The controller launches RimWorld itself (`go/internal/gamehost`, from
+`games.<id>` in `<config>/config.json`) with `GABP_SERVER_PORT`, `GABP_TOKEN`
+and `GABS_GAME_ID` in its environment, records the endpoint in
+`<config>/<id>/endpoint.json` (pid plus start time, so a reused pid is never
+mistaken for the game) and speaks GABP to RimBridgeServer directly
+(`go/internal/gabp`). The GABP connection correlates concurrent requests by
+id, so a held `clock_read_events` long poll does not stall planner reads
+behind it (issue #115). The game is spawned detached and keeps running when
+the controller ends; a restarted controller reattaches through the endpoint
+record. On the game side RimBridgeServer would run each companion-mod
 tool on the GABP connection's reader thread; the companion re-registers its
 tools off that thread (`ExtensionDispatchPatch`, issue #227), so a held
 journal read no longer makes the routine worker's dispatch of the successor
@@ -52,11 +55,11 @@ therefore holds its journal read (`wait_ms`, 4 s) while a colony window it
 admitted is running, so a stop is seen as soon as its row lands, and keeps
 an unheld 1 s cadence between windows, while the planners read.
 
-A GABS session lost while the service runs (the GABS process exiting, its
-endpoint gone) is recovered in-process: the bridge client drops the session as
-soon as the SDK observes the end of its transport, later native calls fail
+A game connection lost while the service runs (the GABP connection
+dropping) is recovered in-process: the bridge client drops the session as
+soon as it observes the end of its transport, later native calls fail
 fast as disconnected, and a supervisor reattaches with bounded backoff --
-a fresh GABS process, then the same start/connect handshake a restarted
+the same start/connect handshake a restarted
 controller uses against the game that kept running. Nothing is retried across
 the gap. Native meanwhile revokes authority as `DISCONNECT` once the typed
 clock lease lapses; because that is not the player's Pause, `--resume`
@@ -68,7 +71,7 @@ See [save and resume](../../players/save-and-resume.md).
 
 ## Cleanup
 
-Workers own their controller, private profile, database and GABS process. Cleanup
+Workers own their controller, private profile, database and game process. Cleanup
 stops owned processes only. Windows workers share installed DLLs, so all games must
 stop before replacing them. Docker workers stage private binary snapshots and
 keep their writable `/worker` tree (SQLite state, flight recorder, game log,
@@ -91,8 +94,8 @@ resumed work is observed without another order. Retired flags on plans and
 goals bound the working set (see
 [persistence contracts](../contracts/persistence-contracts.md)).
 
-GABS launch-claim collisions and runtime-state publication faults permit a
+Launch collisions (a live endpoint record) and endpoint-record faults permit a
 bounded number of retries for reads and explicit previews only; mutations do
-not retry. Requests within one GABS session are serialized, cancellation while
+not retry. Requests within one bridge session are serialized, cancellation while
 queued sends no request, and a lost mutation response still requires
 observation before the plan moves on.

@@ -366,13 +366,6 @@ func writeSourceRoot(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(source, "config", "config.json"), data, 0644); err != nil {
 		t.Fatal(err)
 	}
-	gabsDir := filepath.Join(source, "gabs", "gabs-v1.1.1-windows-amd64")
-	if err := os.MkdirAll(gabsDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(gabsDir, "gabs.exe"), []byte("stub-binary"), 0644); err != nil {
-		t.Fatal(err)
-	}
 	profile := filepath.Join(source, "profile")
 	if err := os.MkdirAll(filepath.Join(profile, "Config"), 0755); err != nil {
 		t.Fatal(err)
@@ -403,7 +396,6 @@ func TestIsolatedRootBuildsFreshWorker(t *testing.T) {
 		t.Fatalf("IsolatedRoot returned %q, want %q", got, destination)
 	}
 	for _, relative := range []string{
-		filepath.Join("gabs", "gabs-v1.1.1-windows-amd64", "gabs.exe"),
 		filepath.Join("config", "config.json"),
 		filepath.Join("profile", "Config", "Prefs.xml"),
 		filepath.Join("profile", "Config", "ModsConfig.xml"),
@@ -423,10 +415,6 @@ func TestIsolatedRootBuildsFreshWorker(t *testing.T) {
 	}
 	if _, present := game["stopProcessName"]; present {
 		t.Fatal("stopProcessName should have been stripped")
-	}
-	section, _ := config["rimgovernor"].(map[string]any)
-	if section == nil || section["gabsExecutable"] != "gabs/gabs-v1.1.1-windows-amd64/gabs.exe" {
-		t.Fatalf("gabsExecutable not rewritten to a relative path: %v", section)
 	}
 }
 
@@ -645,25 +633,6 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 		if !strings.Contains(string(prefs), want) {
 			t.Fatalf("rendered Prefs.xml missing %s:\n%s", want, prefs)
 		}
-	}
-}
-
-func TestGABSExecutableDefaultsToRelativePath(t *testing.T) {
-	root := t.TempDir()
-	configDir := filepath.Join(root, "config")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte(`{"version":"1.0"}`), 0644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := GABSExecutable(root, configDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := filepath.Join(root, "gabs", "gabs-v1.1.1-windows-amd64", "gabs.exe")
-	if got != want {
-		t.Fatalf("GABSExecutable = %q, want %q", got, want)
 	}
 }
 

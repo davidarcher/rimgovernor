@@ -2,8 +2,8 @@ package main
 
 // acceptance suite runs a set of cases across N private game copies at
 // once (issue #140, absorbing the former suiteaccept): each worker is its
-// own disposable root (na.IsolatedRoot off -root, so its own GABS state,
-// config and profile) launching the same game binary, chains its cases on
+// own disposable root (na.IsolatedRoot off -root, so its own config
+// and profile) launching the same game binary, chains its cases on
 // one kept process (na.KeepGameEnv forced on) and stops it when its queue
 // is empty. Every case keeps its own output directory and result.json; the
 // suite's result.json lists them with exit code, wall and boot time, and

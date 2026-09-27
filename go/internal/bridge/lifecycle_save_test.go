@@ -7,7 +7,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,7 +25,7 @@ func pbSaveCompleted(request *l.SaveRequest) *l.SaveReply {
 
 func TestSaveHappyPathValidatesEchoedFields(t *testing.T) {
 	request := pbSaveRequest()
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbSaveCompleted(request)), nil
 	}}
 	client := testClient(t, s, testBudget)
@@ -91,7 +90,7 @@ func TestSaveRejectsIncompleteOrMismatchedCompleted(t *testing.T) {
 			request := pbSaveRequest()
 			reply := pbSaveCompleted(request)
 			change(reply, request)
-			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(reply), nil
 			}}
 			save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -108,7 +107,7 @@ func TestSaveRejectsIncompleteOrMismatchedCompleted(t *testing.T) {
 func TestSaveExpectedTickMustMatchCompletedContext(t *testing.T) {
 	request := pbSaveRequest()
 	request.ExpectedTick = proto.Int64(pbContext().GetTick())
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbSaveCompleted(request)), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -129,7 +128,7 @@ func TestSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
 	uncertainReply := &l.SaveReply{Outcome: &l.SaveReply_Uncertain{Uncertain: &l.SaveUncertain{
 		RequestId: request.Player.RequestId, SaveName: request.SaveName, ObservedContext: pbContext(), Detail: proto.String("colony changed"),
 	}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(uncertainReply), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -146,7 +145,7 @@ func TestSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
 func TestSaveFailureOutcomeReturnsNativeFailure(t *testing.T) {
 	request := pbSaveRequest()
 	failureReply := &l.SaveReply{Outcome: &l.SaveReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_STALE_IDENTITY.Enum(), Detail: proto.String("colony changed")}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(failureReply), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -179,7 +178,7 @@ func TestReadSaveRequiresRequestID(t *testing.T) {
 
 func TestReadSaveHappyPathReplaysCompleted(t *testing.T) {
 	request := pbSaveRequest()
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbSaveCompleted(request)), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -200,7 +199,7 @@ func TestReadSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
 	uncertainReply := &l.SaveReply{Outcome: &l.SaveReply_Uncertain{Uncertain: &l.SaveUncertain{
 		RequestId: request.Player.RequestId, SaveName: request.SaveName, ObservedContext: pbContext(), Detail: proto.String("colony changed"),
 	}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(uncertainReply), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -216,7 +215,7 @@ func TestReadSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
 
 func TestReadSaveUnknownRequestIDReturnsFailure(t *testing.T) {
 	failureReply := &l.SaveReply{Outcome: &l.SaveReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_NOT_FOUND.Enum(), Detail: proto.String("unknown or expired save request id")}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(failureReply), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))
@@ -234,7 +233,7 @@ func TestReadSaveMismatchedRequestIDRejected(t *testing.T) {
 	request := pbSaveRequest()
 	completed := pbSaveCompleted(request)
 	completed.GetCompleted().RequestId = proto.String("other")
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(completed), nil
 	}}
 	save, err := NewLifecycleSave(testClient(t, s, testBudget))

@@ -75,11 +75,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(cfg.Root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	reuse, err := na.OpenReusableGame(ctx, cfg, gabsExecutable)
+	reuse, err := na.OpenReusableGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -122,7 +118,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("%s: begin: %w", name, err)
 		}
 		tokens = append(tokens, c.Reset.LoadToken)
-		if err := cleanCase(ctx, cfg, reuse, c, gabsExecutable, binary, report); err != nil {
+		if err := cleanCase(ctx, cfg, reuse, c, binary, report); err != nil {
 			_ = reuse.EndCase(ctx, c, true)
 			return fmt.Errorf("%s: %w", name, err)
 		}
@@ -166,7 +162,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 
 // cleanCase is one well-behaved case: authority on, draft, release, authority
 // off, then a controller launched and stopped against this very load.
-func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.ReuseCase, gabsExecutable, binary string, report na.Report) error {
+func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.ReuseCase, binary string, report na.Report) error {
 	h, identity := c.Harness, c.Identity
 	row := map[string]any{"loadToken": c.Reset.LoadToken}
 	_, row0, err := draftColonist(ctx, h, identity, c.Name)
@@ -214,7 +210,7 @@ func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.R
 	caseCfg := *cfg
 	caseCfg.Output = c.Output
 	serviceReport := na.Report{}
-	service, err := na.LaunchService(ctx, &caseCfg, gabsExecutable, na.ServiceLaunch{Binary: binary}, serviceReport)
+	service, err := na.LaunchService(ctx, &caseCfg, na.ServiceLaunch{Binary: binary}, serviceReport)
 	if err != nil {
 		return fmt.Errorf("launch controller: %w", err)
 	}

@@ -8,14 +8,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/core"
 )
 
-// An Owned case's session has no game: Config, Report and GABSPID answer
+// An Owned case's session has no game: Config and Report answer
 // without one and Release refuses rather than dereferencing it.
 func TestOwnedSessionWithoutGame(t *testing.T) {
 	report := na.Report{}
 	cfg := &na.Config{Root: "r"}
 	s := &session{config: cfg, report: report}
-	if s.Config() != cfg || s.GABSPID() != 0 {
-		t.Fatalf("Config/GABSPID = %v/%d", s.Config(), s.GABSPID())
+	if s.Config() != cfg {
+		t.Fatalf("Config = %v", s.Config())
 	}
 	s.Report()["x"] = 1
 	if report["x"] != 1 {

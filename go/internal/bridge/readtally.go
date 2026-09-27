@@ -11,7 +11,7 @@ import (
 // ReadTally counts the native round trips issued under one context: every
 // core call the Client makes with a context derived from WithReadTally is
 // tallied by native tool (the inner rimgovernor/* method for games_call_tool,
-// the GABS tool name otherwise), errors included. A ClockScheduler step
+// the wrapper name otherwise), errors included. A ClockScheduler step
 // attaches one at entry so the reads a full planner composition costs are
 // visible per step (the clock trace, serve --debug) and, through Publish, in the
 // flight recorder the throughput profiler summarizes. It is safe for
@@ -29,7 +29,7 @@ type ReadTally struct {
 	client *Client
 }
 
-// schemaTool is the GABS tool the Client's ensureDescribed fetches a
+// schemaTool is the wrapper call the Client's ensureDescribed fetches a
 // native tool's schema with.
 const schemaTool = "games_tool_detail"
 

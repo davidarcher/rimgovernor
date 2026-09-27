@@ -29,9 +29,8 @@ type Process struct {
 	Started    time.Time
 }
 
-// HarnessImages are the images a root launches: the game, the GABS
-// bridge and the serve binary.
-var HarnessImages = []string{"RimWorldWin64.exe", "gabs.exe", "rimgovernor.exe"}
+// HarnessImages are the images a root launches: the game and the serve binary.
+var HarnessImages = []string{"RimWorldWin64.exe", "rimgovernor.exe"}
 
 // ListProcesses lists the running processes of the named images (every
 // one on the machine, peers' included; callers narrow by path).

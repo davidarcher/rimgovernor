@@ -159,10 +159,6 @@ type Session interface {
 	// Config is the run's resolved configuration (root, output, profile,
 	// startup log); an Owned case opens its own game with it.
 	Config() *na.Config
-	// GABSPID is the PID of the GABS process the harness's session last
-	// spawned (a reattach spawns a fresh one), 0 when none was recorded;
-	// a transport-drop case kills it by PID, never the game.
-	GABSPID() int
 	// Harness records evidence under the run's output directory.
 	Harness() *na.Harness
 	// Names are the discovered native tool names.

@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -92,7 +91,7 @@ func decodeCellsRequest(t *testing.T, arg nativeArgument) *o.GetCellsRequest {
 func TestReadPlanningWindowDecodesOnePageWindow(t *testing.T) {
 	calls := 0
 	rect := policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 3}
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		request := decodeCellsRequest(t, arg)
 		want := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(10), Z: proto.Int32(20)}, Maximum: &c.Cell{X: proto.Int32(13), Z: proto.Int32(22)}}
@@ -128,7 +127,7 @@ func TestReadPlanningWindowDecodesOnePageWindow(t *testing.T) {
 
 func TestReadPlanningWindowBandsARectBeyondOnePage(t *testing.T) {
 	var bands []*o.Rectangle
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		request := decodeCellsRequest(t, arg)
 		bands = append(bands, request.GetRectangle())
 		s := windowSnapshot(request, nil)
@@ -195,7 +194,7 @@ func TestReadPlanningWindowRefusalsAndContractFaults(t *testing.T) {
 		}, ErrContract},
 	} {
 		t.Run(name, func(t *testing.T) {
-			server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				return pbResult(tc.reply(decodeCellsRequest(t, arg))), nil
 			}}
 			client := testClient(t, server, testBudget)

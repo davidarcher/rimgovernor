@@ -14,7 +14,6 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -36,7 +35,7 @@ func pbRequest() *p.PlacementRequest {
 func pbBatch() *p.PlacementReply {
 	return &p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Context: pbContext(), Results: []*p.CandidateReply{{Outcome: &p.CandidateReply_Evaluated{Evaluated: &p.PlacementEvaluated{CanPlace: proto.Bool(true), MadeFromStuff: proto.Bool(false), Passability: p.Passability_PASSABILITY_IMPASSABLE.Enum(), IsDoor: proto.Bool(false), ResearchFinished: proto.Bool(true), BuildableByPlayer: proto.Bool(true), Materials: &p.PlacementMaterials{Availability: &p.PlacementMaterials_Known{Known: &p.MaterialRows{Rows: []*p.PlacementMaterialStock{{DefName: proto.String("Steel")}, {DefName: proto.String("WoodLog"), Available: proto.Int32(0)}}}}}, Rotations: []*p.PlacementRotation{{Rotation: p.Rotation_ROTATION_NORTH.Enum(), Accepted: proto.Bool(true), OccupiedCells: []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(0)}}}}}}}}}}}
 }
-func pbResult(message proto.Message) *mcp.CallToolResult {
+func pbResult(message proto.Message) *callResult {
 	inner, err := proto.Marshal(message)
 	if err != nil {
 		panic(err)
@@ -47,12 +46,12 @@ func pbResult(message proto.Message) *mcp.CallToolResult {
 			ID string `json:"id"`
 		} `json:"operation"`
 	}{Proto: packProto(inner)})
-	return &mcp.CallToolResult{StructuredContent: outer}
+	return &callResult{StructuredContent: outer}
 }
 
 // pbTimedResult is pbResult from a companion that reports its main-thread
 // queue wait and tool body beside the payload.
-func pbTimedResult(message proto.Message, queueMs, executeMs float64) *mcp.CallToolResult {
+func pbTimedResult(message proto.Message, queueMs, executeMs float64) *callResult {
 	inner, err := proto.Marshal(message)
 	if err != nil {
 		panic(err)
@@ -67,10 +66,10 @@ func pbTimedResult(message proto.Message, queueMs, executeMs float64) *mcp.CallT
 		QueueMs   float64 `json:"queueMs"`
 		ExecuteMs float64 `json:"executeMs"`
 	}{queueMs, executeMs}})
-	return &mcp.CallToolResult{StructuredContent: outer}
+	return &callResult{StructuredContent: outer}
 }
 func TestOfficialReadSDKBoundary(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {
 			Request string `json:"request"`
 		}
@@ -151,7 +150,7 @@ func TestTickOutcomes(t *testing.T) {
 		"missing":     {&l.TickReply{}, ErrContract},
 		"no context":  {&l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{}}}, ErrContract},
 	} {
-		s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			return pbResult(tc.reply), nil
 		}}
 		if _, _, err := testClient(t, s, testBudget).Tick(context.Background()); !errors.Is(err, tc.want) {
@@ -162,7 +161,7 @@ func TestTickOutcomes(t *testing.T) {
 func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {
 	failureReply := &l.IdentityReply{Outcome: &l.IdentityReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum(), Detail: proto.String("not ready")}}}
 	for _, sdkError := range []bool{false, true} {
-		s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			r := pbResult(failureReply)
 			r.IsError = sdkError
 			return r, nil
@@ -173,7 +172,7 @@ func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {
 			t.Fatalf("typed failure lost %v", err)
 		}
 	}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&l.IdentityReply{Outcome: &l.IdentityReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}), nil
 	}}
 	if _, _, err := testClient(t, s, testBudget).Identity(context.Background()); !errors.Is(err, ErrUnavailable) {
@@ -181,7 +180,7 @@ func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {
 	}
 	for _, raw := range []string{`{"payload":{}}`, `{"payload":null}`, `{"payload":"{}","payload":"{}"}`, `{"payload":"{}","unknownArguments":["oops"]}`, `{"payload":"{\"unknown\":1}"}`, `{"payload":"{}"}`, `{"payload":"` + strings.Repeat("x", maxProtoBytes+1) + `"}`, `{"payload":"\ud800"}`} {
 		t.Run(raw[:min(len(raw), 40)], func(t *testing.T) {
-			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return structured(raw), nil }}
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return structured(raw), nil }}
 			reply, result, err := testClient(t, s, testBudget).Identity(context.Background())
 			if err == nil || reply != nil || len(result.Envelope) == 0 {
 				t.Fatalf("invalid wrapper accepted/lost receipt %v", err)
@@ -223,7 +222,7 @@ func TestEveryCanonicalUnavailableReason(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			reason := c.UnavailableReason(number)
-			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&l.IdentityReply{Outcome: &l.IdentityReply_Unavailable{Unavailable: &c.Unavailable{Reason: reason.Enum()}}}), nil
 			}}
 			reply, raw, err := testClient(t, s, testBudget).Identity(context.Background())
@@ -245,7 +244,7 @@ func TestSDKRefusalPreservedWithoutCanonicalFailure(t *testing.T) {
 		for _, raw := range []string{`{"refused":true}`, `{"payload":"invalid"}`, `{"unknownArguments":["request"]}`} {
 			result := structured(raw)
 			result.IsError = true
-			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return result, nil }}
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return result, nil }}
 			if atDetail {
 				s.detailResult = result
 			}
@@ -269,24 +268,6 @@ func TestStatusRejectsUnknownBinaryIdentityBeforeDispatch(t *testing.T) {
 	}
 	if len(s.calls) != 0 {
 		t.Fatal("invalid identity dispatched")
-	}
-}
-
-func TestConnectRefusesForeignOwnerAndExplicitTakeover(t *testing.T) {
-	s := &testServer{connectResult: structured(`{"foreignOwner":true,"ownerPID":24}`)}
-	client := testClient(t, s, testBudget)
-	if raw, err := client.ConnectGame(context.Background()); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
-		t.Fatalf("foreign ownership accepted: %v", err)
-	}
-	if strings.Contains(string(s.connectArgs), "forceTakeover") {
-		t.Fatal("implicit takeover")
-	}
-	s.connectResult = structured(`{"success":true}`)
-	if _, err := client.ConnectGameWithTakeover(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(s.connectArgs), `"forceTakeover":true`) {
-		t.Fatalf("explicit takeover missing: %s", s.connectArgs)
 	}
 }
 
@@ -320,7 +301,7 @@ func TestAdditionalTypedSDKFailures(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				result := pbResult(tc.reply)
 				result.IsError = true
 				return result, nil
@@ -343,7 +324,7 @@ func TestAdditionalTypedSDKFailures(t *testing.T) {
 // fails validation is not remembered, and a reconnect (fresh session)
 // describes again.
 func TestDescribeOncePerSession(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil
 	}}
 	client := testClient(t, s, testBudget)
@@ -373,7 +354,7 @@ func TestDescribeOncePerSession(t *testing.T) {
 	}
 
 	// A rejected schema is retried on the next call rather than cached.
-	bad := &testServer{detailResult: structured(`{"inputSchema":` + emptySchema + `}`), handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	bad := &testServer{detailResult: structured(`{"inputSchema":` + emptySchema + `}`), handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil
 	}}
 	client = testClient(t, bad, testBudget)

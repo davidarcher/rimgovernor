@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -41,7 +40,7 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 }
 func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	snapshot := worldProgressionFixture()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_world_progression" {
 			t.Fatal(arg.Tool)
 		}
@@ -101,7 +100,7 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	}
 }
 func TestReadWorldProgressionRejectsInvalidInputs(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid request dispatched")
 		return nil, nil
 	}}, time.Second)
@@ -177,7 +176,7 @@ func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			snapshot := worldProgressionFixture()
 			edit(snapshot)
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&o.WorldProgressionReply{Outcome: &o.WorldProgressionReply_Observed{Observed: snapshot}}), nil
 			}}, time.Second)
 			if _, _, err := client.ReadWorldProgression(context.Background(), pbIdentity(), false); err == nil {

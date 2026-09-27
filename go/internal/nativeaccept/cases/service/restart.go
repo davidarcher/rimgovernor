@@ -59,8 +59,8 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("first review is not an enabled review of the observed world: %#v", first)
 	}
 
-	// Kill mid-play. The game keeps running; the service's own GABS
-	// subprocess releases the slot shortly after, so the restart may need a
+	// Kill mid-play. The game keeps running; the game frees the
+	// service's GABP slot shortly after, so the restart may need a
 	// few attempts to attach.
 	service.Stop()
 	report["killed_pid"] = firstPID

@@ -12,9 +12,9 @@ import (
 )
 
 // A transcript is the call sequence of one bridge session, recorded so a
-// Replay can serve it back without a game (#282): one JSON line per GABS
+// Replay can serve it back without a game (#282): one JSON line per wrapper
 // tools/call with the raw MCP receipt the client decoded, plus a session
-// row per connect carrying the GABS catalog the client discovered. It is
+// row per connect carrying the wrapper catalog the client discovered. It is
 // the recording the acceptance harnesses make under
 // RIMGOVERNOR_ACCEPT_RECORD; the flight recorder (flightrecorder.go) is
 // the production timeline and keeps only the decoded structured content.
@@ -30,7 +30,7 @@ type TranscriptRow struct {
 	Phase  string   `json:"phase,omitempty"`
 	GameID string   `json:"game_id,omitempty"`
 	Tools  []string `json:"tools,omitempty"`
-	// Tool is the GABS tool (games_call_tool, games_tool_names, ...) and
+	// Tool is the wrapper call (games_call_tool, games_tool_names, ...) and
 	// Arguments its wire arguments; NativeTool is the native tool a
 	// games_call_tool named, for reading the transcript.
 	Tool       string          `json:"tool,omitempty"`

@@ -11,7 +11,6 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -34,7 +33,7 @@ func TestResolvePackedInstall(t *testing.T) {
 		{"other cell", projected(r.InstallationStage_INSTALLATION_STAGE_PLACEABLE, 5), false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				var outer struct {
 					Request string `json:"request"`
 				}

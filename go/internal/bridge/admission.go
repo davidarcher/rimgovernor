@@ -293,8 +293,8 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 }
 
 // admissionClassOf classifies a call by the native tool it reaches (the
-// inner rimgovernor/* method for games_call_tool, else the GABS tool
-// itself). GABS lifecycle tools (connect, status, start, stop, attention)
+// inner rimgovernor/* method for games_call_tool, else the wrapper call
+// itself). Lifecycle wrappers (connect, status, start, stop, attention)
 // are control: they are the supervisor's own path. Unlisted rimgovernor
 // methods classify by prefix so an acceptance NativeCall of a fixture or
 // observation tool never takes the control slot.

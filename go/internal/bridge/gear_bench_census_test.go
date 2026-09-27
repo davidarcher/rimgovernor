@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -44,7 +43,7 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 		}},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {
 			Request string `json:"request"`
 		}
@@ -106,7 +105,7 @@ func TestReadSupplyStockReportsKnownAvailability(t *testing.T) {
 		}},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_list_supplies" {
 			t.Fatal(arg.Tool)
 		}
@@ -155,7 +154,7 @@ func TestReadRecipeCatalogListsHostingBenchDefinitions(t *testing.T) {
 		}},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {
 			Request string `json:"request"`
 		}

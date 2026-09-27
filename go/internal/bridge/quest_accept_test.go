@@ -11,7 +11,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -61,7 +60,7 @@ func TestPreviewQuestAcceptAcceptedAndRejections(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reply := proto.Clone(valid).(*op.PreviewReply)
 			test.change(reply)
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/operations_preview" {
 					t.Fatal(arg.Tool)
 				}
@@ -118,7 +117,7 @@ func TestPreviewQuestAcceptInvalidInputsNeverDispatch(t *testing.T) {
 }
 
 func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(args.Tool)
 		}
@@ -146,7 +145,7 @@ func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
-	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		admission := questAcceptAdmission()
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
@@ -183,7 +182,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 	w := questAcceptAttemptFixture()
 	admission := questAcceptAdmission()
 	unknown := &r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)}}}}
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/receipts_lookup" {
 			t.Fatal(args.Tool)
 		}
@@ -195,7 +194,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 		t.Fatal("unknown attempt lookup failed", err)
 	}
 	completed := &r.Progress{Attempt: w.Attempt, Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(11), NativeGeneration: proto.Uint64(1)}, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: questAcceptEffectEvidence()}}}
-	s2 := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s2 := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/receipts_observe_progress" {
 			t.Fatal(args.Tool)
 		}
@@ -213,7 +212,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			p := proto.Clone(completed).(*r.Progress)
 			change(p)
-			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
 			if _, _, err := testClient(t, bad, testBudget).ObserveQuestAcceptProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
@@ -221,7 +220,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 			}
 		})
 	}
-	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		out := pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}})
 		out.IsError = true
 		return out, nil
@@ -230,7 +229,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 	if _, raw, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
-	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewQuestAcceptWriter(testClient(t, lost, testBudget))
@@ -241,7 +240,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 
 func TestReadQuestAcceptTargetSelectsAndValidates(t *testing.T) {
 	snapshot := worldProgressionFixture()
-	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_world_progression" {
 			t.Fatal(arg.Tool)
 		}
@@ -253,7 +252,7 @@ func TestReadQuestAcceptTargetSelectsAndValidates(t *testing.T) {
 		!target.RequiresAccepter || !target.CanAccept || target.ChoiceCount != 1 || !target.HasTradeRequest || len(target.EligiblePawnIDs) != 1 {
 		t.Fatal(target, err)
 	}
-	missing := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	missing := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&o.WorldProgressionReply{Outcome: &o.WorldProgressionReply_Observed{Observed: worldProgressionFixture()}}), nil
 	}}
 	if _, _, err := testClient(t, missing, testBudget).ReadQuestAcceptTarget(context.Background(), pbIdentity(), "quest-missing"); !errors.Is(err, ErrUnavailable) {

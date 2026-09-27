@@ -25,7 +25,7 @@ func withRoutineFamilies(t *testing.T, value string, set bool) {
 }
 
 func serveBase(dir string) []string {
-	return []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db")}
+	return []string{"--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db")}
 }
 
 // serve with no mode flag is the autonomous composition: player control,

@@ -16,7 +16,6 @@ import (
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -45,7 +44,7 @@ func newBundleServer() *bundleServer {
 	return s
 }
 
-func (s *bundleServer) handle(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+func (s *bundleServer) handle(_ context.Context, arg nativeArgument) (*callResult, error) {
 	if counter := s.calls[arg.Tool]; counter != nil {
 		counter.Add(1)
 	}
@@ -63,7 +62,7 @@ func (s *bundleServer) handle(_ context.Context, arg nativeArgument) (*mcp.CallT
 	case "rimgovernor/clock_read_status":
 		return pbResult(&k.StatusReply{Outcome: &k.StatusReply_Status{Status: s.snapshot.ClockStatus}}), nil
 	}
-	return &mcp.CallToolResult{IsError: true}, nil
+	return &callResult{IsError: true}, nil
 }
 
 // retagContexts sets every ObservationContext inside message, at any depth,
@@ -128,7 +127,7 @@ func newBundleFamilyServer(t *testing.T) *bundleFamilyServer {
 	return s
 }
 
-func (s *bundleFamilyServer) handle(ctx context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+func (s *bundleFamilyServer) handle(ctx context.Context, arg nativeArgument) (*callResult, error) {
 	switch arg.Tool {
 	case "rimgovernor/observations_read_colony_facts":
 		s.calls[arg.Tool].Add(1)
@@ -231,7 +230,7 @@ type frameServer struct {
 	opens chan *o.SnapshotStreamRequest
 }
 
-func (s *frameServer) handle(ctx context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+func (s *frameServer) handle(ctx context.Context, arg nativeArgument) (*callResult, error) {
 	if arg.Tool == methodOpenSnapshotStream {
 		s.opens <- nil
 		return pbResult(&o.SnapshotStreamReply{Outcome: &o.SnapshotStreamReply_Opened{Opened: &o.SnapshotStreamOpened{Name: "ring", Slots: 3, SlotBytes: 1 << 20}}}), nil

@@ -11,7 +11,6 @@ import (
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -46,7 +45,7 @@ func clockTestStopped() *k.Status {
 }
 func TestClockFixedSDKOperations(t *testing.T) {
 	var methods []string
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		methods = append(methods, arg.Tool)
 		var outer struct {
 			Request string `json:"request"`
@@ -171,7 +170,7 @@ func TestClockControlRejectsMismatchedAppliedReceipt(t *testing.T) {
 	}} {
 		t.Run(name, func(t *testing.T) {
 			calls := 0
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				calls++
 				r := clockTestReceipt()
 				edit(r)
@@ -203,7 +202,7 @@ func TestClockTypedFailureUnknownAndUncertainty(t *testing.T) {
 	for _, kind := range []string{"failure", "uncertain", "pending", "malformed", "unknown"} {
 		t.Run(kind, func(t *testing.T) {
 			calls := 0
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				calls++
 				switch kind {
 				case "failure":
@@ -257,7 +256,7 @@ func TestClockTypedFailureUnknownAndUncertainty(t *testing.T) {
 }
 func TestClockCancellationDoesNotDispatch(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		calls++
 		return nil, errors.New("unexpected")
 	}}, time.Second)
@@ -273,7 +272,7 @@ func TestClockCancellationDoesNotDispatch(t *testing.T) {
 
 func TestClockTransportDeadlineIsUncertainWithoutRetry(t *testing.T) {
 	entered := make(chan struct{}, 1)
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(ctx context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(ctx context.Context, _ nativeArgument) (*callResult, error) {
 		entered <- struct{}{}
 		<-ctx.Done()
 		return nil, ctx.Err()
@@ -294,7 +293,7 @@ func TestClockTransportDeadlineIsUncertainWithoutRetry(t *testing.T) {
 func TestClockPauseRequiresOriginalEpochAndRetainsFailedPause(t *testing.T) {
 	for _, kind := range []string{"stopping", "replacement", "running"} {
 		t.Run(kind, func(t *testing.T) {
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				s := clockTestStopped()
 				if kind == "replacement" {
 					s.GetStopped().Epoch.Owner.Epoch = proto.Int64(2)
@@ -326,7 +325,7 @@ func TestClockPauseRequiresOriginalEpochAndRetainsFailedPause(t *testing.T) {
 }
 
 func TestClockAppliedStartCanImmediatelyStop(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		r := clockTestReceipt()
 		s := clockTestStopped()
 		s.GetStopped().Reason = k.StopReason_STOP_REASON_COLONIST_DOWNED.Enum()
@@ -343,7 +342,7 @@ func TestClockAppliedStartCanImmediatelyStop(t *testing.T) {
 func TestClockLookupRejectsForeignAttemptAndPreservesTypedReadFailure(t *testing.T) {
 	for _, kind := range []string{"foreign", "failure", "status failure"} {
 		t.Run(kind, func(t *testing.T) {
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				if kind == "foreign" {
 					r := clockTestReceipt()
 					r.Attempt.AttemptId = proto.Uint64(2)

@@ -23,7 +23,7 @@
 //
 // The case's own bridge session prepares the fixture and takes independent
 // native reads; a prebuilt rimgovernor "serve" binary is then launched
-// against the *same* GABS configuration/game so its own routine reviewer
+// against the *same* bridge configuration/game so its own routine reviewer
 // and haul planner/executor drive the actual native dispatch under test --
 // the planner and its dispatch are Go-owned production logic
 // (buildingruntime.RoutineHaulPlanner), not something a bridge fixture can
@@ -137,7 +137,7 @@ func run(ctx context.Context, s cases.Session) error {
 	site0, _ := na.AsMap(sites[0])
 	siteX, siteZ := int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
 
-	// Launch the live Go player-control service, joined to the same GABS
+	// Launch the live Go player-control service, joined to the same bridge
 	// configuration/game the harness above already started; Serve releases
 	// the harness session first (no games_stop, so the running game
 	// survives) and waits for the service to attach to the same identity.
@@ -515,8 +515,8 @@ func run(ctx context.Context, s cases.Session) error {
 	// again, then reattach the harness session (the running game is
 	// untouched) to take an independent native read of the stored outcome --
 	// both hauled stacks merged into the one legal stockpile cell,
-	// unforbidden. Reattach retries while the killed service's own GABS
-	// subprocess frees the slot.
+	// unforbidden. Reattach retries while the game frees the killed
+	// service's GABP slot.
 	stopRestarted()
 	finalHarness, err := s.Reattach(ctx)
 	if err != nil {

@@ -76,7 +76,7 @@ func (s Settings) Validate() error {
 
 // Paths are the resolved files serve runs against.
 type Paths struct {
-	Profile, GABS, Config, Game, State, Assets string
+	Profile, Config, Game, State, Assets string
 }
 
 // ServeArgs is the serve command line for s over p. Flags left at serve's
@@ -92,7 +92,7 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 	} else {
 		args = append(args, "--profile", p.Profile)
 	}
-	args = append(args, "--gabs", p.GABS, "--config", p.Config, "--game", p.Game, "--state", p.State, "--assets", p.Assets,
+	args = append(args, "--config", p.Config, "--game", p.Game, "--state", p.State, "--assets", p.Assets,
 		"--listen", "127.0.0.1:"+strconv.Itoa(port))
 	if !s.Observe {
 		if s.AutoStart {
@@ -165,7 +165,8 @@ func StatePath(dir string, continueState bool, now time.Time) string {
 	return filepath.Join(dir, "state-"+now.Format("20060102-150405")+".sqlite")
 }
 
-// ConfiguredGame is the one game id GABS's config.json lists.
+// ConfiguredGame is the one game id config.json lists (games.<id>, the launch
+// spec the bridge reads).
 func ConfiguredGame(configJSON []byte) (string, error) {
 	var c struct {
 		Games map[string]json.RawMessage `json:"games"`
@@ -174,7 +175,7 @@ func ConfiguredGame(configJSON []byte) (string, error) {
 		return "", err
 	}
 	if len(c.Games) != 1 {
-		return "", fmt.Errorf("the GABS configuration lists %d games; expected one", len(c.Games))
+		return "", fmt.Errorf("the launch configuration lists %d games; expected one", len(c.Games))
 	}
 	for id := range c.Games {
 		return id, nil

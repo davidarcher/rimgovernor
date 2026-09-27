@@ -15,7 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/setup"
 )
 
-const setupUsage = `  acceptance setup [-worktree <dir>] [-rimworld <RimWorld dir>] [-harmony <0Harmony.dll>] [-gabs <gabs.exe>]
+const setupUsage = `  acceptance setup [-worktree <dir>] [-rimworld <RimWorld dir>] [-harmony <0Harmony.dll>]
                    [-fixture A,B] [-rebuild] [-skip-mod] [-skip-binaries]
   acceptance setup generate <variantsave-<save>|variantsave-all> [run flags]
 `
@@ -45,7 +45,6 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	fs.BoolVar(&o.overrides.Explicit, "explicit", false, "require every dependency path and create a clean profile without machine discovery")
 	fs.StringVar(&o.overrides.RimWorldDir, "rimworld", "", "RimWorld install holding RimWorldWin64.exe (default: Steam, or $"+setup.RimWorldDirEnv+")")
 	fs.StringVar(&o.overrides.Harmony, "harmony", "", "0Harmony.dll (default: the Steam workshop item, or $"+setup.HarmonyEnv+")")
-	fs.StringVar(&o.overrides.GABS, "gabs", "", "gabs.exe to install (default: a peer worktree's, or $"+setup.GABSEnv+")")
 	fs.StringVar(&fixtures, "fixture", "", "comma-separated fixture classes for the mod build (default: all)")
 	fs.BoolVar(&o.run.Rebuild, "rebuild", false, "rebuild and reinstall the mod even when the installed build is current")
 	fs.BoolVar(&o.run.SkipMod, "skip-mod", false, "leave the installed mod alone")

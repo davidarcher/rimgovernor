@@ -25,7 +25,7 @@ SDK can supply one. No object-valued request, broader unknown schema or generic
 raw-object fallback is accepted. This is an SDK boundary constraint, not a second
 wire format or an alias for historical tools.
 
-Each adapter advertises support for a fixed descriptor method identity and its request/reply types. Unsupported methods report unavailable support; they never fall back to a similarly named historical tool. Original `home/*`, `rimworld/*` and `games_*` names belong to the source capability inventory. This active-development protocol requires no compatibility aliases. GABS remains the existing external discovery/transport/process owner; these descriptors do not create another server or process manager.
+Each adapter advertises support for a fixed descriptor method identity and its request/reply types. Unsupported methods report unavailable support; they never fall back to a similarly named historical tool. Original `home/*`, `rimworld/*` and `games_*` names belong to the source capability inventory. This active-development protocol requires no compatibility aliases. The Go controller owns discovery, process lifetime (gamehost) and GABP transport; these descriptors do not create another server or process manager.
 
 ## Authorization boundaries
 

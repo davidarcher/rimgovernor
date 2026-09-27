@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -24,8 +23,6 @@ const (
 	RimWorldDirEnv = "RIMGOVERNOR_RIMWORLD_DIR"
 	// HarmonyEnv names 0Harmony.dll.
 	HarmonyEnv = "RIMGOVERNOR_HARMONY_DLL"
-	// GABSEnv names the gabs.exe to copy into the bridge root.
-	GABSEnv = "RIMGOVERNOR_GABS_EXE"
 )
 
 // RimWorldAppID is RimWorld's Steam app id: its workshop content lives
@@ -53,8 +50,6 @@ type Inputs struct {
 	Harmony string
 	// RimBridgeSDK is RimWorldDir/Mods/RimBridgeServer/1.6/Assemblies.
 	RimBridgeSDK string
-	// GABS is the gabs.exe copied into the bridge root.
-	GABS string
 	// How each input was found, for the summary.
 	Sources map[string]string
 }
@@ -69,23 +64,20 @@ type Overrides struct {
 	Explicit    bool
 	RimWorldDir string
 	Harmony     string
-	GABS        string
-	// Repo is the worktree being set up; gabs.exe is looked for in its
-	// sibling worktrees and main checkout when nothing names one.
+	// Repo is the worktree being set up.
 	Repo string
 }
 
 // Discover resolves Inputs: each override, then its environment variable,
 // then Steam (the registry's install path and every library in
-// steamapps/libraryfolders.vdf) for the game and Harmony, and the peer
-// worktrees for gabs.exe.
+// steamapps/libraryfolders.vdf) for the game and Harmony.
 func Discover(o Overrides) (*Inputs, error) {
 	in := &Inputs{Sources: map[string]string{}}
 	var libraries []string
 	var libErr error
 	if o.Explicit {
-		if o.RimWorldDir == "" || o.Harmony == "" || o.HarmonyMod == "" || o.GABS == "" || o.BridgeDir == "" || o.RimBridgeSDK == "" {
-			return nil, fmt.Errorf("explicit setup requires -rimworld, -harmony, -harmony-mod, -gabs, -bridge and -sdk")
+		if o.RimWorldDir == "" || o.Harmony == "" || o.HarmonyMod == "" || o.BridgeDir == "" || o.RimBridgeSDK == "" {
+			return nil, fmt.Errorf("explicit setup requires -rimworld, -harmony, -harmony-mod, -bridge and -sdk")
 		}
 		in.CleanProfile = true
 		if !isFile(filepath.Join(o.HarmonyMod, "About", "About.xml")) || !isFile(filepath.Join(o.HarmonyMod, "Current", "Assemblies", "HarmonyMod.dll")) {
@@ -173,22 +165,6 @@ func Discover(o Overrides) (*Inputs, error) {
 	in.Harmony, in.Sources["harmony"] = harmony, source
 	in.HarmonyMod = o.HarmonyMod
 
-	gabs, source := o.GABS, "-gabs"
-	if gabs == "" {
-		gabs, source = os.Getenv(GABSEnv), GABSEnv
-	}
-	var searched []string
-	if gabs == "" {
-		gabs, source, searched = findPeerGABS(o.Repo)
-	}
-	if gabs == "" {
-		return nil, fmt.Errorf("no bridge/gabs/*/gabs.exe under .rimgovernor in this worktree, its main checkout or a sibling worktree (searched %s); set %s or pass -gabs", strings.Join(searched, ", "), GABSEnv)
-	}
-	gabs = absClean(gabs)
-	if !isFile(gabs) {
-		return nil, fmt.Errorf("%s (%s) is not a file", gabs, source)
-	}
-	in.GABS, in.Sources["gabs"] = gabs, source
 	return in, nil
 }
 
@@ -205,93 +181,6 @@ func harmonyCandidates(rimworld string, libraries []string) []string {
 		out = append(out, filepath.Join(lib, tail))
 	}
 	out = append(out, filepath.Join(rimworld, "Mods", "Harmony", "Current", "Assemblies", "0Harmony.dll"))
-	return out
-}
-
-// GABSRelative is where the bridge root keeps gabs.exe (the default
-// nativeaccept.GABSExecutable resolves).
-const GABSRelative = "gabs/gabs-v1.1.1-windows-amd64/gabs.exe"
-
-// findPeerGABS looks for an installed gabs.exe under repo's own bridge
-// root, its main checkout's, then every sibling worktree's: the
-// GABSRelative path first, then any other bridge/gabs/*/gabs.exe (a
-// release the bridge root was installed with by hand). It also returns
-// the checkouts it searched, for the error when none holds one.
-func findPeerGABS(repo string) (path, source string, searched []string) {
-	if repo == "" {
-		return "", "", nil
-	}
-	for _, root := range PeerCheckouts(repo) {
-		searched = append(searched, root)
-		if found := installedGABS(filepath.Join(root, ".rimgovernor", "bridge")); found != "" {
-			return found, "peer checkout " + root, searched
-		}
-	}
-	return "", "", searched
-}
-
-// installedGABS is the gabs.exe a bridge root holds: GABSRelative when
-// present, else the newest-named bridge/gabs/*/gabs.exe, else "".
-func installedGABS(bridge string) string {
-	if candidate := filepath.Join(bridge, filepath.FromSlash(GABSRelative)); isFile(candidate) {
-		return candidate
-	}
-	matches, _ := filepath.Glob(filepath.Join(bridge, "gabs", "*", "gabs.exe"))
-	sort.Sort(sort.Reverse(sort.StringSlice(matches)))
-	for _, m := range matches {
-		if isFile(m) {
-			return m
-		}
-	}
-	return ""
-}
-
-// PeerCheckouts lists repo, then the main checkout it is a worktree of,
-// then that checkout's .claude/worktrees siblings: where a fresh worktree
-// borrows machine-level files from. A repo that is itself the main
-// checkout lists itself and its worktrees.
-func PeerCheckouts(repo string) []string {
-	repo = absClean(repo)
-	out := []string{repo}
-	seen := map[string]bool{repo: true}
-	main := repo
-	if data, err := os.ReadFile(filepath.Join(repo, ".git")); err == nil {
-		// A worktree's .git is "gitdir: <main>/.git/worktrees/<name>".
-		if line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(data)), "gitdir:")); line != "" {
-			gitdir := absClean(line)
-			if filepath.Base(filepath.Dir(gitdir)) == "worktrees" {
-				main = filepath.Dir(filepath.Dir(filepath.Dir(gitdir)))
-			}
-		}
-	}
-	if !seen[main] {
-		seen[main] = true
-		out = append(out, main)
-	}
-	entries, _ := os.ReadDir(filepath.Join(main, ".claude", "worktrees"))
-	var siblings []string
-	for _, e := range entries {
-		if e.IsDir() {
-			siblings = append(siblings, filepath.Join(main, ".claude", "worktrees", e.Name()))
-		}
-	}
-	// Newest sibling first: the most recently set-up peer is the most
-	// likely to hold a complete layout.
-	sort.Slice(siblings, func(i, j int) bool {
-		a, _ := os.Stat(siblings[i])
-		b, _ := os.Stat(siblings[j])
-		if a == nil || b == nil {
-			return a != nil
-		}
-		return a.ModTime().After(b.ModTime())
-	})
-	for _, s := range siblings {
-		s = absClean(s)
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
 	return out
 }
 

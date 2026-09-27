@@ -46,7 +46,7 @@ func (o Options) RingDir(c Case) string {
 	return filepath.Join(o.Root, "checkpoints", filepath.FromSlash(c.Name))
 }
 
-// configDir is the root's prepared GABS configuration for this run's
+// configDir is the root's prepared bridge configuration for this run's
 // profile, present once any run has prepared the root.
 func (o Options) configDir(c Case) string {
 	if o.Headless && !c.Rendered {

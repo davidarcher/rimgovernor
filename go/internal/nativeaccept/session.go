@@ -11,18 +11,29 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// OpenBridgeSession starts a fresh GABS process, tells it to launch the configured game
-// (games_start), then connects and waits for the native tool catalog to be
-// discoverable (ConnectWithPoll). On any failure it closes the GABS process before
-// returning, so callers never leak a half-open session.
-func OpenBridgeSession(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
-	return OpenBridgeSessionWith(ctx, bridge.ProcessConfig{
-		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
-	})
+// BridgeConfig is the bridge.ProcessConfig for gameID under configDir: the
+// launch spec is games.<gameID> of configDir/config.json and the running
+// game's endpoint record lives under configDir, so every session of one
+// configuration finds the same game.
+func BridgeConfig(configDir, gameID string, timeout time.Duration) (bridge.ProcessConfig, error) {
+	return bridge.ConfiguredProcess(mustAbs(configDir), gameID, timeout)
+}
+
+// OpenBridgeSession opens a session, starts the configured game (attaching
+// when one is already running under configDir), then connects and waits for
+// the native tool catalog to be discoverable (ConnectWithPoll). On any
+// failure it closes the session before returning, so callers never leak a
+// half-open one.
+func OpenBridgeSession(ctx context.Context, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
+	config, err := BridgeConfig(configDir, gameID, timeout)
+	if err != nil {
+		return nil, err
+	}
+	return OpenBridgeSessionWith(ctx, config)
 }
 
 // OpenBridgeSessionWith is OpenBridgeSession for a caller that needs the full
-// bridge.ProcessConfig (a flight recorder, or the Spawned PID hook).
+// bridge.ProcessConfig (a flight recorder, say).
 func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
 	config, err := WithRecording(config)
 	if err != nil {
@@ -30,10 +41,10 @@ func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*b
 	}
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("open GABS session: %w", err)
+		return nil, fmt.Errorf("open bridge session: %w", err)
 	}
 	if !GameRunning(ctx, client) {
-		if err := prepareFreshLaunch(config.ConfigDir); err != nil {
+		if err := prepareFreshLaunch(config.Launch.StateDir); err != nil {
 			_ = client.Close()
 			return nil, err
 		}
@@ -65,23 +76,25 @@ func prepareFreshLaunch(configDir string) error {
 	return RecordLaunchedPackage(configDir)
 }
 
-// OpenBridgeSessionWithTakeover attaches even when another GABS session of the same
-// root still owns the game. Only for stopping a game whose controller stalled;
-// the caller owns both sessions.
-func OpenBridgeSessionWithTakeover(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
-	config, err := WithRecording(bridge.ProcessConfig{
-		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
-	})
+// OpenRunningSession connects to the running game without
+// starting one. Only for stopping a game whose controller stalled; with no
+// owner lease any session may connect, so it is a plain connect.
+func OpenRunningSession(ctx context.Context, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
+	config, err := BridgeConfig(configDir, gameID, timeout)
+	if err != nil {
+		return nil, err
+	}
+	config, err = WithRecording(config)
 	if err != nil {
 		return nil, err
 	}
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("open GABS session: %w", err)
+		return nil, fmt.Errorf("open bridge session: %w", err)
 	}
-	if _, err := client.ConnectGameWithTakeover(ctx); err != nil {
+	if _, err := client.ConnectGame(ctx); err != nil {
 		_ = client.Close()
-		return nil, fmt.Errorf("connect with takeover: %w", err)
+		return nil, fmt.Errorf("connect: %w", err)
 	}
 	return client, nil
 }
@@ -190,10 +203,6 @@ type Config struct {
 	// stage a case saves and reloads keeps it. A production build carries
 	// no op; the session then leaves the world live and the report says so.
 	QuietWorld bool
-	// Spawned, when set, is told the PID of each GABS process the game's
-	// session launches (bridge.ProcessConfig.Spawned), for a harness that
-	// kills its own transport.
-	Spawned func(pid int)
 	// KeepLoaded leaves a reused process's loaded game in place instead of
 	// returning it to the main menu, on open (OpenGame) and on a kept close
 	// (Game.Close): a fixture-development session (`acceptance fixture`)

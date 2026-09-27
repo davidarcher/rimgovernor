@@ -208,8 +208,6 @@ type Session struct {
 	Config  *Config
 	Game    *Game
 	Harness *Harness
-	// GABS is the GABS executable a service launch needs.
-	GABS string
 	// Names is the discovered tool catalog.
 	Names []string
 	// Identity is the loaded game's colony/load/map identity.
@@ -261,15 +259,11 @@ func OpenSession(ctx context.Context, cfg *Config, report Report, start Start, q
 		return nil, err
 	}
 	report["package_files"] = files
-	gabs, err := GABSExecutable(cfg.Root, cfg.Configuration)
-	if err != nil {
-		return nil, err
-	}
 	held, err := OpenGame(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	s := &Session{Config: cfg, Game: held, Harness: NewHarness(held.Client, cfg.Output), GABS: gabs, Report: report}
+	s := &Session{Config: cfg, Game: held, Harness: NewHarness(held.Client, cfg.Output), Report: report}
 	s.Harness.report = report
 	if err := s.open(ctx, start, quiet, keep); err != nil {
 		held.Close(report)

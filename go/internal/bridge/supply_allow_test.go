@@ -10,7 +10,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,7 +41,7 @@ func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
 		stock.Definition.DefName = proto.String("Pemmican")
 		stock.Items[0].DefName = proto.String("Pemmican")
 		stock.Items[0].Position.X = proto.Int32(17)
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			if arg.Tool != "rimgovernor/observations_list_supplies" {
 				t.Fatal(arg.Tool)
 			}
@@ -96,7 +95,7 @@ func TestSupplyCensusRequiresCompleteExactScopedItems(t *testing.T) {
 }
 func TestSupplyFixedCapabilityAndReceiptCorrelation(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
@@ -142,7 +141,7 @@ func TestSupplyProgressRequiresObservedOutcome(t *testing.T) {
 			if kind == "unknown" {
 				v.Effect = &r.Progress_Unknown{Unknown: &r.UnknownEffect{}}
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/receipts_observe_progress" {
 					t.Fatal(arg.Tool)
 				}

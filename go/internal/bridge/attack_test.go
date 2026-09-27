@@ -9,7 +9,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -44,7 +43,7 @@ func attackTestProgress() *r.Progress {
 }
 func TestAttackFixedMeleeSDK(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		switch arg.Tool {
 		case "rimgovernor/operations_preview":
@@ -98,7 +97,7 @@ func rangedTestReceipt() *r.Receipt {
 }
 func TestAttackFixedRangedSDK(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		switch arg.Tool {
 		case "rimgovernor/operations_preview":
@@ -153,7 +152,7 @@ func TestAttackCompletionAfterManualAndLostReadback(t *testing.T) {
 				j.Drafted = proto.Bool(false)
 				j.DraftClaimId = nil
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: progress}}), nil
 			}}, time.Second)
 			got, _, err := client.ObserveAttackProgress(context.Background(), attackTestAttempt(), original)
@@ -165,7 +164,7 @@ func TestAttackCompletionAfterManualAndLostReadback(t *testing.T) {
 }
 func TestAttackGuardedInputsNeverCall(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) { calls++; return nil, nil }}, time.Second)
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) { calls++; return nil, nil }}, time.Second)
 	control, _ := NewAttackControl(client)
 	for name, edit := range map[string]func(*o.AttackTarget){"auto": func(v *o.AttackTarget) { v.Mode = o.AttackMode_ATTACK_MODE_AUTO.Enum() }, "unspecified": func(v *o.AttackTarget) { v.Mode = o.AttackMode_ATTACK_MODE_UNSPECIFIED.Enum() }, "missing guard": func(v *o.AttackTarget) { v.RequireHostile = nil }, "same target": func(v *o.AttackTarget) { v.Target.EntityId = proto.String("pawn") }, "target CAS": func(v *o.AttackTarget) { v.Target.ExpectedSnapshotToken = nil }, "unknown field": func(v *o.AttackTarget) { v.ProtoReflect().SetUnknown([]byte{0xa0, 6, 1}) }} {
 		t.Run(name, func(t *testing.T) {

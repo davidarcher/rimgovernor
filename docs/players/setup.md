@@ -25,10 +25,8 @@ installed.
 On open, the launcher checks each artifact and rebuilds whatever is stale,
 showing its output in the Log panel:
 
-- **GABS bridge**: downloads the pinned GABS v1.1.1 release into
-  `.rimgovernor/bridge/gabs/` and verifies its SHA-256.
 - **Game layout**: a private RimWorld copy at `.rimgovernor/native-rimworld`
-  (junctioned to your Steam install) and the GABS config, profile and baseline
+  (junctioned to your Steam install) and the launch config, profile and baseline
   save under `.rimgovernor/bridge`. Your normal saves and mod list are untouched.
 - **Native mod**: the production build of `integrations/rimgovernor-native`,
   rebuilt when its sources change. It is never replaced while the private game

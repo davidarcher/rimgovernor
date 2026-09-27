@@ -11,7 +11,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// acquireReplay is a fake GABS answering the two wire calls
+// acquireReplay is a fake bridge answering the two wire calls
 // ScenarioClock.Acquire issues (authority status, then SetMode Auto).
 func acquireReplay(t *testing.T, identity map[string]any) *bridge.Replay {
 	t.Helper()

@@ -3910,7 +3910,7 @@ namespace RimGovernor.Protocol.Lifecycle {
 
     private string requestId_;
     /// <summary>
-    /// Before a map exists, instance ownership is validated by the GABS adapter.
+    /// Before a map exists, instance ownership is validated by the Go controller gamehost adapter.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

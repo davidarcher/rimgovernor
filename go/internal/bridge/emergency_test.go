@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -29,7 +28,7 @@ func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 	original := emergencyFixture()
 	original.Context.NativeGeneration = nil
 	original.Colonists.Context.NativeGeneration = nil
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_status" {
 			t.Fatal(arg.Tool)
 		}
@@ -126,7 +125,7 @@ func TestEmergencyContradictoryMalformedFacts(t *testing.T) {
 }
 func TestEmergencyUnavailableAndRefusal(t *testing.T) {
 	for _, refused := range []bool{false, true} {
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			if refused {
 				result := pbResult(&o.StatusReply{Outcome: &o.StatusReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}}})
 				result.IsError = true

@@ -571,12 +571,11 @@ func waitPlanTerminal(ctx context.Context, s *store.Store, w Wait, planID domain
 }
 
 // ReopenSession retries OpenBridgeSession for a few seconds after a service stop,
-// since the killed service's own GABS subprocess releases the game slot
-// asynchronously.
-func ReopenSession(ctx context.Context, gabsExecutable, configuration, gameID string) (*bridge.Client, error) {
+// since the game frees a killed service's GABP slot asynchronously.
+func ReopenSession(ctx context.Context, configuration, gameID string) (*bridge.Client, error) {
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		c, err := OpenBridgeSession(ctx, gabsExecutable, configuration, gameID, 60*time.Second)
+		c, err := OpenBridgeSession(ctx, configuration, gameID, 60*time.Second)
 		if err == nil {
 			return c, nil
 		}

@@ -8,7 +8,7 @@ import (
 
 // callTiming splits one Client.operation into the phases a flight-recorder
 // consumer can attribute: waiting for the concurrency gate, the MCP round
-// trip through GABS, decoding the raw MCP receipt, and, for typed adapters,
+// trip over GABP, decoding the receipt, and, for typed adapters,
 // ProtoJSON reply decoding. The round trip's native share (main-thread
 // queueing and the tool body) is reported by the companion inside the reply
 // wrapper and split out by nativeTiming. It is
@@ -89,7 +89,7 @@ func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 	return report, true
 }
 
-// nativeToolOf names the inner native tool for the GABS wrappers that carry
+// nativeToolOf names the inner native tool for the wrappers that carry
 // one, so phase totals aggregate per rimgovernor/* method rather than under
 // games_call_tool. Other core tools report their own name.
 func nativeToolOf(name string, arguments json.RawMessage) string {

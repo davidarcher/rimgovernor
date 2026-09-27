@@ -130,8 +130,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.SetOutput(diagnostics)
 	observe := flags.Bool("observe", false, "observe an already running game without acquiring control or writing to it")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory (required unless --observe)")
-	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
-	flags.StringVar(&c.bridge.ConfigDir, "config", "", "absolute GABS configuration directory")
+	flags.StringVar(&c.bridge.Launch.StateDir, "config", "", "absolute game configuration directory: config.json describes the launch and the running game's endpoint record lives under it")
 	flags.StringVar(&c.bridge.GameID, "game", "", "configured game ID")
 	flags.StringVar(&c.state, "state", "", "absolute fresh Go SQLite database path")
 	flags.StringVar(&c.assets, "assets", "", "absolute built dashboard directory (optional)")
@@ -183,8 +182,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
 	}
-	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Executable) || !filepath.IsAbs(c.bridge.ConfigDir) || c.bridge.GameID == "" {
-		return c, errors.New("absolute --state, --gabs, --config and a --game ID are required")
+	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Launch.StateDir) || c.bridge.GameID == "" {
+		return c, errors.New("absolute --state, --config and a --game ID are required")
 	}
 	host, port, err := net.SplitHostPort(c.listen)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
@@ -345,7 +344,7 @@ func (c serveConfig) activeRoutineFamilies() []string {
 	return names
 }
 
-// Validate before opening GABS or creating state. The HTTP server subsequently
+// Validate before opening the game session or creating state. The HTTP server subsequently
 // opens and retains its own confined directory handle for serving.
 func validateAssets(directory string) (result error) {
 	if !filepath.IsAbs(directory) {
@@ -411,7 +410,9 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 }
 
 func serveReadOnly(ctx context.Context, config serveConfig, out io.Writer) (result error) {
-	return serveWithBridge(ctx, config, out, func(ctx context.Context, c bridge.ProcessConfig) (serviceBridge, error) { return bridge.Open(ctx, c) })
+	return serveWithBridge(ctx, config, out, func(ctx context.Context, c bridge.ProcessConfig) (serviceBridge, error) {
+		return openConfigured(ctx, c)
+	})
 }
 
 type serviceBridge interface {
@@ -475,4 +476,15 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 		return err
 	}
 	return server.Serve(ctx, listener)
+}
+
+// openConfigured opens a bridge session whose launch spec is read from
+// games.<id> of the --config directory's config.json.
+func openConfigured(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
+	launch, err := bridge.LaunchSpecFromConfig(config.Launch.StateDir, config.GameID)
+	if err != nil {
+		return nil, err
+	}
+	config.Launch = launch
+	return bridge.Open(ctx, config)
 }

@@ -7,16 +7,14 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // TestReadTallyCountsPerStepAndSummarizes: calls made under a tallied context
-// are counted by native tool (describe round trips under their GABS wrapper),
+// are counted by native tool (describe round trips under their wrapper),
 // Publish leaves one clock_step row per step, and the profiler reports
 // reads per step from those rows.
 func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil
 	}}
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
@@ -83,7 +81,7 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 // The schema fetch before a tool's first call is a session cost, tallied
 // apart from the step's reads (issue #180).
 func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoaded()), nil
 	}}
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")

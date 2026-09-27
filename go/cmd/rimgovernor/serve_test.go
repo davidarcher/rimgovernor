@@ -24,7 +24,7 @@ import (
 
 func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	if _, err := parseServe(base, io.Discard); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 
 func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	if _, err := parseServe(append(append([]string{}, base...), "--flight-recorder", "relative.jsonl"), io.Discard); err == nil {
 		t.Fatal("accepted relative --flight-recorder path")
 	}
@@ -66,7 +66,7 @@ func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 	if err != nil || config.flightRecorder != explicit {
 		t.Fatalf("explicit ring: %q %v", config.flightRecorder, err)
 	}
-	observe := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	observe := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	if config, err = parseServe(observe, io.Discard); err != nil || config.flightRecorder != "" {
 		t.Fatalf("--observe recorder: %q %v", config.flightRecorder, err)
 	}
@@ -74,7 +74,7 @@ func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 
 func TestServePprofIsOffUnlessAsked(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	config, err := parseServe(base, io.Discard)
 	if err != nil || config.pprof {
 		t.Fatalf("pprof on by default: %+v %v", config, err)
@@ -86,7 +86,7 @@ func TestServePprofIsOffUnlessAsked(t *testing.T) {
 
 func TestServeRejectsNonNumericPortsAndInvalidAssets(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	for _, port := range []string{"http", "", "-1", "+80", "65536", " 80"} {
 		if _, err := parseServe(append(append([]string{}, base...), "--listen", "127.0.0.1:"+port), io.Discard); err == nil {
 			t.Errorf("accepted port %q", port)
@@ -260,7 +260,7 @@ func TestServeStartupFailuresCloseResources(t *testing.T) {
 		return nil, errors.New("unexpected")
 	})
 	if err == nil || opened {
-		t.Fatal("occupied listener launched GABS")
+		t.Fatal("occupied listener opened the bridge")
 	}
 	cfg.listen = "127.0.0.1:0"
 	fake := &serviceFake{connectErr: errors.New("attach failed")}

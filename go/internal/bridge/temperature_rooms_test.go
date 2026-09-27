@@ -10,7 +10,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,7 +21,7 @@ func temperatureTestSnapshot() *o.RoomsSnapshot {
 
 func TestTemperatureRoomsTypedRead(t *testing.T) {
 	id := pbIdentity()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_list_rooms" {
 			t.Fatal(arg.Tool)
 		}
@@ -80,7 +79,7 @@ func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
 
 func TestTemperatureRoomsTypedRefusalAndUnavailable(t *testing.T) {
 	for _, unavailable := range []bool{false, true} {
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			reply := &o.ListRoomsReply{Outcome: &o.ListRoomsReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}}
 			if unavailable {
 				reply.Outcome = &o.ListRoomsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_LIMIT_EXCEEDED.Enum()}}

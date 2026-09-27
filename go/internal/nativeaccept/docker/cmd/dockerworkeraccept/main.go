@@ -1,6 +1,6 @@
 // Command dockerworkeraccept is the first Docker-acceptance slice: build the
 // containers/Dockerfile "worker" target, start one --network host worker
-// container against real Linux game/mods/profile/GABS inputs, prove it
+// container against real Linux game/mods/profile inputs, prove it
 // reports a connected native session over its own HTTP API (never via a
 // second bridge.Client -- see go/internal/nativeaccept/docker's package comment),
 // then stop it cleanly under the worker storage contract (docker.Storage:
@@ -27,7 +27,6 @@ func main() {
 	game := flag.String("game", "", "absolute host path to the Linux game build")
 	mods := flag.String("mods", "", "absolute host path to the shared platform Mods directory (Harmony/RimBridgeServer/RimGovernor); RimGovernor is treated as a stale snapshot and rebuilt fresh unless -no-native-build is set")
 	profile := flag.String("profile", "", "absolute host path to the prepared game profile (Config/Saves)")
-	gabs := flag.String("gabs", "", "absolute host path to the directory containing the Linux GABS binary")
 	configTemplate := flag.String("config-template", "", "absolute host path to a config.json whose games.<gameID> section already uses the container-internal /inputs/... paths")
 	gameID := flag.String("game-id", "rimgovernor-trial", "configured game ID")
 	image := flag.String("image", "rimgovernor-worker:local", "worker image tag")
@@ -43,7 +42,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	for name, value := range map[string]string{"game": *game, "mods": *mods, "profile": *profile, "gabs": *gabs, "config-template": *configTemplate, "output": *output} {
+	for name, value := range map[string]string{"game": *game, "mods": *mods, "profile": *profile, "config-template": *configTemplate, "output": *output} {
 		if value == "" {
 			fmt.Fprintf(os.Stderr, "-%s is required\n", name)
 			os.Exit(2)
@@ -67,7 +66,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *startupTimeout+2*time.Minute)
 	defer cancel()
 	err = run(ctx, runConfig{
-		source: *source, game: *game, mods: *mods, profile: *profile, gabs: *gabs,
+		source: *source, game: *game, mods: *mods, profile: *profile,
 		configTemplate: *configTemplate, gameID: *gameID, image: *image, noBuild: *noBuild,
 		noNativeBuild: *noNativeBuild, storage: storage,
 		output: *output, startupTimeout: *startupTimeout,
@@ -81,10 +80,10 @@ func main() {
 }
 
 type runConfig struct {
-	source, game, mods, profile, gabs, configTemplate, gameID, image, output string
-	noBuild, noNativeBuild                                                   bool
-	storage                                                                  docker.Storage
-	startupTimeout                                                           time.Duration
+	source, game, mods, profile, configTemplate, gameID, image, output string
+	noBuild, noNativeBuild                                             bool
+	storage                                                            docker.Storage
+	startupTimeout                                                     time.Duration
 }
 
 func run(ctx context.Context, cfg runConfig, report na.Report) error {
@@ -112,7 +111,7 @@ func run(ctx context.Context, cfg runConfig, report na.Report) error {
 	root := filepath.Join(cfg.output, "worker")
 	worker, err := docker.StartWorker(ctx, docker.WorkerConfig{
 		Docker: dockerBinary, Image: cfg.image,
-		Inputs:          docker.Inputs{Game: cfg.game, Mods: cfg.mods, Profile: cfg.profile, Gabs: cfg.gabs},
+		Inputs:          docker.Inputs{Game: cfg.game, Mods: cfg.mods, Profile: cfg.profile},
 		ConfigTemplate:  cfg.configTemplate,
 		Root:            root,
 		Name:            "rimgovernor-dockerworkeraccept-" + filepath.Base(cfg.output),

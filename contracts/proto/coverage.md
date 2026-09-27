@@ -1,6 +1,6 @@
 # Shared native contract coverage
 
-All 97 porting-baseline native-tool inventory rows: 54 owned home calls, 33 upstream SDK calls, eight GABS boundaries and two dispatch/discovery mechanisms. The baseline 55-export production census additionally contains home/play_until_event, mapped below. See [current native capabilities](../native-protobuf-cutover.md) for implemented exports. Family coverage does not prove adapter behavior or field completeness.
+All 97 porting-baseline native-tool inventory rows: 54 owned home calls, 33 upstream SDK calls, eight controller host boundaries and two dispatch/discovery mechanisms. The baseline 55-export production census additionally contains home/play_until_event, mapped below. See [current native capabilities](../native-protobuf-cutover.md) for implemented exports. Family coverage does not prove adapter behavior or field completeness.
 
 `controller/rimgovernor/*.py` citations below are frozen historical provenance from
 the Python baseline this mapping was captured against; that source tree was removed
@@ -10,15 +10,15 @@ discovered/mapped, not as live source links.
 
 | Baseline boundary | Canonical destination | Disposition | Inventory source |
 |---|---|---|---|
-| `games_start` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/bridge.py:106` |
-| `games_connect` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/bridge.py:147` |
-| `games_tool_names` | GABS discovery + canonical RPC descriptors | External discovery | `controller/rimgovernor/bridge.py:161` |
-| `games_tool_detail` | GABS discovery + canonical RPC descriptors | External discovery | `controller/rimgovernor/bridge.py:164` |
-| `games_call_tool` | GABS canonical RPC transport; arbitrary dispatch excluded | Transport | `controller/rimgovernor/bridge.py:167` |
+| `games_start` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:106` |
+| `games_connect` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:147` |
+| `games_tool_names` | Go bridge game backend discovery + canonical RPC descriptors | External discovery | `controller/rimgovernor/bridge.py:161` |
+| `games_tool_detail` | Go bridge game backend discovery + canonical RPC descriptors | External discovery | `controller/rimgovernor/bridge.py:164` |
+| `games_call_tool` | Go bridge GABP canonical RPC transport; arbitrary dispatch excluded | Transport | `controller/rimgovernor/bridge.py:167` |
 | `home/observation_batch` | Observations.ReadObservationBatch | Typed | `controller/rimgovernor/bridge.py:102` |
 | `home/placement_previews` | Placement.Preview | Typed | `controller/rimgovernor/bridge.py:102` |
 | `home/colony_identity` | Lifecycle.ReadIdentity | Typed | `controller/rimgovernor/bridge.py:108` |
-| `games_status` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/bridge.py:54` |
+| `games_status` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:54` |
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
 | `home/upkeep_home` | Operations.Preview / Execute: ExtendHome | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/upkeep_wall` | Operations.Preview / Execute: RemoveWall / ReleaseWallRemovals | Typed | `controller/rimgovernor/bridge_game.py:15` |
@@ -101,9 +101,9 @@ discovered/mapped, not as live source links.
 | `rimworld/set_camera_zoom` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:271` |
 | `rimworld/move_camera` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:275` |
 | `home/player_input` | PlayerPresentation.LeaseInput / SendInput; PresentationReads.InputStateRead | Typed | `controller/rimgovernor/dashboard_controls.py:73` |
-| `games_kill` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/native_trials.py:112` |
+| `games_kill` | Go controller gamehost process adapter | External host | `controller/rimgovernor/native_trials.py:112` |
 | `rimworld/save_game` | Lifecycle.Save / ReadSave | Typed | `controller/rimgovernor/session_checkpoint.py:48` |
-| `games_stop` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/session_checkpoint.py:92` |
+| `games_stop` | Go controller gamehost process adapter | External host | `controller/rimgovernor/session_checkpoint.py:92` |
 | `home/video_stream` | PresentationMedia.LeaseVideo / ReadFrame / AcknowledgeFrame | Typed | `controller/rimgovernor/video_stream.py:169` |
 | `dynamic-discovery` | Generated capability descriptors and closed read/preview/write branches | Inventory mechanism | `controller/rimgovernor/bridge.py` |
 | `argument-sensitive-dispatch` | Generated capability descriptors and closed read/preview/write branches | Inventory mechanism | `controller/rimgovernor/bridge_game.py` |
@@ -121,13 +121,13 @@ The nine canonical schemas divide ownership as follows:
 | [common.proto](common.proto) | Identity, observation context, correlation, failures, availability and page metadata. |
 | [authority.proto](authority.proto) | Explicit acquisition/renewal/revocation and native single-writer authority status. |
 | [clock.proto](clock.proto) | Bounded supervised ticks, epoch ownership, safety stops, journal and admitted clock receipt lookup. |
-| [lifecycle.proto](lifecycle.proto) | Native identity, save/load and correlated completion reads; GABS still owns process lifetime. |
+| [lifecycle.proto](lifecycle.proto) | Native identity, save/load and correlated completion reads; the Go controller gamehost owns process lifetime. |
 | [placement.proto](placement.proto) | Ordinary native placement candidate evaluation and complete bounded site/cost facts. |
 | [operations.proto](operations.proto) | One concrete ordinary mutation per guarded attempt, previews and owned draft cleanup. |
 | [receipts.proto](receipts.proto) | Attributed admitted effects, attempt lookup and subsequent correlated progress. |
 | [observations.proto](observations.proto) | Simulation reads, definition catalogs, complete/paged observations and scoped mutation preconditions. |
 | [presentation.proto](presentation.proto) | Explicit player camera/selection/UI/input and separately bounded media capture. |
 
-Authority, guarded attempt lookup and progress are new shared capabilities rather than additional legacy SDK calls. Their typed schemas do not create a second goal system, process manager or native simulator. GABS discovery and games_call_tool carry only reviewed canonical RPC payloads; arbitrary names/argument dictionaries are not an execution fallback. Generated method descriptors are capability metadata, not permission.
+Authority, guarded attempt lookup and progress are new shared capabilities rather than additional legacy SDK calls. Their typed schemas do not create a second goal system, process manager or native simulator. Go bridge discovery and games_call_tool carry only reviewed canonical RPC payloads; arbitrary names/argument dictionaries are not an execution fallback. Generated method descriptors are capability metadata, not permission.
 
 For branch-level semantics and remaining implementation requirements, see [operation coverage](operation-coverage.md), [observation coverage](observation-coverage.md), [clock/lifecycle coverage](clock-lifecycle-coverage.md), [placement coverage](placement-coverage.md), [presentation coverage](presentation-coverage.md) and the [shared validation rules](README.md). Preview/write separation, unknown versus empty facts, native rule checks, explicit player authority and observation before uncertain-write retry remain required regardless of which historical call supplied a capability.

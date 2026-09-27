@@ -38,7 +38,7 @@ func (f *reattachFake) Reattach(ctx context.Context) error {
 	defer f.mu.Unlock()
 	f.attempts++
 	if f.attempts <= f.failures {
-		return errors.New("gabs still letting go")
+		return errors.New("game still letting go")
 	}
 	f.lost = make(chan struct{})
 	f.attached <- struct{}{}
@@ -77,7 +77,7 @@ func TestSuperviseBridgeReattachesWithBackoffUntilContextEnds(t *testing.T) {
 		t.Fatal("supervisor did not stop")
 	}
 	log := out.String()
-	if strings.Count(log, "GABS session lost") != 2 || !strings.Contains(log, "attempt 2 failed") || !strings.Contains(log, "reattached after 3 attempt(s)") || !strings.Contains(log, "reattached after 1 attempt(s)") {
+	if strings.Count(log, "game session lost") != 2 || !strings.Contains(log, "attempt 2 failed") || !strings.Contains(log, "reattached after 3 attempt(s)") || !strings.Contains(log, "reattached after 1 attempt(s)") {
 		t.Fatal(log)
 	}
 }

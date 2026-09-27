@@ -66,7 +66,7 @@ type Game struct {
 }
 
 // OpenGame opens a session on cfg's game the way every harness does
-// (GABSExecutable, OpenBridgeSession) and, when the process was already running,
+// (OpenBridgeSession) and, when the process was already running,
 // returns it to the main menu so the harness starts from the same state a
 // fresh launch would give it (unless cfg.KeepLoaded). A running process launched with a different
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
@@ -78,17 +78,17 @@ type Game struct {
 // say so. cfg must have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	started := time.Now()
-	gabsExecutable, err := GABSExecutable(cfg.Root, cfg.Configuration)
+	config, err := BridgeConfig(cfg.Configuration, cfg.GameID, 60*time.Second)
 	if err != nil {
 		return nil, err
 	}
-	config, err := WithRecording(bridge.ProcessConfig{Executable: gabsExecutable, ConfigDir: cfg.Configuration, GameID: cfg.GameID, Timeout: 60 * time.Second, Spawned: cfg.Spawned})
+	config, err = WithRecording(config)
 	if err != nil {
 		return nil, err
 	}
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("open GABS session: %w", err)
+		return nil, fmt.Errorf("open bridge session: %w", err)
 	}
 	// Evidence for the unloads goes under its own directory so its numbering
 	// never collides with the harness's own.
@@ -166,17 +166,13 @@ func (g *Game) Release() error {
 func (g *Game) Released() bool { return g.released }
 
 // Reattach reopens the harness's session on the same game after Release,
-// retrying for a while because a stopped service's own GABS subprocess
-// frees the slot asynchronously. The new client replaces g.Client.
+// retrying for a while because the game frees a stopped service's
+// GABP slot asynchronously. The new client replaces g.Client.
 func (g *Game) Reattach(ctx context.Context) (*bridge.Client, error) {
 	if !g.released {
 		return g.Client, nil
 	}
-	gabsExecutable, err := GABSExecutable(g.cfg.Root, g.cfg.Configuration)
-	if err != nil {
-		return nil, err
-	}
-	client, err := ReopenSession(ctx, gabsExecutable, g.cfg.Configuration, g.cfg.GameID)
+	client, err := ReopenSession(ctx, g.cfg.Configuration, g.cfg.GameID)
 	if err != nil {
 		return nil, fmt.Errorf("reattach harness session: %w", err)
 	}
@@ -235,7 +231,7 @@ func (g *Game) Close(report Report) {
 	_ = g.Client.Close()
 }
 
-// stopRunning attaches to the process GABS reports running and stops it,
+// stopRunning attaches to the process the bridge reports running and stops it,
 // waiting until it is gone, the way StopGame does for a batch; the client
 // stays open for the fresh games_start that follows.
 func stopRunning(ctx context.Context, client *bridge.Client) error {
@@ -253,9 +249,9 @@ func stopRunning(ctx context.Context, client *bridge.Client) error {
 	return nil
 }
 
-// awaitStopped polls games_status after games_stop until GABS reports the
+// awaitStopped polls games_status after games_stop until the bridge reports the
 // process gone (or ctx expires). Without it the next OpenGame under the
-// same root can race the teardown: GABS still reports the process
+// same root can race the teardown: the bridge still reports the process
 // connected, games_start attaches to it mid-game, and a fixture that needs
 // the main menu (test/configure_start) refuses -- observed generating a
 // manifest's second variant right after its first.
@@ -284,7 +280,7 @@ func awaitStopped(ctx context.Context, client *bridge.Client) {
 }
 
 // StopGame stops whatever game root owns (games_stop through the root's own
-// GABS configuration, headless first, then the windowed profile's kept
+// bridge configuration, headless first, then the windowed profile's kept
 // process if one was launched, StopRenderedGame) and waits for the process
 // to be gone; a root with nothing running is not an error. It is what ends
 // a batch of harnesses that kept the game (KeepGameEnv).
@@ -293,11 +289,7 @@ func StopGame(ctx context.Context, root, gameID string) error {
 	if _, err := os.Stat(configDir); err != nil {
 		configDir = filepath.Join(root, "config")
 	}
-	gabs, err := GABSExecutable(root, configDir)
-	if err != nil {
-		return err
-	}
-	client, err := OpenBridgeSession(ctx, gabs, configDir, gameID, 60*time.Second)
+	client, err := OpenBridgeSession(ctx, configDir, gameID, 60*time.Second)
 	if err != nil {
 		return err
 	}
@@ -333,11 +325,7 @@ func StopRenderedGame(ctx context.Context, root, gameID string) (bool, error) {
 	if _, err := os.Stat(record); err != nil {
 		return false, nil
 	}
-	gabs, err := GABSExecutable(root, configDir)
-	if err != nil {
-		return false, err
-	}
-	client, err := OpenBridgeSession(ctx, gabs, configDir, gameID, 60*time.Second)
+	client, err := OpenBridgeSession(ctx, configDir, gameID, 60*time.Second)
 	if err != nil {
 		return false, err
 	}

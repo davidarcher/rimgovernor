@@ -90,7 +90,7 @@ first fix failed. Every landing report ends with one line:
 - Open a pull request, or push to GitHub. GitHub holds issues only; the
   maintainer pushes `main` by hand.
 - `git reset --soft main` to squash, or edit the `main` checkout directly.
-- Kill `RimWorldWin64.exe` or `gabs.exe` by image name; peers' games run
+- Kill `RimWorldWin64.exe` by image name; peers' games run
   beside yours. Stop your own by root or pid (runbook).
 - Replace an installed DLL while any RimWorld instance is running, yours or
   a peer's.
@@ -201,7 +201,7 @@ Start with the [documentation map](docs/README.md), the
 [system overview](docs/developers/architecture/overview.md) and the
 [development process](docs/developers/development-process.md); read the
 component guide and contracts for the subsystem you change. Runtime: Go
-(`go/`), React (`dashboard/`), GABS/RimBridgeServer and
+(`go/`), React (`dashboard/`), RimBridgeServer (over GABP) and
 `integrations/rimgovernor-native`; native acceptance tooling is Go.
 
 Non-negotiables: RimWorld owns simulation and normal game rules hold

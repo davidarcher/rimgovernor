@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
@@ -37,13 +36,13 @@ func packProto(data []byte) string {
 }
 
 // pbBinaryResult is the wrapper a companion writes for encoding=proto-gzip.
-func pbBinaryResult(t *testing.T, message proto.Message) *mcp.CallToolResult {
+func pbBinaryResult(t *testing.T, message proto.Message) *callResult {
 	t.Helper()
 	data, err := proto.Marshal(message)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &mcp.CallToolResult{StructuredContent: encode(map[string]string{"proto": gzipBase64(t, data)})}
+	return &callResult{StructuredContent: encode(map[string]string{"proto": gzipBase64(t, data)})}
 }
 
 func TestDecodeWrapperBinaryForm(t *testing.T) {
@@ -99,8 +98,8 @@ type encodingServer struct {
 	encodings []string
 }
 
-func (b *encodingServer) handler(t *testing.T) func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
-	return func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+func (b *encodingServer) handler(t *testing.T) func(context.Context, nativeArgument) (*callResult, error) {
+	return func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer map[string]string
 		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
 			return nil, err

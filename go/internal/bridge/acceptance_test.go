@@ -5,13 +5,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestConnectWithPollRetriesStartupRefusal(t *testing.T) {
 	calls := 0
-	s := &testServer{connectHandler: func() (*mcp.CallToolResult, error) {
+	s := &testServer{connectHandler: func() (*callResult, error) {
 		calls++
 		if calls == 1 {
 			r := structured(`{"error":"listener not ready"}`)
@@ -29,22 +27,9 @@ func TestConnectWithPollRetriesStartupRefusal(t *testing.T) {
 	}
 }
 
-func TestConnectWithPollPreservesForeignOwnership(t *testing.T) {
-	calls := 0
-	s := &testServer{connectHandler: func() (*mcp.CallToolResult, error) {
-		calls++
-		return structured(`{"foreignOwner":true,"message":"owned by peer"}`), nil
-	}}
-	c := testClient(t, s, testBudget)
-	_, err := c.ConnectWithPoll(context.Background(), Result{})
-	if !errors.Is(err, ErrRefused) || !strings.Contains(err.Error(), "owned by peer") || calls != 1 {
-		t.Fatalf("calls=%d error=%v", calls, err)
-	}
-}
-
 func TestConnectWithPollWaitsForUnpublishedStartupEndpoint(t *testing.T) {
 	calls := 0
-	s := &testServer{connectHandler: func() (*mcp.CallToolResult, error) {
+	s := &testServer{connectHandler: func() (*callResult, error) {
 		calls++
 		if calls <= 6 {
 			r := structured(`{"error":"runtime claim carries no attachable endpoint yet"}`)
@@ -65,7 +50,7 @@ func TestConnectWithPollWaitsForUnpublishedStartupEndpoint(t *testing.T) {
 func TestConnectWithPollCancelsRetry(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s := &testServer{connectHandler: func() (*mcp.CallToolResult, error) {
+	s := &testServer{connectHandler: func() (*callResult, error) {
 		cancel()
 		r := structured(`{"error":"listener not ready"}`)
 		r.IsError = true

@@ -26,7 +26,6 @@ go run ./cmd/remotebundle pack -repo C:\rg\src `
   -harmony C:\inputs\Harmony\Current\Assemblies\0Harmony.dll `
   -harmony-mod C:\inputs\Harmony -harmony-version <assembly-version> `
   -bridge C:\inputs\RimBridgeServer -bridge-version <version> `
-  -gabs C:\inputs\gabs.exe -gabs-version <version> `
   -origin davidarcher/rimgovernor -release-id <numeric-id> `
   -recipient <age-public-recipient> -key-id <rotation-label> `
   -7z C:\tools\7zr.exe -age C:\tools\age.exe -out C:\rg\bundle
@@ -38,7 +37,7 @@ license notices. All Core/Unity media is retained; the media removal allowlist
 is empty. Rendered cases therefore retain their textures/shaders but still need
 a suitable display/graphics environment; headless extraction does not prove
 rendered-case support. Expansions, other mods, profiles and player saves are not
-selected. Harmony, the bridge runtime/SDK and GABS are separate inventoried
+selected. Harmony and the bridge runtime/SDK are separate inventoried
 components. Source junctions are materialized into regular files. Packaging
 never writes to the source install or copies branch-built RimGovernor binaries.
 
@@ -140,19 +139,19 @@ provision/restore/extract/build/total timings in `job/bootstrap.json`. It checks
 disk against declared archive/extracted sizes before extraction and runs
 `acceptance doctor` after setup. All dependencies are explicit through
 `acceptance setup -explicit -layout ... -rimworld ... -bridge ... -sdk ...
--harmony ... -harmony-mod ... -gabs ...`; Steam, sibling worktrees and player preferences are
+-harmony ... -harmony-mod ...`; Steam, sibling worktrees and player preferences are
 unused. The game copy's internal junctions target that job's verified extracted
 dependencies, never the developer machine.
 
 Fixture and production roles use separate work directories and must both finish
-setup before their games start. Run each shard with one worker. GABS and native
-acceptance retain their existing root-specific port allocation. Setup refuses
-to replace game/GABS files or rebuild binaries while an owned game/harness is
+setup before their games start. Run each shard with one worker. Native
+acceptance retains their existing root-specific port allocation. Setup refuses
+to replace game files or rebuild binaries while an owned game/harness is
 running. The optional suite uses the planner's projection, a fresh output and a
 45-minute timeout. Its observed native postconditions, not bootstrap success,
 are the gameplay verdict.
 
-The script cleans its own game/GABS/controller/acceptance PIDs in `finally`.
+The script cleans its own game/controller/acceptance PIDs in `finally`.
 The workflow must also call `cleanup_remote.ps1 -Work <job-work>` in an
 `always()` cancellation step, then discard the job's plaintext directory and
 identity. Cleanup matches executable directory boundaries and never sweeps

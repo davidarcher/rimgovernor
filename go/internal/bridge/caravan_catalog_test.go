@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -26,7 +25,7 @@ func caravanCatalogFixture() *o.CaravanCatalog {
 }
 func TestReadCaravanCatalogAcceptsValidObservation(t *testing.T) {
 	catalog := caravanCatalogFixture()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_caravan_catalog" {
 			t.Fatal(arg.Tool)
 		}
@@ -51,7 +50,7 @@ func TestReadCaravanCatalogAcceptsValidObservation(t *testing.T) {
 	}
 }
 func TestReadCaravanCatalogRejectsInvalidInputs(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid request dispatched")
 		return nil, nil
 	}}, time.Second)
@@ -77,7 +76,7 @@ func TestReadCaravanCatalogMalformedEvidence(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			catalog := caravanCatalogFixture()
 			edit(catalog)
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&o.CaravanCatalogReply{Outcome: &o.CaravanCatalogReply_Observed{Observed: catalog}}), nil
 			}}, time.Second)
 			if _, _, err := client.ReadCaravanCatalog(context.Background(), pbIdentity(), 42); err == nil {

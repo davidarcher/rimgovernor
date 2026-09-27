@@ -1,7 +1,7 @@
 //go:build windows
 
 // Command launcher is the double-click RimGovernor launcher: it brings the
-// controller, native mod, dashboard, GABS and game layout up to date, then
+// controller, native mod, dashboard and game layout up to date, then
 // starts and stops `rimgovernor serve` from a small WebView2 window.
 // Build it once from go/:
 //

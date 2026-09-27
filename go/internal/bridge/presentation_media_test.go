@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -19,7 +18,7 @@ func pbPlayerIdentity() *p.PlayerIdentity { return &p.PlayerIdentity{Identity: p
 var minimalPNG = []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}
 
 func TestReadRenderState(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: pbContext(), Supported: proto.Bool(true), Suspended: proto.Bool(false), WindowVisible: proto.Bool(true), RemainingLeaseMs: proto.Uint32(2500)}}}), nil
 	}}
 	client := testClient(t, server, testBudget)
@@ -32,7 +31,7 @@ func TestReadRenderState(t *testing.T) {
 	}
 }
 func TestReadRenderStateUnavailable(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: pbContext(), Supported: proto.Bool(false), Suspended: proto.Bool(true),
 			Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum(), Detail: proto.String("Startup headless mode cannot render")}}}}), nil
 	}}
@@ -43,7 +42,7 @@ func TestReadRenderStateUnavailable(t *testing.T) {
 	}
 }
 func TestDemandRenderingBounds(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("native call must not happen for an invalid request")
 		return nil, nil
 	}}, time.Second)
@@ -62,7 +61,7 @@ func TestDemandRenderingBounds(t *testing.T) {
 	}
 }
 func TestDemandRenderingSuccess(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: pbContext(), Supported: proto.Bool(true), Suspended: proto.Bool(false), WindowVisible: proto.Bool(true), RemainingLeaseMs: proto.Uint32(5000)}}}), nil
 	}}
 	client := testClient(t, server, testBudget)
@@ -77,7 +76,7 @@ func TestDemandRenderingSuccess(t *testing.T) {
 }
 func TestDemandRenderingRefused(t *testing.T) {
 	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		reply := pbResult(&p.RenderReply{Outcome: &p.RenderReply_Failure{Failure: failureValue}})
 		reply.IsError = true
 		return reply, nil
@@ -93,7 +92,7 @@ func TestDemandRenderingRefused(t *testing.T) {
 	}
 }
 func TestCapturePawnValidation(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("native call must not happen for an invalid request")
 		return nil, nil
 	}}, time.Second)
@@ -121,7 +120,7 @@ func TestCapturePawnSuccess(t *testing.T) {
 		{p.PawnView_PAWN_VIEW_PORTRAIT, p.CaptureMethod_CAPTURE_METHOD_PORTRAIT, 192, 192},
 		{p.PawnView_PAWN_VIEW_FOLLOW, p.CaptureMethod_CAPTURE_METHOD_OFFSCREEN_FOLLOW, 640, 400},
 	} {
-		server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			return pbResult(&p.PawnImageReply{Outcome: &p.PawnImageReply_Image{Image: &p.PawnImage{PawnId: proto.String("p1"), View: tc.view.Enum(),
 				Frame: &p.MediaFrame{Width: proto.Uint32(tc.width), Height: proto.Uint32(tc.height), Encoding: p.MediaEncoding_MEDIA_ENCODING_PNG.Enum(),
 					CaptureMethod: tc.method.Enum(), CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(12.5), Data: minimalPNG}}}}), nil
@@ -139,7 +138,7 @@ func TestCapturePawnSuccess(t *testing.T) {
 }
 func TestCapturePawnFailureAndMismatch(t *testing.T) {
 	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum(), Detail: proto.String("Colonist is no longer visible on the current map")}
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		reply := pbResult(&p.PawnImageReply{Outcome: &p.PawnImageReply_Failure{Failure: failureValue}})
 		reply.IsError = true
 		return reply, nil
@@ -156,7 +155,7 @@ func TestCapturePawnFailureAndMismatch(t *testing.T) {
 
 	// Native returning the wrong capture_method for the requested view is a
 	// contract violation, not a value CapturePawn should pass through.
-	wrongMethod := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	wrongMethod := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.PawnImageReply{Outcome: &p.PawnImageReply_Image{Image: &p.PawnImage{PawnId: proto.String("p1"), View: p.PawnView_PAWN_VIEW_PORTRAIT.Enum(),
 			Frame: &p.MediaFrame{Width: proto.Uint32(192), Height: proto.Uint32(192), Encoding: p.MediaEncoding_MEDIA_ENCODING_PNG.Enum(),
 				CaptureMethod: p.CaptureMethod_CAPTURE_METHOD_OFFSCREEN_FOLLOW.Enum(), CapturedUnixMs: proto.Int64(1), ReadbackMs: proto.Float64(1), Data: minimalPNG}}}}), nil
@@ -186,7 +185,7 @@ func pbVideoState(active bool) *p.VideoState {
 	return state
 }
 func TestLeaseVideoValidation(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("native call must not happen for an invalid request")
 		return nil, nil
 	}}, time.Second)
@@ -211,7 +210,7 @@ func TestLeaseVideoValidation(t *testing.T) {
 	}
 }
 func TestLeaseVideoStartSuccess(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.VideoReply{Outcome: &p.VideoReply_State{State: pbVideoState(true)}}), nil
 	}}
 	client := testClient(t, server, testBudget)
@@ -225,7 +224,7 @@ func TestLeaseVideoStartSuccess(t *testing.T) {
 	}
 }
 func TestLeaseVideoStopSuccess(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.VideoReply{Outcome: &p.VideoReply_State{State: pbVideoState(false)}}), nil
 	}}
 	client := testClient(t, server, testBudget)
@@ -240,7 +239,7 @@ func TestLeaseVideoStopSuccess(t *testing.T) {
 }
 func TestLeaseVideoRefused(t *testing.T) {
 	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		reply := pbResult(&p.VideoReply{Outcome: &p.VideoReply_Failure{Failure: failureValue}})
 		reply.IsError = true
 		return reply, nil
@@ -255,7 +254,7 @@ func TestLeaseVideoRefused(t *testing.T) {
 	}
 }
 func TestReadFrameValidation(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("native call must not happen for an invalid request")
 		return nil, nil
 	}}, time.Second)
@@ -271,7 +270,7 @@ func TestReadFrameValidation(t *testing.T) {
 	}
 }
 func TestReadFrameSuccess(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
 			Frame: &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(7)},
 			Width: proto.Uint32(1920), Height: proto.Uint32(1080),
@@ -297,7 +296,7 @@ func TestReadFrameSuccess(t *testing.T) {
 // bounds a hang: an 8 MiB frame crosses the JSON transport in seconds under
 // a whole-module -race pass (#343), and its latency is not what this checks.
 func TestReadFrameAcceptsAFullSizeFrame(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
 			Frame: &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(8)},
 			Width: proto.Uint32(1920), Height: proto.Uint32(1080),
@@ -318,7 +317,7 @@ func TestReadFrameAcceptsAFullSizeFrame(t *testing.T) {
 	}
 }
 func TestReadFrameInvalidReference(t *testing.T) {
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
 			Width: proto.Uint32(1920), Height: proto.Uint32(1080),
 			Encoding:       p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum(),
@@ -336,7 +335,7 @@ func TestReadFrameInvalidReference(t *testing.T) {
 	}
 }
 func TestAcknowledgeFrameValidationAndSuccess(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("native call must not happen for an invalid request")
 		return nil, nil
 	}}, time.Second)
@@ -352,7 +351,7 @@ func TestAcknowledgeFrameValidationAndSuccess(t *testing.T) {
 	}
 
 	ref := &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(9)}
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: ref}}}), nil
 	}}
 	client2 := testClient(t, server, testBudget)
@@ -368,7 +367,7 @@ func TestAcknowledgeFrameValidationAndSuccess(t *testing.T) {
 func TestAcknowledgeFrameMismatch(t *testing.T) {
 	ref := &p.FrameReference{SourceId: proto.String("s"), Sequence: proto.Uint64(1)}
 	other := &p.FrameReference{SourceId: proto.String("s"), Sequence: proto.Uint64(2)}
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: other}}}), nil
 	}}
 	client := testClient(t, server, testBudget)
@@ -383,7 +382,7 @@ func TestAcknowledgeFrameMismatch(t *testing.T) {
 func TestAcknowledgeFrameRefused(t *testing.T) {
 	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
 	ref := &p.FrameReference{SourceId: proto.String("s"), Sequence: proto.Uint64(1)}
-	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		reply := pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Refusal{Refusal: failureValue}})
 		reply.IsError = true
 		return reply, nil

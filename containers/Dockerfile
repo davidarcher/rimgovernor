@@ -13,9 +13,9 @@ RUN pnpm run typecheck && pnpm run test && pnpm run build
 # being rebuilt in Go, tracked separately). Also the last stage, so a
 # plain `docker build` with no --target builds this. Builds and packages
 # the Go binary and the dashboard static assets with no Python runtime or
-# dependencies. The binary itself still starts the native GABS bridge as a
-# subprocess (see go/internal/bridge and go/cmd/rimgovernor/serve.go), so a
-# real serve session needs a Linux GABS build, a prepared profile/state
+# dependencies. The binary itself launches RimWorld (go/internal/gamehost, from the
+# --config directory's config.json) and talks GABP to RimBridgeServer, so a
+# real serve session needs a Linux game build, a prepared profile/state
 # path and, because --listen only accepts a loopback address, host-style
 # networking (`docker run --network host` or compose `network_mode: host`)
 # rather than bridge port publishing. `version`/`help`/flag-validation
@@ -33,7 +33,7 @@ RUN go build -o /out/rimgovernor ./cmd/rimgovernor
 # Docker acceptance worker (go/internal/nativeaccept/docker): the same rimgovernor
 # binary as go-controller, plus the shared-library set a headless (or Xvfb-
 # rendered) Unity/RimWorld process needs, which go-controller has no reason to
-# carry. Game, mods and GABS binary are bind-mounted read-only at run time
+# carry. Game and mods are bind-mounted read-only at run time
 # (rimgovernor-dockeraccept/#38); nothing license-bearing is baked into this
 # image. Kept before go-controller so a plain `docker build` with no --target
 # still builds go-controller by default.

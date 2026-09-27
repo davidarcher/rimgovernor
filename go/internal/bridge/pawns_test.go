@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,7 +22,7 @@ func TestPawnsFixedReadPreservesUnknown(t *testing.T) {
 	id := pbIdentity()
 	ids := []string{"pawn-1", "absent"}
 	snapshot := pawnsTestSnapshot()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_list_pawns" {
 			t.Fatal(arg.Tool)
 		}
@@ -55,7 +54,7 @@ func TestPawnsFixedReadPreservesUnknown(t *testing.T) {
 }
 func TestPawnsRequestRejectsBeforeCall(t *testing.T) {
 	for _, ids := range [][]string{nil, {""}, {"pawn", "pawn"}, make([]string, 257), {"bad\x00id"}} {
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			t.Fatal("invalid request dispatched")
 			return nil, nil
 		}}, time.Second)
@@ -157,7 +156,7 @@ func TestPawnsTypedFailuresAndEmptyQuery(t *testing.T) {
 				v.Completeness.Returned = proto.Uint64(0)
 				reply.Outcome = &o.ListPawnsReply_Observed{Observed: v}
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				result := pbResult(reply)
 				if kind == "failure" {
 					result.IsError = true
@@ -202,7 +201,7 @@ func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
 	status.Colonists.Pawns = []*o.PawnState{emergencyRow("pawn-1")}
 	status.Colonists.Pawns[0].Job = proto.Clone(job).(*o.JobEvidence)
 	status.Colonists.Completeness = emergencyCounts(1)
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		switch arg.Tool {
 		case "rimgovernor/observations_list_pawns":
 			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil

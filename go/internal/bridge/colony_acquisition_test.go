@@ -10,8 +10,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
@@ -94,7 +92,7 @@ func TestReadAcquisitionFollowsAHuntByAnimal(t *testing.T) {
 	v.Issues = nil
 	v.Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
 	id := proto.Clone(v.Context.Identity).(*c.Identity)
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(r), nil
 	}}, time.Second)
 	planned := domain.Cell{X: center.GetX(), Z: center.GetZ()}

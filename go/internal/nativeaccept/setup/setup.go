@@ -92,7 +92,7 @@ func Run(ctx context.Context, o Options) (*Summary, error) {
 	if o.Inputs == nil {
 		return nil, errors.New("setup requires discovered inputs")
 	}
-	// Refuse before copying game/GABS files or rebuilding binaries, not only
+	// Refuse before copying game files or rebuilding binaries, not only
 	// before installing the mod. A running harness owns all these inputs.
 	processes, err := ListProcesses(append(append([]string{}, HarnessImages...), "acceptance.exe")...)
 	if err != nil {
@@ -111,8 +111,8 @@ func Run(ctx context.Context, o Options) (*Summary, error) {
 		s.Changes = append(s.Changes, line)
 		fmt.Fprintln(o.Log, line)
 	}
-	fmt.Fprintf(o.Log, "worktree  %s\nrimworld  %s (%s)\nharmony   %s (%s)\ngabs      %s (%s)\n",
-		l.Repo, o.Inputs.RimWorldDir, o.Inputs.Sources["rimworld"], o.Inputs.Harmony, o.Inputs.Sources["harmony"], o.Inputs.GABS, o.Inputs.Sources["gabs"])
+	fmt.Fprintf(o.Log, "worktree  %s\nrimworld  %s (%s)\nharmony   %s (%s)\n",
+		l.Repo, o.Inputs.RimWorldDir, o.Inputs.Sources["rimworld"], o.Inputs.Harmony, o.Inputs.Sources["harmony"])
 
 	if err := gameCopy(o.Inputs.RimWorldDir, l.GameCopy, o.Inputs.BridgeDir, note); err != nil {
 		return s, fmt.Errorf("game copy: %w", err)
@@ -281,19 +281,13 @@ func copyTree(from, to string) (int, error) {
 	return n, err
 }
 
-// bridgeRoot makes root a GABS worker root for the copy: gabs.exe,
+// bridgeRoot makes root a worker root for the copy:
 // config/config.json launching the copy's exe with root's profile,
 // profile/Config with a Prefs.xml (the player's own when RimWorld has
 // been run on this machine, else a minimal one; Prepare trims either) and
 // a ModsConfig.xml for the core game plus the bridge and our package, and
 // the committed baseline save under profile/Saves.
 func bridgeRoot(l Layout, in *Inputs, note func(string, ...any)) error {
-	gabs := filepath.Join(l.Root, filepath.FromSlash(GABSRelative))
-	if n, err := copyIfChanged(in.GABS, gabs); err != nil {
-		return err
-	} else if n > 0 {
-		note("installed %s", gabs)
-	}
 	configPath := filepath.Join(l.Root, "config", "config.json")
 	want := RenderConfig(l)
 	if current, err := os.ReadFile(configPath); err != nil || string(current) != want {

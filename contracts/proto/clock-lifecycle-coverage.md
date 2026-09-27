@@ -12,7 +12,7 @@ remain in N01; schema compilation alone does not establish these behaviors.
 | `home/colony_identity`, Runtime `Persistence/ColonyIdentity.cs` | `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick, explicit capability availability. Initialization belongs load hooks, not identity reads. |
 | `rimworld/save_game`, `session_checkpoint.py:create_checkpoint` | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
 | `rimworld/load_game_ready`, `bridge_runtime.py` | `lifecycle.Lifecycle.Load` | Existing SDK lifecycle adapter; distinguish pending/map/visual readiness, reread fresh native context. |
-| GABS `games_start`, `games_stop`, process attach/connect | Existing external GABS typed process adapter | GABS owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
+| `games_start`, `games_stop`, process attach/connect | Go controller gamehost process adapter | gamehost owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
 
 ## Clock validation
 

@@ -587,7 +587,7 @@ func SpeedRowProblems(required []SpeedCase, outcomes []SpeedOutcome, metrics []S
 // within the step made stale. Rows that ran no live step are skipped, and a
 // maxReads of 0 disables the check. The step's wall time is reported beside
 // it (live_step_ms_mean) but not bounded: wall measures the box and the
-// GABS transport floor, the call count measures this repository.
+// GABP transport floor, the call count measures this repository.
 func CheckLiveStepCost(rows []SpeedMetrics, maxReads float64) []string {
 	if maxReads <= 0 {
 		return nil

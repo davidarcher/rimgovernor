@@ -512,7 +512,7 @@ evidence at its own tick and the action returns to `Pending` for a fresh attempt
 instead of holding forever (#71). An admitted entry still in flight keeps holding
 until its receipt is recorded.
 Need-recovery admission previews likewise retain native refusals on the mood goal
-and can consider another measured need. GABS errors retain the requested tool identity
+and can consider another measured need. Bridge errors retain the requested tool identity
 even when the native payload omits it. Dispatch failures remain subject to Hands'
 existing uncertainty and observed-recovery contracts.
 Above eight colonists, starter sleeping uses verified room and native footprint fitting,

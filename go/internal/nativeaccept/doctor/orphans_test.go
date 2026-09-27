@@ -38,7 +38,7 @@ func TestOrphansAgainstKnownWorktrees(t *testing.T) {
 	procs := []setup.Process{
 		game(main, "live"),
 		game(main, "gone"),
-		{PID: 99, Name: "gabs.exe", Path: filepath.Join(main, ".claude", "worktrees", "gone", ".rimgovernor", "bridge", "gabs", "gabs.exe")},
+		{PID: 99, Name: "rimgovernor.exe", Path: filepath.Join(main, ".claude", "worktrees", "gone", ".rimgovernor", "bin", "rimgovernor.exe")},
 		game(other, "unknowable"),
 		{PID: 7, Name: "RimWorldWin64.exe", Path: filepath.Join(main, ".rimgovernor", "native-rimworld", "RimWorldWin64.exe")},
 	}

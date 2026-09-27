@@ -269,7 +269,7 @@ func InstalledExpansions(workingDir string) ([]string, error) {
 }
 
 // requireOwnedLaunch enforces launchMode == DirectPath and strips stopProcessName so
-// GABS uses its own recorded process identity instead of matching any process by name.
+// the launcher stops the process it recorded instead of matching any process by name.
 func requireOwnedLaunch(game map[string]any) error {
 	if mode, _ := game["launchMode"].(string); mode != "DirectPath" {
 		return fmt.Errorf("disposable profiles require DirectPath PID-owned launches")
@@ -526,7 +526,7 @@ func ClearStaleClockJournal(configDir string) error {
 
 // GameRunning reports whether games_status says a RimWorld process for the
 // session's game is already up: the next games_start attaches to it
-// rather than launching one. "shared-running" is a process another GABS
+// rather than launching one. "shared-running" is a process another
 // session of the same root started.
 func GameRunning(ctx context.Context, client *bridge.Client) bool {
 	status, err := client.GameStatus(ctx)
@@ -542,33 +542,6 @@ func GameRunning(ctx context.Context, client *bridge.Client) bool {
 	return state.Status == "running" || state.Status == "connected" || state.Status == "shared-running"
 }
 
-// GABSExecutable resolves the GABS binary path from rimgovernor.gabsExecutable in
-// configDir/config.json (default: configDir if empty, root/config), defaulting to
-// gabs/gabs-v1.1.1-windows-amd64/gabs.exe relative to root.
-func GABSExecutable(root, configDir string) (string, error) {
-	root = mustAbs(root)
-	if configDir == "" {
-		configDir = filepath.Join(root, "config")
-	} else {
-		configDir = mustAbs(configDir)
-	}
-	config, err := loadConfig(filepath.Join(configDir, "config.json"))
-	if err != nil {
-		return "", err
-	}
-	configured := ""
-	if section, ok := config["rimgovernor"].(map[string]any); ok {
-		configured, _ = section["gabsExecutable"].(string)
-	}
-	if configured == "" {
-		configured = filepath.Join("gabs", "gabs-v1.1.1-windows-amd64", "gabs.exe")
-	}
-	if filepath.IsAbs(configured) {
-		return configured, nil
-	}
-	return filepath.Join(root, configured), nil
-}
-
 func mustAbs(path string) string {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -577,8 +550,7 @@ func mustAbs(path string) string {
 	return abs
 }
 
-// IsolatedRoot builds a fresh disposable worker root: it copies the GABS binary
-// (respecting a configured relative path), config.json, and profile Config/Saves
+// IsolatedRoot builds a fresh disposable worker root: it copies config.json and the profile Config/Saves
 // files into a brand-new directory. destination must not already exist.
 func IsolatedRoot(source, destination string) (string, error) {
 	source, destination = mustAbs(source), mustAbs(destination)
@@ -596,29 +568,6 @@ func IsolatedRoot(source, destination string) (string, error) {
 		return "", err
 	}
 	if err := requireOwnedLaunch(game); err != nil {
-		return "", err
-	}
-	binary, err := GABSExecutable(source, filepath.Join(source, "config"))
-	if err != nil {
-		return "", err
-	}
-	var relative string
-	if rel, err := filepath.Rel(source, binary); err == nil && !strings.HasPrefix(rel, "..") {
-		relative = rel
-	} else {
-		relative = filepath.Join("gabs", filepath.Base(binary))
-	}
-	section, _ := config["rimgovernor"].(map[string]any)
-	if section == nil {
-		section = map[string]any{}
-		config["rimgovernor"] = section
-	}
-	section["gabsExecutable"] = filepath.ToSlash(relative)
-	target := filepath.Join(destination, relative)
-	if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-		return "", err
-	}
-	if err := copyFile(binary, target); err != nil {
 		return "", err
 	}
 	if err := os.MkdirAll(filepath.Join(destination, "config"), 0755); err != nil {

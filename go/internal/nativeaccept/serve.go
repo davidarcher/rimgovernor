@@ -149,10 +149,7 @@ func Serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any
 // serve is Serve with the launch number a game-less restart carries; with
 // a game the game's own count wins.
 func serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any, spec ServeSpec, launch int, report Report) (*ServiceProcess, error) {
-	gabs, err := GABSExecutable(cfg.Root, cfg.Configuration)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	if game != nil {
 		if !game.released {
 			h := NewHarness(game.Client, cfg.Output)
@@ -183,7 +180,7 @@ func serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any
 	if identity == nil {
 		return nil, errors.New("serve: the loaded identity is required once the harness session is released")
 	}
-	p, err := launchServe(ctx, cfg, gabs, spec, launch, report)
+	p, err := launchServe(ctx, cfg, spec, launch, report)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +195,7 @@ func serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any
 // LaunchService starts rimgovernor serve for a harness that manages the
 // attach and authority steps itself (the routine verticals); Serve is the
 // full lifecycle. The service is recorded under report["service"].
-func LaunchService(ctx context.Context, cfg *Config, gabsExecutable string, launch ServiceLaunch, report Report) (*ServiceProcess, error) {
+func LaunchService(ctx context.Context, cfg *Config, launch ServiceLaunch, report Report) (*ServiceProcess, error) {
 	if launch.Output != "" {
 		own := *cfg
 		own.Output = launch.Output
@@ -207,7 +204,7 @@ func LaunchService(ctx context.Context, cfg *Config, gabsExecutable string, laun
 	if launch.Report != nil {
 		report = launch.Report
 	}
-	return launchServe(ctx, cfg, gabsExecutable, ServeSpec{Binary: launch.Binary, Families: launch.Families, Extra: launch.Extra, Env: launch.Env, PlayerSpeed: launch.PlayerSpeed}, 1, report)
+	return launchServe(ctx, cfg, ServeSpec{Binary: launch.Binary, Families: launch.Families, Extra: launch.Extra, Env: launch.Env, PlayerSpeed: launch.PlayerSpeed}, 1, report)
 }
 
 // Restart launches the service again on the same state path after Stop, so
@@ -228,7 +225,7 @@ func (p *ServiceProcess) Restart(ctx context.Context) (*ServiceProcess, error) {
 
 // ServeArgs is the serve argv every launch shares (see ServeSpec), before
 // the binary. profile, state and flight are the run's own paths.
-func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec ServeSpec) []string {
+func ServeArgs(cfg *Config, profileDir, statePath, flightPath string, spec ServeSpec) []string {
 	timeout := spec.NativeTimeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
@@ -236,7 +233,6 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 	argv := []string{
 		"serve",
 		"--profile", profileDir,
-		"--gabs", gabs,
 		"--config", cfg.Configuration,
 		"--game", cfg.GameID,
 		"--state", statePath,
@@ -265,7 +261,7 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 // launchServe starts the process under output/service (output/service-N
 // for a restart) with the state at output/service.sqlite, waits for its
 // startup line and records the launch on the report.
-func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, launch int, report Report) (*ServiceProcess, error) {
+func launchServe(ctx context.Context, cfg *Config, spec ServeSpec, launch int, report Report) (*ServiceProcess, error) {
 	output := cfg.Output
 	profileDir := cfg.ServiceProfileDir()
 	serviceDir := filepath.Join(output, "service")
@@ -284,7 +280,7 @@ func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, 
 	if launch > 1 {
 		flightPath = filepath.Join(serviceDir, "flight.jsonl")
 	}
-	argv := ServeArgs(cfg, gabs, profileDir, statePath, flightPath, spec)
+	argv := ServeArgs(cfg, profileDir, statePath, flightPath, spec)
 	entry := map[string]any{"argv": append([]string{spec.Binary}, argv...), "state": "starting", "launch": launch}
 	if report != nil {
 		report[key] = entry
@@ -411,9 +407,9 @@ func (p *ServiceProcess) HoldAuthority(held bool) {
 // Stop ends the keep-alive, collects the service's profiles (pprof.go),
 // kills the service if still running and waits for it to exit, and closes
 // the handle's store. It returns the keep-alive
-// counters when KeepAuthority ran, else nil. The service's own GABS
-// subprocess ends with it (bridge's job object) and releases the game
-// shortly (not synchronously) afterwards; Game.Reattach retries for that.
+// counters when KeepAuthority ran, else nil. The game frees
+// the service's GABP connection shortly (not synchronously) after the
+// process exits; Game.Reattach retries for that.
 func (p *ServiceProcess) Stop() map[string]any {
 	p.mu.Lock()
 	if p.stopped {

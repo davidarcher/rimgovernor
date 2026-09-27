@@ -6,13 +6,12 @@ import (
 	"time"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
 func tradeSessionClient(t *testing.T, session *o.TradeSession) *Client {
 	t.Helper()
-	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != tradeSessionTool {
 			t.Fatal(arg.Tool)
 		}

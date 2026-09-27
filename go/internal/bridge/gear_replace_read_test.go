@@ -8,7 +8,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,7 +25,7 @@ func TestReadGearReplacementSkipsWeaponCandidates(t *testing.T) {
 	pawn.Completeness.Matched = proto.Uint64(2)
 	pawn.Completeness.Returned = proto.Uint64(2)
 	reply := &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(reply), nil }}, time.Second)
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return pbResult(reply), nil }}, time.Second)
 	id := proto.Clone(v.Context.Identity).(*c.Identity)
 	read, _, err := client.ReadGearReplacement(context.Background(), id, "pawn", "parka")
 	if err != nil || read.ThingToken != "allow-parka" || read.Definition != "Parka" || read.LoadoutToken != "loadout" || read.PawnToken != "pawn-token" {

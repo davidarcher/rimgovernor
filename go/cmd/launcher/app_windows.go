@@ -46,15 +46,14 @@ type View struct {
 }
 
 const (
-	artGABS       = "GABS bridge"
 	artLayout     = "Game files"
 	artMod        = "RimGovernor mod"
 	artController = "Controller"
 	artDashboard  = "Dashboard"
 )
 
-// Jobs: one of each runs at a time. setup covers GABS, the game layout
-// and the mod, in that order (each needs the one before).
+// Jobs: one of each runs at a time. setup covers the game layout and
+// the mod, in that order (the mod needs the layout).
 const (
 	jobSetup      = "setup"
 	jobController = "controller"
@@ -84,7 +83,7 @@ type app struct {
 func newApp(repo string) *app {
 	a := &app{repo: repo, private: filepath.Join(repo, ".rimgovernor"), layout: setup.NewLayout(repo), ctrl: ctrlStopped,
 		busy: map[string]bool{}, failed: map[string]bool{}}
-	for _, n := range []string{artGABS, artLayout, artMod, artController, artDashboard} {
+	for _, n := range []string{artLayout, artMod, artController, artDashboard} {
 		a.artifacts = append(a.artifacts, Artifact{Name: n, State: StateBuilding, Detail: "Checking"})
 	}
 	s, err := LoadSettings(a.settingsPath())
@@ -98,11 +97,9 @@ func newApp(repo string) *app {
 func (a *app) settingsPath() string  { return filepath.Join(a.private, "launcher.json") }
 func (a *app) recordPath() string    { return filepath.Join(a.private, "launcher-controller.json") }
 func (a *app) controllerExe() string { return filepath.Join(a.private, "go", "rimgovernor.exe") }
-func (a *app) gabsExe() string {
-	return filepath.Join(a.layout.Root, filepath.FromSlash(setup.GABSRelative))
-}
-func (a *app) dashboardDir() string { return filepath.Join(a.repo, "dashboard") }
-func (a *app) url(port int) string  { return "http://127.0.0.1:" + strconv.Itoa(port) }
+func (a *app) configPath() string    { return filepath.Join(a.layout.Root, "config", "config.json") }
+func (a *app) dashboardDir() string  { return filepath.Join(a.repo, "dashboard") }
+func (a *app) url(port int) string   { return "http://127.0.0.1:" + strconv.Itoa(port) }
 
 // Write appends build output to the log panel.
 func (a *app) Write(p []byte) (int, error) {
@@ -212,7 +209,7 @@ func (a *app) poll() {
 	}
 	gameUp, pending, state, port, own := a.gameUp, a.modPending, a.ctrl, a.activePort(), a.cmd != nil
 	a.mu.Unlock()
-	if _, err := os.Stat(a.gabsExe()); err != nil || (pending && !gameUp) {
+	if _, err := os.Stat(a.configPath()); err != nil || (pending && !gameUp) {
 		a.job(jobSetup, true, a.prepareSetup)
 	}
 	if st, why := DashboardState(a.dashboardDir()); st != StateOK {
@@ -244,20 +241,10 @@ func (a *app) monitor() {
 	}
 }
 
-// prepareSetup: GABS, then the game layout and production mod through
+// prepareSetup: the game layout and production mod through
 // the acceptance setup (in place, idempotent). Nothing is replaced while
 // the game copy runs; the mod update is then left pending.
 func (a *app) prepareSetup() bool {
-	if _, err := os.Stat(a.gabsExe()); err != nil {
-		a.set(artGABS, StateBuilding, "Downloading GABS v1.1.1")
-		if err := DownloadGABS(filepath.Join(a.layout.Root, "gabs"), a); err != nil {
-			a.set(artGABS, StateFailed, fmt.Sprintf("Download failed (%v); looking for a copy in another checkout instead", err))
-		} else {
-			a.set(artGABS, StateOK, "v1.1.1, verified")
-		}
-	} else {
-		a.set(artGABS, StateOK, "v1.1.1")
-	}
 	current, err := na.SourceTreeHash(a.repo)
 	if err != nil {
 		a.set(artMod, StateFailed, err.Error())

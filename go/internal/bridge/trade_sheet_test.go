@@ -9,7 +9,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -50,7 +49,7 @@ func tradeSheetFixture(lines []*o.TradeLine, complete bool, next string) *o.Trad
 func tradeSheetClient(t *testing.T, pages []*o.TradeSheet) (*Client, *[]*o.TradeSheetRequest) {
 	t.Helper()
 	seen := &[]*o.TradeSheetRequest{}
-	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_trade_sheet" {
 			t.Fatal(arg.Tool)
 		}
@@ -195,7 +194,7 @@ func TestReadTradeSheetRefusesUnboundedPagination(t *testing.T) {
 }
 
 func TestReadTradeSheetRejectsInvalidInputs(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid request dispatched")
 		return nil, nil
 	}}, time.Second)

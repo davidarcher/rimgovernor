@@ -12,7 +12,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -135,7 +134,7 @@ func TestPreviewBillAcceptedAndRejections(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reply := proto.Clone(valid).(*op.PreviewReply)
 			test.change(reply)
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/operations_preview" {
 					t.Fatal(arg.Tool)
 				}
@@ -171,7 +170,7 @@ func TestPreviewBillAcceptedAndRejections(t *testing.T) {
 
 func TestAddBillReceiptCorrelationAndOwnerMismatch(t *testing.T) {
 	target := billFoodTarget(t)
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(args.Tool)
 		}
@@ -198,7 +197,7 @@ func TestAddBillReceiptCorrelationAndOwnerMismatch(t *testing.T) {
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
-	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		admission := billAdmission()
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
@@ -300,7 +299,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 	w := billAttempt(t)
 	admission := billAdmission()
 	unknown := &r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)}}}}
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/receipts_lookup" {
 			t.Fatal(args.Tool)
 		}
@@ -312,7 +311,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 		t.Fatal("unknown attempt lookup failed", err)
 	}
 	completed := &r.Progress{Attempt: w.Attempt, Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(11), NativeGeneration: proto.Uint64(1)}, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: billEffectEvidence()}}}
-	s2 := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s2 := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/receipts_observe_progress" {
 			t.Fatal(args.Tool)
 		}
@@ -335,7 +334,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			p := proto.Clone(completed).(*r.Progress)
 			change(p)
-			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
 			if _, _, err := testClient(t, bad, testBudget).ObserveBill(context.Background(), w, admission); !errors.Is(err, ErrContract) {
@@ -343,7 +342,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 			}
 		})
 	}
-	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		out := pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}})
 		out.IsError = true
 		return out, nil
@@ -352,7 +351,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 	if _, raw, err := control.AddBill(context.Background(), billPre(), billFoodTarget(t)); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
-	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	control, _ = NewBillControl(testClient(t, lost, testBudget))
@@ -369,7 +368,7 @@ func TestReadBillTarget(t *testing.T) {
 		Benches:      []*o.BillStack{{Snapshot: &o.SnapshotRef{Context: proto.Clone(fixture.Context).(*c.ObservationContext), EntityId: proto.String("spot"), Token: proto.String("spot-token")}, Bench: &o.EntityRef{Id: proto.String("spot")}}},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
 	recipes := &o.RecipesReply{Outcome: &o.RecipesReply_Observed{Observed: &o.RecipesSnapshot{Context: proto.Clone(fixture.Context).(*c.ObservationContext), Snapshot: &o.SnapshotRef{EntityId: proto.String("spot")}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		switch arg.Tool {
 		case "rimgovernor/observations_read_bills":
 			return pbResult(stacks), nil
@@ -392,7 +391,7 @@ func TestReadBillTarget(t *testing.T) {
 	}
 	duplicate := proto.Clone(fixture).(*o.ColonyFactsSnapshot)
 	duplicate.Butchering = []*o.ButcheringFacts{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("TableButcher"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}}, Usable: proto.Bool(true)}}
-	sDup := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	sDup := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: duplicate}}), nil
 	}}
 	if _, _, err = testClient(t, sDup, testBudget).ReadBillTarget(context.Background(), fixture.Context.Identity, "stove"); !errors.Is(err, ErrContract) {

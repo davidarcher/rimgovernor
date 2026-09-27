@@ -9,7 +9,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -49,7 +48,7 @@ func TestReadWorldDecodesLongitude(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			snapshot := worldFixture()
 			test.edit(snapshot)
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&o.WorldReply{Outcome: &o.WorldReply_Observed{Observed: snapshot}}), nil
 			}}, time.Second)
 			out, _, err := client.ReadWorld(context.Background(), pbIdentity(), 42, 0)
@@ -72,7 +71,7 @@ func TestReadWorldDecodesLongitude(t *testing.T) {
 
 func TestReadWorldAcceptsValidObservation(t *testing.T) {
 	snapshot := worldFixture()
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_read_world" {
 			t.Fatal(arg.Tool)
 		}
@@ -104,7 +103,7 @@ func TestReadWorldAcceptsValidObservation(t *testing.T) {
 }
 
 func TestReadWorldRejectsInvalidInputs(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		t.Fatal("invalid request dispatched")
 		return nil, nil
 	}}, time.Second)
@@ -140,7 +139,7 @@ func TestReadWorldMalformedEvidence(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			snapshot := worldFixture()
 			edit(snapshot)
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&o.WorldReply{Outcome: &o.WorldReply_Observed{Observed: snapshot}}), nil
 			}}, time.Second)
 			if _, _, err := client.ReadWorld(context.Background(), pbIdentity(), 42, 0); err == nil {

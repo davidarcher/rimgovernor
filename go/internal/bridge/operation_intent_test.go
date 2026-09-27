@@ -7,7 +7,6 @@ import (
 	"time"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -30,7 +29,7 @@ func TestFormatOperationIntent(t *testing.T) {
 
 func TestExecuteCarriesContextIntent(t *testing.T) {
 	var want string
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		expected := deconstructionOperation("ruin")
 		if want != "" {
 			expected.Intent = proto.String(want)

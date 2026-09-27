@@ -19,7 +19,7 @@ type PlanReader interface {
 	LoadPlan(context.Context, domain.PlanID) (store.PlanState, error)
 }
 
-// AttentionAcknowledger clears one blocking GABS attention item so a
+// AttentionAcknowledger clears one blocking attention item so a
 // subsequently retried native call is no longer refused on its account.
 type AttentionAcknowledger interface {
 	AckAttention(ctx context.Context, attentionID string) error
@@ -49,8 +49,8 @@ type Config struct {
 	WorldEvaluation              WorldEvaluation
 	ColonyStatus                 ColonyStatus
 	Lifecycle                    LifecycleWriter
-	// Attention, when set, lets a lifecycle mutation clear one blocking GABS
-	// attention item (raised for a game-side log line GABS treats as
+	// Attention, when set, lets a lifecycle mutation clear one blocking
+	// attention item (raised by RimBridgeServer for a game-side log line it treats as
 	// noteworthy, e.g. an error-level message) and retry once rather than
 	// failing outright. A nil Attention preserves prior behavior.
 	Attention AttentionAcknowledger

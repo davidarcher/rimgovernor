@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // TestEveryReviewedMethodHasAnAdmissionClass pins the class table to the
@@ -122,7 +120,7 @@ func TestControlCallDispatchesAheadOfObservationCalls(t *testing.T) {
 	const observations = 8
 	release := make(chan struct{})
 	entered := make(chan string, observations+1)
-	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*callResult, error) {
 		entered <- args.Tool
 		if strings.HasPrefix(args.Tool, "rimgovernor/observations_") {
 			<-release

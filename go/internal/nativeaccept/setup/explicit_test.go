@@ -9,7 +9,6 @@ import (
 func TestExplicitDiscoveryNeedsEveryInput(t *testing.T) {
 	t.Setenv(RimWorldDirEnv, "machine-local-game")
 	t.Setenv(HarmonyEnv, "machine-local-harmony")
-	t.Setenv(GABSEnv, "peer-gabs")
 	if _, err := Discover(Overrides{Explicit: true}); err == nil {
 		t.Fatal("explicit discovery fell back to machine inputs")
 	}
@@ -23,7 +22,7 @@ func TestExplicitDiscoveryNeedsEveryInput(t *testing.T) {
 		os.MkdirAll(filepath.Dir(file), 0700)
 		os.WriteFile(file, []byte("fixture"), 0600)
 	}
-	for _, p := range []string{filepath.Join(game, "RimWorldWin64.exe"), filepath.Join(game, "RimWorldWin64_Data", "Managed", "Assembly-CSharp.dll"), filepath.Join(bridge, "About", "About.xml"), filepath.Join(sdk, "RimBridgeServer.Sdk.dll"), filepath.Join(root, "harmony.dll"), filepath.Join(root, "gabs.exe")} {
+	for _, p := range []string{filepath.Join(game, "RimWorldWin64.exe"), filepath.Join(game, "RimWorldWin64_Data", "Managed", "Assembly-CSharp.dll"), filepath.Join(bridge, "About", "About.xml"), filepath.Join(sdk, "RimBridgeServer.Sdk.dll"), filepath.Join(root, "harmony.dll")} {
 		if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
 			t.Fatal(err)
 		}
@@ -31,7 +30,7 @@ func TestExplicitDiscoveryNeedsEveryInput(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	o := Overrides{Explicit: true, RimWorldDir: game, BridgeDir: bridge, RimBridgeSDK: sdk, HarmonyMod: harmonyMod, Harmony: filepath.Join(harmonyMod, "Current", "Assemblies", "0Harmony.dll"), GABS: filepath.Join(root, "gabs.exe")}
+	o := Overrides{Explicit: true, RimWorldDir: game, BridgeDir: bridge, RimBridgeSDK: sdk, HarmonyMod: harmonyMod, Harmony: filepath.Join(harmonyMod, "Current", "Assemblies", "0Harmony.dll")}
 	in, err := Discover(o)
 	if err != nil {
 		t.Fatal(err)

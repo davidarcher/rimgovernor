@@ -15,7 +15,7 @@ import (
 // Orphan is a harness process (setup.HarnessImages) launched under a
 // `.claude/worktrees/<name>/` that git no longer lists (#346): the
 // worktree went with its root, so `acceptance stop -root` cannot reach
-// it, and GABS keeps the game detached by design.
+// it, and the game runs detached from the run that launched it.
 type Orphan struct {
 	setup.Process
 	// Worktree is the vanished checkout the process ran under.
@@ -156,7 +156,7 @@ func orphans(ctx context.Context, o Options) Check {
 		return c
 	}
 	if len(found) == 0 {
-		c.Detail = "no game, gabs or rimgovernor process from a removed worktree"
+		c.Detail = "no game or rimgovernor process from a removed worktree"
 		return c
 	}
 	c.Status, c.Code = Warn, HealOrphans

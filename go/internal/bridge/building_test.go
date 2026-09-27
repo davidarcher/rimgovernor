@@ -10,7 +10,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -32,7 +31,7 @@ func buildingDone() *r.Progress {
 	return &r.Progress{Attempt: buildingPre().Attempt, Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(11), NativeGeneration: proto.Uint64(2)}, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: e}}}
 }
 func TestBuildingCapabilityAndReceiptCorrelation(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(args.Tool)
 		}
@@ -126,7 +125,7 @@ func TestBuildingProgressRequiresCausalCompleteLineage(t *testing.T) {
 	}
 }
 func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		switch args.Tool {
 		case "rimgovernor/receipts_lookup":
 			return pbResult(&r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: buildingDone().Context}}}), nil
@@ -145,7 +144,7 @@ func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
 	if _, _, err = client.ObserveBuildingProgress(context.Background(), buildingAdmission(), pbRequest().Placements[0]); err != nil {
 		t.Fatal(err)
 	}
-	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		out := pbResult(&o.ExecuteReply{Outcome: &o.ExecuteReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}})
 		out.IsError = true
 		return out, nil
@@ -155,7 +154,7 @@ func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
 	if !errors.Is(err, ErrRefused) || reply.GetFailure() == nil || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
-	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	cap, _ = NewBuildingControl(testClient(t, lost, testBudget))

@@ -186,7 +186,7 @@ func (a attentionAcknowledger) AckAttention(ctx context.Context, attentionID str
 }
 
 func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buildingServiceBridge, error) {
-	client, err := bridge.Open(ctx, config)
+	client, err := openConfigured(ctx, config)
 	if err != nil {
 		return buildingServiceBridge{}, err
 	}

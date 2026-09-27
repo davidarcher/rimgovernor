@@ -40,14 +40,13 @@ worktrees or player preferences. Local sessions follow the steps below.
   taught each of them the wrong lesson.)
 - **The Steam RimWorld install** and the shared `.rimgovernor/isolated-rimworld`
   copy. Peers' games run from them; never replace a DLL under either.
-- **Running games**. Never kill `RimWorldWin64.exe` or `gabs.exe` by image
+- **Running games**. Never kill `RimWorldWin64.exe` by image
   name (`taskkill /IM`, `Stop-Process -Name`): that ends every session's
-  game (it shows up there as GABS's tool catalog going empty,
-  `availableTotal: 0`). Stop your own with `gamesstop -root <root>`; for a
+  game (it shows up there as the bridge session dropping). Stop your own with `gamesstop -root <root>`; for a
   stray, select only the pid whose command line contains your worktree path
   (`Get-CimInstance Win32_Process | Where-Object CommandLine -like '*<worktree>*'`).
   A worktree removed without `acceptance stop -root` first leaves its game
-  (and `gabs.exe`, `rimgovernor.exe`) running with nothing able to reach it
+  (and `rimgovernor.exe`) running with nothing able to reach it
   (#346); `acceptance doctor -root <root> -heal` sweeps every such orphan on
   the machine by pid, and a `run`'s preflight does the same unless `-no-heal`.
 - **The landing lock** (`.git/rimgovernor-land.lock`). `cmd/land` waits on
@@ -59,11 +58,9 @@ worktrees or player preferences. Local sessions follow the steps below.
 
 `acceptance setup` (from `go/`: `go run ./internal/nativeaccept/cmd/acceptance
 setup`) makes all of this and is idempotent: it discovers the Steam
-RimWorld install, the workshop Harmony and an installed `gabs.exe`
-(`.rimgovernor/bridge/gabs/*/gabs.exe` in this worktree, its main
-checkout, then its sibling worktrees)
-(`-rimworld`, `-harmony`, `-gabs` or `RIMGOVERNOR_RIMWORLD_DIR`,
-`RIMGOVERNOR_HARMONY_DLL`, `RIMGOVERNOR_GABS_EXE` override discovery),
+RimWorld install, the workshop Harmony
+(`-rimworld`, `-harmony` or `RIMGOVERNOR_RIMWORLD_DIR`,
+`RIMGOVERNOR_HARMONY_DLL` override discovery),
 skips the mod build when the installed manifest already matches the
 worktree's native sources and fixture set, and refuses to install while a
 game runs from the copy. `-fixture A,B` narrows the build (every class
@@ -79,7 +76,9 @@ What it produces:
   `Mods/RimBridgeServer` as NTFS junctions to Steam, and `Mods/RimGovernor`
   from this worktree's own build.
 - **The bridge root**, `.rimgovernor/bridge/` (or whatever `-root` you pass):
-  `gabs/`, `config/config.json` whose DirectPath target is the private exe,
+  `config/config.json` whose `games.<id>.target` is the private exe (the
+  launch spec the controller reads; it records the running game in
+  `config/<id>/endpoint.json`),
   `profile/Config/{ModsConfig,Prefs}.xml` (Prefs from the player's own
   RimWorld profile when there is one), `profile/Saves/` (Prepare stages
   the committed `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`
@@ -128,13 +127,13 @@ What it produces:
   `<output>/workers/<n>`, to be stopped by pid.
 - `acceptance doctor -root <root> [-rimgovernor <bin> -output <dir>]` is
   the preflight (#277): one line per known pitfall with its fix -- the
-  root and its game copy (path past ~140 characters), `gabs.exe`, the
+  root and its game copy (path past ~140 characters), the
   installed mod (present, stale against the worktree), the Core-only
   baseline save, the profile's `ModsConfig.xml` against what the kept
   process launched with, your own leftover game processes, the clock
   journal backlog under a kept process, a private `GOCACHE`, the runner
   and `rimgovernor` binaries against the worktree and `main`, an
-  occupied output directory, and `orphans`: game, `gabs.exe` and
+  occupied output directory, and `orphans`: game and
   `rimgovernor.exe` processes whose path lies under a
   `.claude/worktrees/<name>` that `git worktree list` no longer has (#346),
   stopped by `-heal`. The `game` line also flags a boot that never finished
@@ -143,8 +142,8 @@ What it produces:
   print only the failing ones and refuse on a failure (`-no-doctor` on
   `run` skips it), with one exception: a stale installed mod, or one
   lacking a fixture the run's cases call, is **healed** by `run` (#276)
-  rather than refused. The heal stops this root's own kept game (GABS
-  `games_stop`, then any leftover pid running from the worktree's private
+  rather than refused. The heal stops this root's own kept game (by the pid in
+  its endpoint record, then any leftover pid running from the worktree's private
   copy -- never by image name), rebuilds the mod through `setup` with the
   installed fixture set plus the cases' own, installs it and lets the run
   launch fresh; the checks run again and `result.json` lists the heal

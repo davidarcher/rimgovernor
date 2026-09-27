@@ -10,7 +10,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -62,7 +61,7 @@ func TestPreviewGearReplaceAcceptedAndRejections(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reply := proto.Clone(valid).(*op.PreviewReply)
 			test.change(reply)
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/operations_preview" {
 					t.Fatal(arg.Tool)
 				}
@@ -118,7 +117,7 @@ func TestPreviewGearReplaceInvalidInputsNeverDispatch(t *testing.T) {
 }
 
 func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(args.Tool)
 		}
@@ -146,7 +145,7 @@ func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
 	if err != nil || reply.GetReceipt() == nil || len(raw.Envelope) == 0 {
 		t.Fatal(err)
 	}
-	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	mismatched := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		admission := gearReplaceAdmission()
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
@@ -183,7 +182,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 	w := gearReplaceAttemptFixture()
 	admission := gearReplaceAdmission()
 	unknown := &r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)}}}}
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/receipts_lookup" {
 			t.Fatal(args.Tool)
 		}
@@ -195,7 +194,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 		t.Fatal("unknown attempt lookup failed", err)
 	}
 	completed := &r.Progress{Attempt: w.Attempt, Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(11), NativeGeneration: proto.Uint64(1)}, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: gearReplaceEffectEvidence()}}}
-	s2 := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+	s2 := &testServer{schema: protoSchema, handler: func(_ context.Context, args nativeArgument) (*callResult, error) {
 		if args.Tool != "rimgovernor/receipts_observe_progress" {
 			t.Fatal(args.Tool)
 		}
@@ -217,7 +216,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			p := proto.Clone(completed).(*r.Progress)
 			change(p)
-			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
 			if _, _, err := testClient(t, bad, testBudget).ObserveGearReplaceProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
@@ -225,7 +224,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 			}
 		})
 	}
-	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	refusal := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		out := pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}})
 		out.IsError = true
 		return out, nil
@@ -234,7 +233,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 	if _, raw, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
-	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
 	writer, _ = NewGearReplaceWriter(testClient(t, lost, testBudget))

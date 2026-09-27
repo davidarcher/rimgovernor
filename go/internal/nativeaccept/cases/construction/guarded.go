@@ -106,7 +106,7 @@ func equalExcept(a, b map[string]any, key string) bool {
 
 // goPhase spawns a fresh cmd/buildingsmoke process in mode ("place" or "observe"). state is
 // reused across both phases (place creates it, observe reopens it).
-func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile, state, output, gameID,
+func goPhase(ctx context.Context, binary, configuration, profile, state, output, gameID,
 	mode, expectedOutcome, requestPath string, report na.Report) (map[string]any, error) {
 	destination := filepath.Join(output, "go-"+mode)
 	binaryData, err := os.ReadFile(binary)
@@ -118,8 +118,8 @@ func goPhase(ctx context.Context, binary, gabsExecutable, configuration, profile
 	goRuns, _ := report["go"].([]any)
 	report["go"] = append(goRuns, record)
 
-	args := []string{"-mode", mode, "-gabs", gabsExecutable, "-config", configuration, "-profile", profile,
-		"-state", state, "-output", destination, "-game", gameID, "-force-takeover"}
+	args := []string{"-mode", mode, "-config", configuration, "-profile", profile,
+		"-state", state, "-output", destination, "-game", gameID}
 	if mode == "place" {
 		args = append(args, "-execute", "-request", requestPath)
 	} else {
@@ -236,10 +236,6 @@ func runGuarded(ctx context.Context, s cases.Session, expectedOutcome string) er
 	cfg := s.Config()
 	root, output, gameID := cfg.Root, cfg.Output, cfg.GameID
 	client := h.Client
-	gabsExecutable, err := na.GABSExecutable(cfg.Root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
 	buildingSmoke, err := buildingSmokeBinary(ctx, output)
 	if err != nil {
 		return err
@@ -731,12 +727,12 @@ func runGuarded(ctx context.Context, s cases.Session, expectedOutcome string) er
 	profile := filepath.Join(root, profileName)
 	statePath := filepath.Join(output, "building.sqlite")
 
-	placed, err := goPhase(ctx, buildingSmoke, gabsExecutable, cfg.Configuration, profile, statePath, output, gameID,
+	placed, err := goPhase(ctx, buildingSmoke, cfg.Configuration, profile, statePath, output, gameID,
 		"place", "completed", fixturePath, report)
 	if err != nil {
 		return err
 	}
-	if _, err := client.ConnectGameWithTakeover(ctx); err != nil {
+	if _, err := client.ConnectGame(ctx); err != nil {
 		return fmt.Errorf("reconnect after Go place: %w", err)
 	}
 	executeCalls := 0
@@ -872,7 +868,7 @@ func runGuarded(ctx context.Context, s cases.Session, expectedOutcome string) er
 	// not Go observe's own buildingsmoke session. Go observe's ObserveTarget
 	// only admits a target whose authority is either inactive or already owned
 	// by its own session (durable-restart reconciliation never force-takes
-	// authority the way GABS game ownership does), so it must be released here
+	// authority), so it must be released here
 	// or every observe attempt fails with ErrControl ("writer authority
 	// unavailable").
 	preObserveStatus, err := status("pre-observe-authority-status")
@@ -890,11 +886,11 @@ func runGuarded(ctx context.Context, s cases.Session, expectedOutcome string) er
 		return err
 	}
 
-	if _, err := goPhase(ctx, buildingSmoke, gabsExecutable, cfg.Configuration, profile, statePath, output, gameID,
+	if _, err := goPhase(ctx, buildingSmoke, cfg.Configuration, profile, statePath, output, gameID,
 		"observe", expectedOutcome, "", report); err != nil {
 		return err
 	}
-	if _, err := client.ConnectGameWithTakeover(ctx); err != nil {
+	if _, err := client.ConnectGame(ctx); err != nil {
 		return fmt.Errorf("reconnect after Go observe: %w", err)
 	}
 	finalReply, err := h.Wire(ctx, "final-identity", "lifecycle_read_identity", map[string]any{})

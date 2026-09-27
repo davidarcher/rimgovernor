@@ -99,7 +99,7 @@ export function parentIdOf(event: TelemetryEvent): string {const id = event.cont
 export function tickOf(event: TelemetryEvent): number | null {const tick = event.context.tick; return typeof tick === 'number' && Number.isFinite(tick) ? tick : null;}
 export function messageOf(event: TelemetryEvent): string {const msg = event.payload.msg; return typeof msg === 'string' ? msg : '';}
 // toolOf is the inner rimgovernor/* method a row concerns: a reply names it
-// as native_tool, a request only carries the GABS wrapper and its arguments.
+// as native_tool, a request only carries the games_call_tool wrapper and its arguments.
 export function toolOf(payload: Json): string {
   const native = payload.native_tool;
   if (typeof native === 'string' && native) return native;

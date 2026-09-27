@@ -128,8 +128,8 @@ func development(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("no development ranking was recorded in %s of autonomous play", watch)
 	}
 
-	// Kill mid-play and restart on the same state; the service's own GABS
-	// subprocess releases the slot shortly after, so attaching may retry.
+	// Kill mid-play and restart on the same state; the game frees the
+	// service's GABP slot shortly after, so attaching may retry.
 	service.Stop()
 	report["killed_pid"] = firstPID
 	var restarted *na.ServiceProcess

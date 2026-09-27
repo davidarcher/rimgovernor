@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -38,7 +37,7 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 		},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_list_resource_sources" {
 			t.Fatal(arg.Tool)
 		}
@@ -79,7 +78,7 @@ func TestReadResourceSourcesRejectsMineSourceMissingSnapshot(t *testing.T) {
 		},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
 	}}, time.Second)
 	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
@@ -94,7 +93,7 @@ func TestReadResourceSourcesRejectsIncompleteCensus(t *testing.T) {
 		Storage:      validResourceStorage(),
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(false)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
 	}}, time.Second)
 	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
@@ -113,7 +112,7 @@ func TestReadResourceSourcesRejectsFractionalYield(t *testing.T) {
 		},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
 	}}, time.Second)
 	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
@@ -127,7 +126,7 @@ func TestReadResourceSourcesRejectsMissingStorage(t *testing.T) {
 		Resource:     proto.String("Steel"),
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
 	}}, time.Second)
 	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
@@ -144,7 +143,7 @@ func TestReadResourceSourcesRejectsInvalidStorageCandidateCell(t *testing.T) {
 		Storage:      storage,
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
 	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
 	}}, time.Second)
 	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {

@@ -23,7 +23,7 @@ Open **Help** in the dashboard to read this guide without leaving your colony.
 - **No game image:** a headless session supplies colony data only. Paused video
   and paused simulation are separate controls.
 - **Launch fails:** check the [setup prerequisites](setup.md).
-  Setup does not download the game, GABS or the required baseline save.
+  Setup does not download the game or the required baseline save.
 
 The [backlog issues](https://github.com/davidarcher/rimgovernor/issues) list known gaps. A short successful run does not
 establish reliable survival across every seed, season or threat.

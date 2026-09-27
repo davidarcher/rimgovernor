@@ -182,7 +182,7 @@ func Bootstrap(ctx context.Context, c OriginClient, o BootstrapOptions) (report 
 	report.Root = filepath.Join(layout, "bridge")
 	report.Acceptance = filepath.Join(layout, "bin", "acceptance.exe")
 	report.Controller = filepath.Join(layout, "bin", "rimgovernor.exe")
-	args := []string{"run", "./internal/nativeaccept/cmd/acceptance", "setup", "-worktree", o.Repo, "-layout", layout, "-explicit", "-rimworld", filepath.Join(tree, "game"), "-bridge", filepath.Join(tree, "bridge"), "-sdk", filepath.Join(tree, "bridge", "1.6", "Assemblies"), "-harmony-mod", filepath.Join(tree, "harmony"), "-harmony", filepath.Join(tree, "harmony", "Current", "Assemblies", "0Harmony.dll"), "-gabs", filepath.Join(tree, "gabs", "gabs.exe")}
+	args := []string{"run", "./internal/nativeaccept/cmd/acceptance", "setup", "-worktree", o.Repo, "-layout", layout, "-explicit", "-rimworld", filepath.Join(tree, "game"), "-bridge", filepath.Join(tree, "bridge"), "-sdk", filepath.Join(tree, "bridge", "1.6", "Assemblies"), "-harmony-mod", filepath.Join(tree, "harmony"), "-harmony", filepath.Join(tree, "harmony", "Current", "Assemblies", "0Harmony.dll")}
 	run := func(exe string, args ...string) error {
 		cmd := exec.CommandContext(ctx, exe, args...)
 		cmd.Dir = filepath.Join(o.Repo, "go")

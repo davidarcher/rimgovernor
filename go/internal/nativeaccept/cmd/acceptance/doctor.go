@@ -26,7 +26,7 @@ func runDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	fs.StringVar(&o.Output, "output", "", "the output directory a run would write under (default <root>/acceptance)")
 	fs.StringVar(&o.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.StringVar(&o.Repo, "worktree", "", "checkout to compare the installed mod and binaries against (default: the one enclosing the working directory)")
-	heal := fs.Bool("heal", false, "stop the game, gabs and rimgovernor processes that outlive their removed worktrees")
+	heal := fs.Bool("heal", false, "stop the game and rimgovernor processes that outlive their removed worktrees")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}

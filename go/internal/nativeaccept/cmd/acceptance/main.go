@@ -5,7 +5,7 @@
 //	acceptance resume [<case>...] -root <dir> [run flags]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
-//	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -rebuild -skip-mod -skip-binaries]
+//	acceptance setup [-worktree -rimworld -harmony -fixture -rebuild -skip-mod -skip-binaries]
 //	acceptance setup generate <generator> [run flags]
 //	acceptance why <output>/<area>/<case> [-json]
 //	acceptance warm -root <dir> [-game -headless=false -background]
@@ -43,8 +43,8 @@
 // and -seed <s> pins a debug or scenario start's world to reproduce a
 // recorded run. Cases
 // register from the area packages imported below. stop ends the game a
-// root keeps between runs (na.KeepGameEnv) through GABS games_stop: the
-// PID-owned launch recorded by that root's own GABS configuration, never
+// root keeps between runs (na.KeepGameEnv) through games_stop: the
+// PID-owned launch recorded by that root's own bridge configuration, never
 // a process matched by image name; warm (warm.go) boots that kept process
 // ahead of the first run (#285). fixture (fixture.go) runs one
 // fixture op against the root's kept game and leaves the world loaded
@@ -409,7 +409,7 @@ func printCase(stdout io.Writer, c cases.Case, opts cases.Options, report na.Rep
 }
 
 // stop is the former gamesstop tool: games_stop through the root's own
-// GABS configuration (config-headless first), with -takeover taking the
+// bridge configuration (config-headless first), with -takeover taking the
 // attachment from a stalled controller of that same root first. A
 // breakpoint the root holds paused (#280) is discarded first, whether or
 // not the game is still up.
@@ -417,9 +417,9 @@ func stop(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	root := fs.String("root", "", "absolute disposable worker root")
-	configDir := fs.String("config", "", "GABS config directory (default <root>/config-headless, then <root>/config)")
+	configDir := fs.String("config", "", "bridge config directory (default <root>/config-headless, then <root>/config)")
 	game := fs.String("game", "rimgovernor-trial", "configured game ID")
-	takeover := fs.Bool("takeover", false, "take the GABS attachment from a stalled controller of this same root before stopping")
+	takeover := fs.Bool("takeover", false, "connect to the running game without starting one when the plain open fails (a stalled controller of this same root)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -436,18 +436,13 @@ func stop(args []string, stdout, stderr io.Writer) int {
 			*configDir = filepath.Join(*root, "config")
 		}
 	}
-	gabs, err := na.GABSExecutable(*root, *configDir)
-	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 1
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	client, err := na.OpenBridgeSession(ctx, gabs, *configDir, *game, 60*time.Second)
+	client, err := na.OpenBridgeSession(ctx, *configDir, *game, 60*time.Second)
 	if err != nil && *takeover {
 		// The root's own controller still holds the attachment; the caller
 		// owns both sessions, so the handoff is explicit.
-		client, err = na.OpenBridgeSessionWithTakeover(ctx, gabs, *configDir, *game, 60*time.Second)
+		client, err = na.OpenRunningSession(ctx, *configDir, *game, 60*time.Second)
 	}
 	if err != nil {
 		fmt.Fprintln(stderr, err)

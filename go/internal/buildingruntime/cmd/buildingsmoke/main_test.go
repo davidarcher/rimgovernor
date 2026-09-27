@@ -15,7 +15,7 @@ import (
 func argsFor(t *testing.T, mode string) []string {
 	t.Helper()
 	d := t.TempDir()
-	return []string{"--mode", mode, "--gabs", filepath.Join(d, "gabs"), "--config", d, "--profile", d, "--state", filepath.Join(d, "state.sqlite"), "--output", filepath.Join(d, "output")}
+	return []string{"--mode", mode, "--config", d, "--profile", d, "--state", filepath.Join(d, "state.sqlite"), "--output", filepath.Join(d, "output")}
 }
 func TestExplicitModeAndFixtureGuard(t *testing.T) {
 	args := argsFor(t, "place")

@@ -22,10 +22,10 @@ import (
 // completed reply; it never reaches native.
 var errNoLifecycleIdentity = errors.New("no current lifecycle identity")
 
-// blockingAttentionID extracts a GABS attention id from a games_call_tool
+// blockingAttentionID extracts an attention id from a games_call_tool
 // Refusal whose structured detail reports status "blocked_by_attention" (see
 // bridge.Client.AckAttention). It never inspects the attention's own content
-// (severity, summary) to decide anything -- only that GABS named an id to
+// (severity, summary) to decide anything -- only that the bridge named an id to
 // acknowledge.
 func blockingAttentionID(err error) (string, bool) {
 	var refusal *bridgepkg.Refusal
@@ -47,7 +47,7 @@ func blockingAttentionID(err error) (string, bool) {
 	return body.Attention.AttentionID, true
 }
 
-// retryAfterAttentionAck re-issues op once when err is a GABS
+// retryAfterAttentionAck re-issues op once when err is a
 // blocked-by-attention refusal and an AttentionAcknowledger is configured; it
 // returns the error to use afterward (the retry's outcome, or the original
 // err when no retry was attempted or the ack itself failed).

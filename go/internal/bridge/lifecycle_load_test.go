@@ -7,7 +7,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -28,7 +27,7 @@ func pbLoadCompleted(request *l.LoadRequest) *l.LoadReply {
 
 func TestLoadHappyPathValidatesEchoedFields(t *testing.T) {
 	request := pbLoadRequest()
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoadCompleted(request)), nil
 	}}
 	client := testClient(t, s, testBudget)
@@ -93,7 +92,7 @@ func TestLoadRejectsIncompleteOrMismatchedCompleted(t *testing.T) {
 			request := pbLoadRequest()
 			reply := pbLoadCompleted(request)
 			change(reply, request)
-			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 				return pbResult(reply), nil
 			}}
 			load, err := NewLifecycleLoad(testClient(t, s, testBudget))
@@ -112,7 +111,7 @@ func TestLoadPendingOutcomeReturnsTypedRefusal(t *testing.T) {
 	pendingReply := &l.LoadReply{Outcome: &l.LoadReply_Pending{Pending: &l.LoadPending{
 		RequestId: request.RequestId, SaveName: request.SaveName, ProcessConnected: proto.Bool(true), MapReady: proto.Bool(false),
 	}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pendingReply), nil
 	}}
 	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
@@ -131,7 +130,7 @@ func TestLoadSupersededOutcomeReturnsTypedRefusal(t *testing.T) {
 	supersededReply := &l.LoadReply{Outcome: &l.LoadReply_Superseded{Superseded: &l.LoadSuperseded{
 		RequestId: request.RequestId, ObservedContext: pbContext(), Detail: proto.String("a newer load request preempted this one"),
 	}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(supersededReply), nil
 	}}
 	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
@@ -148,7 +147,7 @@ func TestLoadSupersededOutcomeReturnsTypedRefusal(t *testing.T) {
 func TestLoadFailureOutcomeReturnsNativeFailure(t *testing.T) {
 	request := pbLoadRequest()
 	failureReply := &l.LoadReply{Outcome: &l.LoadReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Detail: proto.String("bad request")}}}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(failureReply), nil
 	}}
 	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
@@ -178,7 +177,7 @@ func TestReadLoadRequiresRequestID(t *testing.T) {
 
 func TestReadLoadHappyPath(t *testing.T) {
 	request := pbLoadRequest()
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 		return pbResult(pbLoadCompleted(request)), nil
 	}}
 	load, err := NewLifecycleLoad(testClient(t, s, testBudget))

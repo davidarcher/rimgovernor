@@ -8,8 +8,8 @@
 // fresh SetMode(Auto) at that generation exactly as a reconnecting
 // controller would issue it.
 //
-// The final case is the Go transport side (#87): the case kills its own
-// GABS process mid-epoch, the bridge client must report the loss and fail
+// The final case is the Go transport side (#87): the case drops its own
+// game connection mid-epoch, the bridge client must report the loss and fail
 // fast, Reattach must restore service against the game that kept running,
 // and the re-observed authority must be the DISCONNECT revocation that a
 // fresh SetMode(Auto) then clears.
@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -32,7 +31,7 @@ const controller = "disconnectaccept"
 func init() {
 	cases.Register(cases.Case{
 		Name:   "authority/disconnect",
-		Scope:  "Typed clock lease expiry revokes native authority as REVOCATION_REASON_DISCONNECT at generation+1 with the clock stopped lease_expired and pause verified; a fresh SetMode(Auto) at that generation is granted. Killing the case's own GABS mid-epoch disconnects the Go bridge client, Reattach restores it against the running game, and the re-observed DISCONNECT revocation is cleared by a fresh grant.",
+		Scope:  "Typed clock lease expiry revokes native authority as REVOCATION_REASON_DISCONNECT at generation+1 with the clock stopped lease_expired and pause verified; a fresh SetMode(Auto) at that generation is granted. Dropping the case's own game connection mid-epoch disconnects the Go bridge client, Reattach restores it against the running game, and the re-observed DISCONNECT revocation is cleared by a fresh grant.",
 		Start:  cases.LabStart(),
 		Quiet:  na.Loud,
 		Reason: "an interruption case: the typed epochs run the colony watch policy against the game's own storyteller, and the transport drop must reattach to a game that kept running unquieted",
@@ -144,7 +143,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["case_regrant"] = map[string]any{"generation": regranted}
 
-	// Case 3 (#87): the GABS process itself dies mid-epoch. The typed lease
+	// Case 3 (#87): the GABP connection itself drops mid-epoch. The typed lease
 	// is again the only native-observable sign; on the Go side the bridge
 	// client must notice the loss without a call, fail fast, and reattach.
 	transport, err := transportDrop(ctx, s, h, identity, regranted)
@@ -227,8 +226,8 @@ func waitStopped(ctx context.Context, h *na.Harness, identity map[string]any, la
 	return stopped, nil
 }
 
-// transportDrop starts a typed epoch at generation, kills the harness's own
-// GABS (the PID the session recorded when it spawned it; never the game),
+// transportDrop starts a typed epoch at generation, drops the harness's own
+// GABP connection (never the game),
 // and checks the bridge client's loss signal, its
 // fail-fast error, the reattach against the running game, the DISCONNECT
 // revocation native recorded meanwhile and the fresh grant that clears it.
@@ -253,23 +252,15 @@ func transportDrop(ctx context.Context, s cases.Session, h *na.Harness, identity
 	if _, _, err := na.Outcome(startReply, "receipt"); err != nil {
 		return nil, fmt.Errorf("drop-clock-start: expected a receipt: %w", err)
 	}
-	pid := s.GABSPID()
-	if pid <= 0 {
-		return nil, errors.New("drop: GABS PID unknown")
-	}
 	lost := h.Client.Disconnected()
 	select {
 	case <-lost:
 		return nil, errors.New("drop: client reported disconnected before the drop")
 	default:
 	}
-	gabs, err := os.FindProcess(pid)
-	if err != nil {
-		return nil, fmt.Errorf("drop: find GABS %d: %w", pid, err)
-	}
 	dropped := time.Now()
-	if err := gabs.Kill(); err != nil {
-		return nil, fmt.Errorf("drop: kill GABS %d: %w", pid, err)
+	if !h.Client.DropConnection() {
+		return nil, errors.New("drop: no open game connection to drop")
 	}
 	select {
 	case <-lost:
@@ -282,9 +273,8 @@ func transportDrop(ctx context.Context, s cases.Session, h *na.Harness, identity
 	if _, err := h.Wire(ctx, "drop-read-while-down", "authority_read_status", map[string]any{"identity": identity}); !errors.Is(err, bridge.ErrDisconnected) {
 		return nil, fmt.Errorf("drop-read-while-down: expected bridge.ErrDisconnected, got %v", err)
 	}
-	// Reattach: the dead GABS's claim on the game may take a moment to be
-	// recognised as stale, the same tolerance nativeaccept's game reuse gives
-	// a reopened session.
+	// Reattach, with the same tolerance nativeaccept's game reuse gives a
+	// reopened session.
 	var attempts int
 	var reattachErr error
 	reattachDeadline := time.Now().Add(60 * time.Second)
@@ -306,9 +296,6 @@ func transportDrop(ctx context.Context, s cases.Session, h *na.Harness, identity
 		return nil, fmt.Errorf("drop-reattach: %d attempt(s): %w", attempts, reattachErr)
 	}
 	reattached := time.Since(dropped)
-	if s.GABSPID() == pid {
-		return nil, errors.New("drop-reattach: no fresh GABS process was spawned")
-	}
 	stopped, err := waitStopped(ctx, h, identity, "drop-clock-poll")
 	if err != nil {
 		return nil, err
@@ -335,7 +322,6 @@ func transportDrop(ctx context.Context, s cases.Session, h *na.Harness, identity
 		return nil, fmt.Errorf("drop-regrant: expected generation %d, got %d", afterGeneration+1, regranted)
 	}
 	return map[string]any{
-		"gabsPidKilled": pid, "gabsPidAfter": s.GABSPID(),
 		"lossNoticedMs": noticed.Milliseconds(), "reattachedMs": reattached.Milliseconds(), "reattachAttempts": attempts,
 		"stopped": stopped, "inactive": inactive, "generationAfterDrop": afterGeneration, "generationRegranted": regranted,
 	}, nil

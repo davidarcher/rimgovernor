@@ -10,29 +10,13 @@
 # parent give it the same tree without that indirection, and without
 # mutating the shared read-only input store.
 #
-# What this script does do: if GABS_BIN/GAME_ID/GABS_CONFIG_DIR are set, runs
-# `gabs games start` once before exec'ing rimgovernor. GABS enforces
-# single-attachment ownership per game over its MCP/GABP session (see
-# go/internal/nativeaccept/docker's package comment -- this is why that package
-# never opens its own bridge.Client alongside a container's rimgovernor
-# process); rimgovernor's own `serve --gabs ...` only ever calls
-# games_connect, never games_start, so something has to launch the game
-# first. The `gabs games start` CLI form is exactly that: it launches the
-# game, verifies it came up, and exits without holding any bridge connection
-# open -- see the shared GABS docs' "started_attachment_deferred" status and
-# its README ("the CLI verifies the launch and then exits without holding a
-# bridge connection"). That leaves the runtime claim active for
-# rimgovernor's own MCP session to attach to below.
-#
-# Finally runs ./rimgovernor with the container's CMD/`docker run` arguments
+# What this script does do: runs ./rimgovernor with the container's CMD/`docker run` arguments
 # ("$@" here is the CMD array, not including the entrypoint binary itself).
-# A cold headless RimWorld boot (asset/def-database load, mod init) can take
-# longer than rimgovernor's own single games_connect attempt allows (its
-# --timeout is capped at 60s). The game process and GABS's runtime claim
-# from games_start above stay up regardless, so retrying the whole
-# rimgovernor process is a valid, if coarse, way to keep re-attempting
-# games_connect until the bridge is actually ready -- no need to poll
-# games_status separately first.
+# rimgovernor launches the game itself (go/internal/gamehost) and talks
+# GABP to RimBridgeServer directly. A cold headless RimWorld boot
+# (asset/def-database load, mod init) can outlast one connect attempt, so
+# retrying the whole rimgovernor process is a valid, if coarse, way to keep
+# re-attempting until the bridge is actually ready.
 #
 # The retry loop means rimgovernor cannot simply be exec'd, so `docker stop`'s
 # SIGTERM (via --init) lands on this shell, not on rimgovernor. It is
@@ -41,9 +25,6 @@
 # database instead of one with a live WAL, and a forwarded stop must not be
 # retried as a failed attempt.
 set -e
-if [ -n "$GABS_BIN" ] && [ -n "$GAME_ID" ] && [ -n "$GABS_CONFIG_DIR" ]; then
-    "$GABS_BIN" games start "$GAME_ID" --configDir "$GABS_CONFIG_DIR"
-fi
 stopping=""
 child=""
 forward() {

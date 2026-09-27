@@ -106,7 +106,7 @@ func healable(checks []doctor.Check) []string {
 // of a fixture (#276), the way the by-hand recipe went: the fixture set
 // is the installed build's plus the classes registering ops (the run's
 // cases' fixture ops, na.FixtureFlags); the root's own kept game is
-// stopped first, through its GABS configuration and then by pid under
+// stopped first, through its bridge configuration and then by pid under
 // the worktree's private game copy (setup.StopGames), never by image
 // name; setup.Run then builds and installs into that copy (the binaries
 // are left alone: this one is running). It only heals a root that is the
@@ -148,7 +148,7 @@ func heal(ctx context.Context, codes, ops []string, opts cases.Options, log io.W
 		return nil, err
 	}
 	if len(running) > 0 {
-		// The root's GABS owns the kept process: games_stop is the clean
+		// The root's bridge owns the kept process: games_stop is the clean
 		// end. Whatever it does not know about (a stale runtime) is still
 		// this worktree's game by its executable path, and goes by pid.
 		if err := na.StopGame(stopCtx, opts.Root, opts.GameID); err != nil {

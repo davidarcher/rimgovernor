@@ -14,7 +14,7 @@ flowchart LR
     Policy --> Plan[Shared plan and validation]
     Model --> Plan
     Plan --> Hands[Hands executor]
-    Hands --> Bridge[GABS / RimBridgeServer]
+    Hands --> Bridge[RimBridgeServer over GABP]
     Bridge --> Game
 ```
 
@@ -22,7 +22,7 @@ flowchart LR
 | --- | --- |
 | Go controller | Observations, goals, resource accounting, execution, recovery and local API. |
 | React dashboard | Player direction and views of controller state; drafts and last good data survive refreshes. |
-| GABS / RimBridgeServer | Tool discovery and calls into the game. |
+| RimBridgeServer (GABP) | Game-side tool server; the controller launches the game and calls its tools over GABP directly. |
 | Native colony bridge | Colony-specific observations, guarded operations and saved identity. |
 | RimWorld | Simulation, legal placement and ordinary pawn work. |
 

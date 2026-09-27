@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // A typed call made under a traced ctx sends the trace beside the request,
@@ -17,7 +16,7 @@ import (
 // in the response row's timing.
 func TestTracePropagatesThroughTypedCallsAndRows(t *testing.T) {
 	var sent []string
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		var outer struct {
 			Request string `json:"request"`
 			Trace   string `json:"trace"`

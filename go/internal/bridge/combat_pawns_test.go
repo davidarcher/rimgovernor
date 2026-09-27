@@ -9,7 +9,6 @@ import (
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -52,7 +51,7 @@ func TestCombatPawnsFixedDetailsAndUnknown(t *testing.T) {
 		}
 		identity := pbIdentity()
 		ids := []string{"pawn-1", "missing"}
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			if arg.Tool != "rimgovernor/observations_list_pawns" {
 				t.Fatal(arg.Tool)
 			}
@@ -101,7 +100,7 @@ func TestCombatPawnsMalformedDetails(t *testing.T) {
 }
 func TestCombatPawnsUnavailableAndInvalidRequests(t *testing.T) {
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*callResult, error) {
 		calls++
 		return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}), nil
 	}}, time.Second)

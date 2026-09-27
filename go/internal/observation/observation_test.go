@@ -13,10 +13,11 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/gabp"
+	"github.com/davidarcher/RimGovernor/go/internal/gabp/gabptest"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -124,62 +125,58 @@ func TestObservationUnavailableAndFailureRetainReceipt(t *testing.T) {
 	}
 }
 func TestMain(m *testing.M) {
-	if testkit.GABSHTTPMain(os.Args, func() *mcp.Server {
-		server := mcp.NewServer(&mcp.Implementation{Name: "observation-fixture", Version: "1"}, nil)
-		for _, name := range []string{"games_tool_detail", "games_call_tool"} {
-			server.AddTool(&mcp.Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)}, func(_ context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-				raw := json.RawMessage(`{"inputSchema":{"type":"object","properties":{"request":{"type":"object"}},"additionalProperties":false}}`)
-				if request.Params.Name == "games_call_tool" {
-					var args struct {
-						Tool string `json:"tool"`
-					}
-					if err := json.Unmarshal(request.Params.Arguments, &args); err != nil {
-						return nil, err
-					}
-					var message proto.Message
-					switch args.Tool {
-					case "rimgovernor/lifecycle_read_tick":
-						r := tickFixture(0)
-						r.GetLoaded().Paused = proto.Bool(true)
-						message = r
-					default:
-						return nil, errors.New("unreviewed tool")
-					}
-					payload, err := proto.Marshal(message)
-					if err != nil {
-						return nil, err
-					}
-					// The binary reply form the bridge asks for (#757).
-					var packed bytes.Buffer
-					zip := gzip.NewWriter(&packed)
-					_, _ = zip.Write(payload)
-					_ = zip.Close()
-					raw, err = json.Marshal(struct {
-						Proto string `json:"proto"`
-					}{base64.StdEncoding.EncodeToString(packed.Bytes())})
-					if err != nil {
-						return nil, err
-					}
-				}
-				return &mcp.CallToolResult{StructuredContent: raw}, nil
-			})
-		}
-		return server
-	}) {
-		os.Exit(0)
+	if testkit.FakeGameMain(os.Args) {
+		return
 	}
 	os.Exit(m.Run())
 }
-func TestObserveThroughRealSDKSubprocess(t *testing.T) {
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
+
+// answerTick serves the game side of the tick read in the binary reply form
+// the bridge asks for (#757).
+func answerTick(r *gabptest.Request) {
+	var call struct {
+		Name string `json:"name"`
 	}
-	client, err := bridge.Open(context.Background(), bridge.ProcessConfig{Executable: exe, ConfigDir: t.TempDir(), GameID: "fixture", Timeout: 2 * time.Second})
+	if r.Method != gabp.MethodToolsCall || json.Unmarshal(r.Params, &call) != nil || call.Name != "rimgovernor/lifecycle_read_tick" {
+		r.Reply(nil, &gabp.RemoteError{Code: -32601, Message: "unreviewed call"})
+		return
+	}
+	reply := tickFixture(0)
+	reply.GetLoaded().Paused = proto.Bool(true)
+	payload, err := proto.Marshal(reply)
+	if err != nil {
+		r.Reply(nil, &gabp.RemoteError{Code: -32603, Message: err.Error()})
+		return
+	}
+	var packed bytes.Buffer
+	zip := gzip.NewWriter(&packed)
+	_, _ = zip.Write(payload)
+	_ = zip.Close()
+	r.Reply(map[string]string{"proto": base64.StdEncoding.EncodeToString(packed.Bytes())}, nil)
+}
+
+func TestObserveThroughRealGameSession(t *testing.T) {
+	server := gabptest.Start(t, &gabptest.Server{
+		Token: "fixture-token",
+		Tools: []map[string]any{
+			{"name": "rimgovernor/lifecycle_read_tick", "inputSchema": json.RawMessage(`{"type":"object","properties":{"request":{"type":"object"}},"additionalProperties":false}`)},
+			{"name": "rimworld/load_game_ready"},
+		},
+		Handle: answerTick,
+	})
+	spec := testkit.StartFakeGame(t, t.TempDir(), "fixture", server)
+	client, err := bridge.Open(context.Background(), bridge.ProcessConfig{GameID: "fixture", Launch: spec, Timeout: 10 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
+	started, err := client.GamesStart(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ConnectWithPoll(context.Background(), started); err != nil {
+		t.Fatal(err)
+	}
 	reading, err := Observe(context.Background(), client, testkit.NewManualClock(time.Now()))
 	if err != nil {
 		t.Fatal(err)

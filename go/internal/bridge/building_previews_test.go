@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -30,7 +29,7 @@ func TestBuildingPreviewsBatchesOneHopPerLimit(t *testing.T) {
 	for _, failRow := range []int{-1, 3} {
 		t.Run(fmt.Sprint("fail row ", failRow), func(t *testing.T) {
 			var sizes []int
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				var outer struct {
 					Request string `json:"request"`
 				}

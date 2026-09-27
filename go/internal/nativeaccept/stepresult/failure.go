@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Failure separates a blocking GABS attention from a native exception or refusal.
+// Failure separates a blocking bridge attention from a native exception or refusal.
 // Detail retains the text blocks, including attention IDs and sample messages.
 type Failure struct {
 	Kind    string

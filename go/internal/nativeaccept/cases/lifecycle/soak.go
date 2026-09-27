@@ -1,22 +1,8 @@
-// headless-soak (the
-// former headlesssoakaccept) is a diagnostic for "GABS's native tool
-// catalog emptied mid-run" (games_call_tool failing with
-// "availableTotal: 0"). It was written to chase a suspected
-// headless-RimWorld instability while building foodstorageaccept; the
-// captured GABS debug log showed the real cause was external -- another
-// worktree's session running `taskkill /IM RimWorldWin64.exe` as "stray
-// process" cleanup, which kills every session's game (GABS logs
-// "unexpected GABP disconnect ... forcibly closed by the remote host"
-// followed by "pid N not found"). Keep it for the next time a game
-// vanishes: gabs-stderr.log says whether the process died or the bridge
-// merely disconnected.
-//
-// It starts a fresh debug game, then drives the clock with one of several
-// call patterns (ModeEnv) while recording a timeline of GABS-side
-// games_status (status/toolCount, never touching the game), the RimWorld
-// process's memory, and the game tick. GABS's own stderr is captured at
-// debug level so the moment and reason the game connection drops is
-// visible.
+// headless-soak is a diagnostic for a game that vanishes or stops answering
+// mid-run. It starts a fresh debug game, then drives the clock with one of
+// several call patterns (ModeEnv) while recording a timeline of the
+// bridge's games_status, the RimWorld process's memory, and the game
+// tick, so the moment the game connection drops is visible.
 
 package lifecycle
 
@@ -46,9 +32,9 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name:   "lifecycle/headless-soak",
-		Scope:  "Diagnostic soak: fresh debug game driven by the soak mode (poll by default) while recording GABS status, process memory and tick; captures GABS debug stderr.",
+		Scope:  "Diagnostic soak: fresh debug game driven by the soak mode (poll by default) while recording game status, process memory and tick.",
 		Start:  cases.Owned{},
-		Reason: "the diagnostic opens its own GABS to capture its stderr at debug level and stops the game it soaked",
+		Reason: "the diagnostic opens its own bridge session and stops the game it soaked",
 		NoKeep: true,
 		Budget: 6 * time.Minute,
 		Run:    runSoak,
@@ -58,18 +44,18 @@ func init() {
 // soakConfig is the soak's shape; DurationEnv and ModeEnv override the
 // registered defaults for a diagnostic run.
 type soakConfig struct {
-	mode, speed, gabsLog  string
+	mode, speed           string
 	ultra                 bool
 	duration, poll, chunk time.Duration
 	stepTicks             int
 }
 
-// soakDefaults is the registered soak: two minutes of Superfast polling
-// with GABS at debug level, inside a minute-scale budget. A diagnostic
+// soakDefaults is the registered soak: two minutes of Superfast polling,
+// inside a minute-scale budget. A diagnostic
 // chase sets DurationEnv (e.g. 12m) and ModeEnv (poll | idle |
 // pausedpoll | playfor | stepticks).
 func soakDefaults() (soakConfig, error) {
-	cfg := soakConfig{mode: "poll", speed: "Superfast", gabsLog: "debug", ultra: true,
+	cfg := soakConfig{mode: "poll", speed: "Superfast", ultra: true,
 		duration: 2 * time.Minute, poll: 15 * time.Second, chunk: 60 * time.Second, stepTicks: 2500}
 	if mode := os.Getenv(ModeEnv); mode != "" {
 		cfg.mode = mode
@@ -128,7 +114,7 @@ func processSample() map[string]any {
 	return map[string]any{"count": len(rows), "rows": rows}
 }
 
-func gabsStatus(ctx context.Context, client *bridge.Client) map[string]any {
+func gameStatus(ctx context.Context, client *bridge.Client) map[string]any {
 	res, err := client.GameStatus(ctx)
 	if err != nil {
 		return map[string]any{"error": err.Error()}
@@ -144,8 +130,7 @@ func gabsStatus(ctx context.Context, client *bridge.Client) map[string]any {
 	return keep
 }
 
-// runSoak owns the process (an Owned start): it opens GABS itself so its
-// stderr is captured at debug level, starts the game, drives the clock and
+// runSoak owns the process (an Owned start): it opens its own bridge session, starts the game, drives the clock and
 // stops the game at the end.
 func runSoak(ctx context.Context, s cases.Session) error {
 	naCfg, report := s.Config(), s.Report()
@@ -156,25 +141,17 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	report["mode"] = cfg.mode
 	report["duration_ms"] = cfg.duration.Milliseconds()
 	output := naCfg.Output
-	gabsExecutable, err := na.GABSExecutable(naCfg.Root, naCfg.Configuration)
+	bridgeConfig, err := na.BridgeConfig(naCfg.Configuration, naCfg.GameID, 60*time.Second)
 	if err != nil {
 		return err
 	}
-	stderrFile, err := os.Create(filepath.Join(output, "gabs-stderr.log"))
-	if err != nil {
-		return err
-	}
-	defer stderrFile.Close()
-	bridgeConfig, err := na.WithRecording(bridge.ProcessConfig{
-		Executable: gabsExecutable, ConfigDir: naCfg.Configuration, GameID: naCfg.GameID,
-		Timeout: 60 * time.Second, LogLevel: cfg.gabsLog, Stderr: stderrFile,
-	})
+	bridgeConfig, err = na.WithRecording(bridgeConfig)
 	if err != nil {
 		return err
 	}
 	client, err := bridge.Open(ctx, bridgeConfig)
 	if err != nil {
-		return fmt.Errorf("open GABS session: %w", err)
+		return fmt.Errorf("open bridge session: %w", err)
 	}
 	started, err := client.GamesStart(ctx)
 	if err != nil {
@@ -217,14 +194,14 @@ func runSoak(ctx context.Context, s cases.Session) error {
 		_ = os.WriteFile(filepath.Join(output, "tool-schemas.json"), data, 0644)
 	}
 
-	tl.row("gabs-status", map[string]any{"gabs": gabsStatus(ctx, client), "proc": processSample()})
+	tl.row("game-status", map[string]any{"status": gameStatus(ctx, client), "proc": processSample()})
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietIfAvailable); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	tl.row("game-ready", map[string]any{"gabs": gabsStatus(ctx, client), "proc": processSample()})
+	tl.row("game-ready", map[string]any{"status": gameStatus(ctx, client), "proc": processSample()})
 
 	tick := func(label string) (float64, error) {
 		status, err := h.Call(ctx, label, "home/status", map[string]any{"colonists": false, "threats": false})
@@ -235,7 +212,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 		return na.AsNumber(t["ticksGame"]), nil
 	}
 	sample := func(label string, nativeErr error, extra map[string]any) {
-		fields := map[string]any{"label": label, "gabs": gabsStatus(ctx, client), "proc": processSample()}
+		fields := map[string]any{"label": label, "status": gameStatus(ctx, client), "proc": processSample()}
 		if nativeErr != nil {
 			fields["native_error"] = nativeErr.Error()
 		}
@@ -248,7 +225,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 	onFailure := func(label string, cause error) error {
 		tl.row("failure", map[string]any{"label": label, "error": cause.Error()})
 		names, nerr := client.NativeNames(ctx, "", "")
-		post := map[string]any{"gabs": gabsStatus(ctx, client), "proc": processSample()}
+		post := map[string]any{"status": gameStatus(ctx, client), "proc": processSample()}
 		if nerr != nil {
 			post["tool_names_error"] = nerr.Error()
 		} else {
@@ -263,7 +240,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 			}
 			post["netstat_loopback"] = keep
 		}
-		// Does GABS think it can reconnect? Try once after a short wait.
+		// Can the bridge reconnect? Try once after a short wait.
 		time.Sleep(5 * time.Second)
 		if res, err := client.ConnectGame(ctx); err != nil {
 			post["reconnect_error"] = err.Error()
@@ -273,7 +250,7 @@ func runSoak(ctx context.Context, s cases.Session) error {
 		} else {
 			post["reconnect"] = json.RawMessage(res.Structured)
 		}
-		post["gabs_after_reconnect"] = gabsStatus(ctx, client)
+		post["status_after_reconnect"] = gameStatus(ctx, client)
 		if _, err := tick("post-failure-tick"); err != nil {
 			post["post_failure_tick_error"] = err.Error()
 		} else {

@@ -157,7 +157,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// harness (a released one reads "bridge closed"), then na.Serve frees
 	// the sole GABP slot itself. closeClient marks the hand-over points.
 	closeClient := func() error { return nil }
-	// The service's GABS subprocess releases the game slot shortly after the
+	// The game frees the service's GABP slot shortly after the
 	// service is killed, not synchronously: Reattach retries. The service
 	// leaves the game running, and every fixture op needs a paused map, so
 	// the reattached session pauses first.

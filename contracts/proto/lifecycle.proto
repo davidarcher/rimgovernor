@@ -83,7 +83,7 @@ enum Readiness {
   READINESS_VISUAL = 2;
 }
 message LoadRequest {
-  // Before a map exists, instance ownership is validated by the GABS adapter.
+  // Before a map exists, instance ownership is validated by the Go controller gamehost adapter.
   optional string request_id = 1;
   optional string save_name = 2;
   optional Readiness readiness = 3;

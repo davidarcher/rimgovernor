@@ -940,7 +940,7 @@ func (*SaveReply_Failure) isSaveReply_Outcome() {}
 
 type LoadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Before a map exists, instance ownership is validated by the GABS adapter.
+	// Before a map exists, instance ownership is validated by the Go controller gamehost adapter.
 	RequestId *string    `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
 	SaveName  *string    `protobuf:"bytes,2,opt,name=save_name,json=saveName,proto3,oneof" json:"save_name,omitempty"`
 	Readiness *Readiness `protobuf:"varint,3,opt,name=readiness,proto3,enum=rimgovernor.lifecycle.v1.Readiness,oneof" json:"readiness,omitempty"`

@@ -13,7 +13,7 @@ using Lifecycle = RimGovernor.Protocol.Lifecycle;
 namespace HomeBridge.BridgeTools
 {
     // Trusted native load of a named save into the already-running, already-
-    // connected game process (not a wrapper around the legacy GABS
+    // connected game process (not a wrapper around the legacy
     // rimworld/load_game_ready tool, and not a relaunch: this calls
     // GameDataSaveLoader directly, same as ProtoLifecycleSaveTools calls
     // SaveGame directly). Loading is asynchronous: Load starts it and
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
 
             // A live map already exists: this load would replace it. Refuse up
             // front unless the caller's identity/direction still matches what is
-            // currently live -- before a map exists, GABS-layer instance
+            // currently live -- before a map exists, controller gamehost instance
             // ownership already gated the call, per the request's own comment.
             if (Find.CurrentMap != null && Current.Game != null)
             {

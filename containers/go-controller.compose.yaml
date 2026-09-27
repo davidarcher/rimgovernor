@@ -19,15 +19,8 @@ services:
       RIMGOVERNOR_GAME: ${RIMGOVERNOR_GAME:-rimgovernor}
     volumes:
       - type: bind
-        source: ${RIMGOVERNOR_LINUX_GABS:?Set RIMGOVERNOR_LINUX_GABS}
-        target: /inputs/gabs
-        read_only: true
-        bind:
-          create_host_path: false
-      - type: bind
         source: ${RIMGOVERNOR_GO_CONFIG:?Set RIMGOVERNOR_GO_CONFIG}
         target: /inputs/config
-        read_only: true
         bind:
           create_host_path: false
       - type: bind
@@ -41,8 +34,6 @@ services:
     command:
       - "serve"
       - "--observe"
-      - "--gabs"
-      - "/inputs/gabs/gabs"
       - "--config"
       - "/inputs/config"
       - "--game"

@@ -10,7 +10,6 @@ import (
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -20,7 +19,7 @@ import (
 // them to the inner rimgovernor/* tool with wall TPS from reply ticks.
 func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	tick := int64(1000)
-	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		tick += 600
 		time.Sleep(2 * time.Millisecond)
 		switch arg.Tool {
@@ -36,7 +35,7 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 			// older companion would for none of them.
 			return pbTimedResult(&k.StatusReply{Outcome: &k.StatusReply_Status{Status: status}}, 1.5, 0.25), nil
 		}
-		return &mcp.CallToolResult{IsError: true}, nil
+		return &callResult{IsError: true}, nil
 	}}
 	path := filepath.Join(t.TempDir(), "timeline.jsonl")
 	rec, err := NewFlightRecorder(path)

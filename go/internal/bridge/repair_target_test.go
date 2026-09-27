@@ -6,7 +6,6 @@ import (
 	"time"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,7 +24,7 @@ func TestReadRepairTargetTakesTheRowLevelSnapshot(t *testing.T) {
 		return v
 	}
 	serve := func(v *o.BuildingsSnapshot) *Client {
-		return testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
 			return pbResult(&o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v}}), nil
 		}}, time.Second)
 	}

@@ -11,7 +11,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -51,7 +50,7 @@ func TestDraftFixedCapabilityAndReplay(t *testing.T) {
 	pre := buildingPre()
 	pawn := draftTestPawn()
 	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		calls++
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
@@ -110,7 +109,7 @@ func TestDraftReceiptCorrelationAndUncertainty(t *testing.T) {
 }
 func TestDraftPreviewFixedAndNonAuthorizing(t *testing.T) {
 	for _, accepted := range []bool{false, true} {
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			if arg.Tool != "rimgovernor/operations_preview" {
 				t.Fatal(arg.Tool)
 			}
@@ -135,7 +134,7 @@ func TestDraftLeaseFreeLookupAndProgress(t *testing.T) {
 			case "unknown":
 				reply.Outcome = &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: buildingAdmission().AdmittedContext}}
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/receipts_lookup" {
 					t.Fatal(arg.Tool)
 				}
@@ -152,7 +151,7 @@ func TestDraftLeaseFreeLookupAndProgress(t *testing.T) {
 	admitted := draftTestReceipt()
 	admitted.Outcome = &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}
 	v := &r.Progress{Attempt: buildingPre().Attempt, Context: buildingDone().Context, CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: draftTestEvidence()}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/receipts_observe_progress" {
 			t.Fatal(arg.Tool)
 		}
@@ -206,7 +205,7 @@ func TestDraftCleanupExactClaimNoLease(t *testing.T) {
 			case "uncertain":
 				reply.Outcome = &o.ReleaseOwnedDraftReply_Uncertain{Uncertain: &o.DraftReleaseUncertain{Request: request, Context: value.Context}}
 			}
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				if arg.Tool != "rimgovernor/operations_release_owned_draft" {
 					t.Fatal(arg.Tool)
 				}
@@ -231,7 +230,7 @@ func TestDraftFailureLostReplyAndCancellation(t *testing.T) {
 	for _, kind := range []string{"conflict", "lost", "cancel"} {
 		t.Run(kind, func(t *testing.T) {
 			var calls atomic.Int32
-			client := testClient(t, &testServer{schema: protoSchema, handler: func(ctx context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(ctx context.Context, _ nativeArgument) (*callResult, error) {
 				calls.Add(1)
 				if kind == "lost" {
 					return nil, errors.New("lost reply")

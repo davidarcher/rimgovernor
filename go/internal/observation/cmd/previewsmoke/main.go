@@ -26,8 +26,7 @@ import (
 )
 
 type options struct {
-	gabs, config, game, requests, output string
-	forceTakeover                        bool
+	config, game, requests, output string
 }
 type fixture struct {
 	placements []*wire.PlacementCandidate
@@ -55,8 +54,6 @@ func parseOptions(args []string) (options, error) {
 	var o options
 	flags := flag.NewFlagSet("previewsmoke", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	flags.BoolVar(&o.forceTakeover, "force-takeover", false, "explicitly transfer GABS ownership for a coordinated fixture handoff")
-	flags.StringVar(&o.gabs, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&o.config, "config", "", "absolute configuration directory")
 	flags.StringVar(&o.game, "game", "rimgovernor-trial", "configured game ID")
 	flags.StringVar(&o.requests, "requests", "", "absolute request fixture path")
@@ -67,9 +64,9 @@ func parseOptions(args []string) (options, error) {
 	if flags.NArg() != 0 || strings.TrimSpace(o.game) == "" {
 		return o, errors.New("unexpected arguments or empty game ID")
 	}
-	for _, path := range []string{o.gabs, o.config, o.requests, o.output} {
+	for _, path := range []string{o.config, o.requests, o.output} {
 		if !filepath.IsAbs(path) {
-			return o, errors.New("-gabs, -config, -requests and -output require absolute paths")
+			return o, errors.New("-config, -requests and -output require absolute paths")
 		}
 	}
 	return o, nil
@@ -182,7 +179,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	result := report{Scope: "Read-only generated placement previews in an existing paused native game; no placement, clock control, game startup or shutdown.", Expected: requests.expected}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	err = observe(ctx, bridge.ProcessConfig{Executable: o.gabs, ConfigDir: o.config, GameID: o.game, Timeout: 30 * time.Second}, requests, &result, o.forceTakeover)
+	configured, err := bridge.ConfiguredProcess(o.config, o.game, 30*time.Second)
+	if err == nil {
+		err = observe(ctx, configured, requests, &result)
+	}
 	cancel()
 	if err != nil {
 		result.Error = err.Error()
@@ -241,7 +241,7 @@ func takeSample(ctx context.Context, client identitySource) (sample, error) {
 	}
 	return result, nil
 }
-func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture, result *report, forceTakeover bool) (err error) {
+func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture, result *report) (err error) {
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		result.ErrorKind = "sdk_connection"
@@ -252,11 +252,7 @@ func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture,
 			err = closeErr
 		}
 	}()
-	if forceTakeover {
-		result.Connection, err = client.ConnectGameWithTakeover(ctx)
-	} else {
-		result.Connection, err = client.ConnectGame(ctx)
-	}
+	result.Connection, err = client.ConnectGame(ctx)
 	if err != nil {
 		result.ErrorKind = "sdk_connection"
 		return err

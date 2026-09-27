@@ -4,7 +4,7 @@ import {buildTrace, type Phases, type TraceLine} from './trace';
 import {formatNumber} from './HealthStrip';
 
 // Bar splits a native call's duration into its phases: the bridge gate
-// wait, the GABS round trip (with the companion's queue/execute split
+// wait, the GABP round trip (with the companion's queue/execute split
 // inside it when echoed) and decoding. Widths are shares of the trace span.
 function Bar({line, spanMs}: {line: TraceLine; spanMs: number}) {
   const scale = spanMs > 0 ? 100 / spanMs : 0;

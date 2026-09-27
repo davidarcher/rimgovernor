@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -35,7 +34,7 @@ func spatialFixture() *o.SpatialAccessSnapshot {
 }
 func spatialClient(t *testing.T, fixture *o.SpatialAccessSnapshot) *Client {
 	t.Helper()
-	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(&o.SpatialAccessReply{Outcome: &o.SpatialAccessReply_Observed{Observed: fixture}}), nil
 	}}, time.Second)
 }
@@ -109,7 +108,7 @@ func TestSpatialAccessRejectsMalformed(t *testing.T) {
 			t.Fatalf("%s accepted: %v", name, err)
 		}
 	}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		t.Fatal("native read issued for an invalid request")
 		return nil, nil
 	}}, time.Second)
@@ -128,7 +127,7 @@ func TestSpatialAccessRejectsMalformed(t *testing.T) {
 	}
 }
 func TestSpatialAccessUnavailable(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(&o.SpatialAccessReply{Outcome: &o.SpatialAccessReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}), nil
 	}}, time.Second)
 	_, _, err := client.ReadSpatialAccess(context.Background(), pbIdentity(), spatialBlocked, spatialTargets, nil)

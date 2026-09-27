@@ -43,7 +43,6 @@ func fakeRoot(t *testing.T) (Options, setup.Layout) {
 	l := setup.NewLayout(repo)
 	write(t, filepath.Join(l.Root, "config", "config.json"), setup.RenderConfig(l))
 	write(t, filepath.Join(l.GameCopy, "RimWorldWin64.exe"), "")
-	write(t, filepath.Join(l.Root, filepath.FromSlash(setup.GABSRelative)), "")
 	pkg := filepath.Join(l.GameCopy, "Mods", "RimGovernor")
 	write(t, filepath.Join(pkg, "About", "About.xml"), "<ModMetaData><packageId>"+na.NativePackage+"</packageId></ModMetaData>")
 	write(t, filepath.Join(pkg, "Assemblies", "RimGovernor.Runtime.dll"), "")
@@ -62,7 +61,7 @@ func TestMissingRootFails(t *testing.T) {
 	if c.Status != Fail || !strings.Contains(c.Fix, "acceptance setup") {
 		t.Fatalf("root = %+v", c)
 	}
-	for _, name := range []string{"game-copy", "gabs", "mod", "game"} {
+	for _, name := range []string{"game-copy", "mod", "game"} {
 		if got := byName(checks, name); got.Status != -1 {
 			t.Errorf("%s ran without a config: %+v", name, got)
 		}
@@ -75,7 +74,7 @@ func TestMissingRootFails(t *testing.T) {
 func TestHealthyRootPasses(t *testing.T) {
 	o, _ := fakeRoot(t)
 	checks := Run(context.Background(), o)
-	for _, name := range []string{"root", "game-copy", "gabs", "baseline", "mods-config", "output"} {
+	for _, name := range []string{"root", "game-copy", "baseline", "mods-config", "output"} {
 		if c := byName(checks, name); c.Status != OK {
 			t.Errorf("%s = %+v", name, c)
 		}

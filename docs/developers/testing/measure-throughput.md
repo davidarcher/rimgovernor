@@ -26,7 +26,7 @@ go run ./cmd/rimgovernor serve --flight-recorder C:\path\to\run\flight-recorder.
 
 Every row a phase report reads:
 
-- `timing` on a native call: gate wait, GABS round trip, receipt decode and
+- `timing` on a native call: gate wait, bridge round trip, receipt decode and
   reply decode, and (when the companion carries it) its own
   main-thread queue wait and execute time. `class` is the admission class
   the call took a bridge slot under (`control`, `observation` or `media`,
@@ -195,13 +195,13 @@ text report divides by `calls`):
 | `calls`, `cached`, `err` | Round trips, per-step cache hits that avoided one, and errors. |
 | `total ms` | End to end inside the service. |
 | `gate ms` | Waiting for the bridge gate (another call in flight: the host runs one tool at a time). |
-| `call ms` | The GABS round trip, including the native queue and execute time. |
+| `call ms` | The bridge round trip, including the native queue and execute time. |
 | `queue ms`, `exec ms` | The companion's own split for `rimgovernor/*` tools whose single main-thread hop goes through `ProtoBoundary.OnMainThread`: waiting for the main thread, then running on it. Means over the calls that carried it; `-` means absent (older companion or multi-hop media capture), not zero. |
 | `decode ms`, `proto ms` | Receipt decode and reply decode in the service. The controller always asks for replies as gzipped binary protobuf (`encoding=proto-gzip`, wrapper field `proto`, #757) and refuses a ProtoJSON `payload` reply; only callers that omit the argument (acceptance cases calling the companion directly) get ProtoJSON in `payload`. `native_decode` rows carry `payload_bytes` (decoded reply) and `wire_bytes` (the JSON value as sent); recorded `native_response` rows keep a ProtoJSON `payload`. |
 | `avg KiB` | Mean response size. |
 
 Describe (`games_tool_detail`) round trips are listed separately: paid once
-per method per GABS session, not per call. Sub-millisecond phases can read 0
+per method per bridge session, not per call. Sub-millisecond phases can read 0
 on Windows' coarse monotonic clock.
 
 Observation capture (`observation`, from each hop's `native_observation`):
@@ -239,7 +239,7 @@ the clock block (`native_paused_ms`, `paused_fraction_native`) and in
 ### Reading a report
 
 - Slow steps with low reads/step: look at `call ms` versus `queue ms` for
-  the dominant tool — a large gap between them is GABS transport, a large
+  the dominant tool — a large gap between them is GABP transport, a large
   `queue ms` is a busy game main thread.
 - Slow steps with high reads/step: a planner is re-reading; check
   `parent_hits` and the by-tool split.

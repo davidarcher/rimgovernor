@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,7 +42,7 @@ func TestBuildingPreviewProjection(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reply := pbBatch()
 			test.change(reply.GetBatch())
-			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 				var outer struct {
 					Request string `json:"request"`
 				}
@@ -110,7 +109,7 @@ func TestBuildingPreviewWatchAccessPreservesPresenceWithoutChangingLegality(t *t
 	for _, value := range []*bool{nil, proto.Bool(false), proto.Bool(true)} {
 		reply := pbBatch()
 		reply.GetBatch().Results[0].GetEvaluated().Rotations[0].WatchCellsAccessible = value
-		server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(reply), nil }}
+		server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return pbResult(reply), nil }}
 		client := testClient(t, server, testBudget)
 		building, _ := domain.NewBuilding("HorseshoesPin", domain.Cell{}, domain.North, "")
 		action, _ := domain.NewBuildingAction("play", building)

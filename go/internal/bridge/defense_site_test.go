@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,7 +32,7 @@ func defenseSiteFixture() *o.DefenseSiteSnapshot {
 }
 func defenseServer(t *testing.T, tool string, want proto.Message, reply proto.Message) *Client {
 	t.Helper()
-	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != tool {
 			t.Fatal(arg.Tool)
 		}
@@ -66,7 +65,7 @@ func TestDefenseSiteCoverIdentity(t *testing.T) {
 	fixture := defenseSiteFixture()
 	fixture.Cells[1].CoverThingId, fixture.Cells[1].CoverDefName = proto.String("Thing_Sandbags_9"), proto.String("Sandbags")
 	fixture.Cells[1].CoverKind, fixture.Cells[1].CoverToken, fixture.Cells[1].CoverDesignated = o.CoverKind_COVER_KIND_BUILDING.Enum(), proto.String("cover-abc"), proto.Bool(false)
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(&o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}}), nil
 	}}, time.Second)
 	site, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), defenseRegion())
@@ -81,7 +80,7 @@ func TestDefenseSiteFoggedCellCarriesNoFacts(t *testing.T) {
 	fixture := defenseSiteFixture()
 	fixture.Cells[0] = &o.DefenseCell{Cell: fixture.Cells[0].Cell, Fogged: proto.Bool(true), Issues: []*o.ReadIssue{{Field: proto.String("terrain"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
 	defenseServer(t, "rimgovernor/observations_read_defense_site", nil, &o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}})
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(&o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}}), nil
 	}}, time.Second)
 	site, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), defenseRegion())
@@ -122,7 +121,7 @@ func TestDefenseSiteRejectsMalformed(t *testing.T) {
 	for name, edit := range edits {
 		fixture := defenseSiteFixture()
 		edit(fixture)
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			return pbResult(&o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}}), nil
 		}}, time.Second)
 		if _, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), defenseRegion()); !errors.Is(err, ErrContract) {
@@ -131,7 +130,7 @@ func TestDefenseSiteRejectsMalformed(t *testing.T) {
 	}
 }
 func TestDefenseSiteRegionBounds(t *testing.T) {
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		t.Fatal("native read issued for an invalid region")
 		return nil, nil
 	}}, time.Second)
@@ -153,7 +152,7 @@ func TestDefenseSiteUnavailableAndFailure(t *testing.T) {
 		{Outcome: &o.DefenseSiteReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_LIMIT_EXCEEDED.Enum()}}},
 		{Outcome: &o.DefenseSiteReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}},
 	} {
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			return pbResult(reply), nil
 		}}, time.Second)
 		_, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), defenseRegion())
@@ -190,7 +189,7 @@ func TestLinesOfFireUnknownEndpointNeedsIssue(t *testing.T) {
 	fixture.Lines[0].LineOfSight, fixture.Lines[0].TargetCover, fixture.Lines[0].ShooterCover = nil, nil, nil
 	firing := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
 	approach := []domain.Cell{{X: 10, Z: 3}, {X: 11, Z: 3}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(&o.LinesOfFireReply{Outcome: &o.LinesOfFireReply_Observed{Observed: fixture}}), nil
 	}}, time.Second)
 	if _, _, err := client.ReadLinesOfFire(context.Background(), pbIdentity(), firing, approach); !errors.Is(err, ErrContract) {
@@ -222,14 +221,14 @@ func TestLinesOfFireRejectsMalformed(t *testing.T) {
 	for name, edit := range edits {
 		fixture := linesFixture()
 		edit(fixture)
-		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			return pbResult(&o.LinesOfFireReply{Outcome: &o.LinesOfFireReply_Observed{Observed: fixture}}), nil
 		}}, time.Second)
 		if _, _, err := client.ReadLinesOfFire(context.Background(), pbIdentity(), firing, approach); !errors.Is(err, ErrContract) {
 			t.Fatalf("%s accepted: %v", name, err)
 		}
 	}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		t.Fatal("native read issued for invalid cells")
 		return nil, nil
 	}}, time.Second)
@@ -251,7 +250,7 @@ func TestCombatPawnsGearRangeAndLord(t *testing.T) {
 	snapshot.Pawns[0].LordJobClass, snapshot.Pawns[0].LordToilClass = proto.String("LordJob_AssaultColony"), proto.String("LordToil_AssaultColonySappers")
 	identity := pbIdentity()
 	serve := func() *Client {
-		return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		return testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil
 		}}, time.Second)
 	}

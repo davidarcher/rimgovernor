@@ -32,8 +32,8 @@ const planID domain.PlanID = "go-building-smoke"
 const actionID domain.ActionID = "go-building-smoke-action"
 
 type options struct {
-	mode, gabs, config, profile, state, output, game, request, expectedOutcome string
-	execute, forceTakeover                                                     bool
+	mode, config, profile, state, output, game, request, expectedOutcome string
+	execute                                                              bool
 }
 type realClock struct{}
 
@@ -62,15 +62,13 @@ func parse(args []string) (options, error) {
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&out.mode, "mode", "", "place or observe")
 	flags.StringVar(&out.expectedOutcome, "expected-outcome", "completed", "observe: completed, cancelled, or interrupted")
-	flags.StringVar(&out.gabs, "gabs", "", "absolute GABS executable")
-	flags.StringVar(&out.config, "config", "", "absolute GABS configuration directory")
+	flags.StringVar(&out.config, "config", "", "absolute configuration directory")
 	flags.StringVar(&out.profile, "profile", "", "shared real game profile directory")
 	flags.StringVar(&out.state, "state", "", "absolute Go SQLite path")
 	flags.StringVar(&out.output, "output", "", "fresh absolute report directory")
 	flags.StringVar(&out.game, "game", "rimgovernor-trial", "configured game ID")
 	flags.StringVar(&out.request, "request", "", "absolute single PlacementCandidate ProtoJSON file")
 	flags.BoolVar(&out.execute, "execute", false, "explicit authorization for one fixture placement")
-	flags.BoolVar(&out.forceTakeover, "force-takeover", false, "explicit controlled GABS handoff")
 	if err := flags.Parse(args); err != nil {
 		return out, err
 	}
@@ -80,9 +78,9 @@ func parse(args []string) (options, error) {
 	if out.mode != "place" && out.mode != "observe" {
 		return out, errors.New("mode must be place or observe")
 	}
-	for _, path := range []string{out.gabs, out.config, out.profile, out.state, out.output} {
+	for _, path := range []string{out.config, out.profile, out.state, out.output} {
 		if !filepath.IsAbs(path) {
-			return out, errors.New("gabs/config/profile/state/output require absolute paths")
+			return out, errors.New("config/profile/state/output require absolute paths")
 		}
 	}
 	if out.mode == "place" && (!out.execute || !filepath.IsAbs(out.request)) {
@@ -277,15 +275,15 @@ func perform(opts options, out *report) (err error) {
 	if opts.mode == "observe" && !out.Progress.Unresolved {
 		return errors.New("observe requires unresolved fixture attempt")
 	}
-	client, err = bridge.Open(ctx, bridge.ProcessConfig{Executable: opts.gabs, ConfigDir: opts.config, GameID: opts.game, Timeout: 20 * time.Second})
+	configured, err := bridge.ConfiguredProcess(opts.config, opts.game, 20*time.Second)
 	if err != nil {
 		return err
 	}
-	if opts.forceTakeover {
-		out.Connection, err = client.ConnectGameWithTakeover(ctx)
-	} else {
-		out.Connection, err = client.ConnectGame(ctx)
+	client, err = bridge.Open(ctx, configured)
+	if err != nil {
+		return err
 	}
+	out.Connection, err = client.ConnectGame(ctx)
 	if err != nil {
 		return err
 	}

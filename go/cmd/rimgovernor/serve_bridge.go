@@ -8,7 +8,7 @@ import (
 )
 
 // bridgeReattacher is the part of bridge.Client the supervisor drives:
-// Disconnected reports the loss of the GABS session, Reattach restores it
+// Disconnected reports the loss of the game session, Reattach restores it
 // against the game that kept running.
 type bridgeReattacher interface {
 	Disconnected() <-chan struct{}
@@ -16,14 +16,14 @@ type bridgeReattacher interface {
 }
 
 const (
-	// bridgeReattachTimeout bounds one attempt: a fresh GABS process plus the
+	// bridgeReattachTimeout bounds one attempt: a fresh game connection plus the
 	// games_start/connect handshake, whose own poll deadlines are 120s.
 	bridgeReattachTimeout = 3 * time.Minute
 	bridgeReattachBackoff = time.Second
 	bridgeReattachMaxWait = 30 * time.Second
 )
 
-// superviseBridge restores the GABS session for the life of the service
+// superviseBridge restores the game session for the life of the service
 // (#87). A lost session is reattached with exponential backoff until it
 // succeeds or ctx ends; nothing else is retried, so in-flight and later
 // native calls fail with bridge.ErrDisconnected until the reattach lands and
@@ -41,7 +41,7 @@ func superviseBridge(ctx context.Context, client bridgeReattacher, out io.Writer
 		if ctx.Err() != nil {
 			return
 		}
-		fmt.Fprintln(out, "bridge: GABS session lost; reattaching to the running game")
+		fmt.Fprintln(out, "bridge: game session lost; reattaching to the running game")
 		for attempt := 1; ; attempt++ {
 			attemptCtx, cancel := context.WithTimeout(ctx, bridgeReattachTimeout)
 			err := client.Reattach(attemptCtx)

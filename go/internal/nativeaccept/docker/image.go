@@ -2,9 +2,9 @@
 // disposable acceptance worker, for binaries that must prove the Go
 // controller behaves correctly when run as that image under
 // --network host (see that Dockerfile stage's comment for why host
-// networking is required). It never reaches into a container's native GABS
-// attachment directly -- go/internal/bridge.Client.ConnectGameWithTakeover
-// would force a takeover of the in-container rimgovernor process's own
+// networking is required). It never reaches into a container's native GABP
+// attachment directly -- a second GABP client
+// would contend with the in-container rimgovernor process's own
 // attachment, which is exactly the stability this package is meant to prove.
 // Everything here drives the container the same way an external caller
 // would: its published HTTP API.

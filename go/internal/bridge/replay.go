@@ -9,14 +9,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Replay is a fake GABS that serves a recorded transcript (#282): an
-// in-memory MCP server whose catalog is the transcript's session row and
-// whose every tools/call answers with the next recorded receipt, provided
-// the call is the one recorded. A call the recording never saw, or one
+// Replay is a fake game session that serves a recorded transcript (#282):
+// its catalog is the transcript's session row and every call answers with
+// the next recorded receipt, provided the call is the one recorded. A call the recording never saw, or one
 // past its end, is a ReplayMismatch: the reply is an error, the mismatch
 // is kept for Err, and every later call fails the same way. Harness code
 // under go test runs against it in milliseconds; the game stays the
@@ -25,12 +22,11 @@ type Replay struct {
 	gameID string
 	tools  []string
 	calls  []TranscriptRow
-	server *mcp.Server
 
 	mu       sync.Mutex
 	next     int
 	mismatch *ReplayMismatch
-	sessions []*mcp.ServerSession
+	sessions []*handlerBackend
 }
 
 // ReplayMismatch is a call the transcript did not record at that point.
@@ -82,7 +78,7 @@ func prettyCall(row TranscriptRow) string {
 }
 
 // NewReplay builds a Replay over rows (ReadTranscript's). The first
-// session row names the game and the GABS catalog; a transcript without
+// session row names the game and the call catalog; a transcript without
 // one is refused.
 func NewReplay(rows []TranscriptRow) (*Replay, error) {
 	r := &Replay{}
@@ -99,38 +95,37 @@ func NewReplay(rows []TranscriptRow) (*Replay, error) {
 	if r.gameID == "" {
 		return nil, errors.New("replay: transcript has no session row")
 	}
-	r.server = mcp.NewServer(&mcp.Implementation{Name: "gabs-replay", Version: "transcript"}, nil)
-	for _, name := range r.tools {
-		r.server.AddTool(&mcp.Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)}, r.handle)
-	}
 	return r, nil
 }
 
 // Open connects a Client to the replay; timeout is the Client's per-call
 // bound, as ProcessConfig.Timeout. Reconnect and Reattach on the Client
 // connect to the same replay and continue the transcript.
+// Open connects a Client to the replay; timeout is the Client's per-call
+// bound, as ProcessConfig.Timeout. Reconnect and Reattach on the Client
+// connect to the same replay and continue the transcript.
 func (r *Replay) Open(ctx context.Context, timeout time.Duration) (*Client, error) {
-	return open(ctx, r.gameID, timeout, nil, nil, func() mcp.Transport {
-		serverTransport, clientTransport := mcp.NewInMemoryTransports()
-		session, err := r.server.Connect(context.Background(), serverTransport, nil)
-		if err != nil {
-			return failingTransport{err}
-		}
+	catalog := Discovery{ProtocolVersion: "transcript", ServerName: "replay", ServerVersion: "transcript"}
+	for _, name := range r.tools {
+		catalog.Tools = append(catalog.Tools, Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)})
+	}
+	return open(ctx, r.gameID, timeout, nil, nil, func(context.Context) (backend, error) {
+		session := newHandlerBackend(catalog, r.handle)
 		r.mu.Lock()
 		r.sessions = append(r.sessions, session)
 		r.mu.Unlock()
-		return clientTransport
+		return session, nil
 	})
 }
 
-// Close ends every server session the replay accepted.
+// Close ends every session the replay served.
 func (r *Replay) Close() {
 	r.mu.Lock()
 	sessions := r.sessions
 	r.sessions = nil
 	r.mu.Unlock()
 	for _, session := range sessions {
-		_ = session.Close()
+		_ = session.close()
 	}
 }
 
@@ -153,12 +148,10 @@ func (r *Replay) Remaining() int {
 	return len(r.calls) - r.next
 }
 
-type failingTransport struct{ err error }
-
-func (t failingTransport) Connect(context.Context) (mcp.Connection, error) { return nil, t.err }
-
-func (r *Replay) handle(_ context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	actual := TranscriptRow{Kind: "call", Tool: request.Params.Name, Arguments: append(json.RawMessage(nil), request.Params.Arguments...)}
+// handle answers one call with the next recorded receipt, byte for byte, so
+// int64 observations survive the round trip the way they do on the wire.
+func (r *Replay) handle(_ context.Context, name string, arguments json.RawMessage) (json.RawMessage, error) {
+	actual := TranscriptRow{Kind: "call", Tool: name, Arguments: append(json.RawMessage(nil), arguments...)}
 	actual.NativeTool = nativeToolOf(actual.Tool, actual.Arguments)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -181,29 +174,7 @@ func (r *Replay) handle(_ context.Context, request *mcp.CallToolRequest) (*mcp.C
 		}
 		return nil, fmt.Errorf("replay: transcript row %d has neither a receipt nor an error", expected.Sequence)
 	}
-	return receiptResult(expected.Result)
-}
-
-// receiptResult rebuilds the tools/call result a recorded receipt came
-// from. The structured content is kept as the raw bytes recorded so
-// int64 observations survive the round trip the way they do on the wire.
-func receiptResult(receipt json.RawMessage) (*mcp.CallToolResult, error) {
-	var result mcp.CallToolResult
-	if err := json.Unmarshal(receipt, &result); err != nil {
-		return nil, fmt.Errorf("replay: recorded receipt: %w", err)
-	}
-	var wire struct {
-		Structured json.RawMessage `json:"structuredContent"`
-	}
-	if err := json.Unmarshal(receipt, &wire); err != nil {
-		return nil, fmt.Errorf("replay: recorded receipt: %w", err)
-	}
-	if len(wire.Structured) > 0 && string(wire.Structured) != "null" {
-		result.StructuredContent = wire.Structured
-	} else {
-		result.StructuredContent = nil
-	}
-	return &result, nil
+	return append(json.RawMessage(nil), expected.Result...), nil
 }
 
 // canonicalJSON renders raw with sorted keys and no whitespace so two

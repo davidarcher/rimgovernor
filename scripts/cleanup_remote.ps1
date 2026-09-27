@@ -11,6 +11,6 @@ if (-not (Test-Path -LiteralPath $taskMarker -PathType Leaf) -or
 }
 $taskPrefix = $taskRoot + '\'
 Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -in @('RimWorldWin64.exe', 'gabs.exe', 'rimgovernor.exe', 'acceptance.exe') -and
+    $_.Name -in @('RimWorldWin64.exe', 'rimgovernor.exe', 'acceptance.exe') -and
     $_.ExecutablePath -and $_.ExecutablePath.StartsWith($taskPrefix, [StringComparison]::OrdinalIgnoreCase)
 } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

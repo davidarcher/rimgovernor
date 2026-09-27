@@ -70,7 +70,7 @@ func (h *Harness) call(ctx context.Context, label, tool string, arguments any, r
 		if attentionErr != nil {
 			callErr = errors.Join(callErr, attentionErr)
 		} else if blocked && retry {
-			// GABS explicitly refused execution, so one retry cannot duplicate a mutation.
+			// The bridge explicitly refused execution, so one retry cannot duplicate a mutation.
 			writeEvidence(evidencePath(h.Output, sequence, label), row)
 			payload, err := h.call(ctx, label+"-retry", tool, arguments, false)
 			row["retried"] = true

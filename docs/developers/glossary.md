@@ -20,7 +20,7 @@
 | Clock lease | Renewable permission for supervised simulation, enforced by native code independently of the next controller review. |
 | Paired checkpoint | A native save, controller database backup and hash manifest kept together as a resume boundary. |
 | Fixture | A declared test input or scenario setup. A native-shaped JSON fixture is not a live game observation. |
-| GABS | The process used to discover and call the installed game bridge tools. |
+| GABP | The wire protocol the controller speaks directly to RimBridgeServer inside the game (tool discovery and calls). |
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
 | Outpost | The dashboard's display name; repository and package names remain RimGovernor. |
 | Adequately stored (food) | A perishable stock observed sitting in a covered stockpile or an enclosed/cold room, as opposed to exposed to ordinary ambient rot. |
