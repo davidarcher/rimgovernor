@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -323,7 +324,15 @@ func validateSectionPage(section *mp.SectionPage, ask *mp.SectionAsk, same bool,
 				return err
 			}
 		}
-		return mirrorRows(section.GetSection(), ask, mirrorBody{buildings: d.Buildings, bills: d.Bills, cells: d.Cells, zones: d.Zones}, identity)
+		if section.GetSection() == mp.Section_SECTION_COMBAT_EVENTS && len(d.Tombstones) > 0 {
+			return contract("mirror combat events delta with tombstones")
+		}
+		for _, row := range d.CombatEvents {
+			if row.At == nil || !MirrorBefore(d.From, row.At) || MirrorBefore(d.To, row.At) {
+				return contract("mirror combat event outside its delta")
+			}
+		}
+		return mirrorRows(section.GetSection(), ask, mirrorBody{buildings: d.Buildings, bills: d.Bills, cells: d.Cells, zones: d.Zones, combatPawns: d.CombatPawns, combatEvents: d.CombatEvents}, identity)
 	}
 	return contract("mirror section body")
 }
@@ -336,10 +345,18 @@ type mirrorBody struct {
 	zones     *o.ZonesSnapshot
 	pawns     *o.PawnSnapshot
 	colony    *o.ColonyFactsSnapshot
+
+	combatPawns  []*mp.CombatPawn
+	combatEvents []*mp.CombatEventRow
 }
 
 func keyframeRows(k *mp.Keyframe) mirrorBody {
-	return mirrorBody{buildings: k.Buildings, bills: k.Bills, cells: k.Cells, zones: k.Zones, pawns: k.Pawns, colony: k.ColonyFacts}
+	return mirrorBody{buildings: k.Buildings, bills: k.Bills, cells: k.Cells, zones: k.Zones, pawns: k.Pawns, colony: k.ColonyFacts, combatPawns: k.CombatPawns, combatEvents: k.CombatEvents}
+}
+
+// CombatEventID is a combat event row's mirror key: its own watermark.
+func CombatEventID(row *mp.CombatEventRow) string {
+	return fmt.Sprintf("%d.%d", row.GetAt().GetTick(), row.GetAt().GetSeq())
 }
 
 // mirrorRows checks a body carries exactly its section's rows.
@@ -351,6 +368,8 @@ func mirrorRows(section mp.Section, ask *mp.SectionAsk, b mirrorBody, identity *
 		mp.Section_SECTION_ZONES:          b.zones != nil,
 		mp.Section_SECTION_PAWNS:          b.pawns != nil,
 		mp.Section_SECTION_COLONY_FACTS:   b.colony != nil,
+		mp.Section_SECTION_COMBAT_PAWNS:   len(b.combatPawns) > 0,
+		mp.Section_SECTION_COMBAT_EVENTS:  len(b.combatEvents) > 0,
 	}
 	for other, has := range carried {
 		if has && other != section {
@@ -396,6 +415,26 @@ func mirrorRows(section mp.Section, ask *mp.SectionAsk, b mirrorBody, identity *
 	case mp.Section_SECTION_COLONY_FACTS:
 		if b.colony == nil {
 			return contract("mirror colony facts snapshot missing")
+		}
+	case mp.Section_SECTION_COMBAT_PAWNS:
+		for _, row := range b.combatPawns {
+			if validID(row.GetId()) != nil || row.GetSide() == mp.CombatSide_COMBAT_SIDE_UNSPECIFIED || row.Cell == nil {
+				return contract("mirror combat pawn without id, side or cell")
+			}
+			for _, v := range []*float64{row.Health, row.BleedRate, row.Pain, row.MoveSpeed, row.ShieldEnergy, row.WeaponRange} {
+				if !combatNumber(v, true) {
+					return contract("mirror combat pawn number")
+				}
+			}
+			if row.GetHealth() > 1 || row.GetShieldEnergy() > 1 {
+				return contract("mirror combat pawn fraction")
+			}
+		}
+	case mp.Section_SECTION_COMBAT_EVENTS:
+		for _, row := range b.combatEvents {
+			if row.At == nil || row.GetKind() == mp.CombatLogKind_COMBAT_LOG_KIND_UNSPECIFIED {
+				return contract("mirror combat event without watermark or kind")
+			}
 		}
 	default:
 		return contract("mirror section unknown")

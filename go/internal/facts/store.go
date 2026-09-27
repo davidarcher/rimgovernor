@@ -30,6 +30,10 @@ const (
 	Zones         Section = "zones"
 	Buildings     Section = "buildings"
 	Bills         Section = "bills"
+	// The combat mirror sections (#851), held while combat is active; not
+	// in Sections(): no bundle family serves them.
+	CombatPawns  Section = "combat_pawns"
+	CombatEvents Section = "combat_events"
 )
 
 // Sections lists every section in report order.

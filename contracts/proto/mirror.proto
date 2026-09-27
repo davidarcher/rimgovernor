@@ -25,6 +25,149 @@ enum Section {
   // colony facts row paths the controller splits the snapshot into.
   SECTION_PAWNS = 5;
   SECTION_COLONY_FACTS = 6;
+  // Combat state (#851), served while the map has an active hostile or a
+  // combat epoch runs, else empty (every row tombstoned). Rows keyed by
+  // pawn load id: every spawned colonist, hostile and colony animal.
+  // Hook-dirtied pawns are compared on the next poll; the sampled fields
+  // (cell, health, shield, aim/cooldown, move speed) at most every
+  // MinCombatCompareTicks of running game.
+  SECTION_COMBAT_PAWNS = 7;
+  // Combat events (#851), append-only: rows keyed "<tick>.<seq>" at the
+  // event's own watermark, never tombstoned. A keyframe is the native's
+  // retained ring (the newest 1024 events).
+  SECTION_COMBAT_EVENTS = 8;
+}
+
+// Which side a combat pawn fights on.
+enum CombatSide {
+  COMBAT_SIDE_UNSPECIFIED = 0;
+  COMBAT_SIDE_COLONIST = 1;
+  COMBAT_SIDE_HOSTILE = 2;
+  COMBAT_SIDE_COLONY_ANIMAL = 3;
+}
+
+// What a combat pawn's stance is doing.
+enum CombatStance {
+  COMBAT_STANCE_UNSPECIFIED = 0;
+  COMBAT_STANCE_IDLE = 1;
+  COMBAT_STANCE_WARMUP = 2;   // aiming
+  COMBAT_STANCE_COOLDOWN = 3; // after a shot or blow
+  COMBAT_STANCE_MOVING = 4;
+  COMBAT_STANCE_MELEE = 5;    // in a melee job
+}
+
+// One combat pawn row (SECTION_COMBAT_PAWNS). Numbers are thresholded so a
+// row only changes when a decision could: fractions to 0.01, bleed and pain
+// to 0.05, move speed to 0.1 cells/s.
+message CombatPawn {
+  optional string id = 1; // load id
+  optional CombatSide side = 2;
+  optional string faction_id = 3;
+  optional string lord_id = 4;
+  rimgovernor.common.v1.Cell cell = 5;
+  optional bool downed = 6;
+  optional bool dead = 7;
+  optional string mental_state = 8; // def name, absent when none
+  optional bool drafted = 9;
+  optional string fire_mode = 10; // "fire_at_will" or "hold_fire" (drafted colonists)
+  optional string job = 11;       // current job def
+  optional string target_id = 12; // current job's target thing
+  optional CombatStance stance = 13;
+  optional int32 stance_ticks_left = 14; // warmup or cooldown ticks remaining
+  optional double health = 15; // summary health fraction
+  optional double bleed_rate = 16; // per day
+  optional double pain = 17;
+  optional double move_speed = 18; // cells per second
+  optional double shield_energy = 19; // fraction of max, absent without a shield
+  optional bool shield_broken = 20;
+  optional string weapon = 21; // def name, absent when unarmed
+  optional double weapon_range = 22;
+  optional int32 weapon_warmup_ticks = 23;
+  optional int32 weapon_cooldown_ticks = 24;
+  optional bool weapon_melee = 25;
+  // The watermark of the row's last change: when events concerned the pawn
+  // since the last compare, the newest of the highest rank (downing or
+  // death, then another #849 stop kind, then any), the matching SECTION_COMBAT_EVENTS
+  // row's; otherwise the poll's. Not part of the change comparison.
+  Watermark changed = 26;
+}
+
+// What a combat event row records. The #849 stop kinds and the non-stops.
+enum CombatLogKind {
+  COMBAT_LOG_KIND_UNSPECIFIED = 0;
+  COMBAT_LOG_KIND_DOWNED = 1;
+  COMBAT_LOG_KIND_KILLED = 2;
+  COMBAT_LOG_KIND_DAMAGED = 3; // detail carries the damage
+  COMBAT_LOG_KIND_SHIELD_BROKEN = 4;
+  COMBAT_LOG_KIND_SHOT_FIRED = 5;
+  COMBAT_LOG_KIND_PROJECTILE_LAUNCHED = 6;
+  COMBAT_LOG_KIND_EXPLOSION = 7;
+  COMBAT_LOG_KIND_FIRE_STARTED = 8;
+  COMBAT_LOG_KIND_DOOR_OPENED = 9;
+  COMBAT_LOG_KIND_DOOR_CLOSED = 10;
+  COMBAT_LOG_KIND_BUILDING_DESTROYED = 11;
+  COMBAT_LOG_KIND_LORD_TOIL = 12; // detail "<from> -> <to>", raid_strategy set
+  COMBAT_LOG_KIND_MENTAL_STATE = 13;
+  COMBAT_LOG_KIND_HOSTILE_ARRIVED = 14;
+}
+
+// One combat event row (SECTION_COMBAT_EVENTS).
+message CombatEventRow {
+  Watermark at = 1; // the event's own mark; the row id is "<tick>.<seq>"
+  optional CombatLogKind kind = 2;
+  // The #849 stop kind this event is, armed or not; unset for non-stops.
+  optional rimgovernor.clock.v1.CombatEvent stop = 3;
+  optional string thing_id = 4;  // the actor or subject
+  optional string target_id = 5; // the victim, target or instigator
+  optional string def_name = 6;  // weapon, projectile, building or state def
+  rimgovernor.common.v1.Cell cell = 7;
+  optional string detail = 8;
+  optional string raid_strategy = 9; // lord toil rows: the raid strategy def
+}
+
+// rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
+// answers DecideCombat's geometry questions at a stop by the game's own
+// rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
+// hostiles (the native's CombatGeometry constants, bridge.CombatGeometry*),
+// measured on lab-ranged under the 50 ms main-thread budget.
+message CombatGeometryRequest {
+  rimgovernor.common.v1.Identity identity = 1; // required
+  repeated rimgovernor.common.v1.Cell cells = 2; // 1..cap, distinct, in bounds
+  repeated string hostile_ids = 3; // 1..cap, distinct pawn load ids
+  optional string pawn_id = 4; // optional: path ticks for this pawn to each cell
+}
+
+// One (cell, hostile) pair.
+message CombatSightLine {
+  optional string hostile_id = 1;
+  // CoverUtility.CalculateOverallBlockChance at the cell against a shot
+  // from the hostile's cell, 0..1.
+  optional double cover = 2;
+  // A shooter at the cell can hit the hostile (a verb shoot line exists).
+  optional bool line_of_fire = 3;
+  // A colonist stands on the shoot line between them.
+  optional bool colonist_in_path = 4;
+}
+
+message CombatGeometryCell {
+  rimgovernor.common.v1.Cell cell = 1;
+  repeated CombatSightLine lines = 2; // request hostile order
+  // Path ticks for the request's pawn; absent without a pawn or a path.
+  optional int32 path_ticks = 3;
+  optional bool standable = 4;
+}
+
+message CombatGeometry {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated CombatGeometryCell cells = 2; // request cell order
+  optional double main_thread_ms = 3; // the read's own main-thread time
+}
+
+message CombatGeometryReply {
+  oneof outcome {
+    CombatGeometry observed = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
 }
 
 // How far a section is complete: every change through tick, and within tick
@@ -152,6 +295,8 @@ message Keyframe {
   // answers, a #773 delta of it when its delta names since.
   rimgovernor.observations.v1.PawnSnapshot pawns = 6;
   rimgovernor.observations.v1.ColonyFactsSnapshot colony_facts = 7;
+  repeated CombatPawn combat_pawns = 8; // SECTION_COMBAT_PAWNS
+  repeated CombatEventRow combat_events = 9; // SECTION_COMBAT_EVENTS: the retained ring
 }
 
 // The rows changed after `from`, through `to`, and the ids removed since.
@@ -165,6 +310,8 @@ message Delta {
   // SECTION_ZONES: the census header and the changed zones; removed zone
   // ids are tombstones.
   rimgovernor.observations.v1.ZonesSnapshot zones = 7;
+  repeated CombatPawn combat_pawns = 8; // SECTION_COMBAT_PAWNS: the changed rows
+  repeated CombatEventRow combat_events = 9; // SECTION_COMBAT_EVENTS: the rows after from
 }
 
 message SectionPage {

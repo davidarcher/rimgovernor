@@ -35,7 +35,13 @@ var polledSections = []struct {
 	{mp.Section_SECTION_BUILDINGS, facts.Buildings},
 	{mp.Section_SECTION_BILLS, facts.Bills},
 	{mp.Section_SECTION_ZONES, facts.Zones},
+	{mp.Section_SECTION_COMBAT_PAWNS, facts.CombatPawns},
+	{mp.Section_SECTION_COMBAT_EVENTS, facts.CombatEvents},
 }
+
+// combatEventsHeld bounds the combat events table: the newest rows, as
+// many as the native's ring (a keyframe) holds.
+const combatEventsHeld = 1024
 
 const mirrorPollSource = "rimgovernor/mirror_poll"
 
@@ -164,6 +170,12 @@ func (f *clockFacts) applyMirrorPage(ctx context.Context, page *mp.MirrorPage) m
 		case mp.Section_SECTION_PLANNING_CELLS:
 			n, ok := f.applyGridSection(ctx, scope, storeScope, section)
 			serve(facts.PlanningCells, n, ok)
+		case mp.Section_SECTION_COMBAT_PAWNS:
+			n, ok := applyMirrorSection(ctx, f, scope, facts.CombatPawns, section, func(k *mp.Keyframe) []*mp.CombatPawn { return k.CombatPawns }, func(d *mp.Delta) []*mp.CombatPawn { return d.CombatPawns }, (*mp.CombatPawn).GetId, entityFile[*mp.CombatPawn](f, storeScope, facts.CombatPawns))
+			serve(facts.CombatPawns, n, ok)
+		case mp.Section_SECTION_COMBAT_EVENTS:
+			n, ok := applyMirrorSection(ctx, f, scope, facts.CombatEvents, section, func(k *mp.Keyframe) []*mp.CombatEventRow { return k.CombatEvents }, func(d *mp.Delta) []*mp.CombatEventRow { return d.CombatEvents }, bridge.CombatEventID, entityFile[*mp.CombatEventRow](f, storeScope, facts.CombatEvents))
+			serve(facts.CombatEvents, n, ok)
 		case mp.Section_SECTION_PAWNS:
 			serve(facts.Section("pawns"), 0, section.GetKeyframe() != nil)
 		case mp.Section_SECTION_COLONY_FACTS:
@@ -223,8 +235,26 @@ func applyMirrorSection[T proto.Message](ctx context.Context, f *clockFacts, sco
 		mirrorEvent(ctx, name, mirror.Outcome{Kind: mirror.Resync, Since: table.AsOf, Changed: len(read.Rows), Removed: len(read.Removed), Checked: true, Drift: mirror.Drift(rows, full, mirrorRowEqual[T])})
 		rows = full
 	}
+	if events, ok := any(rows).(map[string]*mp.CombatEventRow); ok {
+		trimCombatEvents(events)
+	}
 	file(mirror.Put(f.mirror, scope, string(name), rows, read.AsOf))
 	return len(read.Rows) + len(read.Removed), true
+}
+
+// trimCombatEvents drops the oldest combat events past combatEventsHeld.
+func trimCombatEvents(rows map[string]*mp.CombatEventRow) {
+	if len(rows) <= combatEventsHeld {
+		return
+	}
+	keys := make([]string, 0, len(rows))
+	for k := range rows {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return bridge.MirrorBefore(rows[keys[i]].GetAt(), rows[keys[j]].GetAt()) })
+	for _, k := range keys[:len(keys)-combatEventsHeld] {
+		delete(rows, k)
+	}
 }
 
 // mirrorRowEqual compares two rows' facts for the resync drift count,

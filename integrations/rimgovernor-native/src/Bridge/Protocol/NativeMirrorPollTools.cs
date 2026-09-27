@@ -107,7 +107,8 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool Known(Mirror.Section section) => section == Mirror.Section.Buildings || section == Mirror.Section.Bills || section == Mirror.Section.PlanningCells
-            || section == Mirror.Section.Zones || section == Mirror.Section.Pawns || section == Mirror.Section.ColonyFacts;
+            || section == Mirror.Section.Zones || section == Mirror.Section.Pawns || section == Mirror.Section.ColonyFacts
+            || section == Mirror.Section.CombatPawns || section == Mirror.Section.CombatEvents;
 
         // On the main thread. idle is set when nothing was past its
         // watermark and the caller should wait (wake is the journal's
@@ -141,7 +142,12 @@ namespace HomeBridge.BridgeTools
                 var since = same && ask.Since != null && (ask.Since.Tick != 0 || ask.Since.Seq != 0)
                     ? new EntityTracking.Mark { Tick = (int)Math.Max(int.MinValue, Math.Min(int.MaxValue, ask.Since.Tick)), Seq = ask.Since.Seq } : (EntityTracking.Mark?)null;
                 var key = ask.Section + "|" + map.uniqueID.ToString(CultureInfo.InvariantCulture);
-                if (throttled && since != null && !Due(key, since.Value, (int)context.Tick))
+                // The combat events are a ring lookup, compared every hop; the
+                // combat pawns every hop a hook dirtied them, else at their
+                // own shorter interval (#851).
+                var interval = ask.Section == Mirror.Section.CombatPawns ? CombatMirror.MinCombatCompareTicks : MinCompareTicks;
+                var exempt = ask.Section == Mirror.Section.CombatEvents || ask.Section == Mirror.Section.CombatPawns && CombatMirror.Dirty;
+                if (throttled && since != null && !exempt && !Due(key, since.Value, (int)context.Tick, interval))
                 {
                     complete = Math.Min(complete, since.Value.Tick);
                     continue;
@@ -192,15 +198,15 @@ namespace HomeBridge.BridgeTools
 
         // Rows counts what a delta carries: zero is a delta with no change.
         private static int Rows(Mirror.Delta? delta) => delta == null ? 0
-            : delta.Buildings.Count + delta.Bills.Count + delta.Tombstones.Count + (delta.Zones?.Zones.Count ?? 0) + NativeMirrorCellGrid.Arrays(delta.Cells);
+            : delta.Buildings.Count + delta.Bills.Count + delta.Tombstones.Count + delta.CombatPawns.Count + delta.CombatEvents.Count + (delta.Zones?.Zones.Count ?? 0) + NativeMirrorCellGrid.Arrays(delta.Cells);
 
         // Due reports whether a section asked since a watermark is compared
         // this hop: always on a paused game or when the client is behind the
         // last compare, else once MinCompareTicks have run since it.
-        private static bool Due(string key, EntityTracking.Mark since, int tick)
+        private static bool Due(string key, EntityTracking.Mark since, int tick, int interval)
         {
             if (!Compared.TryGetValue(key, out var last) || since.CompareTo(last) < 0) return true;
-            return tick == last.Tick || tick - last.Tick >= MinCompareTicks;
+            return tick == last.Tick || tick - last.Tick >= interval;
         }
 
         // Read is one section as a keyframe or as the delta after since;
@@ -278,6 +284,12 @@ namespace HomeBridge.BridgeTools
                     page.Keyframe = new Mirror.Keyframe { Pawns = snapshot };
                     return page;
                 }
+                case Mirror.Section.CombatPawns:
+                    Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
+                    return CombatMirror.Pawns(map, ask, since);
+                case Mirror.Section.CombatEvents:
+                    Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
+                    return CombatMirror.Events(map, since);
                 case Mirror.Section.ColonyFacts:
                 {
                     if (!NativeColonyObservationTools.TryRead(map, ask.ColonyFacts, context, out var snapshot)) return null;

@@ -115,15 +115,24 @@ namespace HomeBridge.BridgeTools
         // Note records row as the entity's current state and returns the
         // tick it last changed: now when the entity is new to the tracker
         // or its row differs from the last visit's, else the earlier stamp.
-        internal int Note(string id, IMessage row)
+        internal int Note(string id, IMessage row) => Note(id, row, null);
+
+        // Note with at: a changed row is stamped at at (a hook's event mark,
+        // after the caller's last page and at or before this read) instead
+        // of this read's mark, so the row and the event share a watermark
+        // (#851).
+        internal int Note(string id, IMessage row, Mark? at)
         {
             int now = Find.TickManager.TicksGame;
             var digest = Digest(row);
             removed.Remove(id);
             if (entries.TryGetValue(id, out var entry) && entry.Digest == digest) return entry.LastChanged;
-            entries[id] = new Entry { Digest = digest, LastChanged = now, Changed = current };
+            entries[id] = new Entry { Digest = digest, LastChanged = now, Changed = at ?? current };
             return now;
         }
+
+        // Changed is the stamp of the entity's last noted change.
+        internal Mark? Changed(string id) => entries.TryGetValue(id, out var entry) ? entry.Changed : (Mark?)null;
 
         // Sweep, after a complete enumeration, marks every tracked entity
         // the enumeration did not list as removed now, and forgets the

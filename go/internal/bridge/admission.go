@@ -263,6 +263,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/observations_list_zones":              AdmissionObservation,
 	"rimgovernor/observations_read_defense_site":       AdmissionObservation,
 	"rimgovernor/observations_read_lines_of_fire":      AdmissionObservation,
+	"rimgovernor/combat_geometry":                      AdmissionObservation,
 	"rimgovernor/observations_read_spatial_access":     AdmissionObservation,
 	"rimgovernor/observations_read_husbandry":          AdmissionObservation,
 	"rimgovernor/observations_read_caravan_catalog":    AdmissionObservation,

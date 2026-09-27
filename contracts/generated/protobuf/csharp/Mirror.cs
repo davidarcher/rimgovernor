@@ -25,101 +25,186 @@ namespace RimGovernor.Protocol.Mirror {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CgxtaXJyb3IucHJvdG8SFXJpbWdvdmVybm9yLm1pcnJvci52MRoMY29tbW9u",
-            "LnByb3RvGgtjbG9jay5wcm90bxoSb2JzZXJ2YXRpb25zLnByb3RvIkEKCVdh",
-            "dGVybWFyaxIRCgR0aWNrGAEgASgDSACIAQESEAoDc2VxGAIgASgNSAGIAQFC",
-            "BwoFX3RpY2tCBgoEX3NlcSKSAQoFRXBvY2gSFAoHcHJvY2VzcxgBIAEoCUgA",
-            "iAEBEjEKCGlkZW50aXR5GAIgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYx",
-            "LklkZW50aXR5Eh4KEW5hdGl2ZV9nZW5lcmF0aW9uGAMgASgESAGIAQFCCgoI",
-            "X3Byb2Nlc3NCFAoSX25hdGl2ZV9nZW5lcmF0aW9uItUCCgpTZWN0aW9uQXNr",
-            "EjQKB3NlY3Rpb24YASABKA4yHi5yaW1nb3Zlcm5vci5taXJyb3IudjEuU2Vj",
-            "dGlvbkgAiAEBEi8KBXNpbmNlGAIgASgLMiAucmltZ292ZXJub3IubWlycm9y",
-            "LnYxLldhdGVybWFyaxIvCgZ3aW5kb3cYAyABKAsyHy5yaW1nb3Zlcm5vci5t",
-            "aXJyb3IudjEuQ2VsbFJlY3QSPAoFcGF3bnMYBCABKAsyLS5yaW1nb3Zlcm5v",
-            "ci5vYnNlcnZhdGlvbnMudjEuTGlzdFBhd25zUmVxdWVzdBJFCgxjb2xvbnlf",
-            "ZmFjdHMYBSABKAsyLy5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQ29s",
-            "b255RmFjdHNSZXF1ZXN0EhMKBnJlc3luYxgGIAEoCEgBiAEBQgoKCF9zZWN0",
-            "aW9uQgkKB19yZXN5bmMidAoIQ2VsbFJlY3QSDgoBeBgBIAEoBUgAiAEBEg4K",
-            "AXoYAiABKAVIAYgBARISCgV3aWR0aBgDIAEoBUgCiAEBEhMKBmhlaWdodBgE",
-            "IAEoBUgDiAEBQgQKAl94QgQKAl96QggKBl93aWR0aEIJCgdfaGVpZ2h0IssB",
-            "CgpGaWVsZEFycmF5Eg8KBWNvZGVzGAEgASgMSAASNgoHaW5kZXhlcxgCIAEo",
-            "CzIjLnJpbWdvdmVybm9yLm1pcnJvci52MS5QYWNrZWRVaW50MzJIABI2Cgdu",
-            "dW1iZXJzGAMgASgLMiMucmltZ292ZXJub3IubWlycm9yLnYxLlBhY2tlZERv",
-            "dWJsZUgAEjQKBnNwYXJzZRgEIAEoCzIiLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5TcGFyc2VBcnJheUgAQgYKBGZvcm0iHgoMUGFja2VkVWludDMyEg4KBnZh",
-            "bHVlcxgBIAMoDSIeCgxQYWNrZWREb3VibGUSDgoGdmFsdWVzGAEgAygBIjoK",
-            "C1NwYXJzZUFycmF5Eg0KBWluZGV4GAEgAygNEgwKBGNvZGUYAiADKA0SDgoG",
-            "bnVtYmVyGAMgAygBIr0ICghDZWxsR3JpZBItCgRyZWN0GAEgASgLMh8ucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLkNlbGxSZWN0Eg8KB3N0cmluZ3MYAiADKAkS",
-            "LwoEY2VsbBgDIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFy",
-            "cmF5EjMKCHdhbGthYmxlGAQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
-            "LkZpZWxkQXJyYXkSMwoIb2NjdXBpZWQYBSABKAsyIS5yaW1nb3Zlcm5vci5t",
-            "aXJyb3IudjEuRmllbGRBcnJheRIvCgR6b25lGAYgASgLMiEucmltZ292ZXJu",
-            "b3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMQoGcm9vZmVkGAcgASgLMiEucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMgoHaW5kb29ycxgIIAEo",
-            "CzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkKDnN1cHBv",
-            "cnRzX2xpZ2h0GAkgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
-            "QXJyYXkSOAoNc3RvcmFnZV9lbXB0eRgKIAEoCzIhLnJpbWdvdmVybm9yLm1p",
-            "cnJvci52MS5GaWVsZEFycmF5EjIKB2Rvb3J3YXkYCyABKAsyIS5yaW1nb3Zl",
-            "cm5vci5taXJyb3IudjEuRmllbGRBcnJheRI0CglmZXJ0aWxpdHkYDCABKAsy",
-            "IS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIzCghwb2xsdXRl",
-            "ZBgNIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8K",
-            "BGdsb3cYDiABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJh",
-            "eRIvCgRyb29mGA8gASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
-            "QXJyYXkSMgoHem9uZV9pZBgQIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5GaWVsZEFycmF5EjcKDG5hdHVyYWxfcm9jaxgRIAEoCzIhLnJpbWdvdmVy",
-            "bm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBHJ1aW4YEiABKAsyIS5yaW1n",
-            "b3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI5Cg5wbGF5ZXJfZWRpZmlj",
-            "ZRgTIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkK",
-            "DmNsYWltYWJsZV9ydWluGBQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
-            "LkZpZWxkQXJyYXkSNAoJcnVpbl9ob2xkGBUgASgLMiEucmltZ292ZXJub3Iu",
-            "bWlycm9yLnYxLkZpZWxkQXJyYXkirAIKEU1pcnJvclBvbGxSZXF1ZXN0EjEK",
-            "CGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50",
-            "aXR5EisKBWVwb2NoGAIgASgLMhwucmltZ292ZXJub3IubWlycm9yLnYxLkVw",
-            "b2NoEi8KBGFza3MYAyADKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuU2Vj",
-            "dGlvbkFzaxIYCgtieXRlX2J1ZGdldBgEIAEoDUgAiAEBEhQKB3dhaXRfbXMY",
-            "BSABKA1IAYgBARIhChRqb3VybmFsX2FmdGVyX2N1cnNvchgGIAEoA0gCiAEB",
-            "Qg4KDF9ieXRlX2J1ZGdldEIKCghfd2FpdF9tc0IXChVfam91cm5hbF9hZnRl",
-            "cl9jdXJzb3IimwMKCEtleWZyYW1lEiwKAmF0GAEgASgLMiAucmltZ292ZXJu",
-            "b3IubWlycm9yLnYxLldhdGVybWFyaxI9CglidWlsZGluZ3MYAiADKAsyKi5y",
-            "aW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQnVpbGRpbmdTdGF0ZRI1CgVi",
-            "aWxscxgDIAMoCzImLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5CaWxs",
-            "U3RhY2sSLgoFY2VsbHMYBCABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
-            "Q2VsbEdyaWQSOQoFem9uZXMYBSABKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZh",
-            "dGlvbnMudjEuWm9uZXNTbmFwc2hvdBI4CgVwYXducxgGIAEoCzIpLnJpbWdv",
-            "dmVybm9yLm9ic2VydmF0aW9ucy52MS5QYXduU25hcHNob3QSRgoMY29sb255",
-            "X2ZhY3RzGAcgASgLMjAucmltZ292ZXJub3Iub2JzZXJ2YXRpb25zLnYxLkNv",
-            "bG9ueUZhY3RzU25hcHNob3Qi2gIKBURlbHRhEi4KBGZyb20YASABKAsyIC5y",
-            "aW1nb3Zlcm5vci5taXJyb3IudjEuV2F0ZXJtYXJrEiwKAnRvGAIgASgLMiAu",
-            "cmltZ292ZXJub3IubWlycm9yLnYxLldhdGVybWFyaxI9CglidWlsZGluZ3MY",
-            "AyADKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQnVpbGRpbmdT",
-            "dGF0ZRI1CgViaWxscxgEIAMoCzImLnJpbWdvdmVybm9yLm9ic2VydmF0aW9u",
-            "cy52MS5CaWxsU3RhY2sSEgoKdG9tYnN0b25lcxgFIAMoCRIuCgVjZWxscxgG",
-            "IAEoCzIfLnJpbWdvdmVybm9yLm1pcnJvci52MS5DZWxsR3JpZBI5CgV6b25l",
-            "cxgHIAEoCzIqLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5ab25lc1Nu",
-            "YXBzaG90IogCCgtTZWN0aW9uUGFnZRI0CgdzZWN0aW9uGAEgASgOMh4ucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLlNlY3Rpb25IAYgBARIzCghrZXlmcmFtZRgC",
-            "IAEoCzIfLnJpbWdvdmVybm9yLm1pcnJvci52MS5LZXlmcmFtZUgAEi0KBWRl",
-            "bHRhGAMgASgLMhwucmltZ292ZXJub3IubWlycm9yLnYxLkRlbHRhSAASEQoE",
-            "bW9yZRgEIAEoCEgCiAEBEi8KBnJlc3luYxgFIAEoCzIfLnJpbWdvdmVybm9y",
-            "Lm1pcnJvci52MS5LZXlmcmFtZUIGCgRib2R5QgoKCF9zZWN0aW9uQgcKBV9t",
-            "b3JlIuABCgpNaXJyb3JQYWdlEisKBWVwb2NoGAEgASgLMhwucmltZ292ZXJu",
-            "b3IubWlycm9yLnYxLkVwb2NoEiIKFWNvbXBsZXRlX3Rocm91Z2hfdGljaxgC",
-            "IAEoA0gAiAEBEjQKCHNlY3Rpb25zGAMgAygLMiIucmltZ292ZXJub3IubWly",
-            "cm9yLnYxLlNlY3Rpb25QYWdlEjEKB2pvdXJuYWwYBCABKAsyIC5yaW1nb3Zl",
-            "cm5vci5jbG9jay52MS5FdmVudHNQYWdlQhgKFl9jb21wbGV0ZV90aHJvdWdo",
-            "X3RpY2siggEKD01pcnJvclBvbGxSZXBseRIxCgRwYWdlGAEgASgLMiEucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLk1pcnJvclBhZ2VIABIxCgdmYWlsdXJlGAIg",
-            "ASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRj",
-            "b21lKqgBCgdTZWN0aW9uEhcKE1NFQ1RJT05fVU5TUEVDSUZJRUQQABIVChFT",
-            "RUNUSU9OX0JVSUxESU5HUxABEhEKDVNFQ1RJT05fQklMTFMQAhIaChZTRUNU",
-            "SU9OX1BMQU5OSU5HX0NFTExTEAMSEQoNU0VDVElPTl9aT05FUxAEEhEKDVNF",
-            "Q1RJT05fUEFXTlMQBRIYChRTRUNUSU9OX0NPTE9OWV9GQUNUUxAGQmVaRWdp",
-            "dGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwv",
-            "d2lyZS9taXJyb3JwYjttaXJyb3JwYqoCG1JpbUdvdmVybm9yLlByb3RvY29s",
-            "Lk1pcnJvcmIGcHJvdG8z"));
+            "LnByb3RvGgtjbG9jay5wcm90bxoSb2JzZXJ2YXRpb25zLnByb3RvIs4ICgpD",
+            "b21iYXRQYXduEg8KAmlkGAEgASgJSACIAQESNAoEc2lkZRgCIAEoDjIhLnJp",
+            "bWdvdmVybm9yLm1pcnJvci52MS5Db21iYXRTaWRlSAGIAQESFwoKZmFjdGlv",
+            "bl9pZBgDIAEoCUgCiAEBEhQKB2xvcmRfaWQYBCABKAlIA4gBARIpCgRjZWxs",
+            "GAUgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSEwoGZG93bmVk",
+            "GAYgASgISASIAQESEQoEZGVhZBgHIAEoCEgFiAEBEhkKDG1lbnRhbF9zdGF0",
+            "ZRgIIAEoCUgGiAEBEhQKB2RyYWZ0ZWQYCSABKAhIB4gBARIWCglmaXJlX21v",
+            "ZGUYCiABKAlICIgBARIQCgNqb2IYCyABKAlICYgBARIWCgl0YXJnZXRfaWQY",
+            "DCABKAlICogBARI4CgZzdGFuY2UYDSABKA4yIy5yaW1nb3Zlcm5vci5taXJy",
+            "b3IudjEuQ29tYmF0U3RhbmNlSAuIAQESHgoRc3RhbmNlX3RpY2tzX2xlZnQY",
+            "DiABKAVIDIgBARITCgZoZWFsdGgYDyABKAFIDYgBARIXCgpibGVlZF9yYXRl",
+            "GBAgASgBSA6IAQESEQoEcGFpbhgRIAEoAUgPiAEBEhcKCm1vdmVfc3BlZWQY",
+            "EiABKAFIEIgBARIaCg1zaGllbGRfZW5lcmd5GBMgASgBSBGIAQESGgoNc2hp",
+            "ZWxkX2Jyb2tlbhgUIAEoCEgSiAEBEhMKBndlYXBvbhgVIAEoCUgTiAEBEhkK",
+            "DHdlYXBvbl9yYW5nZRgWIAEoAUgUiAEBEiAKE3dlYXBvbl93YXJtdXBfdGlj",
+            "a3MYFyABKAVIFYgBARIiChV3ZWFwb25fY29vbGRvd25fdGlja3MYGCABKAVI",
+            "FogBARIZCgx3ZWFwb25fbWVsZWUYGSABKAhIF4gBARIxCgdjaGFuZ2VkGBog",
+            "ASgLMiAucmltZ292ZXJub3IubWlycm9yLnYxLldhdGVybWFya0IFCgNfaWRC",
+            "BwoFX3NpZGVCDQoLX2ZhY3Rpb25faWRCCgoIX2xvcmRfaWRCCQoHX2Rvd25l",
+            "ZEIHCgVfZGVhZEIPCg1fbWVudGFsX3N0YXRlQgoKCF9kcmFmdGVkQgwKCl9m",
+            "aXJlX21vZGVCBgoEX2pvYkIMCgpfdGFyZ2V0X2lkQgkKB19zdGFuY2VCFAoS",
+            "X3N0YW5jZV90aWNrc19sZWZ0QgkKB19oZWFsdGhCDQoLX2JsZWVkX3JhdGVC",
+            "BwoFX3BhaW5CDQoLX21vdmVfc3BlZWRCEAoOX3NoaWVsZF9lbmVyZ3lCEAoO",
+            "X3NoaWVsZF9icm9rZW5CCQoHX3dlYXBvbkIPCg1fd2VhcG9uX3JhbmdlQhYK",
+            "FF93ZWFwb25fd2FybXVwX3RpY2tzQhgKFl93ZWFwb25fY29vbGRvd25fdGlj",
+            "a3NCDwoNX3dlYXBvbl9tZWxlZSKmAwoOQ29tYmF0RXZlbnRSb3cSLAoCYXQY",
+            "ASABKAsyIC5yaW1nb3Zlcm5vci5taXJyb3IudjEuV2F0ZXJtYXJrEjcKBGtp",
+            "bmQYAiABKA4yJC5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29tYmF0TG9nS2lu",
+            "ZEgAiAEBEjQKBHN0b3AYAyABKA4yIS5yaW1nb3Zlcm5vci5jbG9jay52MS5D",
+            "b21iYXRFdmVudEgBiAEBEhUKCHRoaW5nX2lkGAQgASgJSAKIAQESFgoJdGFy",
+            "Z2V0X2lkGAUgASgJSAOIAQESFQoIZGVmX25hbWUYBiABKAlIBIgBARIpCgRj",
+            "ZWxsGAcgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSEwoGZGV0",
+            "YWlsGAggASgJSAWIAQESGgoNcmFpZF9zdHJhdGVneRgJIAEoCUgGiAEBQgcK",
+            "BV9raW5kQgcKBV9zdG9wQgsKCV90aGluZ19pZEIMCgpfdGFyZ2V0X2lkQgsK",
+            "CV9kZWZfbmFtZUIJCgdfZGV0YWlsQhAKDl9yYWlkX3N0cmF0ZWd5Iq0BChVD",
+            "b21iYXRHZW9tZXRyeVJlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsyHy5yaW1n",
+            "b3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSKgoFY2VsbHMYAiADKAsyGy5y",
+            "aW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBITCgtob3N0aWxlX2lkcxgDIAMo",
+            "CRIUCgdwYXduX2lkGAQgASgJSACIAQFCCgoIX3Bhd25faWQitwEKD0NvbWJh",
+            "dFNpZ2h0TGluZRIXCgpob3N0aWxlX2lkGAEgASgJSACIAQESEgoFY292ZXIY",
+            "AiABKAFIAYgBARIZCgxsaW5lX29mX2ZpcmUYAyABKAhIAogBARIdChBjb2xv",
+            "bmlzdF9pbl9wYXRoGAQgASgISAOIAQFCDQoLX2hvc3RpbGVfaWRCCAoGX2Nv",
+            "dmVyQg8KDV9saW5lX29mX2ZpcmVCEwoRX2NvbG9uaXN0X2luX3BhdGgixAEK",
+            "EkNvbWJhdEdlb21ldHJ5Q2VsbBIpCgRjZWxsGAEgASgLMhsucmltZ292ZXJu",
+            "b3IuY29tbW9uLnYxLkNlbGwSNQoFbGluZXMYAiADKAsyJi5yaW1nb3Zlcm5v",
+            "ci5taXJyb3IudjEuQ29tYmF0U2lnaHRMaW5lEhcKCnBhdGhfdGlja3MYAyAB",
+            "KAVIAIgBARIWCglzdGFuZGFibGUYBCABKAhIAYgBAUINCgtfcGF0aF90aWNr",
+            "c0IMCgpfc3RhbmRhYmxlIrYBCg5Db21iYXRHZW9tZXRyeRI6Cgdjb250ZXh0",
+            "GAEgASgLMikucmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29u",
+            "dGV4dBI4CgVjZWxscxgCIAMoCzIpLnJpbWdvdmVybm9yLm1pcnJvci52MS5D",
+            "b21iYXRHZW9tZXRyeUNlbGwSGwoObWFpbl90aHJlYWRfbXMYAyABKAFIAIgB",
+            "AUIRCg9fbWFpbl90aHJlYWRfbXMijgEKE0NvbWJhdEdlb21ldHJ5UmVwbHkS",
+            "OQoIb2JzZXJ2ZWQYASABKAsyJS5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29t",
+            "YmF0R2VvbWV0cnlIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3Iu",
+            "Y29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21lIkEKCVdhdGVybWFyaxIR",
+            "CgR0aWNrGAEgASgDSACIAQESEAoDc2VxGAIgASgNSAGIAQFCBwoFX3RpY2tC",
+            "BgoEX3NlcSKSAQoFRXBvY2gSFAoHcHJvY2VzcxgBIAEoCUgAiAEBEjEKCGlk",
+            "ZW50aXR5GAIgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50aXR5",
+            "Eh4KEW5hdGl2ZV9nZW5lcmF0aW9uGAMgASgESAGIAQFCCgoIX3Byb2Nlc3NC",
+            "FAoSX25hdGl2ZV9nZW5lcmF0aW9uItUCCgpTZWN0aW9uQXNrEjQKB3NlY3Rp",
+            "b24YASABKA4yHi5yaW1nb3Zlcm5vci5taXJyb3IudjEuU2VjdGlvbkgAiAEB",
+            "Ei8KBXNpbmNlGAIgASgLMiAucmltZ292ZXJub3IubWlycm9yLnYxLldhdGVy",
+            "bWFyaxIvCgZ3aW5kb3cYAyABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
+            "Q2VsbFJlY3QSPAoFcGF3bnMYBCABKAsyLS5yaW1nb3Zlcm5vci5vYnNlcnZh",
+            "dGlvbnMudjEuTGlzdFBhd25zUmVxdWVzdBJFCgxjb2xvbnlfZmFjdHMYBSAB",
+            "KAsyLy5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuQ29sb255RmFjdHNS",
+            "ZXF1ZXN0EhMKBnJlc3luYxgGIAEoCEgBiAEBQgoKCF9zZWN0aW9uQgkKB19y",
+            "ZXN5bmMidAoIQ2VsbFJlY3QSDgoBeBgBIAEoBUgAiAEBEg4KAXoYAiABKAVI",
+            "AYgBARISCgV3aWR0aBgDIAEoBUgCiAEBEhMKBmhlaWdodBgEIAEoBUgDiAEB",
+            "QgQKAl94QgQKAl96QggKBl93aWR0aEIJCgdfaGVpZ2h0IssBCgpGaWVsZEFy",
+            "cmF5Eg8KBWNvZGVzGAEgASgMSAASNgoHaW5kZXhlcxgCIAEoCzIjLnJpbWdv",
+            "dmVybm9yLm1pcnJvci52MS5QYWNrZWRVaW50MzJIABI2CgdudW1iZXJzGAMg",
+            "ASgLMiMucmltZ292ZXJub3IubWlycm9yLnYxLlBhY2tlZERvdWJsZUgAEjQK",
+            "BnNwYXJzZRgEIAEoCzIiLnJpbWdvdmVybm9yLm1pcnJvci52MS5TcGFyc2VB",
+            "cnJheUgAQgYKBGZvcm0iHgoMUGFja2VkVWludDMyEg4KBnZhbHVlcxgBIAMo",
+            "DSIeCgxQYWNrZWREb3VibGUSDgoGdmFsdWVzGAEgAygBIjoKC1NwYXJzZUFy",
+            "cmF5Eg0KBWluZGV4GAEgAygNEgwKBGNvZGUYAiADKA0SDgoGbnVtYmVyGAMg",
+            "AygBIr0ICghDZWxsR3JpZBItCgRyZWN0GAEgASgLMh8ucmltZ292ZXJub3Iu",
+            "bWlycm9yLnYxLkNlbGxSZWN0Eg8KB3N0cmluZ3MYAiADKAkSLwoEY2VsbBgD",
+            "IAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjMKCHdh",
+            "bGthYmxlGAQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJy",
+            "YXkSMwoIb2NjdXBpZWQYBSABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
+            "RmllbGRBcnJheRIvCgR6b25lGAYgASgLMiEucmltZ292ZXJub3IubWlycm9y",
+            "LnYxLkZpZWxkQXJyYXkSMQoGcm9vZmVkGAcgASgLMiEucmltZ292ZXJub3Iu",
+            "bWlycm9yLnYxLkZpZWxkQXJyYXkSMgoHaW5kb29ycxgIIAEoCzIhLnJpbWdv",
+            "dmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkKDnN1cHBvcnRzX2xpZ2h0",
+            "GAkgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSOAoN",
+            "c3RvcmFnZV9lbXB0eRgKIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5G",
+            "aWVsZEFycmF5EjIKB2Rvb3J3YXkYCyABKAsyIS5yaW1nb3Zlcm5vci5taXJy",
+            "b3IudjEuRmllbGRBcnJheRI0CglmZXJ0aWxpdHkYDCABKAsyIS5yaW1nb3Zl",
+            "cm5vci5taXJyb3IudjEuRmllbGRBcnJheRIzCghwb2xsdXRlZBgNIAEoCzIh",
+            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBGdsb3cYDiAB",
+            "KAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIvCgRyb29m",
+            "GA8gASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMgoH",
+            "em9uZV9pZBgQIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFy",
+            "cmF5EjcKDG5hdHVyYWxfcm9jaxgRIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJv",
+            "ci52MS5GaWVsZEFycmF5Ei8KBHJ1aW4YEiABKAsyIS5yaW1nb3Zlcm5vci5t",
+            "aXJyb3IudjEuRmllbGRBcnJheRI5Cg5wbGF5ZXJfZWRpZmljZRgTIAEoCzIh",
+            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5EjkKDmNsYWltYWJs",
+            "ZV9ydWluGBQgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJy",
+            "YXkSNAoJcnVpbl9ob2xkGBUgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYx",
+            "LkZpZWxkQXJyYXkirAIKEU1pcnJvclBvbGxSZXF1ZXN0EjEKCGlkZW50aXR5",
+            "GAEgASgLMh8ucmltZ292ZXJub3IuY29tbW9uLnYxLklkZW50aXR5EisKBWVw",
+            "b2NoGAIgASgLMhwucmltZ292ZXJub3IubWlycm9yLnYxLkVwb2NoEi8KBGFz",
+            "a3MYAyADKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuU2VjdGlvbkFzaxIY",
+            "CgtieXRlX2J1ZGdldBgEIAEoDUgAiAEBEhQKB3dhaXRfbXMYBSABKA1IAYgB",
+            "ARIhChRqb3VybmFsX2FmdGVyX2N1cnNvchgGIAEoA0gCiAEBQg4KDF9ieXRl",
+            "X2J1ZGdldEIKCghfd2FpdF9tc0IXChVfam91cm5hbF9hZnRlcl9jdXJzb3Ii",
+            "kgQKCEtleWZyYW1lEiwKAmF0GAEgASgLMiAucmltZ292ZXJub3IubWlycm9y",
+            "LnYxLldhdGVybWFyaxI9CglidWlsZGluZ3MYAiADKAsyKi5yaW1nb3Zlcm5v",
+            "ci5vYnNlcnZhdGlvbnMudjEuQnVpbGRpbmdTdGF0ZRI1CgViaWxscxgDIAMo",
+            "CzImLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5CaWxsU3RhY2sSLgoF",
+            "Y2VsbHMYBCABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ2VsbEdyaWQS",
+            "OQoFem9uZXMYBSABKAsyKi5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEu",
+            "Wm9uZXNTbmFwc2hvdBI4CgVwYXducxgGIAEoCzIpLnJpbWdvdmVybm9yLm9i",
+            "c2VydmF0aW9ucy52MS5QYXduU25hcHNob3QSRgoMY29sb255X2ZhY3RzGAcg",
+            "ASgLMjAucmltZ292ZXJub3Iub2JzZXJ2YXRpb25zLnYxLkNvbG9ueUZhY3Rz",
+            "U25hcHNob3QSNwoMY29tYmF0X3Bhd25zGAggAygLMiEucmltZ292ZXJub3Iu",
+            "bWlycm9yLnYxLkNvbWJhdFBhd24SPAoNY29tYmF0X2V2ZW50cxgJIAMoCzIl",
+            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5Db21iYXRFdmVudFJvdyLRAwoFRGVs",
+            "dGESLgoEZnJvbRgBIAEoCzIgLnJpbWdvdmVybm9yLm1pcnJvci52MS5XYXRl",
+            "cm1hcmsSLAoCdG8YAiABKAsyIC5yaW1nb3Zlcm5vci5taXJyb3IudjEuV2F0",
+            "ZXJtYXJrEj0KCWJ1aWxkaW5ncxgDIAMoCzIqLnJpbWdvdmVybm9yLm9ic2Vy",
+            "dmF0aW9ucy52MS5CdWlsZGluZ1N0YXRlEjUKBWJpbGxzGAQgAygLMiYucmlt",
+            "Z292ZXJub3Iub2JzZXJ2YXRpb25zLnYxLkJpbGxTdGFjaxISCgp0b21ic3Rv",
+            "bmVzGAUgAygJEi4KBWNlbGxzGAYgASgLMh8ucmltZ292ZXJub3IubWlycm9y",
+            "LnYxLkNlbGxHcmlkEjkKBXpvbmVzGAcgASgLMioucmltZ292ZXJub3Iub2Jz",
+            "ZXJ2YXRpb25zLnYxLlpvbmVzU25hcHNob3QSNwoMY29tYmF0X3Bhd25zGAgg",
+            "AygLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkNvbWJhdFBhd24SPAoNY29t",
+            "YmF0X2V2ZW50cxgJIAMoCzIlLnJpbWdvdmVybm9yLm1pcnJvci52MS5Db21i",
+            "YXRFdmVudFJvdyKIAgoLU2VjdGlvblBhZ2USNAoHc2VjdGlvbhgBIAEoDjIe",
+            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5TZWN0aW9uSAGIAQESMwoIa2V5ZnJh",
+            "bWUYAiABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3IudjEuS2V5ZnJhbWVIABIt",
+            "CgVkZWx0YRgDIAEoCzIcLnJpbWdvdmVybm9yLm1pcnJvci52MS5EZWx0YUgA",
+            "EhEKBG1vcmUYBCABKAhIAogBARIvCgZyZXN5bmMYBSABKAsyHy5yaW1nb3Zl",
+            "cm5vci5taXJyb3IudjEuS2V5ZnJhbWVCBgoEYm9keUIKCghfc2VjdGlvbkIH",
+            "CgVfbW9yZSLgAQoKTWlycm9yUGFnZRIrCgVlcG9jaBgBIAEoCzIcLnJpbWdv",
+            "dmVybm9yLm1pcnJvci52MS5FcG9jaBIiChVjb21wbGV0ZV90aHJvdWdoX3Rp",
+            "Y2sYAiABKANIAIgBARI0CghzZWN0aW9ucxgDIAMoCzIiLnJpbWdvdmVybm9y",
+            "Lm1pcnJvci52MS5TZWN0aW9uUGFnZRIxCgdqb3VybmFsGAQgASgLMiAucmlt",
+            "Z292ZXJub3IuY2xvY2sudjEuRXZlbnRzUGFnZUIYChZfY29tcGxldGVfdGhy",
+            "b3VnaF90aWNrIoIBCg9NaXJyb3JQb2xsUmVwbHkSMQoEcGFnZRgBIAEoCzIh",
+            "LnJpbWdvdmVybm9yLm1pcnJvci52MS5NaXJyb3JQYWdlSAASMQoHZmFpbHVy",
+            "ZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoH",
+            "b3V0Y29tZSrdAQoHU2VjdGlvbhIXChNTRUNUSU9OX1VOU1BFQ0lGSUVEEAAS",
+            "FQoRU0VDVElPTl9CVUlMRElOR1MQARIRCg1TRUNUSU9OX0JJTExTEAISGgoW",
+            "U0VDVElPTl9QTEFOTklOR19DRUxMUxADEhEKDVNFQ1RJT05fWk9ORVMQBBIR",
+            "Cg1TRUNUSU9OX1BBV05TEAUSGAoUU0VDVElPTl9DT0xPTllfRkFDVFMQBhIY",
+            "ChRTRUNUSU9OX0NPTUJBVF9QQVdOUxAHEhkKFVNFQ1RJT05fQ09NQkFUX0VW",
+            "RU5UUxAIKnsKCkNvbWJhdFNpZGUSGwoXQ09NQkFUX1NJREVfVU5TUEVDSUZJ",
+            "RUQQABIYChRDT01CQVRfU0lERV9DT0xPTklTVBABEhcKE0NPTUJBVF9TSURF",
+            "X0hPU1RJTEUQAhIdChlDT01CQVRfU0lERV9DT0xPTllfQU5JTUFMEAMqrgEK",
+            "DENvbWJhdFN0YW5jZRIdChlDT01CQVRfU1RBTkNFX1VOU1BFQ0lGSUVEEAAS",
+            "FgoSQ09NQkFUX1NUQU5DRV9JRExFEAESGAoUQ09NQkFUX1NUQU5DRV9XQVJN",
+            "VVAQAhIaChZDT01CQVRfU1RBTkNFX0NPT0xET1dOEAMSGAoUQ09NQkFUX1NU",
+            "QU5DRV9NT1ZJTkcQBBIXChNDT01CQVRfU1RBTkNFX01FTEVFEAUqggQKDUNv",
+            "bWJhdExvZ0tpbmQSHwobQ09NQkFUX0xPR19LSU5EX1VOU1BFQ0lGSUVEEAAS",
+            "GgoWQ09NQkFUX0xPR19LSU5EX0RPV05FRBABEhoKFkNPTUJBVF9MT0dfS0lO",
+            "RF9LSUxMRUQQAhIbChdDT01CQVRfTE9HX0tJTkRfREFNQUdFRBADEiEKHUNP",
+            "TUJBVF9MT0dfS0lORF9TSElFTERfQlJPS0VOEAQSHgoaQ09NQkFUX0xPR19L",
+            "SU5EX1NIT1RfRklSRUQQBRInCiNDT01CQVRfTE9HX0tJTkRfUFJPSkVDVElM",
+            "RV9MQVVOQ0hFRBAGEh0KGUNPTUJBVF9MT0dfS0lORF9FWFBMT1NJT04QBxIg",
+            "ChxDT01CQVRfTE9HX0tJTkRfRklSRV9TVEFSVEVEEAgSHwobQ09NQkFUX0xP",
+            "R19LSU5EX0RPT1JfT1BFTkVEEAkSHwobQ09NQkFUX0xPR19LSU5EX0RPT1Jf",
+            "Q0xPU0VEEAoSJgoiQ09NQkFUX0xPR19LSU5EX0JVSUxESU5HX0RFU1RST1lF",
+            "RBALEh0KGUNPTUJBVF9MT0dfS0lORF9MT1JEX1RPSUwQDBIgChxDT01CQVRf",
+            "TE9HX0tJTkRfTUVOVEFMX1NUQVRFEA0SIwofQ09NQkFUX0xPR19LSU5EX0hP",
+            "U1RJTEVfQVJSSVZFRBAOQmVaRWdpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmlt",
+            "R292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9taXJyb3JwYjttaXJyb3JwYqoC",
+            "G1JpbUdvdmVybm9yLlByb3RvY29sLk1pcnJvcmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Clock.ClockReflection.Descriptor, global::RimGovernor.Protocol.Observations.ObservationsReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Mirror.Section), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Mirror.Section), typeof(global::RimGovernor.Protocol.Mirror.CombatSide), typeof(global::RimGovernor.Protocol.Mirror.CombatStance), typeof(global::RimGovernor.Protocol.Mirror.CombatLogKind), }, null, new pbr::GeneratedClrTypeInfo[] {
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatPawn), global::RimGovernor.Protocol.Mirror.CombatPawn.Parser, new[]{ "Id", "Side", "FactionId", "LordId", "Cell", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponRange", "WeaponWarmupTicks", "WeaponCooldownTicks", "WeaponMelee", "Changed" }, new[]{ "Id", "Side", "FactionId", "LordId", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponRange", "WeaponWarmupTicks", "WeaponCooldownTicks", "WeaponMelee" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatEventRow), global::RimGovernor.Protocol.Mirror.CombatEventRow.Parser, new[]{ "At", "Kind", "Stop", "ThingId", "TargetId", "DefName", "Cell", "Detail", "RaidStrategy" }, new[]{ "Kind", "Stop", "ThingId", "TargetId", "DefName", "Detail", "RaidStrategy" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryRequest), global::RimGovernor.Protocol.Mirror.CombatGeometryRequest.Parser, new[]{ "Identity", "Cells", "HostileIds", "PawnId" }, new[]{ "PawnId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatSightLine), global::RimGovernor.Protocol.Mirror.CombatSightLine.Parser, new[]{ "HostileId", "Cover", "LineOfFire", "ColonistInPath" }, new[]{ "HostileId", "Cover", "LineOfFire", "ColonistInPath" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryCell), global::RimGovernor.Protocol.Mirror.CombatGeometryCell.Parser, new[]{ "Cell", "Lines", "PathTicks", "Standable" }, new[]{ "PathTicks", "Standable" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometry), global::RimGovernor.Protocol.Mirror.CombatGeometry.Parser, new[]{ "Context", "Cells", "MainThreadMs" }, new[]{ "MainThreadMs" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryReply), global::RimGovernor.Protocol.Mirror.CombatGeometryReply.Parser, new[]{ "Observed", "Failure" }, new[]{ "Outcome" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Watermark), global::RimGovernor.Protocol.Mirror.Watermark.Parser, new[]{ "Tick", "Seq" }, new[]{ "Tick", "Seq" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Epoch), global::RimGovernor.Protocol.Mirror.Epoch.Parser, new[]{ "Process", "Identity", "NativeGeneration" }, new[]{ "Process", "NativeGeneration" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SectionAsk), global::RimGovernor.Protocol.Mirror.SectionAsk.Parser, new[]{ "Section", "Since", "Window", "Pawns", "ColonyFacts", "Resync" }, new[]{ "Section", "Resync" }, null, null, null),
@@ -130,8 +215,8 @@ namespace RimGovernor.Protocol.Mirror {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SparseArray), global::RimGovernor.Protocol.Mirror.SparseArray.Parser, new[]{ "Index", "Code", "Number" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CellGrid), global::RimGovernor.Protocol.Mirror.CellGrid.Parser, new[]{ "Rect", "Strings", "Cell", "Walkable", "Occupied", "Zone", "Roofed", "Indoors", "SupportsLight", "StorageEmpty", "Doorway", "Fertility", "Polluted", "Glow", "Roof", "ZoneId", "NaturalRock", "Ruin", "PlayerEdifice", "ClaimableRuin", "RuinHold" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.MirrorPollRequest), global::RimGovernor.Protocol.Mirror.MirrorPollRequest.Parser, new[]{ "Identity", "Epoch", "Asks", "ByteBudget", "WaitMs", "JournalAfterCursor" }, new[]{ "ByteBudget", "WaitMs", "JournalAfterCursor" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Keyframe), global::RimGovernor.Protocol.Mirror.Keyframe.Parser, new[]{ "At", "Buildings", "Bills", "Cells", "Zones", "Pawns", "ColonyFacts" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Delta), global::RimGovernor.Protocol.Mirror.Delta.Parser, new[]{ "From", "To", "Buildings", "Bills", "Tombstones", "Cells", "Zones" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Keyframe), global::RimGovernor.Protocol.Mirror.Keyframe.Parser, new[]{ "At", "Buildings", "Bills", "Cells", "Zones", "Pawns", "ColonyFacts", "CombatPawns", "CombatEvents" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.Delta), global::RimGovernor.Protocol.Mirror.Delta.Parser, new[]{ "From", "To", "Buildings", "Bills", "Tombstones", "Cells", "Zones", "CombatPawns", "CombatEvents" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.SectionPage), global::RimGovernor.Protocol.Mirror.SectionPage.Parser, new[]{ "Section", "Keyframe", "Delta", "More", "Resync" }, new[]{ "Body", "Section", "More" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.MirrorPage), global::RimGovernor.Protocol.Mirror.MirrorPage.Parser, new[]{ "Epoch", "CompleteThroughTick", "Sections", "Journal" }, new[]{ "CompleteThroughTick" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.MirrorPollReply), global::RimGovernor.Protocol.Mirror.MirrorPollReply.Parser, new[]{ "Page", "Failure" }, new[]{ "Outcome" }, null, null, null)
@@ -171,11 +256,3902 @@ namespace RimGovernor.Protocol.Mirror {
     /// </summary>
     [pbr::OriginalName("SECTION_PAWNS")] Pawns = 5,
     [pbr::OriginalName("SECTION_COLONY_FACTS")] ColonyFacts = 6,
+    /// <summary>
+    /// Combat state (#851), served while the map has an active hostile or a
+    /// combat epoch runs, else empty (every row tombstoned). Rows keyed by
+    /// pawn load id: every spawned colonist, hostile and colony animal.
+    /// Hook-dirtied pawns are compared on the next poll; the sampled fields
+    /// (cell, health, shield, aim/cooldown, move speed) at most every
+    /// MinCombatCompareTicks of running game.
+    /// </summary>
+    [pbr::OriginalName("SECTION_COMBAT_PAWNS")] CombatPawns = 7,
+    /// <summary>
+    /// Combat events (#851), append-only: rows keyed "&lt;tick>.&lt;seq>" at the
+    /// event's own watermark, never tombstoned. A keyframe is the native's
+    /// retained ring (the newest 1024 events).
+    /// </summary>
+    [pbr::OriginalName("SECTION_COMBAT_EVENTS")] CombatEvents = 8,
+  }
+
+  /// <summary>
+  /// Which side a combat pawn fights on.
+  /// </summary>
+  public enum CombatSide {
+    [pbr::OriginalName("COMBAT_SIDE_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("COMBAT_SIDE_COLONIST")] Colonist = 1,
+    [pbr::OriginalName("COMBAT_SIDE_HOSTILE")] Hostile = 2,
+    [pbr::OriginalName("COMBAT_SIDE_COLONY_ANIMAL")] ColonyAnimal = 3,
+  }
+
+  /// <summary>
+  /// What a combat pawn's stance is doing.
+  /// </summary>
+  public enum CombatStance {
+    [pbr::OriginalName("COMBAT_STANCE_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("COMBAT_STANCE_IDLE")] Idle = 1,
+    /// <summary>
+    /// aiming
+    /// </summary>
+    [pbr::OriginalName("COMBAT_STANCE_WARMUP")] Warmup = 2,
+    /// <summary>
+    /// after a shot or blow
+    /// </summary>
+    [pbr::OriginalName("COMBAT_STANCE_COOLDOWN")] Cooldown = 3,
+    [pbr::OriginalName("COMBAT_STANCE_MOVING")] Moving = 4,
+    /// <summary>
+    /// in a melee job
+    /// </summary>
+    [pbr::OriginalName("COMBAT_STANCE_MELEE")] Melee = 5,
+  }
+
+  /// <summary>
+  /// What a combat event row records. The #849 stop kinds and the non-stops.
+  /// </summary>
+  public enum CombatLogKind {
+    [pbr::OriginalName("COMBAT_LOG_KIND_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("COMBAT_LOG_KIND_DOWNED")] Downed = 1,
+    [pbr::OriginalName("COMBAT_LOG_KIND_KILLED")] Killed = 2,
+    /// <summary>
+    /// detail carries the damage
+    /// </summary>
+    [pbr::OriginalName("COMBAT_LOG_KIND_DAMAGED")] Damaged = 3,
+    [pbr::OriginalName("COMBAT_LOG_KIND_SHIELD_BROKEN")] ShieldBroken = 4,
+    [pbr::OriginalName("COMBAT_LOG_KIND_SHOT_FIRED")] ShotFired = 5,
+    [pbr::OriginalName("COMBAT_LOG_KIND_PROJECTILE_LAUNCHED")] ProjectileLaunched = 6,
+    [pbr::OriginalName("COMBAT_LOG_KIND_EXPLOSION")] Explosion = 7,
+    [pbr::OriginalName("COMBAT_LOG_KIND_FIRE_STARTED")] FireStarted = 8,
+    [pbr::OriginalName("COMBAT_LOG_KIND_DOOR_OPENED")] DoorOpened = 9,
+    [pbr::OriginalName("COMBAT_LOG_KIND_DOOR_CLOSED")] DoorClosed = 10,
+    [pbr::OriginalName("COMBAT_LOG_KIND_BUILDING_DESTROYED")] BuildingDestroyed = 11,
+    /// <summary>
+    /// detail "&lt;from> -> &lt;to>", raid_strategy set
+    /// </summary>
+    [pbr::OriginalName("COMBAT_LOG_KIND_LORD_TOIL")] LordToil = 12,
+    [pbr::OriginalName("COMBAT_LOG_KIND_MENTAL_STATE")] MentalState = 13,
+    [pbr::OriginalName("COMBAT_LOG_KIND_HOSTILE_ARRIVED")] HostileArrived = 14,
   }
 
   #endregion
 
   #region Messages
+  /// <summary>
+  /// One combat pawn row (SECTION_COMBAT_PAWNS). Numbers are thresholded so a
+  /// row only changes when a decision could: fractions to 0.01, bleed and pain
+  /// to 0.05, move speed to 0.1 cells/s.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatPawn : pb::IMessage<CombatPawn>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatPawn> _parser = new pb::MessageParser<CombatPawn>(() => new CombatPawn());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatPawn> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[0]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatPawn() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatPawn(CombatPawn other) : this() {
+      _hasBits0 = other._hasBits0;
+      id_ = other.id_;
+      side_ = other.side_;
+      factionId_ = other.factionId_;
+      lordId_ = other.lordId_;
+      cell_ = other.cell_ != null ? other.cell_.Clone() : null;
+      downed_ = other.downed_;
+      dead_ = other.dead_;
+      mentalState_ = other.mentalState_;
+      drafted_ = other.drafted_;
+      fireMode_ = other.fireMode_;
+      job_ = other.job_;
+      targetId_ = other.targetId_;
+      stance_ = other.stance_;
+      stanceTicksLeft_ = other.stanceTicksLeft_;
+      health_ = other.health_;
+      bleedRate_ = other.bleedRate_;
+      pain_ = other.pain_;
+      moveSpeed_ = other.moveSpeed_;
+      shieldEnergy_ = other.shieldEnergy_;
+      shieldBroken_ = other.shieldBroken_;
+      weapon_ = other.weapon_;
+      weaponRange_ = other.weaponRange_;
+      weaponWarmupTicks_ = other.weaponWarmupTicks_;
+      weaponCooldownTicks_ = other.weaponCooldownTicks_;
+      weaponMelee_ = other.weaponMelee_;
+      changed_ = other.changed_ != null ? other.changed_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatPawn Clone() {
+      return new CombatPawn(this);
+    }
+
+    /// <summary>Field number for the "id" field.</summary>
+    public const int IdFieldNumber = 1;
+    private readonly static string IdDefaultValue = "";
+
+    private string id_;
+    /// <summary>
+    /// load id
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Id {
+      get { return id_ ?? IdDefaultValue; }
+      set {
+        id_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasId {
+      get { return id_ != null; }
+    }
+    /// <summary>Clears the value of the "id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearId() {
+      id_ = null;
+    }
+
+    /// <summary>Field number for the "side" field.</summary>
+    public const int SideFieldNumber = 2;
+    private readonly static global::RimGovernor.Protocol.Mirror.CombatSide SideDefaultValue = global::RimGovernor.Protocol.Mirror.CombatSide.Unspecified;
+
+    private global::RimGovernor.Protocol.Mirror.CombatSide side_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.CombatSide Side {
+      get { if ((_hasBits0 & 1) != 0) { return side_; } else { return SideDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        side_ = value;
+      }
+    }
+    /// <summary>Gets whether the "side" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasSide {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "side" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearSide() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "faction_id" field.</summary>
+    public const int FactionIdFieldNumber = 3;
+    private readonly static string FactionIdDefaultValue = "";
+
+    private string factionId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string FactionId {
+      get { return factionId_ ?? FactionIdDefaultValue; }
+      set {
+        factionId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "faction_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasFactionId {
+      get { return factionId_ != null; }
+    }
+    /// <summary>Clears the value of the "faction_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearFactionId() {
+      factionId_ = null;
+    }
+
+    /// <summary>Field number for the "lord_id" field.</summary>
+    public const int LordIdFieldNumber = 4;
+    private readonly static string LordIdDefaultValue = "";
+
+    private string lordId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string LordId {
+      get { return lordId_ ?? LordIdDefaultValue; }
+      set {
+        lordId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "lord_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasLordId {
+      get { return lordId_ != null; }
+    }
+    /// <summary>Clears the value of the "lord_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearLordId() {
+      lordId_ = null;
+    }
+
+    /// <summary>Field number for the "cell" field.</summary>
+    public const int CellFieldNumber = 5;
+    private global::RimGovernor.Protocol.Common.Cell cell_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell Cell {
+      get { return cell_; }
+      set {
+        cell_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "downed" field.</summary>
+    public const int DownedFieldNumber = 6;
+    private readonly static bool DownedDefaultValue = false;
+
+    private bool downed_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Downed {
+      get { if ((_hasBits0 & 2) != 0) { return downed_; } else { return DownedDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        downed_ = value;
+      }
+    }
+    /// <summary>Gets whether the "downed" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDowned {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "downed" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDowned() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "dead" field.</summary>
+    public const int DeadFieldNumber = 7;
+    private readonly static bool DeadDefaultValue = false;
+
+    private bool dead_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Dead {
+      get { if ((_hasBits0 & 4) != 0) { return dead_; } else { return DeadDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        dead_ = value;
+      }
+    }
+    /// <summary>Gets whether the "dead" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDead {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "dead" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDead() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "mental_state" field.</summary>
+    public const int MentalStateFieldNumber = 8;
+    private readonly static string MentalStateDefaultValue = "";
+
+    private string mentalState_;
+    /// <summary>
+    /// def name, absent when none
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string MentalState {
+      get { return mentalState_ ?? MentalStateDefaultValue; }
+      set {
+        mentalState_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "mental_state" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMentalState {
+      get { return mentalState_ != null; }
+    }
+    /// <summary>Clears the value of the "mental_state" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMentalState() {
+      mentalState_ = null;
+    }
+
+    /// <summary>Field number for the "drafted" field.</summary>
+    public const int DraftedFieldNumber = 9;
+    private readonly static bool DraftedDefaultValue = false;
+
+    private bool drafted_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Drafted {
+      get { if ((_hasBits0 & 8) != 0) { return drafted_; } else { return DraftedDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        drafted_ = value;
+      }
+    }
+    /// <summary>Gets whether the "drafted" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDrafted {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "drafted" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDrafted() {
+      _hasBits0 &= ~8;
+    }
+
+    /// <summary>Field number for the "fire_mode" field.</summary>
+    public const int FireModeFieldNumber = 10;
+    private readonly static string FireModeDefaultValue = "";
+
+    private string fireMode_;
+    /// <summary>
+    /// "fire_at_will" or "hold_fire" (drafted colonists)
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string FireMode {
+      get { return fireMode_ ?? FireModeDefaultValue; }
+      set {
+        fireMode_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "fire_mode" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasFireMode {
+      get { return fireMode_ != null; }
+    }
+    /// <summary>Clears the value of the "fire_mode" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearFireMode() {
+      fireMode_ = null;
+    }
+
+    /// <summary>Field number for the "job" field.</summary>
+    public const int JobFieldNumber = 11;
+    private readonly static string JobDefaultValue = "";
+
+    private string job_;
+    /// <summary>
+    /// current job def
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Job {
+      get { return job_ ?? JobDefaultValue; }
+      set {
+        job_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "job" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasJob {
+      get { return job_ != null; }
+    }
+    /// <summary>Clears the value of the "job" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearJob() {
+      job_ = null;
+    }
+
+    /// <summary>Field number for the "target_id" field.</summary>
+    public const int TargetIdFieldNumber = 12;
+    private readonly static string TargetIdDefaultValue = "";
+
+    private string targetId_;
+    /// <summary>
+    /// current job's target thing
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TargetId {
+      get { return targetId_ ?? TargetIdDefaultValue; }
+      set {
+        targetId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "target_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTargetId {
+      get { return targetId_ != null; }
+    }
+    /// <summary>Clears the value of the "target_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTargetId() {
+      targetId_ = null;
+    }
+
+    /// <summary>Field number for the "stance" field.</summary>
+    public const int StanceFieldNumber = 13;
+    private readonly static global::RimGovernor.Protocol.Mirror.CombatStance StanceDefaultValue = global::RimGovernor.Protocol.Mirror.CombatStance.Unspecified;
+
+    private global::RimGovernor.Protocol.Mirror.CombatStance stance_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.CombatStance Stance {
+      get { if ((_hasBits0 & 16) != 0) { return stance_; } else { return StanceDefaultValue; } }
+      set {
+        _hasBits0 |= 16;
+        stance_ = value;
+      }
+    }
+    /// <summary>Gets whether the "stance" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasStance {
+      get { return (_hasBits0 & 16) != 0; }
+    }
+    /// <summary>Clears the value of the "stance" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearStance() {
+      _hasBits0 &= ~16;
+    }
+
+    /// <summary>Field number for the "stance_ticks_left" field.</summary>
+    public const int StanceTicksLeftFieldNumber = 14;
+    private readonly static int StanceTicksLeftDefaultValue = 0;
+
+    private int stanceTicksLeft_;
+    /// <summary>
+    /// warmup or cooldown ticks remaining
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int StanceTicksLeft {
+      get { if ((_hasBits0 & 32) != 0) { return stanceTicksLeft_; } else { return StanceTicksLeftDefaultValue; } }
+      set {
+        _hasBits0 |= 32;
+        stanceTicksLeft_ = value;
+      }
+    }
+    /// <summary>Gets whether the "stance_ticks_left" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasStanceTicksLeft {
+      get { return (_hasBits0 & 32) != 0; }
+    }
+    /// <summary>Clears the value of the "stance_ticks_left" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearStanceTicksLeft() {
+      _hasBits0 &= ~32;
+    }
+
+    /// <summary>Field number for the "health" field.</summary>
+    public const int HealthFieldNumber = 15;
+    private readonly static double HealthDefaultValue = 0D;
+
+    private double health_;
+    /// <summary>
+    /// summary health fraction
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double Health {
+      get { if ((_hasBits0 & 64) != 0) { return health_; } else { return HealthDefaultValue; } }
+      set {
+        _hasBits0 |= 64;
+        health_ = value;
+      }
+    }
+    /// <summary>Gets whether the "health" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasHealth {
+      get { return (_hasBits0 & 64) != 0; }
+    }
+    /// <summary>Clears the value of the "health" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearHealth() {
+      _hasBits0 &= ~64;
+    }
+
+    /// <summary>Field number for the "bleed_rate" field.</summary>
+    public const int BleedRateFieldNumber = 16;
+    private readonly static double BleedRateDefaultValue = 0D;
+
+    private double bleedRate_;
+    /// <summary>
+    /// per day
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double BleedRate {
+      get { if ((_hasBits0 & 128) != 0) { return bleedRate_; } else { return BleedRateDefaultValue; } }
+      set {
+        _hasBits0 |= 128;
+        bleedRate_ = value;
+      }
+    }
+    /// <summary>Gets whether the "bleed_rate" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasBleedRate {
+      get { return (_hasBits0 & 128) != 0; }
+    }
+    /// <summary>Clears the value of the "bleed_rate" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearBleedRate() {
+      _hasBits0 &= ~128;
+    }
+
+    /// <summary>Field number for the "pain" field.</summary>
+    public const int PainFieldNumber = 17;
+    private readonly static double PainDefaultValue = 0D;
+
+    private double pain_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double Pain {
+      get { if ((_hasBits0 & 256) != 0) { return pain_; } else { return PainDefaultValue; } }
+      set {
+        _hasBits0 |= 256;
+        pain_ = value;
+      }
+    }
+    /// <summary>Gets whether the "pain" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPain {
+      get { return (_hasBits0 & 256) != 0; }
+    }
+    /// <summary>Clears the value of the "pain" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPain() {
+      _hasBits0 &= ~256;
+    }
+
+    /// <summary>Field number for the "move_speed" field.</summary>
+    public const int MoveSpeedFieldNumber = 18;
+    private readonly static double MoveSpeedDefaultValue = 0D;
+
+    private double moveSpeed_;
+    /// <summary>
+    /// cells per second
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double MoveSpeed {
+      get { if ((_hasBits0 & 512) != 0) { return moveSpeed_; } else { return MoveSpeedDefaultValue; } }
+      set {
+        _hasBits0 |= 512;
+        moveSpeed_ = value;
+      }
+    }
+    /// <summary>Gets whether the "move_speed" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMoveSpeed {
+      get { return (_hasBits0 & 512) != 0; }
+    }
+    /// <summary>Clears the value of the "move_speed" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMoveSpeed() {
+      _hasBits0 &= ~512;
+    }
+
+    /// <summary>Field number for the "shield_energy" field.</summary>
+    public const int ShieldEnergyFieldNumber = 19;
+    private readonly static double ShieldEnergyDefaultValue = 0D;
+
+    private double shieldEnergy_;
+    /// <summary>
+    /// fraction of max, absent without a shield
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double ShieldEnergy {
+      get { if ((_hasBits0 & 1024) != 0) { return shieldEnergy_; } else { return ShieldEnergyDefaultValue; } }
+      set {
+        _hasBits0 |= 1024;
+        shieldEnergy_ = value;
+      }
+    }
+    /// <summary>Gets whether the "shield_energy" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasShieldEnergy {
+      get { return (_hasBits0 & 1024) != 0; }
+    }
+    /// <summary>Clears the value of the "shield_energy" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearShieldEnergy() {
+      _hasBits0 &= ~1024;
+    }
+
+    /// <summary>Field number for the "shield_broken" field.</summary>
+    public const int ShieldBrokenFieldNumber = 20;
+    private readonly static bool ShieldBrokenDefaultValue = false;
+
+    private bool shieldBroken_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool ShieldBroken {
+      get { if ((_hasBits0 & 2048) != 0) { return shieldBroken_; } else { return ShieldBrokenDefaultValue; } }
+      set {
+        _hasBits0 |= 2048;
+        shieldBroken_ = value;
+      }
+    }
+    /// <summary>Gets whether the "shield_broken" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasShieldBroken {
+      get { return (_hasBits0 & 2048) != 0; }
+    }
+    /// <summary>Clears the value of the "shield_broken" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearShieldBroken() {
+      _hasBits0 &= ~2048;
+    }
+
+    /// <summary>Field number for the "weapon" field.</summary>
+    public const int WeaponFieldNumber = 21;
+    private readonly static string WeaponDefaultValue = "";
+
+    private string weapon_;
+    /// <summary>
+    /// def name, absent when unarmed
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Weapon {
+      get { return weapon_ ?? WeaponDefaultValue; }
+      set {
+        weapon_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "weapon" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWeapon {
+      get { return weapon_ != null; }
+    }
+    /// <summary>Clears the value of the "weapon" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWeapon() {
+      weapon_ = null;
+    }
+
+    /// <summary>Field number for the "weapon_range" field.</summary>
+    public const int WeaponRangeFieldNumber = 22;
+    private readonly static double WeaponRangeDefaultValue = 0D;
+
+    private double weaponRange_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double WeaponRange {
+      get { if ((_hasBits0 & 4096) != 0) { return weaponRange_; } else { return WeaponRangeDefaultValue; } }
+      set {
+        _hasBits0 |= 4096;
+        weaponRange_ = value;
+      }
+    }
+    /// <summary>Gets whether the "weapon_range" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWeaponRange {
+      get { return (_hasBits0 & 4096) != 0; }
+    }
+    /// <summary>Clears the value of the "weapon_range" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWeaponRange() {
+      _hasBits0 &= ~4096;
+    }
+
+    /// <summary>Field number for the "weapon_warmup_ticks" field.</summary>
+    public const int WeaponWarmupTicksFieldNumber = 23;
+    private readonly static int WeaponWarmupTicksDefaultValue = 0;
+
+    private int weaponWarmupTicks_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int WeaponWarmupTicks {
+      get { if ((_hasBits0 & 8192) != 0) { return weaponWarmupTicks_; } else { return WeaponWarmupTicksDefaultValue; } }
+      set {
+        _hasBits0 |= 8192;
+        weaponWarmupTicks_ = value;
+      }
+    }
+    /// <summary>Gets whether the "weapon_warmup_ticks" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWeaponWarmupTicks {
+      get { return (_hasBits0 & 8192) != 0; }
+    }
+    /// <summary>Clears the value of the "weapon_warmup_ticks" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWeaponWarmupTicks() {
+      _hasBits0 &= ~8192;
+    }
+
+    /// <summary>Field number for the "weapon_cooldown_ticks" field.</summary>
+    public const int WeaponCooldownTicksFieldNumber = 24;
+    private readonly static int WeaponCooldownTicksDefaultValue = 0;
+
+    private int weaponCooldownTicks_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int WeaponCooldownTicks {
+      get { if ((_hasBits0 & 16384) != 0) { return weaponCooldownTicks_; } else { return WeaponCooldownTicksDefaultValue; } }
+      set {
+        _hasBits0 |= 16384;
+        weaponCooldownTicks_ = value;
+      }
+    }
+    /// <summary>Gets whether the "weapon_cooldown_ticks" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWeaponCooldownTicks {
+      get { return (_hasBits0 & 16384) != 0; }
+    }
+    /// <summary>Clears the value of the "weapon_cooldown_ticks" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWeaponCooldownTicks() {
+      _hasBits0 &= ~16384;
+    }
+
+    /// <summary>Field number for the "weapon_melee" field.</summary>
+    public const int WeaponMeleeFieldNumber = 25;
+    private readonly static bool WeaponMeleeDefaultValue = false;
+
+    private bool weaponMelee_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool WeaponMelee {
+      get { if ((_hasBits0 & 32768) != 0) { return weaponMelee_; } else { return WeaponMeleeDefaultValue; } }
+      set {
+        _hasBits0 |= 32768;
+        weaponMelee_ = value;
+      }
+    }
+    /// <summary>Gets whether the "weapon_melee" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWeaponMelee {
+      get { return (_hasBits0 & 32768) != 0; }
+    }
+    /// <summary>Clears the value of the "weapon_melee" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWeaponMelee() {
+      _hasBits0 &= ~32768;
+    }
+
+    /// <summary>Field number for the "changed" field.</summary>
+    public const int ChangedFieldNumber = 26;
+    private global::RimGovernor.Protocol.Mirror.Watermark changed_;
+    /// <summary>
+    /// The watermark of the row's last change: when events concerned the pawn
+    /// since the last compare, the newest of the highest rank (downing or
+    /// death, then another #849 stop kind, then any), the matching SECTION_COMBAT_EVENTS
+    /// row's; otherwise the poll's. Not part of the change comparison.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.Watermark Changed {
+      get { return changed_; }
+      set {
+        changed_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatPawn);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatPawn other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Id != other.Id) return false;
+      if (Side != other.Side) return false;
+      if (FactionId != other.FactionId) return false;
+      if (LordId != other.LordId) return false;
+      if (!object.Equals(Cell, other.Cell)) return false;
+      if (Downed != other.Downed) return false;
+      if (Dead != other.Dead) return false;
+      if (MentalState != other.MentalState) return false;
+      if (Drafted != other.Drafted) return false;
+      if (FireMode != other.FireMode) return false;
+      if (Job != other.Job) return false;
+      if (TargetId != other.TargetId) return false;
+      if (Stance != other.Stance) return false;
+      if (StanceTicksLeft != other.StanceTicksLeft) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Health, other.Health)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(BleedRate, other.BleedRate)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Pain, other.Pain)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(MoveSpeed, other.MoveSpeed)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(ShieldEnergy, other.ShieldEnergy)) return false;
+      if (ShieldBroken != other.ShieldBroken) return false;
+      if (Weapon != other.Weapon) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(WeaponRange, other.WeaponRange)) return false;
+      if (WeaponWarmupTicks != other.WeaponWarmupTicks) return false;
+      if (WeaponCooldownTicks != other.WeaponCooldownTicks) return false;
+      if (WeaponMelee != other.WeaponMelee) return false;
+      if (!object.Equals(Changed, other.Changed)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasId) hash ^= Id.GetHashCode();
+      if (HasSide) hash ^= Side.GetHashCode();
+      if (HasFactionId) hash ^= FactionId.GetHashCode();
+      if (HasLordId) hash ^= LordId.GetHashCode();
+      if (cell_ != null) hash ^= Cell.GetHashCode();
+      if (HasDowned) hash ^= Downed.GetHashCode();
+      if (HasDead) hash ^= Dead.GetHashCode();
+      if (HasMentalState) hash ^= MentalState.GetHashCode();
+      if (HasDrafted) hash ^= Drafted.GetHashCode();
+      if (HasFireMode) hash ^= FireMode.GetHashCode();
+      if (HasJob) hash ^= Job.GetHashCode();
+      if (HasTargetId) hash ^= TargetId.GetHashCode();
+      if (HasStance) hash ^= Stance.GetHashCode();
+      if (HasStanceTicksLeft) hash ^= StanceTicksLeft.GetHashCode();
+      if (HasHealth) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Health);
+      if (HasBleedRate) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(BleedRate);
+      if (HasPain) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Pain);
+      if (HasMoveSpeed) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(MoveSpeed);
+      if (HasShieldEnergy) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(ShieldEnergy);
+      if (HasShieldBroken) hash ^= ShieldBroken.GetHashCode();
+      if (HasWeapon) hash ^= Weapon.GetHashCode();
+      if (HasWeaponRange) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(WeaponRange);
+      if (HasWeaponWarmupTicks) hash ^= WeaponWarmupTicks.GetHashCode();
+      if (HasWeaponCooldownTicks) hash ^= WeaponCooldownTicks.GetHashCode();
+      if (HasWeaponMelee) hash ^= WeaponMelee.GetHashCode();
+      if (changed_ != null) hash ^= Changed.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasId) {
+        output.WriteRawTag(10);
+        output.WriteString(Id);
+      }
+      if (HasSide) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Side);
+      }
+      if (HasFactionId) {
+        output.WriteRawTag(26);
+        output.WriteString(FactionId);
+      }
+      if (HasLordId) {
+        output.WriteRawTag(34);
+        output.WriteString(LordId);
+      }
+      if (cell_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(Cell);
+      }
+      if (HasDowned) {
+        output.WriteRawTag(48);
+        output.WriteBool(Downed);
+      }
+      if (HasDead) {
+        output.WriteRawTag(56);
+        output.WriteBool(Dead);
+      }
+      if (HasMentalState) {
+        output.WriteRawTag(66);
+        output.WriteString(MentalState);
+      }
+      if (HasDrafted) {
+        output.WriteRawTag(72);
+        output.WriteBool(Drafted);
+      }
+      if (HasFireMode) {
+        output.WriteRawTag(82);
+        output.WriteString(FireMode);
+      }
+      if (HasJob) {
+        output.WriteRawTag(90);
+        output.WriteString(Job);
+      }
+      if (HasTargetId) {
+        output.WriteRawTag(98);
+        output.WriteString(TargetId);
+      }
+      if (HasStance) {
+        output.WriteRawTag(104);
+        output.WriteEnum((int) Stance);
+      }
+      if (HasStanceTicksLeft) {
+        output.WriteRawTag(112);
+        output.WriteInt32(StanceTicksLeft);
+      }
+      if (HasHealth) {
+        output.WriteRawTag(121);
+        output.WriteDouble(Health);
+      }
+      if (HasBleedRate) {
+        output.WriteRawTag(129, 1);
+        output.WriteDouble(BleedRate);
+      }
+      if (HasPain) {
+        output.WriteRawTag(137, 1);
+        output.WriteDouble(Pain);
+      }
+      if (HasMoveSpeed) {
+        output.WriteRawTag(145, 1);
+        output.WriteDouble(MoveSpeed);
+      }
+      if (HasShieldEnergy) {
+        output.WriteRawTag(153, 1);
+        output.WriteDouble(ShieldEnergy);
+      }
+      if (HasShieldBroken) {
+        output.WriteRawTag(160, 1);
+        output.WriteBool(ShieldBroken);
+      }
+      if (HasWeapon) {
+        output.WriteRawTag(170, 1);
+        output.WriteString(Weapon);
+      }
+      if (HasWeaponRange) {
+        output.WriteRawTag(177, 1);
+        output.WriteDouble(WeaponRange);
+      }
+      if (HasWeaponWarmupTicks) {
+        output.WriteRawTag(184, 1);
+        output.WriteInt32(WeaponWarmupTicks);
+      }
+      if (HasWeaponCooldownTicks) {
+        output.WriteRawTag(192, 1);
+        output.WriteInt32(WeaponCooldownTicks);
+      }
+      if (HasWeaponMelee) {
+        output.WriteRawTag(200, 1);
+        output.WriteBool(WeaponMelee);
+      }
+      if (changed_ != null) {
+        output.WriteRawTag(210, 1);
+        output.WriteMessage(Changed);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasId) {
+        output.WriteRawTag(10);
+        output.WriteString(Id);
+      }
+      if (HasSide) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Side);
+      }
+      if (HasFactionId) {
+        output.WriteRawTag(26);
+        output.WriteString(FactionId);
+      }
+      if (HasLordId) {
+        output.WriteRawTag(34);
+        output.WriteString(LordId);
+      }
+      if (cell_ != null) {
+        output.WriteRawTag(42);
+        output.WriteMessage(Cell);
+      }
+      if (HasDowned) {
+        output.WriteRawTag(48);
+        output.WriteBool(Downed);
+      }
+      if (HasDead) {
+        output.WriteRawTag(56);
+        output.WriteBool(Dead);
+      }
+      if (HasMentalState) {
+        output.WriteRawTag(66);
+        output.WriteString(MentalState);
+      }
+      if (HasDrafted) {
+        output.WriteRawTag(72);
+        output.WriteBool(Drafted);
+      }
+      if (HasFireMode) {
+        output.WriteRawTag(82);
+        output.WriteString(FireMode);
+      }
+      if (HasJob) {
+        output.WriteRawTag(90);
+        output.WriteString(Job);
+      }
+      if (HasTargetId) {
+        output.WriteRawTag(98);
+        output.WriteString(TargetId);
+      }
+      if (HasStance) {
+        output.WriteRawTag(104);
+        output.WriteEnum((int) Stance);
+      }
+      if (HasStanceTicksLeft) {
+        output.WriteRawTag(112);
+        output.WriteInt32(StanceTicksLeft);
+      }
+      if (HasHealth) {
+        output.WriteRawTag(121);
+        output.WriteDouble(Health);
+      }
+      if (HasBleedRate) {
+        output.WriteRawTag(129, 1);
+        output.WriteDouble(BleedRate);
+      }
+      if (HasPain) {
+        output.WriteRawTag(137, 1);
+        output.WriteDouble(Pain);
+      }
+      if (HasMoveSpeed) {
+        output.WriteRawTag(145, 1);
+        output.WriteDouble(MoveSpeed);
+      }
+      if (HasShieldEnergy) {
+        output.WriteRawTag(153, 1);
+        output.WriteDouble(ShieldEnergy);
+      }
+      if (HasShieldBroken) {
+        output.WriteRawTag(160, 1);
+        output.WriteBool(ShieldBroken);
+      }
+      if (HasWeapon) {
+        output.WriteRawTag(170, 1);
+        output.WriteString(Weapon);
+      }
+      if (HasWeaponRange) {
+        output.WriteRawTag(177, 1);
+        output.WriteDouble(WeaponRange);
+      }
+      if (HasWeaponWarmupTicks) {
+        output.WriteRawTag(184, 1);
+        output.WriteInt32(WeaponWarmupTicks);
+      }
+      if (HasWeaponCooldownTicks) {
+        output.WriteRawTag(192, 1);
+        output.WriteInt32(WeaponCooldownTicks);
+      }
+      if (HasWeaponMelee) {
+        output.WriteRawTag(200, 1);
+        output.WriteBool(WeaponMelee);
+      }
+      if (changed_ != null) {
+        output.WriteRawTag(210, 1);
+        output.WriteMessage(Changed);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Id);
+      }
+      if (HasSide) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Side);
+      }
+      if (HasFactionId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(FactionId);
+      }
+      if (HasLordId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(LordId);
+      }
+      if (cell_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cell);
+      }
+      if (HasDowned) {
+        size += 1 + 1;
+      }
+      if (HasDead) {
+        size += 1 + 1;
+      }
+      if (HasMentalState) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(MentalState);
+      }
+      if (HasDrafted) {
+        size += 1 + 1;
+      }
+      if (HasFireMode) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(FireMode);
+      }
+      if (HasJob) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Job);
+      }
+      if (HasTargetId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TargetId);
+      }
+      if (HasStance) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Stance);
+      }
+      if (HasStanceTicksLeft) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(StanceTicksLeft);
+      }
+      if (HasHealth) {
+        size += 1 + 8;
+      }
+      if (HasBleedRate) {
+        size += 2 + 8;
+      }
+      if (HasPain) {
+        size += 2 + 8;
+      }
+      if (HasMoveSpeed) {
+        size += 2 + 8;
+      }
+      if (HasShieldEnergy) {
+        size += 2 + 8;
+      }
+      if (HasShieldBroken) {
+        size += 2 + 1;
+      }
+      if (HasWeapon) {
+        size += 2 + pb::CodedOutputStream.ComputeStringSize(Weapon);
+      }
+      if (HasWeaponRange) {
+        size += 2 + 8;
+      }
+      if (HasWeaponWarmupTicks) {
+        size += 2 + pb::CodedOutputStream.ComputeInt32Size(WeaponWarmupTicks);
+      }
+      if (HasWeaponCooldownTicks) {
+        size += 2 + pb::CodedOutputStream.ComputeInt32Size(WeaponCooldownTicks);
+      }
+      if (HasWeaponMelee) {
+        size += 2 + 1;
+      }
+      if (changed_ != null) {
+        size += 2 + pb::CodedOutputStream.ComputeMessageSize(Changed);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatPawn other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasId) {
+        Id = other.Id;
+      }
+      if (other.HasSide) {
+        Side = other.Side;
+      }
+      if (other.HasFactionId) {
+        FactionId = other.FactionId;
+      }
+      if (other.HasLordId) {
+        LordId = other.LordId;
+      }
+      if (other.cell_ != null) {
+        if (cell_ == null) {
+          Cell = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        Cell.MergeFrom(other.Cell);
+      }
+      if (other.HasDowned) {
+        Downed = other.Downed;
+      }
+      if (other.HasDead) {
+        Dead = other.Dead;
+      }
+      if (other.HasMentalState) {
+        MentalState = other.MentalState;
+      }
+      if (other.HasDrafted) {
+        Drafted = other.Drafted;
+      }
+      if (other.HasFireMode) {
+        FireMode = other.FireMode;
+      }
+      if (other.HasJob) {
+        Job = other.Job;
+      }
+      if (other.HasTargetId) {
+        TargetId = other.TargetId;
+      }
+      if (other.HasStance) {
+        Stance = other.Stance;
+      }
+      if (other.HasStanceTicksLeft) {
+        StanceTicksLeft = other.StanceTicksLeft;
+      }
+      if (other.HasHealth) {
+        Health = other.Health;
+      }
+      if (other.HasBleedRate) {
+        BleedRate = other.BleedRate;
+      }
+      if (other.HasPain) {
+        Pain = other.Pain;
+      }
+      if (other.HasMoveSpeed) {
+        MoveSpeed = other.MoveSpeed;
+      }
+      if (other.HasShieldEnergy) {
+        ShieldEnergy = other.ShieldEnergy;
+      }
+      if (other.HasShieldBroken) {
+        ShieldBroken = other.ShieldBroken;
+      }
+      if (other.HasWeapon) {
+        Weapon = other.Weapon;
+      }
+      if (other.HasWeaponRange) {
+        WeaponRange = other.WeaponRange;
+      }
+      if (other.HasWeaponWarmupTicks) {
+        WeaponWarmupTicks = other.WeaponWarmupTicks;
+      }
+      if (other.HasWeaponCooldownTicks) {
+        WeaponCooldownTicks = other.WeaponCooldownTicks;
+      }
+      if (other.HasWeaponMelee) {
+        WeaponMelee = other.WeaponMelee;
+      }
+      if (other.changed_ != null) {
+        if (changed_ == null) {
+          Changed = new global::RimGovernor.Protocol.Mirror.Watermark();
+        }
+        Changed.MergeFrom(other.Changed);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Id = input.ReadString();
+            break;
+          }
+          case 16: {
+            Side = (global::RimGovernor.Protocol.Mirror.CombatSide) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            FactionId = input.ReadString();
+            break;
+          }
+          case 34: {
+            LordId = input.ReadString();
+            break;
+          }
+          case 42: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 48: {
+            Downed = input.ReadBool();
+            break;
+          }
+          case 56: {
+            Dead = input.ReadBool();
+            break;
+          }
+          case 66: {
+            MentalState = input.ReadString();
+            break;
+          }
+          case 72: {
+            Drafted = input.ReadBool();
+            break;
+          }
+          case 82: {
+            FireMode = input.ReadString();
+            break;
+          }
+          case 90: {
+            Job = input.ReadString();
+            break;
+          }
+          case 98: {
+            TargetId = input.ReadString();
+            break;
+          }
+          case 104: {
+            Stance = (global::RimGovernor.Protocol.Mirror.CombatStance) input.ReadEnum();
+            break;
+          }
+          case 112: {
+            StanceTicksLeft = input.ReadInt32();
+            break;
+          }
+          case 121: {
+            Health = input.ReadDouble();
+            break;
+          }
+          case 129: {
+            BleedRate = input.ReadDouble();
+            break;
+          }
+          case 137: {
+            Pain = input.ReadDouble();
+            break;
+          }
+          case 145: {
+            MoveSpeed = input.ReadDouble();
+            break;
+          }
+          case 153: {
+            ShieldEnergy = input.ReadDouble();
+            break;
+          }
+          case 160: {
+            ShieldBroken = input.ReadBool();
+            break;
+          }
+          case 170: {
+            Weapon = input.ReadString();
+            break;
+          }
+          case 177: {
+            WeaponRange = input.ReadDouble();
+            break;
+          }
+          case 184: {
+            WeaponWarmupTicks = input.ReadInt32();
+            break;
+          }
+          case 192: {
+            WeaponCooldownTicks = input.ReadInt32();
+            break;
+          }
+          case 200: {
+            WeaponMelee = input.ReadBool();
+            break;
+          }
+          case 210: {
+            if (changed_ == null) {
+              Changed = new global::RimGovernor.Protocol.Mirror.Watermark();
+            }
+            input.ReadMessage(Changed);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Id = input.ReadString();
+            break;
+          }
+          case 16: {
+            Side = (global::RimGovernor.Protocol.Mirror.CombatSide) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            FactionId = input.ReadString();
+            break;
+          }
+          case 34: {
+            LordId = input.ReadString();
+            break;
+          }
+          case 42: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 48: {
+            Downed = input.ReadBool();
+            break;
+          }
+          case 56: {
+            Dead = input.ReadBool();
+            break;
+          }
+          case 66: {
+            MentalState = input.ReadString();
+            break;
+          }
+          case 72: {
+            Drafted = input.ReadBool();
+            break;
+          }
+          case 82: {
+            FireMode = input.ReadString();
+            break;
+          }
+          case 90: {
+            Job = input.ReadString();
+            break;
+          }
+          case 98: {
+            TargetId = input.ReadString();
+            break;
+          }
+          case 104: {
+            Stance = (global::RimGovernor.Protocol.Mirror.CombatStance) input.ReadEnum();
+            break;
+          }
+          case 112: {
+            StanceTicksLeft = input.ReadInt32();
+            break;
+          }
+          case 121: {
+            Health = input.ReadDouble();
+            break;
+          }
+          case 129: {
+            BleedRate = input.ReadDouble();
+            break;
+          }
+          case 137: {
+            Pain = input.ReadDouble();
+            break;
+          }
+          case 145: {
+            MoveSpeed = input.ReadDouble();
+            break;
+          }
+          case 153: {
+            ShieldEnergy = input.ReadDouble();
+            break;
+          }
+          case 160: {
+            ShieldBroken = input.ReadBool();
+            break;
+          }
+          case 170: {
+            Weapon = input.ReadString();
+            break;
+          }
+          case 177: {
+            WeaponRange = input.ReadDouble();
+            break;
+          }
+          case 184: {
+            WeaponWarmupTicks = input.ReadInt32();
+            break;
+          }
+          case 192: {
+            WeaponCooldownTicks = input.ReadInt32();
+            break;
+          }
+          case 200: {
+            WeaponMelee = input.ReadBool();
+            break;
+          }
+          case 210: {
+            if (changed_ == null) {
+              Changed = new global::RimGovernor.Protocol.Mirror.Watermark();
+            }
+            input.ReadMessage(Changed);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// One combat event row (SECTION_COMBAT_EVENTS).
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatEventRow : pb::IMessage<CombatEventRow>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatEventRow> _parser = new pb::MessageParser<CombatEventRow>(() => new CombatEventRow());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatEventRow> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatEventRow() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatEventRow(CombatEventRow other) : this() {
+      _hasBits0 = other._hasBits0;
+      at_ = other.at_ != null ? other.at_.Clone() : null;
+      kind_ = other.kind_;
+      stop_ = other.stop_;
+      thingId_ = other.thingId_;
+      targetId_ = other.targetId_;
+      defName_ = other.defName_;
+      cell_ = other.cell_ != null ? other.cell_.Clone() : null;
+      detail_ = other.detail_;
+      raidStrategy_ = other.raidStrategy_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatEventRow Clone() {
+      return new CombatEventRow(this);
+    }
+
+    /// <summary>Field number for the "at" field.</summary>
+    public const int AtFieldNumber = 1;
+    private global::RimGovernor.Protocol.Mirror.Watermark at_;
+    /// <summary>
+    /// the event's own mark; the row id is "&lt;tick>.&lt;seq>"
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.Watermark At {
+      get { return at_; }
+      set {
+        at_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "kind" field.</summary>
+    public const int KindFieldNumber = 2;
+    private readonly static global::RimGovernor.Protocol.Mirror.CombatLogKind KindDefaultValue = global::RimGovernor.Protocol.Mirror.CombatLogKind.Unspecified;
+
+    private global::RimGovernor.Protocol.Mirror.CombatLogKind kind_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.CombatLogKind Kind {
+      get { if ((_hasBits0 & 1) != 0) { return kind_; } else { return KindDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        kind_ = value;
+      }
+    }
+    /// <summary>Gets whether the "kind" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasKind {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "kind" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearKind() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "stop" field.</summary>
+    public const int StopFieldNumber = 3;
+    private readonly static global::RimGovernor.Protocol.Clock.CombatEvent StopDefaultValue = global::RimGovernor.Protocol.Clock.CombatEvent.Unspecified;
+
+    private global::RimGovernor.Protocol.Clock.CombatEvent stop_;
+    /// <summary>
+    /// The #849 stop kind this event is, armed or not; unset for non-stops.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Clock.CombatEvent Stop {
+      get { if ((_hasBits0 & 2) != 0) { return stop_; } else { return StopDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        stop_ = value;
+      }
+    }
+    /// <summary>Gets whether the "stop" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasStop {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "stop" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearStop() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "thing_id" field.</summary>
+    public const int ThingIdFieldNumber = 4;
+    private readonly static string ThingIdDefaultValue = "";
+
+    private string thingId_;
+    /// <summary>
+    /// the actor or subject
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ThingId {
+      get { return thingId_ ?? ThingIdDefaultValue; }
+      set {
+        thingId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "thing_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasThingId {
+      get { return thingId_ != null; }
+    }
+    /// <summary>Clears the value of the "thing_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearThingId() {
+      thingId_ = null;
+    }
+
+    /// <summary>Field number for the "target_id" field.</summary>
+    public const int TargetIdFieldNumber = 5;
+    private readonly static string TargetIdDefaultValue = "";
+
+    private string targetId_;
+    /// <summary>
+    /// the victim, target or instigator
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string TargetId {
+      get { return targetId_ ?? TargetIdDefaultValue; }
+      set {
+        targetId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "target_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasTargetId {
+      get { return targetId_ != null; }
+    }
+    /// <summary>Clears the value of the "target_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearTargetId() {
+      targetId_ = null;
+    }
+
+    /// <summary>Field number for the "def_name" field.</summary>
+    public const int DefNameFieldNumber = 6;
+    private readonly static string DefNameDefaultValue = "";
+
+    private string defName_;
+    /// <summary>
+    /// weapon, projectile, building or state def
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string DefName {
+      get { return defName_ ?? DefNameDefaultValue; }
+      set {
+        defName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "def_name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDefName {
+      get { return defName_ != null; }
+    }
+    /// <summary>Clears the value of the "def_name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDefName() {
+      defName_ = null;
+    }
+
+    /// <summary>Field number for the "cell" field.</summary>
+    public const int CellFieldNumber = 7;
+    private global::RimGovernor.Protocol.Common.Cell cell_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell Cell {
+      get { return cell_; }
+      set {
+        cell_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "detail" field.</summary>
+    public const int DetailFieldNumber = 8;
+    private readonly static string DetailDefaultValue = "";
+
+    private string detail_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Detail {
+      get { return detail_ ?? DetailDefaultValue; }
+      set {
+        detail_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "detail" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDetail {
+      get { return detail_ != null; }
+    }
+    /// <summary>Clears the value of the "detail" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDetail() {
+      detail_ = null;
+    }
+
+    /// <summary>Field number for the "raid_strategy" field.</summary>
+    public const int RaidStrategyFieldNumber = 9;
+    private readonly static string RaidStrategyDefaultValue = "";
+
+    private string raidStrategy_;
+    /// <summary>
+    /// lord toil rows: the raid strategy def
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string RaidStrategy {
+      get { return raidStrategy_ ?? RaidStrategyDefaultValue; }
+      set {
+        raidStrategy_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "raid_strategy" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRaidStrategy {
+      get { return raidStrategy_ != null; }
+    }
+    /// <summary>Clears the value of the "raid_strategy" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRaidStrategy() {
+      raidStrategy_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatEventRow);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatEventRow other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(At, other.At)) return false;
+      if (Kind != other.Kind) return false;
+      if (Stop != other.Stop) return false;
+      if (ThingId != other.ThingId) return false;
+      if (TargetId != other.TargetId) return false;
+      if (DefName != other.DefName) return false;
+      if (!object.Equals(Cell, other.Cell)) return false;
+      if (Detail != other.Detail) return false;
+      if (RaidStrategy != other.RaidStrategy) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (at_ != null) hash ^= At.GetHashCode();
+      if (HasKind) hash ^= Kind.GetHashCode();
+      if (HasStop) hash ^= Stop.GetHashCode();
+      if (HasThingId) hash ^= ThingId.GetHashCode();
+      if (HasTargetId) hash ^= TargetId.GetHashCode();
+      if (HasDefName) hash ^= DefName.GetHashCode();
+      if (cell_ != null) hash ^= Cell.GetHashCode();
+      if (HasDetail) hash ^= Detail.GetHashCode();
+      if (HasRaidStrategy) hash ^= RaidStrategy.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (at_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(At);
+      }
+      if (HasKind) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Kind);
+      }
+      if (HasStop) {
+        output.WriteRawTag(24);
+        output.WriteEnum((int) Stop);
+      }
+      if (HasThingId) {
+        output.WriteRawTag(34);
+        output.WriteString(ThingId);
+      }
+      if (HasTargetId) {
+        output.WriteRawTag(42);
+        output.WriteString(TargetId);
+      }
+      if (HasDefName) {
+        output.WriteRawTag(50);
+        output.WriteString(DefName);
+      }
+      if (cell_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(Cell);
+      }
+      if (HasDetail) {
+        output.WriteRawTag(66);
+        output.WriteString(Detail);
+      }
+      if (HasRaidStrategy) {
+        output.WriteRawTag(74);
+        output.WriteString(RaidStrategy);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (at_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(At);
+      }
+      if (HasKind) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Kind);
+      }
+      if (HasStop) {
+        output.WriteRawTag(24);
+        output.WriteEnum((int) Stop);
+      }
+      if (HasThingId) {
+        output.WriteRawTag(34);
+        output.WriteString(ThingId);
+      }
+      if (HasTargetId) {
+        output.WriteRawTag(42);
+        output.WriteString(TargetId);
+      }
+      if (HasDefName) {
+        output.WriteRawTag(50);
+        output.WriteString(DefName);
+      }
+      if (cell_ != null) {
+        output.WriteRawTag(58);
+        output.WriteMessage(Cell);
+      }
+      if (HasDetail) {
+        output.WriteRawTag(66);
+        output.WriteString(Detail);
+      }
+      if (HasRaidStrategy) {
+        output.WriteRawTag(74);
+        output.WriteString(RaidStrategy);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (at_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(At);
+      }
+      if (HasKind) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Kind);
+      }
+      if (HasStop) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Stop);
+      }
+      if (HasThingId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ThingId);
+      }
+      if (HasTargetId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(TargetId);
+      }
+      if (HasDefName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(DefName);
+      }
+      if (cell_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cell);
+      }
+      if (HasDetail) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Detail);
+      }
+      if (HasRaidStrategy) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(RaidStrategy);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatEventRow other) {
+      if (other == null) {
+        return;
+      }
+      if (other.at_ != null) {
+        if (at_ == null) {
+          At = new global::RimGovernor.Protocol.Mirror.Watermark();
+        }
+        At.MergeFrom(other.At);
+      }
+      if (other.HasKind) {
+        Kind = other.Kind;
+      }
+      if (other.HasStop) {
+        Stop = other.Stop;
+      }
+      if (other.HasThingId) {
+        ThingId = other.ThingId;
+      }
+      if (other.HasTargetId) {
+        TargetId = other.TargetId;
+      }
+      if (other.HasDefName) {
+        DefName = other.DefName;
+      }
+      if (other.cell_ != null) {
+        if (cell_ == null) {
+          Cell = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        Cell.MergeFrom(other.Cell);
+      }
+      if (other.HasDetail) {
+        Detail = other.Detail;
+      }
+      if (other.HasRaidStrategy) {
+        RaidStrategy = other.RaidStrategy;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (at_ == null) {
+              At = new global::RimGovernor.Protocol.Mirror.Watermark();
+            }
+            input.ReadMessage(At);
+            break;
+          }
+          case 16: {
+            Kind = (global::RimGovernor.Protocol.Mirror.CombatLogKind) input.ReadEnum();
+            break;
+          }
+          case 24: {
+            Stop = (global::RimGovernor.Protocol.Clock.CombatEvent) input.ReadEnum();
+            break;
+          }
+          case 34: {
+            ThingId = input.ReadString();
+            break;
+          }
+          case 42: {
+            TargetId = input.ReadString();
+            break;
+          }
+          case 50: {
+            DefName = input.ReadString();
+            break;
+          }
+          case 58: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 66: {
+            Detail = input.ReadString();
+            break;
+          }
+          case 74: {
+            RaidStrategy = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (at_ == null) {
+              At = new global::RimGovernor.Protocol.Mirror.Watermark();
+            }
+            input.ReadMessage(At);
+            break;
+          }
+          case 16: {
+            Kind = (global::RimGovernor.Protocol.Mirror.CombatLogKind) input.ReadEnum();
+            break;
+          }
+          case 24: {
+            Stop = (global::RimGovernor.Protocol.Clock.CombatEvent) input.ReadEnum();
+            break;
+          }
+          case 34: {
+            ThingId = input.ReadString();
+            break;
+          }
+          case 42: {
+            TargetId = input.ReadString();
+            break;
+          }
+          case 50: {
+            DefName = input.ReadString();
+            break;
+          }
+          case 58: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 66: {
+            Detail = input.ReadString();
+            break;
+          }
+          case 74: {
+            RaidStrategy = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
+  /// answers DecideCombat's geometry questions at a stop by the game's own
+  /// rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
+  /// hostiles (the native's CombatGeometry constants, bridge.CombatGeometry*),
+  /// measured on lab-ranged under the 50 ms main-thread budget.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatGeometryRequest : pb::IMessage<CombatGeometryRequest>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatGeometryRequest> _parser = new pb::MessageParser<CombatGeometryRequest>(() => new CombatGeometryRequest());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatGeometryRequest> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[2]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryRequest() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryRequest(CombatGeometryRequest other) : this() {
+      identity_ = other.identity_ != null ? other.identity_.Clone() : null;
+      cells_ = other.cells_.Clone();
+      hostileIds_ = other.hostileIds_.Clone();
+      pawnId_ = other.pawnId_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryRequest Clone() {
+      return new CombatGeometryRequest(this);
+    }
+
+    /// <summary>Field number for the "identity" field.</summary>
+    public const int IdentityFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.Identity identity_;
+    /// <summary>
+    /// required
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Identity Identity {
+      get { return identity_; }
+      set {
+        identity_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "cells" field.</summary>
+    public const int CellsFieldNumber = 2;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Common.Cell> _repeated_cells_codec
+        = pb::FieldCodec.ForMessage(18, global::RimGovernor.Protocol.Common.Cell.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> cells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell>();
+    /// <summary>
+    /// 1..cap, distinct, in bounds
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> Cells {
+      get { return cells_; }
+    }
+
+    /// <summary>Field number for the "hostile_ids" field.</summary>
+    public const int HostileIdsFieldNumber = 3;
+    private static readonly pb::FieldCodec<string> _repeated_hostileIds_codec
+        = pb::FieldCodec.ForString(26);
+    private readonly pbc::RepeatedField<string> hostileIds_ = new pbc::RepeatedField<string>();
+    /// <summary>
+    /// 1..cap, distinct pawn load ids
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<string> HostileIds {
+      get { return hostileIds_; }
+    }
+
+    /// <summary>Field number for the "pawn_id" field.</summary>
+    public const int PawnIdFieldNumber = 4;
+    private readonly static string PawnIdDefaultValue = "";
+
+    private string pawnId_;
+    /// <summary>
+    /// optional: path ticks for this pawn to each cell
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string PawnId {
+      get { return pawnId_ ?? PawnIdDefaultValue; }
+      set {
+        pawnId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "pawn_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPawnId {
+      get { return pawnId_ != null; }
+    }
+    /// <summary>Clears the value of the "pawn_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPawnId() {
+      pawnId_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatGeometryRequest);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatGeometryRequest other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Identity, other.Identity)) return false;
+      if(!cells_.Equals(other.cells_)) return false;
+      if(!hostileIds_.Equals(other.hostileIds_)) return false;
+      if (PawnId != other.PawnId) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (identity_ != null) hash ^= Identity.GetHashCode();
+      hash ^= cells_.GetHashCode();
+      hash ^= hostileIds_.GetHashCode();
+      if (HasPawnId) hash ^= PawnId.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (identity_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Identity);
+      }
+      cells_.WriteTo(output, _repeated_cells_codec);
+      hostileIds_.WriteTo(output, _repeated_hostileIds_codec);
+      if (HasPawnId) {
+        output.WriteRawTag(34);
+        output.WriteString(PawnId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (identity_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Identity);
+      }
+      cells_.WriteTo(ref output, _repeated_cells_codec);
+      hostileIds_.WriteTo(ref output, _repeated_hostileIds_codec);
+      if (HasPawnId) {
+        output.WriteRawTag(34);
+        output.WriteString(PawnId);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (identity_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Identity);
+      }
+      size += cells_.CalculateSize(_repeated_cells_codec);
+      size += hostileIds_.CalculateSize(_repeated_hostileIds_codec);
+      if (HasPawnId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(PawnId);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatGeometryRequest other) {
+      if (other == null) {
+        return;
+      }
+      if (other.identity_ != null) {
+        if (identity_ == null) {
+          Identity = new global::RimGovernor.Protocol.Common.Identity();
+        }
+        Identity.MergeFrom(other.Identity);
+      }
+      cells_.Add(other.cells_);
+      hostileIds_.Add(other.hostileIds_);
+      if (other.HasPawnId) {
+        PawnId = other.PawnId;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
+          case 18: {
+            cells_.AddEntriesFrom(input, _repeated_cells_codec);
+            break;
+          }
+          case 26: {
+            hostileIds_.AddEntriesFrom(input, _repeated_hostileIds_codec);
+            break;
+          }
+          case 34: {
+            PawnId = input.ReadString();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
+          case 18: {
+            cells_.AddEntriesFrom(ref input, _repeated_cells_codec);
+            break;
+          }
+          case 26: {
+            hostileIds_.AddEntriesFrom(ref input, _repeated_hostileIds_codec);
+            break;
+          }
+          case 34: {
+            PawnId = input.ReadString();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// One (cell, hostile) pair.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatSightLine : pb::IMessage<CombatSightLine>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatSightLine> _parser = new pb::MessageParser<CombatSightLine>(() => new CombatSightLine());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatSightLine> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[3]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatSightLine() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatSightLine(CombatSightLine other) : this() {
+      _hasBits0 = other._hasBits0;
+      hostileId_ = other.hostileId_;
+      cover_ = other.cover_;
+      lineOfFire_ = other.lineOfFire_;
+      colonistInPath_ = other.colonistInPath_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatSightLine Clone() {
+      return new CombatSightLine(this);
+    }
+
+    /// <summary>Field number for the "hostile_id" field.</summary>
+    public const int HostileIdFieldNumber = 1;
+    private readonly static string HostileIdDefaultValue = "";
+
+    private string hostileId_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string HostileId {
+      get { return hostileId_ ?? HostileIdDefaultValue; }
+      set {
+        hostileId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "hostile_id" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasHostileId {
+      get { return hostileId_ != null; }
+    }
+    /// <summary>Clears the value of the "hostile_id" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearHostileId() {
+      hostileId_ = null;
+    }
+
+    /// <summary>Field number for the "cover" field.</summary>
+    public const int CoverFieldNumber = 2;
+    private readonly static double CoverDefaultValue = 0D;
+
+    private double cover_;
+    /// <summary>
+    /// CoverUtility.CalculateOverallBlockChance at the cell against a shot
+    /// from the hostile's cell, 0..1.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double Cover {
+      get { if ((_hasBits0 & 1) != 0) { return cover_; } else { return CoverDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        cover_ = value;
+      }
+    }
+    /// <summary>Gets whether the "cover" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasCover {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "cover" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearCover() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "line_of_fire" field.</summary>
+    public const int LineOfFireFieldNumber = 3;
+    private readonly static bool LineOfFireDefaultValue = false;
+
+    private bool lineOfFire_;
+    /// <summary>
+    /// A shooter at the cell can hit the hostile (a verb shoot line exists).
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool LineOfFire {
+      get { if ((_hasBits0 & 2) != 0) { return lineOfFire_; } else { return LineOfFireDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        lineOfFire_ = value;
+      }
+    }
+    /// <summary>Gets whether the "line_of_fire" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasLineOfFire {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "line_of_fire" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearLineOfFire() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "colonist_in_path" field.</summary>
+    public const int ColonistInPathFieldNumber = 4;
+    private readonly static bool ColonistInPathDefaultValue = false;
+
+    private bool colonistInPath_;
+    /// <summary>
+    /// A colonist stands on the shoot line between them.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool ColonistInPath {
+      get { if ((_hasBits0 & 4) != 0) { return colonistInPath_; } else { return ColonistInPathDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        colonistInPath_ = value;
+      }
+    }
+    /// <summary>Gets whether the "colonist_in_path" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasColonistInPath {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "colonist_in_path" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearColonistInPath() {
+      _hasBits0 &= ~4;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatSightLine);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatSightLine other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (HostileId != other.HostileId) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Cover, other.Cover)) return false;
+      if (LineOfFire != other.LineOfFire) return false;
+      if (ColonistInPath != other.ColonistInPath) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (HasHostileId) hash ^= HostileId.GetHashCode();
+      if (HasCover) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Cover);
+      if (HasLineOfFire) hash ^= LineOfFire.GetHashCode();
+      if (HasColonistInPath) hash ^= ColonistInPath.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (HasHostileId) {
+        output.WriteRawTag(10);
+        output.WriteString(HostileId);
+      }
+      if (HasCover) {
+        output.WriteRawTag(17);
+        output.WriteDouble(Cover);
+      }
+      if (HasLineOfFire) {
+        output.WriteRawTag(24);
+        output.WriteBool(LineOfFire);
+      }
+      if (HasColonistInPath) {
+        output.WriteRawTag(32);
+        output.WriteBool(ColonistInPath);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (HasHostileId) {
+        output.WriteRawTag(10);
+        output.WriteString(HostileId);
+      }
+      if (HasCover) {
+        output.WriteRawTag(17);
+        output.WriteDouble(Cover);
+      }
+      if (HasLineOfFire) {
+        output.WriteRawTag(24);
+        output.WriteBool(LineOfFire);
+      }
+      if (HasColonistInPath) {
+        output.WriteRawTag(32);
+        output.WriteBool(ColonistInPath);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (HasHostileId) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(HostileId);
+      }
+      if (HasCover) {
+        size += 1 + 8;
+      }
+      if (HasLineOfFire) {
+        size += 1 + 1;
+      }
+      if (HasColonistInPath) {
+        size += 1 + 1;
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatSightLine other) {
+      if (other == null) {
+        return;
+      }
+      if (other.HasHostileId) {
+        HostileId = other.HostileId;
+      }
+      if (other.HasCover) {
+        Cover = other.Cover;
+      }
+      if (other.HasLineOfFire) {
+        LineOfFire = other.LineOfFire;
+      }
+      if (other.HasColonistInPath) {
+        ColonistInPath = other.ColonistInPath;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            HostileId = input.ReadString();
+            break;
+          }
+          case 17: {
+            Cover = input.ReadDouble();
+            break;
+          }
+          case 24: {
+            LineOfFire = input.ReadBool();
+            break;
+          }
+          case 32: {
+            ColonistInPath = input.ReadBool();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            HostileId = input.ReadString();
+            break;
+          }
+          case 17: {
+            Cover = input.ReadDouble();
+            break;
+          }
+          case 24: {
+            LineOfFire = input.ReadBool();
+            break;
+          }
+          case 32: {
+            ColonistInPath = input.ReadBool();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatGeometryCell : pb::IMessage<CombatGeometryCell>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatGeometryCell> _parser = new pb::MessageParser<CombatGeometryCell>(() => new CombatGeometryCell());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatGeometryCell> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[4]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryCell() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryCell(CombatGeometryCell other) : this() {
+      _hasBits0 = other._hasBits0;
+      cell_ = other.cell_ != null ? other.cell_.Clone() : null;
+      lines_ = other.lines_.Clone();
+      pathTicks_ = other.pathTicks_;
+      standable_ = other.standable_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryCell Clone() {
+      return new CombatGeometryCell(this);
+    }
+
+    /// <summary>Field number for the "cell" field.</summary>
+    public const int CellFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.Cell cell_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Cell Cell {
+      get { return cell_; }
+      set {
+        cell_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "lines" field.</summary>
+    public const int LinesFieldNumber = 2;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Mirror.CombatSightLine> _repeated_lines_codec
+        = pb::FieldCodec.ForMessage(18, global::RimGovernor.Protocol.Mirror.CombatSightLine.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatSightLine> lines_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatSightLine>();
+    /// <summary>
+    /// request hostile order
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatSightLine> Lines {
+      get { return lines_; }
+    }
+
+    /// <summary>Field number for the "path_ticks" field.</summary>
+    public const int PathTicksFieldNumber = 3;
+    private readonly static int PathTicksDefaultValue = 0;
+
+    private int pathTicks_;
+    /// <summary>
+    /// Path ticks for the request's pawn; absent without a pawn or a path.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int PathTicks {
+      get { if ((_hasBits0 & 1) != 0) { return pathTicks_; } else { return PathTicksDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        pathTicks_ = value;
+      }
+    }
+    /// <summary>Gets whether the "path_ticks" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPathTicks {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "path_ticks" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPathTicks() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "standable" field.</summary>
+    public const int StandableFieldNumber = 4;
+    private readonly static bool StandableDefaultValue = false;
+
+    private bool standable_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Standable {
+      get { if ((_hasBits0 & 2) != 0) { return standable_; } else { return StandableDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        standable_ = value;
+      }
+    }
+    /// <summary>Gets whether the "standable" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasStandable {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "standable" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearStandable() {
+      _hasBits0 &= ~2;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatGeometryCell);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatGeometryCell other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Cell, other.Cell)) return false;
+      if(!lines_.Equals(other.lines_)) return false;
+      if (PathTicks != other.PathTicks) return false;
+      if (Standable != other.Standable) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (cell_ != null) hash ^= Cell.GetHashCode();
+      hash ^= lines_.GetHashCode();
+      if (HasPathTicks) hash ^= PathTicks.GetHashCode();
+      if (HasStandable) hash ^= Standable.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (cell_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Cell);
+      }
+      lines_.WriteTo(output, _repeated_lines_codec);
+      if (HasPathTicks) {
+        output.WriteRawTag(24);
+        output.WriteInt32(PathTicks);
+      }
+      if (HasStandable) {
+        output.WriteRawTag(32);
+        output.WriteBool(Standable);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (cell_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Cell);
+      }
+      lines_.WriteTo(ref output, _repeated_lines_codec);
+      if (HasPathTicks) {
+        output.WriteRawTag(24);
+        output.WriteInt32(PathTicks);
+      }
+      if (HasStandable) {
+        output.WriteRawTag(32);
+        output.WriteBool(Standable);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (cell_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Cell);
+      }
+      size += lines_.CalculateSize(_repeated_lines_codec);
+      if (HasPathTicks) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(PathTicks);
+      }
+      if (HasStandable) {
+        size += 1 + 1;
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatGeometryCell other) {
+      if (other == null) {
+        return;
+      }
+      if (other.cell_ != null) {
+        if (cell_ == null) {
+          Cell = new global::RimGovernor.Protocol.Common.Cell();
+        }
+        Cell.MergeFrom(other.Cell);
+      }
+      lines_.Add(other.lines_);
+      if (other.HasPathTicks) {
+        PathTicks = other.PathTicks;
+      }
+      if (other.HasStandable) {
+        Standable = other.Standable;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 18: {
+            lines_.AddEntriesFrom(input, _repeated_lines_codec);
+            break;
+          }
+          case 24: {
+            PathTicks = input.ReadInt32();
+            break;
+          }
+          case 32: {
+            Standable = input.ReadBool();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (cell_ == null) {
+              Cell = new global::RimGovernor.Protocol.Common.Cell();
+            }
+            input.ReadMessage(Cell);
+            break;
+          }
+          case 18: {
+            lines_.AddEntriesFrom(ref input, _repeated_lines_codec);
+            break;
+          }
+          case 24: {
+            PathTicks = input.ReadInt32();
+            break;
+          }
+          case 32: {
+            Standable = input.ReadBool();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatGeometry : pb::IMessage<CombatGeometry>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatGeometry> _parser = new pb::MessageParser<CombatGeometry>(() => new CombatGeometry());
+    private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatGeometry> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[5]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometry() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometry(CombatGeometry other) : this() {
+      _hasBits0 = other._hasBits0;
+      context_ = other.context_ != null ? other.context_.Clone() : null;
+      cells_ = other.cells_.Clone();
+      mainThreadMs_ = other.mainThreadMs_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometry Clone() {
+      return new CombatGeometry(this);
+    }
+
+    /// <summary>Field number for the "context" field.</summary>
+    public const int ContextFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.ObservationContext context_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.ObservationContext Context {
+      get { return context_; }
+      set {
+        context_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "cells" field.</summary>
+    public const int CellsFieldNumber = 2;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Mirror.CombatGeometryCell> _repeated_cells_codec
+        = pb::FieldCodec.ForMessage(18, global::RimGovernor.Protocol.Mirror.CombatGeometryCell.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatGeometryCell> cells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatGeometryCell>();
+    /// <summary>
+    /// request cell order
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatGeometryCell> Cells {
+      get { return cells_; }
+    }
+
+    /// <summary>Field number for the "main_thread_ms" field.</summary>
+    public const int MainThreadMsFieldNumber = 3;
+    private readonly static double MainThreadMsDefaultValue = 0D;
+
+    private double mainThreadMs_;
+    /// <summary>
+    /// the read's own main-thread time
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double MainThreadMs {
+      get { if ((_hasBits0 & 1) != 0) { return mainThreadMs_; } else { return MainThreadMsDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        mainThreadMs_ = value;
+      }
+    }
+    /// <summary>Gets whether the "main_thread_ms" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMainThreadMs {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "main_thread_ms" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMainThreadMs() {
+      _hasBits0 &= ~1;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatGeometry);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatGeometry other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Context, other.Context)) return false;
+      if(!cells_.Equals(other.cells_)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(MainThreadMs, other.MainThreadMs)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (context_ != null) hash ^= Context.GetHashCode();
+      hash ^= cells_.GetHashCode();
+      if (HasMainThreadMs) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(MainThreadMs);
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
+      }
+      cells_.WriteTo(output, _repeated_cells_codec);
+      if (HasMainThreadMs) {
+        output.WriteRawTag(25);
+        output.WriteDouble(MainThreadMs);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
+      }
+      cells_.WriteTo(ref output, _repeated_cells_codec);
+      if (HasMainThreadMs) {
+        output.WriteRawTag(25);
+        output.WriteDouble(MainThreadMs);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (context_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Context);
+      }
+      size += cells_.CalculateSize(_repeated_cells_codec);
+      if (HasMainThreadMs) {
+        size += 1 + 8;
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatGeometry other) {
+      if (other == null) {
+        return;
+      }
+      if (other.context_ != null) {
+        if (context_ == null) {
+          Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+        }
+        Context.MergeFrom(other.Context);
+      }
+      cells_.Add(other.cells_);
+      if (other.HasMainThreadMs) {
+        MainThreadMs = other.MainThreadMs;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+          case 18: {
+            cells_.AddEntriesFrom(input, _repeated_cells_codec);
+            break;
+          }
+          case 25: {
+            MainThreadMs = input.ReadDouble();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
+            break;
+          }
+          case 18: {
+            cells_.AddEntriesFrom(ref input, _repeated_cells_codec);
+            break;
+          }
+          case 25: {
+            MainThreadMs = input.ReadDouble();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class CombatGeometryReply : pb::IMessage<CombatGeometryReply>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<CombatGeometryReply> _parser = new pb::MessageParser<CombatGeometryReply>(() => new CombatGeometryReply());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<CombatGeometryReply> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[6]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryReply() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryReply(CombatGeometryReply other) : this() {
+      switch (other.OutcomeCase) {
+        case OutcomeOneofCase.Observed:
+          Observed = other.Observed.Clone();
+          break;
+        case OutcomeOneofCase.Failure:
+          Failure = other.Failure.Clone();
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public CombatGeometryReply Clone() {
+      return new CombatGeometryReply(this);
+    }
+
+    /// <summary>Field number for the "observed" field.</summary>
+    public const int ObservedFieldNumber = 1;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Mirror.CombatGeometry Observed {
+      get { return outcomeCase_ == OutcomeOneofCase.Observed ? (global::RimGovernor.Protocol.Mirror.CombatGeometry) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Observed;
+      }
+    }
+
+    /// <summary>Field number for the "failure" field.</summary>
+    public const int FailureFieldNumber = 2;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Failure Failure {
+      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Common.Failure) outcome_ : null; }
+      set {
+        outcome_ = value;
+        outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Failure;
+      }
+    }
+
+    private object outcome_;
+    /// <summary>Enum of possible cases for the "outcome" oneof.</summary>
+    public enum OutcomeOneofCase {
+      None = 0,
+      Observed = 1,
+      Failure = 2,
+    }
+    private OutcomeOneofCase outcomeCase_ = OutcomeOneofCase.None;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public OutcomeOneofCase OutcomeCase {
+      get { return outcomeCase_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearOutcome() {
+      outcomeCase_ = OutcomeOneofCase.None;
+      outcome_ = null;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as CombatGeometryReply);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(CombatGeometryReply other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Observed, other.Observed)) return false;
+      if (!object.Equals(Failure, other.Failure)) return false;
+      if (OutcomeCase != other.OutcomeCase) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (outcomeCase_ == OutcomeOneofCase.Observed) hash ^= Observed.GetHashCode();
+      if (outcomeCase_ == OutcomeOneofCase.Failure) hash ^= Failure.GetHashCode();
+      hash ^= (int) outcomeCase_;
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (outcomeCase_ == OutcomeOneofCase.Observed) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Observed);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Failure);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (outcomeCase_ == OutcomeOneofCase.Observed) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Observed);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Failure);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (outcomeCase_ == OutcomeOneofCase.Observed) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Observed);
+      }
+      if (outcomeCase_ == OutcomeOneofCase.Failure) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Failure);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(CombatGeometryReply other) {
+      if (other == null) {
+        return;
+      }
+      switch (other.OutcomeCase) {
+        case OutcomeOneofCase.Observed:
+          if (Observed == null) {
+            Observed = new global::RimGovernor.Protocol.Mirror.CombatGeometry();
+          }
+          Observed.MergeFrom(other.Observed);
+          break;
+        case OutcomeOneofCase.Failure:
+          if (Failure == null) {
+            Failure = new global::RimGovernor.Protocol.Common.Failure();
+          }
+          Failure.MergeFrom(other.Failure);
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Mirror.CombatGeometry subBuilder = new global::RimGovernor.Protocol.Mirror.CombatGeometry();
+            if (outcomeCase_ == OutcomeOneofCase.Observed) {
+              subBuilder.MergeFrom(Observed);
+            }
+            input.ReadMessage(subBuilder);
+            Observed = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
+            if (outcomeCase_ == OutcomeOneofCase.Failure) {
+              subBuilder.MergeFrom(Failure);
+            }
+            input.ReadMessage(subBuilder);
+            Failure = subBuilder;
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Mirror.CombatGeometry subBuilder = new global::RimGovernor.Protocol.Mirror.CombatGeometry();
+            if (outcomeCase_ == OutcomeOneofCase.Observed) {
+              subBuilder.MergeFrom(Observed);
+            }
+            input.ReadMessage(subBuilder);
+            Observed = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
+            if (outcomeCase_ == OutcomeOneofCase.Failure) {
+              subBuilder.MergeFrom(Failure);
+            }
+            input.ReadMessage(subBuilder);
+            Failure = subBuilder;
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
   /// <summary>
   /// How far a section is complete: every change through tick, and within tick
   /// every change up to seq. Monotonic within one epoch.
@@ -196,7 +4172,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[0]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[7]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -467,7 +4443,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[1]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[8]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -788,7 +4764,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[2]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[9]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1260,7 +5236,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[3]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[10]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1637,7 +5613,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[4]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2047,7 +6023,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[5]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[12]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2236,7 +6212,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[6]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[13]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2429,7 +6405,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[7]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[14]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2686,7 +6662,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[8]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[15]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3794,7 +7770,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[9]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[16]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4249,7 +8225,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[10]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[17]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4276,6 +8252,8 @@ namespace RimGovernor.Protocol.Mirror {
       zones_ = other.zones_ != null ? other.zones_.Clone() : null;
       pawns_ = other.pawns_ != null ? other.pawns_.Clone() : null;
       colonyFacts_ = other.colonyFacts_ != null ? other.colonyFacts_.Clone() : null;
+      combatPawns_ = other.combatPawns_.Clone();
+      combatEvents_ = other.combatEvents_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4377,6 +8355,34 @@ namespace RimGovernor.Protocol.Mirror {
       }
     }
 
+    /// <summary>Field number for the "combat_pawns" field.</summary>
+    public const int CombatPawnsFieldNumber = 8;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Mirror.CombatPawn> _repeated_combatPawns_codec
+        = pb::FieldCodec.ForMessage(66, global::RimGovernor.Protocol.Mirror.CombatPawn.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn> combatPawns_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn>();
+    /// <summary>
+    /// SECTION_COMBAT_PAWNS
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn> CombatPawns {
+      get { return combatPawns_; }
+    }
+
+    /// <summary>Field number for the "combat_events" field.</summary>
+    public const int CombatEventsFieldNumber = 9;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Mirror.CombatEventRow> _repeated_combatEvents_codec
+        = pb::FieldCodec.ForMessage(74, global::RimGovernor.Protocol.Mirror.CombatEventRow.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatEventRow> combatEvents_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatEventRow>();
+    /// <summary>
+    /// SECTION_COMBAT_EVENTS: the retained ring
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatEventRow> CombatEvents {
+      get { return combatEvents_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4399,6 +8405,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (!object.Equals(Zones, other.Zones)) return false;
       if (!object.Equals(Pawns, other.Pawns)) return false;
       if (!object.Equals(ColonyFacts, other.ColonyFacts)) return false;
+      if(!combatPawns_.Equals(other.combatPawns_)) return false;
+      if(!combatEvents_.Equals(other.combatEvents_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4413,6 +8421,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (zones_ != null) hash ^= Zones.GetHashCode();
       if (pawns_ != null) hash ^= Pawns.GetHashCode();
       if (colonyFacts_ != null) hash ^= ColonyFacts.GetHashCode();
+      hash ^= combatPawns_.GetHashCode();
+      hash ^= combatEvents_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4453,6 +8463,8 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(58);
         output.WriteMessage(ColonyFacts);
       }
+      combatPawns_.WriteTo(output, _repeated_combatPawns_codec);
+      combatEvents_.WriteTo(output, _repeated_combatEvents_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4485,6 +8497,8 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(58);
         output.WriteMessage(ColonyFacts);
       }
+      combatPawns_.WriteTo(ref output, _repeated_combatPawns_codec);
+      combatEvents_.WriteTo(ref output, _repeated_combatEvents_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4512,6 +8526,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (colonyFacts_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(ColonyFacts);
       }
+      size += combatPawns_.CalculateSize(_repeated_combatPawns_codec);
+      size += combatEvents_.CalculateSize(_repeated_combatEvents_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -4556,6 +8572,8 @@ namespace RimGovernor.Protocol.Mirror {
         }
         ColonyFacts.MergeFrom(other.ColonyFacts);
       }
+      combatPawns_.Add(other.combatPawns_);
+      combatEvents_.Add(other.combatEvents_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -4616,6 +8634,14 @@ namespace RimGovernor.Protocol.Mirror {
               ColonyFacts = new global::RimGovernor.Protocol.Observations.ColonyFactsSnapshot();
             }
             input.ReadMessage(ColonyFacts);
+            break;
+          }
+          case 66: {
+            combatPawns_.AddEntriesFrom(input, _repeated_combatPawns_codec);
+            break;
+          }
+          case 74: {
+            combatEvents_.AddEntriesFrom(input, _repeated_combatEvents_codec);
             break;
           }
         }
@@ -4680,6 +8706,14 @@ namespace RimGovernor.Protocol.Mirror {
             input.ReadMessage(ColonyFacts);
             break;
           }
+          case 66: {
+            combatPawns_.AddEntriesFrom(ref input, _repeated_combatPawns_codec);
+            break;
+          }
+          case 74: {
+            combatEvents_.AddEntriesFrom(ref input, _repeated_combatEvents_codec);
+            break;
+          }
         }
       }
     }
@@ -4705,7 +8739,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[11]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[18]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -4732,6 +8766,8 @@ namespace RimGovernor.Protocol.Mirror {
       tombstones_ = other.tombstones_.Clone();
       cells_ = other.cells_ != null ? other.cells_.Clone() : null;
       zones_ = other.zones_ != null ? other.zones_.Clone() : null;
+      combatPawns_ = other.combatPawns_.Clone();
+      combatEvents_ = other.combatEvents_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4829,6 +8865,34 @@ namespace RimGovernor.Protocol.Mirror {
       }
     }
 
+    /// <summary>Field number for the "combat_pawns" field.</summary>
+    public const int CombatPawnsFieldNumber = 8;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Mirror.CombatPawn> _repeated_combatPawns_codec
+        = pb::FieldCodec.ForMessage(66, global::RimGovernor.Protocol.Mirror.CombatPawn.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn> combatPawns_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn>();
+    /// <summary>
+    /// SECTION_COMBAT_PAWNS: the changed rows
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatPawn> CombatPawns {
+      get { return combatPawns_; }
+    }
+
+    /// <summary>Field number for the "combat_events" field.</summary>
+    public const int CombatEventsFieldNumber = 9;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Mirror.CombatEventRow> _repeated_combatEvents_codec
+        = pb::FieldCodec.ForMessage(74, global::RimGovernor.Protocol.Mirror.CombatEventRow.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatEventRow> combatEvents_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatEventRow>();
+    /// <summary>
+    /// SECTION_COMBAT_EVENTS: the rows after from
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatEventRow> CombatEvents {
+      get { return combatEvents_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4851,6 +8915,8 @@ namespace RimGovernor.Protocol.Mirror {
       if(!tombstones_.Equals(other.tombstones_)) return false;
       if (!object.Equals(Cells, other.Cells)) return false;
       if (!object.Equals(Zones, other.Zones)) return false;
+      if(!combatPawns_.Equals(other.combatPawns_)) return false;
+      if(!combatEvents_.Equals(other.combatEvents_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4865,6 +8931,8 @@ namespace RimGovernor.Protocol.Mirror {
       hash ^= tombstones_.GetHashCode();
       if (cells_ != null) hash ^= Cells.GetHashCode();
       if (zones_ != null) hash ^= Zones.GetHashCode();
+      hash ^= combatPawns_.GetHashCode();
+      hash ^= combatEvents_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4902,6 +8970,8 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(58);
         output.WriteMessage(Zones);
       }
+      combatPawns_.WriteTo(output, _repeated_combatPawns_codec);
+      combatEvents_.WriteTo(output, _repeated_combatEvents_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4931,6 +9001,8 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(58);
         output.WriteMessage(Zones);
       }
+      combatPawns_.WriteTo(ref output, _repeated_combatPawns_codec);
+      combatEvents_.WriteTo(ref output, _repeated_combatEvents_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4956,6 +9028,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (zones_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Zones);
       }
+      size += combatPawns_.CalculateSize(_repeated_combatPawns_codec);
+      size += combatEvents_.CalculateSize(_repeated_combatEvents_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -4995,6 +9069,8 @@ namespace RimGovernor.Protocol.Mirror {
         }
         Zones.MergeFrom(other.Zones);
       }
+      combatPawns_.Add(other.combatPawns_);
+      combatEvents_.Add(other.combatEvents_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -5052,6 +9128,14 @@ namespace RimGovernor.Protocol.Mirror {
               Zones = new global::RimGovernor.Protocol.Observations.ZonesSnapshot();
             }
             input.ReadMessage(Zones);
+            break;
+          }
+          case 66: {
+            combatPawns_.AddEntriesFrom(input, _repeated_combatPawns_codec);
+            break;
+          }
+          case 74: {
+            combatEvents_.AddEntriesFrom(input, _repeated_combatEvents_codec);
             break;
           }
         }
@@ -5113,6 +9197,14 @@ namespace RimGovernor.Protocol.Mirror {
             input.ReadMessage(Zones);
             break;
           }
+          case 66: {
+            combatPawns_.AddEntriesFrom(ref input, _repeated_combatPawns_codec);
+            break;
+          }
+          case 74: {
+            combatEvents_.AddEntriesFrom(ref input, _repeated_combatEvents_codec);
+            break;
+          }
         }
       }
     }
@@ -5136,7 +9228,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[12]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[19]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5589,7 +9681,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[13]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[20]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5926,7 +10018,7 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[14]; }
+      get { return global::RimGovernor.Protocol.Mirror.MirrorReflection.Descriptor.MessageTypes[21]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

@@ -100,6 +100,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var s = _state; var tm = Find.TickManager;
+                if (__instance != null && CombatMirror.Active && __instance.HostileTo(Faction.OfPlayer))
+                    CombatMirror.Record(RimGovernor.Protocol.Mirror.CombatLogKind.HostileArrived, RimGovernor.Protocol.Clock.CombatEvent.HostileArrived, __instance, null, __instance.kindDef?.defName, null);
                 if (s == null || !s.Active || tm == null || __instance == null) return;
                 lock (_spawnTicks) _spawnTicks[__instance.thingIDNumber] = tm.TicksGame;
                 if (__instance.HostileTo(Faction.OfPlayer))
@@ -117,6 +119,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var pawn = ___pawn; var tm = Find.TickManager;
+                if (pawn != null && pawn.Spawned)
+                    CombatMirror.Record(RimGovernor.Protocol.Mirror.CombatLogKind.Downed, pawn.IsColonist ? RimGovernor.Protocol.Clock.CombatEvent.Downed : RimGovernor.Protocol.Clock.CombatEvent.Unspecified, pawn, null, null, null);
                 if (pawn == null || tm == null || !pawn.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[pawn.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
@@ -130,6 +134,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var tm = Find.TickManager;
+                if (__instance != null)
+                    CombatMirror.Record(RimGovernor.Protocol.Mirror.CombatLogKind.Killed, __instance.IsColonist ? RimGovernor.Protocol.Clock.CombatEvent.Downed : RimGovernor.Protocol.Clock.CombatEvent.Unspecified, __instance, null, null, null);
                 if (__instance == null || tm == null || !__instance.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[__instance.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
