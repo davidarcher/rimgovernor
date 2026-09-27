@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
         private const int salvageTickBucket = 2500;
         private const double salvageFrameBudgetMs = 1.5;
         private const double salvageInlineBudgetMs = 5;
-        private const double salvageSignatureEveryMs = 250;
+        private const int salvageSignatureEveryTicks = 60;
         private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal Obs.SalvageEvidence Evidence = null!; }
         private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
         private static readonly Dictionary<int, Building> salvageTargets = new Dictionary<int, Building>();
@@ -185,10 +185,11 @@ namespace HomeBridge.BridgeTools
         private static int salvageMap = -1;
         private static long salvageSignature, salvageStamp;
         // The shared hauling-safety pass: rebuilt, and the colony signature
-        // recomputed from it, at most every salvageSignatureEveryMs.
+        // recomputed from it, at most every salvageSignatureEveryTicks game ticks,
+        // so a paused game never rebuilds it (a paused edit lands on resume).
         private static EventLootFacts.HaulingSafety? passSafety;
         private static readonly Dictionary<ThingDef, (Thing item, long headroom)> passYields = new Dictionary<ThingDef, (Thing, long)>();
-        private static long passBuilt;
+        private static int passBuilt;
         private static long backgroundRows, backgroundTicks;
 
         private static double Ms(long ticks) => ticks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
@@ -197,8 +198,8 @@ namespace HomeBridge.BridgeTools
 
         private static EventLootFacts.HaulingSafety Pass(Map map)
         {
-            var now = Now();
-            if (passSafety != null && Ms(now - passBuilt) < salvageSignatureEveryMs) return passSafety;
+            var now = Find.TickManager.TicksGame;
+            if (passSafety != null && now >= passBuilt && now - passBuilt < salvageSignatureEveryTicks) return passSafety;
             DropPass();
             passSafety = new EventLootFacts.HaulingSafety(map);
             passBuilt = now;
