@@ -233,14 +233,21 @@ func outward(in Rectangle, door domain.Cell) (domain.Cell, bool) {
 	return domain.Cell{}, false
 }
 
-// podDoorOrders are the door orders the pods tactic has not sent yet.
+// podDoorOrders are the door orders the pods tactic (and the manhunter
+// potshot door, #900) has not sent yet.
 func podDoorOrders(m *CombatMemory) []CombatOrder {
 	var out []CombatOrder
-	for i := range m.PodDoors {
-		if d := &m.PodDoors[i]; !d.Sent {
+	send := func(d *PodDoor) {
+		if !d.Sent {
 			out = append(out, CombatOrder{Kind: OrderDoor, Cell: d.Cell, Door: d.Mode, Reason: ReasonFormation})
 			d.Sent = true
 		}
+	}
+	for i := range m.PodDoors {
+		send(&m.PodDoors[i])
+	}
+	if m.ManhunterDoor != nil {
+		send(m.ManhunterDoor)
 	}
 	return out
 }

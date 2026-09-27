@@ -29,6 +29,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A downed or dead defender keeps no role; its rescue is rescueStep's
 	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
+	formed := false // a manhunter formation this stop (#900)
 	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
 		// The arrival row may leave a later frame; the fight keeps it (#891).
 		next.Pods = &pods
@@ -53,6 +54,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		if ManhunterPack(view) {
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
+			formed = true
 		} else {
 			next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
 		}
@@ -64,6 +66,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		// A pods fight waiting behind closed doors engages no one (#893).
 		next.Roles = focusFire(view, next.Roles, memory.Roles)
 	}
+	manhunterDoor(view, formed, &next)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -342,6 +345,8 @@ type CombatMemory struct {
 	// PodStruck one that struck when the raid fled or looted (#893).
 	PodWait   bool `json:",omitempty"`
 	PodStruck bool `json:",omitempty"`
+	// ManhunterDoor is the manhunter tactic's potshot door (#900).
+	ManhunterDoor *PodDoor `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -365,6 +370,10 @@ func (m CombatMemory) clone() CombatMemory {
 		m.Rescue = &r
 	}
 	m.PodDoors = slices.Clone(m.PodDoors)
+	if m.ManhunterDoor != nil {
+		d := *m.ManhunterDoor
+		m.ManhunterDoor = &d
+	}
 	if m.Pods != nil {
 		p := *m.Pods
 		p.Landing = slices.Clone(p.Landing)
