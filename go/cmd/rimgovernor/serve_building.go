@@ -606,7 +606,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if native, ok := client.reads.(governorStateNative); ok {
 		shadowDone := make(chan struct{})
 		defer func() { <-shadowDone }()
-		go func() { defer close(shadowDone); shadowGovernorState(lifetime, native, database, config.refresh, out) }()
+		go func() { defer close(shadowDone); shadowGovernorState(lifetime, native, currentGovernorWorld(reads), database, config.refresh, out) }()
 	}
 	if config.resume {
 		resumer, err := newAutoResumer(buildingSnapshots{reads, player}, player, database, out)
