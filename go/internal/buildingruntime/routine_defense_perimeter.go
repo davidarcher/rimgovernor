@@ -17,15 +17,18 @@ import (
 // the layout plan whenever what the plan asks for changes: the ring
 // straightened over ground a moisture pump dried, heavy bridges researched,
 // moisture pumps researched or first powered. The buildings the new cut no
-// longer wants are removed first, by removal tiers ahead of the new
-// sections: walls and doors deconstructed (a wooden wall the ring now
-// wants in stone included, the census being stuff-blind), then plain
-// bridges lifted, a heavy bridge being laid only where no foundation is.
-// Pumps and conduits the cut drops are left standing: the ground a pump
-// dried stays dry.
+// longer wants are removed by removal tiers: walls, doors, pumps and
+// conduits deconstructed (a wooden wall the ring now wants in stone
+// included, the census being stuff-blind), then plain bridges lifted. The
+// new sections are built before the removals, so the old stretch stands
+// until its replacement does (#983); only a removal on a cell the new cut
+// builds on (a wall re-stuffed, a bridge swapped for a heavy one, laid
+// only where no foundation is) goes first.
 const (
 	defenseMoisturePump     = "MoisturePump"
 	defenseMoistureResearch = "MoisturePump"
+	// defenseMoisturePumpW is a moisture pump's draw (#983).
+	defenseMoisturePumpW = 150.0
 )
 
 // defensePerimeterTiers anchors a fresh record on the layout plan's
@@ -38,10 +41,13 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, read observation.R
 		return false, nil
 	}
 	var transmitters []domain.Cell
+	spare := 0.0
 	if defenseResearched(projection, defenseMoistureResearch) {
-		transmitters = defenseTurretRequest(read).Turret.Transmitters
+		q := defenseTurretRequest(read).Turret
+		transmitters = q.Transmitters
+		spare, _ = q.SpareW.Value()
 	}
-	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters)
+	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare)
 }
 
 func defenseResearched(projection observation.ColonyProjection, project string) bool {
@@ -58,19 +64,28 @@ func defenseBuildingKey(b store.DefenseBuilding) string {
 // defenseRecutPerimeter replaces the record's perimeter tiers with the
 // plan's, pumps included when transmitters are given, behind removal tiers
 // for what the old ones built that the new ones do not want. Unchanged
-// (same key) it does nothing; a killbox the plan has moved off the
-// record's entry leaves the record as it is.
-func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell) (bool, error) {
+// (same key) it does nothing. A killbox the plan has moved off the
+// record's entry un-anchors the record, so the layout is proposed afresh
+// on the new one (#983). A pump not already in the record is planned only
+// while spare watts cover it.
+func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64) (bool, error) {
 	var kept, old []store.DefenseTierRecord
+	standing := map[string]bool{}
 	for _, t := range record.Tiers {
 		if policy.IsPerimeterTier(t.Name) {
 			old = append(old, t)
+			for _, b := range t.Buildings {
+				standing[defenseBuildingKey(b)] = standing[defenseBuildingKey(b)] || !t.Remove
+			}
 		} else {
 			kept = append(kept, t)
 		}
 	}
 	if len(old) > 0 {
-		if k, _, _, ok := policy.LayoutKillbox(plan, bounds); !ok || k.Entry != record.Entry {
+		if k, _, _, ok := policy.LayoutKillbox(plan, bounds); ok && k.Entry != record.Entry {
+			record.Anchored = false
+			return true, nil
+		} else if !ok {
 			return false, nil
 		}
 	}
@@ -81,6 +96,20 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	pumps, err := policy.PerimeterPumps(plan, defenseMoisturePump, defenseConduitDefinition, transmitters)
 	if err != nil {
 		return false, err
+	}
+	// A later pump's run may ride an earlier one's, so the cut stops at the
+	// first new pump spare power cannot carry.
+	for i, s := range pumps {
+		b := s.Buildings[0]
+		key := defenseBuildingKey(store.DefenseBuilding{Definition: b.Definition(), Cell: b.Cell(), Rotation: b.Rotation(), Stuff: b.Stuff()})
+		if standing[key] {
+			continue
+		}
+		if spare < defenseMoisturePumpW {
+			pumps = pumps[:i]
+			break
+		}
+		spare -= defenseMoisturePumpW
 	}
 	// A cell a killbox tier already builds on (a firing-line embrasure in
 	// the wall, #868) is that tier's, not the perimeter's.
@@ -126,30 +155,47 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	prefix := fmt.Sprintf("%sr%d-", policy.TierPerimeterPrefix, record.PerimeterRevision)
 	// Removals: a pending one carried over less what the new cut wants
 	// again, then what the old cut built that it does not; deconstructions
-	// before foundation lifts, a wall standing on its bridge.
-	var edifice, foundation []store.DefenseTierRecord
-	for _, t := range old {
-		var decon, lift []store.DefenseBuilding
+	// before foundation lifts, a wall standing on its bridge. One on a cell
+	// the new cut builds on goes ahead of the new sections, the rest after.
+	building := map[domain.Cell]bool{}
+	for _, t := range fresh {
 		for _, b := range t.Buildings {
-			switch {
-			case wanted[defenseBuildingKey(b)] || !t.Remove && (b.Definition == defenseConduitDefinition || b.Definition == defenseMoisturePump):
-			case defenseFoundation(b.Definition):
-				lift = append(lift, b)
-			default:
-				decon = append(decon, b)
+			building[b.Cell] = true
+		}
+	}
+	var decon, lift [2][]store.DefenseTierRecord // [0] before, [1] after the new sections
+	edifices, foundations := 0, 0
+	for _, t := range old {
+		var d, l [2][]store.DefenseBuilding
+		for _, b := range t.Buildings {
+			if wanted[defenseBuildingKey(b)] {
+				continue
+			}
+			after := 1
+			if building[b.Cell] {
+				after = 0
+			}
+			if defenseFoundation(b.Definition) {
+				l[after] = append(l[after], b)
+			} else {
+				d[after] = append(d[after], b)
 			}
 		}
-		if len(decon) > 0 {
-			edifice = append(edifice, store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("%sx%02d", prefix, len(edifice))), Buildings: decon, Remove: true})
-		}
-		if len(lift) > 0 {
-			foundation = append(foundation, store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("%su%02d", prefix, len(foundation))), Buildings: lift, Remove: true})
+		for i := range 2 {
+			if len(d[i]) > 0 {
+				decon[i] = append(decon[i], store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("%sx%02d", prefix, edifices)), Buildings: d[i], Remove: true})
+				edifices++
+			}
+			if len(l[i]) > 0 {
+				lift[i] = append(lift[i], store.DefenseTierRecord{Name: policy.DefenseTierName(fmt.Sprintf("%su%02d", prefix, foundations)), Buildings: l[i], Remove: true})
+				foundations++
+			}
 		}
 	}
 	for i := range fresh {
 		fresh[i].Name = policy.DefenseTierName(prefix + strings.TrimPrefix(string(fresh[i].Name), policy.TierPerimeterPrefix))
 	}
-	record.Tiers = slices.Concat(kept, edifice, foundation, fresh)
+	record.Tiers = slices.Concat(kept, decon[0], lift[0], fresh, decon[1], lift[1])
 	record.Complete = false
 	return true, record.Validate()
 }

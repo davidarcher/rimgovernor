@@ -92,7 +92,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	}
 	record := perimeterRecord(t, plan)
 	transmitters := []domain.Cell{{X: plan.Rooms[0].Interior.X, Z: plan.Rooms[0].Interior.Z}}
-	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
+	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
 		t.Fatal("anchor", changed, err)
 	}
 	wood := tierBuildings(record, func(t store.DefenseTierRecord) bool { return true })
@@ -105,14 +105,14 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if pumps == 0 {
 		t.Fatal("no pump tier")
 	}
-	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters); changed {
+	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6); changed {
 		t.Fatal("an unchanged plan re-cut")
 	}
 	dried, changed := policy.ReplanLayout(plan, survey(true), 3, 1)
 	if !changed {
 		t.Fatal("dried ground kept the plan")
 	}
-	if changed, err := defenseRecutPerimeter(&record, dried, perimeterBounds, policy.PerimeterBridge, transmitters); err != nil || !changed || record.PerimeterRevision != 1 {
+	if changed, err := defenseRecutPerimeter(&record, dried, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6); err != nil || !changed || record.PerimeterRevision != 1 {
 		t.Fatal("re-cut", changed, err)
 	}
 	if record.Tiers[0].Name != policy.TierTrapCorridor {
@@ -127,23 +127,102 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if !woodRemoved {
 		t.Fatal("no wooden wall removed")
 	}
-	seenFresh := false
+	freshCells := map[domain.Cell]bool{}
+	for _, tier := range record.Tiers[1:] {
+		for _, b := range tier.Buildings {
+			if !tier.Remove {
+				freshCells[b.Cell] = true
+			}
+		}
+	}
+	// A removal ahead of the new sections clears a cell they build on; the
+	// rest waits behind them (#983). The dropped pumps go too.
+	seenFresh, pumpRemoved := false, false
 	for _, tier := range record.Tiers[1:] {
 		if !strings.HasPrefix(string(tier.Name), policy.TierPerimeterPrefix+"r1-") {
 			t.Fatal("tier not renamed", tier.Name)
 		}
-		if tier.Remove && seenFresh {
-			t.Fatal("a removal after a new section", tier.Name)
-		}
 		seenFresh = seenFresh || !tier.Remove
 		for _, b := range tier.Buildings {
-			if tier.Remove && (fresh[defenseBuildingKey(b)] || !wood[defenseBuildingKey(b)] || b.Definition == defenseMoisturePump || b.Definition == defenseConduitDefinition) {
+			if tier.Remove && freshCells[b.Cell] == seenFresh {
+				t.Fatal("removal on the wrong side of the new sections", tier.Name, b)
+			}
+			pumpRemoved = pumpRemoved || tier.Remove && b.Definition == defenseMoisturePump
+			if tier.Remove && (fresh[defenseBuildingKey(b)] || !wood[defenseBuildingKey(b)]) {
 				t.Fatal("removes", b)
 			}
 			if !tier.Remove && b.Stuff == policy.PerimeterLightStuff {
 				t.Fatal("wood on dried ground", b)
 			}
 		}
+	}
+	if !pumpRemoved {
+		t.Fatal("the dropped pump stays")
+	}
+}
+
+// A new pump is planned only while spare watts cover its 150 W; one the
+// record already holds costs nothing more (#983).
+func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
+	t.Parallel()
+	ring := perimeterRing(t)
+	z0 := ring.Z + ring.Height - 12
+	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
+		if z >= z0 && z < z0+4 {
+			return policy.SurveyCell{Walkable: true, Footing: policy.FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
+		}
+		return policy.SurveyCell{Walkable: true, Fertility: 1}
+	}), 3, nil).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	transmitters := []domain.Cell{{X: plan.Rooms[0].Interior.X, Z: plan.Rooms[0].Interior.Z}}
+	pumps := func(r store.DefenseLayoutRecord) (n int) {
+		for k := range tierBuildings(r, func(t store.DefenseTierRecord) bool { return !t.Remove }) {
+			if strings.HasPrefix(k, defenseMoisturePump+"@") {
+				n++
+			}
+		}
+		return n
+	}
+	for _, c := range []struct {
+		spare float64
+		want  func(int) bool
+	}{{0, func(n int) bool { return n == 0 }}, {149, func(n int) bool { return n == 0 }}, {150, func(n int) bool { return n == 1 }}, {1e6, func(n int) bool { return n >= 1 }}} {
+		record := perimeterRecord(t, plan)
+		if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, c.spare); err != nil {
+			t.Fatal(err)
+		}
+		if n := pumps(record); !c.want(n) {
+			t.Fatal("spare", c.spare, "pumps", n)
+		}
+	}
+	record := perimeterRecord(t, plan)
+	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6); err != nil {
+		t.Fatal(err)
+	}
+	built := pumps(record)
+	if changed, _ := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 0); changed || pumps(record) != built {
+		t.Fatal("standing pumps re-priced", changed, pumps(record), built)
+	}
+}
+
+// A replan that moves the killbox opening un-anchors the record, so the
+// layout is proposed afresh on the new one (#983).
+func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
+	t.Parallel()
+	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} }), 3, nil).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	record := perimeterRecord(t, plan)
+	record.Anchored = true
+	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0); err != nil {
+		t.Fatal(err)
+	}
+	record.Entry.X++
+	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0); err != nil || !changed || record.Anchored {
+		t.Fatal("moved killbox kept the anchor", changed, err)
 	}
 }
 
@@ -164,11 +243,11 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	record := perimeterRecord(t, plan)
-	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil); err != nil {
+	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	bridges := tierBuildings(record, func(t store.DefenseTierRecord) bool { return true })
-	changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterHeavyBridge, nil)
+	changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterHeavyBridge, nil, 0)
 	if err != nil || !changed {
 		t.Fatal("heavy bridges re-cut nothing", err)
 	}
