@@ -36,7 +36,6 @@
     <Compile Include="../../../../scripts/fixtures/HusbandryFixture.cs" Condition="'$(HusbandryFixture)' == 'true'" />
 
     <Compile Include="../../../../scripts/fixtures/MedicalManagementFixture.cs" Condition="'$(MedicalManagementFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/MiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DeepMiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MountainFixture.cs" Condition="'$(MountainFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HutShellFixture.cs" Condition="'$(HutShellFixture)' == 'true'" />
