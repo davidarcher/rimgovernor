@@ -2,7 +2,7 @@
 
 [Documentation](../README.md)
 
-Double-click `RimGovernor.exe` (build it once per [setup](setup.md)). When every
+Double-click `RimGovernor.cmd` (see [setup](setup.md)). When every
 status row is OK, press **Play**: the launcher starts the Go controller, which
 starts RimWorld through GABS, and shows **Running** once the controller answers.
 **Open dashboard** opens the dashboard in your browser. Enable Run in background in RimWorld.

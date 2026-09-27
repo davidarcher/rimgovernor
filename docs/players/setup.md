@@ -16,15 +16,9 @@ launcher's settings.
 
 ## Build the launcher once
 
-From `go/`:
-
-```powershell
-$env:GOTOOLCHAIN = 'go1.27.1'; $env:CGO_ENABLED = '0'
-go build -ldflags -H=windowsgui -o ..\RimGovernor.exe ./cmd/launcher
-```
-
-Then double-click `RimGovernor.exe` in the repository root. It must stay inside
-the checkout. Rebuild it only when `go/cmd/launcher` changes.
+Double-click `RimGovernor.cmd` in the repository root. It builds the launcher
+(`RimGovernorLauncher.exe`, seconds when nothing changed) and opens it; Go 1.27 must be
+installed.
 
 ## What the launcher prepares
 

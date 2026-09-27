@@ -5,7 +5,7 @@
 // starts and stops `rimgovernor serve` from a small WebView2 window.
 // Build it once from go/:
 //
-//	go build -ldflags -H=windowsgui -o ..\RimGovernor.exe ./cmd/launcher
+//	go build -ldflags -H=windowsgui -o ..\RimGovernorLauncher.exe ./cmd/launcher
 package main
 
 import (
@@ -64,7 +64,7 @@ func main() {
 	hideConsole()
 	repo, ok := findRepo()
 	if !ok {
-		fatal("RimGovernor.exe must sit inside the RimGovernor checkout (no .git found above it).")
+		fatal("RimGovernorLauncher.exe must sit inside the RimGovernor checkout (no .git found above it).")
 	}
 	a := newApp(repo)
 	w := webview2.NewWithOptions(webview2.WebViewOptions{

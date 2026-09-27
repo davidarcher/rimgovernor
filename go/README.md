@@ -3,7 +3,7 @@
 `go/` is the RimGovernor runtime: it observes the colony through
 GABS/RimBridgeServer, runs deterministic routine policy, executes admitted work
 through Hands, and serves the dashboard and player API. The launcher
-(`cmd/launcher`, built as `RimGovernor.exe`) and the Docker `go-controller` target start this binary
+(`cmd/launcher`, built as `RimGovernorLauncher.exe`) and the Docker `go-controller` target start this binary
 directly. Start from the [source map](../docs/developers/source-map.md) and
 [architecture overview](../docs/developers/architecture/overview.md); this page
 covers building, running and testing the module.
@@ -34,8 +34,8 @@ separate tests.
 **Windows**, from this directory:
 
 ```powershell
-go build -ldflags -H=windowsgui -o ..\RimGovernor.exe ./cmd/launcher
-..\RimGovernor.exe   # or double-click it
+go build -ldflags -H=windowsgui -o ..\RimGovernorLauncher.exe ./cmd/launcher
+..\RimGovernorLauncher.exe   # or double-click it
 ```
 
 The launcher rebuilds the controller, the production native mod, the dashboard

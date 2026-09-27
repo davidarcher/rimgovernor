@@ -8,9 +8,7 @@ with `--chat-model`.
 
 ## Play
 
-Build the launcher once per [setup](docs/players/setup.md) (from `go/`:
-`go build -ldflags -H=windowsgui -o ..\RimGovernor.exe ./cmd/launcher`), then
-double-click `RimGovernor.exe` and press Play.
+Double-click `RimGovernor.cmd` and press Play (see [setup](docs/players/setup.md)).
 
 Open [the dashboard](http://127.0.0.1:8787). It starts in Manual; choose Automate
 to enable routine control. Autopilot needs no model.
@@ -24,7 +22,7 @@ controls, saving and troubleshooting. Broader survival coverage remains tracked 
 
 Use the [developer guide](docs/developers/README.md) to find the architecture,
 source and checks for your change. Go runs the production controller
-(started by `RimGovernor.exe`, built from `go/cmd/launcher`); React/TypeScript runs the dashboard, and C#
+(started by `RimGovernorLauncher.exe`, built from `go/cmd/launcher`); React/TypeScript runs the dashboard, and C#
 supplies native game tools through GABS/RimBridgeServer. See
 [the Go module guide](go/README.md) for building, running and testing it.
 
