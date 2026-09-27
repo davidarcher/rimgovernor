@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 5, 20, 26, 47, 55, 56, 60;
-  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste";
+  reserved 5, 20, 25, 26, 47, 55, 56, 60;
+  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -89,7 +89,6 @@ message Operation {
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
     RemoveWall remove_wall = 22;
-    RecoverService recover_service = 25;
     RelieveNeed relieve_need = 27;
     ImproveGear improve_gear = 28;
     SetDrafted set_drafted = 33;
@@ -293,7 +292,6 @@ enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; 
 // (NativeRecoveryOperations.Token) has no existing observation read that could
 // produce it ahead of time: an unconstrained preview (this field omitted)
 // establishes the baseline.
-message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; optional string expected_target_snapshot_token = 4; }
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
 message ExpectedJob { oneof state { int32 job_id = 1; Clear idle = 2; } }
 message RelieveNeed { EntityPrecondition pawn = 1; optional Need need = 2; ExpectedJob expected_job = 3; optional string expected_schedule_def = 4; }
@@ -408,6 +406,7 @@ message Action {
     DeconstructIntent deconstruct = 34;
     ExcavateIntent excavate = 35;
     WasteIntent waste = 36;
+    RecoverIntent recover = 37;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -439,6 +438,11 @@ message DeconstructIntent { optional string target_id = 1; }
 // outdoor stockpile or an empty grave, with the game's own Hauling
 // WorkGiver job. Protected items (forbidden, quest, hazardous, named or
 // colony corpses) are refused; a pawn already hauling the item applies again.
+// Order one undrafted colonist to repair, fix a breakdown on or refuel one
+// colony building with the game's own WorkGiver job. Native refuses a
+// building that no longer needs the method; a pawn already servicing the
+// building applies again.
+message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
 message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }
 message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog

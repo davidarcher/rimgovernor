@@ -32,25 +32,24 @@ type SessionConfig struct {
 	Acquisition *acquisition.AcquisitionCapabilities
 	// MoveBuilding backs the tidy family's furniture re-siting through the
 	// game's Reinstall (#808).
-	MoveBuilding    *movebuilding.Capabilities
-	RoutineMethods  bool
-	Control         ControlConfig
-	Executor        executor.Limits
-	Draft           *draft.DraftCapabilities
-	Clock           *ClockCapabilities
-	Melee           *melee.MeleeCapabilities
-	Haul            *haul.HaulCapabilities
-	Ranged          *ranged.RangedCapabilities
-	Movement        *MovementCapabilities
-	Tend            *tend.TendCapabilities
-	Rescue          *rescue.RescueCapabilities
-	Capture         *capture.CaptureCapabilities
-	Equip           *equip.EquipCapabilities
-	GearReplace     *GearReplaceCapabilities
-	Repair          *RepairCapabilities
-	Clean           *CleanCapabilities
-	MoodRelief      *MoodReliefCapabilities
-	RecoveryService *RecoveryServiceCapabilities
+	MoveBuilding   *movebuilding.Capabilities
+	RoutineMethods bool
+	Control        ControlConfig
+	Executor       executor.Limits
+	Draft          *draft.DraftCapabilities
+	Clock          *ClockCapabilities
+	Melee          *melee.MeleeCapabilities
+	Haul           *haul.HaulCapabilities
+	Ranged         *ranged.RangedCapabilities
+	Movement       *MovementCapabilities
+	Tend           *tend.TendCapabilities
+	Rescue         *rescue.RescueCapabilities
+	Capture        *capture.CaptureCapabilities
+	Equip          *equip.EquipCapabilities
+	GearReplace    *GearReplaceCapabilities
+	Repair         *RepairCapabilities
+	Clean          *CleanCapabilities
+	MoodRelief     *MoodReliefCapabilities
 	// BuildingTemperature backs the refrigeration family's cooler setpoint
 	// patch; the one-shot CAS write shares the placement boundary's lease.
 	BuildingTemperature *buildingtemperature.Capabilities
@@ -310,9 +309,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil)", ErrControl))
 	}
-	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer ==", ErrControl))
-	}
 	if config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperature.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperatur", ErrControl))
 	}
@@ -499,15 +495,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableMoodRelief(moodReliefBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.RecoveryService != nil {
-		recoveryServiceBoundary, err := NewRecoveryServiceBoundary(config.RecoveryService.Native, config.RecoveryService.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableRecoveryService(recoveryServiceBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

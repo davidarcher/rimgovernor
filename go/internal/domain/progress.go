@@ -95,30 +95,29 @@ const (
 	HeldInvalidHeld        HeldReason = "held_reservation_unverifiable"
 	HeldArithmeticOverflow HeldReason = "arithmetic_overflow"
 
-	HeldCleanerUnavailable             HeldReason = "cleaner_unavailable"
-	HeldDoctorUnavailable              HeldReason = "doctor_unavailable"
-	HeldDraftOwnership                 HeldReason = "draft_ownership"
-	HeldEquipPawnUnavailable           HeldReason = "equip_pawn_unavailable"
-	HeldFilthIneligible                HeldReason = "filth_ineligible"
-	HeldGearReplacePawnUnavailable     HeldReason = "gear_replace_pawn_unavailable"
-	HeldNativeIneligible               HeldReason = "native_ineligible"
-	HeldPatientIneligible              HeldReason = "patient_ineligible"
-	HeldPlayerOrder                    HeldReason = "player_order"
-	HeldRecoveryServicePawnUnavailable HeldReason = "recovery_service_pawn_unavailable"
-	HeldRepairerUnavailable            HeldReason = "repairer_unavailable"
-	HeldRescuerUnavailable             HeldReason = "rescuer_unavailable"
-	HeldStructureIneligible            HeldReason = "structure_ineligible"
-	HeldUnsuitableEquipment            HeldReason = "unsuitable_equipment"
-	HeldUnsupportedThreat              HeldReason = "unsupported_threat"
-	HeldWallRemovalGeometryChanged     HeldReason = "wall_removal_geometry_changed"
-	HeldWallRemovalTargetChanged       HeldReason = "wall_removal_target_changed"
-	HeldExcavationUnsupported          HeldReason = "excavation_unsupported"
-	HeldExcavationGeometryChanged      HeldReason = "excavation_geometry_changed"
-	HeldOpenerUnavailable              HeldReason = "opener_unavailable"
-	HeldUnsafeRoute                    HeldReason = "unsafe_route"
-	HeldRoofSupportRisk                HeldReason = "roof_support_risk"
-	HeldStorageMissing                 HeldReason = "missing_storage"
-	HeldUrgentCompetingWork            HeldReason = "urgent_competing_work"
+	HeldCleanerUnavailable         HeldReason = "cleaner_unavailable"
+	HeldDoctorUnavailable          HeldReason = "doctor_unavailable"
+	HeldDraftOwnership             HeldReason = "draft_ownership"
+	HeldEquipPawnUnavailable       HeldReason = "equip_pawn_unavailable"
+	HeldFilthIneligible            HeldReason = "filth_ineligible"
+	HeldGearReplacePawnUnavailable HeldReason = "gear_replace_pawn_unavailable"
+	HeldNativeIneligible           HeldReason = "native_ineligible"
+	HeldPatientIneligible          HeldReason = "patient_ineligible"
+	HeldPlayerOrder                HeldReason = "player_order"
+	HeldRepairerUnavailable        HeldReason = "repairer_unavailable"
+	HeldRescuerUnavailable         HeldReason = "rescuer_unavailable"
+	HeldStructureIneligible        HeldReason = "structure_ineligible"
+	HeldUnsuitableEquipment        HeldReason = "unsuitable_equipment"
+	HeldUnsupportedThreat          HeldReason = "unsupported_threat"
+	HeldWallRemovalGeometryChanged HeldReason = "wall_removal_geometry_changed"
+	HeldWallRemovalTargetChanged   HeldReason = "wall_removal_target_changed"
+	HeldExcavationUnsupported      HeldReason = "excavation_unsupported"
+	HeldExcavationGeometryChanged  HeldReason = "excavation_geometry_changed"
+	HeldOpenerUnavailable          HeldReason = "opener_unavailable"
+	HeldUnsafeRoute                HeldReason = "unsafe_route"
+	HeldRoofSupportRisk            HeldReason = "roof_support_risk"
+	HeldStorageMissing             HeldReason = "missing_storage"
+	HeldUrgentCompetingWork        HeldReason = "urgent_competing_work"
 )
 
 // orderedHeldReasons lists every reason in the fixed, deterministic order
@@ -133,7 +132,6 @@ var orderedHeldReasons = []HeldReason{
 	HeldDoctorUnavailable, HeldDraftOwnership, HeldEquipPawnUnavailable, HeldFilthIneligible,
 	HeldGearReplacePawnUnavailable,
 	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder,
-	HeldRecoveryServicePawnUnavailable,
 	HeldRepairerUnavailable, HeldRescuerUnavailable,
 	HeldStructureIneligible, HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,

@@ -120,7 +120,6 @@ type buildingServiceBridge struct {
 	moodRelief          *buildingruntime.MoodReliefCapabilities
 	moodReliefWorld     moodReliefWorldSource
 	gearReplace         *buildingruntime.GearReplaceCapabilities
-	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedUse              *beduse.Capabilities
@@ -198,10 +197,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	recoveryService, err := bridge.NewRecoveryServiceWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -256,7 +251,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		clean:               &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
 		moodRelief:          &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
-		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
@@ -480,16 +474,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		gearReplaceCapabilities = client.gearReplace
 	}
-	// The defensive layout rearms an empty turret barrel with the same
-	// forced refuel order the recovery family issues (#205), so its plans
-	// need the recovery-service executor too.
-	var recoveryServiceCapabilities *buildingruntime.RecoveryServiceCapabilities
-	if config.routineRecoveryPlans || config.routineDefensiveLayoutPlans {
-		if client.recoveryService == nil {
-			return errors.New("recovery and defensive-layout plans require typed capabilities")
-		}
-		recoveryServiceCapabilities = client.recoveryService
-	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
 	if config.routineTradePlans {
 		if client.trade == nil {
@@ -577,7 +561,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		MoveBuilding:        moveBuildingCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
-		RecoveryService:     recoveryServiceCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedUse:              bedUseCapabilities,

@@ -17,9 +17,8 @@ const (
 
 // RecoveryService is explicit intent to send one already-observed undrafted
 // pawn to repair, restore or refuel one already-observed building. It reuses
-// the native RecoverService operation, the same one the legacy JSON
-// home/recover_service tool drives. Native reachability and current job
-// eligibility are established at inspection, not here.
+// the native RecoverIntent (Actions/Apply). Native checks reachability and
+// current job eligibility live when it applies.
 type RecoveryService struct {
 	pawn   PawnID
 	thing  string

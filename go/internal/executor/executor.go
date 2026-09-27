@@ -110,8 +110,6 @@ type Executor struct {
 	cleanJournal               CleanJournal
 	moodRelief                 MoodReliefBoundary
 	moodReliefJournal          MoodReliefJournal
-	recoveryService            RecoveryServiceBoundary
-	recoveryServiceJournal     RecoveryServiceJournal
 	buildingTemperature        BuildingTemperatureBoundary
 	buildingTemperatureJournal BuildingTemperatureJournal
 	bedUse                     BedUseBoundary
@@ -347,9 +345,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.MoodReliefAction && e.moodRelief != nil {
 		return e.runMoodRelief(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.RecoveryServiceAction && e.recoveryService != nil {
-		return e.runRecoveryService(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
 		return e.runBuildingTemperature(ctx, action, progress, authority, generation)

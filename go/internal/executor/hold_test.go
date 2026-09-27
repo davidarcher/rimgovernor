@@ -22,7 +22,6 @@ func allKnownReasons() []policy.Reason {
 		policy.DoctorUnavailable, policy.DraftOwnership, policy.EquipPawnUnavailable, policy.FilthIneligible,
 		policy.GearReplacePawnUnavailable,
 		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder,
-		policy.RecoveryServicePawnUnavailable,
 		policy.RepairerUnavailable, policy.RescuerUnavailable,
 		policy.StructureIneligible, policy.UnsuitableEquipment,
 		policy.UnsupportedThreat, policy.WallRemovalGeometryChanged, policy.WallRemovalTargetChanged,

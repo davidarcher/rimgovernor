@@ -32,7 +32,6 @@ namespace HomeBridge.BridgeTools
         // Uninstall admissions (NativeUninstallBuilding, #843), observed by the uninstall designation.
         internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Uninstalls = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeGearRecord> Gear = new Dictionary<Common.AttemptKey, NativeGearRecord>();
@@ -139,8 +138,6 @@ namespace HomeBridge.BridgeTools
             }
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
                 return NativeGearOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
-                return NativeRecoveryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                 return NativeMoodReliefOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
@@ -197,8 +194,6 @@ namespace HomeBridge.BridgeTools
                 }
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
                     return ProtoBoundary.Encode(NativeGearOperations.Preview(parsed.Operation.ImproveGear, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
-                    return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
@@ -270,9 +265,6 @@ namespace HomeBridge.BridgeTools
                     NativeCustodyRecord custody;
                     if (state.Custody.TryGetValue(parsed.Attempt, out custody))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = custody.Observe(parsed.Attempt, context) });
-                    NativeRecoveryServiceRecord recovery;
-                    if (state.RecoveryServices.TryGetValue(parsed.Attempt, out recovery))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = recovery.Observe(parsed.Attempt, context) });
                     NativeMoodReliefRecord relief;
                     if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) });
