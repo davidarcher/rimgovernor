@@ -67,8 +67,9 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	}
 	if !has {
 		g := newCoreGrid(plan.Zones, plan.Reservations)
-		seg := plan.Spine[0]
-		if room, ok := g.placeSized(&seg, plan.Rooms, ModuleBattery, batteryRoomSize); ok {
+		// The battery room stays on the main hallway (BatterySlots reads
+		// a north or south door), clear of the crossings.
+		if seg, room, ok := g.placeOn(plan.Spine, 0, plan.Rooms, ModuleBattery, batteryRoomSize); ok {
 			plan.Rooms = append(plan.Rooms, room)
 			plan.Spine = append([]SpineSegment{seg}, plan.Spine[1:]...)
 		}
@@ -258,17 +259,29 @@ func PlannedCoolerSites(plan LayoutPlan) []PlannedCoolerSite {
 	return out
 }
 
+// backWall is room's back wall cell (the middle of the wall facing away
+// from its hallway), the step pointing out through it, and that direction.
+func backWall(room LayoutRoom) (domain.Cell, domain.Cell, domain.Rotation) {
+	in := room.Interior
+	switch room.DoorRot {
+	case domain.North: // room south of an east-west hallway
+		return domain.Cell{X: in.X + in.Width/2, Z: in.Z - 1}, domain.Cell{Z: -1}, domain.South
+	case domain.East: // room west of a crossing
+		return domain.Cell{X: in.X - 1, Z: in.Z + in.Height/2}, domain.Cell{X: -1}, domain.West
+	case domain.West:
+		return domain.Cell{X: in.X + in.Width, Z: in.Z + in.Height/2}, domain.Cell{X: 1}, domain.East
+	}
+	return domain.Cell{X: in.X + in.Width/2, Z: in.Z + in.Height}, domain.Cell{Z: 1}, domain.North
+}
+
 // CoolerExhaust is the cooler site in room's back wall and the exhaust the
 // plan reserved behind it; false when the plan reserved none.
 func (p LayoutPlan) CoolerExhaust(room LayoutRoom) (PlannedCoolerSite, Rectangle, bool) {
-	in := room.Interior
-	x, wall, first, rot := in.X+in.Width/2, in.Z+in.Height, in.Z+in.Height+1, domain.North
-	if room.DoorRot == domain.North {
-		wall, first, rot = in.Z-1, in.Z-2, domain.South
-	}
+	wall, step, rot := backWall(room)
+	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
 	for _, e := range p.Reservations {
-		if e.Kind == ReserveExhaust && e.Area.X == x && (e.Area.Z == first || e.Area.Z+e.Area.Height-1 == first) {
-			return PlannedCoolerSite{Cell: domain.Cell{X: x, Z: wall}, Rotation: rot}, e.Area, true
+		if e.Kind == ReserveExhaust && (e.Area.Width == 1 || e.Area.Height == 1) && rectsOverlap(e.Area, Rectangle{X: first.X, Z: first.Z, Width: 1, Height: 1}) {
+			return PlannedCoolerSite{Cell: wall, Rotation: rot}, e.Area, true
 		}
 	}
 	return PlannedCoolerSite{}, Rectangle{}, false
@@ -405,23 +418,17 @@ func (u *utilityGrid) site(w, h int32, rockOK bool) (Rectangle, bool) {
 // the first open cell: one cell on an outer face, a dug shaft through
 // rock. False when the back is planned or off the map.
 func (u *utilityGrid) exhaust(r LayoutRoom) (Rectangle, bool) {
-	in := r.Interior
-	x, z, step := in.X+in.Width/2, in.Z+in.Height+1, int32(1)
-	if r.DoorRot == domain.North { // room south of the spine
-		z, step = in.Z-2, -1
-	}
+	wall, step, _ := backWall(r)
+	first := domain.Cell{X: wall.X + step.X, Z: wall.Z + step.Z}
+	c := first
 	for n := int32(1); n <= exhaustMax; n++ {
-		if !u.in(x, z) || u.used[z*u.w+x] {
+		if !u.in(c.X, c.Z) || u.used[c.Z*u.w+c.X] {
 			return Rectangle{}, false
 		}
-		if !u.rock[z*u.w+x] {
-			lo := z - step*(n-1)
-			if step < 0 {
-				lo = z
-			}
-			return Rectangle{X: x, Z: lo, Width: 1, Height: n}, true
+		if !u.rock[c.Z*u.w+c.X] {
+			return Rectangle{X: min(first.X, c.X), Z: min(first.Z, c.Z), Width: abs32(c.X-first.X) + 1, Height: abs32(c.Z-first.Z) + 1}, true
 		}
-		z += step
+		c = domain.Cell{X: c.X + step.X, Z: c.Z + step.Z}
 	}
 	return Rectangle{}, false
 }

@@ -24,22 +24,24 @@ func roomRect(r LayoutRoom) Rectangle {
 
 func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 	t.Helper()
-	if len(p.Spine) != 1 || !p.Valid() {
+	if len(p.Spine) == 0 || !p.Valid() {
 		t.Fatalf("plan %+v", p)
 	}
-	seg := p.Spine[0]
+	halls := spineRects(p.Spine)
 	hall := func(c domain.Cell) bool {
-		return c.X >= seg.From.X && c.X <= seg.To.X && c.Z >= seg.From.Z-1 && c.Z <= seg.From.Z+1
+		for _, h := range halls {
+			if rectsOverlap(h, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}) {
+				return true
+			}
+		}
+		return false
 	}
 	count := map[ModuleRole]int{}
 	for i, a := range p.Rooms {
 		count[a.Role]++
-		// The door is in the wall and opens on the hallway.
-		step := int32(-1)
-		if a.DoorRot == domain.North {
-			step = 1
-		}
-		if !hall(domain.Cell{X: a.Door.X, Z: a.Door.Z + step}) {
+		// The door is in the wall and opens on a hallway.
+		step := map[domain.Rotation]domain.Cell{domain.North: {Z: 1}, domain.South: {Z: -1}, domain.East: {X: 1}, domain.West: {X: -1}}[a.DoorRot]
+		if !hall(domain.Cell{X: a.Door.X + step.X, Z: a.Door.Z + step.Z}) {
 			t.Fatal("room off the spine", a)
 		}
 		if a.Role == ModuleBedroom && a.Interior.Width*a.Interior.Height < 25 {
@@ -197,5 +199,64 @@ func TestMealClosetBehindTheDiningRoom(t *testing.T) {
 	site, _, ok := withExhaust.CoolerExhaust(closet)
 	if !ok || !inWall(closet.Interior, site.Cell) || inWall(d, site.Cell) {
 		t.Fatalf("closet cooler site %+v %v", site, ok)
+	}
+}
+
+// A fresh core reserves its centre crossing: the main hallway grows out
+// from it on both sides and no room takes its column (#952).
+func TestCoreReservesCentreCrossing(t *testing.T) {
+	p := PlanCore(coreTestZones(), 3)
+	if len(p.Spine) != 2 || alongX(p.Spine[1]) {
+		t.Fatal("spine", p.Spine)
+	}
+	main, cx := p.Spine[0], p.Spine[1].From.X
+	if west, east := cx-main.From.X, main.To.X-cx; west < 10 || east < 10 {
+		t.Fatal("lopsided about the crossing", main, cx)
+	}
+	for _, r := range p.Rooms {
+		w := roomWalls(r)
+		if w.X <= cx+SpineWidth/2 && cx-SpineWidth/2 < w.X+w.Width {
+			t.Fatal("room on the crossing's column", r)
+		}
+	}
+}
+
+// A growing colony fills the main hallway, then its crossings, each on
+// both sides of the main hallway, never one (no L or U); rooms never move
+// and every door opens on a hallway (#952).
+func TestGrowBranchesIntoCrossings(t *testing.T) {
+	zones := coreTestZones()
+	p := PlanCore(zones, 3)
+	for _, pawns := range []int{10, 20, 30} {
+		g := Grow(p, pawns, 1)
+		for i, r := range p.Rooms {
+			if g.Rooms[i] != r {
+				t.Fatal("moved", r, g.Rooms[i])
+			}
+		}
+		if _, err := CheckRoutes(g); err != nil {
+			t.Fatal(pawns, err)
+		}
+		checkCore(t, g, pawns)
+		p = g
+	}
+	if len(p.Spine) < 3 {
+		t.Fatal("no end crossing", p.Spine)
+	}
+	z0 := p.Spine[0].From.Z
+	for _, s := range p.Spine[1:] {
+		north, south := false, false
+		for _, r := range p.Rooms {
+			if onSegment(r, s) {
+				north = north || r.Interior.Z > z0
+				south = south || r.Interior.Z < z0
+			}
+		}
+		if lo, hi := min(s.From.Z, s.To.Z), max(s.From.Z, s.To.Z); lo > z0-SpineWidth || hi < z0+SpineWidth {
+			t.Fatal("crossing runs out one side only", s)
+		}
+		if !north || !south {
+			t.Fatal("crossing rooms on one side only", s, north, south)
+		}
 	}
 }

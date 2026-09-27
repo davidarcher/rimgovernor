@@ -38,29 +38,30 @@ func TestPlannedPowerSites(t *testing.T) {
 	}
 }
 
-// TestPlannedCoolerSites: the freezer's cooler stands in its back wall with
-// the cold side in the room and the hot side on the exhaust (#791).
+// TestPlannedCoolerSites: each cooled room's cooler stands in its back wall
+// with the cold side in the room and the hot side on the exhaust (#791),
+// on either hallway (#952): the freezer and the soil tomb both get one.
 func TestPlannedCoolerSites(t *testing.T) {
 	p := PlanUtilities(PlanCore(coreTestZones(), 3), UtilityWants{})
 	sites := PlannedCoolerSites(p)
-	if len(sites) != 1 {
+	if len(sites) != 2 {
 		t.Fatal(sites)
 	}
-	var freezer LayoutRoom
-	var exhaust Rectangle
-	for _, r := range p.Rooms {
-		if r.Role == ModuleFreezer {
-			freezer = r
+	for _, s := range sites {
+		c := RefrigerationCooler{Position: s.Cell, Rotation: s.Rotation}
+		var room *LayoutRoom
+		for i, r := range p.Rooms {
+			if inRect(r.Interior, c.Cold()) {
+				room = &p.Rooms[i]
+			}
 		}
-	}
-	for _, r := range p.Reservations {
-		if r.Kind == ReserveExhaust {
-			exhaust = r.Area
+		hot := false
+		for _, r := range p.Reservations {
+			hot = hot || r.Kind == ReserveExhaust && inRect(r.Area, c.Hot())
 		}
-	}
-	c := RefrigerationCooler{Position: sites[0].Cell, Rotation: sites[0].Rotation}
-	if !inRect(freezer.Interior, c.Cold()) || !inRect(exhaust, c.Hot()) || inRect(roomWalls(freezer), c.Hot()) || !inRect(roomWalls(freezer), c.Position) {
-		t.Fatal(sites[0], freezer, exhaust)
+		if room == nil || !hot || inRect(roomWalls(*room), c.Hot()) || !inRect(roomWalls(*room), c.Position) {
+			t.Fatal(s, room)
+		}
 	}
 }
 
@@ -168,7 +169,7 @@ func TestPlanUtilities(t *testing.T) {
 			lanes = append(lanes, r)
 		}
 	}
-	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 1 {
+	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 2 {
 		t.Fatal(count)
 	}
 	// Battery room: 5 wide off the spine, door on the walkway, no lane.

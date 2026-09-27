@@ -2,8 +2,9 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// Core spine and room slots (#779, A3). The core is one straight 3-wide
-// hallway along X with rooms hung off both sides. Neighbouring rooms on a
+// Core spine and room slots (#779, A3). The core is a straight 3-wide main
+// hallway along X, crossed by north-south hallways as it fills (#952,
+// layout_spines.go), with rooms hung off both sides. Neighbouring rooms on a
 // side share their side walls; every room's door sits in its hallway wall,
 // so no room is a thoroughfare. The core takes cells only from the core
 // candidates (ZoneCore); a room over rock (ZoneMining) is Dug. The other
@@ -91,37 +92,74 @@ func Grow(plan LayoutPlan, pawns, tombs int) LayoutPlan {
 		want = append(want, ModuleTomb)
 	}
 	rooms := append([]LayoutRoom(nil), plan.Rooms...)
-	seg := plan.Spine[0]
-	for _, role := range want {
-		next := seg
-		room, ok := g.beside(&next, rooms, role)
-		if !ok {
-			room, ok = g.place(&next, rooms, role)
+	spine := append([]SpineSegment(nil), plan.Spine...)
+	if len(spine) == 1 {
+		// The centre crossing is laid first so no room takes its column (#952).
+		if next, ok := g.addCrossing(spine, rooms); ok {
+			spine = next
 		}
-		if !ok {
+	}
+	for _, role := range want {
+		placed, fit := false, false
+		for !placed {
+			for i := range spine {
+				var next SpineSegment
+				var room LayoutRoom
+				ok := false
+				if i == 0 {
+					local, main, _ := g.segmentGrid(spine, 0, rooms)
+					next = main
+					room, ok = local.beside(&next, rooms, role)
+				}
+				if !ok {
+					next, room, ok = g.placeOn(spine, i, rooms, role, coreRoomSize[role])
+				}
+				if !ok {
+					continue
+				}
+				fit = true
+				// A room that makes a thoroughfare (#780) is left out; the
+				// next hallway (or role) tries its slot.
+				trial := append(append([]LayoutRoom(nil), rooms...), room)
+				grown := append([]SpineSegment(nil), spine...)
+				grown[i] = next
+				if _, err := CheckRoutes(LayoutPlan{Spine: grown, Rooms: trial}); err != nil {
+					continue
+				}
+				spine, rooms, placed = grown, trial, true
+				break
+			}
+			if placed || fit {
+				break
+			}
+			next, ok := g.addCrossing(spine, rooms)
+			if !ok {
+				break
+			}
+			spine = next
+		}
+		if !fit {
 			break
 		}
-		// A room that makes a thoroughfare (#780) is left out; the next
-		// role tries the following slot.
-		trial := append(append([]LayoutRoom(nil), rooms...), room)
-		if _, err := CheckRoutes(LayoutPlan{Spine: []SpineSegment{next}, Rooms: trial}); err != nil {
-			continue
-		}
-		seg, rooms = next, trial
 	}
 	if closet, ok := g.mealCloset(rooms); ok {
 		trial := append(append([]LayoutRoom(nil), rooms...), closet)
-		if _, err := CheckRoutes(LayoutPlan{Spine: []SpineSegment{seg}, Rooms: trial}); err == nil {
+		if _, err := CheckRoutes(LayoutPlan{Spine: spine, Rooms: trial}); err == nil {
 			rooms = trial
 		}
 	}
-	spine := append([]SpineSegment{seg}, plan.Spine[1:]...)
 	plan.Spine, plan.Rooms = spine, rooms
 	return plan
 }
 
 type coreGrid struct {
 	core, rock map[domain.Cell]bool
+	// maxLen caps the hallway's length; 0 leaves it open.
+	maxLen int32
+	// junction, when set, is where the hallway meets another (its X along
+	// the hallway): rooms go to whichever end stays nearer it.
+	junction    int32
+	hasJunction bool
 }
 
 // newCoreGrid takes reserved sites out of the core candidates.
@@ -189,16 +227,16 @@ func (g coreGrid) seed() (domain.Cell, bool) {
 	return best, found
 }
 
-// place puts role's room in the next slot east of the rooms (then west),
-// extending seg over it.
-func (g coreGrid) place(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole) (LayoutRoom, bool) {
-	return g.placeSized(seg, rooms, role, coreRoomSize[role])
-}
-
+// placeSized puts a room of size in the nearest slot at whichever end of
+// the rooms keeps seg shortest (or nearest its junction), extending seg
+// over it.
 func (g coreGrid) placeSized(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole, size [2]int32) (LayoutRoom, bool) {
 	w, d := size[0], size[1]
 	z0 := seg.From.Z
 	// Wall rows: the hallway spans z0-1..z0+1, so side walls start at z0±2.
+	// Each end offers its nearest slot; the one that lengthens the hallway
+	// least wins (east on a tie), so the hallway grows out from its centre.
+	pick, picked, pickGrow := LayoutRoom{}, false, int32(0)
 	for _, east := range []bool{true, false} {
 		best := LayoutRoom{}
 		found := false
@@ -235,19 +273,28 @@ func (g coreGrid) placeSized(seg *SpineSegment, rooms []LayoutRoom, role ModuleR
 				break
 			}
 		}
-		if found {
-			best.Dug = g.dug(best)
-			lo, hi := best.Interior.X-1, best.Interior.X+best.Interior.Width
-			if lo < seg.From.X {
-				seg.From.X = lo
-			}
-			if hi > seg.To.X {
-				seg.To.X = hi
-			}
-			return best, true
+		if !found {
+			continue
+		}
+		lo, hi := min(seg.From.X, best.Interior.X-1), max(seg.To.X, best.Interior.X+best.Interior.Width)
+		if g.maxLen > 0 && hi-lo > g.maxLen {
+			continue
+		}
+		grow := hi - lo - (seg.To.X - seg.From.X)
+		if g.hasJunction {
+			grow = max(hi-g.junction, g.junction-lo)
+		}
+		if !picked || grow < pickGrow {
+			pick, picked, pickGrow = best, true, grow
 		}
 	}
-	return LayoutRoom{}, false
+	if !picked {
+		return LayoutRoom{}, false
+	}
+	pick.Dug = g.dug(pick)
+	seg.From.X = min(seg.From.X, pick.Interior.X-1)
+	seg.To.X = max(seg.To.X, pick.Interior.X+pick.Interior.Width)
+	return pick, true
 }
 
 func coreRoom(role ModuleRole, ix, z0, w, d int32, north bool) LayoutRoom {
