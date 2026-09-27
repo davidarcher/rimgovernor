@@ -205,7 +205,29 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	id := fightPlan
 	recorded.Plan = id
-	if len(orders) == 0 {
+	// A role pawn the fight holds no claim on (a later formation's evacuee
+	// or responder, #911) is drafted in this stop's batch, and the stop
+	// decides as it will be once drafted, as the admission does.
+	var drafts []domain.PawnID
+	if unclaimed := unclaimedRoles(next, fight.Claims, view); len(unclaimed) > 0 && arbiter.tryClaim(unclaimed) {
+		drafts = unclaimed
+		recorded.Orderable = append(slices.Clone(orderable), drafts...)
+		slices.Sort(recorded.Orderable)
+		view = combatView(combat, in, recorded.Orderable, held)
+		var more *policy.GeometryRequest
+		orders, more, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
+		if more != nil && recorded.Ask == nil {
+			recorded.Ask = more
+			recorded.Reply = r.answerGeometry(call, boundary.Identity(state.Snapshot), more)
+			orders, more, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
+		}
+		if more != nil {
+			// A second ask waits for the next stop; this batch only drafts.
+			orders, next = nil, memory
+		}
+		recorded.MemoryOut = next
+	}
+	if len(orders)+len(drafts) == 0 {
 		// A stop that changes nothing writes nothing; a re-formation that
 		// could order no one yet keeps its roles for the next stop.
 		if next.Formed != memory.Formed || next.Tactic != memory.Tactic || !reflect.DeepEqual(next.Roles, memory.Roles) {
@@ -222,7 +244,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err = p.current(call, epoch); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	record, next, err := r.issueCombatOrders(call, state, id, tick, orders, next)
+	record, next, err := r.issueCombatOrders(call, state, id, view, drafts, orders, next)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}

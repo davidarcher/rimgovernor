@@ -411,7 +411,7 @@ func TestCombatReplayLabChoke(t *testing.T) {
 // safe room, an unarmed colonist inside the landing room, four rifle
 // raiders dropped into it. The pods tactic forms at the first stop with
 // the landing room from the frame's standing rooms: the civilian's
-// evacuee cell is outside the landing room (never reached, #911), two
+// evacuee cell is outside the landing room (moved there once drafted, #911), two
 // riflemen take the doorway flanks (standable per the
 // geometry read) and the landing door is held open. Not asserted:
 // drafting before the open tick (the served clock only starts at the
@@ -446,12 +446,46 @@ func TestCombatReplayLabPods(t *testing.T) {
 		}},
 		ordersOwnedDrafts(),
 		changesOnly(),
+		// The raiders stand behind the landing room's walls: no attack goes
+		// out along a line the game answered blocked, the order native
+		// refused cannot_hit at every stop of the recording (#912).
+		combatAssertion{name: "no attack along a blocked line", check: func(s combatReplayStop) error {
+			cells := map[domain.PawnID]domain.Cell{}
+			for _, p := range s.View.Pawns {
+				if c, ok := p.Cell.Value(); ok {
+					cells[p.ID] = c
+				}
+			}
+			for _, o := range s.Orders {
+				for _, l := range s.Reply.Lines {
+					if o.Kind == policy.OrderAttack && l.Hostile == o.Target && l.Cell == cells[o.Pawn] && !l.LineOfFire {
+						return fmt.Errorf("%s ordered to attack %s with no line of fire", o.Pawn, o.Target)
+					}
+				}
+			}
+			return nil
+		}},
 	)
-	// The evacuee's cell is the safe room's; the move itself is never sent,
-	// since the fight does not draft the civilian (#911).
+	// The evacuee's cell is the safe room's (the recording predates #910,
+	// so the fight never drafted it); the admission batch drafts every
+	// role pawn, and decides as they will be once drafted: the evacuee's
+	// move out of the landing room goes out with it (#911).
 	for _, r := range stops[0].Memory.Roles {
 		if r.Pawn == evacuee && (r.Cell == nil || inside(*r.Cell)) {
 			t.Fatalf("evacuee %s sent to %v, inside the landing room", evacuee, r.Cell)
 		}
+	}
+	first := stops[0]
+	var pawns []domain.PawnID
+	for _, r := range first.Memory.Roles {
+		pawns = append(pawns, r.Pawn)
+	}
+	view := first.View
+	view.Orderable = pawns
+	orders, _, _ := policy.DecideCombat(view, first.Reply, policy.StopEvent{}, first.Memory)
+	if !slices.ContainsFunc(orders, func(o policy.CombatOrder) bool {
+		return o.Pawn == evacuee && o.Kind == policy.OrderMove && !inside(o.Cell)
+	}) {
+		t.Fatalf("admission orders %+v move no evacuee %s out", orders, evacuee)
 	}
 }

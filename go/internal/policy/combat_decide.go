@@ -25,6 +25,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	view = view.sorted()
 	next := memory.clone()
 	next.Tick = view.Tick
+	next.CannotHit = keepHitRefusals(view, next.CannotHit)
 	live := view.live()
 	// A downed or dead defender keeps no role; its rescue is rescueStep's
 	// (#867, combat_rescue.go).
@@ -128,7 +129,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			return nil, ask, memory
 		}
 	}
-	orders, next.Roles = clearLines(view, orders, geometry.Lines, next.Roles)
+	orders, next.Roles = clearLines(view, orders, geometry.Lines, next.Roles, next)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	for _, o := range orders {
@@ -394,6 +395,56 @@ type CombatMemory struct {
 	// siege tactic's mode at its last formation (#776).
 	SiegeCamp domain.Tick `json:",omitempty"`
 	SiegeMode SiegeMode   `json:",omitempty"`
+	// CannotHit are the attacks native refused cannot_hit (#912), kept
+	// while the shooter stands on the cell it was refused from, so the
+	// fight retargets or waits instead of re-sending them every stop.
+	CannotHit []HitRefusal `json:",omitempty"`
+}
+
+// HitRefusal is an attack native refused cannot_hit: Pawn could not hit
+// Target from From.
+type HitRefusal struct {
+	Pawn, Target domain.PawnID
+	From         domain.Cell
+}
+
+// RefuseHit is Forget for an attack native refused cannot_hit from the
+// shooter's cell from (#912): the pair is remembered until the shooter
+// moves or the target is gone.
+func (m CombatMemory) RefuseHit(order CombatOrder, from domain.Cell) CombatMemory {
+	m = m.Forget(order.Pawn)
+	if order.Kind == OrderAttack && order.Target != "" {
+		m.CannotHit = append(m.CannotHit, HitRefusal{Pawn: order.Pawn, Target: order.Target, From: from})
+	}
+	return m
+}
+
+// refusedHit reports an attack on target native refused from pawn's cell.
+func (m CombatMemory) refusedHit(pawn, target domain.PawnID, from domain.Cell) bool {
+	return slices.Contains(m.CannotHit, HitRefusal{Pawn: pawn, Target: target, From: from})
+}
+
+// keepHitRefusals drops the refusals whose shooter moved or whose target
+// left the view's threats.
+func keepHitRefusals(view CombatView, refusals []HitRefusal) []HitRefusal {
+	cells := map[domain.PawnID]domain.Cell{}
+	for _, p := range view.Pawns {
+		if c, ok := p.Cell.Value(); ok {
+			cells[p.ID] = c
+		}
+	}
+	present := map[domain.PawnID]bool{}
+	for _, t := range view.Threats {
+		present[domain.PawnID(t.ID)] = true
+	}
+	out := slices.DeleteFunc(slices.Clone(refusals), func(r HitRefusal) bool {
+		c, ok := cells[r.Pawn]
+		return !ok || c != r.From || !present[r.Target]
+	})
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -418,6 +469,7 @@ func (m CombatMemory) clone() CombatMemory {
 	}
 	m.PodDoors = slices.Clone(m.PodDoors)
 	m.WaitDoors = slices.Clone(m.WaitDoors)
+	m.CannotHit = slices.Clone(m.CannotHit)
 	if m.SapperBreach != nil {
 		c := *m.SapperBreach
 		m.SapperBreach = &c

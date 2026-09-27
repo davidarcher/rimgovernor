@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -12,6 +13,25 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
+
+// A role pawn the fight holds no claim on (a later evacuee, #911) is
+// drafted at the stop, unless it is down; an attack refused cannot_hit is
+// remembered from the shooter's cell (#912), any other refusal forgotten.
+func TestUnclaimedRolesAndCannotHitRecord(t *testing.T) {
+	t.Parallel()
+	cell := domain.Cell{X: 3, Z: 4}
+	view := policy.CombatView{Tick: 9, Pawns: []policy.CombatPawnState{{ID: "a", Cell: domain.Known(cell)}, {ID: "down", Downed: true}}}
+	m := policy.CombatMemory{Roles: []policy.CombatRole{{Pawn: "a"}, {Pawn: "evac", Duty: policy.DutyEvacuee}, {Pawn: "down"}}}
+	if got := unclaimedRoles(m, map[domain.PawnID]string{"a": "c1"}, view); !slices.Equal(got, []domain.PawnID{"evac"}) {
+		t.Fatalf("unclaimed %v", got)
+	}
+	orders := []policy.CombatOrder{{Pawn: "a", Kind: policy.OrderAttack, Target: "h"}, {Pawn: "evac", Kind: policy.OrderMove, Cell: cell}}
+	results := []bridge.CombatOrderResult{{Refusal: bridge.CombatRefusalCannotHit}, {Refusal: bridge.CombatRefusalUnreachable}}
+	record, next := combatStopRecord(view, orders, results, m)
+	if len(record.Orders) != 2 || !slices.Equal(next.CannotHit, []policy.HitRefusal{{Pawn: "a", Target: "h", From: cell}}) {
+		t.Fatalf("record %+v memory %+v", record, next.CannotHit)
+	}
+}
 
 // An uncertain admission batch leaves the fight's claims unknown (#910):
 // the next stop's frame rows settle them. A pawn a claim owns is the

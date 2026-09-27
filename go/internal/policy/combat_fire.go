@@ -87,14 +87,14 @@ func lineAsk(view CombatView, orders []CombatOrder) *GeometryRequest {
 // maxGeometryCells is bridge.CombatGeometryMaxCells.
 const maxGeometryCells = 64
 
-// clearLines drops or retargets an attack order whose line of fire from
-// the shooter's cell crosses a colonist: to the top-scored hostile with a
-// clear line from that cell, else no order. An unanswered pair keeps the
-// order. A retarget becomes the role's target, so the focus holds on it.
-func clearLines(view CombatView, orders []CombatOrder, lines []SightLine, roles []CombatRole) ([]CombatOrder, []CombatRole) {
-	if len(lines) == 0 {
-		return orders, roles
-	}
+// clearLines drops or retargets an attack order that cannot hit from the
+// shooter's cell: its line of fire crosses a colonist (#861), a ranged
+// role's line is blocked (a wall, #912), or native refused it cannot_hit
+// from this cell before (#912). It retargets to the top-scored hostile with
+// a clear, answered line from that cell not refused from it, else gives no
+// order. An unanswered pair keeps the order. A retarget becomes the role's
+// target, so the focus holds on it.
+func clearLines(view CombatView, orders []CombatOrder, lines []SightLine, roles []CombatRole, m CombatMemory) ([]CombatOrder, []CombatRole) {
 	sight := map[sightKey]SightLine{}
 	for _, l := range lines {
 		sight[sightKey{l.Cell, l.Hostile}] = l
@@ -105,18 +105,29 @@ func clearLines(view CombatView, orders []CombatOrder, lines []SightLine, roles 
 			cells[p.ID] = c
 		}
 	}
+	ranged := map[domain.PawnID]bool{}
+	for _, r := range roles {
+		ranged[r.Pawn] = r.Ranged
+	}
+	blocked := func(pawn, target domain.PawnID, from domain.Cell) bool {
+		if m.refusedHit(pawn, target, from) {
+			return true
+		}
+		l, ok := sight[sightKey{from, target}]
+		return ok && (l.ColonistInPath || ranged[pawn] && !l.LineOfFire)
+	}
 	ranked := rankThreats(view)
 	roles = slices.Clone(roles)
 	var out []CombatOrder
 	for _, o := range orders {
 		from, known := cells[o.Pawn]
-		if l, ok := sight[sightKey{from, o.Target}]; o.Kind != OrderAttack || !known || !ok || !l.ColonistInPath {
+		if o.Kind != OrderAttack || !known || !blocked(o.Pawn, o.Target, from) {
 			out = append(out, o)
 			continue
 		}
 		o.Target = ""
 		for _, h := range ranked {
-			if l, ok := sight[sightKey{from, h.ID}]; ok && l.LineOfFire && !l.ColonistInPath {
+			if l, ok := sight[sightKey{from, h.ID}]; ok && l.LineOfFire && !blocked(o.Pawn, h.ID, from) {
 				o.Target = h.ID
 				break
 			}

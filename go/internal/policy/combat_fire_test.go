@@ -7,6 +7,41 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// A ranged attack along a blocked line (a wall, #912) retargets to a
+// hostile with a clear line, or is dropped; an attack native refused
+// cannot_hit is not re-sent from the same cell, and is forgotten once the
+// shooter moves.
+func TestClearLinesBlockedAndRefusedHits(t *testing.T) {
+	from := domain.Cell{X: 5, Z: 5}
+	view := CombatView{
+		Pawns:   []CombatPawnState{{ID: "s1", Cell: domain.Known(from)}, {ID: "h1"}, {ID: "h2"}},
+		Threats: []SquadThreatFacts{{ID: "h1"}, {ID: "h2"}},
+	}
+	roles := []CombatRole{{Pawn: "s1", Target: "h1", Ranged: true}}
+	attack := CombatOrder{Pawn: "s1", Kind: OrderAttack, Target: "h1", Reason: ReasonFormation}
+	walled := []SightLine{{Cell: from, Hostile: "h1"}, {Cell: from, Hostile: "h2"}}
+	if out, _ := clearLines(view, []CombatOrder{attack}, walled, roles, CombatMemory{}); len(out) != 0 {
+		t.Fatalf("attack through a wall sent: %+v", out)
+	}
+	open := []SightLine{{Cell: from, Hostile: "h1"}, {Cell: from, Hostile: "h2", LineOfFire: true}}
+	out, got := clearLines(view, []CombatOrder{attack}, open, roles, CombatMemory{})
+	if len(out) != 1 || out[0].Target != "h2" || got[0].Target != "h2" {
+		t.Fatalf("no retarget to the open line: %+v %+v", out, got)
+	}
+	// Refused cannot_hit from this cell: not re-sent, even with no lines.
+	m := CombatMemory{}.RefuseHit(attack, from)
+	if out, _ := clearLines(view, []CombatOrder{attack}, nil, roles, m); len(out) != 0 {
+		t.Fatalf("refused attack re-sent: %+v", out)
+	}
+	if kept := keepHitRefusals(view, m.CannotHit); len(kept) != 1 {
+		t.Fatalf("refusal dropped in place: %+v", kept)
+	}
+	view.Pawns[0].Cell = domain.Known(domain.Cell{X: 6, Z: 5})
+	if kept := keepHitRefusals(view, m.CannotHit); len(kept) != 0 {
+		t.Fatalf("refusal kept after the shooter moved: %+v", kept)
+	}
+}
+
 // Six packed firing cells for three riflemen: each takes a cell a tile
 // apart from the others.
 func TestDecideCombatSpacesFiringCells(t *testing.T) {

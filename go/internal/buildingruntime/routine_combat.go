@@ -98,23 +98,11 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 		slog.Default().WarnContext(call, "fight admission batch failed", telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "fight_admission", "plan", string(id), "error", err)
 		return admitted, nil
 	}
-	set := map[domain.PawnID]string{}
-	var drop []domain.PawnID
-	if results != nil {
-		for i, pawn := range pawns {
-			if results[i].Applied {
-				set[pawn] = results[i].Claim
-			} else {
-				drop = append(drop, pawn)
-				next = next.Forget(pawn)
-			}
-		}
-		results = results[len(pawns):]
-	}
-	if err = p.journal.RecordCombatClaims(call, id, set, drop); err != nil {
+	results, next, err = r.recordDrafts(call, id, pawns, results, next)
+	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	record, next := combatStopRecord(view.Tick, orders, results, next)
+	record, next := combatStopRecord(view, orders, results, next)
 	if len(record.Orders) == 0 {
 		return admitted, p.journal.SaveCombatMemory(call, id, next)
 	}
@@ -122,30 +110,83 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 	return admitted, p.journal.RecordCombatStop(call, id, record, next)
 }
 
-// issueCombatOrders sends one stop's orders as one combat.orders batch and
-// returns the stop's evidence and the memory without the refused orders,
-// which the next stop gives again.
-func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state ControlState, plan domain.PlanID, tick domain.Tick, orders []policy.CombatOrder, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory, error) {
-	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-stop-%d", plan, tick), nil, orders)
+// recordDrafts records a batch's draft results as the fight's claims
+// (#910): an applied draft's claim, a refused one dropped with its orders
+// forgotten. It returns the remaining (order) results; an uncertain
+// receipt (nil results) leaves the claims unknown for the next stop's rows.
+func (r *RoutineDefensePlanner) recordDrafts(call context.Context, plan domain.PlanID, pawns []domain.PawnID, results []bridge.CombatOrderResult, memory policy.CombatMemory) ([]bridge.CombatOrderResult, policy.CombatMemory, error) {
+	if results == nil || len(pawns) == 0 {
+		return results, memory, nil
+	}
+	set := map[domain.PawnID]string{}
+	var drop []domain.PawnID
+	for i, pawn := range pawns {
+		if results[i].Applied {
+			set[pawn] = results[i].Claim
+		} else {
+			drop = append(drop, pawn)
+			memory = memory.Forget(pawn)
+		}
+	}
+	return results[len(pawns):], memory, r.reviewer.player.journal.RecordCombatClaims(call, plan, set, drop)
+}
+
+// unclaimedRoles are the live role pawns the fight holds no claim on,
+// sorted.
+func unclaimedRoles(m policy.CombatMemory, claims map[domain.PawnID]string, view policy.CombatView) []domain.PawnID {
+	down := map[domain.PawnID]bool{}
+	for _, p := range view.Pawns {
+		down[p.ID] = p.Dead || p.Downed
+	}
+	var out []domain.PawnID
+	for _, role := range m.Roles {
+		if _, held := claims[role.Pawn]; !held && !down[role.Pawn] && !slices.Contains(out, role.Pawn) {
+			out = append(out, role.Pawn)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// issueCombatOrders sends one stop's batch, drafting drafts (#911) and
+// giving orders, and returns the stop's evidence and the memory without
+// the refused orders, which the next stop gives again.
+func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state ControlState, plan domain.PlanID, view policy.CombatView, drafts []domain.PawnID, orders []policy.CombatOrder, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory, error) {
+	results, orders, err := r.sendCombatBatch(call, state, fmt.Sprintf("%s-stop-%d", plan, view.Tick), drafts, orders)
 	if err != nil {
 		return store.CombatStopRecord{}, memory, err
 	}
-	record, memory := combatStopRecord(tick, orders, results, memory)
+	if results, memory, err = r.recordDrafts(call, plan, drafts, results, memory); err != nil {
+		return store.CombatStopRecord{}, memory, err
+	}
+	record, memory := combatStopRecord(view, orders, results, memory)
 	return record, memory, nil
 }
 
 // combatStopRecord is a stop's evidence from its orders' results and the
-// memory without the refused ones. An uncertain receipt carries no
-// results: the orders stay issued and the next mirror read shows what took.
-func combatStopRecord(tick domain.Tick, orders []policy.CombatOrder, results []bridge.CombatOrderResult, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory) {
-	record := store.CombatStopRecord{Tick: tick}
+// memory without the refused ones; an attack refused cannot_hit is
+// remembered from the shooter's cell (#912). An uncertain receipt carries
+// no results: the orders stay issued and the next mirror read shows what
+// took.
+func combatStopRecord(view policy.CombatView, orders []policy.CombatOrder, results []bridge.CombatOrderResult, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory) {
+	cells := map[domain.PawnID]domain.Cell{}
+	for _, p := range view.Pawns {
+		if c, ok := p.Cell.Value(); ok {
+			cells[p.ID] = c
+		}
+	}
+	record := store.CombatStopRecord{Tick: view.Tick}
 	for i, order := range orders {
 		row := store.CombatOrderRecord{CombatOrder: order, Applied: results == nil}
 		if results != nil {
 			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
 		}
 		if !row.Applied && results != nil && order.Pawn != "" {
-			memory = memory.Forget(order.Pawn)
+			if from, ok := cells[order.Pawn]; ok && row.Refusal == bridge.CombatRefusalCannotHit {
+				memory = memory.RefuseHit(order, from)
+			} else {
+				memory = memory.Forget(order.Pawn)
+			}
 		}
 		record.Orders = append(record.Orders, row)
 	}
