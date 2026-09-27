@@ -99,8 +99,13 @@ first fix failed. Every landing report ends with one line:
   `main`): land it `-unverified`, then restart the launcher (#965).
 - Kill `RimWorldWin64.exe` by image name; peers' games run
   beside yours. Stop your own by root or pid (runbook).
-- Replace an installed DLL while any RimWorld instance is running, yours or
-  a peer's.
+- Replace a DLL under a game install some RimWorld is running from. Only a
+  game started from that same install counts: your worktree's mod lives in
+  its private `.rimgovernor/native-rimworld/` copy, so peers' games and the
+  user's launcher game (from `main`) never block `acceptance setup
+  -rebuild` in your worktree; stop your own game first (`acceptance stop
+  -root <root>`). The Steam install and the shared
+  `.rimgovernor/isolated-rimworld` copy are never yours to replace (runbook).
 - `go clean -cache`, or set a private `GOCACHE`.
 - Rebuild the controller binary or the mod while a harness is running from
   them.
