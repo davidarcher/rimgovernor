@@ -176,6 +176,37 @@ func WeaponProductionDemand(pawns []EquipCandidatePawn, weapons []EquipCandidate
 	return demand
 }
 
+// UnarmedFighters counts the available, fighting-capable unarmed pawns the
+// loose weapons cannot arm: the colonists a weapon must be crafted for.
+func UnarmedFighters(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) int {
+	assigned := map[domain.PawnID]bool{}
+	for _, pair := range AssignEquip(pawns, weapons) {
+		assigned[pair.Pawn] = true
+	}
+	n := 0
+	for _, p := range pawns {
+		if armed, _ := p.Armed.Value(); !armed && !assigned[p.Pawn] && equipAvailable(p) {
+			n++
+		}
+	}
+	return n
+}
+
+// WeaponRecipe reports whether a bench recipe makes a modelled weapon.
+func WeaponRecipe(recipe GearRecipe) bool {
+	for _, def := range recipe.Products {
+		if _, known := weaponProfiles[string(def)]; known {
+			return true
+		}
+	}
+	return false
+}
+
+// WeaponBill reports whether an existing bill makes a modelled weapon.
+func WeaponBill(bill GearBill) bool {
+	return WeaponRecipe(GearRecipe{Products: bill.Products})
+}
+
 type EquipAssignment struct {
 	Pawn   domain.PawnID
 	Weapon EquipCandidateWeapon

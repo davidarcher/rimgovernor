@@ -356,7 +356,10 @@ type RoutineFacts struct {
 	WorkDecaying                                                               domain.Fact[[]DecayingSkill]
 	WorkProfiles                                                               domain.Fact[[]PawnProfile]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
-	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
+	// Unarmed counts living, conscious colonists able to fight who hold no
+	// weapon; EnsureBasicDefense stays owed while it is positive.
+	Unarmed                                     domain.Fact[int64]
+	FoodDays, PopulationFoodDays, FieldCoverage domain.Fact[float64]
 	// WorkHelp is the same plan's construction helper record (#653);
 	// nil when the plan ran without the helper input.
 	WorkHelp *ConstructionHelpRecord
@@ -605,7 +608,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err := p.Validate(); err != nil {
 		return RoutineNeeds{}, err
 	}
-	for _, fact := range []domain.Fact[int64]{f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients} {
+	for _, fact := range []domain.Fact[int64]{f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients} {
 		if v, k := fact.Value(); k && (v < 0 || v > math.MaxInt64/10) {
 			return RoutineNeeds{}, errors.New("invalid routine count")
 		}
@@ -735,12 +738,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(g.Storage) {
 		addGoal(EnsureFoodStorage, 2)
 	}
-	if !positive(g.Defense) {
+	defense := basicDefenseRecovered(g.Defense, f.Unarmed)
+	if !positive(defense) {
 		addGoal(EnsureBasicDefense, 3)
 		n, k := count.Value()
 		stock, sk := f.Armed.Value()
 		if k && sk && n > 0 {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(max(0, float64(min(2, n)-stock)/float64(min(2, n))))
+			deficit := max(0, float64(min(2, n)-stock)/float64(min(2, n)))
+			if unarmed, uk := f.Unarmed.Value(); uk && unarmed > 0 && deficit == 0 {
+				deficit = float64(unarmed) / float64(unarmed+stock)
+			}
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(deficit)
 		}
 	}
 	if !positive(f.MedicalCareRecovered) {
@@ -823,7 +831,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureCooking, 2, g.Cooking)
 	addAssessment(EnsureBasicPower, 2, g.Power)
 	addAssessment(EnsureFoodStorage, 2, g.Storage)
-	addAssessment(EnsureBasicDefense, 3, g.Defense)
+	addAssessment(EnsureBasicDefense, 3, defense)
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureBasicComfort, basicComfort.Priority(), basicComfort.Recovered())
 	addAssessment(ClearPests, 2, pestsClear)

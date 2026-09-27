@@ -448,7 +448,7 @@ var plannerCatalog = []plannerEntry{
 			out.Rescue = &method
 			return method.Reason, nil
 		}},
-	{name: "equip", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction}, sections: sectionsMedical,
+	{name: "equip", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction, domain.BuildingAction, domain.ProductionBillAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Equip != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Equip.step(ctx, epoch, arbiter)

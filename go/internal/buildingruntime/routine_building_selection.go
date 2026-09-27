@@ -73,6 +73,13 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		return 1, "butcher-spot", ""
 
+	case policy.EnsureBasicDefense:
+		// Reached only from RoutineEquipPlanner once no loose weapon and no
+		// bench's weapon recipe can arm an unarmed colonist.
+		if r.definition != "CraftingSpot" {
+			return 0, "", BuildingMethodUnknown
+		}
+		return 1, "crafting-spot", ""
 	case policy.EnsureTemperatureSafety:
 		if r.temperature == nil {
 			return 0, "", BuildingMethodUnknown

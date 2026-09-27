@@ -37,6 +37,9 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 		target = min(target, 2)
 		stock, known = f.Armed.Value()
 		known = known && countKnown
+		if unarmed, uk := f.Unarmed.Value(); known && uk && unarmed > 0 {
+			target = max(target, stock+unarmed)
+		}
 	case EnsureDefensiveLayout:
 		// Config-only opt-in (see RoutinePolicy.DefensiveLayout): while
 		// opted in the layout counts as a full deficit so development
