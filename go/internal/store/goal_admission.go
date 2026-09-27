@@ -23,6 +23,8 @@ type BuildingMethodRequest struct {
 	Rules    []policy.ResourceRule
 	Previews []policy.Preview
 	Purpose  policy.Purpose
+	// Reason is the planner's short why, stored with the method (#846).
+	Reason string
 	// PartialStock admits the candidates the stock covers when the only
 	// refusals are InsufficientStock and at least one candidate passed: the
 	// plan is committed whole, the refused actions stay pending without a
@@ -127,7 +129,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 			return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
 		}
 	}
-	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Plan)
+	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Reason, r.Plan)
 	if errors.Is(err, ErrNotAdmitted) {
 		// The review no longer grants this goal a development slot: refuse
 		// the method like any other policy outcome so the planner reports a

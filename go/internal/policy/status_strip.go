@@ -40,6 +40,24 @@ type StatusInput struct {
 	Emergency []GoalID
 	// Refusals are the live native refusals, newest first.
 	Refusals []RefusalMarker
+	// Pause is who stopped the clock and why (#847); zero while the clock
+	// runs or only the governor's own window boundary stopped it.
+	Pause ClockPause
+	// Medicine is the usable medicine reserve and MedicineTarget its
+	// target (ReviewMedicalReserve).
+	Medicine       domain.Fact[int64]
+	MedicineTarget int64
+	// GoalCells are the cells the goals' active plans target (#847).
+	GoalCells map[GoalID]domain.Cell
+}
+
+// ClockPause names who stopped the clock ("player", "letter", "hold",
+// "governor") and why; Held marks a stop the player must clear or the
+// colony is waiting out.
+type ClockPause struct {
+	By     string
+	Reason string
+	Held   bool
 }
 
 // RefusalMarker is one native refusal of a still-pending action with the
@@ -59,8 +77,9 @@ const (
 // RefusalMarkerTTL is how long a refusal marker stays drawn (one game day).
 const RefusalMarkerTTL domain.Tick = 60000
 
-// StatusRows builds the strip rows: goal, food, wood, emergency, refusal,
-// then one detail row per active goal. Pure; same input, same rows.
+// StatusRows builds the strip rows: goal, pause, food, wood, medicine,
+// emergency, refusal, then one detail row per active goal. Pure; same
+// input, same rows.
 func StatusRows(in StatusInput) []StatusRow {
 	var rows []StatusRow
 	var refusal domain.Fact[domain.Cell]
@@ -80,9 +99,19 @@ func StatusRows(in StatusInput) []StatusRow {
 			text += " - blocked " + string(top.Blocked)
 			severity = StatusWarning
 		}
-		rows = append(rows, StatusRow{Key: "goal", Text: text, Severity: severity})
+		rows = append(rows, StatusRow{Key: "goal", Text: text, Severity: severity, Target: goalCell(in.GoalCells, top.Goal)})
 	} else if in.Stage != nil {
 		rows = append(rows, StatusRow{Key: "goal", Text: "stage " + in.Stage.Stage.String(), Severity: StatusInfo})
+	}
+	if in.Pause.By != "" {
+		severity, text := StatusInfo, "paused by "+in.Pause.By
+		if in.Pause.Reason != "" {
+			text += ": " + in.Pause.Reason
+		}
+		if in.Pause.Held {
+			severity = StatusWarning
+		}
+		rows = append(rows, StatusRow{Key: "pause", Text: text, Severity: severity})
 	}
 	if days, known := in.FoodDays.Value(); known {
 		severity := StatusInfo
@@ -104,6 +133,13 @@ func StatusRows(in StatusInput) []StatusRow {
 		}
 		rows = append(rows, StatusRow{Key: "wood", Text: text, Severity: severity})
 	}
+	if stock, known := in.Medicine.Value(); known && in.MedicineTarget > 0 {
+		severity := StatusInfo
+		if stock < in.MedicineTarget {
+			severity = StatusWarning
+		}
+		rows = append(rows, StatusRow{Key: "medicine", Text: fmt.Sprintf("medicine %d/%d", stock, in.MedicineTarget), Severity: severity})
+	}
 	if len(in.Emergency) > 0 {
 		names := make([]string, len(in.Emergency))
 		for i, id := range in.Emergency {
@@ -122,9 +158,17 @@ func StatusRows(in StatusInput) []StatusRow {
 		if g.Blocked != "" {
 			text += " - " + string(g.Blocked)
 		}
-		rows = append(rows, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: StatusInfo, Detail: true})
+		rows = append(rows, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: StatusInfo, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
 	}
 	return rows
+}
+
+// goalCell is goal's target cell, unknown when its plans name none.
+func goalCell(cells map[GoalID]domain.Cell, goal GoalID) domain.Fact[domain.Cell] {
+	if cell, ok := cells[goal]; ok {
+		return domain.Known(cell)
+	}
+	return domain.Fact[domain.Cell]{}
 }
 
 // topGoal is the goal being worked: the first unblocked progress record,

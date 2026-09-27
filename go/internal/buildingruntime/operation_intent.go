@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
@@ -71,9 +72,15 @@ func methodReason(method domain.MethodID) string {
 	return strings.Join(parts, " ")
 }
 
-// OperationIntent is Operation.intent for a goal method's writes.
-func OperationIntent(method domain.GoalMethod) string {
-	return bridge.FormatOperationIntent(GoalLabel(method.Goal), methodReason(method.Method))
+// OperationIntent is Operation.intent for a goal method's writes: the
+// planner's admission reason follows the method, "Food supply: acquire,
+// food runway 1.5d" (#846).
+func OperationIntent(method store.PlanMethod) string {
+	why := methodReason(method.Method)
+	if reason := strings.TrimSpace(method.Reason); reason != "" {
+		why += ", " + reason
+	}
+	return bridge.FormatOperationIntent(GoalLabel(method.Goal), why)
 }
 
 func splitWords(s string) string {
@@ -92,7 +99,7 @@ func splitWords(s string) string {
 // dispatch issues; a plan no goal admitted, or a failed lookup, dispatches
 // without one.
 func withPlanIntent(ctx context.Context, intents interface {
-	PlanGoalMethod(context.Context, domain.PlanID) (domain.GoalMethod, bool, error)
+	PlanGoalMethod(context.Context, domain.PlanID) (store.PlanMethod, bool, error)
 }, plan domain.PlanID) context.Context {
 	method, ok, err := intents.PlanGoalMethod(ctx, plan)
 	if err != nil {

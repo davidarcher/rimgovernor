@@ -239,11 +239,13 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			pending = domain.Known(max(0, outstanding))
 		}
 	}
+	runway := domain.Unknown[float64]()
 	if food {
 		plan, known := projection.Facts.FoodPlan.Value()
 		if !known {
 			return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
 		}
+		runway = plan.Forecast.RunwayDays
 		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
 		clockSchedulerLog("Food acquisition: %s", plan.Explain())
 	}
@@ -350,7 +352,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if p.session.State() != state {
 		return RoutineAcquisitionResult{}, ErrControl
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
@@ -545,4 +547,23 @@ func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool,
 		}
 	}
 	return stalled
+}
+
+// acquisitionReason is the admitted method's short why for Operation.intent
+// (#846): the food runway the plan budgets against, the animal a pest hunt
+// targets, or the stock a resource method gathers.
+func acquisitionReason(food, pest bool, runway domain.Fact[float64], selected []policy.AcquisitionSource) string {
+	if len(selected) == 0 {
+		return ""
+	}
+	switch {
+	case pest:
+		return "pest " + selected[0].Definition
+	case food:
+		if days, known := runway.Value(); known {
+			return fmt.Sprintf("food runway %.1fd", days)
+		}
+		return ""
+	}
+	return selected[0].Resource + " low"
 }

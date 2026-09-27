@@ -116,7 +116,7 @@ func (s *Store) CommitTradeGoalMethod(ctx context.Context, id domain.GoalID, rev
 		return GoalState{}, err
 	}
 	defer tx.Rollback()
-	state, err := commitGoalMethod(ctx, tx, id, revision, method, plan)
+	state, err := commitGoalMethod(ctx, tx, id, revision, method, "", plan)
 	if err != nil {
 		return GoalState{}, err
 	}

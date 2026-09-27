@@ -61,3 +61,67 @@ func TestRefusalOverlayExpiresAfterADay(t *testing.T) {
 		t.Fatalf("%+v", l)
 	}
 }
+
+func statusRow(rows []StatusRow, key string) (StatusRow, bool) {
+	for _, r := range rows {
+		if r.Key == key {
+			return r, true
+		}
+	}
+	return StatusRow{}, false
+}
+
+func TestStatusRowsPause(t *testing.T) {
+	if _, ok := statusRow(StatusRows(StatusInput{}), "pause"); ok {
+		t.Fatal("a running clock drew a pause row")
+	}
+	for _, c := range []struct {
+		pause    ClockPause
+		text     string
+		severity StatusSeverity
+	}{
+		{ClockPause{By: "player", Reason: "external_pause"}, "paused by player: external_pause", StatusInfo},
+		{ClockPause{By: "letter", Reason: "letter_pause", Held: true}, "paused by letter: letter_pause", StatusWarning},
+		{ClockPause{By: "hold", Reason: "hostile", Held: true}, "paused by hold: hostile", StatusWarning},
+	} {
+		r, ok := statusRow(StatusRows(StatusInput{Pause: c.pause}), "pause")
+		if !ok || r.Text != c.text || r.Severity != c.severity {
+			t.Fatalf("%+v: %+v", c.pause, r)
+		}
+	}
+}
+
+func TestStatusRowsMedicineThresholds(t *testing.T) {
+	if _, ok := statusRow(StatusRows(StatusInput{MedicineTarget: 9}), "medicine"); ok {
+		t.Fatal("unknown stock drew a medicine row")
+	}
+	if _, ok := statusRow(StatusRows(StatusInput{Medicine: domain.Known(int64(4))}), "medicine"); ok {
+		t.Fatal("no target drew a medicine row")
+	}
+	for _, c := range []struct {
+		stock    int64
+		severity StatusSeverity
+	}{{8, StatusWarning}, {9, StatusInfo}, {12, StatusInfo}} {
+		r, ok := statusRow(StatusRows(StatusInput{Medicine: domain.Known(c.stock), MedicineTarget: 9}), "medicine")
+		if !ok || r.Severity != c.severity {
+			t.Fatalf("stock %d: %+v", c.stock, r)
+		}
+	}
+}
+
+func TestStatusRowsGoalTargetCells(t *testing.T) {
+	cell := domain.Cell{X: 7, Z: 9}
+	rows := StatusRows(StatusInput{
+		Progress:  []GoalProgress{{Goal: "EnsureShelter", Method: "build"}, {Goal: "MaintainFood", Method: "hunt"}},
+		GoalCells: map[GoalID]domain.Cell{"EnsureShelter": cell},
+	})
+	for _, key := range []string{"goal", "goal.EnsureShelter"} {
+		r, _ := statusRow(rows, key)
+		if got, known := r.Target.Value(); !known || got != cell {
+			t.Fatalf("%s target = %+v", key, r.Target)
+		}
+	}
+	if r, _ := statusRow(rows, "goal.MaintainFood"); r.Target != (domain.Fact[domain.Cell]{}) {
+		t.Fatalf("goal without a cell targeted %+v", r.Target)
+	}
+}

@@ -1487,6 +1487,9 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	defer s.recordWave(call, sel, wave, status.Context.GetTick())
 	began := time.Now()
 	wall := after(s.config.Budget.wall())
+	if s.config.Routine != nil {
+		s.config.Routine.pause = clockPause(status)
+	}
 	wanted := s.sectionsWanted(sel.pick)
 	out.Sections = sectionNames(wanted)
 	// Under player acceleration the critical wave is the evidence the

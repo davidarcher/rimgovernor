@@ -70,6 +70,9 @@ type RoutineReviewer struct {
 	heatCleared    bool
 	// strip is the last status strip sent (#823); see drawStatusStrip.
 	strip statusStripState
+	// pause is who stopped the clock the scheduler's step read (#847),
+	// set before the review; see clockPause.
+	pause policy.ClockPause
 }
 
 // staged is the configured policy with its goal budgets set by the colony

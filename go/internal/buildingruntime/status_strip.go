@@ -3,12 +3,14 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 )
@@ -59,9 +61,13 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 		return
 	}
 	tick := projection.Identity.Tick
-	refusals := policy.LiveRefusals(r.liveRefusals(ctx, result.Goals), tick)
+	marked, cells := r.planMarks(ctx, result.Goals)
+	refusals := policy.LiveRefusals(marked, tick)
 	f := projection.Facts
-	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals})
+	// An invalid reserve read leaves Stock unknown and drops the row.
+	medicine, _ := policy.ReviewMedicalReserve(f.MedicalReserve, false, r.policy.MedicalReserve)
+	target, _ := medicine.Target.Value()
+	rows := policy.StatusRows(policy.StatusInput{Stage: result.Review.Stage, Progress: result.Review.Progress, Colonists: f.Colonists, FoodDays: f.FoodDays, Wood: f.Wood, WoodFloor: result.Review.WoodFloor, Emergency: result.Emergency, Refusals: refusals, Pause: r.pause, Medicine: medicine.Stock, MedicineTarget: target, GoalCells: cells})
 	key := fmt.Sprint(rows, refusals)
 	if key == r.strip.key && tick >= r.strip.drawn && tick-r.strip.drawn < statusRedrawEvery {
 		return
@@ -78,11 +84,14 @@ func (r *RoutineReviewer) drawStatusStrip(ctx context.Context, snapshot domain.G
 	r.strip = statusStripState{key: key, drawn: tick}
 }
 
-// liveRefusals are the active goals' still-pending actions native refused
-// that name a cell: a refusal clears when its plan retires or the action
-// leaves Pending. A plan that does not load is skipped.
-func (r *RoutineReviewer) liveRefusals(ctx context.Context, goals []store.GoalState) []policy.RefusalMarker {
+// planMarks reads the active goals' plans once for the strip: the
+// still-pending actions native refused that name a cell (a refusal clears
+// when its plan retires or the action leaves Pending), and each goal's
+// target, the cell of its first open action that names one (#847). A plan
+// that does not load is skipped.
+func (r *RoutineReviewer) planMarks(ctx context.Context, goals []store.GoalState) ([]policy.RefusalMarker, map[policy.GoalID]domain.Cell) {
 	var out []policy.RefusalMarker
+	cells := map[policy.GoalID]domain.Cell{}
 	for _, goal := range goals {
 		for _, method := range goal.Methods {
 			plan, err := r.player.journal.LoadPlan(ctx, method.Plan)
@@ -91,12 +100,16 @@ func (r *RoutineReviewer) liveRefusals(ctx context.Context, goals []store.GoalSt
 			}
 			for _, progress := range plan.Progress {
 				v := progress.View()
-				receipt, known := v.Receipt.Value()
-				if !known || receipt != domain.ReceiptRefused || v.Stage != domain.Pending {
-					continue
-				}
 				cell, ok := actionCell(progress.Action())
 				if !ok {
+					continue
+				}
+				id := policy.GoalID(goal.Goal.ID)
+				if _, marked := cells[id]; !marked && domain.GoalWorkOpen([]domain.Progress{progress}) {
+					cells[id] = cell
+				}
+				receipt, known := v.Receipt.Value()
+				if !known || receipt != domain.ReceiptRefused || v.Stage != domain.Pending {
 					continue
 				}
 				label := string(progress.Action().Kind())
@@ -107,7 +120,32 @@ func (r *RoutineReviewer) liveRefusals(ctx context.Context, goals []store.GoalSt
 			}
 		}
 	}
-	return out
+	return out, cells
+}
+
+// clockPause is who stopped the clock the step read and why (#847): zero
+// while it runs, the player runs it by hand, or only the governor's own
+// window boundary stopped it; else the player's pause, a letter or
+// dialog, a colony watch hold, or a governor fault.
+func clockPause(status *k.Status) policy.ClockPause {
+	stopped := status.GetStopped()
+	if stopped == nil || clockPlayerRunning(status) {
+		return policy.ClockPause{}
+	}
+	reason := stopped.GetReason()
+	name := strings.ToLower(strings.TrimPrefix(reason.String(), "STOP_REASON_"))
+	switch reason {
+	case k.StopReason_STOP_REASON_UNSPECIFIED, k.StopReason_STOP_REASON_REQUESTED_PAUSE, k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_WATCH_LATCHED:
+		return policy.ClockPause{}
+	case k.StopReason_STOP_REASON_EXTERNAL_PAUSE, k.StopReason_STOP_REASON_FORCE_PAUSED, k.StopReason_STOP_REASON_EXTERNAL_SPEED_CHANGED:
+		return policy.ClockPause{By: "player", Reason: name}
+	case k.StopReason_STOP_REASON_LETTER_PAUSE, k.StopReason_STOP_REASON_NOTIFICATION_BATCH, k.StopReason_STOP_REASON_DIALOG_PAUSE, k.StopReason_STOP_REASON_COLONY_NAMING:
+		return policy.ClockPause{By: "letter", Reason: name, Held: true}
+	case k.StopReason_STOP_REASON_SESSION_CHANGED, k.StopReason_STOP_REASON_UNAVAILABLE, k.StopReason_STOP_REASON_LEASE_EXPIRED, k.StopReason_STOP_REASON_WATCHER_ERROR, k.StopReason_STOP_REASON_EVENT_JOURNAL_ERROR, k.StopReason_STOP_REASON_START_REFUSED:
+		return policy.ClockPause{By: "governor", Reason: name, Held: true}
+	}
+	// The colony watches: hostiles, a downed or injured colonist, a hunt.
+	return policy.ClockPause{By: "hold", Reason: name, Held: true}
 }
 
 // actionCell is the map cell an action targets, for the kinds that name one.

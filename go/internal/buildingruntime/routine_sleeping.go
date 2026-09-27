@@ -757,12 +757,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 // routineAdmission is what admitPreviews commits: the previews a method
 // selected under one observation, bound to the goal as that method.
 type routineAdmission struct {
-	state    ControlState
-	review   store.RoutineReview
-	goal     store.GoalState
-	facts    observation.ColonyProjection
-	read     observation.ColonyReading
-	method   domain.MethodID
+	state  ControlState
+	review store.RoutineReview
+	goal   store.GoalState
+	facts  observation.ColonyProjection
+	read   observation.ColonyReading
+	method domain.MethodID
+	// reason is the planner's short why, stored with the method (#846).
+	reason   string
 	snapshot domain.GenerationSnapshot
 	selected []policy.Preview
 	stock    policy.StockObservation
@@ -812,7 +814,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: a.goal.Goal.ID, Revision: a.goal.Revision, Method: a.method, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Rules: r.reviewer.rules, Previews: a.selected, Purpose: a.purpose, PartialStock: a.partial})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: a.goal.Goal.ID, Revision: a.goal.Revision, Method: a.method, Reason: a.reason, Plan: plan, Current: a.snapshot, Tick: a.facts.Identity.Tick, Bounds: domain.Known(a.facts.Bounds), Stock: a.stock, Rules: r.reviewer.rules, Previews: a.selected, Purpose: a.purpose, PartialStock: a.partial})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

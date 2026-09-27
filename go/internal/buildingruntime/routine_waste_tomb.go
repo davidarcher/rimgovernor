@@ -41,7 +41,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)
 	var result RoutineBuildingResult
 	if step.Kind == policy.TombShell {
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, tombMethod(step), "routine-waste-tomb")
+		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, tombMethod(step), "routine-waste-tomb", "")
 	} else {
 		result, err = r.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
 	}

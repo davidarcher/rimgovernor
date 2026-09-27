@@ -99,12 +99,22 @@ func bedroomRing(room policy.LayoutRoom, facts observation.ColonyProjection) []d
 // shellBedroom previews and admits the planned room's walls and door. A
 // refused cell makes the slot no site this step.
 func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, error) {
-	return r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, bedroomMethod(step.Kind, step.Room), "routine-sleeping-bedroom")
+	return r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, bedroomMethod(step.Kind, step.Room), "routine-sleeping-bedroom", bedroomShellReason(step))
+}
+
+// bedroomShellReason is a bedroom shell's short why: the colonists still
+// outside a bedroom (#846).
+func bedroomShellReason(step policy.BedroomStep) string {
+	if step.Unhoused <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("room for %d unhoused", step.Unhoused)
 }
 
 // shellRoom previews and admits a planned room's walls and door once per
-// method; prefix names the plan (the tomb shares it, #832).
-func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, room policy.LayoutRoom, method domain.MethodID, prefix string) (RoutineBuildingResult, error) {
+// method; prefix names the plan (the tomb shares it, #832). reason is the
+// admission's short why for Operation.intent (#846).
+func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, room policy.LayoutRoom, method domain.MethodID, prefix, reason string) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -178,5 +188,5 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if len(selected) == 0 {
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, partial: true, check: check})
+	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, partial: true, check: check})
 }
