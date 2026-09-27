@@ -69,6 +69,24 @@ func (n *defenseReplayNative) ReadLinesOfFire(ctx context.Context, _ *c.Identity
 // each step's result, the goal method it admitted, if any, and the journal.
 func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []domain.MethodID, *store.Store) {
 	t.Helper()
+	steps := make([]snapshot.Defense, 0, len(paths))
+	for _, path := range paths {
+		step, err := snapshot.LoadDefense(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		steps = append(steps, step)
+	}
+	results, methods, db := replayDefenseSteps(t, steps...)
+	if len(steps) == 1 && string(results[0].Reason) != steps[0].Reason {
+		t.Fatalf("%s: replay %s, recorded %s", paths[0], results[0].Reason, steps[0].Reason)
+	}
+	return results, methods, db
+}
+
+// replayDefenseSteps is replayDefense over loaded, possibly edited, steps.
+func replayDefenseSteps(t *testing.T, steps ...snapshot.Defense) ([]RoutineDefenseResult, []domain.MethodID, *store.Store) {
+	t.Helper()
 	r, db, session, _, _ := routineFixture(t)
 	ctx := context.Background()
 	current := session.State().Snapshot
@@ -80,11 +98,7 @@ func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []dom
 	}
 	var results []RoutineDefenseResult
 	var methods []domain.MethodID
-	for i, path := range paths {
-		step, err := snapshot.LoadDefense(path)
-		if err != nil {
-			t.Fatal(err)
-		}
+	for i, step := range steps {
 		native.step = step
 		if i == 0 {
 			if step.Layout != nil {
@@ -105,10 +119,7 @@ func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []dom
 		}
 		got, err := planner.Step(ctx)
 		if err != nil {
-			t.Fatalf("%s: %v", path, err)
-		}
-		if len(paths) == 1 && string(got.Reason) != step.Reason {
-			t.Fatalf("%s: replay %s, recorded %s", path, got.Reason, step.Reason)
+			t.Fatalf("step %d: %v", i, err)
 		}
 		results = append(results, got)
 		methods = append(methods, admittedMethod(t, db, got.Plan))

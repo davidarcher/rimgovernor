@@ -26,7 +26,9 @@ type SquadThreatFacts struct {
 	// defender listed under LinesOfFire shoots it from where it stands (the
 	// native ranged predicates need the target in range now; #327); every
 	// other defender walks to it in melee.
-	Building    bool
+	Building bool
+	// Mech is a Mech_ pawn kind (#970), marked from the combat view.
+	Mech        bool
 	LinesOfFire map[domain.PawnID]bool
 }
 
@@ -133,7 +135,13 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		downed, wk := t.Downed.Value()
 		humanlike, hk := t.Humanlike.Value()
 		animal, ak := t.Animal.Value()
-		if !dk || !wk || !hk || !ak || dead || downed {
+		if !dk || !wk || dead || downed {
+			return false
+		}
+		if t.Mech {
+			return true
+		}
+		if !hk || !ak {
 			return false
 		}
 		if humanlike {

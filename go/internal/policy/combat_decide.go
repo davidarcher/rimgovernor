@@ -716,7 +716,7 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		assignments, ok = SelectTribalRaiderDefense(view.Threats[0], view.Defenders)
 	}
 	if !ok {
-		assignments, ok = SelectSquadDefense(view.Threats, view.Defenders)
+		assignments, ok = SelectSquadDefense(markSquadMechs(view), view.Defenders)
 	}
 	if !ok {
 		return "", nil, refusal

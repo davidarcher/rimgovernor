@@ -8,6 +8,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // The defense family's threat responses (#744), replayed from defense
@@ -51,6 +54,34 @@ func TestDefenseReplayCenterDropIsSquadDefense(t *testing.T) {
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
 		t.Fatal("squad defense does not engage the dropped raider")
+	}
+}
+
+// defense/drop with the raider read as a mechanoid and no layout stored:
+// the mech still gets a squad (#970).
+func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
+	t.Parallel()
+	step, err := snapshot.LoadDefense("testdata/defense/drop-center.json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	step.Layout = nil
+	reply := &o.ListPawnsReply{}
+	if err = protojson.Unmarshal(step.CombatPawns, reply); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range reply.GetObserved().GetPawns() {
+		if p.GetHostile() {
+			p.KindDefName, p.Humanlike, p.Mechanoid = proto.String("Mech_Scyther"), proto.Bool(false), proto.Bool(true)
+		}
+	}
+	if step.CombatPawns, err = protojson.Marshal(reply); err != nil {
+		t.Fatal(err)
+	}
+	results, methods, db := replayDefenseSteps(t, step)
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
+	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
+		t.Fatal("squad defense does not engage the mech")
 	}
 }
 
