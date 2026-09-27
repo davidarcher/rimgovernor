@@ -53,6 +53,21 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 	return policy.NextBedReplacement(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
 }
 
+// titleFurniture is the next unmet royal bedroom thing (#815).
+func titleFurniture(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
+	obs, sk := facts.Facts.Sleeping.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	if !sk || !rk || !ck || !census.Colony {
+		return policy.RoomUpgrade{}, false
+	}
+	available := func(def string) bool {
+		v, known := facts.DefinitionAvailable(def).Value()
+		return known && v
+	}
+	return policy.NextTitleFurniture(obs, policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
+}
+
 // beautyUpgrade is the next beauty lever (#830): a plant pot or a
 // prettier floor for a bedroom whose weakest stat is beauty.
 func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {

@@ -60,7 +60,7 @@ var roomUpgradeSlots = []string{"end_table", "dresser", "lamp"}
 // RoomUpgradeDefinitions are the definitions the closer may place; the
 // planning census must read them for availability and stuff.
 // The plant pot and floors are the beauty levers (#830).
-var RoomUpgradeDefinitions = append([]string{"EndTable", "Dresser", "StandingLamp", PlantPotDefinition}, DefaultFlooringPolicy().Floors...)
+var RoomUpgradeDefinitions = append([]string{"EndTable", "Dresser", "StandingLamp", PlantPotDefinition, "RoyalBed"}, DefaultFlooringPolicy().Floors...)
 
 // RoomUpgrade is one PlaceBuilding the closer wants.
 type RoomUpgrade struct {

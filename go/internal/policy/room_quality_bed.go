@@ -90,9 +90,16 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 			inRoom[room] = append(inRoom[room], bed)
 		}
 	}
+	titles := map[PawnID]*RoyalTitle{}
+	for _, p := range obs.People {
+		titles[p.ID] = p.Title
+	}
 	for _, s := range soloBedrooms(obs) {
 		owned := beds[s.bed]
 		want := owned.Definition
+		if w, ok := titleBed(titles[s.owner], owned.Definition, available); ok {
+			want = w
+		}
 		var spare []SleepingBed
 		for _, b := range inRoom[s.room] {
 			if b.ID != owned.ID && len(b.Owners) == 0 {
@@ -112,7 +119,18 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 		t, tk := targets[s.room]
 		q, qk := quality[s.room]
 		room, rk := furniture[s.room]
-		if len(spare) > 0 || !tk || !qk || !rk || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max) || WeakestRoomStat(q) == RoomStatSpace {
+		if len(spare) > 0 || !rk {
+			continue
+		}
+		if want != owned.Definition {
+			// A royal title's bed requirement (#815) holds regardless of
+			// the target.
+			if cell, rot, ok := bedSpot(room, want); ok {
+				return BedReplacement{Step: BedReplaceBuild, Room: s.room, Def: string(want), Cell: cell, Rot: rot}, true
+			}
+			continue
+		}
+		if !tk || !qk || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max) || WeakestRoomStat(q) == RoomStatSpace {
 			continue
 		}
 		name, _ := owned.Quality.Value()
@@ -167,4 +185,37 @@ func freeSpot(room TidyRoom, size domain.Cell) (domain.Cell, domain.Rotation, bo
 		}
 	}
 	return domain.Cell{}, domain.South, false
+}
+
+// titleBed is the bed a royal title requires (#815) when the owned bed
+// does not meet it: the first buildable bed of the title's bed entry.
+func titleBed(title *RoyalTitle, owned Resource, available func(string) bool) (Resource, bool) {
+	if title == nil {
+		return "", false
+	}
+	for _, thing := range title.BedroomThings {
+		if !isReplacementBed(thing.AnyOf) {
+			continue
+		}
+		for _, d := range thing.AnyOf {
+			if d == owned {
+				return "", false
+			}
+		}
+		for _, d := range thing.AnyOf {
+			if _, ok := replacementBedSizes[d]; ok && available(string(d)) {
+				return d, true
+			}
+		}
+	}
+	return "", false
+}
+
+func isReplacementBed(defs []Resource) bool {
+	for _, d := range defs {
+		if _, ok := replacementBedSizes[d]; ok {
+			return true
+		}
+	}
+	return false
 }
