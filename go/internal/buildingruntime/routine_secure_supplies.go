@@ -23,6 +23,7 @@ import (
 // covered:<def> fallback zone keeps its one definition at Important.
 func init() {
 	RegisterStockpileRole(domain.GeneralRole, fixedStockpileRole(domain.GeneralFilter(), domain.NormalPriority))
+	RegisterStockpileRole(domain.FoodRole, fixedStockpileRole(domain.FoodFilter(), domain.PreferredPriority))
 	RegisterStockpileRole(strings.TrimSuffix(domain.CoveredRolePrefix, ":"), func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
 		_, definition, _ := strings.Cut(role, ":")
 		filter, err := domain.AllowOnlyFilter([]string{definition})

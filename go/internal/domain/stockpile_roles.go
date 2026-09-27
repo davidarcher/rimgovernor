@@ -13,6 +13,9 @@ const (
 	WornDumpRole      = "dump:worn"
 	RottenDumpRole    = "dump:rotten"
 	CorpseDumpRole    = "dump:corpses"
+	// FoodRole is the opening food stockpile: Preferred, so an indoor food
+	// zone above it draws the food in once one stands.
+	FoodRole = "food"
 )
 
 // Gear stockpiles keep serviceable gear only: at least half its hit points
@@ -66,10 +69,11 @@ func RottenDumpFilter() StockpileFilter {
 		[]FilterSelector{SpecialFilter("AllowFresh")}))
 }
 
-// CorpseDumpFilter takes human corpses, fresh or rotten, so none lie in a
-// room colonists sleep or eat in.
+// CorpseDumpFilter is the vanilla dumping preset's corpses: human, animal
+// and insect, fresh or rotten, so none lie in a room colonists sleep or eat
+// in, and hunted or raider corpses wait in one place a butcher bill reaches.
 func CorpseDumpFilter() StockpileFilter {
-	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil))
+	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect")}, nil))
 }
 
 // StockpileRoleSpec is the filter and priority a role's zone is created

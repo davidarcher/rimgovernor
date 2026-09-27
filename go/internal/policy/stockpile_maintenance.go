@@ -138,6 +138,13 @@ type StockpileRequest struct {
 	Shelves []StockpileShelf
 	// Sited are the room-bound roles (#917) created while absent.
 	Sited []StockpileSite
+	// Kitchen, when set, is the cooking spot the opening food stockpile
+	// sits beside while no roofed floor is free.
+	Kitchen *domain.Cell
+	// Opening stands the opening stockpiles (general store, food, corpse
+	// dump) while no owned zone of their kind stands; the runtime always
+	// sets it.
+	Opening bool
 }
 
 // StockpileShelf is one built shelf serving an owned zone and the settings
@@ -237,7 +244,13 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, e := range stockpileShelfEdits(r.Roles, zones, r.Shelves) {
 		take(e, true)
 	}
-	candidates = append(candidates, stockpileCreateEdits(r, open)...)
+	opening := stockpileOpeningEdits(r, open)
+	candidates = append(candidates, opening...)
+	for _, e := range stockpileCreateEdits(r, open) {
+		if !openingRole(opening, e.Role) {
+			candidates = append(candidates, e)
+		}
+	}
 	candidates = append(candidates, stockpileSiteEdits(r, open)...)
 	for _, e := range stockpileSiteShrinks(r) {
 		take(e, true)

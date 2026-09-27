@@ -103,6 +103,16 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
 	request.Sited = stockpileSites(projection, request.Protected)
+	request.Opening = true
+	if census, ok := projection.Facts.CurrentConstruction.Value(); ok {
+		for _, b := range census.Buildings {
+			if foodStorageCookingDefinitions[b.Building.Definition()] {
+				cell := b.Building.Cell()
+				request.Kitchen = &cell
+				break
+			}
+		}
+	}
 	for _, z := range owned {
 		entry := byZone[z.ID]
 		if z.Kind != domain.StockpileZone || entry == nil {
@@ -434,9 +444,9 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		actions = append(actions, action)
 	}
 	if len(actions) == 0 && len(creates) > 0 {
-		// A new zone is admitted alone, previewed, once the edits of
-		// standing zones are done.
-		return r.create(call, epoch, state, goal, projection, read.StartedAt, creates[0])
+		// The new zones are admitted together, previewed, once the edits
+		// of standing zones are done.
+		return r.create(call, epoch, state, goal, projection, read.StartedAt, creates)
 	}
 	if len(actions) == 0 {
 		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
@@ -464,10 +474,12 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: len(actions)}, nil
 }
 
-// create admits one fixed-role zone (#724) as its own method: the zone is
-// previewed natively on the review's zone map token and admitted with its
-// footprint reserved, like every routine zone.
-func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, e policy.StockpileEdit) (RoutineStockpileResult, error) {
+// create admits the missing zones (#724, and the opening stockpiles) as one
+// method: each zone is previewed natively on the review's zone map token, a
+// refused one is dropped, and the accepted ones are admitted together with
+// their footprints reserved, like every routine zone. Zoning is instant and
+// needs no worker, so a fresh colony's zones land in one step.
+func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, edits []policy.StockpileEdit) (RoutineStockpileResult, error) {
 	p := r.reviewer.player
 	native, ok := r.native.(interface {
 		PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
@@ -476,15 +488,12 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	if !ok || !tk {
 		return RoutineStockpileResult{Reason: BuildingMethodUnknown}, nil
 	}
-	value, err := domain.NewFilteredStockpileZone(e.Filter, e.Priority, e.Cells)
-	if err == nil {
-		value, err = value.WithRole(e.Role)
-	}
-	if err != nil {
-		return RoutineStockpileResult{}, err
-	}
 	tick := projection.Identity.Tick
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/create/%s/%d", goal.Goal.ID, goal.Goal.Epoch, e.Role, tick)))
+	roles := make([]string, len(edits))
+	for i, e := range edits {
+		roles[i] = e.Role
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/create/%s/%d", goal.Goal.ID, goal.Goal.Epoch, strings.Join(roles, ","), tick)))
 	id := domain.MintPlanID("routine-stockpile-create")
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -495,31 +504,48 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
-	reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
-	var refused *bridge.NativeFailure
-	if errors.As(err, &refused) {
-		clockSchedulerLog("Stockpiles: create %s refused code=%v detail=%q", e.Role, refused.Value.GetCode(), refused.Value.GetDetail())
+	var actions []domain.Action
+	var previews []policy.Preview
+	var admitted []policy.StockpileEdit
+	for _, e := range edits {
+		value, err := domain.NewFilteredStockpileZone(e.Filter, e.Priority, e.Cells)
+		if err == nil {
+			value, err = value.WithRole(e.Role)
+		}
+		if err != nil {
+			return RoutineStockpileResult{}, err
+		}
+		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		var refused *bridge.NativeFailure
+		if errors.As(err, &refused) {
+			clockSchedulerLog("Stockpiles: create %s refused code=%v detail=%q", e.Role, refused.Value.GetCode(), refused.Value.GetDetail())
+			continue
+		}
+		if err != nil {
+			return RoutineStockpileResult{}, err
+		}
+		v := reply.GetEvaluated()
+		if v == nil || !v.GetAccepted() {
+			continue
+		}
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {
+			return RoutineStockpileResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) < tick", ErrControl)
+		}
+		action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), value)
+		if err != nil {
+			return RoutineStockpileResult{}, err
+		}
+		actions = append(actions, action)
+		previews = append(previews, policy.Preview{Action: action, Snapshot: snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(value.Cells()), Costs: domain.Known([]policy.Amount{})})
+		admitted = append(admitted, e)
+	}
+	if len(actions) == 0 {
 		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
 	}
+	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
-	v := reply.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
-		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
-	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < tick {
-		return RoutineStockpileResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) < tick", ErrControl)
-	}
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return RoutineStockpileResult{}, err
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoutineStockpileResult{}, err
-	}
-	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(value.Cells()), Costs: domain.Known([]policy.Amount{})}
 	if err = p.current(call, epoch); err != nil {
 		return RoutineStockpileResult{}, err
 	}
@@ -527,15 +553,17 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	if p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge {
 		return RoutineStockpileResult{}, fmt.Errorf("%w: create: p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge", ErrControl)
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: previews, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
 	if !decision.Admitted {
 		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
 	}
-	clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "role", e.Role, "kind", string(e.Kind), "plan", string(id))
-	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: 1}, nil
+	for _, e := range admitted {
+		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "role", e.Role, "kind", string(e.Kind), "plan", string(id))
+	}
+	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: len(actions)}, nil
 }
 
 // shelfTargetSource reads a shelf's storage settings CAS token.

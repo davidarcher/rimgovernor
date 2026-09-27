@@ -765,7 +765,7 @@ var plannerCatalog = []plannerEntry{
 			out.Tidy = &method
 			return method.Reason, nil
 		}},
-	{name: "stockpiles", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.ZoneDeleteAction, domain.ZoneCreateAction}, sections: sectionsBuilding,
+	{name: "stockpiles", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.ZoneDeleteAction, domain.ZoneCreateAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Stockpiles != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Stockpiles.step(ctx, epoch, arbiter)

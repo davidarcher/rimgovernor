@@ -277,6 +277,28 @@ func TestDevelopmentExemptHusbandrySettingsWrite(t *testing.T) {
 	}
 }
 
+// Zoning is an instant native write no pawn works: a stockpile zone
+// creation holds no development slot, so a fresh colony's opening zones
+// never wait behind the shelter for a slot or a hauler.
+func TestDevelopmentExemptZoneCreate(t *testing.T) {
+	t.Parallel()
+	zone, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, []domain.Cell{{X: 1, Z: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewZoneCreateAction("zone-action", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("zone", 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !developmentExemptMethod(plan) {
+		t.Fatal("a zone creation needs a development slot")
+	}
+}
+
 // The labor-idle deadline is durable game-tick history: it survives a store
 // restart. Idle labor never releases the commitment: the dispatched action
 // keeps its admission (material and cell claims) and its progress, and when

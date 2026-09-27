@@ -17,7 +17,7 @@ func TestGearAndDumpRoleFiltersWire(t *testing.T) {
 		domain.WeaponsRole:    `{"priority":"STORAGE_PRIORITY_PREFERRED","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Weapons"}],"disallow":[{"specialFilterDef":"AllowBiocodedWeapons"}],"hitPointsMin":0.5,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary"}}`,
 		domain.WornDumpRole:   `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Apparel"},{"categoryDef":"Weapons"}]}}`,
 		domain.RottenDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesAnimal"},{"categoryDef":"CorpsesInsect"},{"categoryDef":"Foods"}],"disallow":[{"specialFilterDef":"AllowFresh"}]}}`,
-		domain.CorpseDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesHumanlike"}]}}`,
+		domain.CorpseDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesAnimal"}, {"categoryDef":"CorpsesHumanlike"}, {"categoryDef":"CorpsesInsect"}]}}`,
 	}
 	for _, spec := range domain.GearAndDumpRoles() {
 		z, err := domain.NewFilteredStockpileZone(spec.Filter, spec.Priority, []domain.Cell{{X: 1, Z: 1}})

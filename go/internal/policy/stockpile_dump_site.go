@@ -16,6 +16,9 @@ type OutdoorDumpRequest struct {
 	Rooms         []Room
 	Protected     []domain.Cell
 	Width, Height int32
+	// MinDistance, when set, keeps every site at least this Chebyshev
+	// distance from the anchor (the opening corpse dump, clear of the shelter).
+	MinDistance int32
 }
 
 // outdoorDumpClearance is the Chebyshev distance an outdoor dump keeps from
@@ -96,6 +99,9 @@ func OutdoorDumpSites(r OutdoorDumpRequest) ([]Rectangle, error) {
 			}
 		}
 		if legal {
+			if r.MinDistance > 0 && max(absInt32(p.X-r.Anchor.X), absInt32(p.Z-r.Anchor.Z)) < r.MinDistance {
+				continue
+			}
 			sites = append(sites, site{squaredDistance(p, r.Anchor), p})
 		}
 	}
