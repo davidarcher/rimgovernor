@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         // sleeping spots laid: negative is one per colonist, a smaller count
         // leaves the bed deficit a capacity goal then plans against. Throws
         // when the ruleset lacks the defs or no site is given.
-        public static Result Build(Map map, int size, IntVec3? site, IntVec3? doorCell, int spots = -1)
+        public static Result Build(Map map, int size, IntVec3? site, IntVec3? doorCell, int spots = -1, string bedDef = "SleepingSpot")
         {
             var player = Faction.OfPlayerSilentFail;
             if (player == null) throw new InvalidOperationException("No player faction.");
@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
             if (people.Count < 1) throw new InvalidOperationException("No colonist to house.");
             var wallDef = DefDatabase<ThingDef>.GetNamedSilentFail("Wall");
             var doorDef = DefDatabase<ThingDef>.GetNamedSilentFail("Door");
-            var spotDef = DefDatabase<ThingDef>.GetNamedSilentFail("SleepingSpot");
+            var spotDef = DefDatabase<ThingDef>.GetNamedSilentFail(bedDef);
             if (wallDef == null || doorDef == null || spotDef == null)
                 throw new InvalidOperationException("Wall, Door or SleepingSpot def unavailable in this ruleset.");
 
@@ -85,7 +85,7 @@ namespace HomeBridge.BridgeTools
             var wanted = spots < 0 ? people.Count : Math.Max(0, Math.Min(spots, people.Count));
             var spotCells = interior.Take(width).Concat(interior.Skip(2 * width)).Take(wanted).ToList();
             foreach (var spotCell in spotCells) {
-                var spot = ThingMaker.MakeThing(spotDef);
+                var spot = ThingMaker.MakeThing(spotDef, spotDef.MadeFromStuff ? ThingDefOf.WoodLog : null);
                 spot.SetFaction(player); GenSpawn.Spawn(spot, spotCell, map, Rot4.North, WipeMode.Vanish);
                 if (spot.Position != spotCell) throw new InvalidOperationException($"Sleeping spot landed at {spot.Position}, not {spotCell}.");
             }

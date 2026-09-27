@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"slices"
 	"sort"
 
@@ -996,6 +997,18 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		if len(roomCells) == 0 {
 			return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
 		}
+		// A layout room can stand past the colony-centred planning window
+		// (#838): read the room's own cells rather than find no site.
+		if source := observation.PlanningWindowFrom(call); source != nil && !windowHolds(facts.Cells, roomCells) {
+			held, err := source.PlanningWindow(call, boundary.Identity(snapshot), cellsBox(roomCells))
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			if !held.Complete || held.Stale.Any() {
+				return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			}
+			facts.Cells = held.Value.Cells
+		}
 	}
 	for _, c := range facts.Cells {
 		if r.recreationPowerW > 0 && !poweredRecreationCell(facts, c.Cell, r.recreationPowerW) {
@@ -1019,6 +1032,12 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		// a candidate until a room stands in the district.
 		anchor := layoutAnchor(facts, r.district())
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
+	}
+	if r.cells != nil {
+		// The room is fixed: search around it, wherever it stands (#838).
+		box := cellsBox(roomCells)
+		searchRequest.Center = domain.Cell{X: box.X + box.Width/2, Z: box.Z + box.Height/2}
+		searchRequest.Radius = max(box.Width, box.Height)/2 + 1
 	}
 	if r.power != nil {
 		searchRequest.Center, searchRequest.Radius = r.power.Center, 6
@@ -1407,4 +1426,28 @@ func previewResources(previews []policy.Preview) []policy.Resource {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
+}
+
+// windowHolds is whether every room cell is a row of the planning window.
+func windowHolds(cells []policy.SiteCell, room map[domain.Cell]bool) bool {
+	listed := 0
+	for _, c := range cells {
+		if room[c.Cell] {
+			listed++
+		}
+	}
+	return listed == len(room)
+}
+
+// cellsBox is the smallest rectangle holding every cell; cells is non-empty.
+func cellsBox(cells map[domain.Cell]bool) policy.Rectangle {
+	first := true
+	var minX, minZ, maxX, maxZ int32
+	for c := range cells {
+		if first {
+			minX, minZ, maxX, maxZ, first = c.X, c.Z, c.X, c.Z, false
+		}
+		minX, minZ, maxX, maxZ = min(minX, c.X), min(minZ, c.Z), max(maxX, c.X), max(maxZ, c.Z)
+	}
+	return policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
 }

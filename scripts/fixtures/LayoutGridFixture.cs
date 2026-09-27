@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using HarmonyLib;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
@@ -30,7 +31,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose (required).")] int siteX = -1,
             [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
             [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
-            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
+            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1,
+            [ToolParameter(Description = "Bedroom start (#838): enable Construction on every able colonist, lay wooden beds instead of sleeping spots, give each colonist one, drop 120 survival meals and raise every shell blueprint at once.")] bool builders = false)
         {
             var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -38,8 +40,30 @@ namespace HomeBridge.BridgeTools
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var def = DefDatabase<ResearchProjectDef>.GetNamed(name);
                 Finish(def);
-                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ), sleepingSpots);
+                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ), sleepingSpots, builders ? "Bed" : "SleepingSpot");
                 FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
+                // A bedroom case (#838) starts once everyone owns a hut bed,
+                // with food for the stage to leave Foothold.
+                var owned = 0;
+                if (builders) {
+                    var spots = map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().Where(b => b.GetRoom() == hut.Room).ToList();
+                    for (int i = 0; i < spots.Count && i < hut.People.Count; i++)
+                        if (spots[i].CompAssignableToPawn.CanAssignTo(hut.People[i]).Accepted) { spots[i].CompAssignableToPawn.TryAssignPawn(hut.People[i]); owned++; }
+                    FixtureHut.DropOutside(map, hut, ThingDefOf.MealSurvivalPack, 120);
+                }
+                if (builders) {
+                    // A planned bedroom is furnished with a real Bed, which needs
+                    // ComplexFurniture; a sleeping spot never counts as suitable.
+                    var furniture = DefDatabase<ResearchProjectDef>.GetNamedSilentFail("ComplexFurniture");
+                    if (furniture != null && !furniture.IsFinished) Find.ResearchManager.FinishProject(furniture, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
+                    ArmInstantShells();
+                }
+                var enabled = 0;
+                if (builders) foreach (var p in map.mapPawns.FreeColonistsSpawned) {
+                    if (p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || p.workSettings.GetPriority(WorkTypeDefOf.Construction) > 0) continue;
+                    p.workSettings.SetPriority(WorkTypeDefOf.Construction, 3);
+                    enabled++;
+                }
                 ThingDef blocks = null;
                 if (stoneBlocks > 0) {
                     blocks = StoneBlocks(map);
@@ -48,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, project = name, finished = def.IsFinished, hut = hut.Summary(),
                     hutOrigin = new { x = hut.Origin.x, z = hut.Origin.z }, hutSize = 9,
                     sleepingSpots = hut.SleepingSpots, colonists = hut.People.Count,
-                    stoneBlocks = blocks == null ? 0 : stoneBlocks, stoneBlocksDef = blocks?.defName,
+                    stoneBlocks = blocks == null ? 0 : stoneBlocks, stoneBlocksDef = blocks?.defName, builders = enabled, ownedBeds = owned,
                     tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -95,6 +119,52 @@ namespace HomeBridge.BridgeTools
                 Finish(def);
                 return new { success = true, project = name, finished = def.IsFinished, tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // InstantShells (#838): once armed, every player wall, door, autodoor
+        // or embrasure blueprint is raised through the game's own path
+        // (blueprint to frame, materials in, CompleteConstruction by a
+        // colonist) within a tick of being placed, so a bedroom case watches
+        // the planner's shell plan complete without minutes of hauling.
+        private static bool instantShells, instantHook;
+
+        private static void ArmInstantShells()
+        {
+            instantShells = true;
+            if (instantHook) return;
+            new Harmony("rimgovernor.fixture.instant-shells").Patch(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)),
+                postfix: new HarmonyMethod(typeof(LayoutGridFixture), nameof(RaiseShells)));
+            instantHook = true;
+        }
+
+        private static void RaiseShells()
+        {
+            if (!instantShells) return;
+            var map = Find.CurrentMap;
+            if (map == null) return;
+            var worker = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => !p.Dead);
+            if (worker == null) return;
+            var pending = map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).OfType<Blueprint_Build>()
+                .Where(b => b.Faction == Faction.OfPlayer && b.def.entityDefToBuild is ThingDef d && (Shell(d.defName) || d.defName == "Bed")).ToList();
+            foreach (var blueprint in pending) {
+                if (!blueprint.TryReplaceWithSolidThing(worker, out var solid, out _) || !(solid is Frame frame)) continue;
+                foreach (var cost in frame.TotalMaterialCost()) {
+                    var need = cost.count - frame.resourceContainer.TotalStackCountOfDef(cost.thingDef);
+                    if (need <= 0) continue;
+                    var stack = ThingMaker.MakeThing(cost.thingDef);
+                    stack.stackCount = need;
+                    frame.resourceContainer.TryAdd(stack, true);
+                }
+                frame.CompleteConstruction(worker);
+            }
+            // Vanilla marks an enclosed room for roofing and waits on a builder;
+            // the planner sites beds only under a roof, so roof it at once too.
+            foreach (var cell in map.areaManager.BuildRoof.ActiveCells.ToList())
+                if (!cell.Roofed(map)) map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+            // A cold night would read every bed unsafe (below the comfort band)
+            // and hand the case to the temperature family; hold rooms mild.
+            foreach (var room in map.regionGrid.AllRooms)
+                if (!room.UsesOutdoorTemperature) room.Temperature = 21f;
         }
 
         [Tool("test/layout_grid_audit", Description = "Private read-only fixture: every finished player wall, door, autodoor or embrasure cell with its stuff, every such blueprint and frame with the stuff it is to be built from, and every growing zone with its cells and crop.")]

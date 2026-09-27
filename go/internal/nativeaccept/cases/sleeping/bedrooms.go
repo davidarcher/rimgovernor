@@ -2,8 +2,8 @@
 // starts from the layout/grid fixture (tribal baseline, Stonecutting
 // finished so the tier reads Masonry, a fixture hut with sleeping spots and
 // stone blocks beside it): the sleeping planner first beds everyone in the
-// hut, then raises the layout plan's first 5x5 bedroom, stages a bed in it
-// and moves a colonist's ownership there. The case asserts that move
+// hut, then orders the layout plan's first 5x5 bedroom (the fixture
+// raises its ring as soon as it is ordered), stages a bed in it and moves a colonist's ownership there. The case asserts that move
 // natively: the colonist owns the new bed, and the barracks bed they left
 // still stands as a spare.
 package sleeping
@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -36,12 +37,12 @@ func init() {
 			"into it: the native pawn read shows the colonist owning the bedroom bed, and the barracks bed they left still " +
 			"stands as a spare. A snapshot test cannot cover it: the move is proven by native bed ownership after real " +
 			"construction encloses the planned room.",
-		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": 8, "stoneBlocks": 400},
+		Start: cases.Fixture{Op: "test/layout_grid_prepare", ArgsFrom: startersite.Args, Args: map[string]any{"sleepingSpots": 8, "stoneBlocks": 400, "builders": true},
 			On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []string{"shelter", "expansion", "sleeping"}, NativeTimeout: 30 * time.Second, Prefix: "sleeping-bedrooms"},
-		Budget: 25 * time.Minute,
-		Reason: "one watch from barracks to a built, furnished and assigned bedroom",
+		Budget: 3 * time.Minute,
+		Reason: "one watch: the fixture raises the shell the planner orders, then the furnished, assigned bedroom",
 		Run:    bedrooms,
 	})
 }
@@ -72,7 +73,7 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 	var move domain.BedAssign
 	found := false
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 20 * time.Minute, Extra: []policy.GoalID{policy.MaintainSleeping}, Until: func(sample map[string]any) bool {
+		WatchConfig: sustainedfood.WatchConfig{Watch: 2 * time.Minute, Extra: []policy.GoalID{policy.MaintainSleeping}, Until: func(sample map[string]any) bool {
 			goal, _ := sample[string(policy.MaintainSleeping)].(map[string]any)
 			return moved(goal)
 		}},
@@ -82,10 +83,13 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("reopen journal: %w", err)
 			}
 			defer journal.Close()
-			plans, err := journal.LoadPlans(ctx, 256)
+			// The move retires once the colonist sleeps in the bed, so read
+			// history (newest first), not the active catalog.
+			plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-sleeping-", 256)
 			if err != nil {
 				return err
 			}
+			slices.Reverse(plans)
 			shell := false
 			for _, plan := range plans {
 				id := string(plan.Spec.ID())

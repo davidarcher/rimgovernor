@@ -71,6 +71,7 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	people := append([]SleepingPerson(nil), sleeping.People...)
 	sort.Slice(people, func(i, j int) bool { return people[i].ID < people[j].ID })
+	couples := sleepingCouples(sleeping.People)
 	var unhoused []SleepingPerson
 	for _, p := range people {
 		bed, known := p.OwnedBed.Value()
@@ -78,7 +79,9 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 			// Barracks stays the fallback until everyone has a bed.
 			return BedroomStep{}
 		}
-		if !bedroomBed[bed] && !kept[bed] {
+		// A couple is never split into single bedrooms: sleeping upkeep
+		// would reunite them at once (#838).
+		if _, coupled := couples[p.ID]; !coupled && !bedroomBed[bed] && !kept[bed] {
 			unhoused = append(unhoused, p)
 		}
 	}

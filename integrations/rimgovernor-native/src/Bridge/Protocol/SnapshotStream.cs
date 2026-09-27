@@ -74,6 +74,7 @@ namespace HomeBridge.BridgeTools
         internal const int SlotBytes = 32 << 20;
         internal const int HeaderBytes = 64, SlotHeaderBytes = 40;
         internal const int PeriodTicks = 60;
+        internal const long PausedPeriodSeconds = 1;
         private const uint Magic = 0x53534752; // "RGSS"
         private const uint Version = 2;
 
@@ -125,7 +126,10 @@ namespace HomeBridge.BridgeTools
             var w = Interlocked.Read(ref writes);
             var period = CombatMirror.Dirty ? CombatMirror.MinCombatCompareTicks : PeriodTicks;
             var periodic = w == capturedWrites && paused == capturedPaused && tick >= capturedTick;
-            if (periodic && tick - capturedTick < period) return;
+            // A paused game advances no tick, so the period is wall time
+            // there (#838): a change no native write made (a fixture op, a
+            // player edit while paused) is otherwise never captured.
+            if (periodic && (paused ? Stopwatch.GetTimestamp() - capturedAt < PausedPeriodSeconds * Stopwatch.Frequency : tick - capturedTick < period)) return;
             // A periodic frame waits out DutyCycle times the last capture's
             // cost, so the stream holds the game thread at most ~1/DutyCycle
             // of wall time (#858: a capture is ~200 ms, a period at

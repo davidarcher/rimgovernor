@@ -72,3 +72,14 @@ func TestBedroomStepKeepsNeverUpgradeOwner(t *testing.T) {
 		t.Fatalf("ascetic in a never-upgrade room = %+v, want b moved instead (#826)", got)
 	}
 }
+
+func TestBedroomStepNeverSplitsACouple(t *testing.T) {
+	plan, rooms, sleeping := bedroomFixture()
+	rooms.Rooms = append(rooms.Rooms, Room{ID: "r1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"r1bed"}})
+	sleeping.Beds = append(sleeping.Beds, SleepingBed{ID: "r1bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), AccessibleTo: []PawnID{"a", "b"}})
+	sleeping.People[0].Partners, sleeping.People[0].BedSharingAllowed = []PawnID{"b"}, domain.Known(true)
+	sleeping.People[1].Partners, sleeping.People[1].BedSharingAllowed = []PawnID{"a"}, domain.Known(true)
+	if got := NextBedroomStep(plan, rooms, sleeping, nil); got.Kind == BedroomMove {
+		t.Fatalf("couple = %+v, want neither moved into a single bedroom (#838)", got)
+	}
+}
