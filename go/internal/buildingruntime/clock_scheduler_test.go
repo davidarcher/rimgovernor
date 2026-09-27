@@ -408,3 +408,52 @@ func TestClockSchedulerCombatStopResumesOnlyUnderAFight(t *testing.T) {
 		t.Fatal("a combat with no owning plan was admitted", got.Decision, err)
 	}
 }
+
+// #886: once every plan action is settled, the open fight alone owns the
+// combat; its next armed stop needs ticks, not a no_work park.
+func TestClockSchedulerOpenFightIsWork(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	ctx := context.Background()
+	f.emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
+	plan := combatGoalPlan(t, s)
+	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Step(ctx)
+	if err != nil || got.Attempt == nil || !got.Combat || f.writes != 1 {
+		t.Fatal(got, err, f.writes)
+	}
+	if start := got.Attempt.Intent.Command.Start; !slices.Equal(start.Policy.CombatStopEvents, combatStopEvents) || len(combatStopEvents) != len(k.CombatEvent_name)-1 {
+		t.Fatal("fight window not armed", start.Policy.CombatStopEvents)
+	}
+	stopCombatWindow := func() {
+		t.Helper()
+		epochs, err := s.player.journal.LoadClockEpochs(ctx, 4096)
+		if err != nil || len(epochs) == 0 {
+			t.Fatal(epochs, err)
+		}
+		epoch := proto.Clone(epochs[len(epochs)-1].Epoch).(*k.Epoch)
+		f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_COMBAT_EVENT.Enum(), CombatEvent: k.CombatEvent_COMBAT_EVENT_ENTERED_RANGE.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
+		f.status.ActualPaused, f.status.NativeTickBoundary, f.status.DurableEvents = proto.Bool(true), proto.Bool(true), proto.Bool(true)
+		f.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum()
+	}
+	// #886: once the plan's actions are settled the open fight alone owns
+	// the combat; it still needs ticks, not a no_work park.
+	for _, id := range []domain.PlanID{plan, s.session.State().Snapshot.Plan} {
+		state, err := s.player.journal.LoadPlan(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, action := range state.Spec.Actions() {
+			if _, err = s.player.journal.Cancel(ctx, id, action.ID()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	stopCombatWindow()
+	got, err = s.Step(ctx)
+	if err != nil || !got.Decision.Admitted || !got.Combat {
+		t.Fatalf("an open fight with no plan work parked the clock %+v %v", got.Decision, err)
+	}
+}

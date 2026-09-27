@@ -388,6 +388,12 @@ func clockStopEvent(v *k.StopEvent) error {
 			return contract("clock watch stop evidence")
 		}
 		return clockOperationOutcome(e.Watch.Outcome)
+	case *k.StopEvent_Combat:
+		// An armed combat event (#849): the event is required, the thing
+		// and reason are descriptive (#886).
+		if e.Combat == nil || e.Combat.GetEvent() == k.CombatEvent_COMBAT_EVENT_UNSPECIFIED {
+			return contract("clock combat stop evidence")
+		}
 	default:
 		return contract("clock stop evidence required")
 	}

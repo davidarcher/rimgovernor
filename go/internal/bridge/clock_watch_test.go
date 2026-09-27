@@ -38,6 +38,8 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 		"authority owned":   {Owner: owned, Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(3), PreviousGeneration: proto.Uint64(2), Reason: proto.String("Manual")}}},
 		"authority unowned": {Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(3)}}},
 		"watch stop":        {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_WATCH_LATCHED.Enum(), Evidence: &k.StopEvent_Watch{Watch: &k.WatchLatched{Outcome: clockTestOutcome(), TickDeadline: proto.Int64(612)}}}}},
+		// #886: a combat-event stop row failed every poll and wedged the served planner.
+		"combat stop": {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_COMBAT_EVENT.Enum(), Evidence: &k.StopEvent_Combat{Combat: &k.CombatEventStop{Event: k.CombatEvent_COMBAT_EVENT_ENTERED_RANGE.Enum(), ThingId: proto.String("Thing_Human6804"), Reason: proto.String("EnteredRange")}}}}},
 	} {
 		if err := clockEventsPage(clockWatchPage(row), clockEventsRequest()); err != nil {
 			t.Fatal(name, err)
@@ -53,6 +55,7 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 		"no tick":            {Owner: owned, Event: &k.Event_OperationOutcome{OperationOutcome: &k.OperationOutcome{Attempt: clockTestAttempt(1), Outcome: &k.OperationOutcome_Unknown{Unknown: &r.UnknownEffect{}}}}},
 		"empty completion":   {Owner: owned, Event: &k.Event_OperationOutcome{OperationOutcome: &k.OperationOutcome{Attempt: clockTestAttempt(1), LatchedTick: proto.Int64(1), Outcome: &k.OperationOutcome_Completed{Completed: &r.CompletedEffect{}}}}},
 		"watch stop bare":    {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_WATCH_LATCHED.Enum(), Evidence: &k.StopEvent_Watch{Watch: &k.WatchLatched{TickDeadline: proto.Int64(612)}}}}},
+		"combat no event":    {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_COMBAT_EVENT.Enum(), Evidence: &k.StopEvent_Combat{Combat: &k.CombatEventStop{ThingId: proto.String("x")}}}}},
 		"watch no deadline":  {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_WATCH_LATCHED.Enum(), Evidence: &k.StopEvent_Watch{Watch: &k.WatchLatched{Outcome: clockTestOutcome()}}}}},
 	} {
 		if err := clockEventsPage(clockWatchPage(row), clockEventsRequest()); !errors.Is(err, ErrContract) {

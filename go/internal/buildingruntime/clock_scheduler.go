@@ -1183,6 +1183,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
+	// An open fight (#852) is work of its own once its drafts complete:
+	// its next decision waits on the next armed stop, which needs ticks
+	// (#886).
+	work = work || fightOpen
 	// The defense planner's verdict at this stop: only a reported
 	// no-squad answer lets a hostile building be watched instead of held
 	// (#326); any other outcome, or no planner, keeps the hold.
