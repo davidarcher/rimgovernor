@@ -106,8 +106,13 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
 		case policy.OrderDoor:
 			mode := op.CombatDoorMode_COMBAT_DOOR_MODE_FORBID
-			if order.Door == policy.DoorAllow {
+			switch order.Door {
+			case policy.DoorAllow:
 				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_ALLOW
+			case policy.DoorHoldOpen:
+				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_HOLD_OPEN
+			case policy.DoorClose:
+				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_CLOSE
 			}
 			wire.Pawn = nil
 			wire.Order = &op.CombatOrder_Door{Door: &op.CombatDoor{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Mode: mode.Enum()}}

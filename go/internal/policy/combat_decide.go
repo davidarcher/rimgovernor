@@ -35,7 +35,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	if next.Pods != nil && (next.Tactic != TacticPods || reform(view, stop, next)) {
 		// A pods arrival picks its own tactic (#891), not the squad fallback.
-		next.Tactic, next.Roles, next.Refusal = TacticPods, podFormation(view, *next.Pods), ""
+		var doors []PodDoor
+		next.Tactic, next.Refusal = TacticPods, ""
+		next.Roles, doors = podFormation(view, *next.Pods)
+		next.PodDoors = keepSent(next.PodDoors, doors)
 		next.Formed = view.Tick
 	} else if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
 		if ask := formationAsk(view); ask != nil && !geometry.Answered {
@@ -86,7 +89,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	orders, next.Roles = clearLines(view, orders, geometry.Lines, next.Roles)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
-	orders = append(rescue, orders...)
+	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	for _, o := range orders {
 		if o.Pawn != "" {
 			next.issue(o, view.Tick)
@@ -320,6 +323,8 @@ type CombatMemory struct {
 	Rescue *CombatRescue `json:",omitempty"`
 	// Pods is the drop-pod arrival this fight answers (#891).
 	Pods *PodArrival `json:",omitempty"`
+	// PodDoors are the doors the pods tactic holds open or shut (#892).
+	PodDoors []PodDoor `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -342,6 +347,7 @@ func (m CombatMemory) clone() CombatMemory {
 		r.Doors = slices.Clone(r.Doors)
 		m.Rescue = &r
 	}
+	m.PodDoors = slices.Clone(m.PodDoors)
 	if m.Pods != nil {
 		p := *m.Pods
 		p.Landing = slices.Clone(p.Landing)

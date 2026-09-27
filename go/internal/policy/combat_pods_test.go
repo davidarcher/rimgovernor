@@ -14,9 +14,9 @@ func combatCivilian(id domain.PawnID) SquadDefenderFacts {
 	return d
 }
 
-// podsView is one pod landing at (10,14) inside a planned room, riflemen
-// a and c near it and b far off, civilian n beside the landing room, and a
-// landing-free room at (30,0). No pod has opened yet.
+// podsView is one pod landing at (10,14) inside a doorless planned room,
+// riflemen a and c near it and b far off, civilian n beside the landing
+// room, and a landing-free room at (30,0). No pod has opened yet.
 func podsView() CombatView {
 	return CombatView{
 		Tick:      100,
@@ -30,7 +30,7 @@ func podsView() CombatView {
 		Orderable: []domain.PawnID{"a", "b", "c", "n"},
 		Pods:      domain.Known(PodArrival{Landing: []domain.Cell{{X: 10, Z: 14}}, Open: 620}),
 		Rooms: []CombatRoom{
-			{Interior: Rectangle{X: 5, Z: 12, Width: 10, Height: 6}, Doors: []domain.Cell{{X: 10, Z: 11}}},
+			{Interior: Rectangle{X: 5, Z: 12, Width: 10, Height: 6}},
 			{Interior: Rectangle{X: 30, Z: 0, Width: 4, Height: 4}, Doors: []domain.Cell{{X: 29, Z: 1}}},
 		},
 	}

@@ -25,6 +25,9 @@ type DoorMode string
 const (
 	DoorForbid DoorMode = "forbid"
 	DoorAllow  DoorMode = "allow"
+	// DoorHoldOpen and DoorClose hold a door open or shut it (#892, #893).
+	DoorHoldOpen DoorMode = "hold_open"
+	DoorClose    DoorMode = "close"
 )
 
 // rescueDoctorSkill is the Medicine level that makes a rescuer a doctor.
