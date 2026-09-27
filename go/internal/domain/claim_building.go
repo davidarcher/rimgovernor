@@ -5,7 +5,7 @@ import "errors"
 // ClaimBuilding is an immutable, comparable value: a one-shot claim of one
 // exact claimable building for the player (Building.ClaimableBy(player)
 // then SetFaction(player) on the native side, #459), CAS-gated by an
-// already-observed snapshot token the same way BedMedical gates a flag.
+// already-observed snapshot token the same way BedUse gates a flag.
 // The token covers the building's faction and, for a casket, whether it
 // holds anything; no pawn or Job is involved.
 type ClaimBuilding struct {

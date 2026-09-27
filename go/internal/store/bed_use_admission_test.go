@@ -11,12 +11,12 @@ import (
 // A bed medical patch persists through the same action row and patch
 // admission record as a building temperature: round trip, typed prepare,
 // generic prepare refused.
-func TestBedMedicalActionRoundTripAndAdmission(t *testing.T) {
+func TestBedUseActionRoundTripAndAdmission(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "bed_medical.db"))
 	bm, _ := domain.NewBedMedical("bed", true, "before-cas")
-	a, _ := domain.NewBedMedicalAction("medical", bm)
+	a, _ := domain.NewBedUseAction("medical", bm)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
 	if err != nil {
 		t.Fatal(err)
@@ -28,7 +28,7 @@ func TestBedMedicalActionRoundTripAndAdmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, ok := state.Spec.Actions()[0].BedMedical(); !ok || got != bm {
+	if got, ok := state.Spec.Actions()[0].BedUse(); !ok || got != bm {
 		t.Fatal("bed medical action did not round trip", state.Spec.Actions()[0])
 	}
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
@@ -60,7 +60,7 @@ func TestBedPrisonersActionRoundTrip(t *testing.T) {
 	if err != nil || !bp.Prisoners() || bp.Medical() {
 		t.Fatal(bp, err)
 	}
-	a, _ := domain.NewBedMedicalAction("prisoners", bp)
+	a, _ := domain.NewBedUseAction("prisoners", bp)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestBedPrisonersActionRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, ok := state.Spec.Actions()[0].BedMedical(); !ok || got != bp {
+	if got, ok := state.Spec.Actions()[0].BedUse(); !ok || got != bp {
 		t.Fatal("bed prisoners action did not round trip", state.Spec.Actions()[0])
 	}
 }

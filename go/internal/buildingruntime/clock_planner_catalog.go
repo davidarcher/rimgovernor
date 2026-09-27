@@ -374,7 +374,7 @@ var plannerCatalog = []plannerEntry{
 			out.Workshop = &method
 			return method.Reason, nil
 		}},
-	{name: "hospital", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedMedicalAction}, sections: sectionsBuilding,
+	{name: "hospital", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedUseAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Hospital != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Hospital.step(ctx, epoch, arbiter)

@@ -150,8 +150,8 @@ type Executor struct {
 	recoveryServiceJournal     RecoveryServiceJournal
 	buildingTemperature        BuildingTemperatureBoundary
 	buildingTemperatureJournal BuildingTemperatureJournal
-	bedMedical                 BedMedicalBoundary
-	bedMedicalJournal          BedMedicalJournal
+	bedUse                     BedUseBoundary
+	bedUseJournal              BedUseJournal
 	growerCrop                 GrowerCropBoundary
 	growerCropJournal          GrowerCropJournal
 	claimBuilding              ClaimBuildingBoundary
@@ -437,8 +437,8 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
 		return e.runBuildingTemperature(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.BedMedicalAction && e.bedMedical != nil {
-		return e.runBedMedical(ctx, action, progress, authority, generation)
+	if action.Kind() == domain.BedUseAction && e.bedUse != nil {
+		return e.runBedUse(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.GrowerCropAction && e.growerCrop != nil {
 		return e.runGrowerCrop(ctx, action, progress, authority, generation)

@@ -1,9 +1,9 @@
-// Package bedmedical wires the one-shot patch of a humanlike bed's medical
-// flag, the same Settings-style boundary shape as
+// Package beduse wires the one-shot patch of a humanlike bed's use (its medical
+// flag, or set for prisoners, #880), the same Settings-style boundary shape as
 // internal/buildingruntime/buildingtemperature (fresh CAS read, native
 // preview, emergency check, then a direct write/lookup/observe) rather than
 // the live-dispatch Owner/Attempt Job pattern of pawn-order boundaries.
-package bedmedical
+package beduse
 
 import (
 	"context"
@@ -21,14 +21,14 @@ import (
 )
 
 type Native interface {
-	ReadBedMedicalTarget(context.Context, *c.Identity, string) (bridge.BedMedicalTarget, bridge.Result, error)
-	PreviewBedMedical(context.Context, *c.Identity, domain.BedMedical) (*op.PreviewReply, bridge.Result, error)
+	ReadBedUseTarget(context.Context, *c.Identity, string) (bridge.BedUseTarget, bridge.Result, error)
+	PreviewBedUse(context.Context, *c.Identity, domain.BedUse) (*op.PreviewReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
-	LookupBedMedical(context.Context, bridge.BedMedicalAttempt) (*r.LookupReply, bridge.Result, error)
-	ObserveBedMedical(context.Context, bridge.BedMedicalAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
+	LookupBedUse(context.Context, bridge.BedUseAttempt) (*r.LookupReply, bridge.Result, error)
+	ObserveBedUse(context.Context, bridge.BedUseAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type Writer interface {
-	ApplyBedMedical(context.Context, *a.WritePrecondition, domain.BedMedical) (*op.ExecuteReply, bridge.Result, error)
+	ApplyBedUse(context.Context, *a.WritePrecondition, domain.BedUse) (*op.ExecuteReply, bridge.Result, error)
 }
 type Capabilities struct {
 	Native Native
@@ -43,22 +43,22 @@ func NewBoundary(base *boundary.Boundary, medical Capabilities) *Boundary {
 	return &Boundary{Boundary: base, medical: medical}
 }
 
-func (b *Boundary) readBed(ctx context.Context, t domain.BedMedical, s domain.GenerationSnapshot) (bridge.BedMedicalTarget, domain.Tick, error) {
-	target, _, err := b.medical.Native.ReadBedMedicalTarget(ctx, boundary.Identity(s), t.Thing())
+func (b *Boundary) readBed(ctx context.Context, t domain.BedUse, s domain.GenerationSnapshot) (bridge.BedUseTarget, domain.Tick, error) {
+	target, _, err := b.medical.Native.ReadBedUseTarget(ctx, boundary.Identity(s), t.Thing())
 	if err != nil {
-		return bridge.BedMedicalTarget{}, 0, err
+		return bridge.BedUseTarget{}, 0, err
 	}
 	if _, err = boundary.Context(target.Context, s); err != nil {
-		return bridge.BedMedicalTarget{}, 0, err
+		return bridge.BedUseTarget{}, 0, err
 	}
 	if target.Thing != t.Thing() {
-		return bridge.BedMedicalTarget{}, 0, executor.ErrHeld
+		return bridge.BedUseTarget{}, 0, executor.ErrHeld
 	}
 	return target, domain.Tick(target.Context.GetTick()), nil
 }
-func (b *Boundary) InspectBedMedical(ctx context.Context, t executor.Target) (executor.BedMedicalInspection, error) {
-	out := executor.BedMedicalInspection{StartedAt: b.Clock.Now()}
-	medical, ok := t.Action.BedMedical()
+func (b *Boundary) InspectBedUse(ctx context.Context, t executor.Target) (executor.BedUseInspection, error) {
+	out := executor.BedUseInspection{StartedAt: b.Clock.Now()}
+	medical, ok := t.Action.BedUse()
 	if !ok {
 		return out, executor.ErrEvidence
 	}
@@ -69,7 +69,7 @@ func (b *Boundary) InspectBedMedical(ctx context.Context, t executor.Target) (ex
 	if target.Token != medical.BeforeToken() {
 		return out, executor.ErrHeld
 	}
-	preview, _, err := b.medical.Native.PreviewBedMedical(ctx, boundary.Identity(t.Snapshot), medical)
+	preview, _, err := b.medical.Native.PreviewBedUse(ctx, boundary.Identity(t.Snapshot), medical)
 	if err != nil {
 		return out, err
 	}
@@ -101,13 +101,13 @@ func (b *Boundary) InspectBedMedical(ctx context.Context, t executor.Target) (ex
 	out.ObservedAt = b.Clock.Now()
 	return out, err
 }
-func (b *Boundary) attempt(p executor.Placement) bridge.BedMedicalAttempt {
-	t, _ := p.Action.BedMedical()
-	return bridge.BedMedicalAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Medical: t}
+func (b *Boundary) attempt(p executor.Placement) bridge.BedUseAttempt {
+	t, _ := p.Action.BedUse()
+	return bridge.BedUseAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Medical: t}
 }
-func (b *Boundary) ApplyBedMedical(ctx context.Context, d executor.BedMedicalDispatch) (executor.Receipt, error) {
+func (b *Boundary) ApplyBedUse(ctx context.Context, d executor.BedUseDispatch) (executor.Receipt, error) {
 	p := d.Attempt
-	t, ok := p.Action.BedMedical()
+	t, ok := p.Action.BedUse()
 	return b.DispatchWrite(ctx, p,
 		func() error {
 			if !ok || d.SnapshotToken != t.BeforeToken() {
@@ -116,17 +116,17 @@ func (b *Boundary) ApplyBedMedical(ctx context.Context, d executor.BedMedicalDis
 			return nil
 		},
 		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
-			return b.medical.Writer.ApplyBedMedical(ctx, pre, t)
+			return b.medical.Writer.ApplyBedUse(ctx, pre, t)
 		},
 	)
 }
-func (b *Boundary) ObserveBedMedical(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.BedMedicalEvidence, error) {
-	out := executor.BedMedicalEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
+func (b *Boundary) ObserveBedUse(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.BedUseEvidence, error) {
+	out := executor.BedUseEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
 	if !boundary.World(current, p.Snapshot) {
 		return out, executor.ErrAuthority
 	}
 	wanted := b.attempt(p)
-	lookup, _, err := b.medical.Native.LookupBedMedical(ctx, wanted)
+	lookup, _, err := b.medical.Native.LookupBedUse(ctx, wanted)
 	if err != nil {
 		return out, err
 	}
@@ -142,7 +142,7 @@ func (b *Boundary) ObserveBedMedical(ctx context.Context, p executor.Placement, 
 	if err = boundary.Admission(admitted, p, b.Session); err != nil {
 		return out, err
 	}
-	reply, _, err := b.medical.Native.ObserveBedMedical(ctx, wanted, admitted)
+	reply, _, err := b.medical.Native.ObserveBedUse(ctx, wanted, admitted)
 	if err != nil {
 		return out, err
 	}
@@ -192,4 +192,4 @@ func (b *Boundary) ObserveBedMedical(ctx context.Context, p executor.Placement, 
 	return out, nil
 }
 
-var _ executor.BedMedicalBoundary = (*Boundary)(nil)
+var _ executor.BedUseBoundary = (*Boundary)(nil)

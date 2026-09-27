@@ -150,10 +150,10 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if crop, ok := a.GrowerCrop(); ok {
 		// definition carries the wanted crop, stuff the CAS token.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'grower_crop',?,?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop(), crop.BeforeToken())
-	} else if medical, ok := a.BedMedical(); ok {
+	} else if medical, ok := a.BedUse(); ok {
 		// definition carries the wanted flag, or "prisoners" (#880), stuff
 		// the CAS token.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), bedMedicalUse(medical), medical.BeforeToken())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), bedUseDefinition(medical), medical.BeforeToken())
 	} else if assign, ok := a.BedAssign(); ok {
 		// definition carries the expected previous bed; empty means none.
 		def := ""
@@ -756,7 +756,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
-		a, err := domain.NewBedMedicalAction(id, medical)
+		a, err := domain.NewBedUseAction(id, medical)
 		return a, ordinal, err
 	}
 	if kind == "bed_assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid {
@@ -917,7 +917,7 @@ func subdueMarker(m domain.MeleeAttack) sql.NullString {
 // prisoners (#880); the medical rows keep "true" and "false".
 const bedPrisonersUse = "prisoners"
 
-func bedMedicalUse(b domain.BedMedical) string {
+func bedUseDefinition(b domain.BedUse) string {
 	if b.Prisoners() {
 		return bedPrisonersUse
 	}
