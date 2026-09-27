@@ -64,7 +64,7 @@ the controller.
 | `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
 | `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: resource production targets/reserves/stops and herd ceilings. |
-| `--routine-silver-reserve`, `--routine-component-target` | Trade tuning (require the `trade` family): silver `TradeWithCaravan` never spends below; the `ComponentIndustrial` stock it buys toward and, with the `resource` family, `MaintainResource` mines toward. |
+| `--routine-component-target` | Trade tuning (requires the `trade` family): the `ComponentIndustrial` stock it buys toward and, with the `resource` family, `MaintainResource` mines toward. |
 | `--resource-rule` | Resource reservation rules for building admission. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url` | Local model chat; `--chat-base-url` requires `--chat-model`. |

@@ -25,12 +25,9 @@ func TestReviewTradeNeedMeasuresShortfallsAndSurplus(t *testing.T) {
 func TestWealthSurplusSellsHoardsDownToTheFloor(t *testing.T) {
 	stock := []Amount{{Resource: "Steel", Count: 2000}, {Resource: "Plasteel", Count: 100}, {Resource: "Gold", Count: 80}, {Resource: "Silver", Count: 5000}, {Resource: ComponentResource, Count: 90}}
 	heavy := domain.Known(WealthFacts{Items: 30000, Buildings: 10000, Pawns: 8000, Total: 48000})
-	p := RoutineTradePolicy{ItemWealthShare: 0.5}
+	p := RoutineTradePolicy{}
 	if got := WealthSurplus(stock, nil, nil, domain.Unknown[WealthFacts](), p); got != nil {
 		t.Fatal("unknown wealth produced a surplus", got)
-	}
-	if got := WealthSurplus(stock, nil, nil, heavy, RoutineTradePolicy{}); got != nil {
-		t.Fatal("a zero share produced a surplus", got)
 	}
 	light := domain.Known(WealthFacts{Items: 10000, Buildings: 30000, Pawns: 8000, Total: 48000})
 	if got := WealthSurplus(stock, nil, nil, light, p); got != nil {
@@ -58,7 +55,7 @@ func TestWealthSurplusSellsHoardsDownToTheFloor(t *testing.T) {
 	}
 	// A MaintainResource target and the policy's own table are floors too;
 	// a named table replaces the default one entirely.
-	if got := WealthSurplus(stock, map[Resource]int64{"Steel": 1900}, nil, heavy, RoutineTradePolicy{ItemWealthShare: 0.5, RetainedMinimum: map[Resource]int64{"Gold": 70}}); !equalAmounts(got, []Amount{{Resource: "Steel", Count: 100}, {Resource: "Plasteel", Count: 100}, {Resource: "Gold", Count: 10}}) {
+	if got := WealthSurplus(stock, map[Resource]int64{"Steel": 1900}, nil, heavy, RoutineTradePolicy{RetainedMinimum: map[Resource]int64{"Gold": 70}}); !equalAmounts(got, []Amount{{Resource: "Steel", Count: 100}, {Resource: "Plasteel", Count: 100}, {Resource: "Gold", Count: 10}}) {
 		t.Fatal(got)
 	}
 	if got := WealthSurplus(stock, nil, nil, domain.Known(WealthFacts{Items: 100, Total: 0}), p); got != nil {
@@ -66,11 +63,29 @@ func TestWealthSurplusSellsHoardsDownToTheFloor(t *testing.T) {
 	}
 }
 
+func TestTradeSilverReserveFollowsColonistsAndFailsClosed(t *testing.T) {
+	for _, tt := range []struct {
+		colonists domain.Fact[int64]
+		want      int64
+		buy       bool
+	}{{domain.Known(int64(1)), 200, true}, {domain.Known(int64(5)), 500, true}, {domain.Unknown[int64](), 200, false}, {domain.Known(int64(0)), 200, false}} {
+		if got, buy := TradeSilverReserve(tt.colonists); got != tt.want || buy != tt.buy {
+			t.Fatal(tt, got, buy)
+		}
+	}
+	p := RoutineTradeTargets(TradeNeed{ComponentShortfall: 5}, nil, nil, RoutineTradePolicy{ComponentTarget: 10}, domain.Unknown[int64]())
+	for _, target := range p.Targets {
+		if target.MaxBuy != 0 {
+			t.Fatal("unknown colonists bought", p.Targets)
+		}
+	}
+}
+
 func TestReviewTradeNeedMergesWealthSurplusBehindTargets(t *testing.T) {
 	medicine := MedicalReserveReview{Replenish: domain.Known(int64(0))}
 	resources := domain.Known([]Amount{{Resource: "Steel", Count: 2000}, {Resource: "Gold", Count: 80}})
 	heavy := domain.Known(WealthFacts{Items: 30000, Buildings: 10000, Pawns: 8000, Total: 48000})
-	p := RoutineTradePolicy{ItemWealthShare: 0.5}
+	p := RoutineTradePolicy{}
 	// The steel target wins over the wealth rule's retained minimum; gold
 	// comes from the wealth rule alone, retained at its floor.
 	need, known := ReviewTradeNeed(medicine, resources, map[Resource]int64{"Steel": 1000}, nil, heavy, p).Value()
@@ -81,12 +96,9 @@ func TestReviewTradeNeedMergesWealthSurplusBehindTargets(t *testing.T) {
 		t.Fatal("unknown wealth should leave only the target-driven surplus", need, known)
 	}
 	rows := []TradeSheetRowFact{{LineID: "l1", DefName: "Gold", ColonyCount: 80, SellPrice: 30, SellPriceKnown: true}}
-	economic := RoutineTradeTargets(TradeNeed{Surplus: []Amount{{Resource: "Gold", Count: 30}}, Retained: map[Resource]int64{"Gold": 50}}, rows, nil, p)
+	economic := RoutineTradeTargets(TradeNeed{Surplus: []Amount{{Resource: "Gold", Count: 30}}, Retained: map[Resource]int64{"Gold": 50}}, rows, nil, p, domain.Known(int64(3)))
 	if len(economic.Targets) != 1 || economic.Targets[0].Stock != 50 || economic.Targets[0].MaxSell != 30 {
 		t.Fatal("the wealth surplus sale should retain its floor as the target stock", economic.Targets)
-	}
-	if err := (RoutineTradePolicy{ItemWealthShare: 1.5}).Validate(); err == nil {
-		t.Fatal("share past 1 validated")
 	}
 	if err := (RoutineTradePolicy{RetainedMinimum: map[Resource]int64{"Steel": -1}}).Validate(); err == nil {
 		t.Fatal("negative retained minimum validated")
@@ -152,18 +164,18 @@ func TestRoutineTradeTargetsBuyCheapestMedicineThenSellSurplus(t *testing.T) {
 		{LineID: "#3", DefName: "Silver", ColonyCount: 100, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, ProtectedExportKnown: true},
 	}
 	need := TradeNeed{MedicineReplenish: 4, Surplus: []Amount{{Resource: "Steel", Count: 300}}}
-	p := RoutineTradeTargets(need, rows, map[Resource]int64{"Steel": 200}, RoutineTradePolicy{SilverReserve: 20})
+	p := RoutineTradeTargets(need, rows, map[Resource]int64{"Steel": 200}, RoutineTradePolicy{}, domain.Known(int64(2)))
 	if err := p.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	if len(p.Targets) != 2 || p.Targets[0].Item != "MedicineHerbal" || p.Targets[0].MaxBuy != 4 || p.Targets[0].Stock != 4 || p.Targets[1].Item != "Steel" || p.Targets[1].MaxSell != 300 || p.Targets[1].Stock != 200 {
 		t.Fatal(p.Targets)
 	}
-	selection := SelectTrade(p, TradeSelectionFacts{Complete: true, Rows: rows, ColonySilver: 100, TraderSilver: 900, SilverKnown: true, MaxSilverSpend: 80})
+	selection := SelectTrade(p, TradeSelectionFacts{Complete: true, Rows: rows, ColonySilver: 300, TraderSilver: 900, SilverKnown: true, MaxSilverSpend: 80})
 	if selection.Refused || len(selection.Selected) != 2 || selection.Selected[0] != (TradeSelectionLine{LineID: "#1", DefName: "MedicineHerbal", Count: 4}) || selection.Selected[1] != (TradeSelectionLine{LineID: "#2", DefName: "Steel", Count: -300}) {
 		t.Fatal(selection)
 	}
-	if p = RoutineTradeTargets(TradeNeed{MedicineReplenish: 4}, rows[2:], nil, RoutineTradePolicy{}); len(p.Targets) != 0 {
+	if p = RoutineTradeTargets(TradeNeed{MedicineReplenish: 4}, rows[2:], nil, RoutineTradePolicy{}, domain.Known(int64(3))); len(p.Targets) != 0 {
 		t.Fatal("trader without medicine produced a target", p.Targets)
 	}
 }
@@ -179,7 +191,7 @@ func TestTradeBuysResourceShortfall(t *testing.T) {
 		{LineID: "#0", DefName: "WoodLog", ColonyCount: 50, TraderCount: 400, BuyPrice: 1.5, BuyPriceKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, CurrencyKnown: true, PawnKnown: true, ProtectedExportKnown: true},
 		{LineID: "#1", DefName: "Silver", ColonyCount: 500, TraderCount: 900, Currency: true, CurrencyKnown: true, PawnKnown: true, TraderWillTrade: true, TraderWillTradeKnown: true, ProtectedExportKnown: true},
 	}
-	p := RoutineTradeTargets(need, rows, map[Resource]int64{"WoodLog": 200}, RoutineTradePolicy{})
+	p := RoutineTradeTargets(need, rows, map[Resource]int64{"WoodLog": 200}, RoutineTradePolicy{}, domain.Known(int64(2)))
 	if len(p.Targets) != 1 || p.Targets[0].Item != "WoodLog" || p.Targets[0].MaxBuy != 150 || p.Targets[0].Stock != 200 {
 		t.Fatal(p.Targets)
 	}

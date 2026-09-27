@@ -54,10 +54,14 @@ func TestReplayCaravanOpensTradeOnMedicineShortfall(t *testing.T) {
 }
 
 // Recorded from acceptance run trade/routine-stocked at 04b0a98cb, tick
-// 9655: 2000 steel under --routine-item-wealth-share 0.01. The wealth rule
-// sells exactly stock minus the retained 500-steel floor.
+// 9655: 2000 steel, recorded under the since-deleted
+// --routine-item-wealth-share 0.01; the item share is raised past the
+// constant 0.6 (#875). The wealth rule sells exactly stock minus the
+// retained 500-steel floor.
 func TestReplaySteelHoardSellsDownToTheFloor(t *testing.T) {
-	need := tradeNeed(t, loadTrade(t, "testdata/trade-steel-hoard-wealth-surplus.json"))
+	r := loadTrade(t, "testdata/trade-steel-hoard-wealth-surplus.json")
+	r.Facts.Wealth = domain.Known(policy.WealthFacts{Items: 15000, Buildings: 3500, Pawns: 1500, Total: 20000})
+	need := tradeNeed(t, r)
 	if len(need.Surplus) != 1 || need.Surplus[0] != (policy.Amount{Resource: "Steel", Count: 1500}) || need.Retained["Steel"] != 500 {
 		t.Fatalf("steel surplus %+v retained %v, want 1500 sold keeping 500", need.Surplus, need.Retained)
 	}

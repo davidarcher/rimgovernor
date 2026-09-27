@@ -102,15 +102,6 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 			wire.Order = &op.CombatOrder_Move{Move: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
 		case policy.OrderAttack:
 			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
-		case policy.OrderRescue:
-			wire.Order = &op.CombatOrder_Rescue{Rescue: &op.CombatRescue{Downed: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}}
-		case policy.OrderDoor:
-			mode := op.CombatDoorMode_COMBAT_DOOR_MODE_FORBID
-			if order.Door == policy.DoorAllow {
-				mode = op.CombatDoorMode_COMBAT_DOOR_MODE_ALLOW
-			}
-			wire.Pawn = nil
-			wire.Order = &op.CombatOrder_Door{Door: &op.CombatDoor{Cell: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}, Mode: mode.Enum()}}
 		case policy.OrderStop:
 			wire.Order = &op.CombatOrder_Stop{Stop: &op.Clear{}}
 		case policy.OrderFireMode:
@@ -140,7 +131,7 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 		if results != nil {
 			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
 		}
-		if !row.Applied && results != nil && order.Pawn != "" {
+		if !row.Applied && results != nil {
 			memory = memory.Forget(order.Pawn)
 		}
 		record.Orders = append(record.Orders, row)
@@ -155,9 +146,6 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 // attacks go out unchecked.
 func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
 	reply := policy.GeometryReply{Answered: true}
-	if ask != nil && ask.Propose == policy.RoleRescuePath {
-		return r.answerRescuePath(ctx, identity, ask)
-	}
 	if ask == nil || len(ask.Hostiles) == 0 {
 		return reply
 	}
@@ -227,32 +215,6 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 	return reply
 }
 
-// answerRescuePath answers a rescue_path ask (#867) with the rescuer's
-// route, each cell flagged for hostile line of fire and a door. A failed
-// read is an answer with no route: the rescue waits.
-func (r *RoutineDefensePlanner) answerRescuePath(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
-	reply := policy.GeometryReply{Answered: true, Role: policy.RoleRescuePath}
-	if len(ask.Hostiles) == 0 || ask.Pawn == "" {
-		return reply
-	}
-	hostiles := make([]string, 0, len(ask.Hostiles))
-	for _, h := range ask.Hostiles {
-		hostiles = append(hostiles, string(h))
-	}
-	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_RescuePath{RescuePath: &mp.CombatRescuePath{To: &c.Cell{X: proto.Int32(ask.To.X), Z: proto.Int32(ask.To.Z)}}}}
-	geometry, _, err := r.native.CombatGeometry(ctx, bridge.CombatGeometryProposeAsk(identity, propose, hostiles, string(ask.Pawn)))
-	if err != nil {
-		slog.Default().InfoContext(ctx, "combat rescue path: "+err.Error(), telemetry.ComponentKey, "routine-defense")
-		return reply
-	}
-	for _, row := range geometry.GetProposed() {
-		if cell := row.GetCell(); cell != nil {
-			reply.Route = append(reply.Route, policy.RouteCell{Cell: domain.Cell{X: cell.GetX(), Z: cell.GetZ()}, LineOfFire: row.GetHostileLineOfFire(), Door: row.GetDoor()})
-		}
-	}
-	return reply
-}
-
 // combatPawnStates is the fight's live state: the frame's combat pawns
 // (#851, #858) when the frame carries them, else the detail rows
 // (position, downed, dead; no stance or target).
@@ -261,8 +223,7 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 	if len(combat.Pawns) > 0 {
 		for _, row := range combat.Pawns {
 			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance()),
-				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange(), FireMode: row.GetFireMode(),
-				Job: row.GetJob(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill())}
+				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange(), FireMode: row.GetFireMode()}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 			}

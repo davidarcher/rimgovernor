@@ -39,10 +39,7 @@ namespace HomeBridge.BridgeTools
                         if (order.FireMode != Operations.CombatFireMode.AtWill && order.FireMode != Operations.CombatFireMode.Hold) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.Door:
                         if (!ValidCell(order.Door.Cell) || !order.Door.HasMode
-                            || order.Door.Mode < Operations.CombatDoorMode.HoldOpen || order.Door.Mode > Operations.CombatDoorMode.Allow) return false; break;
-                    case Operations.CombatOrder.OrderOneofCase.Rescue:
-                        if (!NativeDraftProtocol.ValidEntityTokenOptional(order.Rescue.Downed) || order.Rescue.Downed.EntityId == order.Pawn!.EntityId
-                            || order.Rescue.Dest != null && !ValidCell(order.Rescue.Dest)) return false; break;
+                            || order.Door.Mode != Operations.CombatDoorMode.HoldOpen && order.Door.Mode != Operations.CombatDoorMode.Close) return false; break;
                     case Operations.CombatOrder.OrderOneofCase.HoldPosition:
                     case Operations.CombatOrder.OrderOneofCase.Stop: break;
                     default: return false;
@@ -179,27 +176,6 @@ namespace HomeBridge.BridgeTools
                     return "";
                 case Operations.CombatOrder.OrderOneofCase.HoldPosition:
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.Wait_Combat, pawn.Position), out job);
-                case Operations.CombatOrder.OrderOneofCase.Rescue:
-                {
-                    // The pawn-target rescue order's rules (NativeCustodyOperations).
-                    var patient = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == order.Rescue.Downed.EntityId);
-                    if (patient == null) return "not_found";
-                    if (NativeDraftProtocol.TokenSent(order.Rescue.Downed)
-                        && NativePawnControlState.Check(identity, patient, order.Rescue.Downed.ExpectedSnapshotToken, out _) != NativePawnControlResult.Ready) return "stale_snapshot";
-                    if (!NativeCustodyOperations.RescueEligible(pawn, patient)) return "cannot_rescue";
-                    Building_Bed? bed;
-                    if (order.Rescue.Dest != null)
-                    {
-                        var dest = new IntVec3(order.Rescue.Dest.X, 0, order.Rescue.Dest.Z);
-                        bed = dest.InBounds(map) ? dest.GetFirstBuilding(map) as Building_Bed : null;
-                        if (bed == null || !RestUtility.IsValidBedFor(bed, patient, pawn, checkSocialProperness: false)) return "no_bed";
-                    }
-                    else if (!NativeCustodyOperations.FindBed(Operations.PawnOrderKind.Rescue, pawn, patient, out bed) || bed == null) return "no_bed";
-                    if (!pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
-                    var made = JobMaker.MakeJob(JobDefOf.Rescue, patient, bed);
-                    made.count = 1;
-                    return Take(pawn, made, out job);
-                }
                 case Operations.CombatOrder.OrderOneofCase.Stop:
                     pawn.jobs.ClearQueuedJobs();
                     pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
@@ -223,13 +199,6 @@ namespace HomeBridge.BridgeTools
             if (!cell.InBounds(map)) return "not_a_door";
             var door = cell.GetEdifice(map) as Building_Door;
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
-            if (order.Mode == Operations.CombatDoorMode.Forbid || order.Mode == Operations.CombatDoorMode.Allow)
-            {
-                // The vanilla forbid toggle (#867): forbidden doors bar every
-                // player pawn's path, drafted or not.
-                door.SetForbidden(order.Mode == Operations.CombatDoorMode.Forbid, warnOnFail: false);
-                return "";
-            }
             bool open = order.Mode == Operations.CombatDoorMode.HoldOpen;
             if (door.HoldOpen != open) HoldOpenField.SetValue(door, open);
             return "";

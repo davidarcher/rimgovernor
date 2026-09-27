@@ -98,10 +98,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                // Frames are captured from the supervised-play frame hook; a
-                // stream opened before any clock start (a lab case, #876)
-                // installs it itself.
-                try { Supervisor.EnsurePatched(); ring ??= new Ring(); }
+                try { ring ??= new Ring(); }
                 catch (Exception e)
                 {
                     return new Obs.SnapshotStreamReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };

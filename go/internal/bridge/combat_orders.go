@@ -27,16 +27,12 @@ const (
 	CombatRefusalNoGroundVerb   = "no_ground_verb"
 	CombatRefusalNotADoor       = "not_a_door"
 	CombatRefusalNativeRefused  = "native_refused"
-	// Rescue refusals (#867): the rescue eligibility or bed search failed.
-	CombatRefusalCannotRescue = "cannot_rescue"
-	CombatRefusalNoBed        = "no_bed"
 )
 
 var combatRefusals = map[string]bool{
 	CombatRefusalDraftOwnership: true, CombatRefusalStaleSnapshot: true, CombatRefusalNotFound: true,
 	CombatRefusalUnreachable: true, CombatRefusalCannotHit: true, CombatRefusalNoGroundVerb: true,
 	CombatRefusalNotADoor: true, CombatRefusalNativeRefused: true,
-	CombatRefusalCannotRescue: true, CombatRefusalNoBed: true,
 }
 
 // CombatOrderResult is one order's outcome, in request order.
@@ -130,21 +126,8 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 			if v.Door == nil || movementCell(v.Door.Cell) != nil {
 				return contract("combat order %d door cell missing or invalid", i)
 			}
-			if m := v.Door.GetMode(); m < o.CombatDoorMode_COMBAT_DOOR_MODE_HOLD_OPEN || m > o.CombatDoorMode_COMBAT_DOOR_MODE_ALLOW {
+			if m := v.Door.GetMode(); m != o.CombatDoorMode_COMBAT_DOOR_MODE_HOLD_OPEN && m != o.CombatDoorMode_COMBAT_DOOR_MODE_CLOSE {
 				return contract("combat order %d door mode unsupported", i)
-			}
-		case *o.CombatOrder_Rescue:
-			if v.Rescue == nil {
-				return contract("combat order %d rescue missing", i)
-			}
-			if err := optionalTokenEntity(v.Rescue.Downed); err != nil {
-				return contract("combat order %d downed: %v", i, err)
-			}
-			if v.Rescue.Downed.GetEntityId() == order.Pawn.GetEntityId() {
-				return contract("combat order %d rescues its own pawn", i)
-			}
-			if v.Rescue.Dest != nil && movementCell(v.Rescue.Dest) != nil {
-				return contract("combat order %d rescue dest invalid", i)
 			}
 		case *o.CombatOrder_HoldPosition:
 			if v.HoldPosition == nil {

@@ -50,25 +50,35 @@ type TraderFacts struct {
 }
 
 // RoutineTradePolicy is the operator's routine trade configuration.
-// SilverReserve is the silver a purchase never spends below; ComponentTarget
-// (zero disables) is the component stock the trade buys toward and the
-// resource family mines toward. ItemWealthShare (zero disables) is the share
-// of total colony wealth held as items past which WealthSurplus sells the
-// raw-material hoards in WealthSurplusResources down to their floors;
-// RetainedMinimum is the stock each such hoard keeps regardless of floor
-// (DefaultTradeRetainedMinimum when nil).
+// ComponentTarget (zero disables) is the component stock the trade buys
+// toward and the resource family mines toward. RetainedMinimum is the stock
+// each WealthSurplusResources hoard keeps regardless of floor
+// (DefaultTradeRetainedMinimum when nil). The silver reserve is derived from
+// the colonist count (TradeSilverReserve) and hoard selling keys on the
+// constant TradeItemWealthShare (#875).
 type RoutineTradePolicy struct {
-	SilverReserve, ComponentTarget int64
-	ItemWealthShare                float64
-	RetainedMinimum                map[Resource]int64
+	ComponentTarget int64
+	RetainedMinimum map[Resource]int64
+}
+
+// TradeItemWealthShare is the share of total colony wealth held as items
+// past which WealthSurplus sells the raw-material hoards down to their floors.
+const TradeItemWealthShare = 0.6
+
+// TradeSilverReserve is the silver a purchase never spends below: 100 per
+// colonist, at least 200. An unknown or empty count reports false and the
+// routine buys nothing (fail closed, #875).
+func TradeSilverReserve(colonists domain.Fact[int64]) (int64, bool) {
+	n, known := colonists.Value()
+	if !known || n <= 0 {
+		return 200, false
+	}
+	return max(200, min(100*n, 100000)), true
 }
 
 func (p RoutineTradePolicy) Validate() error {
-	if p.SilverReserve < 0 || p.ComponentTarget < 0 || p.SilverReserve > 1<<31 || p.ComponentTarget > 1<<31 {
+	if p.ComponentTarget < 0 || p.ComponentTarget > 1<<31 {
 		return errors.New("invalid routine trade policy")
-	}
-	if !finite(p.ItemWealthShare) || p.ItemWealthShare < 0 || p.ItemWealthShare > 1 {
-		return errors.New("invalid routine trade policy: item wealth share")
 	}
 	for _, retained := range p.RetainedMinimum {
 		if retained < 0 || retained > 1<<31 {
@@ -118,10 +128,10 @@ type WealthFacts struct{ Items, Buildings, Pawns, Total float64 }
 // floor yields nothing; the rows come back in WealthSurplusResources order.
 func WealthSurplus(stock []Amount, targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy) []Amount {
 	facts, known := wealth.Value()
-	if !known || p.Validate() != nil || p.ItemWealthShare <= 0 {
+	if !known || p.Validate() != nil {
 		return nil
 	}
-	if !finite(facts.Items) || !finite(facts.Total) || facts.Total <= 0 || facts.Items < 0 || facts.Items/facts.Total <= p.ItemWealthShare {
+	if !finite(facts.Items) || !finite(facts.Total) || facts.Total <= 0 || facts.Items < 0 || facts.Items/facts.Total <= TradeItemWealthShare {
 		return nil
 	}
 	retained := p.RetainedMinimum
@@ -272,8 +282,20 @@ func SelectTrader(traders []TraderFacts, settled map[string]bool) (TraderFacts, 
 // the trader carries), then components, then each surplus sale. Purchases
 // are capped at tradeBuyPriceCeiling per unit; sales take any positive
 // price, since the alternative is the surplus sitting unsold.
-func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy) domain.TradeEconomicPolicy {
-	out := domain.TradeEconomicPolicy{SilverReserve: p.SilverReserve}
+func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
+	reserve, buy := TradeSilverReserve(colonists)
+	out := routineTradeTargets(need, rows, targets, p)
+	out.SilverReserve = reserve
+	for i := range out.Targets {
+		if !buy {
+			out.Targets[i].MaxBuy = 0
+		}
+	}
+	return out
+}
+
+func routineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy) domain.TradeEconomicPolicy {
+	var out domain.TradeEconomicPolicy
 	// Leave room for medicine and components while prioritizing the food bridge.
 	foodTargets := tradeFoodTargets(need.Food, rows)
 	if len(foodTargets) > tradeRoutineMaximumTargets-2 {

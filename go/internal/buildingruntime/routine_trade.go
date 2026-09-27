@@ -506,7 +506,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
 	}
 	rows := tradeSheetRowFacts(sheet.Rows)
-	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade)
+	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)

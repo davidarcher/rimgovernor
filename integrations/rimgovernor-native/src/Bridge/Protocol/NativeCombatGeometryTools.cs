@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         internal const int MaxRadius = 12;
 
         [Tool(ToolName, Title = "Read combat geometry",
-            Description = "Official CombatGeometryRequest ProtoJSON. Cover, line of fire and colonist-in-path from each candidate cell to each hostile, and a named pawn's path ticks to each cell. An optional propose block adds ranked candidate cells for one role (cover_behind_line, adjacent_to_choke, firing_cells), scored alike; rescue_path returns the named pawn's route cells with a hostile line-of-fire and door flag each. At most 64 cells (named plus proposed) and 16 hostiles. Read-only.")]
+            Description = "Official CombatGeometryRequest ProtoJSON. Cover, line of fire and colonist-in-path from each candidate cell to each hostile, and a named pawn's path ticks to each cell. An optional propose block adds ranked candidate cells for one role (cover_behind_line, adjacent_to_choke, firing_cells), scored alike. At most 64 cells (named plus proposed) and 16 hostiles. Read-only.")]
         [ToolResponse("payload", "string", "Official mirror CombatGeometryReply ProtoJSON.", Always = true)]
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a CombatGeometryRequest ProtoJSON string.")] object? request = null)
@@ -64,8 +64,7 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A combat geometry propose block requires one role with a valid anchor (line 1.." + MaxCells
                     + " distinct cells; a choke and a distinct our_side cell; 1.." + MaxHostiles + " distinct targets, a from cell and radius 1.." + MaxRadius
                     + ") and at most " + (MaxCells - 1) + " named cells.");
-                if (request.Cells.Count >= MaxCells || !ValidatePropose(request.Propose)
-                    || request.Propose.RoleCase == Mirror.CombatGeometryPropose.RoleOneofCase.RescuePath && !request.HasPawnId) return false;
+                if (request.Cells.Count >= MaxCells || !ValidatePropose(request.Propose)) return false;
             }
             if (request.Cells.Count < (request.Propose == null ? 1 : 0) || request.Cells.Count > MaxCells || request.HostileIds.Count < 1 || request.HostileIds.Count > MaxHostiles) return false;
             if (request.Cells.Any(c => c == null || !c.HasX || !c.HasZ) || request.Cells.Select(c => (c.X, c.Z)).Distinct().Count() != request.Cells.Count) return false;
@@ -93,8 +92,6 @@ namespace HomeBridge.BridgeTools
                 case Mirror.CombatGeometryPropose.RoleOneofCase.FiringCells:
                     var f = p.FiringCells;
                     return ValidCell(f.From) && f.HasRadius && f.Radius >= 1 && f.Radius <= MaxRadius && ValidCells(f.Targets, MaxHostiles);
-                case Mirror.CombatGeometryPropose.RoleOneofCase.RescuePath:
-                    return ValidCell(p.RescuePath.To);
             }
             return false;
         }
@@ -116,12 +113,7 @@ namespace HomeBridge.BridgeTools
             var observed = new Mirror.CombatGeometry { Context = context };
             foreach (var wire in request.Cells)
                 observed.Cells.Add(Score(map, InBounds(map, wire), wire.Clone(), hostiles, colonists, walker));
-            if (request.Propose?.RoleCase == Mirror.CombatGeometryPropose.RoleOneofCase.RescuePath)
-            {
-                foreach (var cell in Route(map, walker!, InBounds(map, request.Propose.RescuePath.To)).Take(MaxCells - request.Cells.Count))
-                    observed.Proposed.Add(Score(map, cell, new Common.Cell { X = cell.x, Z = cell.z }, hostiles, colonists, null));
-            }
-            else if (request.Propose != null)
+            if (request.Propose != null)
             {
                 var named = new HashSet<IntVec3>(request.Cells.Select(w => new IntVec3(w.X, 0, w.Z)));
                 foreach (var cell in Propose(map, request.Propose, hostiles, named).Take(MaxCells - request.Cells.Count))
@@ -189,28 +181,9 @@ namespace HomeBridge.BridgeTools
             throw new GeometryRefused("A propose block needs a role.");
         }
 
-        /// The rescue_path role (#867): the pawn's route to `to` by the game
-        /// pathfinder, in walking order without the start cell; empty with no
-        /// path. PawnPath.Peek(0) is the start cell.
-        private static List<IntVec3> Route(Map map, Pawn walker, IntVec3 to)
-        {
-            var route = new List<IntVec3>();
-            using (var path = map.pathFinder.FindPathNow(walker.Position, new LocalTargetInfo(to), TraverseParms.For(walker, Danger.Deadly), peMode: PathEndMode.Touch))
-            {
-                if (path == null || !path.Found) return route;
-                for (int i = 0; i < path.NodesLeftCount; i++)
-                {
-                    var node = path.Peek(i);
-                    if (node != walker.Position) route.Add(node);
-                }
-            }
-            return route;
-        }
-
         private static Mirror.CombatGeometryCell Score(Map map, IntVec3 cell, Common.Cell wire, List<Pawn> hostiles, HashSet<IntVec3> colonists, Pawn? walker)
         {
             var row = new Mirror.CombatGeometryCell { Cell = wire, Standable = cell.Standable(map) };
-            row.Door = cell.GetEdifice(map) is Building_Door door && door.Faction == Faction.OfPlayerSilentFail;
                 foreach (var h in hostiles)
                 {
                     var line = new Mirror.CombatSightLine { HostileId = CombatMirror.LoadId(h),
@@ -219,7 +192,6 @@ namespace HomeBridge.BridgeTools
                         LineOfFire = GenSight.LineOfSight(cell, h.Position, map, true) };
                     line.ColonistInPath = GenSight.PointsOnLineOfSight(cell, h.Position).Any(p => p != cell && p != h.Position && colonists.Contains(p));
                     row.Lines.Add(line);
-                    if (line.LineOfFire) row.HostileLineOfFire = true;
                 }
                 if (walker != null)
                 {

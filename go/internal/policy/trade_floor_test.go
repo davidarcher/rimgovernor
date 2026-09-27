@@ -16,7 +16,7 @@ func TestRoutineTradeConstructionFloor(t *testing.T) {
 		{"target dominates", 400, 350, 900, 900},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			p := RoutinePolicy{ResourceReserves: map[Resource]int64{"Steel": tt.reserve}, ResourceTargets: map[Resource]int64{"Steel": tt.target}, Trade: RoutineTradePolicy{ItemWealthShare: 0.5}}
+			p := RoutinePolicy{ResourceReserves: map[Resource]int64{"Steel": tt.reserve}, ResourceTargets: map[Resource]int64{"Steel": tt.target}, Trade: RoutineTradePolicy{}}
 			floors := RoutineTradeFloors(p, map[string]int64{"Steel": tt.construction})
 			if floors["Steel"] != tt.reserve+tt.construction {
 				t.Fatalf("floor = %v", floors)

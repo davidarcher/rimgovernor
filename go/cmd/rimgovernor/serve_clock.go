@@ -852,6 +852,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 // and the planner never runs.
 func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.RoutineCapabilities) {
 	thresholds := policy.DefaultRoutinePolicy()
+	thresholds.FoodReserveDays = sc.routineFoodReserveDays
 	capabilities := buildingruntime.RoutineCapabilities{LayoutOverlay: sc.layoutOverlay}
 	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
@@ -941,6 +942,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 	}
 	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans || sc.routinePopulationJoinerPlans {
+		thresholds.PrisonerReleaseAfterDays = sc.routinePrisonerReleaseAfterDays
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
 	}
 	if sc.routineHomeCoveragePlans {
@@ -980,7 +982,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainMedicalCare)
 	}
 	if sc.routineTradePlans {
-		thresholds.Trade = policy.RoutineTradePolicy{SilverReserve: sc.routineSilverReserve, ComponentTarget: sc.routineComponentTarget, ItemWealthShare: sc.routineItemWealthShare}
+		thresholds.Trade = policy.RoutineTradePolicy{ComponentTarget: sc.routineComponentTarget}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
 	// The equip planner is EnsureBasicDefense's method: without this

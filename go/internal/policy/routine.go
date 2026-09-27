@@ -181,11 +181,11 @@ type RoutinePolicy struct {
 	// race for taming. A food-derived floor may raise this value. A race
 	// declared in both operator maps must have minimum <= maximum.
 	HerdPopulationMin map[Resource]int64
-	// PrisonerReleaseAfterDays lets MaintainPopulation propose
-	// releasing a prisoner the colony cannot turn (recruit resistance
+	// PrisonerReleaseAfterDays is the operator opt-in for MaintainPopulation
+	// to release a prisoner the colony cannot turn (recruit resistance
 	// unbroken, or never recruitable) once held that many days while the
-	// food runway is below FoodTargetDays (default 15 days; zero keeps
-	// the recruit-only behaviour); see PrisonerPolicy.
+	// food runway is below FoodTargetDays. Zero, the default, keeps the
+	// recruit-only behaviour; see PrisonerPolicy.
 	PrisonerReleaseAfterDays float64
 	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
 	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
@@ -207,7 +207,7 @@ func (p *RoutinePolicy) SetProjectLimit(n int) {
 // DefaultRoutinePolicy admits development automatically (#655): slots
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: MaxAutoDevelopmentProjects, AutoDevelopment: true, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: MaxAutoDevelopmentProjects, AutoDevelopment: true, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder()}
 }
 

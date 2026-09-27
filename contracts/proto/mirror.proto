@@ -57,10 +57,6 @@ message CombatPawn {
   // death, then another #849 stop kind, then any), the matching combat_events
   // row's; otherwise the capture's. Not part of the change comparison.
   Watermark changed = 26;
-  // Rescuer choice (#867): a worn CompShield apparel (shield belt), and the
-  // Medicine skill level (absent without skills).
-  optional bool shield_belt = 27;
-  optional int32 medical_skill = 28;
 }
 
 // What a combat event row records. The #849 stop kinds and the non-stops.
@@ -128,18 +124,7 @@ message CombatGeometryPropose {
     CombatCoverBehindLine cover_behind_line = 1;
     CombatAdjacentToChoke adjacent_to_choke = 2;
     CombatFiringCells firing_cells = 3;
-    CombatRescuePath rescue_path = 4;
   }
-}
-
-// The request pawn's route to `to` (#867), from the game pathfinder
-// (TraverseParms.For(pawn, Danger.Deadly), touch end), in walking order,
-// start cell excluded; each cell scored and flagged hostile_line_of_fire
-// and door. Needs pawn_id. Not ranked and not filtered by standable or the
-// named cells; a route longer than the cap is cut, so the last cell is
-// then not next to `to`. No path: no proposals.
-message CombatRescuePath {
-  rimgovernor.common.v1.Cell to = 1; // required: the downed pawn's cell
 }
 
 // Cells within one step (8-way) of the line, not on it, whose best cover
@@ -187,10 +172,6 @@ message CombatGeometryCell {
   // Path ticks for the request's pawn; absent without a pawn or a path.
   optional int32 path_ticks = 3;
   optional bool standable = 4;
-  // Any request hostile has line of fire to the cell (#867).
-  optional bool hostile_line_of_fire = 5;
-  // A player door stands on the cell (#867).
-  optional bool door = 6;
 }
 
 message CombatGeometry {

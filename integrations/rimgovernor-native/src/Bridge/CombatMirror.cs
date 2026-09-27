@@ -210,9 +210,7 @@ namespace HomeBridge.BridgeTools
                 else continue;
                 pawns.Add((p, side));
             }
-            // Raiders still in their drop pods are not spawned: a pods
-            // arrival keeps combat active until its open tick (#876).
-            _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick > now);
+            _active = hostile;
             _dirty = false;
             if (!Active)
             {
@@ -283,8 +281,6 @@ namespace HomeBridge.BridgeTools
                 }
                 catch { }
             }
-            row.ShieldBelt = shield != null;
-            try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row.MedicalSkill = medicine.Level; } catch { }
             var weapon = pawn.equipment?.Primary;
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
             if (weapon != null && verb != null)

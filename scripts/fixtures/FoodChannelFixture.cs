@@ -215,17 +215,14 @@ namespace HomeBridge.BridgeTools
             if (__instance.def.defName == "Pemmican" && ingester?.IsColonist == true) reserveEaten += __result;
         }
 
-        [Tool("test/food_reserve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add a roofed walled food room with a fueled stove, a food stockpile, pemmican research, unforbidden pemmican (seedShare of a reserveDays target) and meat, and a 10000 raw rice runway and 1000 wood outside it to the empty-channel fixture; every colonist cooks. Nothing is forbidden and no bill is preinstalled.")]
-        public async Task<object> ReservePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, double reserveDays = 5, double seedShare = 0.7)
+        [Tool("test/food_reserve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add a roofed walled food room with a fueled stove, a food stockpile, pemmican research, unforbidden pemmican and meat, and a 10000 raw rice runway and 1000 wood outside it to the empty-channel fixture; every colonist cooks. Nothing is forbidden and no bill is preinstalled.")]
+        public async Task<object> ReservePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int pemmican = 150)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required");
-                if (!(reserveDays > 0 && reserveDays <= 60) || !(seedShare >= 0 && seedShare < 1)) throw new ArgumentException("reserveDays must be in (0,60] and seedShare in [0,1)");
+                if (pemmican < 0 || pemmican > 1000) throw new ArgumentException("pemmican must be 0..1000");
                 var people = map.mapPawns.FreeColonistsSpawned.ToList();
-                // Seed a share of the reserve target (1.6 nutrition per colonist-day,
-                // 0.05 per pemmican) so the stock stays short of it and the bill refills the rest.
-                int pemmican = (int)Math.Floor(reserveDays * people.Count * 1.6 / 0.05 * seedShare);
                 var cook = people.First(p => !p.Downed);
                 var room = CellRect.Empty;
                 foreach (var c in GenRadial.RadialCellsAround(cook.Position, 25, true)) {
@@ -261,7 +258,7 @@ namespace HomeBridge.BridgeTools
                     }
                 reserveEaten = 0;
                 if (!reservePatched) { new Harmony("rimgovernor.fixture.foodreserve").Patch(AccessTools.Method(typeof(Thing), "Ingested"), postfix: new HarmonyMethod(typeof(FoodChannelFixture), nameof(ReserveIngested))); reservePatched = true; }
-                return new { success = true, bench = stove.GetUniqueLoadID(), pemmican, colonists = people.Count, room = new { x = room.minX, z = room.minZ, w = room.Width, h = room.Height } };
+                return new { success = true, bench = stove.GetUniqueLoadID(), pemmican, room = new { x = room.minX, z = room.minZ, w = room.Width, h = room.Height } };
             }, cancellationToken);
         }
 

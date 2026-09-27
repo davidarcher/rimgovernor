@@ -80,9 +80,6 @@ func ValidateCombatGeometryRequest(request *mp.CombatGeometryRequest) error {
 	if request.PawnId != nil && validID(request.GetPawnId()) != nil {
 		return contract("combat geometry pawn id invalid")
 	}
-	if request.GetPropose().GetRescuePath() != nil && request.PawnId == nil {
-		return contract("combat geometry rescue_path needs a pawn")
-	}
 	if request.Propose != nil {
 		return validatePropose(request.Propose)
 	}
@@ -121,11 +118,6 @@ func validatePropose(p *mp.CombatGeometryPropose) error {
 		a := role.AdjacentToChoke
 		if !geometryCell(a.GetChoke()) || !geometryCell(a.GetOurSide()) || proto.Equal(a.GetChoke(), a.GetOurSide()) {
 			return contract("combat geometry adjacent_to_choke needs a choke and a distinct our_side cell")
-		}
-		return nil
-	case *mp.CombatGeometryPropose_RescuePath:
-		if !geometryCell(role.RescuePath.GetTo()) {
-			return contract("combat geometry rescue_path needs a to cell")
 		}
 		return nil
 	case *mp.CombatGeometryPropose_FiringCells:
@@ -183,13 +175,10 @@ func ValidateCombatGeometry(g *mp.CombatGeometry, request *mp.CombatGeometryRequ
 	for i, row := range g.Proposed {
 		cell := row.GetCell()
 		key := [2]int32{cell.GetX(), cell.GetZ()}
-		route := request.GetPropose().GetRescuePath() != nil
-		if !geometryCell(cell) || (!route && (!row.GetStandable() || seen[key])) {
+		if !geometryCell(cell) || !row.GetStandable() || seen[key] {
 			return contract("combat geometry proposal %d invalid or repeated", i)
 		}
-		if !route {
-			seen[key] = true
-		}
+		seen[key] = true
 		if err := geometryLines(row, request, len(request.Cells)+i); err != nil {
 			return err
 		}

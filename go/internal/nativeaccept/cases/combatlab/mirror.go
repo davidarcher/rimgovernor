@@ -146,11 +146,6 @@ func runMirror(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report := s.Report()
-	// Geometry reads the staged layout before any tick: the undrafted
-	// colonists wander off their cells once the clock runs (#876).
-	if err := geometry(ctx, h, identity, staged, report); err != nil {
-		return err
-	}
 	frames, err := openCombatFrames(ctx, h, identity)
 	if err != nil {
 		return err
@@ -176,6 +171,9 @@ func runMirror(ctx context.Context, s cases.Session) error {
 		}
 	}
 	report["frameRows"] = len(rows)
+	if err := geometry(ctx, h, identity, staged, report); err != nil {
+		return err
+	}
 	if err := fight(ctx, h, frames, report); err != nil {
 		return err
 	}

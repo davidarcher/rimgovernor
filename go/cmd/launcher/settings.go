@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Settings are the launcher's persisted choices (.rimgovernor/launcher.json),
@@ -27,11 +29,12 @@ type Settings struct {
 	ChatModel     string `json:"chatModel"`
 	ChatBaseURL   string `json:"chatBaseURL"`
 
-	AllowSlaughter     bool `json:"allowSlaughter"`
-	AllowRelease       bool `json:"allowRelease"`
-	ShrineOpenCaskets  bool `json:"shrineOpenCaskets"`
-	ShrineHeatFallback bool `json:"shrineHeatFallback"`
-	LayoutOverlay      bool `json:"layoutOverlay"`
+	AllowSlaughter     bool    `json:"allowSlaughter"`
+	AllowRelease       bool    `json:"allowRelease"`
+	ShrineOpenCaskets  bool    `json:"shrineOpenCaskets"`
+	ShrineHeatFallback bool    `json:"shrineHeatFallback"`
+	LayoutOverlay      bool    `json:"layoutOverlay"`
+	FoodReserveDays    float64 `json:"foodReserveDays"`
 
 	Debug     bool   `json:"debug"`
 	ExtraArgs string `json:"extraArgs"`
@@ -40,9 +43,10 @@ type Settings struct {
 // DefaultSettings match serve's own defaults.
 func DefaultSettings() Settings {
 	return Settings{
-		Speed:         "Normal",
-		ContinueState: true,
-		LayoutOverlay: true,
+		Speed:           "Normal",
+		ContinueState:   true,
+		LayoutOverlay:   true,
+		FoodReserveDays: policy.DefaultFoodReserveDays,
 	}
 }
 
@@ -80,6 +84,9 @@ func (s Settings) Validate() error {
 	case "Normal", "Fast", "Superfast", "Ultrafast", "UltrafastAdaptive":
 	default:
 		return fmt.Errorf("unknown game speed %q", s.Speed)
+	}
+	if s.FoodReserveDays < 0 {
+		return errors.New("food reserve days cannot be negative")
 	}
 	if s.ShrineHeatFallback && !s.ShrineOpenCaskets {
 		return errors.New("the shrine heat fallback requires opening caskets")
@@ -142,6 +149,9 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 		}
 		if !s.LayoutOverlay {
 			args = append(args, "--layout-overlay=false")
+		}
+		if s.FoodReserveDays != policy.DefaultFoodReserveDays {
+			args = append(args, "--routine-food-reserve-days", strconv.FormatFloat(s.FoodReserveDays, 'g', -1, 64))
 		}
 	}
 	if s.Debug {

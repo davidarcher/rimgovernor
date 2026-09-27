@@ -397,8 +397,6 @@ namespace HomeBridge.BridgeTools
                     }
                     else throw new ArgumentException($"Unknown side {p["side"]}.");
                     Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
-                    // downed (#867): anesthetic downs the pawn without wounds.
-                    if ((bool?)p["downed"] == true) pawn.health.AddHediff(HediffDefOf.Anesthetic);
                     pawns.Add(pawn);
                     if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
                 }
@@ -509,7 +507,7 @@ namespace HomeBridge.BridgeTools
         // well under the call ceiling.
         private const int MaxTicks = 2000;
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation}], pawns:[{side:colonist|hostile, index (colonist), kind (hostile PawnKindDef), x, z, weapon, weaponStuff, downed}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation}], pawns:[{side:colonist|hostile, index (colonist), kind (hostile PawnKindDef), x, z, weapon, weaponStuff}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, every player door's hold-open, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
@@ -531,7 +529,7 @@ namespace HomeBridge.BridgeTools
                         fleeing = !p.Dead && (p.MentalStateDef == MentalStateDefOf.PanicFlee || p.CurJobDef == JobDefOf.Flee || p.CurJobDef == JobDefOf.FleeAndCower),
                         job = p.CurJobDef?.defName, playerForced = p.CurJob?.playerForced == true, jobCell = p.CurJob == null || p.CurJob.targetA.HasThing ? null : new { x = p.CurJob.targetA.Cell.x, z = p.CurJob.targetA.Cell.z },
                         jobThing = p.CurJob?.targetA.Thing?.GetUniqueLoadID(), drafted = p.Drafted, fireAtWill = p.drafter?.FireAtWill }).ToList(),
-                        doors = map.listerBuildings.allBuildingsColonist.OfType<Building_Door>().Select(d => new { x = d.Position.x, z = d.Position.z, holdOpen = d.HoldOpen, forbidden = d.IsForbidden(Faction.OfPlayer) }).ToList(),
+                        doors = map.listerBuildings.allBuildingsColonist.OfType<Building_Door>().Select(d => new { x = d.Position.x, z = d.Position.z, holdOpen = d.HoldOpen }).ToList(),
                         damage = LabDamageLedger.Rows(), damageDropped = LabDamageLedger.Dropped };
                 if (action != "stage") throw new ArgumentException("Unknown action.");
                 LabDamageLedger.Reset();

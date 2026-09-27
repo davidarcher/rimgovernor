@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
         // (FloatMenuOptionProvider_RescuePawn), which needs no draft change
         // either way and is a complete, self-contained mechanism independent
         // of the WorkGiver-priority optimization PrepareRescue tries first.
-        internal static bool RescueEligible(Pawn pawn, Pawn patient) => patient != null && !patient.Dead && patient.Spawned
+        private static bool RescueEligible(Pawn pawn, Pawn patient) => patient != null && !patient.Dead && patient.Spawned
             && patient.Map == pawn.Map && !ReferenceEquals(patient, pawn)
             && HealthAIUtility.CanRescueNow(pawn, patient, true) && !HostileToPlayer(patient);
 
@@ -140,7 +140,7 @@ namespace HomeBridge.BridgeTools
             kind == Operations.PawnOrderKind.Capture ? CaptureEligible(pawn, patient) : RescueEligible(pawn, patient);
 
         // Ports OrderTool.PrepareCapture/BuildRescueJob's bed search exactly.
-        internal static bool FindBed(Operations.PawnOrderKind kind, Pawn pawn, Pawn patient, out Building_Bed? bed)
+        private static bool FindBed(Operations.PawnOrderKind kind, Pawn pawn, Pawn patient, out Building_Bed? bed)
         {
             bed = kind == Operations.PawnOrderKind.Capture
                 ? RestUtility.FindBedFor(patient, pawn, false, false, GuestStatus.Prisoner)
