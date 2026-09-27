@@ -85,6 +85,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
 	siegeHold(&next)
+	siegeSnipe(view, &next)
 	manhunterKite(view, &next)
 	sapperIntercept(view, &next)
 	sapperRush(view, stop, &next)
