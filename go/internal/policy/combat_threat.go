@@ -10,15 +10,17 @@ import (
 )
 
 // Threat tiers (#863), most urgent first: rocketeers and grenadiers, then
-// anything in melee with a colonist, then sappers and termites, then the
-// other mechs (inferno-cannon centipede > scyther > the rest), then
-// everyone else.
+// anything in melee with a colonist, then sappers (a breaching termite
+// among them), then the other mechs (inferno-cannon centipede > scyther >
+// termite > the rest; a termite strips our cover, #927), then everyone
+// else.
 const (
 	threatExplosive = iota
 	threatMeleeColonist
 	threatSapper
 	threatInfernoCentipede
 	threatScyther
+	threatTermite
 	threatMech
 	threatOther
 )
@@ -38,12 +40,14 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 		return threatMeleeColonist
 	}
 	switch {
-	case h.Sapper || strings.Contains(h.Kind, "Termite"):
+	case h.Sapper:
 		return threatSapper
 	case strings.Contains(h.Kind, "CentipedeBurner") || h.Weapon == "Gun_InfernoCannon":
 		return threatInfernoCentipede
 	case strings.Contains(h.Kind, "Scyther"):
 		return threatScyther
+	case strings.Contains(h.Kind, "Termite"):
+		return threatTermite
 	case strings.HasPrefix(h.Kind, "Mech_"):
 		return threatMech
 	}

@@ -27,7 +27,7 @@ func harassView() (CombatView, CombatMemory) {
 // may pick r1); b and c no attack.
 func TestDecideCombatSiegeHarassesFromOutrange(t *testing.T) {
 	view, memory := harassView()
-	orders, m := decideStop(t, view, StopEvent{}, memory)
+	_, m := decideStop(t, view, StopEvent{}, memory)
 	if m.SiegeMode != SiegeHarass {
 		t.Fatalf("%+v", m)
 	}
@@ -48,7 +48,7 @@ func TestDecideCombatSiegeHarassesFromOutrange(t *testing.T) {
 		}
 	}
 	at.Tick++
-	orders, _ = decideStop(t, at, StopEvent{}, m)
+	orders, _ := decideStop(t, at, StopEvent{}, m)
 	a := attacks(orders)
 	if a["a"] == "" || a["b"] != "" || a["c"] != "" {
 		t.Fatalf("attacks %v", a)

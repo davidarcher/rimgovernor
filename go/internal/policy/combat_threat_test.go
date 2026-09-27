@@ -33,21 +33,45 @@ func threatView() CombatView {
 	return view
 }
 
-// The threat score orders grenadier, melee-on-colonist, termite (a
-// sapper), inferno centipede, scyther; a raider sapping by toil ranks
-// with the termite, ahead of an ordinary one.
+// The threat score orders grenadier, melee-on-colonist, inferno
+// centipede, scyther, termite (#927); a raider sapping by toil ranks
+// ahead of the mechs, an ordinary one after them.
 func TestThreatScoreOrder(t *testing.T) {
 	view := threatView()
 	var got []domain.PawnID
 	for _, h := range rankThreats(view) {
 		got = append(got, h.ID)
 	}
-	if want := []domain.PawnID{"h5", "h4", "h3", "h2", "h1"}; !reflect.DeepEqual(got, want) {
+	if want := []domain.PawnID{"h5", "h4", "h2", "h1", "h3"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("ranked %v, want %v", got, want)
 	}
 	colonists := map[domain.PawnID]bool{"c": true}
 	if threatTier(CombatPawnState{Sapper: true}, colonists) != threatSapper || threatTier(CombatPawnState{Kind: "Pirate"}, colonists) != threatOther {
 		t.Fatal("sapper or ordinary raider mis-tiered")
+	}
+}
+
+// {scyther, termite, lancer} -> scyther, termite, lancer (#927); a
+// breaching termite keeps the sapper tier, ahead of the scyther.
+func TestRankThreatsTermiteAfterScyther(t *testing.T) {
+	view := holdView()
+	view.Threats, view.Positional = nil, nil
+	for i, h := range []CombatPawnState{{ID: "m1", Kind: "Mech_Lancer"}, {ID: "m2", Kind: "Mech_Termite"}, {ID: "m3", Kind: "Mech_Scyther"}} {
+		cell := domain.Cell{X: 8 + int32(i), Z: 10}
+		h.Cell = domain.Known(cell)
+		s, d := combatRaider(PawnID(h.ID), cell)
+		view.Threats, view.Positional = append(view.Threats, s), append(view.Positional, d)
+		view.Pawns = append(view.Pawns, h)
+	}
+	var got []domain.PawnID
+	for _, h := range rankThreats(view) {
+		got = append(got, h.ID)
+	}
+	if want := []domain.PawnID{"m3", "m2", "m1"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("ranked %v, want %v", got, want)
+	}
+	if threatTier(CombatPawnState{Kind: "Mech_Termite", Sapper: true}, nil) != threatSapper {
+		t.Fatal("breaching termite left the sapper tier")
 	}
 }
 
