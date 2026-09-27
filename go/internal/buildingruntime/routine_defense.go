@@ -267,7 +267,13 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	tick := domain.Tick(emergency.Context.GetTick())
 	view := policy.CombatView{Tick: tick, Pawns: combatPawnStates(combat, rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable}
 	if ok && layout.Complete {
-		view.Layout = domain.Known(policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward})
+		combatLayout := policy.CombatLayout{Firing: layout.Firing, Retreat: layout.Retreat, Toward: layout.Toward}
+		if n := len(layout.SafeLane); n > 0 {
+			// The civilian lane runs entry to exit; its last cell is the
+			// corridor's mouth on our side, where blockers hold (#864).
+			combatLayout.Choke = domain.Known(layout.SafeLane[n-1])
+		}
+		view.Layout = domain.Known(combatLayout)
 	}
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)

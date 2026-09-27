@@ -29,7 +29,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A downed or dead defender keeps no role; its rescue is the rescue
 	// planner's (#867), not an order here.
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
-	if !fallBack(view, stop, &next) && reform(view, stop, next) {
+	if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
 		if !geometry.Answered {
 			// Formation asks the game for its candidate cells by role in the
 			// stop's one geometry round trip.
@@ -101,6 +101,9 @@ type CombatLayout struct {
 	// cell, one step further toward Home. Empty on a record that predates it.
 	Retreat []domain.Cell
 	Toward  domain.Rotation
+	// Choke is the corridor's exit cell on our side, where blockers hold
+	// (#864); unknown without a corridor.
+	Choke domain.Fact[domain.Cell]
 }
 
 // CombatView is the fight at one stop. Defenders, Threats and Positional
@@ -153,6 +156,8 @@ type GeometryRequest struct {
 	Propose  FormationRole
 	Line     []domain.Cell
 	Hostiles []domain.PawnID
+	// Choke and OurSide anchor the adjacent_to_choke role (#864).
+	Choke, OurSide domain.Cell
 }
 
 // GeometryReply answers a GeometryRequest with the game's proposals, best
@@ -178,12 +183,14 @@ const (
 // CombatRole is one defender's place in the formation: a firing cell to
 // hold (hold-the-line) and the hostile to engage.
 type CombatRole struct {
-	Pawn    domain.PawnID
-	Cell    *domain.Cell `json:",omitempty"`
-	Target  domain.PawnID
-	Ranged  bool
-	Blocker bool `json:",omitempty"`
-	// Retreat marks a role pulled back to its inner-line cell (#860).
+	Pawn   domain.PawnID
+	Cell   *domain.Cell `json:",omitempty"`
+	Target domain.PawnID
+	Ranged bool
+	// Duty is a brawler's formation duty (#864).
+	Duty CombatDuty `json:",omitempty"`
+	// Retreat marks a role pulled back to its inner-line cell (#860), or
+	// a hurt blocker relieved by the reserve (#864).
 	Retreat bool `json:",omitempty"`
 }
 
@@ -342,6 +349,11 @@ func formationAsk(view CombatView) *GeometryRequest {
 		return nil
 	}
 	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing)}
+	if choke, ourSide, ok := blockingChoke(view); ok {
+		// A blocking formation spends the stop's one proposal on blocker
+		// cells; the named line is still scored.
+		ask.Propose, ask.Choke, ask.OurSide = RoleAdjacentToChoke, choke, ourSide
+	}
 	// The top-scored hostiles first (#863), so the cap drops the least urgent.
 	for _, h := range rankThreats(view) {
 		if len(ask.Hostiles) < maxGeometryHostiles {
@@ -363,8 +375,9 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 	refusal := "no complete defense layout"
 	if layout, ok := view.Layout.Value(); ok {
 		cells := slices.Clone(layout.Firing)
+		_, _, blocking := blockingChoke(view)
 		for _, c := range geometry.Proposals {
-			if !slices.Contains(cells, c) {
+			if !blocking && !slices.Contains(cells, c) {
 				cells = append(cells, c)
 			}
 		}
@@ -376,6 +389,9 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 			for _, p := range positions {
 				cell := p.Cell
 				roles = append(roles, CombatRole{Pawn: p.Defender, Cell: &cell, Target: domain.PawnID(p.Target), Ranged: true})
+			}
+			if blocking {
+				roles = append(roles, blockingRoles(view.Defenders, geometry.Proposals)...)
 			}
 			return TacticHold, sortRoles(roles), ""
 		}

@@ -134,21 +134,30 @@ func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state Co
 // layout's firing line.
 func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
 	reply := policy.GeometryReply{Answered: true}
-	if ask == nil || ask.Propose != policy.RoleCoverBehindLine || len(ask.Hostiles) == 0 {
+	if ask == nil || len(ask.Hostiles) == 0 {
 		return reply
 	}
+	wire := func(cell domain.Cell) *c.Cell { return &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)} }
 	line := make([]*c.Cell, 0, len(ask.Line))
 	for _, cell := range ask.Line {
-		line = append(line, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
+		line = append(line, wire(cell))
 	}
 	if len(line) >= bridge.CombatGeometryMaxCells {
 		line = line[:bridge.CombatGeometryMaxCells-1]
+	}
+	var propose *mp.CombatGeometryPropose
+	switch ask.Propose {
+	case policy.RoleCoverBehindLine:
+		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}
+	case policy.RoleAdjacentToChoke:
+		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_AdjacentToChoke{AdjacentToChoke: &mp.CombatAdjacentToChoke{Choke: wire(ask.Choke), OurSide: wire(ask.OurSide)}}}
+	default:
+		return reply
 	}
 	hostiles := make([]string, 0, len(ask.Hostiles))
 	for _, h := range ask.Hostiles {
 		hostiles = append(hostiles, string(h))
 	}
-	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}
 	// The line is named too, so its cells carry the game's cover and
 	// Formation ranks line and proposals alike (#862).
 	request := bridge.CombatGeometryProposeAsk(identity, propose, hostiles, "")

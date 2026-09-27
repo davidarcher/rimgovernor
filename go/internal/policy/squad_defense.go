@@ -51,6 +51,9 @@ type SquadDefenderFacts struct {
 	// opponents and firing cells first. False when the profile is unknown;
 	// it orders preference only, never eligibility.
 	FrontLine bool
+	// Armor is the pawn's worn sharp armor rating; it ranks choke
+	// blockers (#864). Unknown ranks after every known rating.
+	Armor domain.Fact[float64]
 }
 
 type SquadMode uint8
