@@ -31,6 +31,10 @@ type ClockPollResult struct {
 	// stop's native stamp, zero when the event carried none.
 	Stopped   bool
 	StoppedAt time.Time
+	// Mirror reports the poll read through mirror_poll (#795); More that
+	// a section did not fit its page and MirrorChanged that the page
+	// applied rows or tombstones. The loop re-polls at once after either.
+	Mirror, More, MirrorChanged bool
 }
 
 type ClockRenewResult struct {

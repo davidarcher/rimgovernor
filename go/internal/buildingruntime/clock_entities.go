@@ -47,16 +47,32 @@ func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFac
 	// The policy zone refresher owns the typed zone census when available.
 	// Do not overwrite it with a second read under a different store type.
 	if _, policyZones := native.(observation.ZonesNative); !policyZones {
-		refreshEntitySection(ctx, f, scope, identity, tick, carried.zones, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
+		refreshEntitySection(ctx, f, scope, identity, tick, carried.zones, false, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
 			rows, _, err := native.ReadZones(ctx, identity, since)
 			return rows, err
 		})
 	}
-	refreshEntitySection(ctx, f, scope, identity, tick, carried.buildings, facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
+	// A native with mirror_poll brings the buildings and bills sections
+	// current in one immediate poll over the mirror's watermarks (#795),
+	// unless the poll loop already filed them at this tick; a section the
+	// page did not serve falls back to its list read.
+	var polled map[facts.Section]bool
+	if poller, ok := native.(MirrorPollNative); ok {
+		want := map[facts.Section]bool{}
+		for section, isCarried := range map[facts.Section]bool{facts.Buildings: carried.buildings, facts.Bills: carried.bills} {
+			if !isCarried && !(f.store.Scope() == scope && f.store.FreshWithin(section, tick, 0)) {
+				want[section] = true
+			}
+		}
+		if len(want) > 0 {
+			polled = pollEntitySections(ctx, poller, f, identity, want)
+		}
+	}
+	refreshEntitySection(ctx, f, scope, identity, tick, carried.buildings, polled[facts.Buildings], facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
 		rows, _, err := native.ReadBuildings(ctx, identity, since)
 		return rows, err
 	})
-	refreshEntitySection(ctx, f, scope, identity, tick, carried.bills, facts.Bills, "rimgovernor/observations_read_bills", func(since int64) (bridge.EntityRows[*o.BillStack], error) {
+	refreshEntitySection(ctx, f, scope, identity, tick, carried.bills, polled[facts.Bills], facts.Bills, "rimgovernor/observations_read_bills", func(since int64) (bridge.EntityRows[*o.BillStack], error) {
 		rows, _, err := native.ReadBillStacks(ctx, identity, since)
 		return rows, err
 	})
@@ -68,7 +84,11 @@ type entitySectionsCarried struct {
 	zones, buildings, bills bool
 }
 
-func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, identity *c.Identity, tick int64, carried bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
+func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, identity *c.Identity, tick int64, carried, polled bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
+	if polled {
+		// The mirror poll filed the section (clock_mirror_poll.go).
+		return
+	}
 	store := f.store
 	held, ok := facts.Get[EntitySection[T]](store, section)
 	ok = ok && store.Scope() == scope
@@ -91,7 +111,7 @@ func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, s
 		put(full.Rows, full.AsOf())
 		return
 	}
-	if table, mirrored := mirror.Get[string, T](f.mirror, ms, name); ok && (!mirrored || table.AsOf != mirror.At(held.AsOf)) {
+	if table, mirrored := mirror.Get[string, T](f.mirror, ms, name); ok && (!mirrored || table.AsOf.Before(mirror.At(held.AsOf))) {
 		mirror.Put(f.mirror, ms, name, map[string]T(held.Value), mirror.At(held.AsOf))
 	}
 	if store.ResyncDue(section) {

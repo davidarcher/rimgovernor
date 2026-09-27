@@ -22,6 +22,11 @@ const (
 	AdmissionControl     AdmissionClass = "control"
 	AdmissionObservation AdmissionClass = "observation"
 	AdmissionMedia       AdmissionClass = "media"
+	// AdmissionMirror is the mirror long poll (#795): ranked after
+	// observation and before media, one call at a time, and outside the
+	// shared slots, so its idle wait never holds one against a command
+	// or a read.
+	AdmissionMirror AdmissionClass = "mirror"
 )
 
 // Slot layout: control may hold any of the MaxConcurrentCalls slots and
@@ -32,6 +37,7 @@ const (
 	admissionControlReserved = 1
 	admissionObservationMax  = 5
 	admissionMediaMax        = 2
+	admissionMirrorMax       = 1
 )
 
 // admissionOutcome is what one admitted call learned about the queue: its
@@ -70,6 +76,8 @@ func (a *admission) classMax(class AdmissionClass) int {
 		return admissionObservationMax
 	case AdmissionMedia:
 		return admissionMediaMax
+	case AdmissionMirror:
+		return admissionMirrorMax
 	default:
 		return a.capacity
 	}
@@ -79,9 +87,14 @@ func (a *admission) classMax(class AdmissionClass) int {
 // and, for a non-control class, with the other classes together leaving
 // the reserved control slots untouched.
 func (a *admission) admits(class AdmissionClass) bool {
+	if class == AdmissionMirror {
+		return a.held[class] < admissionMirrorMax
+	}
 	total := 0
-	for _, n := range a.held {
-		total += n
+	for c, n := range a.held {
+		if c != AdmissionMirror {
+			total += n
+		}
 	}
 	if total >= a.capacity || a.held[class] >= a.classMax(class) {
 		return false
@@ -151,8 +164,8 @@ func (a *admission) removeLocked(w *admissionWaiter) {
 	}
 }
 
-// wakeLocked admits every waiter a free slot can take, control first, then
-// the others in arrival order.
+// wakeLocked admits every waiter a free slot can take by rank: control,
+// observation, mirror, media, and within a rank in arrival order.
 func (a *admission) wakeLocked() {
 	for progressed := true; progressed; {
 		progressed = false
@@ -161,7 +174,7 @@ func (a *admission) wakeLocked() {
 			if !a.admits(w.class) {
 				continue
 			}
-			if pick == nil || (w.class == AdmissionControl && pick.class != AdmissionControl) {
+			if pick == nil || admissionRank(w.class) < admissionRank(pick.class) {
 				pick = w
 			}
 			if pick.class == AdmissionControl {
@@ -176,6 +189,19 @@ func (a *admission) wakeLocked() {
 		close(pick.ready)
 		progressed = true
 	}
+}
+
+// admissionRank orders the classes a freed slot is offered to.
+func admissionRank(class AdmissionClass) int {
+	switch class {
+	case AdmissionControl:
+		return 0
+	case AdmissionMirror:
+		return 2
+	case AdmissionMedia:
+		return 3
+	}
+	return 1
 }
 
 // snapshot reports the slots held and the calls waiting per class.
@@ -258,6 +284,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/presentation_render_state":            AdmissionObservation,
 	"rimgovernor/presentation_render_demand":           AdmissionObservation,
 	"rimgovernor/presentation_lease_video":             AdmissionObservation,
+	mirrorPollMethod:                                   AdmissionMirror,
 	"rimgovernor/presentation_capture_pawn":            AdmissionMedia,
 	"rimgovernor/presentation_read_frame":              AdmissionMedia,
 	"rimgovernor/presentation_acknowledge_frame":       AdmissionMedia,

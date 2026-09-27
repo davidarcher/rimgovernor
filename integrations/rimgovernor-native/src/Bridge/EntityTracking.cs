@@ -51,20 +51,52 @@ namespace HomeBridge.BridgeTools
 
         private static readonly ConditionalWeakTable<Map, Dictionary<string, EntityTracking>> Maps = new ConditionalWeakTable<Map, Dictionary<string, EntityTracking>>();
 
-        private struct Entry { public ulong Digest; public int LastChanged; }
+        // A stamp: the tick, then a sequence within it (#795). Every read
+        // that visits a tracker takes the next sequence of its tick, so two
+        // reads at one paused tick are ordered and mirror_poll can ask for
+        // the changes strictly after its last page.
+        internal struct Mark
+        {
+            public int Tick; public uint Seq;
+            public int CompareTo(Mark other) => Tick != other.Tick ? Tick.CompareTo(other.Tick) : Seq.CompareTo(other.Seq);
+        }
+
+        private static Mark current = new Mark { Tick = int.MinValue };
+
+        // Current is the stamp of the newest read: every change any tracker
+        // noted so far is stamped at or before it.
+        internal static Mark Current => current;
+
+        // Next begins a read that notes changes outside any tracker (the
+        // mirror's planning cell grid): the next stamp of the game's tick.
+        internal static Mark Next()
+        {
+            int tick = Find.TickManager.TicksGame;
+            current = tick == current.Tick ? new Mark { Tick = tick, Seq = current.Seq + 1 } : new Mark { Tick = tick, Seq = 1 };
+            return current;
+        }
+
+        private struct Entry { public ulong Digest; public int LastChanged; public Mark Changed; }
 
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
-        private readonly Dictionary<string, int> removed = new Dictionary<string, int>();
+        private readonly Dictionary<string, Mark> removed = new Dictionary<string, Mark>();
         private int forgotThrough = int.MinValue; // newest tombstone the cap dropped
 
         // For is the tracker of one query shape on map (the tool name plus
-        // the options that shape its rows), created on first use.
+        // the options that shape its rows), created on first use. Each call
+        // begins a read: the changes it notes take a fresh stamp.
         internal static EntityTracking For(Map map, string shape)
         {
+            Next();
             var table = Maps.GetValue(map, _ => new Dictionary<string, EntityTracking>());
             if (!table.TryGetValue(shape, out var tracking)) table[shape] = tracking = new EntityTracking();
             return tracking;
         }
+
+        // Peek is the tracker of shape on map without beginning a read, or
+        // null when no read has created it.
+        internal static EntityTracking? Peek(Map map, string shape)
+            => Maps.TryGetValue(map, out var table) && table.TryGetValue(shape, out var tracking) ? tracking : null;
 
         // Covers reports an ask the tombstones can answer: within the
         // window before now and newer than any tombstone the cap dropped.
@@ -72,10 +104,10 @@ namespace HomeBridge.BridgeTools
         internal bool Covers(long since)
         {
             if (removed.Count > MaxTombstones)
-                foreach (var pair in removed.OrderBy(pair => pair.Value).Take(removed.Count - MaxTombstones).ToList())
+                foreach (var pair in removed.OrderBy(pair => pair.Value.Tick).ThenBy(pair => pair.Value.Seq).Take(removed.Count - MaxTombstones).ToList())
                 {
                     removed.Remove(pair.Key);
-                    if (pair.Value > forgotThrough) forgotThrough = pair.Value;
+                    if (pair.Value.Tick > forgotThrough) forgotThrough = pair.Value.Tick;
                 }
             return Find.TickManager.TicksGame - since <= TombstoneWindow && since > forgotThrough;
         }
@@ -89,7 +121,7 @@ namespace HomeBridge.BridgeTools
             var digest = Digest(row);
             removed.Remove(id);
             if (entries.TryGetValue(id, out var entry) && entry.Digest == digest) return entry.LastChanged;
-            entries[id] = new Entry { Digest = digest, LastChanged = now };
+            entries[id] = new Entry { Digest = digest, LastChanged = now, Changed = current };
             return now;
         }
 
@@ -102,14 +134,22 @@ namespace HomeBridge.BridgeTools
             foreach (var id in entries.Keys.Where(id => !listed.Contains(id)).ToList())
             {
                 entries.Remove(id);
-                removed[id] = now;
+                removed[id] = current;
             }
-            foreach (var id in removed.Where(pair => now - pair.Value > TombstoneWindow).Select(pair => pair.Key).ToList()) removed.Remove(id);
+            foreach (var id in removed.Where(pair => now - pair.Value.Tick > TombstoneWindow).Select(pair => pair.Key).ToList()) removed.Remove(id);
         }
 
         // RemovedSince lists the ids removed at or after since, in id order.
         internal IEnumerable<string> RemovedSince(long since) =>
-            removed.Where(pair => pair.Value >= since).Select(pair => pair.Key).OrderBy(id => id, System.StringComparer.Ordinal);
+            removed.Where(pair => pair.Value.Tick >= since).Select(pair => pair.Key).OrderBy(id => id, System.StringComparer.Ordinal);
+
+        // ChangedAfter reports whether the entity's row changed strictly
+        // after since (an entity the tracker does not hold did).
+        internal bool ChangedAfter(string id, Mark since) => !entries.TryGetValue(id, out var entry) || entry.Changed.CompareTo(since) > 0;
+
+        // RemovedAfter lists the ids removed strictly after since, in id order.
+        internal IEnumerable<string> RemovedAfter(Mark since) =>
+            removed.Where(pair => pair.Value.CompareTo(since) > 0).Select(pair => pair.Key).OrderBy(id => id, System.StringComparer.Ordinal);
 
         // Digest is a 64-bit FNV-1a over the row's wire bytes with every
         // snapshot token's context (the read's tick) stripped.

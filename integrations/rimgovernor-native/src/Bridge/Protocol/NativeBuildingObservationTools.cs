@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class NativeBuildingObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_list_buildings";
+        internal const string ToolName = "rimgovernor/observations_list_buildings";
 
         [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet. changed_since_tick (reads without ids, def_names, statuses, damaged_below_fraction or region) lists the buildings whose row changed at or after that tick, counts the rest in unchanged and names the buildings removed since in removed_ids; an ask older than the tombstone window (60000 ticks, 4096 ids) gets a full reply instead. as_of_tick, the context tick, marks a delta reply; a full reply omits it.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]

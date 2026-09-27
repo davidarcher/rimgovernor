@@ -50,6 +50,10 @@ namespace HomeBridge.BridgeTools
                 waiter.Source.TrySetResult(true);
             }
         }
+        // A mirror poll (#795) that registered a waiter with its journal
+        // read and then found a section changed answers at once: it gives
+        // the slot back.
+        internal static void CancelWake(Task<bool> wake) => ReleaseWaiter(wake);
         // Timed-out or cancelled waiters release their slot themselves.
         private static void ReleaseWaiter(Task<bool> wake)
         {

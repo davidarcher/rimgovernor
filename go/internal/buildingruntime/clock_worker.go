@@ -45,7 +45,20 @@ type ClockWorker struct {
 	// pollHeld records whether the running loop already re-polls itself.
 	pollWake chan struct{}
 	pollHeld atomic.Bool
+	// mirror is set when the poll reads through mirror_poll (#795): its
+	// wait is off the game thread and takes no admission slot, so it is
+	// held between windows too. writes reports a queued side-effect call,
+	// under which the poll does not wait.
+	mirror bool
+	writes func() bool
 }
+
+// Mirror poll transport-error backoff (#795): from pollBackoffMin,
+// doubling to pollBackoffMax, reset by a successful poll.
+const (
+	pollBackoffMin = 250 * time.Millisecond
+	pollBackoffMax = 2 * time.Second
+)
 
 func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents ClockEventNative, config ClockWorkerConfig) (*ClockWorker, error) {
 	if err := ctx.Err(); err != nil {
@@ -75,6 +88,10 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, validity: scheduler.Validity, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
+	}
+	_, w.mirror = nativeEvents.(MirrorPollNative)
+	if writes, ok := nativeEvents.(writesPending); ok {
+		w.writes = writes.WritesPending
 	}
 	w.stopParent = context.AfterFunc(scheduler.player.lifetime, cancel)
 	if err := errors.Join(ctx.Err(), scheduler.player.lifetime.Err()); err != nil {
@@ -186,12 +203,20 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 // waited (it returned no sooner than half of its wait) or that captured
 // evidence is followed by the next poll at once; a call that returned early
 // against a native build that ignores wait_ms falls back to the cadence.
+//
+// Through mirror_poll (#795) the read is held whether or not a window runs
+// (its wait holds neither the game thread nor an admission slot), except
+// while a side-effect call is queued or the last page left a section for
+// the next (more); a page that applied anything is followed by the next
+// poll at once, and a failed call backs off from 250 ms to 2 s.
 func (w *ClockWorker) pollLoop() {
 	ready := false
+	backoff := time.Duration(0)
+	more := false
 	for w.ctx.Err() == nil {
 		var wait time.Duration
 		running := w.held == nil || w.held()
-		if w.config.PollWait > 0 && running {
+		if w.config.PollWait > 0 && (running || w.mirror) && !more && (w.writes == nil || !w.writes()) {
 			wait = w.config.PollWait
 		}
 		w.pollHeld.Store(wait > 0)
@@ -216,11 +241,19 @@ func (w *ClockWorker) pollLoop() {
 			w.wake.NotifySections(result.Wake, result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Stopped, result.StoppedAt)
 		}
 		waited := wait > 0 && time.Since(started) >= wait/2
-		if err == nil && (waited || result.Captured) {
+		more = err == nil && result.More
+		if err == nil && (waited || result.Captured || result.More || result.MirrorChanged) {
+			backoff = 0
 			if w.ctx.Err() != nil {
 				return
 			}
 			continue
+		}
+		if err != nil && w.mirror {
+			backoff = min(pollBackoffMax, max(pollBackoffMin, backoff*2))
+			interval = backoff
+		} else if err == nil {
+			backoff = 0
 		}
 		// Step completion releases this wait immediately. The cadence is
 		// still a safety bound: a blocked step must not hide player input or

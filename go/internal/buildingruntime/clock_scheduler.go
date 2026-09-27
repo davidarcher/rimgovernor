@@ -748,7 +748,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		call = observation.WithZones(call, zones)
 	}
 	if native, ok := s.native.(PlanningWindowNative); ok {
-		window = &planningWindow{native: native, store: s.facts.store, mirror: s.facts.mirror}
+		window = &planningWindow{native: native, store: s.facts.store, mirror: s.facts.mirror, facts: s.facts}
 		call = observation.WithPlanningWindow(call, window)
 	}
 	stepBegan := time.Now()

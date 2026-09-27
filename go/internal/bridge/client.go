@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -213,6 +214,8 @@ type Client struct {
 	gameID     string
 	timeout    time.Duration
 	gate       *admission
+	// writes counts the typed side-effect calls queued or in flight.
+	writes atomic.Int64
 
 	deltas deltaStore
 

@@ -14,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -66,15 +67,41 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// after the review's cursor, from the same hop (issue #127). The page is
 	// read for the scope the bundle reports, so a load between the two is
 	// impossible; authority is judged against that scope below.
-	events := &o.BundleEventsRequest{AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
-	if wait > 0 {
-		events.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+	// A native with mirror_poll (#795) answers the same page with the
+	// polled mirror sections beside it, from the same hop; the page's
+	// journal context is the current scope.
+	var current *c.ObservationContext
+	var request *k.EventsRequest
+	var page *k.EventsPage
+	var mirrored *mp.MirrorPage
+	if poller, ok := native.(MirrorPollNative); ok {
+		epoch, asks := s.facts.mirrorAsks(nil)
+		ask := &mp.MirrorPollRequest{Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), JournalAfterCursor: proto.Int64(review.InboxCursor)}
+		if wait > 0 {
+			ask.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+		}
+		reply, _, err := poller.MirrorPoll(call, ask)
+		if err != nil {
+			return fail(err)
+		}
+		mirrored = reply.GetPage()
+		out.Mirror = true
+		page = mirrored.GetJournal()
+		current = page.GetContext()
+		request = bridge.MirrorJournalRequest(current.GetIdentity(), ask)
+	} else {
+		events := &o.BundleEventsRequest{AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
+		if wait > 0 {
+			events.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+		}
+		reply, _, err := native.ReadBundle(call, &o.BundleRequest{Events: events})
+		if err != nil {
+			return fail(err)
+		}
+		current = reply.GetObserved().GetContext()
+		request = bridge.BundleEventsRequest(current.GetIdentity(), events)
+		page = reply.GetObserved().GetEvents()
 	}
-	reply, _, err := native.ReadBundle(call, &o.BundleRequest{Events: events})
-	if err != nil {
-		return fail(err)
-	}
-	current := reply.GetObserved().GetContext()
 	if err = bridge.ValidateContext(current); err != nil {
 		return fail(err)
 	}
@@ -93,8 +120,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		}
 		out.Interrupted = true
 	}
-	request := bridge.BundleEventsRequest(current.Identity, events)
-	page := reply.GetObserved().GetEvents()
 	if err = bridge.ValidateClockEventsPage(page, request); err != nil {
 		return fail(err)
 	}
@@ -187,6 +212,12 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		if s.facts.apply(page) && s.config.Routine != nil {
 			s.config.Routine.census.invalidate()
 		}
+	}
+	// The page's sections are filed after its events invalidated the
+	// store: they describe the same snapshot, at or after every event.
+	if mirrored != nil {
+		applied := s.facts.applyMirrorPage(mirrored)
+		out.More, out.MirrorChanged = applied.more, applied.changed > 0
 	}
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {

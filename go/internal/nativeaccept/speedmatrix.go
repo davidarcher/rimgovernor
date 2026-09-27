@@ -300,6 +300,7 @@ type StopLatency struct {
 const (
 	clockEventsTool = "rimgovernor/clock_read_events"
 	bundleTool      = "rimgovernor/observations_read_bundle"
+	mirrorPollTool  = "rimgovernor/mirror_poll"
 	clockStartTool  = "rimgovernor/clock_start"
 )
 
@@ -332,7 +333,7 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 			}
 			continue
 		}
-		if tool != clockEventsTool && tool != bundleTool {
+		if tool != clockEventsTool && tool != bundleTool && tool != mirrorPollTool {
 			continue
 		}
 		wrapper, ok := row.Payload["result"].(map[string]any)

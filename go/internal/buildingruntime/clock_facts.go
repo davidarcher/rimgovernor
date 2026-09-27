@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 )
 
 // clockFacts is the scheduler's cross-step observation cache, the decoded
@@ -25,6 +26,15 @@ type clockFacts struct {
 	// planning cells, zones, buildings and bills, refreshed by
 	// changed-since reads and filed into store.
 	mirror *mirror.Mirror
+	// epoch is the mirror_poll epoch the polled sections' watermarks
+	// belong to (#795); nil until a page is applied. Guarded by mu.
+	epoch *mp.Epoch
+	// grid is the planning window as its last mirror_poll grid (#795),
+	// at gridAt under gridScope: the base a grid delta applies over.
+	// Guarded by mu.
+	grid      *bridge.CellGrid
+	gridAt    mirror.Watermark
+	gridScope mirror.Scope
 	// asks are the step families the last review step's planners asked
 	// for, folded into the next review bundle (#593).
 	asks bridge.BundleStepAsks

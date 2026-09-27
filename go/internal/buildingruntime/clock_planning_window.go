@@ -52,6 +52,9 @@ type planningWindow struct {
 	// when none rode or it failed to decode. A read the view serves under
 	// the step's validity fills the store from it without a native read.
 	view *bridge.PlanningWindowView
+	// facts, when set, is the scheduler's facts: a native with mirror_poll
+	// serves the window as a cell grid through it (#795).
+	facts *clockFacts
 }
 
 // planningWindowRead is the refresher's decision: whether the window is
@@ -94,6 +97,17 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 		return out, nil
 	} else if p.view != nil {
 		clockSchedulerLog("planning window view unused (%s): reading natively", stale)
+	}
+	if poller, polls := p.native.(MirrorPollNative); polls && p.facts != nil {
+		if ok {
+			region = held.Value.Region
+		}
+		if out, served := p.pollGrid(ctx, poller, identity, region); served {
+			return out, nil
+		}
+		if ok {
+			return held, nil
+		}
 	}
 	requested := p.store.ResyncDue(facts.PlanningCells)
 	if !ok {
