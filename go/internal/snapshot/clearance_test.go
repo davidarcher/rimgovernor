@@ -145,15 +145,15 @@ func homeShrine(t *testing.T, path string) (policy.AncientShrine, policy.ShrineP
 	return policy.AncientShrine{}, policy.ShrinePolicy{}
 }
 
-// clearance/shrine-open, ticks 15 and 17246: under the opt-in
-// --routine-shrine-open-caskets policy both filled caskets of the open Home
+// clearance/shrine-open, ticks 15 and 17246: with the opening gate
+// (#875) recorded ready both filled caskets of the open Home
 // shrine are open targets (the default policy never opens one), and once
 // the caskets are emptied there is nothing left to open.
-func TestReplayShrineCasketsOpenOnlyUnderOptIn(t *testing.T) {
+func TestReplayShrineCasketsOpenOnlyWhenReady(t *testing.T) {
 	const filled, opened = "testdata/clearance-shrine-open-filled.json", "testdata/clearance-shrine-open-opened.json"
 	row, p := homeShrine(t, filled)
-	if !p.OpenCaskets {
-		t.Fatal("recording lacks the opt-in open policy")
+	if p.Opening[row.ID] != policy.CasketOpen {
+		t.Fatal("recording lacks the ready opening gate")
 	}
 	if got := policy.ShrineOpenTargets([]policy.AncientShrine{row}, p)[row.ID]; len(got) != 2 {
 		t.Errorf("open targets %v, want both caskets", got)
@@ -167,23 +167,5 @@ func TestReplayShrineCasketsOpenOnlyUnderOptIn(t *testing.T) {
 	row, p = homeShrine(t, opened)
 	if got := policy.ShrineOpenTargets([]policy.AncientShrine{row}, p); len(got) != 0 {
 		t.Errorf("emptied caskets still open targets %v", got)
-	}
-}
-
-// clearance/shrine-heat, ticks 15 and 169848: the heat fallback first
-// proposes the shrine room's one door, and ends with the room enclosed,
-// every estimated heater built and the measured air past ShrineHeatReadyC.
-func TestReplayShrineHeatDoorThenHeated(t *testing.T) {
-	row, _ := homeShrine(t, "testdata/clearance-shrine-heat-open-room.json")
-	if got := policy.SelectShrineHeat(row, row.Caskets, nil); got.Phase != "heat_door" {
-		t.Errorf("open room phase %+v, want heat_door", got)
-	}
-	row, _ = homeShrine(t, "testdata/clearance-shrine-heat-hot.json")
-	f, _ := row.Heat.Value()
-	if !f.Enclosed || len(f.Heaters) < policy.ShrineHeaterCount(f) || f.Temperature <= policy.ShrineHeatReadyC {
-		t.Errorf("heated room %+v", f)
-	}
-	if got := policy.SelectShrineHeat(row, row.Caskets, nil); got.Phase == "heat_door" || got.Phase == "heat_heater" || got.Phase == "heat_enclosure" {
-		t.Errorf("heated room still building: %+v", got)
 	}
 }

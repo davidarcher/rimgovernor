@@ -69,7 +69,6 @@ type RoutinePolicy struct {
 	Lighting       LightingPolicy
 	Flooring       FlooringPolicy
 	Routes         RoutesPolicy
-	Shrine         ShrinePolicy
 	// MaxDevelopmentProjects is the concurrent optional-project slot count
 	// (1..8; StageDevelopmentLimit adds one at Development). With
 	// AutoDevelopment it is MaxAutoDevelopmentProjects and only bounds

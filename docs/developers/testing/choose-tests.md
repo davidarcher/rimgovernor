@@ -170,9 +170,8 @@ eight-minute cases in the clearance land selection and full tier.
 Build with `acceptance setup -rebuild -fixture ShrineFixture`; the existing
 csproj and build-script registrations include the class.
 
-`clearance/shrine-heat` and `clearance/shrine-open` replay as colony snapshots
-(`go/internal/snapshot`, #746): the door-then-heaters heat path and the opt-in
-casket open targets. Native casket opening and the fight after it are no
+`clearance/shrine-open` replays as a colony snapshot (`go/internal/snapshot`,
+#746): the casket open targets under a ready opening gate. Native casket opening and the fight after it are no
 longer covered by an acceptance case.
 
 ## Remote checks

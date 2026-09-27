@@ -132,15 +132,16 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 // routineShrineHolds judges every shrine the review's census lists for the
 // journal (#458): the readiness reason, guards_alive after a breach, or
 // ready with the chosen wall, then one row per casket naming its
-// CasketDecisionUnder (#459, #460) so a skipped filled casket is not silence,
+// CasketDecisionUnder (#459, #460, #875) so a sealed filled casket is not silence,
 // and one per released occupant naming its OccupantDecision (#460). A native
 // without the readiness reads leaves every shrine row readiness_unknown;
 // an unknown census leaves no rows.
-func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, shrinePolicy policy.ShrinePolicy) ([]policy.ShrineHold, error) {
+func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, policy.ShrinePolicy, error) {
 	shrines, known := projection.Facts.Upkeep.Shrines.Value()
 	if !known || len(shrines) == 0 {
-		return nil, nil
+		return nil, policy.ShrinePolicy{}, nil
 	}
+	var shrinePolicy policy.ShrinePolicy
 	custody := policy.JoinerCapacity(projection.Facts.JoinerCapacity())
 	reads, ok := native.(shrineReadinessNative)
 	if !ok {
@@ -149,18 +150,21 @@ func routineShrineHolds(ctx context.Context, native any, snapshot domain.Generat
 			out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: ShrineHoldReadinessUnknown})
 			out = append(out, casketHolds(shrine, shrinePolicy, custody)...)
 		}
-		return out, nil
+		return out, shrinePolicy, nil
 	}
 	reports, err := shrineReadiness(ctx, reads, boundary.Identity(snapshot), shrines, nil, projection.Threat.RaidPoints, projection.Center, projection.Bounds)
 	if err != nil {
-		return nil, err
+		return nil, shrinePolicy, err
+	}
+	if shrinePolicy, err = judgeShrineOpening(ctx, reads, boundary.Identity(snapshot), shrines, projection); err != nil {
+		return nil, shrinePolicy, err
 	}
 	out := make([]policy.ShrineHold, 0, len(reports))
 	for i, report := range reports {
 		out = append(out, policy.ShrineHold{Shrine: shrines[i].ID, Reason: policy.ShrineHoldReason(shrines[i], report.Readiness), Wall: report.Readiness.Wall.EntityID})
 		out = append(out, casketHolds(shrines[i], shrinePolicy, custody)...)
 	}
-	return out, nil
+	return out, shrinePolicy, nil
 }
 
 // casketHolds names each casket decision under the opening policy and,
@@ -212,3 +216,76 @@ func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.
 	}
 	return squad, nil
 }
+
+// shrineOpening judges the opening gate (#875) for every shrine with filled
+// caskets owed an opening: the squad, the emergency census and the review's
+// custody, medicine, doctor and raid-point readings. A shrine it judges not
+// ready keeps its caskets sealed under the hold reason.
+func shrineOpening(ctx context.Context, native shrineReadinessNative, identity *c.Identity, shrines []policy.AncientShrine, projection observation.ColonyProjection) (policy.ShrinePolicy, error) {
+	out := policy.ShrinePolicy{Opening: map[string]string{}}
+	every := policy.ShrinePolicy{Opening: map[string]string{}}
+	for _, shrine := range shrines {
+		every.Opening[shrine.ID] = policy.CasketOpen
+	}
+	targets := policy.ShrineOpenTargets(shrines, every)
+	if len(targets) == 0 {
+		return out, nil
+	}
+	observed, _, err := native.ReadEmergency(ctx, identity)
+	if err != nil {
+		return out, err
+	}
+	colonists := []string{}
+	emergency := false
+	for _, pawn := range observed.Facts.Colonists {
+		colonists = append(colonists, string(pawn.ID))
+		downed, _ := pawn.Downed.Value()
+		bleeding, _ := pawn.Bleeding.Value()
+		emergency = emergency || downed || bleeding
+	}
+	squad, err := shrineSquad(ctx, native, identity, colonists)
+	if err != nil {
+		return out, err
+	}
+	facts := projection.Facts
+	medicine := domain.Unknown[int64]()
+	if items, known := facts.MedicalReserve.Items.Value(); known {
+		n := int64(0)
+		for _, item := range items {
+			if !item.Forbidden {
+				n += item.Count
+			}
+		}
+		medicine = domain.Known(n)
+	}
+	doctors := domain.Unknown[int]()
+	if roster, known := facts.WorkRoster.Value(); known {
+		n := 0
+		for _, row := range roster {
+			if row.Work == policy.WorkDoctor {
+				n = row.Capable
+			}
+		}
+		doctors = domain.Known(n)
+	}
+	custody := policy.JoinerCapacity(facts.JoinerCapacity())
+	for id, caskets := range targets {
+		out.Opening[id] = policy.ShrineOpenReadiness(policy.ShrineOpenRequest{Caskets: caskets, Squad: squad, CustodyRoom: custody, Medicine: medicine, Doctors: doctors, Emergency: emergency, Combat: emergencyActive(observed.Facts), RaidPoints: projection.Threat.RaidPoints})
+	}
+	return out, ctx.Err()
+}
+
+// shrineOpeningFromHolds reads back the review's opening decisions: a
+// shrine with a casket decided open is owed its opening.
+func shrineOpeningFromHolds(holds []policy.ShrineHold) policy.ShrinePolicy {
+	out := policy.ShrinePolicy{Opening: map[string]string{}}
+	for _, hold := range holds {
+		if hold.Casket != "" && hold.Reason == policy.CasketOpen {
+			out.Opening[hold.Shrine] = policy.CasketOpen
+		}
+	}
+	return out
+}
+
+// judgeShrineOpening is shrineOpening; tests replace it to stage a ready gate.
+var judgeShrineOpening = shrineOpening

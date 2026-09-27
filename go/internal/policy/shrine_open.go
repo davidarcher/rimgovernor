@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -8,17 +9,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// ShrinePolicy is the operator's casket stance (#460). OpenCaskets off, the
-// default, leaves every filled casket sealed (#459); on, ClearAncientShrine
-// opens them under a melee lock once the shrine is open and guard-free. It
-// belongs on once the colony can hold prisoners: the ancients inside wake
-// hostile, and a downed one is worth capturing (very low recruitment
-// resistance), which needs a prisoner bed.
+// ShrinePolicy is the review's casket stance (#460, #875): Opening maps a
+// shrine to CasketOpen when ShrineOpenReadiness held at the review, or to the
+// readiness hold reason. A shrine it does not name, the zero value, leaves
+// every filled casket sealed (#459); the goal then finishes with the caskets
+// sealed and re-arms the next review the gate holds.
 type ShrinePolicy struct {
-	OpenCaskets bool
-	// HeatFallback permits heaters and a ranged opening only when the melee
-	// lock cannot be staffed. The zero value preserves the melee strategy.
-	HeatFallback bool
+	Opening map[string]string
 }
 
 // Casket decisions and holds under the opening policy (#460).
@@ -71,9 +68,6 @@ func OccupantDecision(occupant ShrineOccupant, custodyRoom bool) string {
 // identity order per shrine, and only under a policy that opens caskets.
 func ShrineOpenTargets(rows []AncientShrine, shrine ShrinePolicy) map[string][]ShrineCasket {
 	out := map[string][]ShrineCasket{}
-	if !shrine.OpenCaskets {
-		return out
-	}
 	for _, row := range rows {
 		if !row.InHome || row.Sealed || !row.GuardsKnown || row.GuardsAlive() {
 			continue
@@ -237,4 +231,87 @@ func EvaluateOpenCasket(r OpenCasketRequest) DraftDecision {
 		return refuse(NativeIneligible)
 	}
 	return DraftDecision{Admitted: true}
+}
+
+// Opening readiness holds (#875): each names the first unmet condition of
+// ShrineOpenReadiness; the caskets stay sealed and the goal re-arms once the
+// gate holds.
+const (
+	CasketHoldNoBackup      = "open_no_ranged_backup"
+	CasketHoldLockInjured   = "open_lock_injured"
+	CasketHoldNoCustody     = "open_no_prisoner_bed"
+	CasketHoldNoMedicine    = "open_no_medicine"
+	CasketHoldNoDoctor      = "open_no_doctor"
+	CasketHoldEmergency     = "open_emergency"
+	CasketHoldCombat        = "open_combat_active"
+	CasketHoldThreatUnknown = "open_threat_unknown"
+	CasketHoldThreatTooHigh = "open_threat_too_high"
+
+	shrineLockHealthMinimum = 0.8
+)
+
+// ShrineOpenRequest is what ShrineOpenReadiness judges one shrine's filled
+// caskets from. CustodyRoom is JoinerCapacity's reading; Medicine the usable
+// medicine count; Doctors the colonists capable of Doctor work.
+type ShrineOpenRequest struct {
+	Caskets           []ShrineCasket
+	Squad             []ShrineDefenderFacts
+	CustodyRoom       domain.Fact[bool]
+	Medicine          domain.Fact[int64]
+	Doctors           domain.Fact[int]
+	Emergency, Combat bool
+	RaidPoints        domain.Fact[float64]
+}
+
+// ShrineOpenReadiness is the gate that replaced the operator's opening flag
+// (#875): CasketOpen only when a melee lock of healthy colonists covers every
+// filled casket with one armed ranged colonist besides, custody has a bed for
+// a captive, there is a medicine per casket and a doctor, nothing is on fire,
+// and raid points sit under the breach ceiling for a squad of that size.
+// Otherwise the first unmet condition's hold reason.
+func ShrineOpenReadiness(r ShrineOpenRequest) string {
+	lock := ShrineMeleeLock(r.Caskets, r.Squad)
+	if lock.Reason != "" {
+		return lock.Reason
+	}
+	lockers := map[domain.PawnID]bool{}
+	for _, pawn := range lock.Lockers {
+		lockers[pawn] = true
+	}
+	backup := false
+	for _, d := range r.Squad {
+		if lockers[d.ID] {
+			if health, known := d.HealthFraction.Value(); !known || health < shrineLockHealthMinimum {
+				return CasketHoldLockInjured
+			}
+			continue
+		}
+		backup = backup || shrineDefenderEligible(d) && shrineRanged(d)
+	}
+	if !backup {
+		return CasketHoldNoBackup
+	}
+	if room, known := r.CustodyRoom.Value(); !known || !room {
+		return CasketHoldNoCustody
+	}
+	if medicine, known := r.Medicine.Value(); !known || medicine < int64(len(r.Caskets)) {
+		return CasketHoldNoMedicine
+	}
+	if doctors, known := r.Doctors.Value(); !known || doctors == 0 {
+		return CasketHoldNoDoctor
+	}
+	if r.Emergency {
+		return CasketHoldEmergency
+	}
+	if r.Combat {
+		return CasketHoldCombat
+	}
+	points, known := r.RaidPoints.Value()
+	if !known || math.IsNaN(points) || math.IsInf(points, 0) {
+		return CasketHoldThreatUnknown
+	}
+	if points > shrineSquadCeiling(len(lock.Lockers)+1) {
+		return CasketHoldThreatTooHigh
+	}
+	return CasketOpen
 }

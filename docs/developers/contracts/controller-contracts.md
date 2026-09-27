@@ -774,12 +774,12 @@ dead or downed. Eight attempts per wall and goal epoch; Stop and Manual
 release the drafts and controller-owned designations as for any owned
 draft. Ranged breaching is not composed.
 
-Caskets follow the default never-open policy (#459) unless
-`--routine-shrine-open-caskets` is set (#460). `policy.CasketDecisionUnder`
+Filled caskets stay sealed (#459) unless the opening gate holds (#460,
+#875). `policy.CasketDecisionUnder`
 names each casket's row in `ShrineHolds`: `shrine_sealed` and
 `guards_alive` while the breach is owed, `leave_sealed` for a casket that
-holds anything under the default policy (the ancients inside are a risk
-with no upside), `open` for one the opening policy will open, `claimed`
+holds anything with no shrine decision, the gate's hold reason (below)
+for one it keeps sealed, `open` for one the gate opens, `claimed`
 for one already the player's, and `claim` for an empty unowned casket. An
 open, guard-free shrine touching Home with a `claim` casket is still the
 goal's target: before any readiness read the planner reads each such
@@ -793,7 +793,20 @@ and a casket under 20% hit points explodes, so the census's hit points are
 a safety reading only. The deficit recovers once every casket is filled or
 the player's.
 
-Under the opening policy (#460) an open, guard-free shrine touching Home
+The opening gate (#875, `policy.ShrineOpenReadiness`, judged at each
+review) opens only when every condition holds: a melee lock of colonists at
+health 0.8 or better covers every filled casket (`lock_understaffed`,
+`open_lock_injured`), one armed ranged colonist besides stands as backup
+(`open_no_ranged_backup`), `JoinerCapacity` has a prisoner bed
+(`open_no_prisoner_bed`), usable medicine covers one per casket
+(`open_no_medicine`), a colonist can doctor (`open_no_doctor`), no colonist is
+downed or bleeding (`open_emergency`), no hostile threat holds
+(`open_combat_active`), and raid points sit under the breach ceiling for the
+lock plus the backup (`open_threat_unknown`, `open_threat_too_high`). A held
+gate leaves the shrine off the goal's targets, so the goal finishes with the
+caskets sealed and re-arms the next review the gate holds; nothing is urgent.
+
+Once the gate holds, an open, guard-free shrine touching Home
 with a filled casket is the goal's target after any claims: the planner
 reads the squad and `policy.ShrineMeleeLock` staffs one violence-capable
 colonist whose primary is not a ranged weapon per filled casket,
@@ -810,28 +823,10 @@ an occupant and `policy.OccupantDecision` names its `ShrineHolds` row:
 `bury` for a corpse (MaintainWaste), `fight` for a standing hostile
 (ActiveCombat), `capture` for a downed hostile or a standing neutral while
 `JoinerCapacity` has room (MaintainPopulation's custody method), `release`
-otherwise and `captured` once a prisoner. The flag belongs on once the
-colony can hold prisoners.
+otherwise and `captured` once a prisoner.
 
-`--routine-shrine-heat-fallback` additionally permits the heater strategy
-when the melee lock cannot be staffed. The visible roof-connected footprint
-must be bounded to 256 cells, with at most one breach to close with a door.
-The planner builds the door and at most eight heaters through shared resource
-admission, then sets them to 80 °C while no colonist is inside. Heater sizing
-accounts for per-cell warmup and wall heat loss; measured room temperature
-strictly above 60 °C is the opening gate. Heating lends 2500-tick windows,
-bounded to two game days after the setpoint work. Power comes from the normal
-colony power network. Unknown geometry, insufficient construction resources,
-missing ranged staff or failed warming holds the goal.
-
-Once heat preparation starts, the goal stays on that strategy. A heat opening
-owns one draft, moves the shooter to a door cell outside the interior, issues
-one stationary bullet attack, then retreats to the adjacent exterior cell.
-Native admission and projectile launch recheck heat, enclosure, an empty
-colonist interior, weapon eligibility, line of sight and casket damage margin.
-Explosive ammunition is refused. The zero-value policy still uses melee lock;
-the fallback requires the opening flag. Ordinary combat and custody retain
-ownership of released occupants. Neutral arrest uses the existing Capture
+Ordinary combat and custody retain ownership of released occupants. Neutral
+arrest uses the existing Capture
 variant described in [population contracts](population-contracts.md).
 
 ## Autonomous supply safety

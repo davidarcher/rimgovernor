@@ -38,12 +38,10 @@ type RoutineShrineSource interface {
 // releases the owned drafts and ActiveCombat answers the guards); and the
 // claim (#459), once the shrine is open and guard-free every empty casket
 // the player does not own is claimed in one method; and the opening
-// (#460), under a policy that opens caskets, the melee lock: one
+// (#460), once the review's opening gate holds (#875), the melee lock: one
 // violence-capable melee colonist drafted at each filled casket and one
 // OpenCasket order, held lock_understaffed while the squad cannot cover
-// every casket. The optional heat fallback builds heaters and opens by a
-// doorway shot when the melee lock is understaffed. Off policy, filled
-// caskets stay sealed.
+// every casket. While the gate holds back, filled caskets stay sealed.
 type RoutineShrinePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineShrineSource
@@ -67,11 +65,6 @@ const BuildingMethodHeld RoutineBuildingReason = "breach_held"
 func NewRoutineShrinePlanner(reviewer *RoutineReviewer, native RoutineShrineSource) (*RoutineShrinePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
-	}
-	if reviewer.policy.Shrine.HeatFallback {
-		if _, ok := native.(shrineHeatSource); !ok {
-			return nil, ErrControl
-		}
 	}
 	return &RoutineShrinePlanner{reviewer, native}, nil
 }
@@ -187,8 +180,11 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !known {
 		return RoutineShrineResult{Reason: BuildingMethodUnknown}, nil
 	}
+	// The opening gate (#875) was judged at the review; a casket it decided
+	// open there is owed an opening now. The lock is re-staffed below.
+	opening := shrineOpeningFromHolds(review.ShrineHolds)
 	targets := map[string]bool{}
-	for _, id := range policy.ShrineClearanceTargets(shrines, r.reviewer.policy.Shrine) {
+	for _, id := range policy.ShrineClearanceTargets(shrines, opening) {
 		targets[id] = true
 	}
 	var candidates []policy.AncientShrine
@@ -208,39 +204,20 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		}
 	}
 	held = RoutineShrineResult{Reason: BuildingMethodHeld}
-	opens := policy.ShrineOpenTargets(candidates, r.reviewer.policy.Shrine)
+	opens := policy.ShrineOpenTargets(candidates, opening)
 	if len(opens) > 0 {
 		squad, err := shrineSquad(call, r.native, boundary.Identity(state.Snapshot), nil)
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
 		snap.NoteShrineSquad(call, squad)
-		// Completed heat plans are retired, so a started fallback shows in
-		// the epoch's history rather than the active methods (#679).
-		history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
-		if err != nil {
-			return RoutineShrineResult{}, err
-		}
 		for _, shrine := range candidates {
 			caskets := opens[shrine.ID]
 			if len(caskets) == 0 {
 				continue
 			}
 			lock := policy.ShrineMeleeLock(caskets, squad)
-			heatStarted := false
-			for _, method := range history {
-				heatStarted = heatStarted || method.Epoch == goal.Goal.Epoch && strings.HasPrefix(string(method.Method), "heat_") && strings.Contains(string(method.Method), "-"+shrine.ID+"-")
-			}
-			if heatStarted {
-				if !r.reviewer.policy.Shrine.HeatFallback {
-					return RoutineShrineResult{Reason: BuildingMethodHeld, Shrine: shrine.ID, Hold: "heat_policy_disabled"}, nil
-				}
-				return r.heat(call, epoch, state, goal, shrine, caskets, squad, colony.Projection, started, arbiter)
-			}
 			if lock.Reason != "" {
-				if r.reviewer.policy.Shrine.HeatFallback {
-					return r.heat(call, epoch, state, goal, shrine, caskets, squad, colony.Projection, started, arbiter)
-				}
 				held = held.pass(shrine.ID, lock.Reason)
 				continue
 			}

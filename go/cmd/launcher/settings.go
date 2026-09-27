@@ -24,9 +24,7 @@ type Settings struct {
 	ChatModel     string `json:"chatModel"`
 	ChatBaseURL   string `json:"chatBaseURL"`
 
-	ShrineOpenCaskets  bool `json:"shrineOpenCaskets"`
-	ShrineHeatFallback bool `json:"shrineHeatFallback"`
-	LayoutOverlay      bool `json:"layoutOverlay"`
+	LayoutOverlay bool `json:"layoutOverlay"`
 
 	Debug     bool   `json:"debug"`
 	ExtraArgs string `json:"extraArgs"`
@@ -70,9 +68,6 @@ func SaveSettings(path string, s Settings) error {
 
 // Validate refuses settings serve would refuse, before a start.
 func (s Settings) Validate() error {
-	if s.ShrineHeatFallback && !s.ShrineOpenCaskets {
-		return errors.New("the shrine heat fallback requires opening caskets")
-	}
 	if _, err := SplitArgs(s.ExtraArgs); err != nil {
 		return err
 	}
@@ -112,10 +107,7 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 		for _, f := range []struct {
 			on   bool
 			name string
-		}{
-			{s.ShrineOpenCaskets, "--routine-shrine-open-caskets"},
-			{s.ShrineHeatFallback, "--routine-shrine-heat-fallback"},
-		} {
+		}{} {
 			if f.on {
 				args = append(args, f.name)
 			}

@@ -110,7 +110,6 @@ namespace HomeBridge.BridgeTools
                                 row.BreachWalls.Add(new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) });
                             }
                         }
-                        row.Heat = NativeShrineHeat.Read(map, caskets);
                         snapshot.Shrines.Add(row);
                     }
                     var count = (ulong)snapshot.Shrines.Count;

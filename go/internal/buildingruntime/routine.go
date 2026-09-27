@@ -474,7 +474,6 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		}
 	}
 	reading.Projection.Facts.Upkeep.Rooms = reading.Projection.Rooms
-	reading.Projection.Facts.Upkeep.ShrinePolicy = r.policy.Shrine
 	reading.Projection.Facts.CleaningContext(reading.Projection.Identity.Tick)
 	if err = p.current(ctx, epoch); err != nil {
 		clockSchedulerLog("routine.step: p.current err=%v", err)
@@ -512,7 +511,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		// hold reason and the chosen wall are readable; the planner re-reads
 		// before drafting anyone. The reads only happen for a sealed shrine
 		// with a breach wall.
-		if reading.Projection.Facts.ShrineHolds, err = routineShrineHolds(ctx, r.native, state.Snapshot, reading.Projection, r.policy.Shrine); err != nil {
+		if reading.Projection.Facts.ShrineHolds, reading.Projection.Facts.Upkeep.ShrinePolicy, err = routineShrineHolds(ctx, r.native, state.Snapshot, reading.Projection); err != nil {
 			return store.RoutineReviewResult{}, err
 		}
 	}

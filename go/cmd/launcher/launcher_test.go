@@ -27,14 +27,13 @@ func TestServeArgsDefaults(t *testing.T) {
 func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
 	s.AutoStart, s.ChatModel, s.ChatBaseURL = true, "qwen", "http://x/v1"
-	s.ShrineOpenCaskets, s.ShrineHeatFallback = true, true
 	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[15:], " ")
-	want := "--resume --chat-model qwen --chat-base-url http://x/v1 --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
+	want := "--resume --chat-model qwen --chat-base-url http://x/v1 --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
 	if got[14] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
@@ -63,7 +62,6 @@ func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	for name, mutate := range map[string]func(*Settings){
-		"heat":  func(s *Settings) { s.ShrineHeatFallback = true },
 		"quote": func(s *Settings) { s.ExtraArgs = `"open` },
 	} {
 		s := DefaultSettings()
@@ -182,5 +180,18 @@ func TestPortOwners(t *testing.T) {
 func TestUnpackGABSRefusesWrongHash(t *testing.T) {
 	if err := unpackGABS([]byte("not the release"), t.TempDir()); err == nil || !strings.Contains(err.Error(), "refusing") {
 		t.Fatal(err)
+	}
+}
+
+// Settings saved before #875 carry the removed shrine switches; they still
+// load, and the switches are ignored.
+func TestLoadSettingsIgnoresRemovedShrineSwitches(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"speed":"Normal","shrineOpenCaskets":true,"shrineHeatFallback":true,"layoutOverlay":false}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := LoadSettings(path)
+	if err != nil || s.LayoutOverlay || s.Validate() != nil {
+		t.Fatal(s, err)
 	}
 }

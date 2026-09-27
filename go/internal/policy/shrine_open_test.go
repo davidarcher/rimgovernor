@@ -89,3 +89,34 @@ func TestEvaluateOpenCasketAdmitsADraftedOpenerAndHolds(t *testing.T) {
 		}
 	}
 }
+
+func TestShrineOpenReadinessGate(t *testing.T) {
+	t.Parallel()
+	ready := func() ShrineOpenRequest {
+		return ShrineOpenRequest{Caskets: []ShrineCasket{{EntityID: "a", HasContents: true}, {EntityID: "b", HasContents: true}}, Squad: []ShrineDefenderFacts{shrineDefender("club", false, 0), shrineDefender("spear", false, 0), shrineDefender("rifle", true, 25)}, CustodyRoom: domain.Known(true), Medicine: domain.Known[int64](2), Doctors: domain.Known(1), RaidPoints: domain.Known(450.0)}
+	}
+	if got := ShrineOpenReadiness(ready()); got != CasketOpen {
+		t.Fatal(got)
+	}
+	for name, tc := range map[string]struct {
+		change func(*ShrineOpenRequest)
+		want   string
+	}{
+		"understaffed": {func(r *ShrineOpenRequest) { r.Squad = r.Squad[1:] }, CasketHoldLockUnderstaffed},
+		"no backup":    {func(r *ShrineOpenRequest) { r.Squad = r.Squad[:2] }, CasketHoldNoBackup},
+		"injured":      {func(r *ShrineOpenRequest) { r.Squad[1].HealthFraction = domain.Known(0.7) }, CasketHoldLockInjured},
+		"no bed":       {func(r *ShrineOpenRequest) { r.CustodyRoom = domain.Unknown[bool]() }, CasketHoldNoCustody},
+		"medicine":     {func(r *ShrineOpenRequest) { r.Medicine = domain.Known[int64](1) }, CasketHoldNoMedicine},
+		"doctor":       {func(r *ShrineOpenRequest) { r.Doctors = domain.Known(0) }, CasketHoldNoDoctor},
+		"emergency":    {func(r *ShrineOpenRequest) { r.Emergency = true }, CasketHoldEmergency},
+		"combat":       {func(r *ShrineOpenRequest) { r.Combat = true }, CasketHoldCombat},
+		"threat":       {func(r *ShrineOpenRequest) { r.RaidPoints = domain.Known(600.0) }, CasketHoldThreatTooHigh},
+		"unknown":      {func(r *ShrineOpenRequest) { r.RaidPoints = domain.Unknown[float64]() }, CasketHoldThreatUnknown},
+	} {
+		r := ready()
+		tc.change(&r)
+		if got := ShrineOpenReadiness(r); got != tc.want {
+			t.Errorf("%s: %s", name, got)
+		}
+	}
+}

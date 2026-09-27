@@ -155,17 +155,21 @@ func ShrineBreachReadiness(r ShrineReadinessRequest) ShrineReadiness {
 		out.Reason = ShrineHoldThreatUnknown
 		return out
 	}
-	ceiling := shrineThreatCeiling[len(shrineThreatCeiling)-1].points
-	for _, row := range shrineThreatCeiling {
-		if len(out.Squad) <= row.squad {
-			ceiling = row.points
-			break
-		}
-	}
-	if points > ceiling && !peaceful {
+	if points > shrineSquadCeiling(len(out.Squad)) && !peaceful {
 		out.Reason = ShrineHoldThreatTooHigh
 		return out
 	}
 	out.Ready = true
 	return out
+}
+
+// shrineSquadCeiling is the most raid points a squad of size breaches (or
+// opens caskets) under.
+func shrineSquadCeiling(size int) float64 {
+	for _, row := range shrineThreatCeiling {
+		if size <= row.squad {
+			return row.points
+		}
+	}
+	return shrineThreatCeiling[len(shrineThreatCeiling)-1].points
 }

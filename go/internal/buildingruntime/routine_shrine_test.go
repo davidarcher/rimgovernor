@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -257,7 +258,8 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Guard down, caskets inside: the filled one is left sealed and the
+	// Guard down, caskets inside: the filled one stays sealed on the opening
+	// gate (#875, no prisoner bed here) and the
 	// empty ones are claimed in one method under fresh CAS tokens; a casket
 	// the target read already shows as the player's is skipped.
 	opened.Guards[0].Dead = proto.Bool(true)
@@ -270,7 +272,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		t.Fatal(err)
 	}
 	holds := review.Review.ShrineHolds
-	if len(holds) != 6 || holds[0].Reason != policy.ShrineHoldNotSealed || holds[1] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketLeaveSealed, Casket: "filled"}) || holds[2].Reason != policy.CasketClaim || holds[5] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketClaimed, Casket: "mine"}) {
+	if len(holds) != 6 || holds[0].Reason != policy.ShrineHoldNotSealed || holds[1] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketHoldNoCustody, Casket: "filled"}) || holds[2].Reason != policy.CasketClaim || holds[5] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketClaimed, Casket: "mine"}) {
 		t.Fatal(holds)
 	}
 	result, err = planner.Step(ctx)
@@ -313,28 +315,13 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	}
 }
 
-// Under the opening policy an open, guard-free shrine with filled caskets
-// is one melee-lock method: an owned draft and a move to the casket's
-// interaction cell for one melee colonist per filled casket, then the
-// opener's OpenCasket on the lowest casket depending on all of them. Two
-// caskets and one melee colonist hold lock_understaffed; off policy the
-// caskets stay sealed (the claim test).
+// An open, guard-free shrine with filled caskets opens only once the gate
+// (#875) holds: until then the review journals the hold and the caskets stay
+// sealed. Ready, it is one melee-lock method: an owned draft and a move to
+// the casket's interaction cell for one melee colonist per filled casket,
+// then the opener's OpenCasket on the lowest casket depending on all of
+// them. A lock the planner cannot re-staff holds lock_understaffed.
 func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
-	t.Run("melee", func(t *testing.T) { testRoutineShrineOpening(t, false) })
-	t.Run("heat fallback", func(t *testing.T) { testRoutineShrineOpening(t, true) })
-	t.Run("heat install", func(t *testing.T) { testRoutineShrineOpening(t, true, "install") })
-}
-
-func (s *routineShrineNative) ReadBuildingTemperatureTarget(ctx context.Context, id *c.Identity, thing string) (bridge.BuildingTemperatureTarget, bridge.Result, error) {
-	return bridge.BuildingTemperatureTarget{Context: proto.Clone(s.reply.GetObserved().Context).(*c.ObservationContext), Thing: thing, Token: "heater-token", Temperature: policy.ShrineHeatTargetC}, bridge.Result{}, ctx.Err()
-}
-
-func (s *routineShrineNative) PreviewBuilding(ctx context.Context, a domain.Action, snapshot domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
-	return (&sleepingNative{routineNative: s.routineNative}).PreviewBuilding(ctx, a, snapshot)
-}
-
-func testRoutineShrineOpening(t *testing.T, heat bool, variant ...string) {
-	install := len(variant) > 0 && variant[0] == "install"
 	reviewer, db, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(3)
@@ -356,70 +343,40 @@ func testRoutineShrineOpening(t *testing.T, heat bool, variant ...string) {
 	source.shrines = []*o.AncientShrine{opened}
 	reviewer.native = source
 	reviewer.methods = domain.Known([]policy.GoalID{policy.ClearAncientShrine})
-	reviewer.policy.Shrine.OpenCaskets = true
-	if install {
-		builder := native.pawnReply.GetObserved().Pawns[0]
-		builder.Biography.Skills = append(builder.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String("Construction")}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
-		builder.Settings.Work = append(builder.Settings.Work, &o.WorkSetting{DefName: proto.String("Construction"), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
-		v.Planning.GetObserved().Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Heater")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}}
-	}
 	ctx := context.Background()
 	review, err := reviewer.Step(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if holds := review.Review.ShrineHolds; len(holds) != 3 || holds[1] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketOpen, Casket: "casket-b"}) || holds[2].Reason != policy.CasketOpen {
+	if holds := review.Review.ShrineHolds; len(holds) != 3 || holds[1].Reason == policy.CasketOpen || holds[1].Reason == policy.CasketLeaveSealed {
 		t.Fatal(review.Review.ShrineHolds)
 	}
 	planner, err := NewRoutineShrinePlanner(reviewer, source)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodNoDeficit {
+		t.Fatal("an unready gate leaves the caskets sealed", result, err)
+	}
+	judgeShrineOpening = func(context.Context, shrineReadinessNative, *c.Identity, []policy.AncientShrine, observation.ColonyProjection) (policy.ShrinePolicy, error) {
+		return policy.ShrinePolicy{Opening: map[string]string{"shrine": policy.CasketOpen}}, nil
+	}
+	t.Cleanup(func() { judgeShrineOpening = shrineOpening })
+	if review, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if holds := review.Review.ShrineHolds; len(holds) != 3 || holds[1] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketOpen, Casket: "casket-b"}) || holds[2].Reason != policy.CasketOpen {
+		t.Fatal(review.Review.ShrineHolds)
+	}
 	result, err := planner.Step(ctx)
 	if err != nil || result.Reason != BuildingMethodHeld || result.Hold != policy.CasketHoldLockUnderstaffed || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
-	if heat {
-		reviewer.policy.Shrine.HeatFallback = true
-		cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
-		opened.Heat = &o.ShrineHeat{TemperatureCelsius: proto.Float64(65), OutdoorTemperatureCelsius: proto.Float64(20), CellCount: proto.Uint32(15), BoundaryCells: proto.Uint32(16), Enclosed: proto.Bool(true), ColonistsInside: proto.Bool(false), FiringCells: []*c.Cell{cell(33, 30)}, RetreatCells: []*c.Cell{cell(33, 29)}, Heaters: []*o.EntityRef{{Id: proto.String("h1"), DefName: proto.String("Heater"), Position: cell(31, 31)}, {Id: proto.String("h2"), DefName: proto.String("Heater"), Position: cell(32, 31)}, {Id: proto.String("h3"), DefName: proto.String("Heater"), Position: cell(33, 31)}}}
-		if install {
-			// One heater stands; the two missing ones are built by one plan
-			// (#712), not one plan per planner pass.
-			opened.Heat.Heaters = opened.Heat.Heaters[:1]
-			opened.Heat.HeaterSites = []*c.Cell{cell(32, 31), cell(33, 31), cell(34, 31)}
-		}
-	} else {
-		source.melee = true
-	}
+	source.melee = true
 	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
-	if install {
-		if err != nil || len(plan.Progress) != 2 {
-			t.Fatal(plan, err)
-		}
-		for i, want := range []domain.Cell{{X: 32, Z: 31}, {X: 33, Z: 31}} {
-			building, ok := plan.Spec.Actions()[i].Building()
-			if !ok || building.Definition() != "Heater" || building.Cell() != want {
-				t.Fatal(plan.Spec.Actions())
-			}
-		}
-		return
-	}
-	if heat {
-		if err != nil || len(plan.Progress) != 4 {
-			t.Fatal(plan, err)
-		}
-		actions := plan.Spec.Actions()
-		open, ok := actions[2].OpenCasket()
-		move, mk := actions[1].Movement()
-		if !ok || !open.Heat() || open.JobDef() != "AttackStatic" || !mk || move.Destination() != (domain.Cell{X: 33, Z: 30}) || len(plan.Spec.Dependencies()) != 5 {
-			t.Fatal(actions, plan.Spec.Dependencies())
-		}
-		return
-	}
 	if err != nil || len(plan.Progress) != 5 {
 		t.Fatal(plan, err)
 	}

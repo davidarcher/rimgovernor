@@ -121,32 +121,6 @@ func TestPickShrineMeleeLock(t *testing.T) {
 	}
 }
 
-// clearance/shrine-heat, ticks 15, 16592 and 88414: with no melee
-// colonist free for the lock, the heat fallback builds the room's one
-// door, then its three heaters, and once the room is hot sends the
-// rifleman to the doorway to shoot the lowest casket and retreat.
-func TestPickShrineHeatDoorHeatersShooter(t *testing.T) {
-	step := func(tick string) policy.ShrineHeatProposal {
-		t.Helper()
-		row, caskets := homeShrineCaskets(t, "testdata/planner-shrine-heat-"+tick+"-routine.json.gz")
-		squad := planner(t, "testdata/planner-shrine-heat-"+tick+".json").ShrineSquads[0]
-		if lock := policy.ShrineMeleeLock(caskets, squad); lock.Reason != policy.CasketHoldLockUnderstaffed {
-			t.Errorf("tick %s lock %+v, want understaffed", tick, lock)
-		}
-		return policy.SelectShrineHeat(row, caskets, squad)
-	}
-	if got := step("15"); got.Phase != "heat_door" || got.Cell != (domain.Cell{X: 139, Z: 53}) {
-		t.Errorf("tick 15 %+v, want the door at 139,53", got)
-	}
-	if got := step("16592"); got.Phase != "heat_heater" || got.Heaters != 3 || !reflect.DeepEqual(got.Cells, []domain.Cell{{X: 137, Z: 54}, {X: 137, Z: 55}, {X: 137, Z: 56}}) {
-		t.Errorf("tick 16592 %+v, want three heaters", got)
-	}
-	got := step("88414")
-	if got.Phase != "heat_open" || got.Pawn != "Thing_Human724" || got.Casket.EntityID != "Thing_AncientCryptosleepCasket44710" || got.Cell != (domain.Cell{X: 139, Z: 53}) || got.Retreat != (domain.Cell{X: 139, Z: 52}) {
-		t.Errorf("tick 88414 %+v, want Human724 shooting 44710 from the doorway", got)
-	}
-}
-
 // clearance/shrine-claim, tick 15: the sealed shrine is ready to breach
 // through Thing_Wall44693 with the full eight-colonist squad, the three
 // colony traps accounted for.

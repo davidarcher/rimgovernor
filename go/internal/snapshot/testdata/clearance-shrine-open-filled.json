@@ -11012,7 +11012,7 @@
     }
    },
    "ShrinePolicy": {
-    "OpenCaskets": true
+    "Opening": {"AncientShrineGroup_9460": "open"}
    },
    "Shrines": {
     "v": [
@@ -11170,65 +11170,6 @@
        }
       ],
       "GuardsKnown": true,
-      "Heat": {
-       "v": {
-        "BoundaryCells": 16,
-        "Cells": 15,
-        "Enclosed": true,
-        "FiringCells": [
-         {
-          "X": 113,
-          "Z": 129
-         }
-        ],
-        "HeaterSites": [
-         {
-          "X": 111,
-          "Z": 130
-         },
-         {
-          "X": 111,
-          "Z": 131
-         },
-         {
-          "X": 111,
-          "Z": 132
-         },
-         {
-          "X": 112,
-          "Z": 132
-         },
-         {
-          "X": 113,
-          "Z": 131
-         },
-         {
-          "X": 113,
-          "Z": 132
-         },
-         {
-          "X": 114,
-          "Z": 132
-         },
-         {
-          "X": 115,
-          "Z": 131
-         },
-         {
-          "X": 115,
-          "Z": 132
-         }
-        ],
-        "OutdoorTemperature": 3.5616650581359863,
-        "RetreatCells": [
-         {
-          "X": 113,
-          "Z": 128
-         }
-        ],
-        "Temperature": 3.5625
-       }
-      },
       "ID": "AncientShrineGroup_9460",
       "InHome": true,
       "Maximum": {
@@ -12519,9 +12460,6 @@
    "Door": "Door",
    "MaxBreaches": 4,
    "Stuff": "WoodLog"
-  },
-  "Shrine": {
-   "OpenCaskets": true
   },
   "WoodMax": 500,
   "WoodMin": 120,

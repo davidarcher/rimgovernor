@@ -25,9 +25,8 @@ Settings persist to `.rimgovernor/launcher.json`.
   on every load (`--resume`); game speed (Ultrafast adaptive paces ticks to
   your frame rate); continue the last state database or start fresh; optional
   chat model and LM Studio URL.
-- **Colony policy**: allow slaughter or release of surplus animals, open
-  ancient shrine caskets (and the heat fallback), the layout overlay, and
-  food reserve days.
+- **Colony policy**: allow slaughter or release of surplus animals, the layout
+  overlay, and food reserve days.
 - **Advanced**: debug logging and extra `rimgovernor serve` arguments
   (`rimgovernor serve -h` lists them).
 

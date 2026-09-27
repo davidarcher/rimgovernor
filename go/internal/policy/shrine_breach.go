@@ -48,17 +48,17 @@ func CasketDecision(casket ShrineCasket, shrine AncientShrine) string {
 	return CasketDecisionUnder(casket, shrine, ShrinePolicy{})
 }
 
-// CasketDecisionUnder is CasketDecision under an operator policy: with
-// OpenCaskets on, a filled casket of an open, guard-free shrine is opened
-// (#460) instead of left sealed.
+// CasketDecisionUnder is CasketDecision under an operator policy: a
+// filled casket of an open, guard-free shrine takes the shrine's Opening
+// decision (#460, #875): open, or the readiness hold it is left sealed on.
 func CasketDecisionUnder(casket ShrineCasket, shrine AncientShrine, policy ShrinePolicy) string {
 	switch {
 	case shrine.Sealed:
 		return CasketHoldSealed
 	case shrine.GuardsAlive():
 		return ShrineHoldGuardsAlive
-	case casket.HasContents && policy.OpenCaskets:
-		return CasketOpen
+	case casket.HasContents && policy.Opening[shrine.ID] != "":
+		return policy.Opening[shrine.ID]
 	case casket.HasContents:
 		return CasketLeaveSealed
 	case casket.PlayerClaimed:

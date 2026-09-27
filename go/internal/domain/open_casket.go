@@ -15,24 +15,9 @@ type OpenCasket struct {
 	pawn   PawnID
 	casket string
 	cell   Cell
-	heat   bool
 }
 
-// NewHeatOpenCasket opens by one stationary ranged attack from a doorway.
-// Native admission rechecks the enclosure, heat, pawn position and weapon.
-func NewHeatOpenCasket(pawn PawnID, casket string, cell Cell) (OpenCasket, error) {
-	o, err := NewOpenCasket(pawn, casket, cell)
-	o.heat = true
-	return o, err
-}
-
-func (o OpenCasket) Heat() bool { return o.heat }
-func (o OpenCasket) JobDef() string {
-	if o.heat {
-		return "AttackStatic"
-	}
-	return "Open"
-}
+func (o OpenCasket) JobDef() string { return "Open" }
 
 func NewOpenCasket(pawn PawnID, casket string, cell Cell) (OpenCasket, error) {
 	if !validID(string(pawn)) || !validID(casket) || cell.X < 0 || cell.Z < 0 {

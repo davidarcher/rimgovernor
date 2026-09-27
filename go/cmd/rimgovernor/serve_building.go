@@ -624,14 +624,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		meleeCapabilities, rangedCapabilities, movementCapabilities = client.melee, client.ranged, client.movement
 	}
-	// The shrine heat fallback walks its shooter to the doorway and back
-	// out (#679).
-	if config.routineShrineHeatFallback {
-		if client.movement == nil {
-			return errors.New("the shrine heat fallback requires typed movement capabilities")
-		}
-		movementCapabilities = client.movement
-	}
 	var tendCapabilities *tend.TendCapabilities
 	if config.routineTendPlans {
 		if client.tend == nil {
@@ -805,13 +797,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		productionPolicyCapabilities = client.production
 	}
-	// The refrigeration family patches cooler targets and the shrine heat
-	// fallback patches heater targets through the shared executor, so the
-	// building-temperature capability rides with either (#679).
+	// The refrigeration family patches cooler targets through the shared
+	// executor.
 	var buildingTemperatureCapabilities *buildingtemperature.Capabilities
-	if config.routineRefrigerationPlans || config.routineShrineHeatFallback {
+	if config.routineRefrigerationPlans {
 		if client.buildingTemperature == nil {
-			return errors.New("refrigeration plans and the shrine heat fallback require typed capabilities")
+			return errors.New("refrigeration plans require typed capabilities")
 		}
 		buildingTemperatureCapabilities = client.buildingTemperature
 	}

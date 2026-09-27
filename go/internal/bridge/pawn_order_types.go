@@ -56,8 +56,6 @@ func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 		return []string{"Repair"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET:
 		return []string{"Open"}
-	case o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET_HEAT:
-		return []string{"AttackStatic"}
 	default:
 		return nil
 	}

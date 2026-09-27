@@ -78,8 +78,6 @@ type serveConfig struct {
 	routineAnimalContainmentPlans   bool
 	routineRecoveryPlans            bool
 	routineHusbandryPlans           bool
-	routineShrineOpenCaskets        bool
-	routineShrineHeatFallback       bool
 	layoutOverlay                   bool
 	routinePrisonerInteractionPlans bool
 	routinePopulationCustodyPlans   bool
@@ -147,8 +145,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
-	flags.BoolVar(&c.routineShrineOpenCaskets, "routine-shrine-open-caskets", false, "let ClearAncientShrine open filled ancient cryptosleep caskets under a melee lock (one violence-capable melee colonist drafted at each casket) once the shrine is breached and guard-free; off, filled caskets stay sealed. Turn on once the colony can hold prisoners: the ancients wake hostile and a downed one is worth capturing")
-	flags.BoolVar(&c.routineShrineHeatFallback, "routine-shrine-heat-fallback", false, "when the melee lock cannot be staffed, enclose and heat the shrine above 60 C and shoot a casket from its doorway; requires --routine-shrine-open-caskets")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
 	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
@@ -186,12 +182,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
-	}
-	if c.routineShrineOpenCaskets && !c.routineShrinePlans {
-		return c, errors.New("--routine-shrine-open-caskets requires the shrine routine family")
-	}
-	if c.routineShrineHeatFallback && !c.routineShrineOpenCaskets {
-		return c, errors.New("--routine-shrine-heat-fallback requires --routine-shrine-open-caskets")
 	}
 	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Executable) || !filepath.IsAbs(c.bridge.ConfigDir) || c.bridge.GameID == "" {
 		return c, errors.New("absolute --state, --gabs, --config and a --game ID are required")
