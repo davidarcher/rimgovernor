@@ -11,41 +11,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// colonySection is one colony facts sub-section (bridge.SplitColonyFacts)
-// as a mirror section keyed by its row paths (#795 step 3). The bridge
-// completes every #773 delta reply before returning it, so each read is a
-// keyframe of the section; the recording keeps only the rows that changed.
-type colonySection struct {
-	name string
-	rows map[string]bridge.ColonyRow
-	tick int64
-}
-
-func (s colonySection) Name() string                     { return s.name }
-func (s colonySection) Equal(a, b bridge.ColonyRow) bool { return a.Equal(b) }
-func (s colonySection) Read(context.Context, mirror.Watermark) (mirror.Read[string, bridge.ColonyRow], error) {
-	return mirror.Read[string, bridge.ColonyRow]{AsOf: mirror.At(s.tick), Rows: s.rows}, nil
-}
-
 type colonyFactsReader interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
-// publishColony refreshes every colony section from the review frame's
-// colony facts (planning, no extra definitions) and returns the tables'
-// mirror versions.
-func publishColony(ctx context.Context, m *mirror.Mirror, scope mirror.Scope, observed *o.ColonyFactsSnapshot) (map[string]uint64, error) {
+// publishColony publishes every colony facts sub-section
+// (bridge.SplitColonyFacts, keyed by row path) of the review frame's colony
+// facts (planning, no extra definitions) and returns the tables' mirror
+// versions.
+func publishColony(m *mirror.Mirror, scope mirror.Scope, observed *o.ColonyFactsSnapshot) map[string]uint64 {
 	split := bridge.SplitColonyFacts(observed)
 	tick := observed.GetContext().GetTick()
 	versions := make(map[string]uint64, len(split))
 	for _, name := range bridge.ColonySections() {
-		table, _, err := mirror.Refresh(ctx, m, scope, tick, colonySection{name: name, rows: split[name], tick: tick})
-		if err != nil {
-			return nil, err
-		}
-		versions[name] = table.Version
+		versions[name] = mirror.Put(m, scope, name, split[name], mirror.At(tick)).Version
 	}
-	return versions, nil
+	return versions
 }
 
 // colonyTables rebuilds the colony facts the mirror holds at versions,

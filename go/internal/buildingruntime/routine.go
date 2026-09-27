@@ -131,24 +131,17 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 
 // publishFrame puts the review frame's colony facts and colonist pawn rows
 // into the colony mirror (#795), which recordings and planners serve.
-func (r *RoutineReviewer) publishFrame(ctx context.Context, expected observation.Identity, frame bridge.RoutineFrame) error {
+func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame bridge.RoutineFrame) {
 	r.census.rememberColony(nil)
 	if r.mirror == nil {
-		return nil
+		return
 	}
 	generation, _ := expected.NativeGeneration.Value()
 	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
 	if frame.Pawns != nil {
-		if err := publishPawns(ctx, r.mirror, scope, frame.Pawns); err != nil {
-			return err
-		}
+		publishPawns(r.mirror, scope, frame.Pawns)
 	}
-	versions, err := publishColony(ctx, r.mirror, scope, frame.Colony)
-	if err != nil {
-		return err
-	}
-	r.census.rememberColony(versions)
-	return nil
+	r.census.rememberColony(publishColony(r.mirror, scope, frame.Colony))
 }
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
@@ -290,7 +283,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
 	if err == nil {
-		err = r.publishFrame(ctx, expected, reading.Frame)
+		r.publishFrame(expected, reading.Frame)
 	}
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)

@@ -8,9 +8,9 @@ const row = (sequence: number, wall: number, kind: string, context: Record<strin
 // companion's split, a refused call under a worker dispatch, the step row.
 export const stepRows = [
   row(10, 0, 'native_cache_hit', ctx(root), {native_tool: 'rimgovernor/lifecycle_read_tick', tool: 'games_call_tool'}),
-  row(11, 5, 'native_request', ctx(root), {tool: 'games_call_tool', arguments: {tool: 'rimgovernor/observations_read_bundle'}}),
-  row(12, 105, 'native_decode', ctx(root), {native_tool: 'rimgovernor/observations_read_bundle', request: 11}),
-  row(13, 106, 'native_response', ctx(root), {request: 11, tool: 'games_call_tool', native_tool: 'rimgovernor/observations_read_bundle', result: {}, timing: {gate_wait_ms: 10, call_ms: 80, decode_ms: 5, total_ms: 100, native_queue_ms: 20, native_execute_ms: 50, native_trace: `${T}/${root}`}}),
+  row(11, 5, 'native_request', ctx(root), {tool: 'games_call_tool', arguments: {tool: 'rimgovernor/snapshot_frame_routine'}}),
+  row(12, 105, 'native_decode', ctx(root), {native_tool: 'rimgovernor/snapshot_frame_routine', request: 11}),
+  row(13, 106, 'native_response', ctx(root), {request: 11, tool: 'games_call_tool', native_tool: 'rimgovernor/snapshot_frame_routine', result: {}, timing: {gate_wait_ms: 10, call_ms: 80, decode_ms: 5, total_ms: 100, native_queue_ms: 20, native_execute_ms: 50, native_trace: `${T}/${root}`}}),
   row(14, 120, 'worker_dispatch', ctx(child, root), {action: 'routine-acquire-1', receipt: 'refused', reads: 1}),
   row(15, 125, 'native_request', ctx(child, root), {tool: 'games_call_tool', arguments: {tool: 'rimgovernor/operations_execute'}}),
   row(16, 145, 'native_error', ctx(child, root), {request: 15, tool: 'games_call_tool', native_tool: 'rimgovernor/operations_execute', error: 'refused: stale_facts', timing: {gate_wait_ms: 0, call_ms: 18, decode_ms: 1, total_ms: 20}}),

@@ -231,7 +231,7 @@ func (m mirroredBenches) ReadGearBenches(ctx context.Context, id *c.Identity) ([
 		}
 	}
 	tick := int64(m.expected.Tick)
-	table, _, err := mirror.Refresh(ctx, r.mirror, m.scope, tick, benchSection{native: m.native, id: id, tick: tick})
+	table, err := publishBenches(ctx, r.mirror, m.scope, m.native, id, tick)
 	if err != nil {
 		return nil, bridge.Result{}, err
 	}

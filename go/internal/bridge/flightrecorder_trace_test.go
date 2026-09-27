@@ -132,8 +132,8 @@ func TestTraceReportWaterfall(t *testing.T) {
 		return m
 	}
 	rows := []TimelineRecord{
-		{Kind: "native_request", Sequence: 10, WallTime: 100.000, Context: stamp(root, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/observations_read_bundle"}},
-		{Kind: "native_response", Sequence: 11, WallTime: 100.012, Context: stamp(root, 50), Payload: map[string]any{"request": float64(10), "native_tool": "rimgovernor/observations_read_bundle", "timing": map[string]any{"total_ms": 12.0, "gate_wait_ms": 0.0, "call_ms": 11.5, "decode_ms": 0.2}}},
+		{Kind: "native_request", Sequence: 10, WallTime: 100.000, Context: stamp(root, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/snapshot_frame_routine"}},
+		{Kind: "native_response", Sequence: 11, WallTime: 100.012, Context: stamp(root, 50), Payload: map[string]any{"request": float64(10), "native_tool": "rimgovernor/snapshot_frame_routine", "timing": map[string]any{"total_ms": 12.0, "gate_wait_ms": 0.0, "call_ms": 11.5, "decode_ms": 0.2}}},
 		{Kind: "native_frame_hit", Sequence: 12, WallTime: 100.013, Context: stamp(root, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/observations_list_pawns"}},
 		{Kind: "native_request", Sequence: 13, WallTime: 100.020, Context: stamp(dispatch, 50), Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/operations_execute"}},
 		{Kind: "native_error", Sequence: 14, WallTime: 100.025, Context: stamp(dispatch, 50), Payload: map[string]any{"request": float64(13), "native_tool": "rimgovernor/operations_execute", "error": "refused", "timing": map[string]any{"total_ms": 5.0, "call_ms": 4.9}}},
@@ -152,7 +152,7 @@ func TestTraceReportWaterfall(t *testing.T) {
 	want := []string{
 		"trace " + root.TraceID + ": 9 rows over 40.0ms, tick 50, sequence 10..18",
 		"    at ms   dur ms  span      row",
-		"      0.0     12.0  " + shortID(root.SpanID) + "  native rimgovernor/observations_read_bundle  gate 0.0 call 11.5 decode 0.2",
+		"      0.0     12.0  " + shortID(root.SpanID) + "  native rimgovernor/snapshot_frame_routine  gate 0.0 call 11.5 decode 0.2",
 		"     13.0        -  " + shortID(root.SpanID) + "  frame hit rimgovernor/observations_list_pawns",
 		"     20.0      5.0  " + shortID(dispatch.SpanID) + "      native rimgovernor/operations_execute  gate 0.0 call 4.9 decode 0.0  error: refused",
 		"     26.0        -  " + shortID(dispatch.SpanID) + "      worker_dispatch reads=1 receipt=refused",

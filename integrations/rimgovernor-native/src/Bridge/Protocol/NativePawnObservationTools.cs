@@ -51,21 +51,17 @@ namespace HomeBridge.BridgeTools
             return ProtoBoundary.Encode(reply);
         }
 
-        // The pawn list as a bundle section (issue #180): the same rows the
-        // tool answers, or false for any read failure the bundle then omits.
-        // A present field mask (#648) skips the optional blocks it excludes at
-        // source; null is the dedicated tool's whole row.
+        // The pawn list as a frame section (issue #180): the same rows the
+        // tool answers, or false for any read failure the frame then omits.
         internal static bool TryRead(Map map, Obs.ListPawnsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.PawnSnapshot? snapshot)
-            => TryRead(map, request, context, null, out snapshot);
-        internal static bool TryRead(Map map, Obs.ListPawnsRequest request, Common.ObservationContext context, Obs.PawnFields? fields, [NotNullWhen(true)] out Obs.PawnSnapshot? snapshot)
         {
             snapshot = null;
-            try { snapshot = Read(map, request, context, fields); return true; }
+            try { snapshot = Read(map, request, context); return true; }
             catch (Exception) { return false; }
         }
 
         // On the main thread.
-        private static Obs.PawnSnapshot Read(Map map, Obs.ListPawnsRequest parsed, Common.ObservationContext context, Obs.PawnFields? fields = null)
+        private static Obs.PawnSnapshot Read(Map map, Obs.ListPawnsRequest parsed, Common.ObservationContext context)
         {
             var source = map.mapPawns.AllPawnsSpawned.ToList();
             if (parsed.Filter?.IncludeDead == true)
@@ -92,7 +88,7 @@ namespace HomeBridge.BridgeTools
             if (details.Tend) NativePawnDetails.Tend(page);
             foreach (var item in page) {
                 if (raidArmor.HasValue) item.Value.RaidArmor = raidArmor.Value;
-                NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context, fields);
+                NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);
                 if (item.Value.Settings != null) {
                     item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
                     if (item.Value.Settings.Snapshot != null)

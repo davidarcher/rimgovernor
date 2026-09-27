@@ -481,33 +481,21 @@ digests and tombstones, `mirror_poll`, `SectionDelta` and the
 `changed_since_tick` request fields. Mirror reads now come from the
 snapshot frame stream.
 
-The colony mirror (`go/internal/mirror`, #795) is the row store under
-these refreshers: per section, keyed rows and the watermark they are
-complete through (`mirror.Watermark`: a tick and a seq ordering changes
-within that tick; the zones read stamps ticks only, seq 0), refreshed by `mirror.Refresh` (keyframe, delta with
-upserts and tombstones, a full reply replacing the section, resync
-backstop and drift count). Its scope is the load, map and native generation, so a reload, a
-map change or an authority generation flip makes the next refresh of
-every section a keyframe. Tables are immutable once published and
-`Mirror.View` is a versioned snapshot of every section. A section joins
-by implementing `mirror.Section` (a changed-since read, answered as a
-delta or in full, and a row equality); `buildingruntime/clock_mirror.go` adapts the cell, zone and
-entity reads. The refreshers file each table into `facts.Store`, which
-the planners read. Watermarks stay per section (`mirror.Watermarks`);
-`View.CompleteThrough` is the least of them, the one point every section
-is complete through. The review reads the colonists' pawn detail
-(section `pawns`, keyed by pawn id) and the bench census (`benches`, each
-bench's bills and recipes, keyed by bench thing id; a keyframe every read)
-through the mirror, and retains its census for the step's planners
-(`routineCensus`): a planner of the same load, map and native generation
-plans from it at any tick at or after the review, paused or running,
-until committed
-clock evidence invalidates it; the work planner serves the review's bench
-table the same way. There is no paused review bracket: CAS evidence on
-every write refuses a decision the world moved past. Research
-stays bundle-borne (its rows are defs with continuous progress, not
-entities that come and go) and areas and designations have no list read
-to page, so neither carries the fields.
+The colony mirror (`go/internal/mirror`, #795) holds, per section, the
+keyed rows of the last whole frame (#858) and the tick they describe
+(`mirror.Put`). Its scope is the load, map and native generation, so a
+reload, a map change or an authority generation flip empties it. Tables
+are immutable once published, and each goes to the snapshot recorder.
+The review publishes the frame's colony facts (one section per
+`bridge.ColonySections` name), the colonists' pawn detail (section
+`pawns`, keyed by pawn id) and the bench census (`benches`, each bench's
+bills and recipes, keyed by bench thing id), and retains its census for
+the step's planners (`routineCensus`): a planner of the same load, map
+and native generation plans from it at any tick at or after the review,
+paused or running, until committed clock evidence invalidates it; the
+work planner serves the review's bench table the same way. There is no
+paused review bracket: CAS evidence on every write refuses a decision the
+world moved past.
 
 ## Independent clock workers
 

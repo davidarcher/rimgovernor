@@ -25,7 +25,7 @@ func TestEveryReviewedMethodHasAnAdmissionClass(t *testing.T) {
 		"rimgovernor/clock_renew":              AdmissionControl,
 		"rimgovernor/clock_pause":              AdmissionControl,
 		"rimgovernor/operations_execute":       AdmissionControl,
-		"rimgovernor/observations_read_bundle": AdmissionObservation,
+		"rimgovernor/observations_read_status": AdmissionObservation,
 		"rimgovernor/observations_list_pawns":  AdmissionObservation,
 		"rimgovernor/presentation_read_frame":  AdmissionMedia,
 		"games_status":                         AdmissionControl,
@@ -130,7 +130,7 @@ func TestControlCallDispatchesAheadOfObservationCalls(t *testing.T) {
 	client := testClient(t, s, 5*time.Second)
 	for i := 0; i < observations; i++ {
 		go func() {
-			_, _ = client.NativeCall(context.Background(), "rimgovernor/observations_read_bundle", json.RawMessage(`{}`))
+			_, _ = client.NativeCall(context.Background(), "rimgovernor/observations_read_status", json.RawMessage(`{}`))
 		}()
 	}
 	for i := 0; i < admissionObservationMax; i++ {

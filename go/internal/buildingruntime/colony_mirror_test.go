@@ -66,10 +66,7 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 
 	published := proto.Clone(facts).(*o.ColonyFactsSnapshot)
 	published.Context = native.context(id)
-	versions, err := publishColony(ctx, r.mirror, scope, published)
-	if err != nil || versions == nil {
-		t.Fatalf("review publish: %v", err)
-	}
+	versions := publishColony(r.mirror, scope, published)
 	if table, ok := mirror.Get[string, bridge.ColonyRow](r.mirror, scope, "colony.resources"); !ok || len(table.Rows) != 3 {
 		t.Fatalf("resources section = %+v", table)
 	}

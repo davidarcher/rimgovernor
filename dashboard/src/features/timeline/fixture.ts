@@ -15,13 +15,13 @@ export function toolReply(reply: unknown): Record<string, unknown> {
 
 const context = (tick: number) => ({identity: {colonyId: 'c', loadToken: 'l', mapId: 0}, tick: String(tick), nativeGeneration: '6'});
 
-// bundle is one observations_read_bundle request/response pair carrying an
+// bundle is one snapshot_frame_routine request/response pair carrying an
 // events page (optionally a long poll) and the clock status at `tick`.
 export function bundle(seq: number, at: number, tick: number, paused: boolean, events: Record<string, unknown>[], waitMs = 0): Row[] {
   const request = {identity: context(tick).identity, events: {afterCursor: '0', limit: 32, waitMs}};
   return [
-    row(seq, at, 'native_request', {tool: 'games_call_tool', arguments: {gameId: 'g', tool: 'rimgovernor/observations_read_bundle', arguments: {request: JSON.stringify(request)}}}),
-    row(seq + 1, at + 0.05, 'native_response', {request: seq, tool: 'games_call_tool', native_tool: 'rimgovernor/observations_read_bundle', timing: {total_ms: 50}, result: toolReply({observed: {context: context(tick), clockStatus: {context: context(tick), actualPaused: paused}, events: {context: context(tick), events}}})}),
+    row(seq, at, 'native_request', {tool: 'games_call_tool', arguments: {gameId: 'g', tool: 'rimgovernor/snapshot_frame_routine', arguments: {request: JSON.stringify(request)}}}),
+    row(seq + 1, at + 0.05, 'native_response', {request: seq, tool: 'games_call_tool', native_tool: 'rimgovernor/snapshot_frame_routine', timing: {total_ms: 50}, result: toolReply({observed: {context: context(tick), clockStatus: {context: context(tick), actualPaused: paused}, events: {context: context(tick), events}}})}),
   ];
 }
 
@@ -42,7 +42,7 @@ export function recording(): string {
   const rows: Row[] = [
     row(1, 0, 'coverage', {coverage: 'test'}),
     ...bundle(2, 0.1, 11, true, []),
-    row(4, 0.9, 'clock_step', {reads: 2, tools: {'rimgovernor/observations_read_bundle': 1}, schema_fetches: 0, cache_hits: 1, parent_hits: 0, running: false, elapsed_ms: 800, reason: 'full', window_ticks: 2500, window_target_s: 2, window_tps: 360}),
+    row(4, 0.9, 'clock_step', {reads: 2, tools: {'rimgovernor/snapshot_frame_routine': 1}, schema_fetches: 0, cache_hits: 1, parent_hits: 0, running: false, elapsed_ms: 800, reason: 'full', window_ticks: 2500, window_target_s: 2, window_tps: 360}),
     row(5, 1.0, 'native_request', {tool: 'games_call_tool', arguments: {gameId: 'g', tool: 'rimgovernor/clock_start', arguments: {request: JSON.stringify({speed: 'SPEED_SUPERFAST', tickBudget: 2500})}}}),
     row(6, 1.2, 'native_response', {request: 5, tool: 'games_call_tool', native_tool: 'rimgovernor/clock_start', timing: {total_ms: 200}, result: toolReply({receipt: {applied: {status: {context: context(11), running: {epoch: {epoch: '1'}}}}}})}),
     ...bundle(7, 1.3, 11, false, [started(1, (T0 + 1.2) * 1000, 11, 2511)], 4000),
@@ -67,7 +67,7 @@ export const stderrLog = [
   '[clock-scheduler] Haul.step result: reason=admitted plan=routine-haul-1',
   '[clock-scheduler] colony window: 2500 ticks (target 2.0s at 360 ticks/s, pause estimate known=false 0.0s, observed rate known=false 0 ticks/s)',
   '[clock-scheduler] EvaluateClockWindow: work=true combatPlan=false admitted=true mode=colony hostiles=[] refused=[] watched=1',
-  '[clock-scheduler] step reads: total=6 observations_read_bundle=2 clock_start=1 cache hits=7 misses=2 coalesced=0 parent_hits=0 invalidations=2 running=false elapsed=800ms',
+  '[clock-scheduler] step reads: total=6 snapshot_frame_routine=2 clock_start=1 cache hits=7 misses=2 coalesced=0 parent_hits=0 invalidations=2 running=false elapsed=800ms',
   '[clock-scheduler] step done: err=<nil> planner failures=<nil>',
   '[clock-scheduler] stop committed: pause-bound admissions held 114ms before the review',
   '[clock-scheduler] status: running=false stopping=false stopped=true neverStarted=false stopReason=STOP_REASON_WATCH_LATCHED tick=735 tickAdvanced=true',
@@ -75,7 +75,7 @@ export const stderrLog = [
   '[clock-scheduler] Haul.step result: reason=no_active_deficit plan=',
   '[clock-scheduler] colony window: 2500 ticks (target 2.0s at 90 ticks/s, pause estimate known=true 1.2s, observed rate known=true 90 ticks/s)',
   '[clock-scheduler] EvaluateClockWindow: work=false combatPlan=false admitted=false mode= hostiles=[] refused=[no_work] watched=0',
-  '[clock-scheduler] step reads: total=2 observations_read_bundle=2 cache hits=6 misses=0 coalesced=0 parent_hits=0 invalidations=0 running=false elapsed=1.5s',
+  '[clock-scheduler] step reads: total=2 snapshot_frame_routine=2 cache hits=6 misses=0 coalesced=0 parent_hits=0 invalidations=0 running=false elapsed=1.5s',
   '[clock-scheduler] step done: err=building execution held planner failures=<nil>',
   '[clock-worker] step failed: building execution held',
   '[worker] routine-haul-1-0 stage=pending attempt=0 receipt=- effect=- refused=[hauler_unavailable] err=building execution held',

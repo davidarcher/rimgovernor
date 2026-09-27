@@ -36,7 +36,7 @@ describe('buildTrace', () => {
     expect(trace.rows.map(r => r.sequence)).toEqual([10, 11, 12, 13, 14, 15, 16, 17]);
     expect(trace.lines.map(l => [l.sequence, l.kind, l.depth, l.text])).toEqual([
       [10, 'native_cache_hit', 0, 'cache hit rimgovernor/lifecycle_read_tick'],
-      [11, 'native_request', 0, 'native rimgovernor/observations_read_bundle'],
+      [11, 'native_request', 0, 'native rimgovernor/snapshot_frame_routine'],
       [14, 'worker_dispatch', 1, 'worker_dispatch'],
       [15, 'native_error', 1, 'native rimgovernor/operations_execute'],
       [17, 'scheduler_step', 0, 'scheduler_step "step done"'],

@@ -48,7 +48,7 @@ func TestObservationAccountAggregated(t *testing.T) {
 		if i == 10 {
 			account["outcome"] = "failure"
 		}
-		rows = append(rows, response("rimgovernor/observations_read_bundle", observed(nativeTimed(float64(i)/10, float64(i)+1), account)))
+		rows = append(rows, response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(float64(i)/10, float64(i)+1), account)))
 	}
 	summary := SummarizePhases(rows)
 	obs := summary.Observation
@@ -101,16 +101,16 @@ func TestObservationAccountAggregated(t *testing.T) {
 func TestObservationAccountAbsentStaysUnknown(t *testing.T) {
 	rows := []TimelineRecord{
 		// Pre-#642: queue/execute only.
-		response("rimgovernor/observations_read_bundle", nativeTimed(1, 4)),
+		response("rimgovernor/snapshot_frame_routine", nativeTimed(1, 4)),
 		// An untimed call (a failure before timing existed).
 		{Kind: "native_response", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool", "native_tool": "rimgovernor/clock_read_status"}},
 		// A malformed account: a negative duration is not a measurement.
-		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), map[string]any{"captureMs": -1.0, "formatMs": 1.0})),
+		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), map[string]any{"captureMs": -1.0, "formatMs": 1.0})),
 		// An empty account carries no measurement either.
-		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), map[string]any{})),
+		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), map[string]any{})),
 		// An error row keeps its call in the tool totals with no account.
 		{Kind: "native_error", WallTime: 1, Payload: map[string]any{"tool": "games_call_tool",
-			"native_tool": "rimgovernor/observations_read_bundle", "error": "transport", "timing": nativeTimed(0, 0)}},
+			"native_tool": "rimgovernor/snapshot_frame_routine", "error": "transport", "timing": nativeTimed(0, 0)}},
 	}
 	summary := SummarizePhases(rows)
 	obs := summary.Observation
@@ -147,11 +147,11 @@ func TestObservationEncodeBlockSplitsOffThread(t *testing.T) {
 			"encode": map[string]any{"queueMs": queue, "ms": ms, "formatMs": ms / 2, "formatPasses": 1.0}}
 	}
 	rows := []TimelineRecord{
-		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 7), legacy)),
-		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), detached(0.5, 2))),
-		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), detached(1.5, 6))),
+		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 7), legacy)),
+		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), detached(0.5, 2))),
+		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), detached(1.5, 6))),
 		// A malformed encode block is not a measurement.
-		response("rimgovernor/observations_read_bundle", observed(nativeTimed(1, 4), map[string]any{"captureMs": 4.0,
+		response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(1, 4), map[string]any{"captureMs": 4.0,
 			"encode": map[string]any{"queueMs": -1.0, "ms": 2.0}})),
 	}
 	summary := SummarizePhases(rows)
@@ -198,7 +198,7 @@ func frameSampleRow(updates, observations, cancelled uint64, elapsed, maxUpdate,
 		"observationMs": observationMs, "observations": float64(observations), "cancelled": float64(cancelled),
 		"recorderMs": recorder, "slow": buckets, "worst": worst,
 	}
-	return response("rimgovernor/observations_read_bundle", timing)
+	return response("rimgovernor/snapshot_frame_routine", timing)
 }
 
 // TestFrameAccountDifferencedOverRecording checks the cumulative frame
@@ -318,7 +318,7 @@ func TestThreatScanAggregated(t *testing.T) {
 		if i < 2 {
 			account["threatScan"] = map[string]any{"examined": 500.0, "candidates": 3.0, "projections": 3.0, "proximityChecks": 4.0}
 		}
-		rows = append(rows, response("rimgovernor/observations_read_bundle", observed(nativeTimed(0.1, 1), account)))
+		rows = append(rows, response("rimgovernor/snapshot_frame_routine", observed(nativeTimed(0.1, 1), account)))
 	}
 	summary := SummarizePhases(rows)
 	got := summary.Observation.Threats

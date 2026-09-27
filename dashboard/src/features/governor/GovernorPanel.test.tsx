@@ -43,7 +43,7 @@ it('renders the health strip, the feed newest first, and a picked step as a wate
   expect(trace).toHaveTextContent('scheduler_step: step done · 8 rows over 200.0 ms · tick 29,900 · sequence 10..17');
   const lines = within(trace).getAllByRole('row').slice(1);
   expect(lines).toHaveLength(5);
-  expect(lines[1]).toHaveTextContent('native rimgovernor/observations_read_bundle');
+  expect(lines[1]).toHaveTextContent('native rimgovernor/snapshot_frame_routine');
   expect(lines[1]).toHaveTextContent('gate 10.0 · call 80.0 · decode 5.00 · native queue 20.0 exec 50.0');
   expect(lines[3]).toHaveTextContent('refused: stale_facts');
   expect(lines[3]).toHaveClass('governor-error');

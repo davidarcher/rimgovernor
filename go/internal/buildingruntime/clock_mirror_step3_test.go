@@ -23,22 +23,17 @@ func pawnRow(id, kind string) *o.PawnState {
 // dropped.
 func TestPawnSectionPublishesTable(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 	m := mirror.New()
 	scope := mirror.Scope{Load: "l", Map: 1, Generation: 2}
 	frame := func(tick int64, pawns ...*o.PawnState) *o.PawnSnapshot {
 		return &o.PawnSnapshot{Context: &c.ObservationContext{Tick: proto.Int64(tick)}, Pawns: pawns}
 	}
-	if err := publishPawns(ctx, m, scope, frame(100, pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b"))); err != nil {
-		t.Fatal(err)
-	}
+	publishPawns(m, scope, frame(100, pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b")))
 	table, ok := mirror.Get[string, *o.PawnState](m, scope, pawnSectionName)
 	if !ok || len(table.Rows) != 2 || table.AsOf != mirror.At(100) {
 		t.Fatalf("table = %+v ok=%v", table, ok)
 	}
-	if err := publishPawns(ctx, m, scope, frame(130, pawnRow("Pawn_1", "c"))); err != nil {
-		t.Fatal(err)
-	}
+	publishPawns(m, scope, frame(130, pawnRow("Pawn_1", "c")))
 	table, _ = mirror.Get[string, *o.PawnState](m, scope, pawnSectionName)
 	if len(table.Rows) != 1 || table.Rows["Pawn_1"].GetKindDefName() != "c" || table.AsOf != mirror.At(130) {
 		t.Fatalf("table after roster change = %+v", table)
