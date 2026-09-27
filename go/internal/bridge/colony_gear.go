@@ -8,8 +8,9 @@ import (
 	"math"
 )
 
-// gearCandidateBound mirrors NativeGearFacts.CandidateBound.
-const gearCandidateBound = 8
+// gearCandidateBound is the census limit NativeGearFacts carries
+// candidates up to (the colony facts collection limit).
+const gearCandidateBound = 256
 
 func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v.Context, ctx) {
@@ -89,10 +90,10 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if err := colonyCounts(p.Completeness, len(p.Candidates), 256); err != nil {
 			return err
 		}
-		// A loadout carries at most gearCandidateBound candidates (the best
-		// by gain); further eligible items count as filtered only once the
+		// A loadout carries every eligible candidate up to
+		// gearCandidateBound; further items count as filtered only once the
 		// bound is full, so a short census with omissions stays a contract
-		// error (issue #320).
+		// error.
 		if p.Completeness.GetFiltered() != 0 && len(p.Candidates) < gearCandidateBound || len(p.ReplacementNeeds) > 256 {
 			return contract("incomplete gear candidates or oversized needs")
 		}

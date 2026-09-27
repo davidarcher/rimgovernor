@@ -232,42 +232,84 @@ func wearRound(t *testing.T, obs policy.GearObservation, stock []policy.Stock) (
 // Replaces the native gear/roster case (#469, #748): the baseline grown to
 // twelve colonists stripped of shirt and headgear, a stockpile holding a
 // shirt and a tuque per pawn plus spares (test/gear_area_prepare mode
-// "roster"). gear-roster-stripped.json is the first review (tick 15) of
-// `acceptance run gear/roster` at 4e86b4663 (serve families work,gear).
-// A planner round dresses from storage, each pawn once and each stored
-// shirt or tuque once, and reaches no bill while an offer is unclaimed.
-// (That run's window closed with MaintainEquipment still in deficit after
-// the policy writes; the batch decision is what this test keeps.)
+// "roster"). gear-roster-stripped.json.gz is the first review (tick 15) of
+// `acceptance run gear/roster`, re-recorded for #769 once the native census
+// offered every eligible item instead of each pawn's best eight.
+// Every pawn is offered a stored shirt and tuque, and two planner rounds
+// (one wear per pawn per round; the census refreshes between them) dress
+// every pawn in both from storage, each stored item once, before any bill.
 func TestGearRosterDressesEveryPawnFromStorage(t *testing.T) {
-	r := loadRoutine(t, "testdata/gear-roster-stripped.json")
+	r := loadRoutine(t, "testdata/gear-roster-stripped.json.gz")
 	wantEquipmentDeficit(t, r)
 	obs := recordedGear(t, r)
 	if len(obs.Pawns) != 12 {
 		t.Fatalf("recorded %d colonists, want 12", len(obs.Pawns))
 	}
-	orders, end := wearRound(t, obs, candidateStock(obs))
-	pawns, targets := map[policy.PawnID]bool{}, map[string]bool{}
-	for _, m := range orders {
-		if pawns[m.Pawn] || targets[m.Target] {
-			t.Fatalf("order %+v repeats a pawn or a stored item", m)
-		}
-		pawns[m.Pawn], targets[m.Target] = true, true
-		if !strings.Contains(m.Target, "Apparel_BasicShirt") && !strings.Contains(m.Target, "Apparel_Tuque") {
-			t.Fatalf("order %+v is not a stored shirt or tuque", m)
+	for _, p := range obs.Pawns {
+		candidates, _ := p.Candidates.Value()
+		if !hasDefinition(candidates, rosterShirt) || !hasDefinition(candidates, rosterTuque) {
+			t.Fatalf("%s is not offered both a stored shirt and a tuque", p.Pawn)
 		}
 	}
-	// The native census offers each pawn a bounded candidate list over the
-	// same stockpile, so a round ends once every unclaimed offer is taken;
-	// the next round's fresh census offers the rest.
-	if len(pawns) < 8 {
-		t.Fatalf("round dressed %d pawns, want at least 8; ended on %+v", len(pawns), end)
+	stock := candidateStock(obs)
+	worn := map[policy.PawnID]map[policy.Resource]bool{}
+	targets := map[string]bool{}
+	for round := range 2 {
+		orders, end := wearRound(t, obs, stock)
+		if end.Kind == policy.GearReplace || end.Kind == policy.GearProduce {
+			t.Fatalf("round %d ended on %+v before the bench census", round, end)
+		}
+		for _, m := range orders {
+			if targets[m.Target] {
+				t.Fatalf("order %+v wears a stored item twice", m)
+			}
+			targets[m.Target] = true
+			def := policy.Resource(rosterShirt)
+			if strings.Contains(m.Target, rosterTuque) {
+				def = rosterTuque
+			} else if !strings.Contains(m.Target, rosterShirt) {
+				t.Fatalf("order %+v is not a stored shirt or tuque", m)
+			}
+			if worn[m.Pawn] == nil {
+				worn[m.Pawn] = map[policy.Resource]bool{}
+			}
+			if worn[m.Pawn][def] {
+				t.Fatalf("order %+v dresses %s twice for one slot", m, m.Pawn)
+			}
+			worn[m.Pawn][def] = true
+		}
+		// The next census: each pawn wears what it took, so it is offered
+		// neither a taken item nor another of a definition it now wears.
+		for i := range obs.Pawns {
+			p := &obs.Pawns[i]
+			p.Blocked = false
+			candidates, _ := p.Candidates.Value()
+			var left []policy.GearCandidate
+			for _, c := range candidates {
+				if !targets[c.Target] && !worn[p.Pawn][c.Definition] {
+					left = append(left, c)
+				}
+			}
+			p.Candidates = domain.Known(left)
+		}
 	}
 	for _, p := range obs.Pawns {
-		if candidates, _ := p.Candidates.Value(); !p.Blocked && len(candidates) > 0 {
-			t.Fatalf("%s left undressed with %d stored items still offered", p.Pawn, len(candidates))
+		if !worn[p.Pawn][rosterShirt] || !worn[p.Pawn][rosterTuque] {
+			t.Fatalf("%s left without shirt and tuque: %v", p.Pawn, worn[p.Pawn])
 		}
 	}
-	if end.Kind == policy.GearReplace || end.Kind == policy.GearProduce {
-		t.Fatalf("round ended on %+v before the bench census", end)
+}
+
+const (
+	rosterShirt = "Apparel_BasicShirt"
+	rosterTuque = "Apparel_Tuque"
+)
+
+func hasDefinition(candidates []policy.GearCandidate, def policy.Resource) bool {
+	for _, c := range candidates {
+		if c.Definition == def {
+			return true
+		}
 	}
+	return false
 }

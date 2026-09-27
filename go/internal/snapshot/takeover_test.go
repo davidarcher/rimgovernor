@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -54,6 +55,25 @@ func TestTakeoverAllowedAreaRestrictionIsCleared(t *testing.T) {
 	// History-free: the same census replans the same correction.
 	if again := policy.PlanAllowedAreas(r.Facts); len(again) != 1 || again[0] != changes[0] {
 		t.Fatal(again)
+	}
+	// The correction is the recorded restriction: the changed animal is the
+	// one the census reads restricted, and once its area reads unrestricted
+	// nothing is replanned.
+	animals, _ := r.Facts.AnimalUpkeep.Animals.Value()
+	animals = slices.Clone(animals)
+	restricted := false
+	for i := range animals {
+		if area, _ := animals[i].AllowedArea.Value(); animals[i].ID == changes[0].Pawn && area != "" {
+			restricted = true
+			animals[i].AllowedArea = domain.Known("")
+		}
+	}
+	if !restricted {
+		t.Fatalf("%s is not a restricted animal in the recording", changes[0].Pawn)
+	}
+	r.Facts.AnimalUpkeep.Animals = domain.Known(animals)
+	if after := policy.PlanAllowedAreas(r.Facts); len(after) != 0 {
+		t.Fatal("replanned after the restriction cleared", after)
 	}
 }
 

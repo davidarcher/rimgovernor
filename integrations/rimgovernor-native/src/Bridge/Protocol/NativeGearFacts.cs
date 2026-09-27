@@ -12,10 +12,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeGearFacts
     {
-        // The most candidates one loadout carries: the best by gain, then by
-        // thing id. MaintainEquipment only ever wears the best funded one.
-        internal const int CandidateBound = 8;
-
         internal static Obs.GearSnapshot Read(Map map, Common.ObservationContext context, int limit)
         {
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
@@ -53,12 +49,10 @@ namespace HomeBridge.BridgeTools
                     row.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = control.PawnId, Token = control.Token };
                 var omitted = 0;
                 if (refusal == null) {
-                    // Every eligible loose item scores for every pawn, so on
-                    // a map strewn with raid apparel the census grew with
-                    // pawns x items (~700 JSON bytes per candidate) and put
-                    // the routine colony facts at the 1 MiB envelope (issue
-                    // #320). Only the CandidateBound best by gain are carried;
-                    // the rest count as filtered, never as unmatched.
+                    // Every eligible loose item is offered, best by gain,
+                    // up to the census limit; beyond it the rest count as
+                    // filtered, never as unmatched (issue #769: a smaller
+                    // bound offered every pawn the same few shirts).
                     // Candidates are apparel only: they feed the wear order
                     // (NativeGearOperations, JobDefOf.Wear), which looks its
                     // target up among loose apparel. Loose weapons are the
@@ -71,9 +65,8 @@ namespace HomeBridge.BridgeTools
                         var gain = GearUpkeepTools.Gain(pawn, apparel);
                         if (gain >= .05f) candidates.Add(new KeyValuePair<Thing, float>(apparel, gain));
                     }
-                    var bound = Math.Min(CandidateBound, limit);
-                    omitted = Math.Max(0, candidates.Count - bound);
-                    foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber).Take(bound))
+                    omitted = Math.Max(0, candidates.Count - limit);
+                    foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber).Take(limit))
                         row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
                 }
                 var needs = GearUpkeepTools.ProductionNeeds(pawn);
