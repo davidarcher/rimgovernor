@@ -17,7 +17,9 @@ type UpkeepAnimal struct {
 	ID            PawnID
 	Definition    Resource
 	// Label is the native display name; empty when the census omits it.
-	Label                                      string
+	Label string
+	// Gender is native Gender ("Male", "Female", "None"); empty when unread.
+	Gender                                     string
 	RequiresPen, Contained, Release, Slaughter domain.Fact[bool]
 	Pen, SuitablePen                           domain.Fact[string]
 	// SafeToSlaughter and Training carry MaintainHerd-*'s husbandry

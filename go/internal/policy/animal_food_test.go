@@ -38,26 +38,21 @@ func TestHayOnlyForNegativeSeasonalGrazingBalance(t *testing.T) {
 	}
 }
 
-func TestSlaughterFoodRequiresOptInAndProtectsFloor(t *testing.T) {
-	animals := domain.Known([]UpkeepAnimal{{ID: "cow", Definition: "Cow", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)}})
-	rows := []SlaughterFoodAnimal{{ID: "cow", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
-	if got := SlaughterFoodChannels(rows, animals, HerdPolicy{}); len(got) != 0 {
-		t.Fatal("slaughter without opt-in", got)
+func TestSlaughterFoodProtectsFloorAndBreedingPair(t *testing.T) {
+	rows := []SlaughterFoodAnimal{{ID: "cowa", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
+	if got := SlaughterFoodChannels(rows, domain.Known(cows(2)), HerdPolicy{}); len(got) != 0 {
+		t.Fatal("slaughter below the breeding pair", got)
 	}
-	herd := HerdPolicy{AllowSlaughter: true, PopulationMin: map[Resource]int64{"Cow": 1}}
-	if got := SlaughterFoodChannels(rows, animals, herd); len(got) != 0 {
+	animals := domain.Known(cows(3))
+	if got := SlaughterFoodChannels(rows, animals, HerdPolicy{PopulationMin: map[Resource]int64{"Cow": 4}}); len(got) != 0 {
 		t.Fatal("slaughter below floor", got)
 	}
-	herd.PopulationMin = nil
-	channels := SlaughterFoodChannels(rows, animals, herd)
+	channels := SlaughterFoodChannels(rows, animals, HerdPolicy{})
 	if len(channels) != 1 {
 		t.Fatal(channels)
 	}
 	plan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: channels[0], Decision: FoodPlanOpen}}})
-	if c := FoodSlaughterChoice(plan, animals, HerdPolicy{}); c.Method != "" {
-		t.Fatal("dispatch without opt-in", c)
-	}
-	if c := FoodSlaughterChoice(plan, animals, herd); c.Method != domain.HusbandrySlaughter || c.Animal != "cow" {
+	if c := FoodSlaughterChoice(plan, animals, HerdPolicy{}); c.Method != domain.HusbandrySlaughter || c.Animal != "cowa" {
 		t.Fatal(c)
 	}
 }
@@ -65,8 +60,11 @@ func TestSlaughterFoodRequiresOptInAndProtectsFloor(t *testing.T) {
 func TestSlaughterRanksFeedEfficiencyThenReproduction(t *testing.T) {
 	var animals []UpkeepAnimal
 	var rows []SlaughterFoodAnimal
-	for i, id := range []string{"slow", "fast", "inefficient"} {
-		animals = append(animals, UpkeepAnimal{ID: PawnID(id), Definition: Resource(id), Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)})
+	for i, race := range []string{"slow", "fast", "inefficient"} {
+		for _, a := range cows(3) {
+			a.ID, a.Definition = PawnID(race+"-"+string(a.ID)), Resource(race)
+			animals = append(animals, a)
+		}
 		n, days := 10.0, 10.0
 		if i == 1 {
 			days = 2
@@ -75,10 +73,10 @@ func TestSlaughterRanksFeedEfficiencyThenReproduction(t *testing.T) {
 			n = 5
 			days = 1
 		}
-		rows = append(rows, SlaughterFoodAnimal{ID: PawnID(id), Race: Resource(id), MeatNutrition: domain.Known(n), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(days)})
+		rows = append(rows, SlaughterFoodAnimal{ID: PawnID(race + "-cowa"), Race: Resource(race), MeatNutrition: domain.Known(n), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(days)})
 	}
-	channels := SlaughterFoodChannels(rows, domain.Known(animals), HerdPolicy{AllowSlaughter: true})
-	if len(channels) != 1 || channels[0].ID != "slaughter:fast" {
+	channels := SlaughterFoodChannels(rows, domain.Known(animals), HerdPolicy{})
+	if len(channels) != 1 || channels[0].ID != "slaughter:fast-cowa" {
 		t.Fatal(channels)
 	}
 }

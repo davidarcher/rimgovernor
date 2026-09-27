@@ -27,8 +27,6 @@ type Settings struct {
 	ChatModel     string `json:"chatModel"`
 	ChatBaseURL   string `json:"chatBaseURL"`
 
-	AllowSlaughter     bool `json:"allowSlaughter"`
-	AllowRelease       bool `json:"allowRelease"`
 	ShrineOpenCaskets  bool `json:"shrineOpenCaskets"`
 	ShrineHeatFallback bool `json:"shrineHeatFallback"`
 	LayoutOverlay      bool `json:"layoutOverlay"`
@@ -131,8 +129,6 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 			on   bool
 			name string
 		}{
-			{s.AllowSlaughter, "--routine-allow-slaughter"},
-			{s.AllowRelease, "--routine-allow-release"},
 			{s.ShrineOpenCaskets, "--routine-shrine-open-caskets"},
 			{s.ShrineHeatFallback, "--routine-shrine-heat-fallback"},
 		} {

@@ -27,14 +27,14 @@ func TestServeArgsDefaults(t *testing.T) {
 func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
 	s.AutoStart, s.Speed, s.ChatModel, s.ChatBaseURL = true, "UltrafastAdaptive", "qwen", "http://x/v1"
-	s.AllowSlaughter, s.AllowRelease, s.ShrineOpenCaskets, s.ShrineHeatFallback = true, true, true, true
+	s.ShrineOpenCaskets, s.ShrineHeatFallback = true, true
 	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[15:], " ")
-	want := "--resume --clock-speed Ultrafast --chat-model qwen --chat-base-url http://x/v1 --routine-allow-slaughter --routine-allow-release --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
+	want := "--resume --clock-speed Ultrafast --chat-model qwen --chat-base-url http://x/v1 --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
 	if got[14] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
@@ -45,7 +45,7 @@ func TestServeArgsEverything(t *testing.T) {
 
 func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	s := DefaultSettings()
-	s.Observe, s.AutoStart, s.Speed, s.ChatModel, s.AllowSlaughter = true, true, "Fast", "m", true
+	s.Observe, s.AutoStart, s.Speed, s.ChatModel = true, true, "Fast", "m"
 	got, err := ServeArgs(s, testPaths, 8787)
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +54,7 @@ func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	if !strings.Contains(joined, "--observe") {
 		t.Fatal(joined)
 	}
-	for _, f := range []string{"--profile", "--resume", "--clock-speed", "--chat-model", "--routine-allow-slaughter"} {
+	for _, f := range []string{"--profile", "--resume", "--clock-speed", "--chat-model"} {
 		if strings.Contains(joined, f) {
 			t.Errorf("observe passes %s: %s", f, joined)
 		}
@@ -87,6 +87,13 @@ func TestSettingsRoundTrip(t *testing.T) {
 	}
 	if got, err := LoadSettings(path); err != nil || !reflect.DeepEqual(got, s) {
 		t.Fatalf("%+v %v", got, err)
+	}
+	// Settings saved before #875 carry the removed herd toggles; they load.
+	if err := os.WriteFile(path, []byte(`{"speed":"Fast","allowSlaughter":true,"allowRelease":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := LoadSettings(path); err != nil || !reflect.DeepEqual(got, s) {
+		t.Fatalf("old settings: %+v %v", got, err)
 	}
 }
 

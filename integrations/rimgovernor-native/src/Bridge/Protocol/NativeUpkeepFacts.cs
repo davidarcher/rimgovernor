@@ -433,7 +433,8 @@ namespace HomeBridge.BridgeTools
                     var state = new Obs.AnimalState {
                         Release = map.designationManager.DesignationOn(p, DesignationDefOf.ReleaseAnimalToWild) != null,
                         Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null,
-                        SafeToRelease = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToRelease(p)
+                        SafeToRelease = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToRelease(p),
+                        Gender = p.gender.ToString()
                     };
                     // MaintainHerd's training deficit reads this bundle, not
                     // husbandry_facts: without the rows no trainable is ever due.

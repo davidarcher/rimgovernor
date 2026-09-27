@@ -64,14 +64,14 @@ func TestTakeoverSuspendedBillOpensAnimalFeed(t *testing.T) {
 }
 
 // takeover/herd-removal, ticks 32 and 6693: standing Manual release and
-// slaughter flags on animals the herd floor keeps are cancelled, release first.
+// slaughter flags on animals the breeding pair keeps are cancelled, release first.
 func TestTakeoverHerdRemovalFlagsAreCancelled(t *testing.T) {
 	for path, want := range map[string]domain.HusbandryMethod{
 		"testdata/takeover-herd-release-flag.json":   domain.HusbandryCancelRelease,
 		"testdata/takeover-herd-slaughter-flag.json": domain.HusbandryCancelSlaughter,
 	} {
 		r := load(t, path)
-		got := policy.ReconcileHerdRemoval(r.Facts.AnimalUpkeep.Animals, r.Policy.Herd(), r.Facts.FoodPlan)
+		got := policy.ReconcileHerdRemoval(r.Facts.AnimalUpkeep.Animals, policy.HerdFor(r.Facts.AnimalUpkeep.Animals, r.Facts.Wealth), r.Facts.FoodPlan)
 		if got.Method != want || got.Animal == "" {
 			t.Fatal(path, got)
 		}

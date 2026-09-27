@@ -78,13 +78,9 @@ type serveConfig struct {
 	routineAnimalContainmentPlans   bool
 	routineRecoveryPlans            bool
 	routineHusbandryPlans           bool
-	routineAllowSlaughter           bool
-	routineAllowRelease             bool
 	routineShrineOpenCaskets        bool
 	routineShrineHeatFallback       bool
 	layoutOverlay                   bool
-	routineHerdPopulationMax        herdPopulationMaxFlags
-	routineHerdPopulationMin        herdPopulationMaxFlags
 	routinePrisonerInteractionPlans bool
 	routinePopulationCustodyPlans   bool
 	routinePopulationJoinerPlans    bool
@@ -153,13 +149,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
-	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
-	flags.BoolVar(&c.routineAllowRelease, "routine-allow-release", false, "let MaintainHerd propose a release-to-wild write for a surplus animal once --routine-herd-population-max is declared; preferred over slaughter when both are set")
 	flags.BoolVar(&c.routineShrineOpenCaskets, "routine-shrine-open-caskets", false, "let ClearAncientShrine open filled ancient cryptosleep caskets under a melee lock (one violence-capable melee colonist drafted at each casket) once the shrine is breached and guard-free; off, filled caskets stay sealed. Turn on once the colony can hold prisoners: the ancients wake hostile and a downed one is worth capturing")
 	flags.BoolVar(&c.routineShrineHeatFallback, "routine-shrine-heat-fallback", false, "when the melee lock cannot be staffed, enclose and heat the shrine above 60 C and shoot a casket from its doorway; requires --routine-shrine-open-caskets")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
-	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
-	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
 	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
 	flags.StringVar(&c.chatBaseURL, "chat-base-url", "http://127.0.0.1:1234/v1", "local OpenAI-compatible base URL (e.g. LM Studio) chat sends completions to")
@@ -172,7 +164,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "chat-model", "chat-base-url", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "routine-resource-reserve", "routine-resource-stop", "chat-model", "chat-base-url", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -203,19 +195,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
 	}
-	if (c.routineAllowSlaughter || c.routineAllowRelease || len(c.routineHerdPopulationMax) > 0 || len(c.routineHerdPopulationMin) > 0) && !c.routineHusbandryPlans {
-		return c, errors.New("--routine-allow-slaughter, --routine-allow-release, --routine-herd-population-max and --routine-herd-population-min require the husbandry routine family")
-	}
 	if c.routineShrineOpenCaskets && !c.routineShrinePlans {
 		return c, errors.New("--routine-shrine-open-caskets requires the shrine routine family")
 	}
 	if c.routineShrineHeatFallback && !c.routineShrineOpenCaskets {
 		return c, errors.New("--routine-shrine-heat-fallback requires --routine-shrine-open-caskets")
-	}
-	for race, minimum := range c.routineHerdPopulationMin {
-		if max, ok := c.routineHerdPopulationMax[race]; ok && minimum > max {
-			return c, errors.New("--routine-herd-population-min exceeds --routine-herd-population-max for " + string(race))
-		}
 	}
 	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Executable) || !filepath.IsAbs(c.bridge.ConfigDir) || c.bridge.GameID == "" {
 		return c, errors.New("absolute --state, --gabs, --config and a --game ID are required")

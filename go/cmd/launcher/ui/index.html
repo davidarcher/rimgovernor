@@ -117,8 +117,6 @@
 
     <details>
       <summary>Colony policy</summary>
-      <div class="check"><input type="checkbox" id="allowRelease"><label for="allowRelease">Release surplus animals to the wild</label></div>
-      <div class="check"><input type="checkbox" id="allowSlaughter"><label for="allowSlaughter">Slaughter surplus animals</label></div>
       <div class="check"><input type="checkbox" id="shrineOpenCaskets"><label for="shrineOpenCaskets">Open ancient shrine caskets</label></div>
       <div class="check"><input type="checkbox" id="shrineHeatFallback"><label for="shrineHeatFallback">Heat the shrine when no melee guard is free</label></div>
       <div class="check"><input type="checkbox" id="layoutOverlay"><label for="layoutOverlay">Show the layout plan in game</label></div>
@@ -146,7 +144,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const bools = ['autoStart', 'allowSlaughter', 'allowRelease', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'debug'];
+const bools = ['autoStart', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'debug'];
 const texts = ['speed', 'chatModel', 'chatBaseURL', 'extraArgs'];
 let view = null, loaded = false, busyAction = false;
 
@@ -168,7 +166,7 @@ function read() {
 // Observe only never writes to the game: play settings do not apply.
 function policyEnabled() {
   const observe = $('modeObserve').checked;
-  ['speed', 'autoStart', 'allowSlaughter', 'allowRelease', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'chatModel', 'chatBaseURL']
+  ['speed', 'autoStart', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'chatModel', 'chatBaseURL']
     .forEach(k => $(k).disabled = observe);
   $('shrineHeatFallback').disabled = observe || !$('shrineOpenCaskets').checked;
 }

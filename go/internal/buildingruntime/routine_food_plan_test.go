@@ -17,7 +17,7 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(2.0)}}}),
 		FoodChannels:       domain.Known(observation.FoodChannels{Gatherable: []observation.GatherableAnimal{{PawnID: "cow", Race: "Cow", Resource: domain.Known("Milk"), Active: domain.Known(true), HandlerReachable: domain.Known(true), NutritionPerDay: domain.Known(.9), WorkPerDay: domain.Known(400.0), LeadDays: domain.Known(0.0)}}})}
 	plan, known := reviewFoodPlan(p, policy.DefaultRoutinePolicy()).Value()
-	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow derived floor 1") {
+	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow floor 1") {
 		t.Fatal(plan.Explain(), known)
 	}
 	if plan.DeliveredPerDay != .9 {

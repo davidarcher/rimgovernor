@@ -152,35 +152,8 @@ type RoutinePolicy struct {
 	// is not development work and holds no development slot (DevelopmentExempt).
 	ResourceReserves map[Resource]int64
 	StoppedResources []Resource
-	// AllowSlaughter is an operator-declared, explicit opt-in for
-	// MaintainHerd to ever propose a slaughter write for a surplus animal;
-	// it defaults to false (see DefaultRoutinePolicy), and slaughter is
-	// never proposed unless an operator sets this true. Slaughter is a
-	// destructive, irreversible in-game action, unlike every other
-	// RoutinePolicy field -- this default must never change to true. See
-	// MaintainHerd's doc comment for the full disclosed narrowing.
-	AllowSlaughter bool
-	// HerdPopulationMax is an operator-declared map of native animal
-	// definition name (the same Resource-typed def name ResourceTargets
-	// uses) to the population maximum MaintainHerd should keep that race at
-	// or under. An empty map disables ceiling-driven removal. An explicit
-	// AllowSlaughter can separately admit food slaughter above the effective
-	// minimum through FoodPlan. Native safety eligibility applies to both.
-	HerdPopulationMax map[Resource]int64
 	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
 	Trade RoutineTradePolicy
-	// AllowRelease is the operator opt-in for MaintainHerd to remove a
-	// surplus animal by release-to-wild instead of slaughter. It defaults to
-	// false; when both AllowRelease and AllowSlaughter are set, release is
-	// preferred because it is non-lethal. Like slaughter it needs a
-	// HerdPopulationMax entry for the race.
-	AllowRelease bool
-	// HerdPopulationMin is an operator-declared map of native animal
-	// definition name to the population minimum MaintainHerd should keep
-	// that race at or above by designating tameable wild animals of that
-	// race for taming. A food-derived floor may raise this value. A race
-	// declared in both operator maps must have minimum <= maximum.
-	HerdPopulationMin map[Resource]int64
 	// PrisonerReleaseAfterDays lets MaintainPopulation propose
 	// releasing a prisoner the colony cannot turn (recruit resistance
 	// unbroken, or never recruitable) once held that many days while the
@@ -275,43 +248,12 @@ func (p RoutinePolicy) Validate() error {
 	if _, _, err := ProductionFloors(p.ResourceReserves, p.StoppedResources); err != nil {
 		return err
 	}
-	if err := ValidateHerdPopulationMax(p.HerdPopulationMax); err != nil {
-		return err
-	}
-	if err := ValidateHerdPopulationMax(p.HerdPopulationMin); err != nil {
-		return err
-	}
-	for race, minimum := range p.HerdPopulationMin {
-		if max, ok := p.HerdPopulationMax[race]; ok && minimum > max {
-			return errors.New("herd population minimum exceeds maximum")
-		}
-	}
 	return nil
-}
-
-// Herd is the MaintainHerd slice of this policy.
-func (p RoutinePolicy) Herd() HerdPolicy {
-	return HerdPolicy{AllowSlaughter: p.AllowSlaughter, AllowRelease: p.AllowRelease, PopulationMin: p.HerdPopulationMin, PopulationMax: p.HerdPopulationMax}
 }
 
 // Prisoners is the MaintainPopulation slice of this policy.
 func (p RoutinePolicy) Prisoners() PrisonerPolicy {
 	return PrisonerPolicy{ReleaseAfterDays: p.PrisonerReleaseAfterDays, FoodTargetDays: p.FoodTargetDays}
-}
-
-// ValidateHerdPopulationMax checks every configured MaintainHerd population
-// maximum, the same shape and bound ValidateResourceTargets uses for
-// MaintainResource's targets.
-func ValidateHerdPopulationMax(populationMax map[Resource]int64) error {
-	if len(populationMax) > 4096 {
-		return errors.New("too many configured herd population maximums")
-	}
-	for race, max := range populationMax {
-		if !validResource(race) || max <= 0 || max > 10000 {
-			return errors.New("invalid herd population maximum")
-		}
-	}
-	return nil
 }
 
 // ValidateResourceTargets checks every configured MaintainResource target:
@@ -1216,13 +1158,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		animalFeed = domain.Known(false)
 	}
 	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), FoodHerdPolicy(p.Herd(), f.FoodPlan)).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), FoodHerdPolicy(HerdFor(f.AnimalUpkeep.Animals, f.Wealth), f.FoodPlan)).Value(); known {
 		herdRecovered = domain.Known(!deficit)
 	}
-	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, FoodHerdPolicy(p.Herd(), f.FoodPlan)); choice.Method == domain.HusbandrySlaughter {
+	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, FoodHerdPolicy(HerdFor(f.AnimalUpkeep.Animals, f.Wealth), f.FoodPlan)); choice.Method == domain.HusbandrySlaughter {
 		herdRecovered = domain.Known(false)
 	}
-	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, FoodHerdPolicy(p.Herd(), f.FoodPlan), f.FoodPlan); choice.Method != "" {
+	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, FoodHerdPolicy(HerdFor(f.AnimalUpkeep.Animals, f.Wealth), f.FoodPlan), f.FoodPlan); choice.Method != "" {
 		herdRecovered = domain.Known(false)
 	} else if choice.Reason == HusbandryUnknown {
 		herdRecovered = domain.Unknown[bool]()

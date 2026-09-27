@@ -63,14 +63,10 @@ type SlaughterFoodAnimal struct {
 // Order uses meat per feed/day first, then shorter reproduction interval. The
 // ledger still charges the ordinary slaughter work and can decline the offer.
 func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) []FoodChannel {
-	if !herd.AllowSlaughter {
-		return nil
-	}
 	observed, known := animals.Value()
 	if !known {
 		return nil
 	}
-	floors := map[Resource]int64{}
 	pending := map[PawnID]bool{}
 	// Re-price existing orders too. These copies are planning offers only;
 	// fresh destructive admission still requires native SafeToSlaughter.
@@ -83,16 +79,14 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 			a.SafeToSlaughter = domain.Known(true)
 		}
 	}
-	for _, row := range observed {
-		floors[row.Definition] = herd.PopulationMin[row.Definition]
-	}
-	candidates, unknown := herdSurplusCandidates(observed, floors, domain.HusbandrySlaughter)
+	floors := herdFoodLimits(observed, herd)
+	candidates, unknown := herdSurplusCandidates(observed, floors)
 	if unknown {
 		return nil
 	}
 	safe := map[PawnID]bool{}
-	for _, a := range candidates {
-		safe[a.ID] = true
+	for _, r := range candidates {
+		safe[r.animal.ID] = r.method == domain.HusbandrySlaughter
 	}
 	counts := map[Resource]int64{}
 	for _, a := range observed {
@@ -142,19 +136,12 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 }
 
 func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) HusbandryChoice {
-	if !herd.AllowSlaughter {
-		return HusbandryChoice{Reason: HusbandryNoDeficit}
-	}
 	p, pk := plan.Value()
 	rows, rk := animals.Value()
 	if !pk || !rk {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	}
-	floors := map[Resource]int64{}
-	for _, a := range rows {
-		floors[a.Definition] = herd.PopulationMin[a.Definition]
-	}
-	safe, unknown := herdSurplusCandidates(rows, floors, domain.HusbandrySlaughter)
+	safe, unknown := herdSurplusCandidates(rows, herdFoodLimits(rows, herd))
 	if unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	}
@@ -162,9 +149,9 @@ func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]Upkee
 		if e.Channel.Kind != FoodHunt || e.Decision != FoodPlanOpen || !strings.HasPrefix(e.Channel.ID, "slaughter:") {
 			continue
 		}
-		for _, a := range safe {
-			if e.Channel.ID == "slaughter:"+string(a.ID) {
-				return HusbandryChoice{Animal: a.ID, Method: domain.HusbandrySlaughter}
+		for _, r := range safe {
+			if r.method == domain.HusbandrySlaughter && e.Channel.ID == "slaughter:"+string(r.animal.ID) {
+				return HusbandryChoice{Animal: r.animal.ID, Method: domain.HusbandrySlaughter}
 			}
 		}
 	}

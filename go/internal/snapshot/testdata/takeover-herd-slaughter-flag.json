@@ -36102,10 +36102,6 @@
   "FootholdFoodDays": 3,
   "GoalStallTicks": 2500,
   "HaulStallTicks": 2500,
-  "HerdPopulationMin": {
-   "Cow": 1,
-   "Husky": 2
-  },
   "HotEnter": 32,
   "HotExit": 28,
   "HuntStallTicks": 6000,

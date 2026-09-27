@@ -3,28 +3,26 @@
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
-ColonyPlan. It accepts an observed native race, native training targets and the
-operator's herd policy (`RoutinePolicy`, set by `rimgovernor serve` flags):
+ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
-| Field | Flag | Effect |
-| --- | --- | --- |
-| `HerdPopulationMin` | `--routine-herd-population-min RACE:MIN` | Below the floor, designate the lowest-ID tameable wild animal of that race (`tame`) while the herd's feed forecast reports no shortfall. |
-| `HerdPopulationMax` | `--routine-herd-population-max RACE:MAX` | Above the ceiling, remove the lowest-ID eligible surplus animal — only with one of the two opt-ins below. |
-| `AllowRelease` | `--routine-allow-release` | Remove surplus by release-to-wild (`release`); preferred when both opt-ins are set. |
-| `AllowSlaughter` | `--routine-allow-slaughter` | Remove surplus by slaughter (`slaughter`). |
+- **Cap.** Every observed race is capped at `HerdWealthCap(colony wealth)`:
+  `clamp(floor(30 × 50000 / max(wealth, 50000)), 6, 30)` — 30 per race up to
+  50k wealth, 15 at 100k, 6 from 250k. Unknown wealth caps nothing.
+- **Floor.** The food plan's productive-animal floor (`FoodHerdPolicy`),
+  clipped to the cap. Below it, the lowest-ID tameable wild animal of that race
+  is designated (`tame`) while `MaintainAnimalFeed`'s review reports no
+  shortfall and a [handler](work-assignment.md#situational-roles) (`TamerFor`)
+  clears its `minimum_handling_skill`.
+- **Removal.** Above the cap, surplus goes by `slaughter` whenever native
+  `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
+  designated); by `release` only when slaughter is refused and
+  `SafeToRelease` allows it (same exclusions). Untrained animals go before
+  those that learned Haul, Rescue or Release (attack), then lowest ID.
+- **Breeding pair.** No removal leaves a race with fewer than one male and two
+  females; an animal of unknown sex is never removed. Standing designations
+  that would break the pair, or no longer match a surplus or an open food
+  offer, are cancelled.
 
-Operator removal defaults off. A ceiling alone never removes an animal; a floor alone does
-propose taming, gated on `MaintainAnimalFeed`'s own review: while any player
-animal is below its feed threshold, or the feed forecast is unknown, no tame is
-proposed and the shortfall is not counted as a herd deficit (the wild animal's
-own appetite is not forecast; the gate only refuses to add a mouth to a herd
-already short). A candidate also needs a [handler](work-assignment.md#situational-roles)
-(`TamerFor`) at its `minimum_handling_skill`: the lowest-ID candidate the roster
-can handle is proposed, none while the roster is unknown, and a designation
-nobody could work is never placed. A race in both maps must have minimum ≤ maximum. There is no
-per-race protected-ID list, breeder-pair reserve or feed-reserve bookkeeping:
-eligibility relies on native's own `SafeToSlaughter`, `SafeToRelease` and
-`Tameable` facts.
 
 ## Methods
 
@@ -148,12 +146,10 @@ admission. Existing hay-field capacity offsets new planting; a short season or
 unknown capacity refuses that method. Hay stays human-inedible and out of human
 food channels and human runway. Growing joins the feed goal's labor profile.
 
-Only `--routine-allow-slaughter` enables a food-slaughter offer. With a remaining
-food gap, eligible surplus above the effective population floor ranks by native
-meat nutrition per daily grazing demand, then shorter native reproduction
-interval, then animal ID. Missing cost facts exclude the candidate. The ledger
-budgets one offered animal as a hunt-kind channel with a `slaughter:` ID and
-180 native slaughter ticks; `MaintainHerd` dispatches through its normal guarded
-husbandry action. Ordinary butchering and hauling must still produce edible food.
-The opt-in is checked again at method selection. Operator ceiling removal keeps
-its existing release preference.
+While the food runway is below target (a food-plan gap), eligible animals
+above max(floor, breeding pair) rank by native meat nutrition per daily
+grazing demand, then shorter reproduction interval, then animal ID. Missing
+cost facts exclude the candidate. The ledger budgets one offered animal as a
+hunt-kind channel with a `slaughter:` ID and 180 native slaughter ticks;
+`MaintainHerd` dispatches it through its normal guarded husbandry action.
+

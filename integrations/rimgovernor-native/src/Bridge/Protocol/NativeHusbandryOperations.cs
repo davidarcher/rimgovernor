@@ -106,12 +106,13 @@ namespace HomeBridge.BridgeTools
             && new Designator_Slaughter().CanDesignateThing(animal).Accepted;
 
         // The release designator's own acceptance plus the bonded/master
-        // exclusions slaughter applies: release is non-lethal but still
+        // and pregnancy exclusions slaughter applies: release is non-lethal but still
         // removes the animal from the colony.
         internal static bool SafeToRelease(Pawn animal) => !animal.Dead && !animal.Downed && !animal.InMentalState
             && animal.Faction == Faction.OfPlayer && animal.RaceProps.canReleaseToWild
             && animal.playerSettings != null && animal.playerSettings.Master == null
             && !TrainableUtility.GetAllColonistBondsFor(animal).Any()
+            && !animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any()
             && !Designated(animal, DesignationDefOf.Slaughter) && !Designated(animal, DesignationDefOf.ReleaseAnimalToWild)
             && new Designator_ReleaseAnimalToWild().CanDesignateThing(animal).Accepted;
 

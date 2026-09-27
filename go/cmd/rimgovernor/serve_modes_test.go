@@ -120,7 +120,7 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	}
 	// Family-scoped tuning flags need their family composed.
 	withRoutineFamilies(t, "sleeping", true)
-	for _, extra := range [][]string{{"--routine-resource-reserve", "Steel:100"}, {"--routine-allow-slaughter"}} {
+	for _, extra := range [][]string{{"--routine-resource-reserve", "Steel:100"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
 			t.Fatalf("accepted %v without its family", extra)
 		}

@@ -17,6 +17,7 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 	rows = append([]UpkeepAnimal(nil), rows...)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
 	counts := map[Resource]int64{}
+	sexes := map[Resource]int64{}
 	for _, a := range rows {
 		if _, ok := a.Release.Value(); !ok {
 			return HusbandryChoice{Reason: HusbandryUnknown}
@@ -25,6 +26,7 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 			return HusbandryChoice{Reason: HusbandryUnknown}
 		}
 		counts[a.Definition]++
+		sexes[a.Definition+"/"+Resource(a.Gender)]++
 	}
 	plan, foodKnown := food.Value()
 	foodWanted := map[PawnID]bool{}
@@ -44,24 +46,34 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 		if !release && !slaughter {
 			continue
 		}
-		floor := herd.PopulationMin[a.Definition]
+		floor := max(herd.PopulationMin[a.Definition], herdPairSize)
 		ceiling, capped := herd.PopulationMax[a.Definition]
-		room := counts[a.Definition] > floor
+		sex := a.Definition + "/" + Resource(a.Gender)
+		pair := a.Gender == "Male" && sexes[sex] <= herdPairMales || a.Gender == "Female" && sexes[sex] <= herdPairFemales
+		room := counts[a.Definition] > floor && !pair
 		surplus := capped && counts[a.Definition] > max(floor, ceiling)
-		keepRelease := release && !slaughter && herd.AllowRelease && surplus
-		keepSlaughter := slaughter && !release && herd.AllowSlaughter && room && (surplus || foodWanted[a.ID])
+		keepRelease := release && !slaughter && surplus && !pair
+		keepSlaughter := slaughter && !release && room && (surplus || foodWanted[a.ID])
+		// An unknown cap (wealth unread) cannot revoke a surplus removal.
+		if !capped && room && !keepSlaughter {
+			unknown = true
+			counts[a.Definition]--
+			sexes[sex]--
+			continue
+		}
 		if release && !keepRelease {
 			return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryCancelRelease}
 		}
 		if slaughter && !keepSlaughter {
 			// Unknown food demand cannot revoke an otherwise allowed removal.
-			if herd.AllowSlaughter && room && !foodKnown {
+			if room && !foodKnown {
 				unknown = true
 			} else {
 				return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryCancelSlaughter}
 			}
 		}
 		counts[a.Definition]--
+		sexes[sex]--
 	}
 	if unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}

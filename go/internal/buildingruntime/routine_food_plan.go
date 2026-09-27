@@ -105,10 +105,10 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 	if err != nil {
 		return domain.Unknown[policy.FoodPlan]()
 	}
-	// A food slaughter offer is opt-in and protects productive animals selected
+	// A food slaughter offer protects productive animals selected
 	// by the non-destructive portfolio before adding a single removal method.
-	if animals, known := p.FoodChannels.Value(); known && thresholds.AllowSlaughter && plan.GapPerDay > 0 {
-		herd := policy.FoodHerdPolicy(thresholds.Herd(), domain.Known(plan))
+	if animals, known := p.FoodChannels.Value(); known && plan.GapPerDay > 0 {
+		herd := policy.FoodHerdPolicy(policy.HerdFor(p.Facts.AnimalUpkeep.Animals, p.Facts.Wealth), domain.Known(plan))
 		offers := policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herd)
 		if len(offers) > 0 {
 			channels = append(channels, offers...)
@@ -118,15 +118,13 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 			}
 		}
 	}
-	herd := policy.FoodHerdPolicy(thresholds.Herd(), domain.Known(plan))
-	derived := policy.FoodHerdPolicy(policy.HerdPolicy{PopulationMax: thresholds.HerdPopulationMax}, domain.Known(plan))
+	herd := policy.FoodHerdPolicy(policy.HerdFor(p.Facts.AnimalUpkeep.Animals, p.Facts.Wealth), domain.Known(plan))
 	for i := range plan.Portfolio {
 		e := &plan.Portfolio[i]
 		if e.Channel.Kind == policy.FoodAnimalProduct {
 			floor := herd.PopulationMin[policy.Resource(e.Channel.ID)]
-			derivedFloor := derived.PopulationMin[policy.Resource(e.Channel.ID)]
-			e.Terms = append(e.Terms, policy.FoodPlanTerm{Name: "derived_herd_floor", Value: float64(derivedFloor)}, policy.FoodPlanTerm{Name: "effective_herd_floor", Value: float64(floor)})
-			e.Reason += fmt.Sprintf("; MaintainHerd-%s derived floor %d, effective floor %d", e.Channel.ID, derivedFloor, floor)
+			e.Terms = append(e.Terms, policy.FoodPlanTerm{Name: "effective_herd_floor", Value: float64(floor)})
+			e.Reason += fmt.Sprintf("; MaintainHerd-%s floor %d", e.Channel.ID, floor)
 		}
 	}
 	return domain.Known(plan)

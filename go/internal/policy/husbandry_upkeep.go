@@ -8,30 +8,21 @@ import (
 
 // MaintainHerd names MaintainHerd-*'s deficit: any observed,
 // non-release/slaughter-flagged animal with an available-but-untrained
-// trainable; any race below its operator or food-derived population floor with a
-// tameable wild animal on the map while the existing herd's feed forecast
-// (MaintainAnimalFeed's review) reports no shortfall; and -- only once an operator has opted in
-// via AllowRelease or AllowSlaughter and declared a HerdPopulationMax -- any
-// surplus animal of that race safe to release or slaughter. Disclosed
-// narrowing: there is no per-race protected-id, breeding-reserve or
-// feed-reservation bookkeeping; surplus eligibility relies entirely on
-// native's own SafeToSlaughter/SafeToRelease facts (which already exclude
-// bonded/master animals per RimWorld's own rules). Slaughter is
-// irreversible, so AllowSlaughter defaults to false; release is non-lethal
-// but still loses the animal, so AllowRelease defaults to false too. A
-// food-derived floor can add tame work without a removal opt-in. Food slaughter
-// additionally requires an admitted FoodPlan offer and AllowSlaughter.
-// Native eligibility is still re-validated by
-// EvaluateHusbandry immediately before dispatch; this only decides which
-// already-observed candidate to try.
+// trainable; any race below its food-derived population floor with a
+// tameable wild animal on the map while the herd's feed forecast reports no
+// shortfall; and any race above its wealth-scaled cap (HerdFor) with a
+// removable animal (herdSurplusCandidates). Removal needs no opt-in: it is
+// slaughter whenever native SafeToSlaughter allows it, release only when
+// slaughter is refused and SafeToRelease allows it, and never breaks the last
+// breeding pair. Native eligibility is still re-validated by
+// EvaluateHusbandry immediately before dispatch.
 const MaintainHerd GoalID = "MaintainHerd"
 
-// HerdPolicy is the effective slice of RoutinePolicy MaintainHerd
-// plans from. PopulationMin drives tame designations on wild animals;
-// PopulationMax drives surplus removal, by release when AllowRelease is set
-// (preferred, non-lethal) and otherwise by slaughter when AllowSlaughter is.
+// HerdPolicy is the per-race population band MaintainHerd plans from.
+// PopulationMin drives tame designations on wild animals; PopulationMax
+// drives surplus removal. A race missing from PopulationMax has no known cap
+// and is never culled for surplus.
 type HerdPolicy struct {
-	AllowSlaughter, AllowRelease bool
 	PopulationMin, PopulationMax map[Resource]int64
 }
 
@@ -116,92 +107,12 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 			}
 		}
 	}
-	if method, ok := herdSurplusMethod(herd); ok {
-		candidates, unknown := herdSurplusCandidates(rows, herd.PopulationMax, method)
-		if unknown {
-			return domain.Unknown[bool]()
-		}
-		if len(candidates) > 0 {
-			deficit = true
-		}
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax); unknown {
+		return domain.Unknown[bool]()
+	} else if len(removals) > 0 {
+		deficit = true
 	}
 	return domain.Known(deficit)
-}
-
-// herdSurplusMethod is the removal method an operator opted into, release
-// preferred over slaughter, or none when surplus removal is not enabled.
-func herdSurplusMethod(herd HerdPolicy) (domain.HusbandryMethod, bool) {
-	if len(herd.PopulationMax) == 0 {
-		return "", false
-	}
-	if herd.AllowRelease {
-		return domain.HusbandryRelease, true
-	}
-	if herd.AllowSlaughter {
-		return domain.HusbandrySlaughter, true
-	}
-	return "", false
-}
-
-// herdSurplusCandidates computes the herd surplus
-// (surplus = len(animals) - target.maximum - pending) per tracked race,
-// narrowed to a single global opt-in with no protected-id/breeding-reserve
-// carve-out: eligibility is taken entirely from native's own SafeToSlaughter
-// or SafeToRelease fact for the chosen method. Only races present in
-// populationMax are ever counted or dispatched; an untracked race never
-// blocks or contributes to a candidate list. Any tracked-race animal with an
-// unknown release, slaughter or eligibility fact makes the whole result
-// unknown, since an unknown fact is never evidence of a safe surplus.
-// Returned candidates are deterministically ordered (lowest animal ID
-// first) and already capped to each race's own surplus count.
-func herdSurplusCandidates(rows []UpkeepAnimal, populationMax map[Resource]int64, method domain.HusbandryMethod) ([]UpkeepAnimal, bool) {
-	counts := map[Resource]int64{}
-	pending := map[Resource]int64{}
-	eligible := map[Resource][]UpkeepAnimal{}
-	for _, a := range rows {
-		if _, tracked := populationMax[a.Definition]; !tracked {
-			continue
-		}
-		release, rk := a.Release.Value()
-		slaughter, sk := a.Slaughter.Value()
-		if !rk || !sk {
-			return nil, true
-		}
-		if release {
-			continue
-		}
-		counts[a.Definition]++
-		if slaughter {
-			pending[a.Definition]++
-			continue
-		}
-		fact := a.SafeToSlaughter
-		if method == domain.HusbandryRelease {
-			fact = a.SafeToRelease
-		}
-		safe, sak := fact.Value()
-		if !sak {
-			return nil, true
-		}
-		if safe {
-			eligible[a.Definition] = append(eligible[a.Definition], a)
-		}
-	}
-	var candidates []UpkeepAnimal
-	for race, limit := range populationMax {
-		surplus := counts[race] - limit - pending[race]
-		if surplus <= 0 {
-			continue
-		}
-		rows := append([]UpkeepAnimal{}, eligible[race]...)
-		sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
-		if int64(len(rows)) > surplus {
-			rows = rows[:surplus]
-		}
-		candidates = append(candidates, rows...)
-	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
-	return candidates, false
 }
 
 // herdTameCandidates computes each tracked race's shortfall
@@ -332,14 +243,10 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 			}
 		}
 	}
-	if method, ok := herdSurplusMethod(herd); ok {
-		candidates, unknown := herdSurplusCandidates(rows, herd.PopulationMax, method)
-		if unknown {
-			return HusbandryChoice{Reason: HusbandryUnknown}
-		}
-		if len(candidates) > 0 {
-			return HusbandryChoice{Animal: candidates[0].ID, Method: method}
-		}
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax); unknown {
+		return HusbandryChoice{Reason: HusbandryUnknown}
+	} else if len(removals) > 0 {
+		return HusbandryChoice{Animal: removals[0].animal.ID, Method: removals[0].method}
 	}
 	return HusbandryChoice{Reason: HusbandryNoDeficit}
 }
