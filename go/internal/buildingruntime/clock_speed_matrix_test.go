@@ -967,7 +967,9 @@ func TestClockSpeedMatrixRegulatorBoundsBlindTicks(t *testing.T) {
 //   - injury stop in bound: a colonist injury stops a raised window. It is
 //     a hold (clock.EventInterrupts): the poll hands control back, and it
 //     must do so within ReadmitBound of the stop at the raised speed, with
-//     no window started after it.
+//     no window started after it;
+//   - blind ticks over budget: native's regulator reports every window
+//     past its blind-tick budget, and the policy holds the floor (#737).
 func TestClockSpeedMatrixSpeedPolicy(t *testing.T) {
 	t.Parallel()
 	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}
@@ -1002,6 +1004,33 @@ func TestClockSpeedMatrixSpeedPolicy(t *testing.T) {
 		}
 		if before, after := speeds[n], speeds[n+1]; after != before-1 && !(before == k.Speed_SPEED_NORMAL && after == before) {
 			t.Fatalf("readmit over %s: window %d requested %s after %s, want one step lower (all %v)", policy.ReadmitBound, n+2, after, before, speeds)
+		}
+	})
+	t.Run("blind ticks over budget", func(t *testing.T) {
+		// Reads spaced by the step cadence leave every window past a
+		// 30-tick blind budget (TestClockSpeedMatrixRegulatorBoundsBlindTicks),
+		// so each admission samples the regulator's SpeedChanged rows
+		// over budget and the policy never raises (#737), where the calm
+		// windows above raise within a few.
+		t.Parallel()
+		const windows = 6
+		native := newSpeedNative(snapshot, time.Millisecond)
+		native.regulator.budget = 30
+		speedMatrixFixture(t, native, snapshot, config, &policy, func(speedStep) {}, func(speedSpan) {})
+		var speeds []k.Speed
+		for deadline := time.Now().Add(30 * time.Second); len(speeds) < windows; time.Sleep(2 * time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Fatalf("only %d windows started", len(speeds))
+			}
+			speeds, _ = native.requested()
+		}
+		if r := native.regulation(); r.throttles == 0 {
+			t.Fatal("the regulator never throttled")
+		}
+		for i, speed := range speeds {
+			if speed != k.Speed_SPEED_NORMAL {
+				t.Fatalf("window %d requested %s under blind ticks over budget (all %v)", i+1, speed, speeds)
+			}
 		}
 	})
 	t.Run("injury stop in bound", func(t *testing.T) {

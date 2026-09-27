@@ -9,7 +9,8 @@ import (
 // SpeedPolicyConfig bounds the controller-side speed policy (#635): per
 // admitted window the scheduler raises the requested speed one step after
 // RaiseAfter windows whose readmit and observe latencies both held under
-// their bounds, and drops a step at once when either is exceeded. The
+// their bounds and whose native blind ticks stayed under the window's blind-tick
+// budget (#737), and drops a step at once when any is exceeded. The
 // levels are Normal..Ultrafast, then Ultrafast with test acceleration
 // when AllowTestAcceleration. The configured Start is the floor, so the
 // policy starts from the row native's regulator (#583) already agrees with.
@@ -29,9 +30,13 @@ func DefaultSpeedPolicy(step time.Duration) SpeedPolicyConfig {
 	return SpeedPolicyConfig{ReadmitBound: 4 * step, ObserveBound: 2 * step, RaiseAfter: 3, Max: k.Speed_SPEED_ULTRAFAST}
 }
 
-// speedLatency is one admission's measurements; zero is unmeasured.
+// speedLatency is one admission's measurements; zero is unmeasured. Blind
+// is the widest SpeedChanged.BlindTicks the poll saw since the last
+// admission, BlindBudget the running start's BlindTickBudget (zero: the
+// regulator is off and Blind is not judged).
 type speedLatency struct {
-	Readmit, Observe time.Duration
+	Readmit, Observe   time.Duration
+	Blind, BlindBudget int64
 }
 
 // speedPolicy is the policy's state; zero level means "not yet seeded".
@@ -67,7 +72,7 @@ func (p speedPolicy) next(floor int, sample speedLatency) (int, speedPolicy) {
 		p.level = floor
 		p.calm = 0
 	}
-	over := (p.config.ReadmitBound > 0 && sample.Readmit > p.config.ReadmitBound) || (p.config.ObserveBound > 0 && sample.Observe > p.config.ObserveBound)
+	over := (p.config.ReadmitBound > 0 && sample.Readmit > p.config.ReadmitBound) || (p.config.ObserveBound > 0 && sample.Observe > p.config.ObserveBound) || (sample.BlindBudget > 0 && sample.Blind >= sample.BlindBudget)
 	switch {
 	case over:
 		p.calm = 0
@@ -82,4 +87,19 @@ func (p speedPolicy) next(floor int, sample speedLatency) (int, speedPolicy) {
 		}
 	}
 	return p.level, p
+}
+
+// noteBlindTicks keeps the widest blind span the page's SpeedChanged rows
+// report (native's regulator, #583), for the next admission's sample.
+func (s *ClockScheduler) noteBlindTicks(page *k.EventsPage) {
+	for _, event := range page.GetEvents() {
+		if changed := event.GetSpeedChanged(); changed != nil {
+			for blind := changed.GetBlindTicks(); ; {
+				seen := s.blindTicks.Load()
+				if blind <= seen || s.blindTicks.CompareAndSwap(seen, blind) {
+					break
+				}
+			}
+		}
+	}
 }

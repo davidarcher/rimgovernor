@@ -331,6 +331,9 @@ type ClockScheduler struct {
 	pacePerSecond float64
 	// speed is the speed policy's state (#635), under the player gate.
 	speed speedPolicy
+	// blindTicks is the widest SpeedChanged.BlindTicks a poll saw since the
+	// last admission (#737): written by the poll, taken by the step.
+	blindTicks atomic.Int64
 	// combatStops measures combat windows' stops (#849), under the player gate.
 	combatStops combatStopMetrics
 	// livePaceTicks is the pace a step projects the tick by (drift):
@@ -1339,11 +1342,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var speedNext speedPolicy
 	if sp := s.config.SpeedPolicy; sp != nil && !start.PlayerAccelerated {
 		s.speed.config = *sp
-		sample := speedLatency{Readmit: paused, Observe: facts.ObservedAt.Sub(started)}
+		sample := speedLatency{Readmit: paused, Observe: facts.ObservedAt.Sub(started), Blind: s.blindTicks.Swap(0), BlindBudget: int64(start.BlindTickBudget)}
 		var level int
 		level, speedNext = s.speed.next(speedLevel(start.Speed, start.TestAcceleration), sample)
 		start.Speed, start.TestAcceleration = speedOfLevel(level)
-		clockSchedulerLog("speed policy: readmit=%s observe=%s -> %s accel=%v", sample.Readmit, sample.Observe, start.Speed, start.TestAcceleration)
+		clockSchedulerLog("speed policy: readmit=%s observe=%s blind=%d/%d -> %s accel=%v", sample.Readmit, sample.Observe, sample.Blind, sample.BlindBudget, start.Speed, start.TestAcceleration)
 	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: start.MaxTicks}
 	key, err := clockSchedulerKey(admission, fingerprint, start)

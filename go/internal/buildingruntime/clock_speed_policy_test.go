@@ -34,6 +34,12 @@ func TestSpeedPolicyRaisesWhileCalmAndDropsOnLatency(t *testing.T) {
 	if level != int(k.Speed_SPEED_SUPERFAST) {
 		t.Fatalf("slow observe did not drop a step: %d", level)
 	}
+	if level, _ = p.next(floor, speedLatency{Blind: 30, BlindBudget: 30}); level != int(k.Speed_SPEED_SUPERFAST) {
+		t.Fatalf("blind ticks at the budget did not drop a step: %d", level)
+	}
+	if level, _ = p.next(floor, speedLatency{Blind: 30}); level != int(k.Speed_SPEED_ULTRAFAST) {
+		t.Fatalf("blind ticks with the regulator off were judged: %d", level)
+	}
 	floorOnly := speedPolicy{config: config}
 	if level, _ = floorOnly.next(floor, speedLatency{Readmit: time.Second}); level != floor {
 		t.Fatalf("dropped below the floor: %d", level)
