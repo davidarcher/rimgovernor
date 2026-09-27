@@ -70,9 +70,6 @@ func TestShapeFamilyShellsRefuseANonModule(t *testing.T) {
 			t.Fatalf("%s placed %d shells off the grid", family, len(shells))
 		}
 	}
-	if _, ok := PairedWingModule(g, off); ok {
-		t.Fatal("a rectangle off the grid has a wing twin")
-	}
 }
 
 // The hall spans a module, the aisle bay and the neighbouring module along
@@ -154,22 +151,6 @@ func TestPairedWingsFacePlazaAndMirrorThroughIt(t *testing.T) {
 		if !shell.RoofSupported() || len(shell.Interior()) != int(ColonyGridInterior*ColonyGridInterior) {
 			t.Errorf("module %d,%d wing is not a whole roofed module: %d cells", c.mu, c.mv, len(shell.Interior()))
 		}
-		twin, ok := PairedWingModule(g, module)
-		if !ok {
-			t.Fatalf("module %d,%d has no twin", c.mu, c.mv)
-		}
-		want := g.Module(domain.Cell{X: g.Origin.X - c.mu*GridPitch, Z: g.Origin.Z - c.mv*GridPitch})
-		if twin != want {
-			t.Errorf("module %d,%d twin %+v, want %+v", c.mu, c.mv, twin, want)
-		}
-		// The pair is symmetric: the twin's own twin is the module again,
-		// and both open toward each other.
-		if back, ok := PairedWingModule(g, twin); !ok || back != module {
-			t.Errorf("module %d,%d twin is not mutual: %+v", c.mu, c.mv, back)
-		}
-	}
-	if _, ok := PairedWingModule(g, plaza); ok {
-		t.Fatal("the plaza module has a wing twin")
 	}
 }
 

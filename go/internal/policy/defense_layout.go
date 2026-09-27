@@ -493,13 +493,3 @@ func (l DefenseLayout) Probe() (firing, approach []domain.Cell) {
 	}
 	return firing, []domain.Cell{l.Entry}
 }
-
-// Tier returns the named tier; ok is false for an unknown name.
-func (l DefenseLayout) Tier(name DefenseTierName) (DefenseTier, bool) {
-	for _, t := range l.Tiers {
-		if t.Name == name {
-			return t, true
-		}
-	}
-	return DefenseTier{}, false
-}

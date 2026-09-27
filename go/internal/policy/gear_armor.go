@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"sort"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
@@ -91,20 +89,6 @@ func gearAvailable(stock []Stock, holds []Amount) (available map[Resource]int64,
 		available[hold.Resource] = max(0, available[hold.Resource]-hold.Count)
 	}
 	return available, known
-}
-
-// GearMaterialBudget is the loadout model's Budget: what each measured
-// material can fund after holds, the same
-// floor food bills honour (#470). Unmeasured resources are absent, which the
-// model treats as unfunded.
-func GearMaterialBudget(stock []Stock, holds []Amount) []Amount {
-	available, known := gearAvailable(stock, holds)
-	out := []Amount{}
-	for resource := range known {
-		out = append(out, Amount{resource, available[resource]})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
-	return out
 }
 
 // gearFunded reports whether budget covers every ingredient of o. A nil

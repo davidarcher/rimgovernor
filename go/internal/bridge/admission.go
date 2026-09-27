@@ -204,21 +204,6 @@ func admissionRank(class AdmissionClass) int {
 	return 1
 }
 
-// snapshot reports the slots held and the calls waiting per class.
-func (a *admission) snapshot() (held, waiting map[AdmissionClass]int) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	held = map[AdmissionClass]int{}
-	for class, n := range a.held {
-		held[class] = n
-	}
-	waiting = map[AdmissionClass]int{}
-	for _, w := range a.waiting {
-		waiting[w.class]++
-	}
-	return held, waiting
-}
-
 // nativeAdmissionClass is the class every reviewed rimgovernor/* method
 // is admitted under. Every name protoCall's allowlist accepts must be
 // listed (TestEveryReviewedMethodHasAnAdmissionClass); an unlisted name

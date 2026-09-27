@@ -131,16 +131,6 @@ func TestColonyStageHoldAndReset(t *testing.T) {
 	if rewound.Stage != StageFoothold || rewound.Since != 40 || rewound.Held {
 		t.Fatal(rewound)
 	}
-	for _, id := range []GoalID{EnsureComfort, MaintainStoneShell, MaintainHomeCoverage} {
-		if !StageDevelopmentGoal(id) {
-			t.Fatal(id)
-		}
-	}
-	for _, id := range []GoalID{EnsureResearch, EnsureExpansion, MaintainResource, MaintainResource, EnsureBasicDefense} {
-		if StageDevelopmentGoal(id) {
-			t.Fatal(id)
-		}
-	}
 	if err := ValidateColonyStage(ColonyStageRecord{Stage: 7}, 0); err == nil {
 		t.Fatal("invalid stage accepted")
 	}

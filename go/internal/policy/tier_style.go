@@ -21,18 +21,6 @@ import "sort"
 // resource. Zero or absent means the colony holds none.
 type TierStyleStock map[Resource]int64
 
-// TierStyleStockOf folds a stock census into the map the rules read,
-// summing repeated rows and ignoring negative counts.
-func TierStyleStockOf(rows []Amount) TierStyleStock {
-	stock := TierStyleStock{}
-	for _, row := range rows {
-		if row.Count > 0 {
-			stock[row.Resource] += row.Count
-		}
-	}
-	return stock
-}
-
 func (s TierStyleStock) has(resource Resource, count int64) bool { return s[resource] >= count }
 
 // QuarriedStone is the biome's stone as the colony has quarried it: the

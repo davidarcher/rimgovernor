@@ -2,9 +2,10 @@ package bridge
 
 import (
 	"context"
+	"math"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"math"
 )
 
 // ReadCombatPawns retains optional detailed facts and issues for exact IDs.
@@ -13,15 +14,6 @@ func (client *Client) ReadCombatPawns(ctx context.Context, identity *c.Identity,
 	return client.readPawns(ctx, identity, ids, true)
 }
 
-// ValidateCombatPawnSnapshot shares exact-ID validation with ReadCombatPawns.
-func ValidateCombatPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, identity, ids, pawnDetails{Combat: true})
-}
-
-// ValidateTendPawnSnapshot shares exact-ID validation with ReadTendPawns.
-func ValidateTendPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, identity, ids, pawnDetails{Combat: true, Work: true, Care: true, Tend: true})
-}
 func validateDetailedPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string, want pawnDetails) error {
 	if err := ValidateIdentity(identity); err != nil {
 		return err

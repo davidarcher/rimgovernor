@@ -331,19 +331,6 @@ func StageColonyFacts(needs RoutineNeeds, f RoutineFacts, progress []GoalProgres
 	return facts
 }
 
-// StageDevelopmentGoal reports the ranked projects the Foothold hold
-// withholds: the comfort-class development (a dining room, a stone shell,
-// home coverage) the same builder would raise before the shelter stands.
-// EnsureExpansion is not held: it raises the indoor capacity the shelter
-// gate measures.
-func StageDevelopmentGoal(id GoalID) bool {
-	switch id {
-	case EnsureComfort, MaintainStoneShell, MaintainHomeCoverage:
-		return true
-	}
-	return false
-}
-
 // stageLadderRungs is how many rungs of the research ladder each stage
 // walks: the masonry and power rungs at Foothold, through solar at
 // Reserves, through the medieval crafts at Stable, the whole ladder at

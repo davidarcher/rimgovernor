@@ -89,12 +89,6 @@ func pawnDetailsRequest(identity *c.Identity, ids []string, want pawnDetails) *o
 	return request
 }
 
-func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool) error {
-	return pawnsSnapshotDetails(v, id, requested, false)
-}
-func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat bool) error {
-	return pawnsSnapshotSelected(v, id, requested, pawnDetails{Combat: combat})
-}
 func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, want pawnDetails) error {
 	combat, work, care, schedule, social := want.Combat, want.Work, want.Care, want.Schedule, want.Social
 	if v == nil {

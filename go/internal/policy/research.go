@@ -170,47 +170,6 @@ type ResearchLabRequirement struct {
 	RequiredFacilities domain.Fact[[]string]
 }
 
-// UsableResearchLaboratories returns the powered, facility-complete benches
-// that satisfy a project's laboratory requirement. An unobserved facility
-// requirement can never prove a bench usable.
-func UsableResearchLaboratories(requirement ResearchLabRequirement, benches []ResearchBench) []ResearchBench {
-	facilities, known := requirement.RequiredFacilities.Value()
-	if !known {
-		return nil
-	}
-	needed := map[string]bool{}
-	for _, facility := range facilities {
-		needed[facility] = true
-	}
-	required, hasRequired := requirement.RequiredBuilding.Value()
-	var usable []ResearchBench
-	for _, bench := range benches {
-		if !bench.Powered {
-			continue
-		}
-		if hasRequired && bench.DefName != required {
-			continue
-		}
-		active := map[string]bool{}
-		for _, facility := range bench.Facilities {
-			if facility.Active {
-				active[facility.DefName] = true
-			}
-		}
-		complete := true
-		for facility := range needed {
-			if !active[facility] {
-				complete = false
-				break
-			}
-		}
-		if complete {
-			usable = append(usable, bench)
-		}
-	}
-	return usable
-}
-
 // ResearchPawn mirrors one native colonist's research-eligibility facts:
 // incapacitation state, whether native work assignment applies to them at
 // all, and their current Research work-type priority/disabled state.
@@ -219,58 +178,4 @@ type ResearchPawn struct {
 	Dead, Downed, Drafted, MentalState domain.Fact[bool]
 	Applies                            domain.Fact[bool]
 	Work                               domain.Fact[[]WorkPriority]
-}
-
-// researchWorkType is the native WorkTypeDef research eligibility keys off.
-const researchWorkType WorkType = "Research"
-
-// EligibleResearchers returns, in a stable sorted order, the pawns able to
-// staff native research work: not dead/downed/drafted/mentally broken, native
-// work assignment applies to them, their explicit player override (if any)
-// has not zeroed Research out, and their own Research work-type priority is
-// positive and not disabled.
-func EligibleResearchers(pawns []ResearchPawn, overrides []WorkOverride) []PawnID {
-	zeroed := map[PawnID]bool{}
-	for _, override := range overrides {
-		if override.Work == researchWorkType && override.Priority == 0 {
-			zeroed[override.Pawn] = true
-		}
-	}
-	var result []PawnID
-	for _, pawn := range pawns {
-		if zeroed[pawn.Pawn] {
-			continue
-		}
-		if dead, ok := pawn.Dead.Value(); ok && dead {
-			continue
-		}
-		if downed, ok := pawn.Downed.Value(); ok && downed {
-			continue
-		}
-		if drafted, ok := pawn.Drafted.Value(); ok && drafted {
-			continue
-		}
-		if mentalState, ok := pawn.MentalState.Value(); ok && mentalState {
-			continue
-		}
-		if applies, ok := pawn.Applies.Value(); !ok || !applies {
-			continue
-		}
-		work, ok := pawn.Work.Value()
-		if !ok {
-			continue
-		}
-		eligible := false
-		for _, priority := range work {
-			if priority.Work == researchWorkType && !priority.Disabled && priority.Priority > 0 {
-				eligible = true
-				break
-			}
-		}
-		if eligible {
-			result = append(result, pawn.Pawn)
-		}
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
-	return result
 }

@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,21 +134,6 @@ func TestDurableRecordsFsyncImmediatelyNonDurableDoNot(t *testing.T) {
 	}
 	if stats.Records != 3 {
 		t.Fatalf("expected 3 total records, got %d", stats.Records)
-	}
-}
-
-func TestActionContextRoundTrips(t *testing.T) {
-	ctx := WithFlightAction(context.Background(), "action-1", "goal-1")
-	got := flightActionFrom(ctx)
-	if got["action_id"] != "action-1" || got["goal_id"] != "goal-1" {
-		t.Fatalf("unexpected action context: %+v", got)
-	}
-	if flightActionFrom(context.Background()) != nil {
-		t.Fatal("expected nil action context on bare context")
-	}
-	unattached := WithFlightAction(context.Background(), "", "goal")
-	if flightActionFrom(unattached) != nil {
-		t.Fatal("expected an empty action id to attach no correlation")
 	}
 }
 

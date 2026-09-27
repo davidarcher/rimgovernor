@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -77,9 +78,6 @@ func (client *Client) readSupplyAccess(ctx context.Context, identity *c.Identity
 	}
 	result, err := decodeSupplyAccess(reply, identity, cell, forbid)
 	return result, raw, err
-}
-func decodeAllowSupplies(reply *o.ListSuppliesReply, identity *c.Identity, cell domain.Cell) (SupplyRead, error) {
-	return decodeSupplyAccess(reply, identity, cell, false)
 }
 func decodeSupplyAccess(reply *o.ListSuppliesReply, identity *c.Identity, cell domain.Cell, forbid bool) (SupplyRead, error) {
 	return decodeSupplyAccessAt(reply, identity, &cell, forbid)

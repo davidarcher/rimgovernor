@@ -1,7 +1,5 @@
 package policy
 
-import "sort"
-
 // ResearchRequirementKind names what kind of native definition a research
 // need is blocking on.
 type ResearchRequirementKind string
@@ -33,45 +31,4 @@ type ResearchNeedSource struct {
 	PriorityClass     int
 	UnavailableThings []string
 	BlockedRecipes    []string
-}
-
-// ResearchNeeds aggregates and deterministically orders the distinct
-// (goal, requirement) research needs across every supplied source:
-// deduplicated by (goal, requirement), then sorted by
-// the owning goal's priority class and finally by the goal/requirement
-// identity itself so retries observe a stable queue.
-func ResearchNeeds(sources []ResearchNeedSource) []ResearchNeed {
-	priority := map[GoalID]int{}
-	seen := map[ResearchNeed]bool{}
-	var result []ResearchNeed
-	add := func(goal GoalID, kind ResearchRequirementKind, name string) {
-		need := ResearchNeed{Goal: goal, Requirement: kind, Name: name}
-		if !seen[need] {
-			seen[need] = true
-			result = append(result, need)
-		}
-	}
-	for _, source := range sources {
-		priority[source.Goal] = source.PriorityClass
-		for _, name := range source.UnavailableThings {
-			add(source.Goal, ResearchRequirementThing, name)
-		}
-		for _, name := range source.BlockedRecipes {
-			add(source.Goal, ResearchRequirementRecipe, name)
-		}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		a, b := result[i], result[j]
-		if priority[a.Goal] != priority[b.Goal] {
-			return priority[a.Goal] < priority[b.Goal]
-		}
-		if a.Goal != b.Goal {
-			return a.Goal < b.Goal
-		}
-		if a.Requirement != b.Requirement {
-			return a.Requirement < b.Requirement
-		}
-		return a.Name < b.Name
-	})
-	return result
 }

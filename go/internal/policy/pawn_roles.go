@@ -43,28 +43,6 @@ func Among(profiles []PawnProfile, ids []PawnID) []PawnProfile {
 	return out
 }
 
-// SurgeonFor picks the surgeon for an operation needing Medicine at least
-// minimum (never under 4): the highest Medicine, a Psychopath preferred for
-// a harvest since the operation costs them no mood.
-func SurgeonFor(profiles []PawnProfile, minimum int, harvest bool) (PawnID, bool) {
-	if minimum < 4 {
-		minimum = 4
-	}
-	var candidates []roleCandidate
-	for _, p := range profiles {
-		s := p.Skill("Medicine")
-		if !p.Capable(WorkDoctor, minimum) || s.Level < minimum {
-			continue
-		}
-		score := float64(s.Level)
-		if harvest && p.Effects.SurgeonSafe {
-			score += 5
-		}
-		candidates = append(candidates, roleCandidate{p.ID, score})
-	}
-	return bestRole(candidates)
-}
-
 // WardenFor picks the warden: the highest Social, Kind preferred, Abrasive
 // never; for an execution a Psychopath or Bloodlust pawn takes no mood loss
 // and is preferred.

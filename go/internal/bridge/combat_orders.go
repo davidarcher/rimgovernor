@@ -59,13 +59,6 @@ type CombatOrderResult struct {
 // CombatOrdersControl issues batched combat micro orders under an owned draft.
 type CombatOrdersControl struct{ client *Client }
 
-func NewCombatOrdersControl(client *Client) (*CombatOrdersControl, error) {
-	if client == nil {
-		return nil, contract("combat orders client missing")
-	}
-	return &CombatOrdersControl{client: client}, nil
-}
-
 func combatOrdersOperation(command *o.CombatOrders) *o.Operation {
 	return &o.Operation{Command: &o.Operation_CombatOrders{CombatOrders: command}}
 }

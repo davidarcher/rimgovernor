@@ -6,7 +6,6 @@
 package bridge
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -331,21 +330,4 @@ func (r *FlightRecorder) FlightRecorderStats() FlightRecorderStats {
 		RecordingSeconds: r.elapsed.Seconds(), RetentionSegments: r.segments,
 		SegmentBytes: r.segmentBytes, PayloadBytes: r.payloadBytes,
 	}
-}
-
-type actionContextKey struct{}
-
-// WithFlightAction attaches an action/goal correlation pair to ctx; Event calls
-// made against a bridge that reads it via flightActionFrom include it in context.
-func WithFlightAction(ctx context.Context, actionID, goalID string) context.Context {
-	if actionID == "" {
-		return ctx
-	}
-	return context.WithValue(ctx, actionContextKey{}, map[string]any{"action_id": actionID, "goal_id": goalID})
-}
-
-// flightActionFrom reads back the correlation WithFlightAction attached, or nil.
-func flightActionFrom(ctx context.Context) map[string]any {
-	value, _ := ctx.Value(actionContextKey{}).(map[string]any)
-	return value
 }

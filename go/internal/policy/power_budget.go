@@ -126,11 +126,3 @@ func ComputePowerBudget(in PowerBudgetInput) PowerBudget {
 	b.StorageShortfallWD = math.Max(0, b.StorageNeededWD-in.CapacityWD)
 	return b
 }
-
-// Batteries is the number of batteries that close the storage shortfall.
-func (b PowerBudget) Batteries() int {
-	if b.StorageShortfallWD <= 0 {
-		return 0
-	}
-	return int(math.Ceil(b.StorageShortfallWD / BatteryCapacityWD))
-}

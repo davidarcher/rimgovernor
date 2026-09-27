@@ -488,9 +488,8 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 }
 
 // snapshotRecordingContext reads the installed recording-context callback (if
-// any) once per call and merges in any action/goal correlation the caller
-// attached to ctx via WithFlightAction and the trace the caller's step or
-// dispatch attached via telemetry.WithTrace (#298).
+// any) once per call and merges in the trace the caller's step or dispatch
+// attached via telemetry.WithTrace (#298).
 func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	c.mu.Lock()
 	callback := c.recordingContext
@@ -500,9 +499,6 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 		for k, v := range callback() {
 			merged[k] = v
 		}
-	}
-	for k, v := range flightActionFrom(ctx) {
-		merged[k] = v
 	}
 	telemetry.TraceFrom(ctx).Stamp(merged)
 	return merged

@@ -24,46 +24,10 @@ func (f InteriorFrame) Contains(r Rectangle) bool {
 	return r.Width > 0 && r.Height > 0 && r.X >= 0 && r.Z >= 0 && r.X+r.Width <= f.Width && r.Z+r.Height <= f.Depth
 }
 
-// Thresholds are the floor cells just inside each door.
-func (f InteriorFrame) Thresholds() []domain.Cell {
-	var cells []domain.Cell
-	for _, d := range f.Doors {
-		c := d
-		switch {
-		case d.Z < 0:
-			c.Z = 0
-		case d.Z >= f.Depth:
-			c.Z = f.Depth - 1
-		case d.X < 0:
-			c.X = 0
-		default:
-			c.X = f.Width - 1
-		}
-		cells = append(cells, c)
-	}
-	return cells
-}
-
-// WallBand is the strip thickness cells deep along a wall.
-func (f InteriorFrame) WallBand(w InteriorWall, thickness int32) Rectangle {
-	switch w {
-	case WallLeft:
-		return Rectangle{X: 0, Z: 0, Width: thickness, Height: f.Depth}
-	case WallRight:
-		return Rectangle{X: f.Width - thickness, Z: 0, Width: thickness, Height: f.Depth}
-	case WallFront:
-		return Rectangle{X: 0, Z: 0, Width: f.Width, Height: thickness}
-	}
-	return Rectangle{X: 0, Z: f.Depth - thickness, Width: f.Width, Height: thickness}
-}
-
 // CentreStart is where a span of cells starts to sit centred on a length;
 // when the parities differ the span sits half a cell toward the start
 // (the entrance side after the frame's mirror).
 func CentreStart(length, span int32) int32 { return (length - span) / 2 }
-
-// MirrorStart is where the mirror image of a span starting at start lies.
-func MirrorStart(length, start, span int32) int32 { return length - start - span }
 
 // RowAnchor places a row of pieces along a wall.
 type RowAnchor int
@@ -154,17 +118,6 @@ func BenchRow(f InteriorFrame, def InteriorPieceDef, gap, limit int32, slot func
 		out = append(out, p)
 	}
 	return out, starts, pitch, true
-}
-
-// MirrorPiece is a piece's mirror image across the frame's centre line,
-// under a new slot name.
-func (f InteriorFrame) MirrorPiece(p InteriorPiece, slot string) InteriorPiece {
-	p.Slot = slot
-	p.Rect.X = MirrorStart(f.Width, p.Rect.X, p.Rect.Width)
-	if p.Rot == domain.East || p.Rot == domain.West {
-		p.Rot = rotateCW(p.Rot, 2)
-	}
-	return p
 }
 
 // AisleRows are the rows of a double-sided room (the battery room, the

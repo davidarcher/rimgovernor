@@ -180,10 +180,7 @@ func TestCombatOrdersIssue(t *testing.T) {
 		draftTestRequest(t, arg, &o.ExecuteRequest{Precondition: buildingPre(), Operation: combatOrdersOperation(combatTestOrders())})
 		return pbResult(&o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: combatReceipt(combatTestResults(), true)}}), nil
 	}}, time.Second)
-	control, err := NewCombatOrdersControl(client)
-	if err != nil {
-		t.Fatal(err)
-	}
+	control := &CombatOrdersControl{client: client}
 	results, _, _, err := control.Issue(context.Background(), buildingPre(), combatTestOrders())
 	if err != nil || len(results) != 8 || results[2].Refusal != CombatRefusalDraftOwnership {
 		t.Fatalf("issue: %v %+v", err, results)

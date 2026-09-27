@@ -52,17 +52,6 @@ func pendingWaste(items []WasteItem) []WasteItem {
 	return out
 }
 
-// WasteDeficit is the binary MaintainWaste
-// deficit signal: unknown census stays unknown (absence is never evidence of
-// recovery), otherwise deficit is simply "any pending item remains".
-func WasteDeficit(items domain.Fact[[]WasteItem]) domain.Fact[bool] {
-	rows, known := items.Value()
-	if !known {
-		return domain.Unknown[bool]()
-	}
-	return domain.Known(len(pendingWaste(rows)) > 0)
-}
-
 // WastePawn mirrors CleanCandidateFacts, narrowed to the waste
 // exclusion set: dead, downed, drafted or mentally broken
 // pawns never become haul/burial candidates. Unlike cleaning, waste's own

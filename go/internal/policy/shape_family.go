@@ -77,12 +77,6 @@ func hallRole(role RoomRole) bool {
 	return role == RoomRoleDiningRoom || RoomDistrict(role) == DistrictProduction
 }
 
-// ModuleShapes lists every shell template for one module under a tier and
-// role: the shape family's shells first, then C6's single-module templates.
-func ModuleShapes(g ColonyGrid, module Rectangle, tier BuildTier, role RoomRole) []ModuleShell {
-	return append(ShapeFamilyShells(g, module, ModuleShapeFamily(tier, role)), ModuleShells(g, module)...)
-}
-
 // ModuleShapesAtDoor returns every shell shape of the family, and every
 // single-module template, whose door stands on door: the planner recognises
 // a shell it began earlier from the door still standing.
@@ -117,20 +111,6 @@ func ShapeFamilyShells(g ColonyGrid, module Rectangle, family ShapeFamily) []Mod
 		return courtyardShells(g, module)
 	}
 	return nil
-}
-
-// PairedWingModule is the module a wing's twin stands in: the module
-// mirrored through the plaza (the origin module), so the pair is symmetric
-// about it. The plaza module itself has no twin.
-func PairedWingModule(g ColonyGrid, module Rectangle) (Rectangle, bool) {
-	if !g.Valid() || g.Module(domain.Cell{X: module.X, Z: module.Z}) != module {
-		return Rectangle{}, false
-	}
-	mu, mv := g.module(domain.Cell{X: module.X + module.Width/2, Z: module.Z + module.Height/2})
-	if mu == 0 && mv == 0 {
-		return Rectangle{}, false
-	}
-	return g.rectangle(-mu*g.Pitch, -mv*g.Pitch, ColonyGridModule, ColonyGridModule), true
 }
 
 // hallShells are the double-module halls a module begins: one per

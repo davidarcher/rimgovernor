@@ -111,15 +111,6 @@ func TestSituationalRoles(t *testing.T) {
 	kind := roleProfile("kind", true, map[string]ProfileSkill{"Medicine": {Level: 3}, "Social": {Level: 7}, "Animals": {Level: 11}, "Shooting": {Level: 12}, "Melee": {Level: 12}}, PawnTrait{Name: "Kind"}, PawnTrait{Name: "SpeedOffset", Degree: 2}, PawnTrait{Name: "Tough"})
 	abrasive := roleProfile("abrasive", true, map[string]ProfileSkill{"Medicine": {Level: 1}, "Social": {Level: 15}, "Animals": {Level: 0}, "Shooting": {Level: 14}, "Melee": {Level: 2}}, PawnTrait{Name: "Abrasive"}, PawnTrait{Name: "Brawler"})
 	all := []PawnProfile{medic, psycho, kind, abrasive}
-	if id, ok := SurgeonFor(all, 10, false); !ok || id != "medic" {
-		t.Fatal(id, ok)
-	}
-	if id, ok := SurgeonFor(all, 4, true); !ok || id != "psycho" {
-		t.Fatal("harvest ignored the psychopath", id, ok)
-	}
-	if _, ok := SurgeonFor(all, 13, false); ok {
-		t.Fatal("surgeon under minimum")
-	}
 	if id, ok := WardenFor(all, false); !ok || id != "kind" {
 		t.Fatal(id, ok)
 	}

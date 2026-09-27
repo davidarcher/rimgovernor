@@ -128,22 +128,6 @@ func TraitEffect(trait PawnTrait) TraitEffects {
 	return traitTable[trait]
 }
 
-// KnownTraits lists the trait rows the table knows, for documentation and
-// the dossier.
-func KnownTraits() []PawnTrait {
-	out := make([]PawnTrait, 0, len(traitTable))
-	for t := range traitTable {
-		out = append(out, t)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Degree < out[j].Degree
-	})
-	return out
-}
-
 // ProfileSkill is one skill as the planner scores it: the effective level
 // (with aptitude offsets, what the game applies), the stored level native
 // keeps beneath it (what learning raises) and the passion.

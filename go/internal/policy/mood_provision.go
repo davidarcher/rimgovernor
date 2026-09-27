@@ -57,16 +57,6 @@ var moodUnownedThoughts = map[string]bool{
 	"SleptInBarracks": true,
 }
 
-// MoodUnownedThought reports whether the thought is removable environment
-// pressure no goal owns.
-func MoodUnownedThought(def string) bool { return moodUnownedThoughts[def] }
-
-// MoodProvisionOwners names the goals whose facility removes the thought,
-// if the catalog knows any.
-func MoodProvisionOwners(def string) []GoalID {
-	return append([]GoalID(nil), moodProvisionOwners[def]...)
-}
-
 // MoodProvisionGoal reports whether the catalog can name the goal as an owner.
 func MoodProvisionGoal(goal GoalID) bool {
 	for _, owners := range moodProvisionOwners {

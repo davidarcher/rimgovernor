@@ -92,9 +92,3 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 	}
 	return out, true
 }
-
-// HorseshoesLane is the canonical rectangle a pin at the back wall keeps
-// clear: three cells wide, from the pin five cells toward the entrance.
-func HorseshoesLane(f InteriorFrame) Rectangle {
-	return Rectangle{X: CentreStart(f.Width, 1) - 1, Z: f.Depth - horseshoesLane, Width: 3, Height: horseshoesLane - 1}
-}

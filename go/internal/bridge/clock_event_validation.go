@@ -20,13 +20,3 @@ func ValidateClockEventsPage(page *k.EventsPage, request *k.EventsRequest) error
 	}
 	return clockEventsPage(page, request)
 }
-
-// ValidateClockEvent validates retained typed evidence without acknowledging it
-// or granting permission to resume. It does not require the event's original
-// world or epoch to be current.
-func ValidateClockEvent(event *k.Event) error {
-	if err := clockWire(event); err != nil {
-		return err
-	}
-	return clockEvent(event)
-}

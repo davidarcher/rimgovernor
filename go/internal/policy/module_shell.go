@@ -77,22 +77,6 @@ func ModuleShells(g ColonyGrid, module Rectangle) []ModuleShell {
 	return out
 }
 
-// ModuleShellsAtDoor returns every module template whose door stands on
-// door, the module-style counterpart of ShellShapesAtDoor: a shell planner
-// recognises a module it began earlier from the door still standing.
-func ModuleShellsAtDoor(g ColonyGrid, door domain.Cell) []domain.RoomFootprint {
-	if !g.Valid() {
-		return nil
-	}
-	var shells []domain.RoomFootprint
-	for _, t := range ModuleShells(g, g.Module(door)) {
-		if t.Shell.Door() == door {
-			shells = append(shells, t.Shell)
-		}
-	}
-	return shells
-}
-
 // moduleSites is the module-style starter search: every module the
 // observed cells touch is tried in corner order, and the first template
 // class with a buildable placement in it sites that module, the door
