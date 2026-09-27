@@ -153,13 +153,17 @@ func parseClockSpeed(speed string) k.Speed {
 // edits (#626), a growing zone turning harvestable and a stock crossing a
 // --routine-resource-target level (#670). Raising the default is #669.
 //
-// A raid runs in combatClockWindowTicks windows so the defense planner
-// re-targets between them; that bound is fixed.
+// A raid runs in combat windows that stop natively on the tick an armed
+// combat event happens (#849); combatBackstopTicks bounds a window in which
+// none does. 300 ticks is five game seconds at Normal: about one aimed
+// shot cycle plus a few cells of a charge, so a fight that produced no
+// event is still re-decided before it can drift far from the last plan,
+// while a quiet siege does not stop more often than the planners take.
 const (
 	defaultClockWindowTicks = 60000
 	// The bridge's own bound on StartRequest.max_ticks (bridge.ClockStart).
-	maxClockWindowTicks    = 1800000
-	combatClockWindowTicks = 300
+	maxClockWindowTicks = 1800000
+	combatBackstopTicks = 300
 	// maxClockBlindTicks is the wire bound on StartRequest.blind_tick_budget.
 	maxClockBlindTicks = 1800000
 )
@@ -172,7 +176,7 @@ func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, wi
 		// budget no longer constrains it; it stays at the step timeout so
 		// a slow admission read under peer load still admits.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
-		CombatMaxTicks: min(combatClockWindowTicks, windowTicks),
+		CombatMaxTicks: min(combatBackstopTicks, windowTicks),
 		Start: bridge.ClockStart{Speed: speed, TestAcceleration: testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),

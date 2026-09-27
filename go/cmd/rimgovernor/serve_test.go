@@ -472,7 +472,7 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 	}
 	for _, boost := range []bool{false, true} {
 		config = serviceClockConfig(dir, parseClockSpeed("Ultrafast"), boost, defaultClockWindowTicks, 0)
-		if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
+		if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatBackstopTicks {
 			t.Fatal(boost, config.Start.MaxTicks, config.CombatMaxTicks)
 		}
 	}

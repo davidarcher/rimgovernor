@@ -112,3 +112,27 @@ func TestClockPolicyResourceThresholdsBounded(t *testing.T) {
 		}
 	}
 }
+
+// Combat stop events (#849) are armed only on a combat policy, each
+// specified and distinct.
+func TestClockPolicyCombatStopEvents(t *testing.T) {
+	combat := clockTestPolicy()
+	combat.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum()
+	combat.CombatStopEvents = []k.CombatEvent{k.CombatEvent_COMBAT_EVENT_DOWNED, k.CombatEvent_COMBAT_EVENT_ENTERED_RANGE}
+	if err := clockPolicy(combat, 300); err != nil {
+		t.Fatal(err)
+	}
+	colony := proto.Clone(combat).(*k.WatchPolicy)
+	colony.Mode = k.WatchMode_WATCH_MODE_COLONY.Enum()
+	duplicate := proto.Clone(combat).(*k.WatchPolicy)
+	duplicate.CombatStopEvents[1] = k.CombatEvent_COMBAT_EVENT_DOWNED
+	unspecified := proto.Clone(combat).(*k.WatchPolicy)
+	unspecified.CombatStopEvents[0] = k.CombatEvent_COMBAT_EVENT_UNSPECIFIED
+	unknown := proto.Clone(combat).(*k.WatchPolicy)
+	unknown.CombatStopEvents[0] = k.CombatEvent(99)
+	for name, p := range map[string]*k.WatchPolicy{"colony": colony, "duplicate": duplicate, "unspecified": unspecified, "unknown": unknown} {
+		if err := clockPolicy(p, 300); !errors.Is(err, ErrContract) {
+			t.Fatal(name, err)
+		}
+	}
+}

@@ -93,3 +93,29 @@ and the epoch timing summary (`probeMs`, `digestMs`) and the clock status
 carry the two counters apart. The [throughput
 measure](../testing/measure-throughput.md) reports `digest_share` per
 speedmatrix row.
+
+## Armed combat stops (#849)
+
+A `WATCH_MODE_COMBAT` epoch also stops on the armed events in
+`WatchPolicy.combat_stop_events` with a bound of **0 ticks**: the stop
+lands on the boundary of the tick the event happened on
+(`STOP_REASON_COMBAT_EVENT`, `occurrence_tick` = the stop tick). A game hook
+records the event and `TickBody` stops right after the watch checks
+(`SupervisedPlayCombatStops.cs`, which also holds the thresholds):
+
+| Event | Source |
+| --- | --- |
+| Downed | `MakeDowned` / `Pawn.Kill` postfixes (colonists) |
+| Serious injury | `Pawn_HealthTracker.PostApplyDamage` prefix + postfix |
+| Shield broken | `CompShield.Break` postfix |
+| Entered range | tick-boundary scan: a hostile's own weapon reaching a colonist or turret, once per hostile per combat |
+| Melee contact | tick-boundary scan: a new `AttackMelee` pair, once per pair per combat |
+| Explosive launched | `Projectile.Launch` postfix |
+| Raid phase | `Lord.GotoToil` prefix + postfix (hostile lords) |
+| Hostile arrived | `Pawn.SpawnSetup` postfix |
+| Breach | `Thing.Destroy` prefix (`KillFinalize` of a player wall, door or turret) |
+| Mental break | `MentalStateHandler.TryStartMentalState` postfix |
+
+A combat window with no armed event stops on its tick budget, the
+controller's `combatBackstopTicks` (300). The acceptance case
+`combatlab/stops` proves the exact tick on `lab-open`.

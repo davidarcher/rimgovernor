@@ -332,6 +332,10 @@ type ScenarioClock struct {
 	// to WATCH_MODE_COMBAT with these acknowledged hostiles.
 	CombatTargets []string
 
+	// PolicyEdit, when set, edits every clock_start's watch policy after the
+	// combat-target injection (a case arming combat stop events, #849).
+	PolicyEdit func(policy map[string]any)
+
 	// TestAcceleration opts AdvanceGame into Ultrafast with the native test
 	// tick boost. Requires a launch with -rimgovernor-test-acceleration;
 	// the zero value preserves Superfast and all native stop boundaries.
@@ -434,6 +438,14 @@ func (s *ScenarioClock) Control(ctx context.Context, method string, request map[
 		}
 		policy["mode"] = "WATCH_MODE_COMBAT"
 		policy["acknowledgedHostileIds"] = targets
+	}
+	if method == "start" && s.PolicyEdit != nil {
+		request = deepCopyMap(request)
+		policy, ok := AsMap(request["policy"])
+		if !ok {
+			return nil, fmt.Errorf("start request missing policy: %#v", request)
+		}
+		s.PolicyEdit(policy)
 	}
 	reply, err := s.Wire(ctx, method, "clock_"+method, request)
 	if err != nil {

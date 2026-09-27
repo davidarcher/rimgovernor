@@ -29,6 +29,8 @@ namespace HomeBridge.BridgeTools
             { Owner = owner; Origin = origin; LastObservation = origin.Clone(); Authority = authority; Policy = policy; LeaseMs = leaseMs; }
             internal bool PauseRequested;
             internal bool StopPauseVerified;
+            // The armed combat event that stopped this epoch (#849), else unset.
+            internal Clock.CombatEvent CombatEvent { get; set; }
             internal readonly List<ArmedWatch> Watches = new List<ArmedWatch>();
         }
         private static TypedEpoch? pendingTyped;
@@ -283,6 +285,7 @@ namespace HomeBridge.BridgeTools
                         result.Stopped = new Clock.Stopped { Epoch = epoch, Reason = StopReason(s.StopReason), Detail = Text(s.StopDetail),
                             ActualPaused = Find.TickManager.Paused, PauseRequested = TypedOf(s).PauseRequested, PauseVerified = TypedOf(s).StopPauseVerified };
                         if (s.StopAtMs.HasValue) result.Stopped.StoppedAtUnixMs = s.StopAtMs.Value;
+                        if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result.Stopped.CombatEvent = TypedOf(s).CombatEvent;
                     }
                     result.MaxProbeTickGap = s.MaxProbeTickGap; result.ProbeCount = checked((ulong)s.ProbeCount);
                     if (s.ForcePauseSinceMs != 0) { result.ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)); result.ForcePauseKind = Text(s.ForcePauseKind); }
@@ -547,6 +550,9 @@ namespace HomeBridge.BridgeTools
                 && policy.WatchedAttempts.Distinct().Count() == policy.WatchedAttempts.Count
                 && policy.ResourceThresholds.Count <= 32 && policy.ResourceThresholds.All(t => t.HasDefName && ProtoBoundary.IsIdentifier(t.DefName) && t.HasLevel && t.Level >= 1)
                 && policy.ResourceThresholds.Select(t => t.DefName).Distinct(StringComparer.Ordinal).Count() == policy.ResourceThresholds.Count
+                && (policy.CombatStopEvents.Count == 0 || policy.Mode == Clock.WatchMode.Combat)
+                && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))
+                && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count
                 && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
         }
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;

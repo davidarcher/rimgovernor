@@ -105,6 +105,7 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException("Native tick boundary patch was not installed.");
                 EnsureCeilingPatched();
                 EnsureHazardHooks();
+                EnsureCombatHooks();
                 NativeControlAuthority.GenerationChanged += OnAuthorityChanged;
                 _patchError = null;
             }
@@ -197,7 +198,7 @@ namespace HomeBridge.BridgeTools
                 _state = s;
                 ClockPauseAccounting.Started(s.Session);
                 ClockProbeAccounting.Started(s.Session);
-                ResetHazardHooks();
+                ResetHazardHooks(s);
                 DigestDirty = false;
                 var digestBegan = System.Diagnostics.Stopwatch.GetTimestamp();
                 PublishFactChanges(s);
@@ -293,6 +294,8 @@ namespace HomeBridge.BridgeTools
                 var latched = CheckWatches(s);
                 s.Timing.WatchElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - watchBegan;
                 if (latched) return;
+                // An armed combat event (#849) stops at this tick's boundary.
+                if (StopOnCombatEvent(s)) return;
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;

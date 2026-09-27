@@ -328,6 +328,8 @@ type ClockScheduler struct {
 	pacePerSecond float64
 	// speed is the speed policy's state (#635), under the player gate.
 	speed speedPolicy
+	// combatStops measures combat windows' stops (#849), under the player gate.
+	combatStops combatStopMetrics
 	// livePaceTicks is the pace a step projects the tick by (drift):
 	// pacePerSecond while a window runs, zero under a stopped clock. Touched only under the player gate.
 	livePaceTicks float64
@@ -1346,7 +1348,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			start.Policy.AcknowledgedHostileIds = append(start.Policy.AcknowledgedHostileIds, string(id))
 		}
 		start.MaxTicks = out.Decision.MaxTicks
+		// Native stops the window on the tick an armed event happens
+		// (#849); the combat budget is the backstop when none does.
+		start.Policy.CombatStopEvents = slices.Clone(combatStopEvents)
 	}
+	s.combatStops.admitted(call, status.GetStopped(), status.GetContext().GetTick(), s.clock.Now(), out.Combat)
 	var speedNext speedPolicy
 	if sp := s.config.SpeedPolicy; sp != nil && !start.PlayerAccelerated {
 		s.speed.config = *sp

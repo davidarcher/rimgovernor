@@ -319,6 +319,16 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 		}
 		levels[t.GetDefName()] = true
 	}
+	if len(p.CombatStopEvents) > 0 && p.GetMode() != k.WatchMode_WATCH_MODE_COMBAT {
+		return contract("combat stop events outside combat mode")
+	}
+	armed := map[k.CombatEvent]bool{}
+	for _, e := range p.CombatStopEvents {
+		if _, known := k.CombatEvent_name[int32(e)]; !known || e == k.CombatEvent_COMBAT_EVENT_UNSPECIFIED || armed[e] {
+			return contract("invalid or duplicate combat stop event")
+		}
+		armed[e] = true
+	}
 	return nil
 }
 

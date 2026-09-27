@@ -78,9 +78,10 @@ namespace HomeBridge.BridgeTools
         }
 
         /// Forget the per-epoch occurrence records at a new epoch's start.
-        private static void ResetHazardHooks()
+        private static void ResetHazardHooks(State s)
         {
             lock (_spawnTicks) { _spawnTicks.Clear(); _downedTicks.Clear(); }
+            ResetCombatStops(s);
         }
 
         /// A hook asking the tick path for a probe, keyed by the class it
@@ -101,7 +102,11 @@ namespace HomeBridge.BridgeTools
                 var s = _state; var tm = Find.TickManager;
                 if (s == null || !s.Active || tm == null || __instance == null) return;
                 lock (_spawnTicks) _spawnTicks[__instance.thingIDNumber] = tm.TicksGame;
-                if (__instance.HostileTo(Faction.OfPlayer)) RequestProbe("hostile");
+                if (__instance.HostileTo(Faction.OfPlayer))
+                {
+                    RequestProbe("hostile");
+                    if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Protocol.Clock.CombatEvent.HostileArrived, __instance, "hostile spawned");
+                }
             }
             catch { }
         }
@@ -115,6 +120,7 @@ namespace HomeBridge.BridgeTools
                 if (pawn == null || tm == null || !pawn.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[pawn.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
+                NoteCombatEvent(RimGovernor.Protocol.Clock.CombatEvent.Downed, pawn, "downed");
             }
             catch { }
         }
@@ -127,6 +133,7 @@ namespace HomeBridge.BridgeTools
                 if (__instance == null || tm == null || !__instance.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[__instance.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
+                NoteCombatEvent(RimGovernor.Protocol.Clock.CombatEvent.Downed, __instance, "killed");
             }
             catch { }
         }

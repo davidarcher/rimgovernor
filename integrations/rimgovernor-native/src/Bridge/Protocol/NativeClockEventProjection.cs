@@ -98,6 +98,7 @@ namespace HomeBridge.BridgeTools
                 case "colonist_health": return Clock.StopReason.ColonistHealth;
                 case "colonist_injury": return Clock.StopReason.ColonistInjury;
                 case "watch_latched": return Clock.StopReason.WatchLatched;
+                case "combat_event": return Clock.StopReason.CombatEvent;
                 default: throw new InvalidOperationException("Unknown native clock stop kind: " + kind);
             }
         }
@@ -161,6 +162,11 @@ namespace HomeBridge.BridgeTools
                         stop.Notifications.Letters.Add(Rows(P(), "letters").Select(Letter)); stop.Notifications.Messages.Add(Rows(P(), "messages").Select(Message));
                     }
                     else if (kind == "watch_latched") stop.Watch = new Clock.WatchLatched { Outcome = Outcome(P()), TickDeadline = Number(P(), "tickDeadline") };
+                    else if (kind == "combat_event")
+                    {
+                        stop.Combat = new Clock.CombatEventStop { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };
+                        object? thing; if (P().TryGetValue("thingId", out thing) && thing != null) stop.Combat.ThingId = Id((string)thing);
+                    }
                     else if (kind == "colonist_injury") stop.Injury = Injury(P(), resolvePawn);
                     else if (kind == "colonist_health") stop.Health = new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") };
                     else if (payload != null && payload.ContainsKey("pawnId")) stop.Pawn = Pawn(P(), resolvePawn);

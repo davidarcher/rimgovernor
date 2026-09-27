@@ -84,6 +84,39 @@ enum StopReason {
   // clock; PauseEvidence.dialog names it and ColonyFactsSnapshot.dialog lists
   // its options for Operations.AnswerDialog.
   STOP_REASON_DIALOG_PAUSE = 23;
+  // An armed combat event (WatchPolicy.combat_stop_events) happened; the
+  // epoch stopped at the boundary of the tick it happened on (#849).
+  STOP_REASON_COMBAT_EVENT = 24;
+}
+
+// The combat events a WATCH_MODE_COMBAT epoch can be armed to stop on
+// (#849). Native hooks see each one on the tick it happens and stop the
+// epoch at that tick's boundary. Aim warmup, shots and ordinary damage are
+// never stops.
+enum CombatEvent {
+  COMBAT_EVENT_UNSPECIFIED = 0;
+  // A colonist was downed or killed.
+  COMBAT_EVENT_DOWNED = 1;
+  // A colonist took a serious hit: summary health or a vital part under its
+  // floor, bleeding past the rate floor, or one blow past the single-hit floor.
+  COMBAT_EVENT_SERIOUS_INJURY = 2;
+  // A colonist's or a friendly's shield broke.
+  COMBAT_EVENT_SHIELD_BROKEN = 3;
+  // A hostile's own weapon came within range of a colonist or player turret
+  // for the first time this epoch (melee reach for a melee weapon).
+  COMBAT_EVENT_ENTERED_RANGE = 4;
+  // A hostile began a melee job on a colonist, or a colonist on a hostile.
+  COMBAT_EVENT_MELEE_CONTACT = 5;
+  // A hostile launched an explosive projectile at or near a colonist.
+  COMBAT_EVENT_EXPLOSIVE_LAUNCHED = 6;
+  // A hostile lord changed toil (preparing -> assault, siege -> attack, flee).
+  COMBAT_EVENT_RAID_PHASE = 7;
+  // A hostile pawn spawned on the map (walk-in, drop pod).
+  COMBAT_EVENT_HOSTILE_ARRIVED = 8;
+  // A player wall, door or turret was destroyed by damage.
+  COMBAT_EVENT_BREACH = 9;
+  // A pawn on the map started a mental state (berserk, fleeing).
+  COMBAT_EVENT_MENTAL_BREAK = 10;
 }
 
 message WatchPolicy {
@@ -109,6 +142,10 @@ message WatchPolicy {
   // colony family; the clock does not stop. At most 32, distinct def names,
   // level >= 1.
   repeated ResourceThreshold resource_thresholds = 12;
+  // WATCH_MODE_COMBAT only: the combat events that stop the epoch on the
+  // tick they happen (STOP_REASON_COMBAT_EVENT, #849). Distinct, specified;
+  // empty arms none. Refused outside combat mode.
+  repeated CombatEvent combat_stop_events = 13;
 }
 
 message ResourceThreshold {
@@ -208,6 +245,8 @@ message Stopped {
   optional bool pause_verified = 5;
   optional bool pause_requested = 6;
   optional int64 stopped_at_unix_ms = 7;
+  // STOP_REASON_COMBAT_EVENT only: which armed event stopped the epoch.
+  optional CombatEvent combat_event = 8;
 }
 message NeverStarted {}
 message Status {
@@ -443,6 +482,7 @@ message StopEvent {
     PauseEvidence pause = 7;
     rimgovernor.common.v1.Unavailable unavailable = 8;
     WatchLatched watch = 9;
+    CombatEventStop combat = 12;
   }
   // The tick at which the supervisor first raised this stop; the event's
   // context tick is the tick it took (a failed pause retries per frame).
@@ -450,6 +490,14 @@ message StopEvent {
   // The tick the hazard arose, when the evidence carries one (a new wound's
   // age); absent otherwise.
   optional int64 occurrence_tick = 11;
+}
+// STOP_REASON_COMBAT_EVENT evidence: the armed event, the thing it
+// happened to or was raised by (a pawn, a building, a lord's first pawn),
+// and a diagnostic. occurrence_tick is the tick it happened on.
+message CombatEventStop {
+  optional CombatEvent event = 1;
+  optional string thing_id = 2;
+  optional string reason = 3;
 }
 message EpochStarted { Epoch epoch = 1; }
 // A group of observation reads that go stale together. Definitions and world

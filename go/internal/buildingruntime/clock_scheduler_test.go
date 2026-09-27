@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -326,7 +327,12 @@ func TestClockSchedulerCombatPlanAdmitsBoundedCombatWindow(t *testing.T) {
 	if start.MaxTicks != 30 || got.Attempt.Intent.Window.MaxTicks != 30 || start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COMBAT || !reflect.DeepEqual(start.Policy.AcknowledgedHostileIds, []string{"archer", "raider"}) || len(start.Policy.AcknowledgedDownedColonistIds)+len(start.Policy.MedicalRestIds) != 0 {
 		t.Fatal(start)
 	}
-	if s.config.Start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(s.config.Start.Policy.AcknowledgedHostileIds) != 0 {
+	// The combat window is armed with every combat stop event (#849); its
+	// tick budget is the backstop.
+	if !slices.Equal(start.Policy.CombatStopEvents, combatStopEvents) || len(combatStopEvents) != len(k.CombatEvent_name)-1 {
+		t.Fatal("combat window not armed", start.Policy.CombatStopEvents)
+	}
+	if s.config.Start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(s.config.Start.Policy.AcknowledgedHostileIds)+len(s.config.Start.Policy.CombatStopEvents) != 0 {
 		t.Fatal("combat window mutated the configured colony policy")
 	}
 	// The running combat epoch keeps the worker on its short poll.
