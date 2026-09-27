@@ -98,7 +98,6 @@ internal static class NativeReplyEncoderProbe
         CancellationAndFailureReleaseCapacity();
         ShutdownFailsTheCapture();
         FrameAllowanceSpreadsReads();
-        OptionalJobsShareTheAllowance();
         BridgeCommon.Arguments = null;
         Console.WriteLine("native-reply-encoder: " + checks + " checks passed");
     }
@@ -285,63 +284,6 @@ internal static class NativeReplyEncoderProbe
             var stale = Enumerable.Range(0, 4).Select(_ => hop(MainThreadAdmission.Observation)).ToList();
             game.Pump();
             Check(ran == 14, "without a recent frame boundary, no read is deferred");
-        }
-        finally
-        {
-            MainThreadAdmission.ResetBudget(System.Diagnostics.Stopwatch.GetTimestamp, System.Diagnostics.Stopwatch.Frequency, MainThreadAdmission.DefaultAllowanceMs);
-        }
-    }
-
-    private sealed class Job : IObservationJob
-    {
-        private readonly Action unit; private int left;
-        internal string Reason = "";
-        internal Job(Action unit, int units) { this.unit = unit; left = units; }
-        public string Obsolete => null!;
-        public bool Step() { unit(); return --left == 0; }
-        public void Abandon(string reason) => Reason = reason;
-    }
-
-    // One allowance per frame (#995): optional observation units run after
-    // the frame's hops and only with what they left, at least one unit per
-    // frame (the floor), round-robin across jobs; a job past DeadlineFrames
-    // is abandoned; the one report carries the optional fields.
-    private static void OptionalJobsShareTheAllowance()
-    {
-        long now = 1;
-        var ran = 0;
-        MainThreadAdmission.ResetBudget(() => now, 1000000, 1.0);
-        try
-        {
-            var game = new FakeGameThread();
-            var ctx = new Context(game);
-            var scheduler = ObservationScheduling.Shared;
-            var order = new List<string>();
-            var a = new Job(() => { now += 300; order.Add("a"); }, 100000);
-            var b = new Job(() => { now += 300; order.Add("b"); }, 100000);
-            Check(scheduler.TryAdd(a) && scheduler.TryAdd(b), "jobs queue");
-
-            MainThreadAdmission.Frame(true);
-            Check(order.Count == 4, "an idle frame spends the whole allowance on optional units");
-            Check(order.SequenceEqual(new[] { "a", "b", "a", "b" }), "jobs run round-robin");
-
-            As(MainThreadAdmission.Observation);
-            order.Clear();
-            var reads = Enumerable.Range(0, 2).Select(_ => ProtoBoundary.OnMainThread(ctx, () => { now += 1100; ran++; order.Add("hop"); return ProtoBoundary.Encode(new Common.Failure()); }, CancellationToken.None)).ToList();
-            MainThreadAdmission.Frame(true);
-            Check(order.SequenceEqual(new[] { "hop", "a" }), "the queued hop runs first; past the spent allowance the floor still runs one optional unit");
-            game.Pump();
-            Check(ran == 1, "a spent allowance defers the other hop");
-            order.Clear();
-            MainThreadAdmission.Frame(true);
-            Check(order.SequenceEqual(new[] { "hop", "b" }), "the next frame drains the hop, then the floor unit, round-robin");
-
-            for (var i = 0; i < (int)ObservationScheduler.DeadlineFrames; i++) MainThreadAdmission.Frame(true);
-            Check(a.Reason == "expired" && b.Reason == "expired" && scheduler.Pending == 0, "unfinished jobs expire after DeadlineFrames");
-
-            var report = MainThreadAdmission.BudgetReport();
-            Check(report != null && (ulong)report["optionalUnits"] > 0 && (ulong)report["expired"] == 2, "one report carries the optional account");
-            foreach (var read in reads) Settle(read, "read beside optional work");
         }
         finally
         {

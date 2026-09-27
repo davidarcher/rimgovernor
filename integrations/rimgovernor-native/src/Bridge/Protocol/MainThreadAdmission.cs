@@ -164,13 +164,12 @@ namespace HomeBridge.BridgeTools
         private static bool Budgeted() => running && framed && Clock() - frameAt < Ticks(StaleMs);
 
         // The frame boundary, on the game thread: a fresh allowance, then
-        // queued control, then deferred hops while it lasts, then optional
-        // observation jobs (#654) with what is left (#995). At least one
+        // queued control, then deferred hops while it lasts. At least one
         // deferred hop runs per frame so none starves under a spent allowance.
         internal static void Frame(bool clockRunning)
         {
             if (framed && spent > AllowanceTicks) overrunFrames++;
-            running = clockRunning; framed = true; frameAt = Clock(); spent = 0; frames++; frameIndex++;
+            running = clockRunning; framed = true; frameAt = Clock(); spent = 0; frames++;
             RunControl();
             var floor = true;
             while (floor || !running || spent < AllowanceTicks)
@@ -182,35 +181,15 @@ namespace HomeBridge.BridgeTools
                 Run(hop);
                 floor = false;
             }
-            ObservationScheduling.Shared.RunFrame();
         }
 
-        // The frame optional work is charged to: the boundary's, or, with no
-        // live boundary (hook missing, game unloading), a fresh one per call
-        // so an inline quantum never inherits a spent allowance.
-        internal static ulong FrameIndex => frameIndex;
-        private static ulong frameIndex;
-
-        internal static void JoinFrame()
-        {
-            if (framed && Clock() - frameAt < Ticks(StaleMs)) return;
-            spent = 0; frameIndex++;
-        }
-
-        // Optional work runs only while allowance remains, paused or not.
-        internal static bool HasRoom => spent < AllowanceTicks;
-
-        // An optional unit's elapsed ticks, charged like a hop's.
-        internal static void Charge(long ticks) => spent += Math.Max(0, ticks);
-
-        internal static double Ms(long ticks) => ticks * 1000.0 / Frequency;
+        private static double Ms(long ticks) => ticks * 1000.0 / Frequency;
 
         // The allowance's session account, once the frame boundary has run a
-        // hop a spent allowance left queued or an optional unit ran.
+        // hop a spent allowance left queued.
         internal static Dictionary<string, object?>? BudgetReport()
         {
-            var optional = ObservationScheduling.Shared;
-            if (deferredHops == 0 && optional.Units == 0) return null;
+            if (deferredHops == 0) return null;
             var report = new Dictionary<string, object?>
             {
                 ["allowanceMs"] = Ms(AllowanceTicks),
@@ -219,31 +198,29 @@ namespace HomeBridge.BridgeTools
                 ["deferredHops"] = deferredHops,
                 ["maxDeferMs"] = Ms(maxDeferTicks),
             };
-            optional.Report(report);
             return report;
         }
 
-        // Resets the allowance's state and the optional scheduler; probes only.
+        // Resets the allowance's state; probes only.
         internal static void ResetBudget(Func<long> clock, long frequency, double allowanceMs)
         {
             Clock = clock; Frequency = frequency; AllowanceTicks = Ticks(allowanceMs);
             running = framed = false; spent = frameAt = 0;
-            frames = overrunFrames = deferredHops = 0; maxDeferTicks = 0; frameIndex = 0;
-            ObservationScheduling.Shared = new ObservationScheduler();
+            frames = overrunFrames = deferredHops = 0; maxDeferTicks = 0;
         }
 
-        // Whether a control hop is queued: an optional quantum yields to it
-        // (#654).
-        internal static bool ControlPending()
+        // Whether a control hop is queued: a pump runs one past a spent
+        // allowance.
+        private static bool ControlPending()
         {
             lock (Gate) return Pending[0].Count > 0;
         }
 
-        // Runs every queued control hop now, on the game thread, at an
-        // optional-work yield point (#654); returns how many ran. Their
+        // Runs every queued control hop now, on the game thread, at the
+        // frame boundary; returns how many ran. Their
         // pumps, when the host runs them, find the hops gone and return,
         // so every hop still runs exactly once.
-        internal static int RunControl()
+        private static int RunControl()
         {
             var ran = 0;
             while (true)

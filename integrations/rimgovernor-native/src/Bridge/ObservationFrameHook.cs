@@ -85,8 +85,7 @@ namespace HomeBridge.BridgeTools
                 // Never let the account interrupt an update.
             }
             // The one per-frame allowance opens here: it drains hops earlier
-            // frames deferred (#988), then queued resumable captures (#654)
-            // spend what is left (#995); paused, hops are not budgeted.
+            // frames deferred (#988); paused, hops are not budgeted.
             try
             {
                 var ticks = Find.TickManager;
