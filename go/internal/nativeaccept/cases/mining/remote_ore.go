@@ -18,7 +18,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name:        "mining/remote_ore",
 		Scope:       "A demanded far-edge steel lump is mined and hauled into base storage; after delivery a 2500-tick wait and fresh service review leave remaining rocks and a foreign designation untouched.",
-		Start:       cases.Fixture{Op: "test/mining_remote_prepare", On: cases.FlatDebugStart()},
+		Start:       cases.Fixture{Op: "test/mining_remote_prepare", On: cases.LabStart()},
 		RequiredOps: []string{"test/mining_remote_observe"},
 		Quiet:       na.QuietRequired, QuietWorld: true, Budget: 4 * time.Minute,
 		Serve: &cases.ServeSpec{Families: []string{"resource"}, NativeTimeout: 30 * time.Second},

@@ -20,14 +20,14 @@ namespace HomeBridge.BridgeTools
         private static Zone_Stockpile remoteStore;
         private const int InitialSteel = 180;
 
-        [Tool("test/mining_remote_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable flat-map steel shortage with three surface rocks near the far edge, a forbidden foreign Mine designation, accepting base storage and six armed hauling colonists.")]
+        [Tool("test/mining_remote_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable blank-lab steel shortage with three surface rocks near the far edge, a forbidden foreign Mine designation, accepting base storage and six armed hauling colonists.")]
         public async Task<object> RemotePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var people = map.mapPawns.FreeColonistsSpawned.ToList();
-                var anchor = people.First().Position;
-                var baseCell = GenRadial.RadialCellsAround(anchor, 5, true).First(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null);
+                var anchor = map.Center;
+                var baseCell = anchor + new IntVec3(-4, 0, 4);
                 var table = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Table1x2c"), ThingDefOf.WoodLog);
                 table.SetFaction(Faction.OfPlayer);
                 GenSpawn.Spawn(table, baseCell, map);
@@ -55,26 +55,19 @@ namespace HomeBridge.BridgeTools
                     pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 }
                 miner.skills.GetSkill(SkillDefOf.Mining).Level = 20;
-                foreach (var t in map.listerThings.AllThings.Where(t => t.def == ThingDefOf.Steel ||
-                    t is Mineable && t.def.building.mineableThing == ThingDefOf.Steel).ToList()) t.Destroy(DestroyMode.Vanish);
                 remoteStore = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                 map.zoneManager.RegisterZone(remoteStore);
                 remoteStore.GetStoreSettings().filter.SetDisallowAll();
                 remoteStore.GetStoreSettings().filter.SetAllow(ThingDefOf.Steel, true);
-                foreach (var cell in GenRadial.RadialCellsAround(anchor, 8, true).Where(c => c.InBounds(map) && c.Standable(map)
-                    && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null && c.GetThingList(map).All(t => t is Plant)).Take(8))
-                    remoteStore.AddCell(cell);
+                for (var dx = 3; dx <= 6; dx++)
+                    for (var dz = -4; dz <= -3; dz++) remoteStore.AddCell(anchor + new IntVec3(dx, 0, dz));
                 int Edge(IntVec3 c) => Math.Min(Math.Min(c.x, map.Size.x - 1 - c.x), Math.Min(c.z, map.Size.z - 1 - c.z));
-                var sites = map.AllCells.Where(c => Edge(c) >= 9 && Edge(c) <= 12 && c.DistanceTo(anchor) > 50
-                    && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null && miner.CanReach(c, PathEndMode.Touch, Danger.None)
-                    && GenRadial.RadialCellsAround(c, 8, true).All(q => q.InBounds(map) && !q.Fogged(map) && !q.Roofed(map)
-                        && !map.areaManager.Home[q] && map.zoneManager.ZoneAt(q) == null && q.GetEdifice(map) == null))
-                    .OrderByDescending(c => c.DistanceToSquared(anchor)).ToList();
-                var cells = new List<IntVec3>();
-                // The foreign rock sits well clear of the demanded three: its
-                // enclosure must not border them or any cell they need.
-                foreach (var cell in sites) { if (cells.All(c => c.DistanceTo(cell) >= (cells.Count == 3 ? 8 : 3))) cells.Add(cell); if (cells.Count == 4) break; }
-                if (cells.Count != 4 || remoteStore.Cells.Count < 4) return new { success = false, reason = "Insufficient clear remote ore or storage sites" };
+                // The blank lab (#733) is soil with no rock: the demanded three
+                // lumps sit near the far corner (~54 cells from the colony, 11
+                // from the edges) and the foreign rock 9 cells clear of them, so
+                // its enclosure borders nothing the demanded three need.
+                var far = new IntVec3(map.Size.x - 12, 0, map.Size.z - 12);
+                var cells = new List<IntVec3> { far, far + new IntVec3(0, 0, -3), far + new IntVec3(-3, 0, 0), far + new IntVec3(-12, 0, 0) };
                 var def = DefDatabase<ThingDef>.AllDefs.First(d => d.building?.mineableThing == ThingDefOf.Steel && typeof(Mineable).IsAssignableFrom(d.thingClass));
                 remoteOre = cells.Take(3).Select(c => GenSpawn.Spawn(ThingMaker.MakeThing(def), c, map)).ToList();
                 foreignOre = GenSpawn.Spawn(ThingMaker.MakeThing(def), cells[3], map);
