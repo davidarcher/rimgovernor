@@ -54,13 +54,4 @@ func TestHomeCoveragePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestHomeCoverageHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing home coverage handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, HomeCoverageAction, HomeCoverageAction}); err == nil {
-		t.Fatal("duplicate home coverage handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

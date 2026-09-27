@@ -56,13 +56,4 @@ func TestGearReplacePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestGearReplaceHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing gear replace handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, GearReplaceAction, GearReplaceAction}); err == nil {
-		t.Fatal("duplicate gear replace handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

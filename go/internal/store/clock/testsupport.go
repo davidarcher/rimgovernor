@@ -5,21 +5,20 @@ import (
 	"database/sql"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"google.golang.org/protobuf/proto"
 )
 
 // The functions and type aliases below exist only so internal/store's
 // white-box tests (which exercise this subsystem through *Store, but also
 // poke at a few of its internals) can reach otherwise-unexported clock
-// package internals without duplicating them.
+// package internals without duplicating them. They cannot live in a _test
+// file: Go exports test-only code to its own package's tests alone, and
+// those tests need *Store, which imports this package.
 
 func Expectation(v Attempt) bridge.ClockExpectation { return clockExpectation(v) }
 func ActionAvailable(ctx context.Context, tx *sql.Tx, action string) error {
 	return clockActionAvailable(ctx, tx, action)
 }
-func EncodeIntent(v Attempt) ([]byte, error)         { return encodeClockIntent(v) }
-func Binary(m proto.Message) ([]byte, error)         { return clockBinary(m) }
-func CanonicalBytes(m proto.Message) ([]byte, error) { return canonicalClockBytes(m) }
+func EncodeIntent(v Attempt) ([]byte, error) { return encodeClockIntent(v) }
 
 type SequenceHead = clockSequenceHead
 type IntentRecord = clockIntentRecord

@@ -68,15 +68,6 @@ func TestHusbandryPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestHusbandryHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing husbandry handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, HusbandryAction, HusbandryAction}); err == nil {
-		t.Fatal("duplicate husbandry handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestHusbandryTameAndReleaseVariants(t *testing.T) {

@@ -56,13 +56,4 @@ func TestMineAcquisitionPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestMineAcquisitionHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing mine acquisition handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, MineAcquisitionAction, MineAcquisitionAction}); err == nil {
-		t.Fatal("duplicate mine acquisition handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

@@ -152,24 +152,6 @@ func NewBuildingAction(id ActionID, building Building) (Action, error) {
 func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
-func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, SupplyForbidAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, ApparelPolicyAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, BuildingTemperatureAction, BedUseAction, GrowerCropAction, ClaimBuildingAction, ZoneDeleteAction, ZoneCellEditAction, StockpilePatchAction, OpenCasketAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, MoodReliefAction, NamingConfirmationAction, DialogAnswerAction, CutPlantAction, CoverClearanceAction, DeconstructionAction, TradeAction, CaravanDepartureAction, MoveBuildingAction, UninstallBuildingAction}
-}
-func ValidateHandlerCoverage(kinds []ActionKind) error {
-	seen := make(map[ActionKind]bool)
-	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != SupplyForbidAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != ApparelPolicyAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != BuildingTemperatureAction && kind != BedUseAction && kind != GrowerCropAction && kind != ClaimBuildingAction && kind != ZoneDeleteAction && kind != ZoneCellEditAction && kind != StockpilePatchAction && kind != OpenCasketAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != MoodReliefAction && kind != NamingConfirmationAction && kind != DialogAnswerAction && kind != CutPlantAction && kind != CoverClearanceAction && kind != DeconstructionAction && kind != TradeAction && kind != CaravanDepartureAction && kind != MoveBuildingAction && kind != UninstallBuildingAction) || seen[kind] {
-			return fmt.Errorf("unknown or duplicate action handler %q", kind)
-		}
-		seen[kind] = true
-	}
-	for _, kind := range SupportedActionKinds() {
-		if !seen[kind] {
-			return fmt.Errorf("missing action handler %q", kind)
-		}
-	}
-	return nil
-}
 
 type PlanSpec struct {
 	id           PlanID

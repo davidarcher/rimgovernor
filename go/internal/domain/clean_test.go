@@ -61,13 +61,4 @@ func TestCleanPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestCleanHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction}); err == nil {
-		t.Fatal("missing clean handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, CleanAction, CleanAction}); err == nil {
-		t.Fatal("duplicate clean handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

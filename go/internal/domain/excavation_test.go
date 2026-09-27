@@ -49,16 +49,4 @@ func TestExcavationPlanCanonicalisesAndNeedsNoPrerequisite(t *testing.T) {
 	if err != nil || progress.Action() != action || progress.View().Stage != Pending || progress.View().Unresolved {
 		t.Fatal(progress, err)
 	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
-	kinds := []ActionKind{}
-	for _, kind := range SupportedActionKinds() {
-		if kind != ExcavationAction {
-			kinds = append(kinds, kind)
-		}
-	}
-	if err := ValidateHandlerCoverage(kinds); err == nil {
-		t.Fatal("missing excavation handler accepted")
-	}
 }

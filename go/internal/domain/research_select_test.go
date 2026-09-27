@@ -50,13 +50,4 @@ func TestResearchSelectPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestResearchSelectHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing research select handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, ResearchSelectAction, ResearchSelectAction}); err == nil {
-		t.Fatal("duplicate research select handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

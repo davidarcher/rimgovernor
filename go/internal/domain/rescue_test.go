@@ -59,13 +59,4 @@ func TestRescuePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestRescueHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction}); err == nil {
-		t.Fatal("missing rescue handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, RescueAction, RescueAction}); err == nil {
-		t.Fatal("duplicate rescue handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

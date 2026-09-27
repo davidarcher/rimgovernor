@@ -154,11 +154,11 @@ func TestClockInboxEventAndByteCapacity(t *testing.T) {
 			cursor := int64(0)
 			for i := 0; i < seedPages; i++ {
 				r, p := page(cursor)
-				rb, err := clock.CanonicalBytes(r)
+				rb, err := proto.MarshalOptions{Deterministic: true}.Marshal(r)
 				if err != nil {
 					t.Fatal(err)
 				}
-				pb, err := clock.CanonicalBytes(p)
+				pb, err := proto.MarshalOptions{Deterministic: true}.Marshal(p)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -166,7 +166,7 @@ func TestClockInboxEventAndByteCapacity(t *testing.T) {
 					t.Fatal(err)
 				}
 				for _, event := range p.Events {
-					payload, err := clock.CanonicalBytes(event)
+					payload, err := proto.MarshalOptions{Deterministic: true}.Marshal(event)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -227,8 +227,8 @@ func TestClockInboxPageCapacity(t *testing.T) {
 	}
 	for i := 0; i < clock.InboxCapacity; i++ {
 		r, p := inboxPage(int64(i), 0, 1)
-		rb, _ := clock.CanonicalBytes(r)
-		pb, _ := clock.CanonicalBytes(p)
+		rb, _ := proto.MarshalOptions{Deterministic: true}.Marshal(r)
+		pb, _ := proto.MarshalOptions{Deterministic: true}.Marshal(p)
 		if _, err = tx.ExecContext(ctx, "INSERT INTO clock_event_pages(sequence,after_cursor,next_cursor,request,page) VALUES(?,?,?,?,?)", i+1, i, i+1, rb, pb); err != nil {
 			t.Fatal(err)
 		}

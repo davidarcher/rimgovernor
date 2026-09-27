@@ -148,14 +148,6 @@ func TestBuildingAndPlanValidation(t *testing.T) {
 	if _, err = NewProgress(plan, "missing"); err == nil {
 		t.Fatal("unbound progress")
 	}
-	if err = ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
-	for _, kinds := range [][]ActionKind{nil, {BuildingAction, BuildingAction}, {"unsupported"}} {
-		if ValidateHandlerCoverage(kinds) == nil {
-			t.Fatal("invalid handlers accepted")
-		}
-	}
 }
 func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
 	for _, receipt := range []Receipt{ReceiptAccepted, ReceiptUnknown} {

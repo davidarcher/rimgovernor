@@ -37,14 +37,3 @@ func TestPopulationPolicyBounds(t *testing.T) {
 		t.Fatal("the zero value must report no policy")
 	}
 }
-
-// A population policy is deliberately not a plan action: it names no native
-// entity and has no ActionKind, so no supported action kind can carry one.
-func TestPopulationPolicyIsNotAnActionKind(t *testing.T) {
-	t.Parallel()
-	for _, kind := range SupportedActionKinds() {
-		if string(kind) == "population_policy" {
-			t.Fatal("population policy must not be a dispatchable action kind")
-		}
-	}
-}

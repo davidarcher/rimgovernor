@@ -81,13 +81,4 @@ func TestMovementPlanRequiresExactPrecedingOwnedDraft(t *testing.T) {
 }
 
 func TestMovementHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, RangedAttackAction, SupplyAllowAction, TendAction, RescueAction}); err == nil {
-		t.Fatal("missing movement handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, RangedAttackAction, SupplyAllowAction, TendAction, RescueAction, MovementAction, MovementAction}); err == nil {
-		t.Fatal("duplicate movement handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

@@ -20,8 +20,8 @@ func TestGearAndDumpRoleFiltersWire(t *testing.T) {
 		domain.CorpseDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesHumanlike"}]}}`,
 	}
 	for _, spec := range domain.GearAndDumpRoles() {
-		z, err := domain.NewRoleStockpileZone(spec, []domain.Cell{{X: 1, Z: 1}})
-		if err != nil || z.Role() != spec.Role {
+		z, err := domain.NewFilteredStockpileZone(spec.Filter, spec.Priority, []domain.Cell{{X: 1, Z: 1}})
+		if err != nil {
 			t.Fatal(spec.Role, err)
 		}
 		got, _ := protojson.Marshal(stockpileSettings(z))

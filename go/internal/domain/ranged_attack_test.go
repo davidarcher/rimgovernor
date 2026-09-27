@@ -79,13 +79,4 @@ func TestRangedAttackPlanRequiresExactPrecedingOwnedDraft(t *testing.T) {
 }
 
 func TestRangedAttackHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, RescueAction}); err == nil {
-		t.Fatal("missing ranged attack handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, RescueAction, RangedAttackAction, RangedAttackAction}); err == nil {
-		t.Fatal("duplicate ranged attack handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

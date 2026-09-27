@@ -55,9 +55,6 @@ func TestOwnedDraftFlatIntentAndCoverage(t *testing.T) {
 	if _, err := NewPlan("plan", 1, []Action{a, a}); err == nil {
 		t.Fatal("duplicate actions")
 	}
-	if ValidateHandlerCoverage([]ActionKind{BuildingAction}) == nil || ValidateHandlerCoverage(SupportedActionKinds()) != nil {
-		t.Fatal("draft handler not covered")
-	}
 	p, _, _ := draftDispatched(t)
 	_ = map[ProgressView]bool{p.View(): true}
 	_ = map[Action]bool{a: true}

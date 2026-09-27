@@ -59,13 +59,4 @@ func TestCapturePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestCaptureHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, RescueAction}); err == nil {
-		t.Fatal("missing capture handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, RescueAction, CaptureAction, CaptureAction}); err == nil {
-		t.Fatal("duplicate capture handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

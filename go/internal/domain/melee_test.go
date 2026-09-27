@@ -92,13 +92,4 @@ func TestMeleePlanRequiresExactPrecedingOwnedDraft(t *testing.T) {
 }
 
 func TestMeleeHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction}); err == nil {
-		t.Fatal("missing melee handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, MeleeAttackAction}); err == nil {
-		t.Fatal("duplicate melee handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

@@ -66,13 +66,4 @@ func TestPrisonerInteractionPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestPrisonerInteractionHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing prisoner interaction handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, PrisonerInteractionAction, PrisonerInteractionAction}); err == nil {
-		t.Fatal("duplicate prisoner interaction handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

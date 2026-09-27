@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -287,11 +286,11 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 		if _, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 0, stale.Context, stale); !errors.Is(err, ErrConflict) {
 			t.Fatal("initial original generation floor lost", err)
 		}
-		contextBytes, err := clock.Binary(stale.Context)
+		contextBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(stale.Context)
 		if err != nil {
 			t.Fatal(err)
 		}
-		statusBytes, err := clock.Binary(stale)
+		statusBytes, err := proto.MarshalOptions{Deterministic: true}.Marshal(stale)
 		if err != nil {
 			t.Fatal(err)
 		}

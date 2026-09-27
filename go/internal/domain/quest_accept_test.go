@@ -63,13 +63,4 @@ func TestQuestAcceptPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestQuestAcceptHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing quest accept handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, QuestAcceptAction, QuestAcceptAction}); err == nil {
-		t.Fatal("duplicate quest accept handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

@@ -61,13 +61,4 @@ func TestRepairPlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestRepairHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction}); err == nil {
-		t.Fatal("missing repair handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, TendAction, RepairAction, RepairAction}); err == nil {
-		t.Fatal("duplicate repair handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

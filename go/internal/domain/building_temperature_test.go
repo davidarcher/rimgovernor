@@ -66,7 +66,4 @@ func TestBuildingTemperatureSupportedByPlan(t *testing.T) {
 	if _, err := NewPlan("p1", 1, []Action{action}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

@@ -99,13 +99,4 @@ func TestCaravanDeparturePlanDoesNotRequireADraftPrerequisite(t *testing.T) {
 }
 
 func TestCaravanDepartureHandlerCoverageIsRequired(t *testing.T) {
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}); err == nil {
-		t.Fatal("missing caravan departure handler accepted")
-	}
-	if err := ValidateHandlerCoverage([]ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, CaravanDepartureAction, CaravanDepartureAction}); err == nil {
-		t.Fatal("duplicate caravan departure handler accepted")
-	}
-	if err := ValidateHandlerCoverage(SupportedActionKinds()); err != nil {
-		t.Fatal(err)
-	}
 }

@@ -91,12 +91,3 @@ func GearAndDumpRoles() []StockpileRoleSpec {
 		{CorpseDumpRole, CorpseDumpFilter(), LowPriority},
 	}
 }
-
-// NewRoleStockpileZone is spec's zone over cells, tagged with its role.
-func NewRoleStockpileZone(spec StockpileRoleSpec, cells []Cell) (ZoneCreate, error) {
-	z, err := NewFilteredStockpileZone(spec.Filter, spec.Priority, cells)
-	if err != nil {
-		return ZoneCreate{}, err
-	}
-	return z.WithRole(spec.Role)
-}
