@@ -83,7 +83,6 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_read_defense_site` | `rimgovernor.observations.v1.Observations/ReadDefenseSite` | `rimgovernor.observations.v1.DefenseSiteRequest` | `rimgovernor.observations.v1.DefenseSiteReply` |
 | `rimgovernor/observations_read_gear` | `rimgovernor.observations.v1.Observations/ReadGear` | `rimgovernor.observations.v1.GearRequest` | `rimgovernor.observations.v1.GearReply` |
 | `rimgovernor/observations_read_husbandry` | `rimgovernor.observations.v1.Observations/ReadHusbandry` | `rimgovernor.observations.v1.HusbandryRequest` | `rimgovernor.observations.v1.HusbandryReply` |
-| `rimgovernor/observations_read_install_status` | `rimgovernor.observations.v1.Observations/ReadInstallStatus` | `rimgovernor.observations.v1.InstallStatusRequest` | `rimgovernor.observations.v1.InstallStatusReply` |
 | `rimgovernor/observations_read_lines_of_fire` | `rimgovernor.observations.v1.Observations/ReadLinesOfFire` | `rimgovernor.observations.v1.LinesOfFireRequest` | `rimgovernor.observations.v1.LinesOfFireReply` |
 | `rimgovernor/observations_read_medical_catalog` | `rimgovernor.observations.v1.Observations/ReadMedicalCatalog` | `rimgovernor.observations.v1.MedicalCatalogRequest` | `rimgovernor.observations.v1.MedicalCatalogReply` |
 | `rimgovernor/observations_read_observation_batch` | `rimgovernor.observations.v1.Observations/ReadObservationBatch` | `rimgovernor.observations.v1.ObservationBatchRequest` | `rimgovernor.observations.v1.ObservationBatchReply` |

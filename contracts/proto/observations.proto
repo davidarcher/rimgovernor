@@ -758,9 +758,6 @@ message PawnSettingsReply { oneof outcome { PawnSettings observed = 1; rimgovern
 message ResolveTargetSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated TargetRef candidates = 2; optional bool unique = 3; Completeness completeness = 4; }
 message ResolveTargetRequest { ReadScope scope = 1; oneof query { string entity_id = 2; string exact_name = 3; rimgovernor.common.v1.Cell cell = 4; } }
 message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message PackedFurnitureState { rimgovernor.common.v1.ObservationContext context = 1; optional string inner_thing_id = 2; optional string packed_thing_id = 3; optional string def_name = 4; optional string stuff = 5; optional string state = 6; rimgovernor.common.v1.Cell position = 7; optional string rotation = 8; EntityRef install_blueprint = 9; optional string reason = 10; SnapshotRef inner_snapshot = 11; SnapshotRef packed_snapshot = 12; }
-message InstallStatusRequest { ReadScope scope = 1; optional string thing_id = 2; }
-message InstallStatusReply { oneof outcome { PackedFurnitureState observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
 message GearReplacementNeed { optional string def_name = 1; optional string stuff = 2; optional string reason = 3; optional double gain = 4; }
 // candidates are the 8 best eligible loose items by gain (then thing id); further eligible items count as completeness.filtered, so a full list with filtered > 0 is complete.
@@ -1336,7 +1333,6 @@ service Observations {
   rpc ReadBuildingSettings(BuildingSettingsRequest) returns (BuildingSettingsReply);
   rpc ReadPawnSettings(PawnSettingsRequest) returns (PawnSettingsReply);
   rpc ResolveTarget(ResolveTargetRequest) returns (ResolveTargetReply);
-  rpc ReadInstallStatus(InstallStatusRequest) returns (InstallStatusReply);
   rpc ReadGear(GearRequest) returns (GearReply);
   rpc ReadMedicalCatalog(MedicalCatalogRequest) returns (MedicalCatalogReply);
   rpc ListTraders(TradersRequest) returns (TradersReply);
