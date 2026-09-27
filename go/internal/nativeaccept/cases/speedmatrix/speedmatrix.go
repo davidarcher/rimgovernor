@@ -206,7 +206,7 @@ func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 			return fmt.Errorf("observation report incomplete: %s", strings.Join(problems, "; "))
 		}
 	}
-	if ratios := na.CeilingRatios(metrics, 0); ratios != nil {
+	if ratios := na.CeilingRatios(metrics, recordedCeilingTPS[m.p.save]); ratios != nil {
 		m.report["ceiling_ratios"] = ratios
 	}
 	if problems := na.CompareOutcomes(m.outcomes, tolerance); len(problems) > 0 {

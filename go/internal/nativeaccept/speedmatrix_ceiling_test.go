@@ -14,4 +14,7 @@ func TestCeilingRatios(t *testing.T) {
 	if got := CeilingRatios(rows[1:], 10000); len(got) != 1 || got[0].Ratio != 0.25 {
 		t.Fatalf("recorded ceiling: %+v", got)
 	}
+	if got := CeilingRatios(rows, 10000); len(got) != 1 || got[0].CeilingTPS != 5000 {
+		t.Fatalf("the run's governor-off row must win over the recorded ceiling: %+v", got)
+	}
 }
