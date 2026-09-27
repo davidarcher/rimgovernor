@@ -97,11 +97,51 @@ namespace HomeBridge.BridgeTools
             Patch("Building_Door.DoorOpen", AccessTools.Method(typeof(Building_Door), "DoorOpen"), nameof(OnDoorPrefix), nameof(OnDoorPostfix));
             Patch("Building_Door.DoorTryClose", AccessTools.Method(typeof(Building_Door), "DoorTryClose"), nameof(OnDoorPrefix), nameof(OnDoorPostfix));
             Patch("CompShield.Reset", AccessTools.Method(typeof(CompShield), "Reset"), null, nameof(OnShieldReset));
+            // Drop-pod arrivals (#870): the pods strategy is the arrival
+            // mode, not the lord job, so the lord toil rows never carry it.
+            foreach (var worker in typeof(PawnsArrivalModeWorker).AllSubclassesNonAbstract().Where(t => t.Name.Contains("Drop") && AccessTools.DeclaredMethod(t, nameof(PawnsArrivalModeWorker.Arrive)) != null))
+                Patch(worker.Name + ".Arrive", AccessTools.DeclaredMethod(worker, nameof(PawnsArrivalModeWorker.Arrive)), null, nameof(OnDropArrival));
+        }
+
+        /// A pod's open tick when its holder chain cannot be read: vanilla's
+        /// skyfaller fall plus ActiveDropPodInfo's default open delay.
+        internal const int PodOpenFallbackTicks = 520;
+
+        // A drop-pod arrival mode placed hostile pawns in incoming pods: one
+        // hostile arrived row with strategy "pods", the landing cells and
+        // the tick the last pod opens. A raid on its way starts combat.
+        private static void OnDropArrival(PawnsArrivalModeWorker __instance, List<Pawn> pawns, IncidentParms parms)
+        {
+            try
+            {
+                if (pawns == null || pawns.Count == 0 || !pawns[0].HostileTo(Faction.OfPlayer)) return;
+                var now = Find.TickManager.TicksGame;
+                var open = 0;
+                var cells = new List<IntVec3>();
+                foreach (var pawn in pawns)
+                {
+                    var at = pawn.PositionHeld;
+                    if (at.IsValid && !cells.Contains(at)) cells.Add(at);
+                    // pawn -> pod contents (openDelay) -> pod -> incoming skyfaller.
+                    var info = pawn.ParentHolder;
+                    var fall = info?.ParentHolder?.ParentHolder as Skyfaller;
+                    var delay = info == null ? null : Traverse.Create(info).Field("openDelay");
+                    open = Math.Max(open, fall != null && delay != null && delay.FieldExists() ? now + fall.ticksToImpact + delay.GetValue<int>() : now + PodOpenFallbackTicks);
+                }
+                _active = true;
+                Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null, __instance.def?.defName ?? __instance.GetType().Name,
+                    pawns.Count + " pawns in pods", cells.Count > 0 ? cells[0] : (IntVec3?)null, "pods", row =>
+                    {
+                        row.OpenTick = open;
+                        row.LandingCells.AddRange(cells.Select(c => new Common.Cell { X = c.x, Z = c.z }));
+                    });
+            }
+            catch { }
         }
 
         /// Record appends an event row on thing's map while combat is active,
         /// stamping the pawns among thing and other with its mark.
-        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? defName, string? detail, IntVec3? cell = null, string? strategy = null)
+        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? defName, string? detail, IntVec3? cell = null, string? strategy = null, Action<Mirror.CombatEventRow>? fill = null)
         {
             if (!Active) return;
             try
@@ -116,6 +156,7 @@ namespace HomeBridge.BridgeTools
                 if (!string.IsNullOrEmpty(defName)) row.DefName = defName;
                 if (!string.IsNullOrEmpty(detail)) row.Detail = detail!.Length > 256 ? detail.Substring(0, 256) : detail;
                 if (!string.IsNullOrEmpty(strategy)) row.RaidStrategy = strategy;
+                fill?.Invoke(row);
                 var at = cell ?? thing?.PositionHeld ?? other?.PositionHeld;
                 if (at.HasValue && at.Value.IsValid) row.Cell = new Common.Cell { X = at.Value.x, Z = at.Value.z };
                 Ring.Add(new Entry { Mark = mark, Game = Verse.Current.Game, MapId = map.uniqueID, Row = row });

@@ -41,6 +41,9 @@ type Fixture struct {
 	Colonists int     `json:"-"`
 	Things    []Thing `json:"things"`
 	Pawns     []Pawn  `json:"pawns"`
+	// Arrival, when set, is a PawnsArrivalModeDef that drops the hostiles
+	// in around the first hostile's cell instead of spawning each (#870).
+	Arrival string `json:"arrival,omitempty"`
 }
 
 const (
@@ -56,7 +59,8 @@ const (
 
 // Names are the fixtures in landing order; #854 lands the first three and
 // reserves lab-breach, lab-pods, lab-mech, lab-manhunter and lab-siege for
-// the first #845 child that needs each.
+// the first #845 child that needs each. lab-pods (#870) is built but not
+// listed until a tactic case fights it (the metrics baselines run Names).
 var Names = []string{"lab-open", "lab-choke", "lab-ranged"}
 
 // Build returns the named fixture around the lab centre (cx, cz).
@@ -68,6 +72,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return choke(cx, cz), nil
 	case "lab-ranged":
 		return ranged(cx, cz), nil
+	case "lab-pods":
+		return pods(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
 }
@@ -112,6 +118,20 @@ func choke(cx, cz int) Fixture {
 		Pawn{Side: Colonist, Index: 4, X: cx + 2, Z: cz, Weapon: rifle})
 	for dx := -5; dx <= 5; dx += 2 {
 		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: slasher, X: cx + dx, Z: cz + chokeHalf + 13, Weapon: club, WeaponStuff: "WoodLog"})
+	}
+	return f
+}
+
+// pods: three riflemen on an open field and four rifle raiders dropped by
+// center drop pods around a cell 10 cells north (#870). For drop-pod tactics and the
+// pods strategy in combat_events.
+func pods(cx, cz int) Fixture {
+	f := Fixture{Name: "lab-pods", Colonists: 3, Arrival: "CenterDrop"}
+	for i, dx := range []int{-2, 0, 2} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 5, Weapon: rifle})
+	}
+	for i := 0; i < 4; i++ {
+		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx, Z: cz + 10, Weapon: rifle})
 	}
 	return f
 }

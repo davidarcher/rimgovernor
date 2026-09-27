@@ -122,7 +122,13 @@ message CombatEventRow {
   optional string def_name = 6;  // weapon, projectile, building or state def
   rimgovernor.common.v1.Cell cell = 7;
   optional string detail = 8;
-  optional string raid_strategy = 9; // lord toil rows: the raid strategy def
+  // Lord toil rows: the raid strategy def. Hostile arrived rows from a
+  // drop-pod arrival mode (#870): "pods".
+  optional string raid_strategy = 9;
+  // Drop-pod arrival rows (#870): the tick the last pod opens and the
+  // cells the pods land on.
+  optional int32 open_tick = 10;
+  repeated rimgovernor.common.v1.Cell landing_cells = 11;
 }
 
 // rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that

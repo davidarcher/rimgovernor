@@ -50,16 +50,18 @@ namespace RimGovernor.Protocol.Mirror {
             "BwoFX3BhaW5CDQoLX21vdmVfc3BlZWRCEAoOX3NoaWVsZF9lbmVyZ3lCEAoO",
             "X3NoaWVsZF9icm9rZW5CCQoHX3dlYXBvbkIPCg1fd2VhcG9uX3JhbmdlQhYK",
             "FF93ZWFwb25fd2FybXVwX3RpY2tzQhgKFl93ZWFwb25fY29vbGRvd25fdGlj",
-            "a3NCDwoNX3dlYXBvbl9tZWxlZSKmAwoOQ29tYmF0RXZlbnRSb3cSLAoCYXQY",
+            "a3NCDwoNX3dlYXBvbl9tZWxlZSKABAoOQ29tYmF0RXZlbnRSb3cSLAoCYXQY",
             "ASABKAsyIC5yaW1nb3Zlcm5vci5taXJyb3IudjEuV2F0ZXJtYXJrEjcKBGtp",
             "bmQYAiABKA4yJC5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29tYmF0TG9nS2lu",
             "ZEgAiAEBEjQKBHN0b3AYAyABKA4yIS5yaW1nb3Zlcm5vci5jbG9jay52MS5D",
             "b21iYXRFdmVudEgBiAEBEhUKCHRoaW5nX2lkGAQgASgJSAKIAQESFgoJdGFy",
             "Z2V0X2lkGAUgASgJSAOIAQESFQoIZGVmX25hbWUYBiABKAlIBIgBARIpCgRj",
             "ZWxsGAcgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSEwoGZGV0",
-            "YWlsGAggASgJSAWIAQESGgoNcmFpZF9zdHJhdGVneRgJIAEoCUgGiAEBQgcK",
-            "BV9raW5kQgcKBV9zdG9wQgsKCV90aGluZ19pZEIMCgpfdGFyZ2V0X2lkQgsK",
-            "CV9kZWZfbmFtZUIJCgdfZGV0YWlsQhAKDl9yYWlkX3N0cmF0ZWd5IuwBChVD",
+            "YWlsGAggASgJSAWIAQESGgoNcmFpZF9zdHJhdGVneRgJIAEoCUgGiAEBEhYK",
+            "CW9wZW5fdGljaxgKIAEoBUgHiAEBEjIKDWxhbmRpbmdfY2VsbHMYCyADKAsy",
+            "Gy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbEIHCgVfa2luZEIHCgVfc3Rv",
+            "cEILCglfdGhpbmdfaWRCDAoKX3RhcmdldF9pZEILCglfZGVmX25hbWVCCQoH",
+            "X2RldGFpbEIQCg5fcmFpZF9zdHJhdGVneUIMCgpfb3Blbl90aWNrIuwBChVD",
             "b21iYXRHZW9tZXRyeVJlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsyHy5yaW1n",
             "b3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSKgoFY2VsbHMYAiADKAsyGy5y",
             "aW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBITCgtob3N0aWxlX2lkcxgDIAMo",
@@ -215,7 +217,7 @@ namespace RimGovernor.Protocol.Mirror {
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Clock.ClockReflection.Descriptor, global::RimGovernor.Protocol.Observations.ObservationsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Mirror.Section), typeof(global::RimGovernor.Protocol.Mirror.CombatSide), typeof(global::RimGovernor.Protocol.Mirror.CombatStance), typeof(global::RimGovernor.Protocol.Mirror.CombatLogKind), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatPawn), global::RimGovernor.Protocol.Mirror.CombatPawn.Parser, new[]{ "Id", "Side", "FactionId", "LordId", "Cell", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponRange", "WeaponWarmupTicks", "WeaponCooldownTicks", "WeaponMelee", "Changed" }, new[]{ "Id", "Side", "FactionId", "LordId", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponRange", "WeaponWarmupTicks", "WeaponCooldownTicks", "WeaponMelee" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatEventRow), global::RimGovernor.Protocol.Mirror.CombatEventRow.Parser, new[]{ "At", "Kind", "Stop", "ThingId", "TargetId", "DefName", "Cell", "Detail", "RaidStrategy" }, new[]{ "Kind", "Stop", "ThingId", "TargetId", "DefName", "Detail", "RaidStrategy" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatEventRow), global::RimGovernor.Protocol.Mirror.CombatEventRow.Parser, new[]{ "At", "Kind", "Stop", "ThingId", "TargetId", "DefName", "Cell", "Detail", "RaidStrategy", "OpenTick", "LandingCells" }, new[]{ "Kind", "Stop", "ThingId", "TargetId", "DefName", "Detail", "RaidStrategy", "OpenTick" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryRequest), global::RimGovernor.Protocol.Mirror.CombatGeometryRequest.Parser, new[]{ "Identity", "Cells", "HostileIds", "PawnId", "Propose" }, new[]{ "PawnId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatGeometryPropose), global::RimGovernor.Protocol.Mirror.CombatGeometryPropose.Parser, new[]{ "CoverBehindLine", "AdjacentToChoke", "FiringCells" }, new[]{ "Role" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatCoverBehindLine), global::RimGovernor.Protocol.Mirror.CombatCoverBehindLine.Parser, new[]{ "Line" }, null, null, null, null),
@@ -1942,6 +1944,8 @@ namespace RimGovernor.Protocol.Mirror {
       cell_ = other.cell_ != null ? other.cell_.Clone() : null;
       detail_ = other.detail_;
       raidStrategy_ = other.raidStrategy_;
+      openTick_ = other.openTick_;
+      landingCells_ = other.landingCells_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -2154,7 +2158,8 @@ namespace RimGovernor.Protocol.Mirror {
 
     private string raidStrategy_;
     /// <summary>
-    /// lord toil rows: the raid strategy def
+    /// Lord toil rows: the raid strategy def. Hostile arrived rows from a
+    /// drop-pod arrival mode (#870): "pods".
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -2175,6 +2180,48 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearRaidStrategy() {
       raidStrategy_ = null;
+    }
+
+    /// <summary>Field number for the "open_tick" field.</summary>
+    public const int OpenTickFieldNumber = 10;
+    private readonly static int OpenTickDefaultValue = 0;
+
+    private int openTick_;
+    /// <summary>
+    /// Drop-pod arrival rows (#870): the tick the last pod opens and the
+    /// cells the pods land on.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int OpenTick {
+      get { if ((_hasBits0 & 4) != 0) { return openTick_; } else { return OpenTickDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        openTick_ = value;
+      }
+    }
+    /// <summary>Gets whether the "open_tick" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasOpenTick {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "open_tick" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearOpenTick() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "landing_cells" field.</summary>
+    public const int LandingCellsFieldNumber = 11;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Common.Cell> _repeated_landingCells_codec
+        = pb::FieldCodec.ForMessage(90, global::RimGovernor.Protocol.Common.Cell.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> landingCells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> LandingCells {
+      get { return landingCells_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2201,6 +2248,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (!object.Equals(Cell, other.Cell)) return false;
       if (Detail != other.Detail) return false;
       if (RaidStrategy != other.RaidStrategy) return false;
+      if (OpenTick != other.OpenTick) return false;
+      if(!landingCells_.Equals(other.landingCells_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -2217,6 +2266,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (cell_ != null) hash ^= Cell.GetHashCode();
       if (HasDetail) hash ^= Detail.GetHashCode();
       if (HasRaidStrategy) hash ^= RaidStrategy.GetHashCode();
+      if (HasOpenTick) hash ^= OpenTick.GetHashCode();
+      hash ^= landingCells_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2271,6 +2322,11 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(74);
         output.WriteString(RaidStrategy);
       }
+      if (HasOpenTick) {
+        output.WriteRawTag(80);
+        output.WriteInt32(OpenTick);
+      }
+      landingCells_.WriteTo(output, _repeated_landingCells_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2317,6 +2373,11 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(74);
         output.WriteString(RaidStrategy);
       }
+      if (HasOpenTick) {
+        output.WriteRawTag(80);
+        output.WriteInt32(OpenTick);
+      }
+      landingCells_.WriteTo(ref output, _repeated_landingCells_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2354,6 +2415,10 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasRaidStrategy) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(RaidStrategy);
       }
+      if (HasOpenTick) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(OpenTick);
+      }
+      size += landingCells_.CalculateSize(_repeated_landingCells_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -2399,6 +2464,10 @@ namespace RimGovernor.Protocol.Mirror {
       if (other.HasRaidStrategy) {
         RaidStrategy = other.RaidStrategy;
       }
+      if (other.HasOpenTick) {
+        OpenTick = other.OpenTick;
+      }
+      landingCells_.Add(other.landingCells_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -2460,6 +2529,14 @@ namespace RimGovernor.Protocol.Mirror {
             RaidStrategy = input.ReadString();
             break;
           }
+          case 80: {
+            OpenTick = input.ReadInt32();
+            break;
+          }
+          case 90: {
+            landingCells_.AddEntriesFrom(input, _repeated_landingCells_codec);
+            break;
+          }
         }
       }
     #endif
@@ -2519,6 +2596,14 @@ namespace RimGovernor.Protocol.Mirror {
           }
           case 74: {
             RaidStrategy = input.ReadString();
+            break;
+          }
+          case 80: {
+            OpenTick = input.ReadInt32();
+            break;
+          }
+          case 90: {
+            landingCells_.AddEntriesFrom(ref input, _repeated_landingCells_codec);
             break;
           }
         }

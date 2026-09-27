@@ -151,6 +151,10 @@ func Gap(pawns map[string]Position) int {
 }
 
 func checkPawn(want Pawn, got map[string]any) error {
+	// A pod hostile (#870) lands where its arrival mode drops the pod.
+	if inPod, _ := na.AsBool(got["inPod"]); inPod {
+		want.X, want.Z = int(na.AsNumber(got["x"])), int(na.AsNumber(got["z"]))
+	}
 	if x, z := int(na.AsNumber(got["x"])), int(na.AsNumber(got["z"])); x != want.X || z != want.Z {
 		return fmt.Errorf("at %d,%d, want %d,%d: %#v", x, z, want.X, want.Z, got)
 	}

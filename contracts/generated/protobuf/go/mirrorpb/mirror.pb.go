@@ -562,13 +562,19 @@ type CombatEventRow struct {
 	At    *Watermark             `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"` // the event's own mark; the row id is "<tick>.<seq>"
 	Kind  *CombatLogKind         `protobuf:"varint,2,opt,name=kind,proto3,enum=rimgovernor.mirror.v1.CombatLogKind,oneof" json:"kind,omitempty"`
 	// The #849 stop kind this event is, armed or not; unset for non-stops.
-	Stop          *clockpb.CombatEvent `protobuf:"varint,3,opt,name=stop,proto3,enum=rimgovernor.clock.v1.CombatEvent,oneof" json:"stop,omitempty"`
-	ThingId       *string              `protobuf:"bytes,4,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`    // the actor or subject
-	TargetId      *string              `protobuf:"bytes,5,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"` // the victim, target or instigator
-	DefName       *string              `protobuf:"bytes,6,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`    // weapon, projectile, building or state def
-	Cell          *commonpb.Cell       `protobuf:"bytes,7,opt,name=cell,proto3" json:"cell,omitempty"`
-	Detail        *string              `protobuf:"bytes,8,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
-	RaidStrategy  *string              `protobuf:"bytes,9,opt,name=raid_strategy,json=raidStrategy,proto3,oneof" json:"raid_strategy,omitempty"` // lord toil rows: the raid strategy def
+	Stop     *clockpb.CombatEvent `protobuf:"varint,3,opt,name=stop,proto3,enum=rimgovernor.clock.v1.CombatEvent,oneof" json:"stop,omitempty"`
+	ThingId  *string              `protobuf:"bytes,4,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`    // the actor or subject
+	TargetId *string              `protobuf:"bytes,5,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"` // the victim, target or instigator
+	DefName  *string              `protobuf:"bytes,6,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`    // weapon, projectile, building or state def
+	Cell     *commonpb.Cell       `protobuf:"bytes,7,opt,name=cell,proto3" json:"cell,omitempty"`
+	Detail   *string              `protobuf:"bytes,8,opt,name=detail,proto3,oneof" json:"detail,omitempty"`
+	// Lord toil rows: the raid strategy def. Hostile arrived rows from a
+	// drop-pod arrival mode (#870): "pods".
+	RaidStrategy *string `protobuf:"bytes,9,opt,name=raid_strategy,json=raidStrategy,proto3,oneof" json:"raid_strategy,omitempty"`
+	// Drop-pod arrival rows (#870): the tick the last pod opens and the
+	// cells the pods land on.
+	OpenTick      *int32           `protobuf:"varint,10,opt,name=open_tick,json=openTick,proto3,oneof" json:"open_tick,omitempty"`
+	LandingCells  []*commonpb.Cell `protobuf:"bytes,11,rep,name=landing_cells,json=landingCells,proto3" json:"landing_cells,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -664,6 +670,20 @@ func (x *CombatEventRow) GetRaidStrategy() string {
 		return *x.RaidStrategy
 	}
 	return ""
+}
+
+func (x *CombatEventRow) GetOpenTick() int32 {
+	if x != nil && x.OpenTick != nil {
+		return *x.OpenTick
+	}
+	return 0
+}
+
+func (x *CombatEventRow) GetLandingCells() []*commonpb.Cell {
+	if x != nil {
+		return x.LandingCells
+	}
+	return nil
 }
 
 // rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
@@ -2713,7 +2733,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\r_weapon_rangeB\x16\n" +
 	"\x14_weapon_warmup_ticksB\x18\n" +
 	"\x16_weapon_cooldown_ticksB\x0f\n" +
-	"\r_weapon_melee\"\xee\x03\n" +
+	"\r_weapon_melee\"\xe0\x04\n" +
 	"\x0eCombatEventRow\x120\n" +
 	"\x02at\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02at\x12=\n" +
 	"\x04kind\x18\x02 \x01(\x0e2$.rimgovernor.mirror.v1.CombatLogKindH\x00R\x04kind\x88\x01\x01\x12:\n" +
@@ -2723,7 +2743,10 @@ const file_mirror_proto_rawDesc = "" +
 	"\bdef_name\x18\x06 \x01(\tH\x04R\adefName\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\a \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06detail\x18\b \x01(\tH\x05R\x06detail\x88\x01\x01\x12(\n" +
-	"\rraid_strategy\x18\t \x01(\tH\x06R\fraidStrategy\x88\x01\x01B\a\n" +
+	"\rraid_strategy\x18\t \x01(\tH\x06R\fraidStrategy\x88\x01\x01\x12 \n" +
+	"\topen_tick\x18\n" +
+	" \x01(\x05H\aR\bopenTick\x88\x01\x01\x12@\n" +
+	"\rlanding_cells\x18\v \x03(\v2\x1b.rimgovernor.common.v1.CellR\flandingCellsB\a\n" +
 	"\x05_kindB\a\n" +
 	"\x05_stopB\v\n" +
 	"\t_thing_idB\f\n" +
@@ -2731,7 +2754,9 @@ const file_mirror_proto_rawDesc = "" +
 	"_target_idB\v\n" +
 	"\t_def_nameB\t\n" +
 	"\a_detailB\x10\n" +
-	"\x0e_raid_strategy\"\x9a\x02\n" +
+	"\x0e_raid_strategyB\f\n" +
+	"\n" +
+	"_open_tick\"\x9a\x02\n" +
 	"\x15CombatGeometryRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x121\n" +
 	"\x05cells\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cells\x12\x1f\n" +
@@ -3021,87 +3046,88 @@ var file_mirror_proto_depIdxs = []int32{
 	3,  // 5: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
 	31, // 6: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
 	30, // 7: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
-	32, // 8: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	30, // 9: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	7,  // 10: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
-	8,  // 11: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
-	9,  // 12: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
-	10, // 13: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
-	30, // 14: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
-	30, // 15: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
-	30, // 16: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
-	30, // 17: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
-	30, // 18: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
-	30, // 19: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
-	11, // 20: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
-	33, // 21: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
-	12, // 22: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	12, // 23: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	13, // 24: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
-	34, // 25: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32, // 26: rimgovernor.mirror.v1.Epoch.identity:type_name -> rimgovernor.common.v1.Identity
-	0,  // 27: rimgovernor.mirror.v1.SectionAsk.section:type_name -> rimgovernor.mirror.v1.Section
-	15, // 28: rimgovernor.mirror.v1.SectionAsk.since:type_name -> rimgovernor.mirror.v1.Watermark
-	18, // 29: rimgovernor.mirror.v1.SectionAsk.window:type_name -> rimgovernor.mirror.v1.CellRect
-	35, // 30: rimgovernor.mirror.v1.SectionAsk.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
-	36, // 31: rimgovernor.mirror.v1.SectionAsk.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsRequest
-	20, // 32: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
-	21, // 33: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
-	22, // 34: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
-	18, // 35: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
-	19, // 36: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 37: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 38: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 39: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 40: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 41: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 42: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 43: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 44: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 45: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 46: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 47: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 48: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 49: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 50: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 51: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 52: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 53: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 54: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	32, // 55: rimgovernor.mirror.v1.MirrorPollRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	16, // 56: rimgovernor.mirror.v1.MirrorPollRequest.epoch:type_name -> rimgovernor.mirror.v1.Epoch
-	17, // 57: rimgovernor.mirror.v1.MirrorPollRequest.asks:type_name -> rimgovernor.mirror.v1.SectionAsk
-	15, // 58: rimgovernor.mirror.v1.Keyframe.at:type_name -> rimgovernor.mirror.v1.Watermark
-	37, // 59: rimgovernor.mirror.v1.Keyframe.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	38, // 60: rimgovernor.mirror.v1.Keyframe.bills:type_name -> rimgovernor.observations.v1.BillStack
-	23, // 61: rimgovernor.mirror.v1.Keyframe.cells:type_name -> rimgovernor.mirror.v1.CellGrid
-	39, // 62: rimgovernor.mirror.v1.Keyframe.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	40, // 63: rimgovernor.mirror.v1.Keyframe.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	41, // 64: rimgovernor.mirror.v1.Keyframe.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
-	4,  // 65: rimgovernor.mirror.v1.Keyframe.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
-	5,  // 66: rimgovernor.mirror.v1.Keyframe.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
-	15, // 67: rimgovernor.mirror.v1.Delta.from:type_name -> rimgovernor.mirror.v1.Watermark
-	15, // 68: rimgovernor.mirror.v1.Delta.to:type_name -> rimgovernor.mirror.v1.Watermark
-	37, // 69: rimgovernor.mirror.v1.Delta.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	38, // 70: rimgovernor.mirror.v1.Delta.bills:type_name -> rimgovernor.observations.v1.BillStack
-	23, // 71: rimgovernor.mirror.v1.Delta.cells:type_name -> rimgovernor.mirror.v1.CellGrid
-	39, // 72: rimgovernor.mirror.v1.Delta.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	4,  // 73: rimgovernor.mirror.v1.Delta.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
-	5,  // 74: rimgovernor.mirror.v1.Delta.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
-	0,  // 75: rimgovernor.mirror.v1.SectionPage.section:type_name -> rimgovernor.mirror.v1.Section
-	25, // 76: rimgovernor.mirror.v1.SectionPage.keyframe:type_name -> rimgovernor.mirror.v1.Keyframe
-	26, // 77: rimgovernor.mirror.v1.SectionPage.delta:type_name -> rimgovernor.mirror.v1.Delta
-	25, // 78: rimgovernor.mirror.v1.SectionPage.resync:type_name -> rimgovernor.mirror.v1.Keyframe
-	16, // 79: rimgovernor.mirror.v1.MirrorPage.epoch:type_name -> rimgovernor.mirror.v1.Epoch
-	27, // 80: rimgovernor.mirror.v1.MirrorPage.sections:type_name -> rimgovernor.mirror.v1.SectionPage
-	42, // 81: rimgovernor.mirror.v1.MirrorPage.journal:type_name -> rimgovernor.clock.v1.EventsPage
-	28, // 82: rimgovernor.mirror.v1.MirrorPollReply.page:type_name -> rimgovernor.mirror.v1.MirrorPage
-	34, // 83: rimgovernor.mirror.v1.MirrorPollReply.failure:type_name -> rimgovernor.common.v1.Failure
-	84, // [84:84] is the sub-list for method output_type
-	84, // [84:84] is the sub-list for method input_type
-	84, // [84:84] is the sub-list for extension type_name
-	84, // [84:84] is the sub-list for extension extendee
-	0,  // [0:84] is the sub-list for field type_name
+	30, // 8: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
+	32, // 9: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	30, // 10: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	7,  // 11: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
+	8,  // 12: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
+	9,  // 13: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
+	10, // 14: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
+	30, // 15: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
+	30, // 16: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
+	30, // 17: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
+	30, // 18: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
+	30, // 19: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
+	30, // 20: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
+	11, // 21: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
+	33, // 22: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
+	12, // 23: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	12, // 24: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	13, // 25: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
+	34, // 26: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	32, // 27: rimgovernor.mirror.v1.Epoch.identity:type_name -> rimgovernor.common.v1.Identity
+	0,  // 28: rimgovernor.mirror.v1.SectionAsk.section:type_name -> rimgovernor.mirror.v1.Section
+	15, // 29: rimgovernor.mirror.v1.SectionAsk.since:type_name -> rimgovernor.mirror.v1.Watermark
+	18, // 30: rimgovernor.mirror.v1.SectionAsk.window:type_name -> rimgovernor.mirror.v1.CellRect
+	35, // 31: rimgovernor.mirror.v1.SectionAsk.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
+	36, // 32: rimgovernor.mirror.v1.SectionAsk.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsRequest
+	20, // 33: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
+	21, // 34: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
+	22, // 35: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
+	18, // 36: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
+	19, // 37: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 38: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 39: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 40: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 41: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 42: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 43: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 44: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 45: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 46: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 47: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 48: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 49: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 50: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 51: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 52: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 53: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 54: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	19, // 55: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
+	32, // 56: rimgovernor.mirror.v1.MirrorPollRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	16, // 57: rimgovernor.mirror.v1.MirrorPollRequest.epoch:type_name -> rimgovernor.mirror.v1.Epoch
+	17, // 58: rimgovernor.mirror.v1.MirrorPollRequest.asks:type_name -> rimgovernor.mirror.v1.SectionAsk
+	15, // 59: rimgovernor.mirror.v1.Keyframe.at:type_name -> rimgovernor.mirror.v1.Watermark
+	37, // 60: rimgovernor.mirror.v1.Keyframe.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	38, // 61: rimgovernor.mirror.v1.Keyframe.bills:type_name -> rimgovernor.observations.v1.BillStack
+	23, // 62: rimgovernor.mirror.v1.Keyframe.cells:type_name -> rimgovernor.mirror.v1.CellGrid
+	39, // 63: rimgovernor.mirror.v1.Keyframe.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	40, // 64: rimgovernor.mirror.v1.Keyframe.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	41, // 65: rimgovernor.mirror.v1.Keyframe.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
+	4,  // 66: rimgovernor.mirror.v1.Keyframe.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
+	5,  // 67: rimgovernor.mirror.v1.Keyframe.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
+	15, // 68: rimgovernor.mirror.v1.Delta.from:type_name -> rimgovernor.mirror.v1.Watermark
+	15, // 69: rimgovernor.mirror.v1.Delta.to:type_name -> rimgovernor.mirror.v1.Watermark
+	37, // 70: rimgovernor.mirror.v1.Delta.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	38, // 71: rimgovernor.mirror.v1.Delta.bills:type_name -> rimgovernor.observations.v1.BillStack
+	23, // 72: rimgovernor.mirror.v1.Delta.cells:type_name -> rimgovernor.mirror.v1.CellGrid
+	39, // 73: rimgovernor.mirror.v1.Delta.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	4,  // 74: rimgovernor.mirror.v1.Delta.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
+	5,  // 75: rimgovernor.mirror.v1.Delta.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
+	0,  // 76: rimgovernor.mirror.v1.SectionPage.section:type_name -> rimgovernor.mirror.v1.Section
+	25, // 77: rimgovernor.mirror.v1.SectionPage.keyframe:type_name -> rimgovernor.mirror.v1.Keyframe
+	26, // 78: rimgovernor.mirror.v1.SectionPage.delta:type_name -> rimgovernor.mirror.v1.Delta
+	25, // 79: rimgovernor.mirror.v1.SectionPage.resync:type_name -> rimgovernor.mirror.v1.Keyframe
+	16, // 80: rimgovernor.mirror.v1.MirrorPage.epoch:type_name -> rimgovernor.mirror.v1.Epoch
+	27, // 81: rimgovernor.mirror.v1.MirrorPage.sections:type_name -> rimgovernor.mirror.v1.SectionPage
+	42, // 82: rimgovernor.mirror.v1.MirrorPage.journal:type_name -> rimgovernor.clock.v1.EventsPage
+	28, // 83: rimgovernor.mirror.v1.MirrorPollReply.page:type_name -> rimgovernor.mirror.v1.MirrorPage
+	34, // 84: rimgovernor.mirror.v1.MirrorPollReply.failure:type_name -> rimgovernor.common.v1.Failure
+	85, // [85:85] is the sub-list for method output_type
+	85, // [85:85] is the sub-list for method input_type
+	85, // [85:85] is the sub-list for extension type_name
+	85, // [85:85] is the sub-list for extension extendee
+	0,  // [0:85] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }

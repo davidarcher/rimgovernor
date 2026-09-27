@@ -32,7 +32,8 @@ func init() {
 		Scope: "Combat mirror sections and combat.geometry (#851) on lab-ranged: the combat_pawns keyframe lists the 4 riflemen and 4 raiders with rifles; " +
 			"combat.geometry gives a sandbagged rifleman cover against the raider north of him, an open cell none, line of fire to every raider, a colonist in the path from the cell behind a rifleman, " +
 			"path ticks for a named pawn, and a read at 64 cells x 8 pawns under 50 ms of main thread; proposing cover_behind_line on the sandbags returns every cell behind them, and a firing_cells proposal at the radius cap fills 64 cells within budget (#871); the firefight's first downing or death arrives as a combat_events row and, in the same delta, " +
-			"the pawn's row (downed, stamped with the event's watermark) or its tombstone.",
+			"the pawn's row (downed, stamped with the event's watermark) or its tombstone; then lab-pods' center drop arrives as a hostile_arrived row with strategy pods, " +
+			"landing cells and an open tick by which every raider is out of its pod (#870).",
 		Start:       cases.Lab{Colonists: 4},
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
@@ -147,7 +148,49 @@ func runMirror(ctx context.Context, s cases.Session) error {
 	if err := geometry(ctx, h, identity, staged, report); err != nil {
 		return err
 	}
-	return fight(ctx, h, p, report)
+	if err := fight(ctx, h, p, report); err != nil {
+		return err
+	}
+	return dropPods(ctx, h, identity, report)
+}
+
+// dropPods (#870) stages lab-pods: the center drop's arrival is a
+// combat_events hostile_arrived row with strategy pods, its landing cells
+// and an open tick after the arrival, and by that tick every raider is out.
+func dropPods(ctx context.Context, h *na.Harness, identity *c.Identity, report na.Report) error {
+	staged, err := Stage(ctx, h, "lab-pods")
+	if err != nil {
+		return err
+	}
+	p := &combatPoll{h: h, identity: identity}
+	_, events, err := p.poll(ctx)
+	if err != nil {
+		return err
+	}
+	var row *mp.CombatEventRow
+	for _, e := range events.GetKeyframe().GetCombatEvents() {
+		if bridge.DropPodArrival(e) {
+			row = e
+		}
+	}
+	if row == nil {
+		return fmt.Errorf("lab-pods: no combat_events row with strategy pods in %v", events)
+	}
+	report["pods"] = map[string]any{"at": row.GetAt().GetTick(), "openTick": row.GetOpenTick(), "landingCells": len(row.GetLandingCells()), "arrival": row.GetDefName()}
+	wait := int(int64(row.GetOpenTick())-row.GetAt().GetTick()) + mirrorStepTicks
+	if wait <= mirrorStepTicks || len(row.GetLandingCells()) == 0 {
+		return fmt.Errorf("lab-pods row without an open tick after its arrival or landing cells: %v", row)
+	}
+	pawns, _, err := Tick(ctx, h, wait)
+	if err != nil {
+		return err
+	}
+	for _, id := range staged.Hostiles() {
+		if _, ok := pawns[id]; !ok {
+			return fmt.Errorf("lab-pods raider %s still in its pod %d ticks after the arrival (open tick %d)", id, wait, row.GetOpenTick())
+		}
+	}
+	return nil
 }
 
 // geometry checks the lab-ranged answers and times a read at the caps.

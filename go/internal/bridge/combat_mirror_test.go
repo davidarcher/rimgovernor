@@ -43,7 +43,10 @@ func TestCombatMirrorPageValidation(t *testing.T) {
 	good := func() (*mp.Delta, *mp.Delta) {
 		p, e := delta(), delta()
 		p.CombatPawns, p.Tombstones = []*mp.CombatPawn{pawn()}, []string{"Thing_Human2"}
-		e.CombatEvents = []*mp.CombatEventRow{event(11, 1), event(12, 5)}
+		pods := event(11, 3)
+		pods.Kind, pods.RaidStrategy, pods.OpenTick = mp.CombatLogKind_COMBAT_LOG_KIND_HOSTILE_ARRIVED.Enum(), proto.String(PodsStrategy), proto.Int32(531)
+		pods.LandingCells = []*c.Cell{{X: proto.Int32(5), Z: proto.Int32(9)}}
+		e.CombatEvents = []*mp.CombatEventRow{event(11, 1), pods, event(12, 5)}
 		return p, e
 	}
 	if err := ValidateMirrorPage(page(good()), request); err != nil {
@@ -57,6 +60,9 @@ func TestCombatMirrorPageValidation(t *testing.T) {
 		"event before from":     func(p, e *mp.Delta) { e.CombatEvents[0].At = combatWM(10, 1) },
 		"event after to":        func(p, e *mp.Delta) { e.CombatEvents[1].At = combatWM(12, 6) },
 		"event without kind":    func(p, e *mp.Delta) { e.CombatEvents[0].Kind = nil },
+		"pods without open":     func(p, e *mp.Delta) { e.CombatEvents[1].OpenTick = nil },
+		"pods open before":      func(p, e *mp.Delta) { e.CombatEvents[1].OpenTick = proto.Int32(11) },
+		"pods without cells":    func(p, e *mp.Delta) { e.CombatEvents[1].LandingCells = nil },
 		"event tombstone":       func(p, e *mp.Delta) { e.Tombstones = []string{"11.1"} },
 		"pawn rows on events":   func(p, e *mp.Delta) { e.CombatPawns = []*mp.CombatPawn{pawn()} },
 		"event rows on pawns":   func(p, e *mp.Delta) { p.CombatEvents = []*mp.CombatEventRow{event(11, 2)} },

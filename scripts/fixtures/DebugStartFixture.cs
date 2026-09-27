@@ -364,6 +364,12 @@ namespace HomeBridge.BridgeTools
                 }
                 var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
                 var faction = HostileFaction();
+                // An arrival mode (#870) drops the hostiles in by the game's
+                // own PawnsArrivalModeWorker, landing around the first
+                // hostile's cell, instead of spawning each at its cell.
+                var arrivalName = (string)spec["arrival"] ?? "";
+                var arrival = arrivalName == "" ? null : DefDatabase<PawnsArrivalModeDef>.GetNamedSilentFail(arrivalName) ?? throw new ArgumentException($"No PawnsArrivalModeDef {arrivalName}.");
+                IntVec3? arrivalCenter = null;
                 foreach (JObject p in spec["pawns"] as JArray ?? new JArray())
                 {
                     var cell = Cell(map, p);
@@ -386,13 +392,16 @@ namespace HomeBridge.BridgeTools
                         foreach (var skill in pawn.skills.skills) { skill.Level = HostileSkill; skill.passion = Passion.None; }
                         pawn.apparel?.DestroyAll();
                         pawn.inventory?.DestroyAll();
-                        GenSpawn.Spawn(pawn, cell, map);
+                        if (arrival == null) GenSpawn.Spawn(pawn, cell, map);
                         hostiles.Add(pawn);
                     }
                     else throw new ArgumentException($"Unknown side {p["side"]}.");
                     Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
                     pawns.Add(pawn);
+                    if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
                 }
+                if (arrival != null && hostiles.Count > 0)
+                    arrival.Worker.Arrive(hostiles, new IncidentParms { target = map, faction = faction, raidArrivalMode = arrival, spawnCenter = arrivalCenter!.Value, spawnRotation = Rot4.South, points = 500f });
             }
             finally
             {
@@ -401,7 +410,7 @@ namespace HomeBridge.BridgeTools
             if (hostiles.Count > 0)
                 LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
             var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", kind = p.kindDef.defName,
-                x = p.Position.x, z = p.Position.z, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
+                x = p.PositionHeld.x, z = p.PositionHeld.z, inPod = !p.Spawned, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
                 lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0 }).ToList();
             return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
         }

@@ -359,6 +359,15 @@ func CombatEventID(row *mp.CombatEventRow) string {
 	return fmt.Sprintf("%d.%d", row.GetAt().GetTick(), row.GetAt().GetSeq())
 }
 
+// PodsStrategy is the raid strategy of a drop-pod arrival row (#870).
+const PodsStrategy = "pods"
+
+// DropPodArrival reports whether row is a drop-pod raid's arrival (#870):
+// a hostile arrived row with strategy pods, landing cells and open tick.
+func DropPodArrival(row *mp.CombatEventRow) bool {
+	return row.GetKind() == mp.CombatLogKind_COMBAT_LOG_KIND_HOSTILE_ARRIVED && row.GetRaidStrategy() == PodsStrategy
+}
+
 // mirrorRows checks a body carries exactly its section's rows.
 func mirrorRows(section mp.Section, ask *mp.SectionAsk, b mirrorBody, identity *c.Identity) error {
 	carried := map[mp.Section]bool{
@@ -434,6 +443,9 @@ func mirrorRows(section mp.Section, ask *mp.SectionAsk, b mirrorBody, identity *
 		for _, row := range b.combatEvents {
 			if row.At == nil || row.GetKind() == mp.CombatLogKind_COMBAT_LOG_KIND_UNSPECIFIED {
 				return contract("mirror combat event without watermark or kind")
+			}
+			if DropPodArrival(row) && (int64(row.GetOpenTick()) <= row.GetAt().GetTick() || len(row.GetLandingCells()) == 0) {
+				return contract("mirror drop-pod arrival without an open tick after it or landing cells")
 			}
 		}
 	default:
