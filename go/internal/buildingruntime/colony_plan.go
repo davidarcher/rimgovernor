@@ -156,13 +156,9 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-// A tomb room it could not add leaves tombsRefused at the tomb count it
-// asked for, which lets the waste goal dig a plain grave instead (#857).
 func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, outgrown bool) error {
 	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs)
-	r.tombsRefused = 0
 	if next.TombRooms() < tombs {
-		r.tombsRefused = tombs
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
 	}
 	if !changed {
@@ -203,4 +199,14 @@ func (r *RoutineReviewer) drawHeatOverlay(ctx context.Context, native LayoutOver
 		}
 	}
 	r.heatDrawn, r.heatCleared = tick, !on
+}
+
+// tombGrowthRefused reports that a layout survey ran within the last day
+// while the projection's plan still has every tomb full (#857): the review
+// replans for another tomb whenever they are all full and no survey ran
+// that day, and at once after a restart (planSurveyed is unset), so a plan
+// still full after it holds no room for one. Nothing is remembered beyond
+// the survey tick the reviewer already keeps.
+func (r *RoutineReviewer) tombGrowthRefused(tick domain.Tick) bool {
+	return r.planSurveyed && r.planChecked <= tick && tick-r.planChecked < layoutReplanEvery
 }

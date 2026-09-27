@@ -48,10 +48,9 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	case policy.TombPlace:
 		result, err = r.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
 	case policy.TombFull:
-		// The layout review grows another tomb; a grave only once it
-		// found no room for one; cremation goes on meanwhile.
-		plan, _ := reading.Projection.LayoutPlan.Value()
-		if refused := r.reviewer.tombsRefused; refused == 0 || refused != plan.TombRooms()+1 {
+		// The layout review grows another tomb; a grave only once a
+		// replan found no room for one; cremation goes on meanwhile.
+		if !r.reviewer.tombGrowthRefused(reading.Projection.Identity.Tick) {
 			return r.stageCremation(call, epoch, state, review, goal, reading)
 		}
 		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)

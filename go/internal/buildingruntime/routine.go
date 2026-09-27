@@ -58,9 +58,6 @@ type RoutineReviewer struct {
 	// planSurveyed is set once any survey was read. See reviewLayoutPlan.
 	planChecked  domain.Tick
 	planSurveyed bool
-	// tombsRefused is the tomb count the last replan asked for and could
-	// not fit; 0 when it did (#857).
-	tombsRefused int
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
 	// layoutOverlay draws the layout plan as a native overlay (#817); the
