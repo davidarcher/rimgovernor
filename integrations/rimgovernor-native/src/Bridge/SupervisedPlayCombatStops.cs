@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
         // epochs (a melee raider stepping in and out of reach is not news
         // at every window) and is seeded at the combat's first scan, so a
         // fight already in progress when it is armed is not news either.
-        private static readonly HashSet<int> _inRange = new HashSet<int>();
+        private static readonly HashSet<int> _inRange = new HashSet<int>(), _inOurRange = new HashSet<int>();
         private static readonly HashSet<long> _meleePairs = new HashSet<long>();
         private static bool _combatScanBaselined;
 
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         {
             _combatPending = null;
             if (s.Typed?.Policy.Mode == Clock.WatchMode.Combat && ReferenceEquals(_combatSession, s.Session)) return;
-            _inRange.Clear(); _meleePairs.Clear(); _combatScanBaselined = false;
+            _inRange.Clear(); _inOurRange.Clear(); _meleePairs.Clear(); _combatScanBaselined = false;
             _combatSession = s.Typed?.Policy.Mode == Clock.WatchMode.Combat ? s.Session : null;
         }
 
@@ -169,15 +169,30 @@ namespace HomeBridge.BridgeTools
                 var turrets = map.listerBuildings.AllBuildingsColonistOfClass<Building_Turret>().Where(t => t.Spawned).ToList();
                 foreach (var h in hostiles)
                 {
-                    if (_inRange.Contains(h.thingIDNumber)) continue;
-                    // The hostile's own weapon reaching a defender: the moment it
-                    // can hurt one, not the (earlier) moment one can shoot it.
-                    var hostileRange = PawnRange(h);
-                    Thing? near = colonists.FirstOrDefault(c => InRange(h, c, hostileRange));
-                    if (near == null) near = turrets.FirstOrDefault(t => InRange(h, t, hostileRange));
-                    if (near == null) continue;
-                    _inRange.Add(h.thingIDNumber);
-                    if (!baseline) { NoteCombatEvent(Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " within weapon range of " + SafeLoadId(near)); return; }
+                    // Either direction, each once per hostile per combat: the
+                    // hostile's weapon reaching a defender (it can hurt one),
+                    // or a defender's weapon reaching it (we can shoot it).
+                    if (!_inRange.Contains(h.thingIDNumber))
+                    {
+                        var hostileRange = PawnRange(h);
+                        Thing? near = colonists.FirstOrDefault(c => InRange(h, c, hostileRange));
+                        if (near == null) near = turrets.FirstOrDefault(t => InRange(h, t, hostileRange));
+                        if (near != null)
+                        {
+                            _inRange.Add(h.thingIDNumber);
+                            if (!baseline) { NoteCombatEvent(Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " reaches " + SafeLoadId(near)); return; }
+                        }
+                    }
+                    if (!_inOurRange.Contains(h.thingIDNumber))
+                    {
+                        Thing? shooter = colonists.FirstOrDefault(c => InRange(c, h, PawnRange(c)));
+                        if (shooter == null) shooter = turrets.FirstOrDefault(t => InRange(t, h, TurretRange(t)));
+                        if (shooter != null)
+                        {
+                            _inOurRange.Add(h.thingIDNumber);
+                            if (!baseline) { NoteCombatEvent(Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " reached by " + SafeLoadId(shooter)); return; }
+                        }
+                    }
                 }
             }
             if (melee)
@@ -200,6 +215,7 @@ namespace HomeBridge.BridgeTools
             try { var verb = p.equipment?.PrimaryEq?.PrimaryVerb; return verb != null && !verb.IsMeleeAttack ? verb.verbProps.range : MeleeReachCells; }
             catch { return MeleeReachCells; }
         }
+        private static float TurretRange(Building_Turret t) { try { return t.AttackVerb?.verbProps.range ?? 0f; } catch { return 0f; } }
         private static string SafeLoadId(Thing t) { try { return t.GetUniqueLoadID(); } catch { return t.thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture); } }
         private static bool OnEpochMap(Thing? t) { var s = _state; return t != null && s != null && t.Spawned && ReferenceEquals(t.Map, s.Map); }
 

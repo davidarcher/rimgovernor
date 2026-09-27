@@ -108,7 +108,7 @@ records the event and `TickBody` stops right after the watch checks
 | Downed | `MakeDowned` / `Pawn.Kill` postfixes (colonists) |
 | Serious injury | `Pawn_HealthTracker.PostApplyDamage` prefix + postfix |
 | Shield broken | `CompShield.Break` postfix |
-| Entered range | tick-boundary scan: a hostile's own weapon reaching a colonist or turret, once per hostile per combat |
+| Entered range | tick-boundary scan: a hostile's weapon reaching a colonist or turret, or theirs reaching it; each direction once per hostile per combat |
 | Melee contact | tick-boundary scan: a new `AttackMelee` pair, once per pair per combat |
 | Explosive launched | `Projectile.Launch` postfix |
 | Raid phase | `Lord.GotoToil` prefix + postfix (hostile lords) |

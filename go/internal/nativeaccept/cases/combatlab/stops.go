@@ -3,6 +3,7 @@ package combatlab
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -23,7 +24,7 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name:        "combatlab/stops",
-		Scope:       "Event-triggered combat stops (#849): on lab-open a combat window armed with downed and entered-range stops on the exact tick a raider's weapon reaches a colonist (the stop event's tick equals its occurrence tick), once per raider per combat, later windows without an event stop on the 300-tick backstop, and a colonist going down stops on its tick.",
+		Scope:       "Event-triggered combat stops (#849): on lab-open a combat window armed with downed and entered-range stops on the exact tick a raider's weapon reaches a colonist or a colonist's reaches a raider (the stop event's tick equals its occurrence tick), once per raider and direction per combat, later windows without an event stop on the 300-tick backstop, and a colonist going down stops on its tick.",
 		Start:       cases.Lab{Colonists: 3},
 		RequiredOps: []string{na.LabStartTool, StageTool},
 		QuietWorld:  true,
@@ -84,10 +85,12 @@ func runStops(ctx context.Context, s cases.Session) error {
 			switch stop["event"] {
 			case "COMBAT_EVENT_ENTERED_RANGE":
 				// First time only: the combat remembers a raider across windows.
-				if id, _ := stop["thingId"].(string); entered[id] {
-					return fmt.Errorf("window %d: %s entered range a second time: %v", window, id, stop)
+				// Keyed by hostile and direction ("reaches" or "reached by").
+				key := fmt.Sprint(stop["thingId"], strings.Contains(fmt.Sprint(stop["detail"]), "reached by"))
+				if entered[key] {
+					return fmt.Errorf("window %d: %s entered range a second time: %v", window, key, stop)
 				}
-				entered[stop["thingId"].(string)] = true
+				entered[key] = true
 				sawRange = true
 			case "COMBAT_EVENT_DOWNED":
 				sawDowned = true

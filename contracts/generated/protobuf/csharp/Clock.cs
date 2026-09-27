@@ -583,8 +583,9 @@ namespace RimGovernor.Protocol.Clock {
     /// </summary>
     [pbr::OriginalName("COMBAT_EVENT_SHIELD_BROKEN")] ShieldBroken = 3,
     /// <summary>
-    /// A hostile's own weapon came within range of a colonist or player turret
-    /// for the first time this epoch (melee reach for a melee weapon).
+    /// A hostile's weapon came within range of a colonist or player turret, or
+    /// a colonist's or turret's weapon came within range of a hostile; each
+    /// direction once per hostile per combat (melee reach for a melee weapon).
     /// </summary>
     [pbr::OriginalName("COMBAT_EVENT_ENTERED_RANGE")] EnteredRange = 4,
     /// <summary>
