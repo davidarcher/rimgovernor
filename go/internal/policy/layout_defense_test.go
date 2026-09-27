@@ -76,7 +76,7 @@ func TestLayoutKillboxAnchorsTheCorridor(t *testing.T) {
 func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	p.Reservations = append(p.Reservations, LayoutReservation{Kind: ReserveGeothermal, Area: Rectangle{X: 90, Z: 90, Width: 10, Height: 10}})
-	sections, err := PerimeterSections(p, "Wall", "Door")
+	sections, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
 	if err != nil {
 		t.Fatal(err)
 	}

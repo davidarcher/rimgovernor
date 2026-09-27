@@ -97,6 +97,10 @@ namespace HomeBridge.BridgeTools
                     // Heavy affordance: a wall stands here; marsh, mud and water refuse one (#727).
                     if (fields.Foundation) {
                         row.SupportsHeavy = cell.GetTerrain(map)?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
+                        // Bridges and moisture pumps close a perimeter across soft ground (#949).
+                        var terrain = cell.GetTerrain(map);
+                        row.Bridgeable = terrain?.affordances.Contains(TerrainAffordanceDefOf.Bridgeable) == true;
+                        row.Dries = terrain?.driesTo != null;
                         // Ore and trees for whole-map zoning (#778).
                         row.ResourceRock = cell.GetEdifice(map)?.def.building?.isResourceRock == true;
                         row.Tree = cell.GetPlant(map)?.def.plant?.IsTree == true;

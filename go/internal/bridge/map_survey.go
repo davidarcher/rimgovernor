@@ -66,15 +66,25 @@ func SurveyCells(v *o.CellsSnapshot) []policy.SurveyCell {
 			continue
 		}
 		rock := row.GetNaturalRock()
+		// A survey without the foundation field reads every cell firm.
+		footing := policy.FootingFirm
+		if row.SupportsHeavy != nil && !row.GetSupportsHeavy() {
+			footing = policy.FootingNone
+			if row.GetSupportsLight() {
+				footing = policy.FootingLight
+			}
+		}
 		cells = append(cells, policy.SurveyCell{
-			Cell:      domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()},
-			Walkable:  row.GetWalkable(),
-			Rock:      rock,
-			Marsh:     !rock && row.SupportsHeavy != nil && !row.GetSupportsHeavy(),
-			ThickRoof: row.GetRoof() == thickRoof,
-			Fertility: row.GetFertility(),
-			Ore:       row.GetResourceRock(),
-			Tree:      row.GetTree(),
+			Cell:       domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()},
+			Walkable:   row.GetWalkable(),
+			Rock:       rock,
+			Footing:    footing,
+			Bridgeable: row.GetBridgeable(),
+			Dries:      row.GetDries(),
+			ThickRoof:  row.GetRoof() == thickRoof,
+			Fertility:  row.GetFertility(),
+			Ore:        row.GetResourceRock(),
+			Tree:       row.GetTree(),
 		})
 	}
 	return cells

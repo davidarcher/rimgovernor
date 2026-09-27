@@ -26,6 +26,15 @@ func IsPerimeterTier(name DefenseTierName) bool {
 	return len(name) > len(TierPerimeterPrefix) && string(name[:len(TierPerimeterPrefix)]) == TierPerimeterPrefix
 }
 
+// The perimeter's footings on soft ground (#949): a plain bridge holds a
+// wooden wall only; a heavy bridge, once researched, holds stone.
+const (
+	PerimeterBridge        = "Bridge"
+	PerimeterHeavyBridge   = "HeavyBridge"
+	PerimeterHeavyResearch = "HeavyBridges"
+	PerimeterLightStuff    = "WoodLog"
+)
+
 // PerimeterSection is one staged piece of the wall.
 type PerimeterSection struct {
 	Name      DefenseTierName
@@ -114,9 +123,12 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 // nearest the killbox first: walls, with a door on every gate cell (three
 // in a row through the thickness). The geothermal site's shell, when the
 // plan holds one, is its own section with a doorway of doors facing the
-// core. Stuff is left empty; the planner fills in the stone at admission.
-func PerimeterSections(plan LayoutPlan, wall, door string) ([]PerimeterSection, error) {
-	gates := map[domain.Cell]bool{}
+// core. A wall on water stands on bridge (#949), laid by a section of its
+// own just before the wall's; a wall on light footing or on a plain Bridge
+// is WoodLog. Other stuff is left empty; the planner fills in the stone at
+// admission.
+func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterSection, error) {
+	gates, light, bridged := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	var runs []Rectangle
 	var killbox, geothermal Rectangle
 	for _, r := range plan.Reservations {
@@ -127,6 +139,14 @@ func PerimeterSections(plan LayoutPlan, wall, door string) ([]PerimeterSection, 
 			}
 		case ReservePerimeter:
 			runs = append(runs, r.Area)
+		case ReservePerimeterLight:
+			for _, c := range rectCells(r.Area) {
+				light[c] = true
+			}
+		case ReserveBridge:
+			for _, c := range rectCells(r.Area) {
+				bridged[c] = true
+			}
 		case ReserveKillbox:
 			killbox = r.Area
 		case ReserveGeothermal:
@@ -164,14 +184,34 @@ func PerimeterSections(plan LayoutPlan, wall, door string) ([]PerimeterSection, 
 		return a.dist < b.dist || a.dist == b.dist && (a.area.X < b.area.X || a.area.X == b.area.X && a.area.Z < b.area.Z)
 	})
 	var out []PerimeterSection
-	for i, p := range pieces {
-		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPerimeterPrefix, i))}
+	next := func() PerimeterSection {
+		return PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPerimeterPrefix, len(out)))}
+	}
+	for _, p := range pieces {
+		under := next()
 		for _, c := range rectCells(p.area) {
-			def := wall
+			if !bridged[c] {
+				continue
+			}
+			b, err := domain.NewBuilding(bridge, c, domain.North, "")
+			if err != nil {
+				return nil, err
+			}
+			under.Buildings = append(under.Buildings, b)
+		}
+		if len(under.Buildings) > 0 {
+			out = append(out, under)
+		}
+		s := next()
+		for _, c := range rectCells(p.area) {
+			def, stuff := wall, ""
 			if gates[c] {
 				def = door
 			}
-			b, err := domain.NewBuilding(def, c, domain.North, "")
+			if light[c] || bridged[c] && bridge == PerimeterBridge {
+				stuff = PerimeterLightStuff
+			}
+			b, err := domain.NewBuilding(def, c, domain.North, stuff)
 			if err != nil {
 				return nil, err
 			}

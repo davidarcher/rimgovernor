@@ -9,10 +9,14 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // unknown and score as unbuildable.
 type SurveyCell struct {
 	Cell domain.Cell
-	// Walkable is open ground a wall can stand on; Rock is natural rock a
-	// module is mined out of; Marsh is marsh, mud or shallow water no
-	// module is built on.
-	Walkable, Rock, Marsh bool
+	// Walkable is ground a pawn crosses (deep water is not); Rock is
+	// natural rock a module is mined out of.
+	Walkable, Rock bool
+	// Footing is what the terrain holds; walkable ground short of firm
+	// is soft and carries no module. Bridgeable takes a bridge; Dries turns
+	// firm under a moisture pump (not moving or deep water).
+	Footing           Footing
+	Bridgeable, Dries bool
 	// ThickRoof is overhead mountain: no drop pods, no roof collapse from
 	// mining, cold storage.
 	ThickRoof bool
@@ -22,6 +26,22 @@ type SurveyCell struct {
 	// tree (#778).
 	Ore, Tree bool
 }
+
+// Footing is the heaviest structure a cell's terrain holds.
+type Footing uint8
+
+const (
+	// FootingFirm takes any building, a stone wall included.
+	FootingFirm Footing = iota
+	// FootingLight takes light structures only, a wooden wall among them:
+	// marshy soil, soft sand, a plain bridge.
+	FootingLight
+	// FootingNone takes nothing without a bridge: marsh, mud, water.
+	FootingNone
+)
+
+// Soft is walkable ground no module or stone wall stands on.
+func (c SurveyCell) Soft() bool { return c.Walkable && !c.Rock && c.Footing != FootingFirm }
 
 // MapSurvey is the whole map, scored once at settle time.
 type MapSurvey struct {

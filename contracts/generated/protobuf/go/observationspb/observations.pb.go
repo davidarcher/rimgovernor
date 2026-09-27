@@ -10146,6 +10146,8 @@ type CellState struct {
 	SupportsHeavy *bool                  `protobuf:"varint,27,opt,name=supports_heavy,json=supportsHeavy,proto3,oneof" json:"supports_heavy,omitempty"` // Foundation field: the terrain takes a wall (Heavy affordance); marsh, mud and water do not (#727).
 	ResourceRock  *bool                  `protobuf:"varint,28,opt,name=resource_rock,json=resourceRock,proto3,oneof" json:"resource_rock,omitempty"`    // Foundation field: the edifice is mineable ore (a resource rock) (#778).
 	Tree          *bool                  `protobuf:"varint,29,opt,name=tree,proto3,oneof" json:"tree,omitempty"`                                        // Foundation field: a tree grows on the cell (#778).
+	Bridgeable    *bool                  `protobuf:"varint,30,opt,name=bridgeable,proto3,oneof" json:"bridgeable,omitempty"`                            // Foundation field: the terrain takes a bridge (Bridgeable affordance) (#949).
+	Dries         *bool                  `protobuf:"varint,31,opt,name=dries,proto3,oneof" json:"dries,omitempty"`                                      // Foundation field: a moisture pump dries the terrain to firm ground (TerrainDef.driesTo) (#949).
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10379,6 +10381,20 @@ func (x *CellState) GetResourceRock() bool {
 func (x *CellState) GetTree() bool {
 	if x != nil && x.Tree != nil {
 		return *x.Tree
+	}
+	return false
+}
+
+func (x *CellState) GetBridgeable() bool {
+	if x != nil && x.Bridgeable != nil {
+		return *x.Bridgeable
+	}
+	return false
+}
+
+func (x *CellState) GetDries() bool {
+	if x != nil && x.Dries != nil {
+		return *x.Dries
 	}
 	return false
 }
@@ -10714,7 +10730,8 @@ func (*GetCellsRequest_ExactCells) isGetCellsRequest_Selection() {}
 // roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
 // ruin, odd v the player edifice definition at string index (v-1)/2, even
 // v a claimable ruin whose definition is at string index (v-2)/2; then a
-// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree.
+// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree,
+// bit 3 bridgeable, bit 4 dries.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
 // fogged. The unchanged flag is never set since changed-since reads were removed (#858).
@@ -35577,7 +35594,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\xb2\v\n" +
+	"\x06_frame\"\x8b\f\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aterrain\x18\x02 \x01(\tH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -35609,7 +35626,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x0eclaimable_ruin\x18\x1a \x01(\tH\x14R\rclaimableRuin\x88\x01\x01\x12*\n" +
 	"\x0esupports_heavy\x18\x1b \x01(\bH\x15R\rsupportsHeavy\x88\x01\x01\x12(\n" +
 	"\rresource_rock\x18\x1c \x01(\bH\x16R\fresourceRock\x88\x01\x01\x12\x17\n" +
-	"\x04tree\x18\x1d \x01(\bH\x17R\x04tree\x88\x01\x01B\n" +
+	"\x04tree\x18\x1d \x01(\bH\x17R\x04tree\x88\x01\x01\x12#\n" +
+	"\n" +
+	"bridgeable\x18\x1e \x01(\bH\x18R\n" +
+	"bridgeable\x88\x01\x01\x12\x19\n" +
+	"\x05dries\x18\x1f \x01(\bH\x19R\x05dries\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -35640,7 +35661,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_claimable_ruinB\x11\n" +
 	"\x0f_supports_heavyB\x10\n" +
 	"\x0e_resource_rockB\a\n" +
-	"\x05_tree\"\xe5\x03\n" +
+	"\x05_treeB\r\n" +
+	"\v_bridgeableB\b\n" +
+	"\x06_dries\"\xe5\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +

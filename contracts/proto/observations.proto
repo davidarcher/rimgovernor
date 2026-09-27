@@ -531,6 +531,8 @@ message CellState {
   optional bool supports_heavy = 27; // Foundation field: the terrain takes a wall (Heavy affordance); marsh, mud and water do not (#727).
   optional bool resource_rock = 28; // Foundation field: the edifice is mineable ore (a resource rock) (#778).
   optional bool tree = 29; // Foundation field: a tree grows on the cell (#778).
+  optional bool bridgeable = 30; // Foundation field: the terrain takes a bridge (Bridgeable affordance) (#949).
+  optional bool dries = 31; // Foundation field: a moisture pump dries the terrain to firm ground (TerrainDef.driesTo) (#949).
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; optional bool foundation = 11; }
 message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; reserved 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; CompactCells compact = 10; reserved 8, 9; }
@@ -544,7 +546,8 @@ message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle recta
 // roof/zone/room, then for a present edifice a varint v: 0 an unclaimable
 // ruin, odd v the player edifice definition at string index (v-1)/2, even
 // v a claimable ruin whose definition is at string index (v-2)/2; then a
-// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree.
+// glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree,
+// bit 3 bridgeable, bit 4 dries.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
 // fogged. The unchanged flag is never set since changed-since reads were removed (#858).

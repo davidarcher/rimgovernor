@@ -263,3 +263,32 @@ func TestDefenseRecordRegionCoversEveryTier(t *testing.T) {
 		t.Fatalf("section region %+v", got)
 	}
 }
+
+// #949: water under the wall takes a plain bridge until heavy bridges are
+// researched; only walls and doors without stuff wait for stone.
+func TestDefensePerimeterBridgeAndStone(t *testing.T) {
+	var projection observation.ColonyProjection
+	if got := defensePerimeterBridge(projection); got != policy.PerimeterBridge {
+		t.Fatal("unknown research", got)
+	}
+	projection.Facts.Research = domain.Known(policy.ResearchFacts{Finished: []policy.ResearchProjectID{policy.PerimeterHeavyResearch}})
+	if got := defensePerimeterBridge(projection); got != policy.PerimeterHeavyBridge {
+		t.Fatal("researched", got)
+	}
+	at := domain.Cell{X: 3, Z: 4}
+	for _, tc := range []struct {
+		def, stuff string
+		stone      bool
+	}{{"Wall", "", true}, {"Door", "", true}, {"Wall", policy.PerimeterLightStuff, false}, {policy.PerimeterBridge, "", false}, {policy.PerimeterHeavyBridge, "", false}} {
+		b, err := domain.NewBuilding(tc.def, at, domain.North, tc.stuff)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if defenseStoneBuilding(b) != tc.stone {
+			t.Fatal(tc)
+		}
+	}
+	if !defenseTerrain(policy.PerimeterBridge) || !defenseTerrain(policy.PerimeterHeavyBridge) || defenseTerrain("Wall") {
+		t.Fatal("bridges are terrain, walls are not")
+	}
+}

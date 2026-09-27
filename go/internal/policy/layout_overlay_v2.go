@@ -37,16 +37,18 @@ var roomOverlay = map[ModuleRole]overlayStyle{
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{
-	ReserveBatteryRoom: {planCyan, "battery room"},
-	ReserveTurbine:     {planCyan, "turbine"},
-	ReserveTurbineLane: {planGreen, "turbine lane"},
-	ReserveSolar:       {planCyan, "solar"},
-	ReserveGeothermal:  {planCyan, "geothermal"},
-	ReservePerimeter:   {planRed, "perimeter"},
-	ReserveGate:        {planYellow, "gate"},
-	ReserveKillbox:     {planRed, "killbox"},
-	ReserveMortar:      {planRed, "mortar"},
-	ReserveCoverClear:  {planGray, "clear cover"},
+	ReserveBatteryRoom:  {planCyan, "battery room"},
+	ReserveTurbine:      {planCyan, "turbine"},
+	ReserveTurbineLane:  {planGreen, "turbine lane"},
+	ReserveSolar:        {planCyan, "solar"},
+	ReserveGeothermal:   {planCyan, "geothermal"},
+	ReservePerimeter:    {planRed, "perimeter"},
+	ReserveGate:         {planYellow, "gate"},
+	ReserveBridge:       {planBrown, "bridge"},
+	ReservePerimeterGap: {planYellow, "open gap"},
+	ReserveKillbox:      {planRed, "killbox"},
+	ReserveMortar:       {planRed, "mortar"},
+	ReserveCoverClear:   {planGray, "clear cover"},
 }
 
 // Overlay draws p inside bounds. Layer order is zones, reservations,

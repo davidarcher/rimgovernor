@@ -13,6 +13,9 @@ func perimeterPlan(t *testing.T, cell func(x, z int32) SurveyCell) LayoutPlan {
 	if !p.Valid() {
 		t.Fatal("invalid plan")
 	}
+	if c, leak := perimeterLeak(p, s); leak {
+		t.Fatal("raiders reach the core at", c)
+	}
 	return p
 }
 
@@ -115,5 +118,221 @@ func TestPerimeterKillboxWhereApproachesConverge(t *testing.T) {
 	app := reserved(p, ReserveKillboxApproach)
 	if app[0].Z >= kb.Z {
 		t.Fatal("approach not outside the south wall", app, kb)
+	}
+}
+
+// perimeterLeak floods from the map edge over walkable cells, the wall and
+// killbox closed and no corner cut between two closed cells, and reports
+// a room cell it reaches: the ring leaks there (#949).
+func perimeterLeak(p LayoutPlan, s MapSurvey) (domain.Cell, bool) {
+	open := map[domain.Cell]bool{}
+	for _, c := range s.Cells {
+		open[c.Cell] = c.Walkable && !c.Rock
+	}
+	for _, kind := range []ReservationKind{ReservePerimeter, ReserveKillbox} {
+		for _, r := range reserved(p, kind) {
+			for _, c := range rectCells(r) {
+				open[c] = false
+			}
+		}
+	}
+	w, h := s.Bounds.Width, s.Bounds.Height
+	seen := map[domain.Cell]bool{}
+	var queue []domain.Cell
+	for _, c := range s.Cells {
+		if open[c.Cell] && (c.Cell.X == 0 || c.Cell.Z == 0 || c.Cell.X == w-1 || c.Cell.Z == h-1) {
+			seen[c.Cell] = true
+			queue = append(queue, c.Cell)
+		}
+	}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		for _, r := range p.Rooms {
+			if contains(r.Interior, c) {
+				return c, true
+			}
+		}
+		for _, d := range neighbours8 {
+			n := addCell(c, d)
+			if !open[n] || seen[n] || d.X != 0 && d.Z != 0 && (!open[domain.Cell{X: n.X, Z: c.Z}] || !open[domain.Cell{X: c.X, Z: n.Z}]) {
+				continue
+			}
+			seen[n] = true
+			queue = append(queue, n)
+		}
+	}
+	return domain.Cell{}, false
+}
+
+func reservedCells(p LayoutPlan, kind ReservationKind) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, r := range reserved(p, kind) {
+		for _, c := range rectCells(r) {
+			out[c] = true
+		}
+	}
+	return out
+}
+
+// wetPerimeter plans over plains with wet ground where soft says, and
+// checks the ring holds: no leak, every wall cell standable (firm, or
+// light footing marked light, or bridged water).
+func wetPerimeter(t *testing.T, soft func(x, z int32) (SurveyCell, bool)) (LayoutPlan, MapSurvey) {
+	t.Helper()
+	cell := func(x, z int32) SurveyCell {
+		if c, ok := soft(x, z); ok {
+			return c
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	}
+	s := zoningSurvey(200, cell)
+	p := PlanPerimeter(PlanCore(Zone(s), 3), s)
+	if !p.Valid() {
+		t.Fatal("invalid plan")
+	}
+	checkPerimeter(t, p)
+	if c, leak := perimeterLeak(p, s); leak {
+		t.Fatal("raiders reach the core at", c)
+	}
+	light, bridges := reservedCells(p, ReservePerimeterLight), reservedCells(p, ReserveBridge)
+	for c := range reservedCells(p, ReservePerimeter) {
+		sc := cell(c.X, c.Z)
+		switch {
+		case sc.Footing == FootingFirm && !light[c] && !bridges[c]:
+		case sc.Footing == FootingLight && light[c] && !bridges[c]:
+		case sc.Footing == FootingNone && sc.Bridgeable && bridges[c] && !light[c]:
+		default:
+			t.Fatalf("wall at %v on %+v light=%v bridge=%v", c, sc, light[c], bridges[c])
+		}
+	}
+	return p, s
+}
+
+// The ring on open plains, for placing water across it.
+func plainsRing(t *testing.T) Rectangle {
+	t.Helper()
+	var ring Rectangle
+	for _, r := range reserved(perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }), ReservePerimeter) {
+		ring = unionRect(ring, r)
+	}
+	return ring
+}
+
+var shallowWater = SurveyCell{Walkable: true, Footing: FootingNone, Bridgeable: true, Dries: true}
+
+func TestPerimeterShallowPondDetours(t *testing.T) {
+	ring := plainsRing(t)
+	// A pond lapping the ring's outer face: the wall steps inside it.
+	face, cz := ring.X+ring.Width-1, ring.Z+ring.Height/2+6
+	pond := func(x, z int32) (SurveyCell, bool) {
+		return shallowWater, x >= face && x <= face+6 && z >= cz-3 && z <= cz+3
+	}
+	p, _ := wetPerimeter(t, pond)
+	if len(reserved(p, ReserveBridge)) != 0 || len(reserved(p, ReservePerimeterGap)) != 0 {
+		t.Fatal("a pond at the wall is walled around, not bridged", reserved(p, ReserveBridge))
+	}
+	inside := false
+	for c := range reservedCells(p, ReservePerimeter) {
+		inside = inside || c.X == face-perimeterThick && c.Z == cz
+	}
+	if !inside {
+		t.Fatal("no detour wall inside the ring beside the pond")
+	}
+	// A pond deep into the ring costs more than perimeterDetour and is
+	// bridged instead.
+	p, _ = wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
+		return shallowWater, x >= face-4 && x <= face+6 && z >= cz-3 && z <= cz+3
+	})
+	if len(reserved(p, ReserveBridge)) == 0 {
+		t.Fatal("a deep pond is bridged")
+	}
+}
+
+func TestPerimeterRiverIsBridged(t *testing.T) {
+	ring := plainsRing(t)
+	z0 := ring.Z + ring.Height - 12
+	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
+		c := shallowWater
+		c.Dries = false
+		return c, z >= z0 && z < z0+4
+	})
+	if len(reserved(p, ReserveBridge)) == 0 {
+		t.Fatal("a river across the ring is bridged")
+	}
+}
+
+func TestPerimeterMarshySoilTakesWood(t *testing.T) {
+	ring := plainsRing(t)
+	z0 := ring.Z + ring.Height - 12
+	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
+		return SurveyCell{Walkable: true, Footing: FootingLight, Bridgeable: true, Dries: true, Fertility: 1}, z >= z0 && z < z0+4
+	})
+	if len(reserved(p, ReservePerimeterLight)) == 0 || len(reserved(p, ReserveBridge)) != 0 {
+		t.Fatal("marshy soil takes a wooden wall, no bridge")
+	}
+}
+
+func TestPerimeterDeepWaterSeals(t *testing.T) {
+	ring := plainsRing(t)
+	x0 := ring.X + ring.Width - 6
+	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
+		return SurveyCell{Footing: FootingNone}, x >= x0
+	})
+	for _, r := range reserved(p, ReservePerimeter) {
+		if r.X+r.Width > x0 {
+			t.Fatal("wall on deep water", r)
+		}
+	}
+}
+
+func TestPerimeterUnbridgeableGapIsFlagged(t *testing.T) {
+	ring := plainsRing(t)
+	z0 := ring.Z + ring.Height - 12
+	cell := func(x, z int32) SurveyCell {
+		if z >= z0 && z < z0+4 {
+			return SurveyCell{Walkable: true, Footing: FootingNone}
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	}
+	s := zoningSurvey(200, cell)
+	p := PlanPerimeter(PlanCore(Zone(s), 3), s)
+	if len(reserved(p, ReservePerimeterGap)) == 0 {
+		t.Fatal("ground nothing closes is flagged")
+	}
+}
+
+// A bridged stretch is laid by its own section just before its wall's: a
+// wooden wall on a plain bridge, stone (stuff left empty) on a heavy one.
+func TestPerimeterSectionsBridgeBeforeWall(t *testing.T) {
+	ring := plainsRing(t)
+	z0 := ring.Z + ring.Height - 12
+	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) {
+		return shallowWater, z >= z0 && z < z0+4
+	})
+	bridged := reservedCells(p, ReserveBridge)
+	for _, tc := range []struct{ bridge, stuff string }{{PerimeterBridge, PerimeterLightStuff}, {PerimeterHeavyBridge, ""}} {
+		sections, err := PerimeterSections(p, "Wall", "Door", tc.bridge)
+		if err != nil {
+			t.Fatal(err)
+		}
+		laid, walled := map[domain.Cell]int{}, 0
+		for i, s := range sections {
+			for _, b := range s.Buildings {
+				switch {
+				case b.Definition() == tc.bridge:
+					laid[b.Cell()] = i
+				case bridged[b.Cell()]:
+					at, ok := laid[b.Cell()]
+					if !ok || at != i-1 || b.Stuff() != tc.stuff {
+						t.Fatalf("%s: wall at %v in section %d, bridge section %d (%v), stuff %q", tc.bridge, b.Cell(), i, at, ok, b.Stuff())
+					}
+					walled++
+				}
+			}
+		}
+		if walled != len(bridged) || len(laid) != len(bridged) {
+			t.Fatal(tc.bridge, "walled", walled, "laid", len(laid), "of", len(bridged))
+		}
 	}
 }

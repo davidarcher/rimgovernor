@@ -38,7 +38,7 @@ func TestZoneRiverMap(t *testing.T) {
 	// A river down x 45..49 across fertile soil.
 	zones := Zone(zoningSurvey(100, func(x, z int32) SurveyCell {
 		if x >= 45 && x < 50 {
-			return SurveyCell{Marsh: true}
+			return SurveyCell{Footing: FootingNone}
 		}
 		return SurveyCell{Walkable: true, Fertility: 1}
 	}))

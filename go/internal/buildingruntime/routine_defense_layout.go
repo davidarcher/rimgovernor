@@ -322,9 +322,11 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			// (fogged); nothing can be admitted until it can.
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: name}, nil
 		}
-		if policy.IsPerimeterTier(name) {
+		if policy.IsPerimeterTier(name) && defenseNeedsStone(buildings) {
 			// The wall is stone: the stock's most plentiful block, waited
-			// for the way MaintainStoneShell waits for its material.
+			// for the way MaintainStoneShell waits for its material. A
+			// wall with its stuff set (wood on soft ground) and a bridge
+			// keep theirs.
 			stuff, ok := defensePerimeterStone(read.Projection, buildings)
 			if !ok {
 				if gate := policy.ResearchGate([]string{policy.StoneShellResearch}, read.Projection.Facts.Research); gate != "" {
@@ -333,6 +335,9 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 				return RoutineDefenseLayoutResult{Reason: defensePerimeterNoStone, Tier: name}, nil
 			}
 			for i, b := range buildings {
+				if !defenseStoneBuilding(b) {
+					continue
+				}
 				if buildings[i], err = domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), stuff); err != nil {
 					return RoutineDefenseLayoutResult{}, err
 				}
@@ -501,7 +506,7 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 	if definition == defenseConduitDefinition {
 		return c.conduits[cell]
 	}
-	if definition == defenseDefinitions.Floor {
+	if defenseTerrain(definition) {
 		return c.terrain[cell] == definition
 	}
 	return c.edifice[cell] == definition
@@ -1016,7 +1021,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
-			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseDefinitions.Door || b.Definition == defenseConduitDefinition || b.Definition == defenseDefinitions.Floor {
+			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseDefinitions.Door || b.Definition == defenseConduitDefinition || defenseTerrain(b.Definition) {
 				continue
 			}
 			if !blocked[b.Cell] {
@@ -1140,7 +1145,7 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, projection observa
 	if !known {
 		return nil
 	}
-	sections, err := policy.PerimeterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door)
+	sections, err := policy.PerimeterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, defensePerimeterBridge(projection))
 	if err != nil {
 		return err
 	}
@@ -1167,6 +1172,32 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, projection observa
 	return record.Validate()
 }
 
+// defensePerimeterBridge is what water under the wall takes: a heavy
+// bridge (and a stone wall) once researched, else a plain bridge (and a
+// wooden wall) (#949).
+func defensePerimeterBridge(projection observation.ColonyProjection) string {
+	if research, known := projection.Facts.Research.Value(); known && slices.Contains(research.Finished, policy.ResearchProjectID(policy.PerimeterHeavyResearch)) {
+		return policy.PerimeterHeavyBridge
+	}
+	return policy.PerimeterBridge
+}
+
+// defenseStoneBuilding is a perimeter wall or door still waiting for its
+// stone: its stuff is unset.
+func defenseStoneBuilding(b domain.Building) bool {
+	return b.Stuff() == "" && (b.Definition() == defenseDefinitions.Wall || b.Definition() == defenseDefinitions.Door)
+}
+
+func defenseNeedsStone(buildings []domain.Building) bool {
+	return slices.ContainsFunc(buildings, defenseStoneBuilding)
+}
+
+// defenseTerrain is a definition laid as terrain, not an edifice: the
+// firing-line floor and the perimeter's bridges (#949).
+func defenseTerrain(definition string) bool {
+	return definition == defenseDefinitions.Floor || definition == policy.PerimeterBridge || definition == policy.PerimeterHeavyBridge
+}
+
 // defensePerimeterStone picks the stone for a section: the stone-block
 // resource the colony holds most of (cut from the rock nearby), when it
 // covers the whole section.
@@ -1177,6 +1208,9 @@ func defensePerimeterStone(projection observation.ColonyProjection, buildings []
 	}
 	need := int64(0)
 	for _, b := range buildings {
+		if !defenseStoneBuilding(b) {
+			continue
+		}
 		if b.Definition() == defenseDefinitions.Door {
 			need += defenseDoorStone
 		} else {
