@@ -32045,7 +32045,7 @@ type BundleSnapshot struct {
 	CombatDetail      *PawnSnapshot        `protobuf:"bytes,22,opt,name=combat_detail,json=combatDetail,proto3" json:"combat_detail,omitempty"`
 	CombatLinesOfFire *LinesOfFireSnapshot `protobuf:"bytes,23,opt,name=combat_lines_of_fire,json=combatLinesOfFire,proto3" json:"combat_lines_of_fire,omitempty"`
 	// The map's standing proper rooms (#897), while combat pawns are
-	// captured: at most 64 rooms of at most 1024 cells each.
+	// captured: every room of at most 1024 cells (larger enclosures are not combat rooms).
 	CombatRooms []*mirrorpb.CombatRoom `protobuf:"bytes,24,rep,name=combat_rooms,json=combatRooms,proto3" json:"combat_rooms,omitempty"`
 	// Every damaged spawned player door (#900), with combat_detail, at most
 	// 64: the doors a fight may send a gunner to repair.

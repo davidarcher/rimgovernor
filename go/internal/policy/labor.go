@@ -216,9 +216,6 @@ func (l *laborLedger) claim(profile LaborProfile, take bool) (bottleneck WorkTyp
 }
 
 func validLabor(profile LaborProfile) bool {
-	if len(profile) > 64 {
-		return false
-	}
 	seen := map[WorkType]bool{}
 	for _, w := range profile {
 		if !validResource(Resource(w)) || seen[w] {

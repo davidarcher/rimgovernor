@@ -261,9 +261,6 @@ type workWorker struct {
 // This is a proposal/readback comparison,
 // never permission to change pawn settings.
 func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOverride, demand WorkDemand) (WorkDecision, error) {
-	if len(pawns) > 256 || len(required) > 256 || len(overrides) > 4096 {
-		return WorkDecision{}, errors.New("work review exceeds bounds")
-	}
 	if err := validateDiseaseRest(demand.Resting); err != nil {
 		return WorkDecision{}, err
 	}
@@ -320,12 +317,6 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 		if !mk || !sk || !wk || !rk {
 			known = false
 			continue
-		}
-		if len(skills) > 256 || len(work) > 256 {
-			return WorkDecision{}, errors.New("work pawn details exceed bounds")
-		}
-		if traits, ok := pawn.Traits.Value(); ok && len(traits) > 256 {
-			return WorkDecision{}, errors.New("work pawn details exceed bounds")
 		}
 		names := map[string]bool{}
 		for _, s := range skills {

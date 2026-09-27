@@ -51,7 +51,7 @@ func TestDecodeWrapperBinaryForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := encode(map[string]any{"proto": gzipBase64(t, data), "timing": map[string]float64{"queueMs": 1}})
-	wire, err := decodeWrapper(raw, maxProtoBytes)
+	wire, err := decodeWrapper(raw, maxReplyProtoBytes)
 	if err != nil || wire.wire == 0 {
 		t.Fatalf("binary wrapper: %+v %v", wire, err)
 	}

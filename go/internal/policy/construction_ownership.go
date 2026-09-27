@@ -118,7 +118,7 @@ func OwnedConstructions(claims domain.Fact[[]ConstructionClaim], observed domain
 	if !known || !census.Colony {
 		return unknown, nil
 	}
-	if len(census.Buildings) > 256 || len(census.Requested) != 0 {
+	if len(census.Requested) != 0 {
 		return unknown, errors.New("invalid colony construction census")
 	}
 	history, _ := claims.Value()

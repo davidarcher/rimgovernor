@@ -131,9 +131,6 @@ func (v FoodStorageObservation) Validate() error {
 	if !known {
 		return nil
 	}
-	if len(stocks) > 4096 {
-		return invalid
-	}
 	seen := map[string]bool{}
 	for _, entry := range stocks {
 		s := entry.Stock
@@ -295,9 +292,6 @@ func SelectFoodStorageMethod(r FoodStoragePlanningRequest) (FoodStorageMethod, e
 	if !foodNumber(deficit) || deficit > 1e9 {
 		return FoodStorageMethod{}, errors.New("invalid food storage deficit")
 	}
-	if len(r.Seen) > 4096 {
-		return FoodStorageMethod{}, errors.New("food storage method history exceeds bound")
-	}
 	seen := map[domain.MethodID]bool{}
 	for _, id := range r.Seen {
 		if !foodID(string(id)) || seen[id] {
@@ -308,9 +302,6 @@ func SelectFoodStorageMethod(r FoodStoragePlanningRequest) (FoodStorageMethod, e
 	sites, known := r.Sites.Value()
 	if !known {
 		return FoodStorageMethod{Kind: FoodStorageUnknown}, nil
-	}
-	if len(sites) > 4096 {
-		return FoodStorageMethod{}, errors.New("too many food storage sites")
 	}
 	candidates := append([]FoodStorageSite(nil), sites...)
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })

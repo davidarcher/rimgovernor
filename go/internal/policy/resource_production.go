@@ -208,14 +208,8 @@ type ResourceStorageZone struct {
 // no mine source selected at all) reports needed=false, blocked=false so the
 // caller's ordinary fallback speaks instead.
 func SelectResourceStorageZone(selected []ResourceSource, pending int64, storage ResourceStorage) (zone ResourceStorageZone, needed, blocked bool, err error) {
-	if len(selected) > 8 {
-		return ResourceStorageZone{}, false, false, errors.New("resource selection exceeds bound")
-	}
 	if pending < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0 {
 		return ResourceStorageZone{}, false, false, errors.New("invalid resource storage observation")
-	}
-	if len(storage.Candidates) > 4096 {
-		return ResourceStorageZone{}, false, false, errors.New("resource storage candidate collection exceeds bound")
 	}
 	hasMine := false
 	var yield int64
@@ -233,7 +227,7 @@ func SelectResourceStorageZone(selected []ResourceSource, pending int64, storage
 
 // SelectStockpileCapacity uses native covered, reachable storage candidates.
 func SelectStockpileCapacity(capacityNeeded int64, storage ResourceStorage) (zone ResourceStorageZone, needed, blocked bool, err error) {
-	if capacityNeeded < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0 || len(storage.Candidates) > 4096 {
+	if capacityNeeded < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0 {
 		return zone, false, false, errors.New("invalid stockpile capacity")
 	}
 	if storage.Haulers == 0 {
@@ -296,9 +290,6 @@ func RankResourceTargets(targets map[Resource]int64, stock domain.Fact[[]Amount]
 	if len(targets) == 0 {
 		return nil, nil
 	}
-	if len(targets) > 4096 {
-		return nil, errors.New("too many configured resource targets")
-	}
 	names := make([]Resource, 0, len(targets))
 	for name, want := range targets {
 		if !validResource(name) || want <= 0 || want > 10000 {
@@ -310,9 +301,6 @@ func RankResourceTargets(targets map[Resource]int64, stock domain.Fact[[]Amount]
 	rows, known := stock.Value()
 	if !known {
 		return nil, nil
-	}
-	if len(rows) > 4096 {
-		return nil, errors.New("resource stock census exceeds bound")
 	}
 	have := map[Resource]int64{}
 	for _, q := range rows {
@@ -408,9 +396,6 @@ func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
 func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 	if !validResource(r.Resource) || r.Target <= 0 || r.Target > 10000 {
 		return ResourceMethod{Kind: ResourceMethodUnknown}, nil
-	}
-	if len(r.Seen) > 4096 {
-		return ResourceMethod{}, errors.New("resource method history exceeds bound")
 	}
 	if r.Resource == ComponentResource {
 		target, known := ComponentFabricationTarget(r.Target, r.CurrentStock, r.Stock, r.Runways)

@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
             snapshot.AccessReachable = stand.IsValid && (mobile.Count == 0 || mobile.Any(p => p.CanReach(stand, PathEndMode.OnCell, Danger.None)));
             var workers = snapshot.AccessReachable ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
             snapshot.WorkerAvailable = workers.Count > 0;
-            foreach (var worker in workers.Take(32)) snapshot.WorkerIds.Add(worker.GetUniqueLoadID());
+            foreach (var worker in workers) snapshot.WorkerIds.Add(worker.GetUniqueLoadID());
             return snapshot;
         }
     }

@@ -153,9 +153,6 @@ func NewInput(r Request) (Input, error) {
 	if r.CurrentTick < 0 {
 		return Input{}, errors.New("negative current tick")
 	}
-	if len(r.Candidates) > 256 || len(r.Held) > 256 {
-		return Input{}, errors.New("admission collection exceeds 256 rows")
-	}
 	if b, known := r.Bounds.Value(); known && (b.Width <= 0 || b.Height <= 0) {
 		return Input{}, errors.New("invalid observed map bounds")
 	}
@@ -175,9 +172,6 @@ func NewInput(r Request) (Input, error) {
 		if !ValidPurpose(c.Purpose) {
 			return Input{}, errors.New("invalid building purpose")
 		}
-		if len(c.Dependencies) > 256 {
-			return Input{}, errors.New("too many dependencies")
-		}
 		deps := map[domain.ActionID]bool{}
 		for _, dep := range c.Dependencies {
 			if strings.TrimSpace(string(dep.Action)) == "" || dep.Action == c.Action.ID() || deps[dep.Action] {
@@ -193,9 +187,6 @@ func NewInput(r Request) (Input, error) {
 			c.Preview.Costs = domain.Known(copyAmounts(costs))
 		}
 		if cells, known := c.Preview.Footprint.Value(); known {
-			if len(cells) > 4096 {
-				return Input{}, errors.New("footprint exceeds native cell bound")
-			}
 			c.Preview.Footprint = domain.Known(append([]domain.Cell(nil), cells...))
 		}
 		r.Candidates[i] = c
@@ -225,9 +216,6 @@ func NewInput(r Request) (Input, error) {
 		}
 		if err := validAmounts(h.Costs); err != nil {
 			return Input{}, err
-		}
-		if len(h.Footprint) > 4096 {
-			return Input{}, errors.New("held footprint too large")
 		}
 		r.Held[i] = copyReservation(h)
 	}
@@ -270,9 +258,6 @@ func validResource(r Resource) bool {
 	return utf8.ValidString(string(r)) && strings.TrimSpace(string(r)) != "" && !strings.ContainsRune(string(r), 0) && len(r) <= 256
 }
 func validAmounts(costs []Amount) error {
-	if len(costs) > 256 {
-		return errors.New("too many resource costs")
-	}
 	seen := map[Resource]bool{}
 	for _, a := range costs {
 		if !validResource(a.Resource) || a.Count < 0 || seen[a.Resource] {

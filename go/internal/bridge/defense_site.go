@@ -95,8 +95,6 @@ type DefenseSite struct {
 	Raids          []RaidTrack
 }
 
-const maxRaidTracks, maxRaidTrail = 32, 128
-
 // LineOfFire is the native shooting-model evidence for one (firing, approach)
 // pair: GenSight line of sight and CoverUtility's overall block chance for a
 // target at To shot from From (TargetCover) and the reverse (ShooterCover).
@@ -287,14 +285,11 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		return DefenseSite{}, contract("defense site cover threshold missing")
 	}
 	site.CoverThreshold = v.GetCoverThreshold()
-	if len(v.Raids) > maxRaidTracks {
-		return DefenseSite{}, contract("defense site raid tracks exceed bound")
-	}
 	lords := map[string]bool{}
 	for _, row := range v.Raids {
 		spawn, ok := protoCell(row.GetSpawn())
 		if row == nil || !ok || validID(row.GetLordId()) != nil || lords[row.GetLordId()] || validID(row.GetFactionDef()) != nil || row.SpawnTick == nil || row.LastTick == nil || row.Ground == nil ||
-			row.GetSpawnTick() < 0 || row.GetLastTick() < row.GetSpawnTick() || len(row.Trail) > maxRaidTrail || int64(spawn.X) >= int64(site.Width) || int64(spawn.Z) >= int64(site.Height) {
+			row.GetSpawnTick() < 0 || row.GetLastTick() < row.GetSpawnTick() || int64(spawn.X) >= int64(site.Width) || int64(spawn.Z) >= int64(site.Height) {
 			return DefenseSite{}, contract("invalid defense site raid track")
 		}
 		lords[row.GetLordId()] = true

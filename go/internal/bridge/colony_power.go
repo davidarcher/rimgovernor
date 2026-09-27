@@ -90,7 +90,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 			return contract("invalid steam geyser")
 		}
 		geysers[ref.GetId()] = true
-		if len(row.Cells) < 1 || len(row.Cells) > 64 {
+		if len(row.Cells) < 1 {
 			return contract("invalid steam geyser footprint")
 		}
 		cells := map[[2]int32]bool{}

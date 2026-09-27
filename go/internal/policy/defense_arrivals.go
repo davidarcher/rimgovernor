@@ -61,7 +61,7 @@ const defenseRouteTail = 6
 const defenseArrivalSnap = 8
 
 func validateDefenseArrivals(r DefenseRequest) error {
-	if r.Tick < 0 || len(r.Arrivals) > 128 {
+	if r.Tick < 0 {
 		return errors.New("invalid defense arrival census")
 	}
 	seen := map[string]DefenseArrival{}

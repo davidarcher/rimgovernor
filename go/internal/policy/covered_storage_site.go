@@ -25,7 +25,7 @@ const coveredStorageSize int32 = 2
 // native zone-create previews still decide legality, and only an admitted
 // method reserves geometry. Missing or unknown cells are never treated as free.
 func CoveredStorageSites(r CoveredStorageRequest) ([]Rectangle, error) {
-	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || len(r.Cells) > 65536 || len(r.Protected) > 65536 {
+	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return nil, errors.New("invalid covered storage site bounds")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }

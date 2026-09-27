@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -212,17 +211,6 @@ func TestResourceRankingTieBreakAndInputOrder(t *testing.T) {
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Fatalf("ranking order changed: %v %v", got, err)
 		}
-	}
-}
-
-func TestResourceDemandCombinedRowBound(t *testing.T) {
-	floors := make(map[string]int64, 4096)
-	for i := 0; i < 4096; i++ {
-		floors[fmt.Sprintf("Def%d", i)] = 1
-	}
-	_, err := BuildResourceDemand(ResourceDemandInput{EconomicFloors: floors, Targets: []ResourceDemand{{ResourceKey{Def: "Steel"}, 1, 2}}, Stock: domain.Known([]ResourceQuantity{})})
-	if err == nil {
-		t.Fatal("combined rows exceed the scorer input bound")
 	}
 }
 

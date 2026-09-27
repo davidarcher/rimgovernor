@@ -166,9 +166,6 @@ func RecoveryPending(observed domain.Fact[[]RecoveryBuilding]) (domain.Fact[[]Re
 	if !known {
 		return domain.Unknown[[]RecoveryWork](), nil
 	}
-	if len(rows) > 256 {
-		return domain.Unknown[[]RecoveryWork](), errors.New("recovery census exceeds bound")
-	}
 	seen := map[string]bool{}
 	work := []RecoveryWork{}
 	complete := true
@@ -242,7 +239,7 @@ func (h *DisasterHistory) Validate() error {
 	if h == nil {
 		return nil
 	}
-	if h.Started < 0 || h.Observed < h.Started || len(h.Conditions) > 256 || len(h.Damaged) > 256 || len(h.Services) != len(disasterServices) || len(h.Affected) > len(disasterServices) {
+	if h.Started < 0 || h.Observed < h.Started || len(h.Services) != len(disasterServices) || len(h.Affected) > len(disasterServices) {
 		return errors.New("invalid disaster history bounds")
 	}
 	if h.ShortCircuitTick != nil && (*h.ShortCircuitTick < 0 || *h.ShortCircuitTick > int64(h.Observed)) {
@@ -287,7 +284,7 @@ func (h *DisasterHistory) Validate() error {
 			return errors.New("untracked disaster deficit")
 		}
 	}
-	if !h.WorkKnown && len(h.Work) > 0 || len(h.Work) > 768 {
+	if !h.WorkKnown && len(h.Work) > 0 {
 		return errors.New("invalid recovery work evidence")
 	}
 	workSeen := map[RecoveryWork]bool{}
@@ -342,9 +339,6 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 		return nil, err
 	}
 	current, known := conditions.Value()
-	if len(current) > 256 {
-		return nil, errors.New("too many environmental conditions")
-	}
 	seen := map[string]bool{}
 	for _, c := range current {
 		if !foodID(c.ID) || !foodID(c.Definition) || seen[c.ID] {
@@ -406,9 +400,6 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 		if w.Method != RecoveryRefuel {
 			tracked[w.Building] = true
 		}
-	}
-	if len(tracked) > 256 {
-		return nil, errors.New("damaged building history exceeds bound")
 	}
 	h.Damaged = nil
 	for id := range tracked {

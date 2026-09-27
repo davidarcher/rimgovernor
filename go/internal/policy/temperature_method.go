@@ -138,13 +138,7 @@ func (c TemperatureCooling) poweredCoolerReady() bool {
 }
 
 func (v RoomObservation) Validate() error {
-	if len(v.Rooms) > 256 {
-		return errors.New("temperature room census exceeds bound")
-	}
 	if beds, known := v.EligibleBeds.Value(); known {
-		if len(beds) > 256 {
-			return errors.New("sleeping bed census exceeds bound")
-		}
 		seen := map[string]bool{}
 		for _, id := range beds {
 			if !foodID(id) || seen[id] {
@@ -155,7 +149,7 @@ func (v RoomObservation) Validate() error {
 	}
 	rooms, beds, cells := map[string]bool{}, map[string]bool{}, map[domain.Cell]bool{}
 	for _, room := range v.Rooms {
-		if !foodID(room.ID) || rooms[room.ID] || len(room.Beds) > 256 || len(room.Cells) > 4096 {
+		if !foodID(room.ID) || rooms[room.ID] {
 			return errors.New("invalid temperature room")
 		}
 		rooms[room.ID] = true
@@ -174,13 +168,7 @@ func (v RoomObservation) Validate() error {
 			}
 			cells[c] = true
 		}
-		if len(cells) > 65536 {
-			return errors.New("temperature geometry exceeds bound")
-		}
 		if contents, known := room.Contents.Value(); known {
-			if len(contents) > 256 {
-				return errors.New("room contents exceed bound")
-			}
 			seen := map[Resource]bool{}
 			for _, q := range contents {
 				if !validResource(q.Resource) || q.Count < 0 || seen[q.Resource] {
@@ -249,9 +237,6 @@ func TemperatureRange(fact domain.Fact[RoomObservation]) (minimum, maximum domai
 func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling TemperatureCooling, limits RoutinePolicy, latches RoutineLatches) (TemperatureProposal, error) {
 	if err := limits.Validate(); err != nil {
 		return TemperatureProposal{}, err
-	}
-	if len(cooling.Cells) > 65536 {
-		return TemperatureProposal{}, errors.New("temperature site census exceeds bound")
 	}
 	v, known := fact.Value()
 	if !known {

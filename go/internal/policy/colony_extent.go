@@ -95,7 +95,7 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 		return unknown, err
 	}
 	buildings, _ := owned.Value()
-	if home.Revision < 0 || len(home.Targets) > 256 {
+	if home.Revision < 0 {
 		return unknown, invalid
 	}
 	targets := map[string]HomeCoverageTarget{}
@@ -134,9 +134,6 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 		}{
 			{ExtentFacility, b.Cells}, {ExtentEnclosedInterior, geometry.EnclosedInterior}, {ExtentCorridor, geometry.Corridor},
 		} {
-			if len(group.cells) > extentCellLimit {
-				return unknown, invalid
-			}
 			p.Origin = group.origin
 			seen := map[domain.Cell]bool{}
 			for _, c := range group.cells {
@@ -174,9 +171,6 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 		geometry, known := target.ExtentGeometry.Value()
 		if facility[target.ID] || !known || target.Blocker != "" {
 			continue
-		}
-		if len(geometry.Zone) > extentCellLimit {
-			return unknown, invalid
 		}
 		seen := map[domain.Cell]bool{}
 		for _, c := range geometry.Zone {

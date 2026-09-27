@@ -32,7 +32,6 @@ namespace HomeBridge.BridgeTools
                     var player = Faction.OfPlayerSilentFail;
                     if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
                         return Missing(Common.UnavailableReason.NativeComponentMissing, "Player, Home, building or roof trackers unavailable.");
-                    Require(map.cellIndices.NumGridCells <= 262144, "Map census exceeds the bounded scan.");
                     // Scoped to Home: a hilly map carries tens of thousands of
                     // natural-rock buildings map-wide (#414), so the census walks
                     // the Home cells (bounded by the grid) and collects the
@@ -116,7 +115,6 @@ namespace HomeBridge.BridgeTools
                     var reply = new Obs.ClearanceTargetsReply { Observed = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }
-                catch (ReadLimit limit) { return Missing(Common.UnavailableReason.LimitExceeded, limit.Message); }
                 catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Clearance facts could not be read completely."); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -397,7 +395,5 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Unavailable = new Common.Unavailable { Reason = reason, Detail = detail } });
-        private static void Require(bool condition, string message) { if (!condition) throw new ReadLimit(message); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

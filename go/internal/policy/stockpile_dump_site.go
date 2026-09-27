@@ -38,7 +38,7 @@ var livingRoomRoles = map[RoomRole]bool{
 // from any living room. A room whose role is unknown counts as living.
 // Unknown cells are never free; native previews still decide legality.
 func OutdoorDumpSites(r OutdoorDumpRequest) ([]Rectangle, error) {
-	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || len(r.Cells) > 65536 || len(r.Protected) > 65536 || r.Width <= 0 || r.Height <= 0 || r.Width > 16 || r.Height > 16 {
+	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || r.Width <= 0 || r.Height <= 0 || r.Width > 16 || r.Height > 16 {
 		return nil, errors.New("invalid outdoor dump request")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }

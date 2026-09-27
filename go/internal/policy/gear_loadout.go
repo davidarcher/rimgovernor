@@ -401,7 +401,10 @@ func (p GearLoadoutInput) Validate() error {
 	if err := p.Climate.Validate(); err != nil {
 		return err
 	}
-	if len(p.Worn) > 7 || len(p.Options) > 64 {
+	// Not a payload cap: PlanGearLoadout's exact search is exponential in
+	// the per-slot option counts, so native truncates the catalog to 64
+	// (NativeGearFacts.ModelOptions) and this guard keeps the search bounded.
+	if len(p.Options) > 64 {
 		return errors.New("gear loadout exceeds bound")
 	}
 	for _, n := range []float64{p.Ambient, p.ComfortableMin, p.ComfortableMax} {
@@ -436,9 +439,6 @@ func (p GearLoadoutInput) Validate() error {
 		if o.Condition > 1 || math.IsNaN(o.MoveSpeed) || math.IsInf(o.MoveSpeed, 0) {
 			return errors.New("invalid gear condition or speed")
 		}
-		if len(o.Research) > 16 || len(o.Ingredients) > 16 {
-			return errors.New("gear recipe exceeds bound")
-		}
 		for _, project := range o.Research {
 			if !validResource(Resource(project)) {
 				return errors.New("invalid gear research")
@@ -450,9 +450,6 @@ func (p GearLoadoutInput) Validate() error {
 			}
 		}
 		for _, list := range [][]string{o.Layers, o.Groups} {
-			if len(list) > 16 {
-				return errors.New("gear coverage exceeds bound")
-			}
 			seen := map[string]bool{}
 			for _, v := range list {
 				if !foodID(v) || seen[v] {
@@ -461,9 +458,6 @@ func (p GearLoadoutInput) Validate() error {
 				seen[v] = true
 			}
 		}
-	}
-	if len(p.Research) > 512 || len(p.Budget) > 64 {
-		return errors.New("gear research or budget exceeds bound")
 	}
 	for _, project := range p.Research {
 		if !validResource(Resource(project)) {

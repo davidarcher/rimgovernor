@@ -112,7 +112,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 	if q.Definition == "" {
 		return tier, nil, nil
 	}
-	if q.Conduit == "" || len(q.Transmitters) > 4096 || q.Max > 64 || len(g.Firing) > 64 || len(g.Lanes) > 128 || len(g.Approach) > 128 || len(g.Reserved) > 4096 {
+	if q.Conduit == "" || q.Max > 64 {
 		return DefenseTier{}, nil, errors.New("invalid turret request")
 	}
 	if len(g.Firing) == 0 || len(g.Approach) == 0 || !s.inRegion(g.Entry) {

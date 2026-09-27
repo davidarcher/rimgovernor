@@ -178,7 +178,7 @@ func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {
 	if _, _, err := testClient(t, s, testBudget).Identity(context.Background()); !errors.Is(err, ErrUnavailable) {
 		t.Fatal(err)
 	}
-	for _, raw := range []string{`{"payload":{}}`, `{"payload":null}`, `{"payload":"{}","payload":"{}"}`, `{"payload":"{}","unknownArguments":["oops"]}`, `{"payload":"{\"unknown\":1}"}`, `{"payload":"{}"}`, `{"payload":"` + strings.Repeat("x", maxProtoBytes+1) + `"}`, `{"payload":"\ud800"}`} {
+	for _, raw := range []string{`{"payload":{}}`, `{"payload":null}`, `{"payload":"{}","payload":"{}"}`, `{"payload":"{}","unknownArguments":["oops"]}`, `{"payload":"{\"unknown\":1}"}`, `{"payload":"{}"}`, `{"payload":"\ud800"}`} {
 		t.Run(raw[:min(len(raw), 40)], func(t *testing.T) {
 			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return structured(raw), nil }}
 			reply, result, err := testClient(t, s, testBudget).Identity(context.Background())

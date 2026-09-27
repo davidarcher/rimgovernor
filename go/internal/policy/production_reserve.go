@@ -7,12 +7,9 @@ package policy
 // target reserves that nutrition even though none of it is edible yet, so it
 // must never be added to any of those, only netted against new bill demand.
 func ReservedFoodNutrition(benches []ProductionBench) (float64, bool) {
-	if len(benches) > 256 {
-		return 0, false
-	}
 	total := 0.0
 	for _, bench := range benches {
-		if bench.Butcher || len(bench.Bills) > 15 || len(bench.Recipes) > 256 {
+		if bench.Butcher || len(bench.Bills) > 15 {
 			continue
 		}
 		nutrition := map[string]float64{}

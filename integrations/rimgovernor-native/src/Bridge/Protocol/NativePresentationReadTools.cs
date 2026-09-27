@@ -69,7 +69,6 @@ namespace HomeBridge.BridgeTools
                     if (Application.isBatchMode || Find.Selector == null)
                         return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = Unavailable("Graphical native selection unavailable.") });
                     var objects = Find.Selector.SelectedObjectsListForReading.ToList();
-                    Require(objects.Count <= 4096, "Selection exceeds 4096 objects.");
                     var snapshot = new Presentation.SelectionSnapshot { Context = context, Listing = Listing(objects.Count) };
                     foreach (var value in objects) snapshot.SelectedObjects.Add(Selected(value, map));
                     if (snapshot.SelectedObjects.Select(s => s.Id).Distinct(StringComparer.Ordinal).Count() != snapshot.SelectedObjects.Count)
@@ -94,7 +93,6 @@ namespace HomeBridge.BridgeTools
                 {
                     var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
                     var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                    Require(pawns.Count <= 256, "Colonist roster exceeds 256 objects.");
                     var roster = new Presentation.ColonistRoster { Context = context, Listing = Listing(pawns.Count) };
                     foreach (var pawn in pawns)
                     {

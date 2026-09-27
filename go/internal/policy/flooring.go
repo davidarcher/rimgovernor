@@ -119,7 +119,7 @@ func (w FloorWeights) valid() bool {
 }
 
 func (p FlooringPolicy) valid() bool {
-	if len(p.Floors) == 0 || len(p.Floors) > 64 || p.MaxCellsPerPlan < 1 || p.MaxCellsPerPlan > 256 || !p.Clean.valid() || !p.Living.valid() || !p.Traffic.valid() || !floorNumber(p.PaybackDays) || p.PaybackDays < 0 || !floorNumber(p.MaterialTicksPerUnit) || p.MaterialTicksPerUnit < 0 || len(p.EntryFloors) > 8 {
+	if len(p.Floors) == 0 || p.MaxCellsPerPlan < 1 || p.MaxCellsPerPlan > 256 || !p.Clean.valid() || !p.Living.valid() || !p.Traffic.valid() || !floorNumber(p.PaybackDays) || p.PaybackDays < 0 || !floorNumber(p.MaterialTicksPerUnit) || p.MaterialTicksPerUnit < 0 {
 		return false
 	}
 	seen := map[string]bool{}
@@ -182,9 +182,6 @@ type FloorTerrain struct {
 }
 
 func (v FlooringObservation) Validate() error {
-	if len(v.Rooms) > 256 || len(v.Terrains) > 256 || len(v.Floors) > 128 || len(v.Traffic) > TrafficCellBound {
-		return errors.New("flooring census exceeds bound")
-	}
 	for name, t := range v.Terrains {
 		if !foodID(name) || !floorNumber(t.Cleanliness) || !floorNumber(t.Beauty) || !floorNumber(t.Flammability) || t.PathCost < 0 {
 			return errors.New("invalid floor terrain")
@@ -488,9 +485,6 @@ func entryDeficit(v FlooringObservation, clean map[domain.Cell]bool, p FlooringP
 func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[RoomObservation], previous []string, p FlooringPolicy) (FlooringReview, error) {
 	if !p.valid() {
 		return FlooringReview{}, errors.New("invalid flooring policy")
-	}
-	if len(previous) > 256 {
-		return FlooringReview{}, errors.New("invalid flooring latch")
 	}
 	v, known := fact.Value()
 	if !known {

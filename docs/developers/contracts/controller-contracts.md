@@ -866,7 +866,7 @@ while they are perfectly safe to reach, #428/#431).
 Unsafe items are forbidden before safe items are allowed, in batches of eight.
 Forbid changes no pawn orders and may execute during an emergency; Allow retains
 the emergency gate. A changed safety census cancels stale undispatched proposals.
-The census is bounded to 4096 items. Each later review may reverse a prior decision
+Each later review may reverse a prior decision
 when danger clears or returns. A designation receipt proves the flag only; native
 storage observations prove hauling completed. Both flag decisions replay from
 colony snapshots of a trapped and then cleared distant drop

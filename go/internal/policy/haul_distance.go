@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -16,8 +15,6 @@ type HaulConsumer struct {
 	Weight int64
 }
 
-const maxHaulConsumers = 64
-
 // HaulCosts is the traffic-weighted walking distance from every census cell
 // to the consumers: for each consumer a breadth-first search over walkable
 // cells (8-neighbour, RimWorld's pather) starting from the cells beside its
@@ -25,9 +22,6 @@ const maxHaulConsumers = 64
 // from it is absent: stock stored there is unreachable to that consumer.
 // Unknown walkability is never walked.
 func HaulCosts(cells []SiteCell, consumers []HaulConsumer) (map[domain.Cell]int64, error) {
-	if len(cells) > 65536 || len(consumers) > maxHaulConsumers {
-		return nil, errors.New("haul cost request exceeds bound")
-	}
 	walkable := make(map[domain.Cell]bool, len(cells))
 	for _, c := range cells {
 		walkable[c.Cell] = positive(c.Walkable)
@@ -36,7 +30,7 @@ func HaulCosts(cells []SiteCell, consumers []HaulConsumer) (map[domain.Cell]int6
 	reached := map[domain.Cell]int{}
 	used := 0
 	for _, consumer := range consumers {
-		if consumer.Weight <= 0 || len(consumer.Cells) == 0 || len(consumer.Cells) > 256 {
+		if consumer.Weight <= 0 || len(consumer.Cells) == 0 {
 			continue
 		}
 		used++

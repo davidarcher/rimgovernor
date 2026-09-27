@@ -40,7 +40,6 @@ func TestClockObservationInvalidationScope(t *testing.T) {
 	}
 	for name, o := range map[string]*k.ObservationInvalidated{
 		"no family":        {EntityIds: []string{"Zone_7"}},
-		"too many ids":     {Families: colony, EntityIds: append([]string{"Zone_x"}, many...)},
 		"duplicate id":     {Families: colony, EntityIds: []string{"Zone_7", "Zone_7"}},
 		"blank id":         {Families: colony, EntityIds: []string{" "}},
 		"corner missing":   {Families: colony, Cells: &k.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}},

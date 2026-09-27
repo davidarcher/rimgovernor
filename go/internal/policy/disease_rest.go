@@ -52,11 +52,8 @@ type DiseaseRest struct {
 }
 
 func validateDiseaseRest(rows []DiseaseRest) error {
-	if len(rows) > 256 {
-		return errors.New("disease rest history exceeds bound")
-	}
 	for i, row := range rows {
-		if !foodID(string(row.Pawn)) || i > 0 && rows[i-1].Pawn >= row.Pawn || len(row.Conditions) == 0 || len(row.Conditions) > 256 {
+		if !foodID(string(row.Pawn)) || i > 0 && rows[i-1].Pawn >= row.Pawn || len(row.Conditions) == 0 {
 			return errors.New("invalid disease rest history")
 		}
 		for j, name := range row.Conditions {
@@ -83,9 +80,6 @@ func ReviewDiseaseRest(observed domain.Fact[[]CarePawn], previous []DiseaseRest)
 	if !known {
 		return append([]DiseaseRest(nil), previous...), nil
 	}
-	if len(pawns) > 256 {
-		return nil, errors.New("disease census exceeds bound")
-	}
 	seen := map[PawnID]bool{}
 	for _, pawn := range pawns {
 		if !foodID(string(pawn.ID)) || seen[pawn.ID] {
@@ -96,9 +90,6 @@ func ReviewDiseaseRest(observed domain.Fact[[]CarePawn], previous []DiseaseRest)
 		conditions, ck := pawn.Conditions.Value()
 		if !dk || dead || !ck {
 			continue
-		}
-		if len(conditions) > 256 {
-			return nil, errors.New("disease conditions exceed bound")
 		}
 		next := map[string]bool{}
 		unnamed := false

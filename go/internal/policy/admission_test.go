@@ -338,11 +338,6 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 	r = request(c)
 	r.Candidates[0].Dependencies = []Dependency{{Action: "dependency", Completed: domain.Known(false), Snapshot: current(), Tick: 20}}
 	reason(t, r, DependencyBlocked)
-	r = request(c)
-	r.Candidates[0].Preview.Footprint = domain.Known(make([]domain.Cell, 4097))
-	if _, err = NewInput(r); err == nil {
-		t.Fatal("footprint exceeded canonical selected-rotation bound")
-	}
 }
 func TestValidationCopies(t *testing.T) {
 	r := request(candidate(t, "a", 1, 10))

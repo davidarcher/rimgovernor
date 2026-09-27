@@ -142,8 +142,6 @@ namespace HomeBridge.BridgeTools
                     if (of != null) row.CorpseClass = of.Value;
                     items.Add(row);
                 }
-            if (items.Count > 256)
-                return new Obs.WasteReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "Waste census exceeds 256 rows." } };
             var snapshot = new Obs.WasteSnapshot { Context = context.Clone()};
             snapshot.Items.AddRange(items);
             return new Obs.WasteReply { Observed = snapshot };

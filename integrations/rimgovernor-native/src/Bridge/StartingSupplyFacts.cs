@@ -22,7 +22,6 @@ namespace HomeBridge.BridgeTools
         // Near-start scatter lands within 20 cells of the player start spot and the
         // colonists' mean sits beside it at load; the margin covers their spread.
         internal const int Radius = 40;
-        internal const int Limit = 256;
         private static readonly FieldInfo? ThingDefField = typeof(ScenPart_ThingCount).GetField("thingDef", BindingFlags.NonPublic | BindingFlags.Instance);
 
         internal static HashSet<ThingDef> ScenarioDefinitions()
@@ -38,7 +37,7 @@ namespace HomeBridge.BridgeTools
             return defs;
         }
 
-        /// <summary>Forbidden starting stacks in native (z, x, id) order, bounded to <see cref="Limit"/>.</summary>
+        /// <summary>Forbidden starting stacks in native (z, x, id) order.</summary>
         internal static List<Thing> Forbidden(List<Thing> things, IntVec3 center, Func<Thing, bool> reachable)
         {
             var defs = ScenarioDefinitions();
@@ -46,7 +45,7 @@ namespace HomeBridge.BridgeTools
             return things.Where(t => t.def.category == ThingCategory.Item && defs.Contains(t.def)
                     && (t.Faction == null || t.Faction.IsPlayer) && t.IsForbidden(player)
                     && t.Position.DistanceTo(center) <= Radius && reachable(t))
-                .OrderBy(t => t.Position.z).ThenBy(t => t.Position.x).ThenBy(t => t.thingIDNumber).Take(Limit).ToList();
+                .OrderBy(t => t.Position.z).ThenBy(t => t.Position.x).ThenBy(t => t.thingIDNumber).ToList();
         }
     }
 }

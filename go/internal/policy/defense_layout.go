@@ -192,9 +192,6 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 	if reg.Width <= 0 || reg.Height <= 0 || reg.X < 0 || reg.Z < 0 || reg.X+reg.Width > r.Bounds.Width || reg.Z+reg.Height > r.Bounds.Height {
 		return defenseSite{}, errors.New("invalid defense region")
 	}
-	if len(r.Protected) > 65536 || len(r.Entrances) > 64 || len(r.Lines) > 4096 {
-		return defenseSite{}, errors.New("defense census too large")
-	}
 	if r.Defenders < 0 || r.Defenders > defenseMaxDefenders {
 		return defenseSite{}, errors.New("invalid defender count")
 	}

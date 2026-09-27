@@ -152,7 +152,7 @@ func OrdinaryMealRecipe(name string) bool {
 func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64, context ...ProductionBillContext) (BillSelection, bool) {
 	rows, known := benches.Value()
 	count, ck := colonists.Value()
-	if !known || !ck || count <= 0 || count > 256 || len(rows) > 256 || !fieldPositive(targetDays) || targetDays > 60 {
+	if !known || !ck || count <= 0 || count > 256 || !fieldPositive(targetDays) || targetDays > 60 {
 		return BillSelection{}, false
 	}
 	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood {
@@ -194,7 +194,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	var options []BillSelection
 	seen := map[string]bool{}
 	for _, bench := range rows {
-		if !foodID(bench.ID) || seen[bench.ID] || len(bench.Recipes) > 256 || len(bench.Bills) > 15 {
+		if !foodID(bench.ID) || seen[bench.ID] || len(bench.Bills) > 15 {
 			return BillSelection{}, false
 		}
 		seen[bench.ID] = true

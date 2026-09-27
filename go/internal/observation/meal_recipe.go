@@ -13,7 +13,7 @@ func mealRecipeFacts(r *o.RecipeState, recipe *policy.ProductionRecipe) {
 	recipe.WorkPerNutrition = finiteRecipeNumber(r.WorkPerNutrition, true)
 	recipe.NeedsPower = optional(r.NeedsPower)
 	classes := r.IngredientClasses
-	if classes == nil || len(classes.Slots) == 0 || len(classes.Slots) > 64 {
+	if classes == nil || len(classes.Slots) == 0 {
 		return
 	}
 	slots := make([]policy.FoodIngredientSlot, 0, len(classes.Slots))

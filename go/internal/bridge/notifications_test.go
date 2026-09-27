@@ -123,9 +123,8 @@ func TestNotificationsMalformedEvidence(t *testing.T) {
 }
 func TestNotificationsWireBounds(t *testing.T) {
 	for name, value := range map[string]proto.Message{
-		"nonfinite":    &p.TransientMessage{Alpha: proto.Float64(math.Inf(1))},
-		"UTF8":         &p.Letter{Text: proto.String(string([]byte{255}))},
-		"encoded size": &p.Letter{Text: proto.String(strings.Repeat("a", maxProtoBytes))},
+		"nonfinite": &p.TransientMessage{Alpha: proto.Float64(math.Inf(1))},
+		"UTF8":      &p.Letter{Text: proto.String(string([]byte{255}))},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := notificationsWire(value); err == nil {
@@ -134,15 +133,11 @@ func TestNotificationsWireBounds(t *testing.T) {
 		})
 	}
 	targets := &p.LookTargets{}
-	for i := 0; i < 4096; i++ {
+	for i := 0; i < 5000; i++ {
 		targets.Targets = append(targets.Targets, &p.LookTarget{})
 	}
 	if err := notificationsWire(targets); err != nil {
-		t.Fatal(err)
-	}
-	targets.Targets = append(targets.Targets, &p.LookTarget{})
-	if err := notificationsWire(targets); err == nil {
-		t.Fatal("target ceiling ignored")
+		t.Fatal("large target list refused (#320 removed the ceiling)", err)
 	}
 	unknown := &p.Letter{}
 	unknown.ProtoReflect().SetUnknown([]byte{0xf8, 0x07, 0x01})

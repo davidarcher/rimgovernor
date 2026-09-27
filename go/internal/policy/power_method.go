@@ -250,11 +250,8 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 	if !known {
 		return PowerProposal{Method: PowerUnknown}, nil
 	}
-	if !foodNumber(planning.ReserveMinDays) || !foodNumber(planning.StorageMargin) || !foodNumber(planning.PendingDemandW) || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12 || len(planning.Generators) > 64 {
+	if !foodNumber(planning.ReserveMinDays) || !foodNumber(planning.StorageMargin) || !foodNumber(planning.PendingDemandW) || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12 {
 		return PowerProposal{}, errors.New("invalid power planning")
-	}
-	if len(v.Networks) > 4096 || len(v.Geysers) > 256 {
-		return PowerProposal{}, errors.New("invalid power network census")
 	}
 	networks := map[string]PowerNetworkFact{}
 	for _, n := range v.Networks {
@@ -271,14 +268,14 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		}
 		networks[n.ID] = n
 	}
-	if bounds.Width < 1 || bounds.Height < 1 || bounds.Width > 4096 || bounds.Height > 4096 || len(v.Buildings)+len(v.Conduits) > 256 || len(cells) > 65536 || len(protected) > 65536 {
+	if bounds.Width < 1 || bounds.Height < 1 || bounds.Width > 4096 || bounds.Height > 4096 || len(v.Buildings)+len(v.Conduits) > 256 {
 		return PowerProposal{}, errors.New("invalid power planning bounds")
 	}
 	inside := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < bounds.Width && c.Z < bounds.Height }
 	seen := map[string]bool{}
 	complete := true
 	for _, b := range v.Buildings {
-		if !foodID(b.ID) || !foodID(b.Definition) || seen[b.ID] || !inside(b.Cell) || len(b.Occupied) < 1 || len(b.Occupied) > 4096 {
+		if !foodID(b.ID) || !foodID(b.Definition) || seen[b.ID] || !inside(b.Cell) || len(b.Occupied) < 1 {
 			return PowerProposal{}, errors.New("invalid power building geometry")
 		}
 		seen[b.ID] = true
@@ -303,9 +300,6 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			if x, k := amount.Value(); k && (math.IsNaN(x) || math.IsInf(x, 0) || x < 0 || x > 1e12) {
 				return PowerProposal{}, errors.New("invalid power service amount")
 			}
-		}
-		if len(b.FuelDefinitions) > 256 {
-			return PowerProposal{}, errors.New("invalid power fuel definitions")
 		}
 		connected, ck := b.Connected.Value()
 		net, nk := b.Network.Value()
@@ -340,7 +334,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 	}
 	geyserSeen := map[string]bool{}
 	for _, g := range v.Geysers {
-		if !foodID(g.ID) || geyserSeen[g.ID] || !inside(g.Cell) || len(g.Cells) < 1 || len(g.Cells) > 64 {
+		if !foodID(g.ID) || geyserSeen[g.ID] || !inside(g.Cell) || len(g.Cells) < 1 {
 			return PowerProposal{}, errors.New("invalid steam geyser census")
 		}
 		geyserSeen[g.ID] = true

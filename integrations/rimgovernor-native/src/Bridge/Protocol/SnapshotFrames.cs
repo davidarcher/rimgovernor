@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
             return observed;
         }
 
-        private const int MaxCombatRooms = 64, MaxCombatRoomCells = 1024;
+        private const int MaxCombatRoomCells = 1024;
 
         // On the main thread. The map's standing proper rooms (#897), for
         // the pods tactic: each room's bounds, cell count and the player
@@ -62,7 +62,6 @@ namespace HomeBridge.BridgeTools
             var player = RimWorld.Faction.OfPlayerSilentFail;
             foreach (var room in map.regionGrid.AllRooms)
             {
-                if (observed.CombatRooms.Count >= MaxCombatRooms) break;
                 if (room == null || !room.ProperRoom || room.IsDoorway || room.CellCount == 0 || room.CellCount > MaxCombatRoomCells) continue;
                 int minX = int.MaxValue, minZ = int.MaxValue, maxX = int.MinValue, maxZ = int.MinValue;
                 foreach (var c in room.Cells)

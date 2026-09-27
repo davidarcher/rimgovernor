@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -38,9 +37,6 @@ func FilterLootReach(observed domain.Fact[[]LootItem], r RemoteWorkRequest) (dom
 	rows, known := observed.Value()
 	if !known {
 		return observed, nil, nil
-	}
-	if len(rows) > 4096 {
-		return domain.Unknown[[]LootItem](), nil, errors.New("event loot census exceeds bound")
 	}
 	var kept []LootItem
 	var holds []LootHold

@@ -195,12 +195,9 @@ func clockEvent(event *k.Event) error {
 const ClockInvalidationEntitiesMax = 64
 
 // clockInvalidationScope accepts the optional narrowing of an
-// ObservationInvalidated (#359): distinct entity ids within the bound and one
+// ObservationInvalidated (#359): distinct entity ids and one
 // rectangle of inclusive cell bounds. An old native omits both.
 func clockInvalidationScope(o *k.ObservationInvalidated) error {
-	if len(o.EntityIds) > ClockInvalidationEntitiesMax {
-		return contract("clock observation invalidation entity bound")
-	}
 	seen := map[string]bool{}
 	for _, id := range o.EntityIds {
 		if validID(id) != nil || seen[id] {

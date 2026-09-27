@@ -102,7 +102,7 @@ type viableCrop struct {
 func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []FieldCandidate, ok bool) {
 	season, seasonKnown := r.Climate.DaysRemaining.Value()
 	fraction, fk := r.Coverage.Value()
-	if len(r.Choices) > 256 || !fk || !foodNumber(fraction) || !indoor && seasonKnown && !fieldPositive(season) {
+	if !fk || !foodNumber(fraction) || !indoor && seasonKnown && !fieldPositive(season) {
 		return nil, nil, false
 	}
 	seen := map[string]bool{}

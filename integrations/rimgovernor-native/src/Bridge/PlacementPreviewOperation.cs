@@ -227,8 +227,6 @@ namespace HomeBridge.BridgeTools
                 rotation = RotationNames[rotation.AsInt & 3], accepted = report.Accepted,
                 reason = Diagnostic(report.Accepted ? "" : report.Reason ?? ""), Rect = GenAdj.OccupiedRect(center, rotation, definition.Size)
             };
-            if (bounded && (long)result.Rect.Width * result.Rect.Height > 4096)
-                throw new PlacementLimitException("Native footprint exceeds 4096 cells");
             if (definition is ThingDef thingDef && thingDef.hasInteractionCell)
                 result.interactionCells.Add(new PlacementCell(ThingUtility.InteractionCellWhenAt(thingDef, center, rotation, map)));
             if (definition is ThingDef windDef && windDef.comps != null && windDef.comps.Any(c => c.compClass == typeof(CompPowerPlantWind)))
@@ -243,7 +241,6 @@ namespace HomeBridge.BridgeTools
                 {
                     if (thing == null || thing.def == null || !seen.Add(thing.thingIDNumber)) continue;
                     if (skipRock != null && skipRock(thing)) continue;
-                    if (bounded && seen.Count > 4096) throw new PlacementLimitException("Native footprint exceeds 4096 things");
                     if (bounded) DefinitionName(thing.def.category.ToString());
                     // Placement wipes with the blueprint definition; loose items displaced
                     // by the finished building are hauled, rather than destroyed.
@@ -284,7 +281,6 @@ namespace HomeBridge.BridgeTools
                 // Avoid the native logging branch for stuff on an unstuffed definition.
                 var costs = definition.CostListAdjusted(definition.MadeFromStuff ? material : null, false);
                 if (costs == null) return null;
-                if (bounded && costs.Count > 256) throw new PlacementLimitException("Native costs exceed 256 rows");
                 return costs.Select(row => {
                     if (row == null || row.thingDef == null || row.count < 0)
                         throw new InvalidOperationException("Invalid native cost");

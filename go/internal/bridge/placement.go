@@ -77,9 +77,6 @@ func validateEvaluated(request *p.PlacementCandidate, v *p.PlacementEvaluated) e
 	if v == nil || v.CanPlace == nil || v.MadeFromStuff == nil || v.Passability == nil || v.IsDoor == nil || v.ResearchFinished == nil || v.BuildableByPlayer == nil || v.GetPassability() < 1 || v.GetPassability() > 3 {
 		return contract("evaluated facts missing")
 	}
-	if len(v.CostList) > 256 {
-		return contract("too many costs")
-	}
 	costs := map[string]bool{}
 	for _, cost := range v.CostList {
 		if cost == nil || cost.DefName == nil || cost.Count == nil || cost.GetCount() < 0 || validID(cost.GetDefName()) != nil || costs[cost.GetDefName()] {
@@ -92,7 +89,7 @@ func validateEvaluated(request *p.PlacementCandidate, v *p.PlacementEvaluated) e
 	}
 	switch m := v.Materials.Availability.(type) {
 	case *p.PlacementMaterials_Known:
-		if m.Known == nil || len(m.Known.Rows) > 256 {
+		if m.Known == nil {
 			return contract("invalid material rows")
 		}
 		seen := map[string]bool{}
@@ -125,7 +122,7 @@ func validateEvaluated(request *p.PlacementCandidate, v *p.PlacementEvaluated) e
 		if want == 1 && rotation.GetRotation() != request.GetRotation() {
 			return contract("rotation mismatch")
 		}
-		if len(rotation.OccupiedCells) == 0 || len(rotation.OccupiedCells) > 4096 || len(rotation.BlockingThings) > 4096 {
+		if len(rotation.OccupiedCells) == 0 {
 			return contract("geometry completeness/limit")
 		}
 		cells := map[[2]int32]bool{}

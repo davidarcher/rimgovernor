@@ -79,13 +79,6 @@ func TestReservedFoodNutritionSumsAcrossBenches(t *testing.T) {
 	}
 }
 
-func TestReservedFoodNutritionRejectsOversizedInput(t *testing.T) {
-	benches := make([]ProductionBench, 257)
-	if _, ok := ReservedFoodNutrition(benches); ok {
-		t.Fatal("oversized bench list accepted")
-	}
-}
-
 func TestSelectProductionBillPrefersSeparatedButcherBench(t *testing.T) {
 	butcher := func(id, room string) ProductionBench {
 		bench := ProductionBench{ID: id, Definition: "ButcherSpot", Token: domain.Known("t-" + id), Usable: domain.Known(true), Butcher: true, Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}}

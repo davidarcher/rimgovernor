@@ -44,9 +44,6 @@ func StoneBlockTarget(floor int64, stock domain.Fact[[]Amount]) (resource Resour
 	if floor == 0 || !known {
 		return "", 0, false, nil
 	}
-	if len(rows) > 4096 {
-		return "", 0, false, errors.New("resource stock census exceeds bound")
-	}
 	chunks := map[Resource]int64{}
 	for _, row := range rows {
 		if row.Count < 0 {

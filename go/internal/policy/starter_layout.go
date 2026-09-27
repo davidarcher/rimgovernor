@@ -280,7 +280,7 @@ func squaredDistance(a, b domain.Cell) int64 {
 // ranking. These are proposals: native placement/access previews still decide
 // legality, and only admitted actions reserve geometry. Missing cells are blocked.
 func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
-	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || len(r.Cells) > 65536 || len(r.Protected) > 65536 {
+	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return nil, errors.New("invalid starter site bounds")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }

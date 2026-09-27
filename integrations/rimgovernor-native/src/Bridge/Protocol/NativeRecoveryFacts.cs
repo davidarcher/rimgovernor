@@ -29,7 +29,6 @@ namespace HomeBridge.BridgeTools
                     if (fuel != null) {
                         service.Fuel = Number(fuel.Fuel); service.TargetFuel = Number(fuel.TargetFuelLevel);
                         var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
-                        if (defs.Count > 256) throw new InvalidOperationException("Fuel definitions exceed bound.");
                         service.AllowedFuelDefs.Add(defs);
                     } else service.Issues.Add(new Obs.ReadIssue { Field = "fuel", Unavailable = new Common.Unavailable {
                         Reason = Common.UnavailableReason.NotApplicable, Detail = "Building has no refuelable component." } });
@@ -40,7 +39,6 @@ namespace HomeBridge.BridgeTools
                 }
                 foreach (var area in areas) {
                     var cells = area.ActiveCells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
-                    if (cells.Count > 4096) throw new InvalidOperationException("Recovery area exceeds bound.");
                     // GetUniqueLoadID(), not the bare Area.ID int: this is the
                     // same identifier space WorkSettingsIntent's allowed_area
                     // assignment resolves and NativePawnDetails' own

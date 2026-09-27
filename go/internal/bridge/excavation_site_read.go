@@ -122,7 +122,7 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 	if out.CollapsePending && out.Support != policy.ExcavationSupportUnsupported {
 		return ExcavationSite{}, raw, contract("pending collapse reported supported")
 	}
-	if snapshot.WorkerAvailable == nil || snapshot.AccessReachable == nil || len(snapshot.WorkerIds) > 32 {
+	if snapshot.WorkerAvailable == nil || snapshot.AccessReachable == nil {
 		return ExcavationSite{}, raw, contract("excavation worker facts missing")
 	}
 	out.WorkerAvailable, out.AccessReachable = snapshot.GetWorkerAvailable(), snapshot.GetAccessReachable()

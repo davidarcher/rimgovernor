@@ -264,7 +264,7 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 	}
 	// The occupied rect is the ranged target: every cell in bounds, none
 	// twice, at least one (a spawned building occupies its position).
-	if len(row.OccupiedCells) == 0 || len(row.OccupiedCells) > 1024 {
+	if len(row.OccupiedCells) == 0 {
 		return result, contract("threat building occupied cells missing")
 	}
 	cells := make([]domain.Cell, 0, len(row.OccupiedCells))

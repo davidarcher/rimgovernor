@@ -71,9 +71,6 @@ func ReviewMealTier(r MealTierRequest, benches domain.Fact[[]ProductionBench]) (
 		return MealTierReview{}, ErrMealTierFacts
 	}
 	cooks, ck := r.Cooks.Value()
-	if len(cooks) > 256 {
-		return MealTierReview{}, ErrMealTierFacts
-	}
 	skill := int32(-1)
 	seen := map[PawnID]bool{}
 	for _, cook := range cooks {
@@ -100,9 +97,6 @@ func ReviewMealTier(r MealTierRequest, benches domain.Fact[[]ProductionBench]) (
 	if !bk || !ck {
 		return MealTierReview{}, ErrMealTierFacts
 	}
-	if len(rows) > 256 {
-		return MealTierReview{}, ErrMealTierFacts
-	}
 	advanced := days >= r.TargetDays+margin || (r.Previous == MealFine || r.Previous == MealLavish) && days >= r.TargetDays
 	maxTier := MealSimple
 	if advanced && protein {
@@ -115,7 +109,7 @@ func ReviewMealTier(r MealTierRequest, benches domain.Fact[[]ProductionBench]) (
 	seenBenches := map[string]bool{}
 	best := 0
 	for _, bench := range rows {
-		if !foodID(bench.ID) || seenBenches[bench.ID] || len(bench.Recipes) > 256 {
+		if !foodID(bench.ID) || seenBenches[bench.ID] {
 			return MealTierReview{}, ErrMealTierFacts
 		}
 		seenBenches[bench.ID] = true
@@ -185,7 +179,7 @@ func mealTierRank(t MealTier) int {
 // observed-open source; Close and Unknown never satisfy a recipe slot.
 func mealIngredientSources(p FoodPlan) (map[FoodIngredientClass]bool, bool, bool) {
 	sources := map[FoodIngredientClass]bool{}
-	if len(p.Portfolio) > 4096 || !fieldPositive(p.DemandPerDay) || !foodNumber(p.DeliveredPerDay) || math.IsNaN(p.GapPerDay) || math.IsInf(p.GapPerDay, 0) {
+	if !fieldPositive(p.DemandPerDay) || !foodNumber(p.DeliveredPerDay) || math.IsNaN(p.GapPerDay) || math.IsInf(p.GapPerDay, 0) {
 		return nil, false, false
 	}
 	seen := map[string]bool{}
@@ -243,7 +237,7 @@ func mealRecipeChoice(bench string, r ProductionRecipe, skill int32, sources map
 }
 
 func mealSlotsSupported(slots []FoodIngredientSlot, sources map[FoodIngredientClass]bool) bool {
-	if len(slots) == 0 || len(slots) > 64 {
+	if len(slots) == 0 {
 		return false
 	}
 	for _, slot := range slots {
@@ -279,7 +273,7 @@ func mealPasteNetwork(r MealTierRequest) (string, float64, bool) {
 	infra, ik := r.Paste.Value()
 	env, ek := r.Environment.Value()
 	watts, wk := infra.PowerW.Value()
-	if !ik || !ek || !wk || !foodID(infra.Name) || !positive(infra.Available) || !fieldPositive(watts) || len(env.Networks) > 256 {
+	if !ik || !ek || !wk || !foodID(infra.Name) || !positive(infra.Available) || !fieldPositive(watts) {
 		return "", 0, false
 	}
 	best, headroom := "", 0.0

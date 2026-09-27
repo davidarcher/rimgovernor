@@ -1173,7 +1173,7 @@ message BundleSnapshot {
   PawnSnapshot combat_detail = 22;
   LinesOfFireSnapshot combat_lines_of_fire = 23;
   // The map's standing proper rooms (#897), while combat pawns are
-  // captured: at most 64 rooms of at most 1024 cells each.
+  // captured: every room of at most 1024 cells (larger enclosures are not combat rooms).
   repeated rimgovernor.mirror.v1.CombatRoom combat_rooms = 24;
   // Every damaged spawned player door (#900), with combat_detail, at most
   // 64: the doors a fight may send a gunner to repair.

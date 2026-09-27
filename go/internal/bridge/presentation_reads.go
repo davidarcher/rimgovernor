@@ -307,8 +307,5 @@ func validateDossier(item *p.ColonistReference, q *p.ColonistRosterRequest) erro
 	if !d.GetColonist() || d.GetDead() {
 		return contract("dossier is not a live colonist")
 	}
-	if len(d.GetBiography().GetSkills()) > 256 || len(d.GetBiography().GetTraits()) > 256 || len(d.GetHealth().GetHediffs()) > 256 {
-		return contract("oversized colonist dossier")
-	}
 	return nil
 }

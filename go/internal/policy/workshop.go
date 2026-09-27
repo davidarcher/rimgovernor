@@ -139,9 +139,6 @@ func SelectWorkshopBench(r WorkshopRequest) (WorkshopChoice, error) {
 	if !validResource(r.Resource) {
 		return WorkshopChoice{}, errors.New("invalid workshop resource")
 	}
-	if len(r.Hosts) > 256 || len(r.Definitions) > 256 {
-		return WorkshopChoice{}, errors.New("workshop request exceeds bound")
-	}
 	benches, known := r.Benches.Value()
 	if !known {
 		return WorkshopChoice{Method: WorkshopUnknown}, nil

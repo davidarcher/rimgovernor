@@ -112,8 +112,7 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 	labor, lk := r.Labor.Value()
 	runway, rk := r.Demand.RunwayDays.Value()
 	if !known || !lk || !rk || !foodNumber(labor) || !foodNumber(runway) ||
-		!foodNumber(r.ReserveDays) || !foodNumber(r.MinDays) || !foodNumber(r.TargetDays) || r.TargetDays <= r.MinDays ||
-		len(rows) > 4096 || len(r.Demand.Consumers) == 0 || len(r.Demand.Consumers) > 256 {
+		!foodNumber(r.ReserveDays) || !foodNumber(r.MinDays) || !foodNumber(r.TargetDays) || r.TargetDays <= r.MinDays || len(r.Demand.Consumers) == 0 {
 		return fail()
 	}
 	p := FoodPlan{Forecast: r.Demand}
@@ -152,7 +151,7 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 	seen := map[key]bool{}
 	for _, c := range rows {
 		k := key{c.Kind, c.ID}
-		if !validFoodChannelKind(c.Kind) || !foodID(c.ID) || seen[k] || len(c.Risk) > 5 || len(c.Terms) > 64 {
+		if !validFoodChannelKind(c.Kind) || !foodID(c.ID) || seen[k] {
 			return fail()
 		}
 		seen[k] = true

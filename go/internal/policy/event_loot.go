@@ -28,9 +28,6 @@ type EventLootHistory struct {
 }
 
 func (h EventLootHistory) Validate() error {
-	if len(h.Pending) > 4096 || len(h.Held) > 4096 {
-		return errors.New("event loot exceeds bound")
-	}
 	for i, row := range h.Held {
 		if row.Thing == "" || row.Reason == "" || i > 0 && h.Held[i-1].Thing >= row.Thing {
 			return errors.New("invalid event loot hold")
@@ -54,9 +51,6 @@ func ReviewEventLoot(observed domain.Fact[[]LootItem], previous EventLootHistory
 	rows, known := observed.Value()
 	if !known {
 		return previous, domain.Unknown[bool](), nil
-	}
-	if len(rows) > 4096 {
-		return previous, domain.Unknown[bool](), errors.New("event loot census exceeds bound")
 	}
 	next := EventLootHistory{}
 	seen := map[string]bool{}

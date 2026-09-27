@@ -220,8 +220,8 @@ type DevelopmentRequest struct {
 	// unknown releases no commitment.
 	LaborUse domain.Fact[LaborUse]
 	// Weights zero value uses DefaultDevelopmentWeights.
-	Weights     DevelopmentWeights
-	Goals []DevelopmentGoal
+	Weights DevelopmentWeights
+	Goals   []DevelopmentGoal
 	// Assessments are the review's routine needs; any EmergencyRule holds
 	// freezes development, exactly as it suspends the review.
 	Assessments []RoutineAssessment
@@ -262,7 +262,7 @@ func validGoal(id GoalID, source GoalSource, priority int) bool {
 // RankDevelopment ports development_priorities.arbitrate. It grants selection
 // slots only; native admission, shared resource reservations and Hands still apply.
 func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
-	if r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 512 || len(r.Commitments) > 4096 {
+	if r.Snapshot.Validate() != nil || r.Tick < 0 {
 		return DevelopmentState{}, errors.New("invalid development review")
 	}
 	weights := r.Weights
@@ -277,17 +277,11 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		return DevelopmentState{}, errors.New("invalid worker count")
 	}
 	if labor, known := r.Labor.Value(); known {
-		if len(labor) > 256 {
-			return DevelopmentState{}, errors.New("invalid labor census")
-		}
 		for w, n := range labor {
 			if !validResource(Resource(w)) || n < 0 || n > 4096 {
 				return DevelopmentState{}, errors.New("invalid labor census")
 			}
 		}
-	}
-	if census, known := r.Census.Value(); known && len(census) > MaxAllocWorkers {
-		return DevelopmentState{}, errors.New("invalid worker census")
 	}
 	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(MaxAutoDevelopmentProjects, workers), Census: r.Census, StageHold: r.Stage.HoldsDevelopment()}
 	result.Partial = r.Partial

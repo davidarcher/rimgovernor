@@ -159588,7 +159588,7 @@ namespace RimGovernor.Protocol.Observations {
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatRoom> combatRooms_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Mirror.CombatRoom>();
     /// <summary>
     /// The map's standing proper rooms (#897), while combat pawns are
-    /// captured: at most 64 rooms of at most 1024 cells each.
+    /// captured: every room of at most 1024 cells (larger enclosures are not combat rooms).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

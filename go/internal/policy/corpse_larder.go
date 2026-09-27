@@ -40,7 +40,7 @@ func SelectCorpseLarder(v FoodStorageObservation) (CorpseLarderMethod, error) {
 	if !sk || !lk {
 		return none, nil
 	}
-	if !foodNumber(larder.RawMeatNutrition) || !foodNumber(larder.CookDemandNutrition) || len(larder.Corpses) > 4096 || len(larder.ColdSites) > 256 {
+	if !foodNumber(larder.RawMeatNutrition) || !foodNumber(larder.CookDemandNutrition) {
 		return none, errors.New("invalid corpse larder")
 	}
 	if err := v.Validate(); err != nil {

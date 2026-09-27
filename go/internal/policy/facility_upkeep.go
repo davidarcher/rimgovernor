@@ -36,7 +36,7 @@ type StoneStructure struct {
 }
 
 func facilityCells(cells []domain.Cell) bool {
-	if len(cells) < 1 || len(cells) > 256 {
+	if len(cells) < 1 {
 		return false
 	}
 	seen := map[domain.Cell]bool{}
@@ -58,7 +58,7 @@ func ReviewHomeCoverage(observed domain.Fact[HomeCoverageObservation]) (domain.F
 	if !known {
 		return unknown, nil
 	}
-	if census.Revision < 0 || len(census.Targets) > 256 {
+	if census.Revision < 0 {
 		return unknown, errors.New("invalid Home census")
 	}
 	result := []HomeCoverageTarget{}
@@ -125,14 +125,8 @@ func SelectHomeCoverageMethod(targets domain.Fact[[]HomeCoverageTarget], revisio
 	if !known {
 		return HomeCoverageMethod{Kind: HomeCoverageUnknown}, nil
 	}
-	if len(rows) > 256 {
-		return HomeCoverageMethod{}, errors.New("home coverage targets exceed bound")
-	}
 	if len(rows) == 0 {
 		return HomeCoverageMethod{Kind: HomeCoverageRecovered}, nil
-	}
-	if len(seen) > 4096 {
-		return HomeCoverageMethod{}, errors.New("home coverage method history exceeds bound")
 	}
 	seenSet := map[domain.MethodID]bool{}
 	for _, id := range seen {
@@ -170,9 +164,6 @@ func ReviewStoneShell(owned domain.Fact[[]ConstructionClaim], structures domain.
 	if !known {
 		return unknown, nil
 	}
-	if len(buildings) > 256 {
-		return unknown, errors.New("owned construction exceeds bound")
-	}
 	walls := map[string]bool{}
 	for _, b := range buildings {
 		if b.Building.Definition() == "Wall" {
@@ -188,9 +179,6 @@ func ReviewStoneShell(owned domain.Fact[[]ConstructionClaim], structures domain.
 	rows, known := structures.Value()
 	if !known {
 		return unknown, nil
-	}
-	if len(rows) > 256 {
-		return unknown, errors.New("structure census exceeds bound")
 	}
 	seen := map[string]bool{}
 	result := []string{}

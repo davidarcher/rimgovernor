@@ -33,7 +33,7 @@ legality remains unchanged. This is potential access, not a receipt or proof of
 actual recreation, and does not reserve land outside the building footprint.
 
 Materials selects `known` or `unavailable`. A known list covers every material
-definition relevant to that candidate without truncation (at most256 rows).
+definition relevant to that candidate without truncation.
 Within a known definition row, absent available means its count is unknown and
 present zero means known empty. An unavailable enumeration never masquerades as
 known empty stock. An unavailable materials scan cannot authorize a write based

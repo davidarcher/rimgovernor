@@ -63,7 +63,7 @@ type PlacementScore struct {
 // NewPlacementSearch ports development.placement's nearest-cell ordering and
 // bounded search. Unknown occupancy/zone/room facts never become free space.
 func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
-	if r.Snapshot.Validate() != nil || r.Tick < 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || r.Radius < 0 || r.Radius > 4096 || r.Limit < 1 || r.Limit > 64 || len(r.Cells) > 65536 || len(r.Protected) > 65536 {
+	if r.Snapshot.Validate() != nil || r.Tick < 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || r.Radius < 0 || r.Radius > 4096 || r.Limit < 1 || r.Limit > 64 {
 		return PlacementSearch{}, errors.New("invalid placement search")
 	}
 	if r.Environment != PlacementAnywhere && r.Environment != PlacementIndoors && r.Environment != PlacementOutdoors {
@@ -181,7 +181,7 @@ func (s PlacementSearch) Score(anchor domain.Cell, footprint []domain.Cell) Plac
 
 // SelectScored is Select with the chosen footprint's score.
 func (s PlacementSearch) SelectScored(definition, stuff string, previews []Preview) (Preview, PlacementScore, bool, error) {
-	if s.free == nil || len(previews) > 256 {
+	if s.free == nil {
 		return Preview{}, PlacementScore{}, false, errors.New("invalid placement preview set")
 	}
 	if _, err := domain.NewBuilding(definition, domain.Cell{}, domain.North, stuff); err != nil {
@@ -208,9 +208,6 @@ func (s PlacementSearch) SelectScored(definition, stuff string, previews []Previ
 		cells, known := p.Footprint.Value()
 		if !positive(p.CanPlace) || !positive(p.SafeToPlace) || !known || len(cells) == 0 {
 			continue
-		}
-		if len(cells) > 4096 {
-			return Preview{}, PlacementScore{}, false, errors.New("placement footprint exceeds bound")
 		}
 		valid, anchor := true, false
 		used := map[domain.Cell]bool{}

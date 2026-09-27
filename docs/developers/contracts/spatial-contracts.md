@@ -491,8 +491,8 @@ probe runs under `task probes:test` with a hand-built multi-cell rectangle.
 
 The scan walks the Home cells rather than the map's building list, so the
 natural rock of a hilly map never counts against it; only non-player buildings
-standing in Home are bounded (8192). The complete census is bounded to 256 rows;
-overflow or an unreadable scan is unavailable, never sampled. The Go observation treats an explicit
+standing in Home are read, with no row cap (#320);
+an unreadable scan is unavailable, never sampled. The Go observation treats an explicit
 unavailable native stub as an unknown fact, distinct from a complete empty
 census. Required safety booleans cannot be omitted. The observation context
 must match the expected load, map, generation and fresh tick. The read admits

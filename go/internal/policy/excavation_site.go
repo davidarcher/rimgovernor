@@ -335,7 +335,7 @@ func excavatedCell(c SiteCell) bool {
 // any known cell inside it is not rock, when any known cell bordering it
 // (other than the access cell) is passable, or when it touches the map edge.
 func ExcavationSites(r ExcavationSiteRequest) ([]ExcavationTarget, error) {
-	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || len(r.Cells) > 65536 || len(r.Protected) > 65536 {
+	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return nil, errors.New("invalid excavation site bounds")
 	}
 	shapes := r.Shapes

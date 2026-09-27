@@ -27,8 +27,6 @@ namespace HomeBridge.BridgeTools
         private const int DefaultMessageLimit = 12;
         private const int DefaultAlertLimit = 40;
         private const int LimitCeiling = 256;
-        private const int MaxChoices = 8;
-        private const int MaxTargets = 12;
 
         private static readonly FieldInfo? ActiveAlertsField = BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
@@ -122,9 +120,9 @@ namespace HomeBridge.BridgeTools
                 // Close / Jump buttons are choices too. The caller judges whether
                 // any of them is a decision.
                 var options = (choiceLetter.Choices ?? Enumerable.Empty<DiaOption>()).ToList();
-                row.ChoicesListing = Listing(options.Count, Math.Min(options.Count, MaxChoices));
+                row.ChoicesListing = Listing(options.Count, options.Count);
                 var index = 0u;
-                foreach (var option in options.Take(MaxChoices))
+                foreach (var option in options)
                 {
                     index++;
                     var choice = new Presentation.LetterChoice { Index = index, Disabled = option.disabled, ClosesDialog = option.resolveTree,
@@ -191,8 +189,8 @@ namespace HomeBridge.BridgeTools
                     var report = alert.GetReport();
                     row.AnyCulpritValid = report.AnyCulpritValid;
                     var culprits = (report.AllCulprits ?? Enumerable.Empty<GlobalTargetInfo>()).ToList();
-                    row.Listing = Listing(culprits.Count, Math.Min(culprits.Count, MaxTargets));
-                    foreach (var culprit in culprits.Take(MaxTargets)) row.Targets.Add(Target(culprit));
+                    row.Listing = Listing(culprits.Count, culprits.Count);
+                    foreach (var culprit in culprits) row.Targets.Add(Target(culprit));
                 }
                 catch (Exception)
                 {
@@ -222,9 +220,9 @@ namespace HomeBridge.BridgeTools
         {
             if (value == null || value.targets == null) return null;
             var targets = value.targets.Where(t => t.IsValid).ToList();
-            var result = new Presentation.LookTargets { Valid = value.IsValid, Listing = Listing(targets.Count, Math.Min(targets.Count, MaxTargets)) };
+            var result = new Presentation.LookTargets { Valid = value.IsValid, Listing = Listing(targets.Count, targets.Count) };
             if (targets.Count > 0) result.Primary = Target(targets[0]);
-            foreach (var target in targets.Take(MaxTargets)) result.Targets.Add(Target(target));
+            foreach (var target in targets) result.Targets.Add(Target(target));
             return result;
         }
 

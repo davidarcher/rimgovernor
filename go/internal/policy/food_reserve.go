@@ -78,9 +78,6 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 	}
 	days, known := forecast.RunwayDays.Value()
 	deliveries, complete := deliveryDays.Value()
-	if len(deliveries) > 256 {
-		return FoodReserveReview{}, ErrFoodFacts
-	}
 	arriving := false
 	for _, lead := range deliveries {
 		if !foodNumber(lead) {
@@ -158,7 +155,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 // Matching bills are corrected under Auto; unrelated recipes are retained.
 func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReserveReview) (BillSelection, bool) {
 	rows, known := benches.Value()
-	if !known || len(rows) > 256 || reserve.Emergency || !fieldPositive(reserve.DeficitNutrition) || !fieldPositive(reserve.TargetNutrition) {
+	if !known || reserve.Emergency || !fieldPositive(reserve.DeficitNutrition) || !fieldPositive(reserve.TargetNutrition) {
 		return BillSelection{}, false
 	}
 	var options []BillSelection
@@ -166,7 +163,7 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 	for _, bench := range rows {
 		usable, uk := bench.Usable.Value()
 		token, tk := bench.Token.Value()
-		if !uk || !usable || !tk || !foodID(token) || !foodID(bench.ID) || bench.Butcher || len(bench.Bills) > 15 || len(bench.Recipes) > 256 {
+		if !uk || !usable || !tk || !foodID(token) || !foodID(bench.ID) || bench.Butcher || len(bench.Bills) > 15 {
 			continue
 		}
 		for _, recipe := range bench.Recipes {

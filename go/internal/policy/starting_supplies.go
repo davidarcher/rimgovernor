@@ -34,7 +34,7 @@ func (s StartingSupply) Validate() error {
 }
 
 func (s StartingSupplies) Validate() error {
-	if len(s.Pending) > 256 || !s.Initialized && len(s.Pending) > 0 {
+	if !s.Initialized && len(s.Pending) > 0 {
 		return errors.New("invalid starting supply history")
 	}
 	for i, row := range s.Pending {

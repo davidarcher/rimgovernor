@@ -84,7 +84,7 @@ func foodID(id string) bool {
 // Nil selected means all consumers; an empty selection has unknown runway.
 func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 	fail := func() (FoodForecast, error) { return FoodForecast{}, ErrFoodFacts }
-	if complete, known := supply.Complete.Value(); !known || !complete || len(supply.Consumers) > 256 || len(supply.Stocks) > 4096 {
+	if complete, known := supply.Complete.Value(); !known || !complete {
 		return fail()
 	}
 	demand := map[PawnID]float64{}

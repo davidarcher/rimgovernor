@@ -337,7 +337,7 @@ says the structure is ineligible (already repaired, or gone), so the
 recovered goal never keeps its development commitment on work that can no
 longer matter.
 
-The typed item census (at most 256 rows) covers items in the home area, items
+The typed item census covers items in the home area, items
 in valid storage anywhere, and deteriorating, perishable or medicine stacks
 wherever they were dropped; a map's natural chunk and slag field outside the
 home area never enters it, since a whole-map census exceeded the bound on every
@@ -357,7 +357,7 @@ colonist present or at once with none. A clean order is player-forced: any
 colonist not incapable of Cleaning carries it whatever their Work-tab priority
 says, and the native worker cleans the ordered filth plus whatever the
 installed WorkGiver queues beside it. The typed filth census covers the home
-area only (at most 256 rows), the only filth an upkeep order may target. A
+area only, the only filth an upkeep order may target. A
 latched room's filth is what its Cleanliness stat sums: the filth the census
 places in the room plus home-area filth on a cell touching the room (8-way,
 its doorway), which the game registers on both sides of the door. Other filth
@@ -688,7 +688,7 @@ player beds for humanlike non-prisoners, work benches at their interaction
 cell, storage buildings, dining surfaces, turrets and stockpile zones (an
 `EntityRef` `zone-<id>` of `Zone_Stockpile` at the zone's first standable
 cell), each with the room it stands in and one travel row per mobile
-colonist (spawned, not dead or downed, at most 32) carrying the game's own
+colonist (spawned, not dead or downed) carrying the game's own
 `CanReach` answer from that colonist's current position with its door
 permissions and `Danger.Some`, and, for the first 256 reachable pairs, the
 total cost and node count of the path `FindPathNow` returns. A facility no

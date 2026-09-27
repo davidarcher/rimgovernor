@@ -87,9 +87,6 @@ type AnimalUpkeepHistory struct {
 }
 
 func (h AnimalUpkeepHistory) Validate() error {
-	if len(h.Feed) > 256 {
-		return errors.New("animal feed history exceeds bound")
-	}
 	seen := map[PawnID]bool{}
 	for _, id := range h.Feed {
 		if !foodID(string(id)) || seen[id] {

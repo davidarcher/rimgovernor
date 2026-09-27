@@ -176,7 +176,7 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 	if err := current.Validate(); err != nil {
 		return EmergencySnapshot{}, err
 	}
-	if tick < 0 || len(facts.Colonists) > 256 || len(facts.Threats) > 256 {
+	if tick < 0 {
 		return EmergencySnapshot{}, errors.New("invalid emergency tick or census size")
 	}
 	validID := func(id PawnID) bool {

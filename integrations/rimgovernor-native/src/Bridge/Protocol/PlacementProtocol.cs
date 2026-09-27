@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
                 return Fail(FailureCode.Unavailable, "Native preview result unavailable.", context);
             try
             {
-                if (value.costList.Count > 256 || value.rotations.Count < 1 || value.rotations.Count > 4)
+                if (value.rotations.Count < 1 || value.rotations.Count > 4)
                     return Fail(FailureCode.CapacityExhausted, "Native preview exceeds bounded collections.", context);
                 var wire = new Wire.PlacementEvaluated {
                     CanPlace = value.canPlace, MadeFromStuff = value.madeFromStuff,
@@ -59,8 +59,8 @@ namespace HomeBridge.BridgeTools
                 wire.Materials = Materials(value.materials, value.costList.Select(row => row.defName).Distinct().ToArray());
                 foreach (var row in value.rotations)
                 {
-                    if (row.occupiedCells.Count < 1 || row.occupiedCells.Count > 4096 || row.blockingThings.Count > 4096)
-                        return Fail(FailureCode.CapacityExhausted, "Native geometry exceeds preview bounds.", context);
+                    if (row.occupiedCells.Count < 1)
+                        return Fail(FailureCode.CapacityExhausted, "Native geometry is empty.", context);
                     var rotation = new Wire.PlacementRotation {
                         Rotation = Cardinal(row.rotation), Accepted = row.accepted,
                         Reason = PlacementPreviewOperation.Diagnostic(row.reason)
@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
 
         private static Wire.PlacementMaterials Materials(PlacementMaterials materials, string[] definitions)
         {
-            if (materials.unreadable || materials.rows.Count > 256
+            if (materials.unreadable
                 || materials.rows.Select(row => row.defName).Distinct().Count() != materials.rows.Count
                 || !definitions.OrderBy(name => name, StringComparer.Ordinal).SequenceEqual(
                     materials.rows.Select(row => row.defName).OrderBy(name => name, StringComparer.Ordinal)))

@@ -96,10 +96,6 @@ const (
 	TrafficHostile  TrafficLayer = "hostile"
 )
 
-// TrafficCellBound is the most traffic cells a census carries: the native
-// reports the busiest 128 per layer.
-const TrafficCellBound = 5 * 128
-
 // trafficCellKey identifies a traffic row: a cell appears once per layer.
 type trafficCellKey struct {
 	Layer TrafficLayer
@@ -117,9 +113,6 @@ func (l TrafficLayer) valid() bool {
 }
 
 func (v RoutesObservation) Validate() error {
-	if len(v.Pawns) > 32 || len(v.Facilities) > 256 || len(v.Traffic) > TrafficCellBound {
-		return errors.New("routes census exceeds bound")
-	}
 	pawns := map[string]bool{}
 	for _, id := range v.Pawns {
 		if !foodID(id) || pawns[id] {
@@ -129,7 +122,7 @@ func (v RoutesObservation) Validate() error {
 	}
 	ids := map[string]bool{}
 	for _, f := range v.Facilities {
-		if !foodID(f.ID) || ids[f.ID] || !foodID(f.Definition) || !foodID(f.Kind) || len(f.Breaches) > 16 {
+		if !foodID(f.ID) || ids[f.ID] || !foodID(f.Definition) || !foodID(f.Kind) {
 			return errors.New("invalid routes facility")
 		}
 		ids[f.ID] = true
@@ -203,9 +196,6 @@ var routeKindOrder = map[string]int{"stockpile": 0, "storage": 0, "bench": 1, "d
 func ReviewRoutes(fact domain.Fact[RoutesObservation], previous []string, p RoutesPolicy) (RoutesReview, error) {
 	if !p.valid() {
 		return RoutesReview{}, errors.New("invalid routes policy")
-	}
-	if len(previous) > 256 {
-		return RoutesReview{}, errors.New("invalid routes latch")
 	}
 	v, known := fact.Value()
 	if !known {

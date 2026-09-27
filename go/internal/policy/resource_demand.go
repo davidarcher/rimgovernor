@@ -69,9 +69,6 @@ func validDemand(d ResourceDemand) bool {
 func BuildResourceDemand(in ResourceDemandInput) (domain.Fact[[]ResourceDemand], error) {
 	unknown := domain.Unknown[[]ResourceDemand]()
 	stock, known := in.Stock.Value()
-	if len(in.Targets) > 4096 || len(in.EconomicFloors) > 4096 || len(in.PlannedConstruction) > 4096 || len(stock) > 4096 {
-		return unknown, errors.New("resource demand input exceeds bound")
-	}
 	wanted := map[ResourceKey]ResourceDemand{}
 	for _, d := range in.Targets {
 		if !validDemand(d) {
@@ -114,9 +111,6 @@ func BuildResourceDemand(in ResourceDemandInput) (domain.Fact[[]ResourceDemand],
 			return unknown, errors.New("combined resource demand exceeds bound")
 		}
 		wanted[d.Key] = d
-	}
-	if len(wanted) > 4096 {
-		return unknown, errors.New("combined resource demand exceeds row bound")
 	}
 	available := map[ResourceKey]int64{}
 	for _, s := range stock {

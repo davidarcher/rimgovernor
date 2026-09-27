@@ -270,17 +270,10 @@ func notificationsWire(value proto.Message) error {
 	if value == nil || !value.ProtoReflect().IsValid() {
 		return contract("notification message required")
 	}
-	targets := 0
 	var walk func(protoreflect.Message, int) error
 	walk = func(m protoreflect.Message, depth int) error {
 		if !m.IsValid() || depth > 32 || len(m.GetUnknown()) != 0 {
 			return contract("invalid notification fields")
-		}
-		if m.Descriptor().FullName() == "rimgovernor.presentation.v1.LookTarget" {
-			targets++
-			if targets > 4096 {
-				return contract("notification target ceiling exceeded")
-			}
 		}
 		var err error
 		m.Range(func(f protoreflect.FieldDescriptor, v protoreflect.Value) bool {
@@ -315,12 +308,8 @@ func notificationsWire(value proto.Message) error {
 	if err := walk(value.ProtoReflect(), 0); err != nil {
 		return err
 	}
-	encoded, err := protojson.Marshal(value)
-	if err != nil {
+	if _, err := protojson.Marshal(value); err != nil {
 		return contract("invalid notification encoding")
-	}
-	if len(encoded) > maxProtoBytes {
-		return contract("notification encoded size exceeded")
 	}
 	return nil
 }

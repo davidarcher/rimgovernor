@@ -7,11 +7,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// maxDialogOptions bounds a ChoiceDialog census; RimWorld dialog trees never
-// offer more than a handful of options per node. maxDialogOptionKeys bounds
-// the translation keys native recovers for one label.
-const maxDialogOptions, maxDialogOptionKeys = 32, 32
-
 // validateChoiceDialog admits the colony census's dialog section: every
 // option carries its own list position, a bounded valid label, and the
 // selectable/disabled evidence agrees with itself.
@@ -20,12 +15,12 @@ func validateChoiceDialog(v *ob.ChoiceDialog) error {
 		return nil
 	}
 	if v.WindowId == nil || v.GetWindowId() < 0 || v.WindowType == nil || validID(v.GetWindowType()) != nil || v.Title == nil || v.Text == nil || v.Interactive == nil ||
-		len(v.Options) == 0 || len(v.Options) > maxDialogOptions || len(v.ProtoReflect().GetUnknown()) != 0 {
+		len(v.Options) == 0 || len(v.ProtoReflect().GetUnknown()) != 0 {
 		return contract("invalid choice dialog census")
 	}
 	for i, option := range v.Options {
 		if option == nil || option.Index == nil || option.GetIndex() != int32(i) || option.Label == nil || validID(option.GetLabel()) != nil || option.Selectable == nil || option.Resolves == nil ||
-			(option.GetSelectable() && option.GetDisabledReason() != "") || len(option.Keys) > maxDialogOptionKeys || len(option.ProtoReflect().GetUnknown()) != 0 {
+			(option.GetSelectable() && option.GetDisabledReason() != "") || len(option.ProtoReflect().GetUnknown()) != 0 {
 			return contract("invalid choice dialog option")
 		}
 		for _, key := range option.Keys {
@@ -56,9 +51,6 @@ func dialogAction(action domain.Action) (*op.Action, error) {
 }
 
 func validateJoinerLetters(rows []*ob.JoinerLetter, tick int64) error {
-	if len(rows) > 256 {
-		return contract("joiner letter census exceeds bound")
-	}
 	seen := map[int32]bool{}
 	for _, row := range rows {
 		if row == nil || buildingUnknown(row) != nil || row.LetterId == nil || row.GetLetterId() < 0 || seen[row.GetLetterId()] ||

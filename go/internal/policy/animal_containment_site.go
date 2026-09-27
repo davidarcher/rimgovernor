@@ -31,7 +31,7 @@ func PenEnclosureSites(r PenEnclosureRequest) ([]Rectangle, error) {
 // FreeSites is PenEnclosureSites for any width x height footprint: a plain
 // grave's 1x2 (#857) takes the same free-cell census.
 func FreeSites(r PenEnclosureRequest, width, height int32) ([]Rectangle, error) {
-	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || len(r.Cells) > 65536 || len(r.Protected) > 65536 {
+	if r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 {
 		return nil, errors.New("invalid pen enclosure site bounds")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }

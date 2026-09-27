@@ -69,9 +69,6 @@ func RankResourceCandidates(demand domain.Fact[[]ResourceDemand], candidates []A
 	if err != nil {
 		return nil, err
 	}
-	if len(candidates) > 4096 {
-		return nil, errors.New("acquisition candidates exceed bound")
-	}
 	seen := map[struct {
 		kind AcquisitionKind
 		id   string
@@ -118,7 +115,7 @@ func ScoreResourceCandidate(demand domain.Fact[[]ResourceDemand], candidate Acqu
 
 func scoreResourceCandidate(demand []ResourceDemand, known bool, c AcquisitionCandidate, competition AcquisitionCompetition) (AcquisitionScore, error) {
 	s := AcquisitionScore{ID: c.ID, Kind: c.Kind}
-	if !validResource(Resource(c.ID)) || len(c.Yields) > 4096 {
+	if !validResource(Resource(c.ID)) {
 		return s, errors.New("invalid acquisition candidate")
 	}
 	switch c.Kind {
@@ -199,7 +196,7 @@ func scoreResourceCandidate(demand []ResourceDemand, known bool, c AcquisitionCa
 
 func acquisitionDemand(demand domain.Fact[[]ResourceDemand], competition AcquisitionCompetition) ([]ResourceDemand, bool, error) {
 	rows, known := demand.Value()
-	if len(rows) > 4096 || competition.UrgentPriority < 0 || competition.UrgentPriority > 100 {
+	if competition.UrgentPriority < 0 || competition.UrgentPriority > 100 {
 		return nil, known, errors.New("invalid acquisition ranking input")
 	}
 	rows = append([]ResourceDemand(nil), rows...)

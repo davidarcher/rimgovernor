@@ -225,9 +225,6 @@ func (p RoutinePolicy) Prisoners() PrisonerPolicy {
 // a valid native resource definition name with a positive target within the
 // same StockTarget production bill bound (see domain.NewProductionBill).
 func ValidateResourceTargets(targets map[Resource]int64) error {
-	if len(targets) > 4096 {
-		return errors.New("too many configured resource targets")
-	}
 	for resource, target := range targets {
 		if !validResource(resource) || target <= 0 || target > 10000 {
 			return errors.New("invalid resource target")
@@ -1327,9 +1324,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// but its method capability is declared at composition time, before
 		// any facts are read; it must validate against empty facts too.
 		recognized[RecoverDisasterServices] = true
-		if len(methods) > 48 {
-			return RoutineNeeds{}, errors.New("too many routine method capabilities")
-		}
 		for _, id := range methods {
 			if !recognized[id] || available[id] {
 				return RoutineNeeds{}, errors.New("invalid routine method capability " + string(id))

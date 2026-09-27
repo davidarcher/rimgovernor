@@ -23,11 +23,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const maxProtoBytes = 1 << 20
-
-// maxRecordedProtoBytes bounds a recorded reply decoded back out of a
-// transcript (replywire.go), under the 50 MiB receipt bound.
-const maxRecordedProtoBytes = 48 << 20
+// maxReplyProtoBytes bounds one gunzipped reply, live or recorded (a
+// decompression-bomb guard under the 50 MiB GABP frame); #320 removed every
+// smaller payload budget.
+const maxReplyProtoBytes = 48 << 20
 
 var ErrUnavailable = errors.New("native observation unavailable")
 
@@ -74,9 +73,6 @@ func (caller *Client) Identity(ctx context.Context) (*l.IdentityReply, Result, e
 			return nil, raw, contract("missing loaded identity")
 		}
 		if err = ValidateContext(value.Loaded.Context); err == nil {
-			if len(value.Loaded.Capabilities) > 78 {
-				err = contract("too many capabilities")
-			}
 			seen := map[string]bool{}
 			for _, cap := range value.Loaded.Capabilities {
 				if cap == nil || cap.Support == nil || cap.GetSupport() < 1 || cap.GetSupport() > 3 || validID(cap.GetFullMethodName()) != nil || !diagnostic(cap.Detail) || seen[cap.GetFullMethodName()] {
@@ -315,9 +311,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if err != nil {
 		return Result{}, contract("request encoding: %v", err)
 	}
-	if len(inner) > maxProtoBytes {
-		return Result{}, contract("oversized request")
-	}
 	ctx = withRecordedReply(ctx, reply)
 	invoked := false
 	var recordCtx map[string]any
@@ -356,7 +349,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		return result, err
 	}
 	decodeBegan := time.Now()
-	wire, err := decodeWrapper(result.Structured, maxProtoBytes)
+	wire, err := decodeWrapper(result.Structured, maxReplyProtoBytes)
 	if err != nil {
 		if callErr != nil {
 			return result, callErr

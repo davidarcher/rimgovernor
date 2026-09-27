@@ -83,9 +83,6 @@ type Lamp struct {
 }
 
 func (v LightingObservation) Validate() error {
-	if len(v.WorkCells) > 256 || len(v.Lamps) > 256 {
-		return errors.New("lighting census exceeds bound")
-	}
 	seen := map[string]bool{}
 	for _, c := range v.WorkCells {
 		if !foodID(c.Bench) || seen[c.Bench] || math.IsNaN(c.Glow) || c.Glow < 0 || c.Glow > 1 {

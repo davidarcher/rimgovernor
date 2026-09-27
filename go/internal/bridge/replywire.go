@@ -171,7 +171,7 @@ func RecordedReplyJSON(row map[string]any) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	w, err := decodePacked(quoted, maxRecordedProtoBytes)
+	w, err := decodePacked(quoted, maxReplyProtoBytes)
 	if err != nil {
 		return "", false
 	}

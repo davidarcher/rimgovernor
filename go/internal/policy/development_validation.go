@@ -6,21 +6,15 @@ import (
 )
 
 func ValidateDevelopmentState(s DevelopmentState) error {
-	if s.Snapshot.Validate() != nil || s.Tick < 0 || s.Capacity < 0 || s.Capacity > 8 || len(s.Rows) > 256 || len(s.Committed) > 4096 {
+	if s.Snapshot.Validate() != nil || s.Tick < 0 || s.Capacity < 0 || s.Capacity > 8 {
 		return errors.New("invalid development state")
 	}
 	if labor, known := s.Labor.Value(); known {
-		if len(labor) > 256 {
-			return errors.New("invalid development labor")
-		}
 		for w, n := range labor {
 			if !validResource(Resource(w)) || n < 0 || n > 4096 {
 				return errors.New("invalid development labor")
 			}
 		}
-	}
-	if len(s.Holds) > 4096 {
-		return errors.New("invalid development holds")
 	}
 	for _, h := range s.Holds {
 		if h.Goal != "" && !validResource(Resource(h.Goal)) || !validLabor(h.Labor) {
@@ -28,9 +22,6 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		}
 	}
 	if census, known := s.Census.Value(); known {
-		if len(census) > MaxAllocWorkers {
-			return errors.New("invalid development census")
-		}
 		for _, w := range census {
 			if w.ID == "" || !validLabor(LaborProfile(w.Work)) {
 				return errors.New("invalid development census")

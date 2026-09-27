@@ -34,9 +34,6 @@ type FishingRequest struct {
 // malformed known facts return the same error as PlanFood. An empty region set
 // (including Core without Odyssey) produces no fishing channel.
 func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
-	if len(r.Regions) > 4096 {
-		return nil, ErrFoodPlanFacts
-	}
 	if lead, known := r.ResearchLeadDays.Value(); known && !foodNumber(lead) {
 		return nil, ErrFoodPlanFacts
 	}

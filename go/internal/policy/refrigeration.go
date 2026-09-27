@@ -213,9 +213,6 @@ func (v RefrigerationObservation) Validate() error {
 	if err := (RoomObservation{Rooms: v.Rooms}).Validate(); err != nil {
 		return err
 	}
-	if len(v.Coolers) > 256 || len(v.Cells) > 65536 {
-		return errors.New("refrigeration census exceeds bound")
-	}
 	seen := map[string]bool{}
 	for _, c := range v.Coolers {
 		if !foodID(c.ID) || seen[c.ID] {

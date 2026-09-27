@@ -75,7 +75,7 @@ const GearTatteredCondition = .5
 var GearCoreGroups = []string{"Torso", "Legs"}
 
 func (a GearApparel) valid() bool {
-	if !validResource(a.Definition) || !foodNumber(a.Condition) || a.Condition > 1 || len(a.Groups) > 64 {
+	if !validResource(a.Definition) || !foodNumber(a.Condition) || a.Condition > 1 {
 		return false
 	}
 	seen := map[string]bool{}
@@ -118,9 +118,6 @@ func (p GearPawn) uncovered() bool {
 
 func (v GearObservation) Validate() error {
 	if stored, known := v.Stored.Value(); known {
-		if len(stored) > 4096 {
-			return errors.New("gear storage exceeds bound")
-		}
 		seen := map[GearStock]bool{}
 		for _, row := range stored {
 			key := row
@@ -130,9 +127,6 @@ func (v GearObservation) Validate() error {
 			}
 			seen[key] = true
 		}
-	}
-	if len(v.Pawns) > 256 {
-		return errors.New("gear census exceeds bound")
 	}
 	seen := map[PawnID]bool{}
 	for _, p := range v.Pawns {
@@ -149,9 +143,6 @@ func (v GearObservation) Validate() error {
 			}
 		}
 		if candidates, known := p.Candidates.Value(); known {
-			if len(candidates) > 256 {
-				return errors.New("gear candidates exceed bound")
-			}
 			targets := map[string]bool{}
 			for _, c := range candidates {
 				if !foodID(c.Target) || !validResource(c.Definition) || !foodNumber(c.Gain) || c.Gain <= 0 || targets[c.Target] {
@@ -161,9 +152,6 @@ func (v GearObservation) Validate() error {
 			}
 		}
 		if needs, known := p.Replacements.Value(); known {
-			if len(needs) > 256 {
-				return errors.New("gear replacement needs exceed bound")
-			}
 			identities := map[GearReplacement]bool{}
 			for _, n := range needs {
 				if !validResource(n.Definition) || n.Stuff != "" && !validResource(n.Stuff) || !foodID(n.Reason) || identities[n] {
@@ -173,9 +161,6 @@ func (v GearObservation) Validate() error {
 			}
 		}
 		if apparel, known := p.Apparel.Value(); known {
-			if len(apparel) > 64 {
-				return errors.New("gear apparel exceeds bound")
-			}
 			for _, a := range apparel {
 				if !a.valid() {
 					return errors.New("invalid gear apparel")
@@ -382,12 +367,6 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	if positive(review.Recovered) && len(r.WeaponDemand) == 0 {
 		return GearMethod{Kind: GearRecovered}, nil
 	}
-	if len(r.Seen) > 4096 {
-		return GearMethod{}, errors.New("gear method history exceeds bound")
-	}
-	if len(r.WeaponDemand) > 256 {
-		return GearMethod{}, errors.New("weapon demand exceeds bound")
-	}
 	seen := map[domain.MethodID]bool{}
 	for _, id := range r.Seen {
 		if !foodID(string(id)) || seen[id] {
@@ -582,9 +561,6 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 }
 
 func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
-	if len(benches) > 256 || len(r.Stock) > 4096 || len(r.Holds) > 4096 {
-		return errors.New("gear production inputs exceed bound")
-	}
 	stock := map[Resource]bool{}
 	for _, s := range r.Stock {
 		n, k := s.Available.Value()
@@ -600,9 +576,6 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 	}
 	ids := map[string]bool{}
 	products := func(v []Resource) bool {
-		if len(v) > 256 {
-			return false
-		}
 		seen := map[Resource]bool{}
 		for _, p := range v {
 			if !validResource(p) || seen[p] {
@@ -619,9 +592,6 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 		ids[b.ID] = true
 		bills, _ := b.Bills.Value()
 		recipes, _ := b.Recipes.Value()
-		if len(bills) > 256 || len(recipes) > 256 {
-			return errors.New("gear workshop census exceeds bound")
-		}
 		for _, bill := range bills {
 			if !products(bill.Products) {
 				return errors.New("invalid bill products")
@@ -639,11 +609,8 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 				}
 			}
 			slots, _ := recipe.Ingredients.Value()
-			if len(slots) > 256 {
-				return errors.New("recipe ingredients exceed bound")
-			}
 			for _, slot := range slots {
-				if len(slot) == 0 || len(slot) > 256 {
+				if len(slot) == 0 {
 					return errors.New("invalid ingredient alternatives")
 				}
 				resources := map[Resource]bool{}

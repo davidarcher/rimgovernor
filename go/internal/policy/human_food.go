@@ -13,9 +13,6 @@ type HumanButcherCandidate struct {
 }
 
 func QualifyingHumanButcher(rows []HumanButcherCandidate) (PawnID, bool) {
-	if len(rows) > 256 {
-		return "", false
-	}
 	var selected PawnID
 	seen := map[PawnID]bool{}
 	for _, row := range rows {
@@ -34,7 +31,7 @@ func QualifyingHumanButcher(rows []HumanButcherCandidate) (PawnID, bool) {
 // execution rechecks them before the write. Never substitute another worker.
 func SelectHumanButcher(benches domain.Fact[[]ProductionBench]) (BillSelection, bool) {
 	rows, known := benches.Value()
-	if !known || len(rows) > 256 {
+	if !known {
 		return BillSelection{}, false
 	}
 	var choices []BillSelection
@@ -43,7 +40,7 @@ func SelectHumanButcher(benches domain.Fact[[]ProductionBench]) (BillSelection, 
 		usable, uk := b.Usable.Value()
 		nutrition, nk := b.HumanCorpseNutrition.Value()
 		token, tk := b.Token.Value()
-		if !b.Butcher || !uk || !usable || !nk || !foodNumber(nutrition) || nutrition <= 0 || !tk || !foodID(token) || !foodID(b.ID) || len(b.Bills) >= 15 || len(b.HumanButchers) > 256 {
+		if !b.Butcher || !uk || !usable || !nk || !foodNumber(nutrition) || nutrition <= 0 || !tk || !foodID(token) || !foodID(b.ID) || len(b.Bills) >= 15 {
 			continue
 		}
 		exists := false

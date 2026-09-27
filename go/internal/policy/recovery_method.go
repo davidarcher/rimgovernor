@@ -89,9 +89,6 @@ func (p RecoveryPlanning) Validate() error {
 		return err
 	}
 	if s, k := p.Safety.Value(); k {
-		if len(s.SafeAreas) > 256 || len(s.Restrictions) > 256 {
-			return errors.New("recovery safety census exceeds bound")
-		}
 		areas := map[string]bool{}
 		for _, id := range s.SafeAreas {
 			if !foodID(id) || areas[id] {
@@ -111,9 +108,6 @@ func (p RecoveryPlanning) Validate() error {
 		}
 	}
 	if workers, k := p.Workers.Value(); k {
-		if len(workers) > 256 {
-			return errors.New("recovery worker census exceeds bound")
-		}
 		seen := map[PawnID]bool{}
 		for _, w := range workers {
 			if !foodID(string(w.Pawn)) || seen[w.Pawn] {
@@ -164,7 +158,7 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 	if err := h.Validate(); err != nil {
 		return out, err
 	}
-	if tick < 0 || h != nil && (h.Observed > tick || h.Phase != DisasterRestored && h.Observed != tick) || len(used) > 256 {
+	if tick < 0 || h != nil && (h.Observed > tick || h.Phase != DisasterRestored && h.Observed != tick) {
 		return out, errors.New("invalid recovery selection boundary")
 	}
 	seen := map[domain.MethodID]bool{}

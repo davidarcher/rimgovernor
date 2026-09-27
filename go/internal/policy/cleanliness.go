@@ -141,7 +141,7 @@ func ReviewCleanliness(rooms domain.Fact[RoomObservation], filth domain.Fact[[]U
 	if !p.valid() {
 		return CleanlinessReview{}, errors.New("invalid cleanliness policy")
 	}
-	if tick < 0 || len(previous) > 256 {
+	if tick < 0 {
 		return CleanlinessReview{}, errors.New("invalid cleanliness review input")
 	}
 	prior := map[string]domain.Tick{}
@@ -155,9 +155,6 @@ func ReviewCleanliness(rooms domain.Fact[RoomObservation], filth domain.Fact[[]U
 		prior[room.Key] = room.Since
 	}
 	rows, filthKnown := filth.Value()
-	if filthKnown && len(rows) > 256 {
-		return CleanlinessReview{}, errors.New("invalid cleanliness filth census")
-	}
 	census, roomsKnown := rooms.Value()
 	if !roomsKnown {
 		// No census: nothing can enter or leave the latch set.
@@ -166,9 +163,6 @@ func ReviewCleanliness(rooms domain.Fact[RoomObservation], filth domain.Fact[[]U
 			r.Targets, r.Metric = domain.Known([]UpkeepFilth{}), domain.Known(0.0)
 		}
 		return r, nil
-	}
-	if len(census.Rooms) > 4096 {
-		return CleanlinessReview{}, errors.New("room census exceeds bound")
 	}
 	r := CleanlinessReview{}
 	// dirty and cleanliness are keyed by latch key; keyOf maps the native
