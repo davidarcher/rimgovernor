@@ -45,7 +45,6 @@ type buildingServiceBridge struct {
 	ranged            *ranged.RangedCapabilities
 	movement          *buildingruntime.MovementCapabilities
 	haul              *haul.HaulCapabilities
-	gearReplace       *buildingruntime.GearReplaceCapabilities
 	trade             *buildingruntime.TradeCapabilities
 	presentationMedia *bridge.PresentationMedia
 	lifecycle         lifecycleCapability
@@ -101,10 +100,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	gearReplace, err := bridge.NewGearReplaceWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -130,7 +125,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		ranged:            &ranged.RangedCapabilities{Native: client, Writer: attack},
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
-		gearReplace:       &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		presentationMedia: presentationMedia,
 		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
@@ -291,13 +285,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		haulCapabilities = client.haul
 	}
-	var gearReplaceCapabilities *buildingruntime.GearReplaceCapabilities
-	if config.routineGearPlans {
-		if client.gearReplace == nil {
-			return errors.New("gear plans require typed capabilities")
-		}
-		gearReplaceCapabilities = client.gearReplace
-	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
 	if config.routineTradePlans {
 		if client.trade == nil {
@@ -316,7 +303,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Ranged:          rangedCapabilities,
 		Movement:        movementCapabilities,
 		Haul:            haulCapabilities,
-		GearReplace:     gearReplaceCapabilities,
 		Trade:           tradeCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {

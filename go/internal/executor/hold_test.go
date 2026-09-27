@@ -18,7 +18,7 @@ func allKnownReasons() []policy.Reason {
 		policy.DependencyBlocked, policy.GeometryBlocked,
 		policy.InvalidHeld,
 
-		policy.DraftOwnership, policy.GearReplacePawnUnavailable,
+		policy.DraftOwnership,
 		policy.NativeIneligible, policy.PlayerOrder,
 		policy.UnsuitableEquipment,
 		policy.UnsupportedThreat,

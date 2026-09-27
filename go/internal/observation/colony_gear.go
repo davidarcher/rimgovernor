@@ -139,7 +139,7 @@ func GearClimateFacts(gear *o.GearSnapshot) *policy.GearClimate {
 }
 
 // GearCandidateFacts decodes one loadout's loose replacement candidates:
-// the apparel a wear order (gear_replace, native ImproveGear) can target.
+// the apparel a wear order (gear_replace, native PawnOrderIntent WEAR) can target.
 // A weapon the census still lists (its eligibility is the equip family's)
 // is skipped: the wear operation looks its target up among loose apparel
 // only, so a plan proposing one was refused on every attempt and held its

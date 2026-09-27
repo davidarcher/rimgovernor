@@ -85,6 +85,16 @@ func captureAction(action domain.Action) (*o.Action, error) {
 	return out, err
 }
 
+// wearAction orders a pawn to wear one loose apparel item as ordered work,
+// not a forced outfit entry; native checks eligibility and gain live.
+func wearAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.GearReplace()
+	if !ok {
+		return nil, contract("not a gear replace action")
+	}
+	return pawnOrderIntent(v.Pawn(), v.Thing(), o.PawnOrderKind_PAWN_ORDER_KIND_WEAR)
+}
+
 // moodReliefAction is the NeedReliefIntent: native offers the pawn the job
 // its own need giver issues, checked live.
 func moodReliefAction(action domain.Action) (*o.Action, error) {

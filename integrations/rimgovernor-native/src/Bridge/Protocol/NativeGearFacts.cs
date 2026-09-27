@@ -32,9 +32,9 @@ namespace HomeBridge.BridgeTools
             foreach (var group in stored)
                 result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
                     Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
-            // ImproveGear (NativeGearOperations) checks the pawn's control
-            // snapshot token and each candidate's supply token, so the census
-            // carries both the way the pawn and supply censuses do (issue #233).
+            // The census carries the pawn's control snapshot token and each
+            // candidate's supply token the way the pawn and supply censuses
+            // do (issue #233); the WEAR pawn order (#939) checks neither.
             var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
             foreach (var pawn in people) {
                 var refusal = GearUpkeepTools.Available(pawn);
@@ -211,8 +211,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // A loose candidate carries the supply ("allow-") token ImproveGear
-        // and the equip order check against the exact thing.
+        // A loose candidate carries the supply ("allow-") token.
         private static Obs.GearItem Candidate(Thing thing, Common.ObservationContext context)
         {
             var row = Gear(thing);

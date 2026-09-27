@@ -165,16 +165,11 @@ and forced/locked state. It rechecks eligibility at dispatch and starts ordinary
 preserved. Production also rechecks the retained pawn/loadout prerequisite and
 available replacements before adding its bill.
 
-On the operations contract the apparel order is `ImproveGear`
-(`NativeGearOperations`): its pawn precondition carries the pawn's control
-snapshot token, its target the candidate's supply token, and
-`expected_loadout_token` the loadout signature, all as the colony gear census
-(`NativeGearFacts`) emitted them. A matching preview projects a `Wear` job on
-the exact pawn and apparel; execution issues that job as ordered (not forced)
-work and reports it applied only when the job is current or the apparel is
-already worn. Progress reads the same record: worn completes, the live job
-pends, anything else is an interruption. Weapons stay on the `Equip`
-pawn-target order.
+On Actions/Apply the apparel order is a `PawnOrderIntent` of kind `WEAR`
+(#939, `NativeGearOperations`). Native checks the pawn, the apparel and a
+material native gain live, then issues the `Wear` job as ordered (not forced)
+work. A pawn already wearing the apparel or walking to it applies again.
+Weapons use the `EQUIP` kind.
 
 The `pawn_gear` postcondition requires a later native observation of the exact
 item in the pawn's apparel or primary equipment. Delivery of an order cannot

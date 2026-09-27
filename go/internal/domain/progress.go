@@ -96,7 +96,6 @@ const (
 	HeldArithmeticOverflow HeldReason = "arithmetic_overflow"
 
 	HeldDraftOwnership             HeldReason = "draft_ownership"
-	HeldGearReplacePawnUnavailable HeldReason = "gear_replace_pawn_unavailable"
 	HeldNativeIneligible           HeldReason = "native_ineligible"
 	HeldPlayerOrder                HeldReason = "player_order"
 	HeldUnsuitableEquipment        HeldReason = "unsuitable_equipment"
@@ -119,7 +118,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldNotReady, HeldAlreadyReserved, HeldUnsafePlacement, HeldMaterialRequired,
 	HeldDependencyBlocked, HeldGeometryBlocked, HeldSpendingBlocked, HeldInsufficientStock,
 	HeldInvalidHeld, HeldArithmeticOverflow,
-	HeldDraftOwnership, HeldGearReplacePawnUnavailable,
+	HeldDraftOwnership,
 	HeldNativeIneligible, HeldPlayerOrder,
 	HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,

@@ -30,7 +30,6 @@ type SessionConfig struct {
 	Haul            *haul.HaulCapabilities
 	Ranged          *ranged.RangedCapabilities
 	Movement        *MovementCapabilities
-	GearReplace     *GearReplaceCapabilities
 	Trade           *TradeCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
 }
@@ -250,9 +249,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil)", ErrControl))
 	}
-	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil)", ErrControl))
-	}
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
 	}
@@ -310,15 +306,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableHaul(haulBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.GearReplace != nil {
-		gearReplaceBoundary, err := NewGearReplaceBoundary(config.GearReplace.Native, config.GearReplace.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableGearReplace(gearReplaceBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

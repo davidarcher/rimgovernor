@@ -23,7 +23,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeGearRecord> Gear = new Dictionary<Common.AttemptKey, NativeGearRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, [NotNullWhen(true)] out NativeOperationState? state)
@@ -91,8 +90,6 @@ namespace HomeBridge.BridgeTools
                 return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CombatOrders)
                 return NativeCombatOrders.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
-                return NativeGearOperations.Execute(state, request, context);
             return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
         }
 
@@ -114,8 +111,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativePlantAcquisition.Preview(parsed.Operation.AcquireResource, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
-                    return ProtoBoundary.Encode(NativeGearOperations.Preview(parsed.Operation.ImproveGear, context));
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -163,9 +158,6 @@ namespace HomeBridge.BridgeTools
                     NativeDraftRecord draft;
                     if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) });
-                    NativeGearRecord gear;
-                    if (state.Gear.TryGetValue(parsed.Attempt, out gear))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = gear.Observe(parsed.Attempt, context) });
                 }
                 var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                     Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };

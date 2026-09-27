@@ -91,8 +91,6 @@ type Executor struct {
 	acquisitionJournal     AcquisitionJournal
 	haul                   HaulBoundary
 	haulJournal            HaulJournal
-	gearReplace            GearReplaceBoundary
-	gearReplaceJournal     GearReplaceJournal
 	trade                  TradeBoundary
 	tradeJournal           TradeJournal
 	mineAcquisition        AcquisitionBoundary
@@ -288,9 +286,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.HaulAction && e.haul != nil {
 		return e.runHaul(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.GearReplaceAction && e.gearReplace != nil {
-		return e.runGearReplace(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)

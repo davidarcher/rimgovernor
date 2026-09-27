@@ -88,12 +88,14 @@ message Operation {
   // Need relief moved to Actions/Apply NeedReliefIntent (#939).
   reserved 27;
   reserved "relieve_need";
+  // Wear orders moved to Actions/Apply PawnOrderIntent WEAR (#939).
+  reserved 28;
+  reserved "improve_gear";
   oneof command {
     AcquireResource acquire_resource = 4;
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
-    ImproveGear improve_gear = 28;
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
     CancelAcquisition cancel_acquisition = 54;
@@ -264,7 +266,6 @@ enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; 
 // produce it ahead of time: an unconstrained preview (this field omitted)
 // establishes the baseline.
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
-message ImproveGear { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional string expected_loadout_token = 3; }
 // Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
 // Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
 // refused as unsupported otherwise. Execution and non-exclusive modes stay
@@ -276,7 +277,7 @@ enum PrisonerInteraction {
 message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
 enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
-enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_ARREST = 12; reserved 5, 6, 10, 11; reserved "PAWN_ORDER_KIND_HAUL", "PAWN_ORDER_KIND_WORK", "PAWN_ORDER_KIND_SUBDUE"; }
+enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_ARREST = 12; PAWN_ORDER_KIND_WEAR = 13; reserved 5, 6, 10, 11; reserved "PAWN_ORDER_KIND_HAUL", "PAWN_ORDER_KIND_WORK", "PAWN_ORDER_KIND_SUBDUE"; }
 // Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
 // one live trade session. Native validates each against live state when it
 // applies and refuses with a reason when the session is gone or held by a

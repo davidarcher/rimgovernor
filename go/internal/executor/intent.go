@@ -62,6 +62,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.RescueAction:              true,
 	domain.CaptureAction:             true,
 	domain.MoodReliefAction:          true,
+	domain.GearReplaceAction:         true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied
