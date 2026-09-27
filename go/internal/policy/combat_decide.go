@@ -61,7 +61,12 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// A manhunter pack picks its own tactic (#898).
 			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
 			formed = true
+		} else if b, ok := predictBreach(view); ok {
+			// A sapper or breacher raid posts inside its predicted breach (#913).
+			next.Tactic, next.Roles, next.Refusal = TacticSapper, sapperFormation(view, b), ""
+			next.SapperBreach = &b.Wall
 		} else {
+			next.SapperBreach = nil
 			next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
 		}
 		next.Formed = view.Tick
@@ -369,6 +374,8 @@ type CombatMemory struct {
 	// the doors WaitDoors closes and forbids (#902).
 	ManhunterWait bool      `json:",omitempty"`
 	WaitDoors     []PodDoor `json:",omitempty"`
+	// SapperBreach is the wall cell a sapper formation guards (#913).
+	SapperBreach *domain.Cell `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -393,6 +400,10 @@ func (m CombatMemory) clone() CombatMemory {
 	}
 	m.PodDoors = slices.Clone(m.PodDoors)
 	m.WaitDoors = slices.Clone(m.WaitDoors)
+	if m.SapperBreach != nil {
+		c := *m.SapperBreach
+		m.SapperBreach = &c
+	}
 	if m.ManhunterDoor != nil {
 		d := *m.ManhunterDoor
 		m.ManhunterDoor = &d
@@ -470,6 +481,9 @@ func interruptsAim(s CombatPawnState) bool {
 func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	if len(m.Roles) == 0 || stop.Kind == StopRaidPhase || stop.Kind == StopBreach {
 		return true
+	}
+	if m.Tactic == TacticSapper || reformSapper(view, m) {
+		return reformSapper(view, m)
 	}
 	switch m.Tactic {
 	case TacticHold:
