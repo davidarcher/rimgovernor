@@ -86,7 +86,8 @@ func TestDecideCombatFormationTakesProposedCover(t *testing.T) {
 		t.Fatalf("%+v", ask)
 	}
 	orders, _, memory := DecideCombat(view, GeometryReply{Answered: true, Proposals: []domain.Cell{{X: 9, Z: 23}, {X: 11, Z: 24}}}, StopEvent{}, CombatMemory{})
-	if memory.Tactic != TacticHold || len(orders) != 3 || orders[2].Cell != (domain.Cell{X: 11, Z: 24}) {
+	// Spaced first (#861): the proposal a tile from (9,23) comes before (8,23).
+	if memory.Tactic != TacticHold || len(orders) != 3 || orders[1].Cell != (domain.Cell{X: 11, Z: 24}) {
 		t.Fatalf("%+v %+v", orders, memory)
 	}
 }
@@ -161,6 +162,17 @@ func TestDecideCombatWarmupGuard(t *testing.T) {
 	orders, _ = decideStop(t, view, StopEvent{}, memory)
 	if len(orders) != 1 || orders[0].Pawn != "a" {
 		t.Fatalf("%+v", orders)
+	}
+}
+
+// With no defense layout there is no geometry to ask: Formation forms squad
+// defense in the first call (#853: lab-open never formed).
+func TestDecideCombatFormsSquadWithoutALayout(t *testing.T) {
+	view := holdView()
+	view.Layout = domain.Fact[CombatLayout]{}
+	orders, ask, next := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
+	if ask != nil || next.Tactic != TacticSquad || len(orders) == 0 {
+		t.Fatalf("%+v %+v %+v", orders, ask, next)
 	}
 }
 

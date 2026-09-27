@@ -2,10 +2,13 @@ package main
 
 import (
 	"io"
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -178,5 +181,35 @@ func TestServeChatEnabledByModelName(t *testing.T) {
 		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
 			t.Fatalf("accepted %v", extra)
 		}
+	}
+}
+
+// A plain launch keeps the default resource floors (#875); an operator
+// target replaces them, and a serve without the resource family keeps none.
+func TestServeDefaultResourceFloors(t *testing.T) {
+	dir := t.TempDir()
+	withRoutineFamilies(t, "", true)
+	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thresholds, capabilities := routineCapabilities(c)
+	if !maps.Equal(thresholds.ResourceTargets, policy.DefaultResourceTargets()) || thresholds.StoneBlockTarget != policy.DefaultStoneBlockTarget || !slices.Contains(capabilities.Methods, policy.MaintainResource) {
+		t.Fatalf("default launch floors %v stone %d methods %v", thresholds.ResourceTargets, thresholds.StoneBlockTarget, capabilities.Methods)
+	}
+	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-resource-target", "Steel:50"), io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thresholds, _ = routineCapabilities(c); !maps.Equal(thresholds.ResourceTargets, map[policy.Resource]int64{"Steel": 50}) {
+		t.Fatalf("operator target did not replace the defaults: %v", thresholds.ResourceTargets)
+	}
+	withRoutineFamilies(t, "sleeping", true)
+	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thresholds, _ = routineCapabilities(c); len(thresholds.ResourceTargets) != 0 || thresholds.StoneBlockTarget != 0 {
+		t.Fatalf("floors without the resource family: %v stone %d", thresholds.ResourceTargets, thresholds.StoneBlockTarget)
 	}
 }

@@ -1186,6 +1186,16 @@ message BundleSnapshot {
   // a lapped or restarted reader resyncs from any frame.
   repeated rimgovernor.mirror.v1.CombatPawn combat_pawns = 20;
   repeated rimgovernor.mirror.v1.CombatEventRow combat_events = 21;
+  // The defense planner's other combat inputs (#853), in the same frame,
+  // while the emergency census lists a threat or a colonist in a mental
+  // state, else unset. combat_detail is list_pawns with the combat details
+  // (health, equipment, biography, animals; include dead) for every census
+  // colonist, then every hostile and hunting predator, at most 256 pawns.
+  // combat_lines_of_fire is read_lines_of_fire from every colonist cell
+  // with a ranged primary to every hostile building's occupied cells, at
+  // most 64 cells a side, unset when either side is empty.
+  PawnSnapshot combat_detail = 22;
+  LinesOfFireSnapshot combat_lines_of_fire = 23;
 }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;
