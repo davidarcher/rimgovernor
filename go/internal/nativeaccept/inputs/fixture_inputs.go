@@ -53,6 +53,29 @@ func fixtureBuildFlags(repo string) map[string]string {
 	return flags
 }
 
+// FixtureNames is every -Fixture name the checkout still builds: each
+// class under FixtureRoot plus the build flag the native project maps it
+// to. An unreadable fixture root is an error.
+func FixtureNames(repo string) (map[string]bool, error) {
+	entries, err := os.ReadDir(filepath.Join(repo, filepath.FromSlash(FixtureRoot)))
+	if err != nil {
+		return nil, fmt.Errorf("fixture sources %s: %w", FixtureRoot, err)
+	}
+	flags := fixtureBuildFlags(repo)
+	names := map[string]bool{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".cs") {
+			continue
+		}
+		class := strings.TrimSuffix(entry.Name(), ".cs")
+		names[class] = true
+		if flag, ok := flags[class]; ok {
+			names[flag] = true
+		}
+	}
+	return names, nil
+}
+
 // FixtureRefs are the names a set of Go sources mention as string
 // literals; FixtureInputs matches them against the fixture ops and saves.
 type FixtureRefs map[string]bool

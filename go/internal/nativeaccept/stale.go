@@ -150,7 +150,7 @@ func staleError(pkg string, manifest *PackageManifest, repo string, fixtureOps [
 
 // FixtureFlags is the sorted -Fixture list a rebuild for this run needs:
 // installed (the manifest's fixtures, so the build keeps serving the
-// cases it already did) plus the fixtures under repo/scripts/fixtures that
+// cases it already did, minus any the checkout no longer has: #775) plus the fixtures under repo/scripts/fixtures that
 // register fixtureOps (inputs.FixtureClasses). Ops no fixture registers,
 // or an unreadable fixture root, add nothing.
 func FixtureFlags(repo string, installed, fixtureOps []string) []string {
@@ -162,8 +162,11 @@ func FixtureFlags(repo string, installed, fixtureOps []string) []string {
 			flags = append(flags, name)
 		}
 	}
+	known, err := inputs.FixtureNames(repo)
 	for _, name := range installed {
-		add(name)
+		if err != nil || known[name] {
+			add(name)
+		}
 	}
 	if classes, err := inputs.FixtureClasses(repo, fixtureOps); err == nil {
 		for _, name := range classes {

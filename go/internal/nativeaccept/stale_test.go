@@ -159,6 +159,7 @@ func TestRequireCurrentPackageRefusesAStaleSourceTree(t *testing.T) {
 	t.Setenv(AllowStaleModEnv, "")
 	repo := t.TempDir()
 	writeNativeInputs(t, repo)
+	writeFile(t, repo, "scripts/fixtures/MedicalManagementFixture.cs", `class Medical {}`)
 	pkg := filepath.Join(t.TempDir(), "RimGovernor")
 	writeManifest(t, pkg, `{"packageId":"davidarcher.rimgovernor.native","role":"fixture","fixtures":["MedicalManagementFixture","QuietStorytellerFixture"],"sourceRevision":"0123456789abcdef","sourceTree":"not-this-tree"}`)
 	inRepo(t, repo, func() {
@@ -238,8 +239,10 @@ func TestRequireCurrentPackageHintNamesTheRunsFixtures(t *testing.T) {
 	writeNativeInputs(t, repo)
 	writeFile(t, repo, "scripts/fixtures/FarmEnvironmentFixture.cs", `[Tool("test/farm_environment_prepare")] class Farm {}`)
 	writeFile(t, repo, "scripts/fixtures/PowerFixture.cs", `[Tool("test/power_prepare")] class Power {}`)
+	writeFile(t, repo, "scripts/fixtures/QuietStorytellerFixture.cs", `class Quiet {}`)
 	pkg := filepath.Join(t.TempDir(), "RimGovernor")
-	writeManifest(t, pkg, `{"packageId":"davidarcher.rimgovernor.native","role":"fixture","fixtures":["QuietStorytellerFixture","PowerFixture"],"sourceRevision":"0123456789abcdef","sourceTree":"not-this-tree"}`)
+	// BerserkFixture was installed but deleted from the checkout (#775).
+	writeManifest(t, pkg, `{"packageId":"davidarcher.rimgovernor.native","role":"fixture","fixtures":["QuietStorytellerFixture","PowerFixture","BerserkFixture"],"sourceRevision":"0123456789abcdef","sourceTree":"not-this-tree"}`)
 	inRepo(t, repo, func() {
 		_, err := RequireCurrentPackage(pkg, "test/farm_environment_prepare", "test/power_prepare", "test/unregistered")
 		if !errors.Is(err, ErrStalePackage) {
