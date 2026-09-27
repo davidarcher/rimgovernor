@@ -135,6 +135,41 @@ func Open(ctx context.Context, path string) (*Store, error) {
 }
 func (s *Store) Close() error { return s.db.Close() }
 
+// ErrIncompatible is Open's refusal of a database another schema version
+// or application wrote.
+var ErrIncompatible = errors.New("incompatible database application/version")
+
+// OpenOrReplace is Open for the service: a database from another schema
+// version is not migrated (saves regenerate) but moved aside, with its
+// WAL and shared-memory files, to <path>.v<old>.bak[.n], and a fresh one
+// is created in its place. It returns the moved-aside path, or "" when
+// the database opened as it was.
+func OpenOrReplace(ctx context.Context, path string) (*Store, string, error) {
+	s, err := Open(ctx, path)
+	if err == nil || !errors.Is(err, ErrIncompatible) {
+		return s, "", err
+	}
+	found := strings.TrimSpace(strings.TrimPrefix(err.Error(), ErrIncompatible.Error()+":"))
+	old := path + ".v" + strings.ReplaceAll(found, "/", "-") + ".bak"
+	aside := old
+	for n := 1; ; n++ {
+		if _, statErr := os.Stat(aside); errors.Is(statErr, os.ErrNotExist) {
+			break
+		}
+		aside = fmt.Sprintf("%s.%d", old, n)
+	}
+	if err = os.Rename(path, aside); err != nil {
+		return nil, "", err
+	}
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if renameErr := os.Rename(path+suffix, aside+suffix); renameErr != nil && !errors.Is(renameErr, os.ErrNotExist) {
+			return nil, "", renameErr
+		}
+	}
+	s, err = Open(ctx, path)
+	return s, aside, err
+}
+
 // fileURL is the file: URI SQLite opens the database at path through.
 func fileURL(path string) (*url.URL, error) {
 	abs, err := filepath.Abs(path)
@@ -308,7 +343,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 			return err
 		}
 	} else if version != schemaVersion || app != applicationID {
-		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
+		return fmt.Errorf("%w: %d/%d", ErrIncompatible, app, version)
 	}
 	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {

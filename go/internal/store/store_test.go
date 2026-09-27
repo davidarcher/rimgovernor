@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -272,6 +273,39 @@ func TestContendedTransactionHonorsCancellation(t *testing.T) {
 		t.Fatal("cancelled transaction mutated progress")
 	}
 }
+func TestOpenOrReplaceMovesAnIncompatibleStoreAside(t *testing.T) {
+	t.Parallel()
+	s, path := fixture(t)
+	if _, err := s.db.Exec("PRAGMA user_version=5"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	fresh, aside, err := OpenOrReplace(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fresh.Close()
+	if want := fmt.Sprintf("%s.v%d-5.bak", path, applicationID); aside != want {
+		t.Fatalf("aside = %q, want %q", aside, want)
+	}
+	if _, err := os.Stat(aside); err != nil {
+		t.Fatalf("old database not kept: %v", err)
+	}
+	var version int
+	if err := fresh.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != schemaVersion {
+		t.Fatalf("fresh database version %d (%v), want %d", version, err, schemaVersion)
+	}
+	again, aside, err := OpenOrReplace(context.Background(), path)
+	if err == nil {
+		again.Close()
+	}
+	if err != nil || aside != "" {
+		t.Fatalf("compatible reopen: aside %q, err %v", aside, err)
+	}
+}
+
 func TestRejectsIncompatibleAndCorruptStore(t *testing.T) {
 	t.Parallel()
 	for _, statement := range []string{"PRAGMA user_version=999", "PRAGMA application_id=12", "PRAGMA user_version=0; PRAGMA application_id=0"} {

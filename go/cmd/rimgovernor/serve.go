@@ -437,7 +437,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if _, err = client.ConnectWithPoll(ctx, started); err != nil {
 		return err
 	}
-	database, err := store.Open(ctx, config.state)
+	database, err := openState(ctx, config.state)
 	if err != nil {
 		return err
 	}
@@ -479,4 +479,14 @@ func openConfigured(ctx context.Context, config bridge.ProcessConfig) (*bridge.C
 	}
 	config.Launch = launch
 	return bridge.Open(ctx, config)
+}
+
+// openState opens the service database, replacing one from another schema
+// version: saves regenerate, so the old file is kept aside, not migrated.
+func openState(ctx context.Context, path string) (*store.Store, error) {
+	database, aside, err := store.OpenOrReplace(ctx, path)
+	if aside != "" {
+		slog.Warn("state database from another schema version moved aside; starting fresh", "path", path, "aside", aside)
+	}
+	return database, err
 }

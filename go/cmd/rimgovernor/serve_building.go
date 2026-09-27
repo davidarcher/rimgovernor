@@ -339,7 +339,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if _, err = client.reads.ConnectWithPoll(lifetime, started); err != nil {
 		return err
 	}
-	database, err := store.Open(lifetime, config.state)
+	database, err := openState(lifetime, config.state)
 	if err != nil {
 		return err
 	}
