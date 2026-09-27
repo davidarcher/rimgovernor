@@ -224,7 +224,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.native.ReadColonyFacts(call, identity, true, nil)
+	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, true)
 	if err != nil {
 		return RoutineGearResult{}, err
 	}

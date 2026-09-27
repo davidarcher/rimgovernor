@@ -607,6 +607,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 		config.Routine.mirror = scheduler.facts.mirror
+		if session != nil {
+			session.colonyFacts.bind(config.Routine)
+		}
 	}
 	player.extentFacts = scheduler.facts.store
 	return scheduler, nil

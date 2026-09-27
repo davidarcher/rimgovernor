@@ -36,6 +36,10 @@ type RoutineStore struct {
 	// source's ReadRoutinePawns: the reviewer's colony mirror section
 	// (#795), which publishes the rows it read and answers from them.
 	Pawns func(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
+	// Colony, when set, is the colony facts census read (no extra
+	// definitions) in place of the source's: the reviewer's colony mirror
+	// sections (#795), which publish the rows read and answer from them.
+	Colony func(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
 type routineStoreKey struct{}

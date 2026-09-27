@@ -138,7 +138,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.native.ReadColonyFacts(call, identity, false, nil)
+	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

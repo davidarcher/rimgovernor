@@ -112,6 +112,7 @@ type SessionConfig struct {
 // Only an explicit trusted player path may call Acquire or create submitted plans.
 type Session struct {
 	routineMethods bool
+	colonyFacts    *ColonyFacts
 	rules          []policy.ResourceRule
 	control        *Control
 	executor       *executor.Executor
@@ -242,6 +243,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if journal == nil || native == nil || authority == nil || writer == nil || clock == nil {
 		return nil, errors.New("building session dependencies required")
 	}
+	colonyFacts := &ColonyFacts{}
 	if config.Draft != nil && (config.Draft.Native == nil || config.Draft.Writer == nil || config.Draft.Cleanup == nil) {
 		return nil, errors.New("complete draft capabilities required")
 	}
@@ -485,7 +487,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.Deconstruction != nil {
-		b, err := NewDeconstructionBoundary(config.Deconstruction.Native, config.Deconstruction.Writer, place.Leases, clock, string(namespace))
+		b, err := NewDeconstructionBoundary(deconstructionColonyFacts{config.Deconstruction.Native, colonyFacts}, config.Deconstruction.Writer, place.Leases, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -762,7 +764,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	if config.CaravanDeparture != nil {
-		caravanDepartureBoundary, err := NewCaravanDepartureBoundary(config.CaravanDeparture.Native, config.CaravanDeparture.Writer, journal, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.CaravanDeparture.HomeFoodMinDays)
+		caravanDepartureBoundary, err := NewCaravanDepartureBoundary(caravanColonyFacts{config.CaravanDeparture.Native, colonyFacts}, config.CaravanDeparture.Writer, journal, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.CaravanDeparture.HomeFoodMinDays)
 		if err != nil {
 			return cleanup(err)
 		}
@@ -787,7 +789,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		return cleanup(err)
 	}
-	return &Session{routineMethods: config.RoutineMethods, rules: append([]policy.ResourceRule(nil), config.Rules...), control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
+	return &Session{routineMethods: config.RoutineMethods, colonyFacts: colonyFacts, rules: append([]policy.ResourceRule(nil), config.Rules...), control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
@@ -851,3 +853,7 @@ func (s *Session) RoutineMethodsEnabled() bool { return s.routineMethods }
 func (s *Session) ResourceRules() []policy.ResourceRule {
 	return append([]policy.ResourceRule(nil), s.rules...)
 }
+
+// ColonyFacts serves the session's colony facts reads from the routine
+// review's mirrored census once a scheduler binds its reviewer.
+func (s *Session) ColonyFacts() *ColonyFacts { return s.colonyFacts }

@@ -130,7 +130,11 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	wave := newReadWave(ctx)
 	wave.Go(func(ctx context.Context) error {
 		var err error
-		colony, receipt, err = s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
+		if s.store.Colony != nil && len(defs) == 0 {
+			colony, receipt, err = s.store.Colony(ctx, id, planning)
+		} else {
+			colony, receipt, err = s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
+		}
 		if err != nil {
 			return err
 		}

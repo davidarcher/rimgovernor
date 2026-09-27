@@ -262,7 +262,7 @@ func (b *CaravanDepartureBoundary) InspectCaravanDeparture(ctx context.Context, 
 	if _, err = boundary.Context(colonyObserved.Context, current); err != nil {
 		return out, err
 	}
-	if colonyObserved.Context.GetTick() < observed.Context.GetTick() {
+	if colonyObserved.Context.GetTick()+bridge.FactTickTolerancePawns < observed.Context.GetTick() {
 		return out, executor.ErrEvidence
 	}
 	total, totalKnown := boundary.FactUint(colonyObserved.ColonistCount).Value()

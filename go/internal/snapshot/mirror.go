@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
@@ -21,7 +22,8 @@ import (
 //
 // a keyframe (Key: the rows replace the section) on a section's first
 // table and on a scope change, else the rows that changed since the
-// section's last table and the keys it dropped. Keys and rows are Encode's
+// section's last table and the keys it dropped (no line when nothing
+// changed, unless a binding names the version). Keys and rows are Encode's
 // JSON of the mirror's K and R. Any mirror section is recorded this way,
 // whatever its type, as soon as it is a mirror section (#773's pawns, gear,
 // acquisition and upkeep included).
@@ -83,6 +85,8 @@ type recSection struct {
 	// field caches the bound field built at version.
 	field      any
 	fieldBuilt bool
+	// colony caches the decoded colony facts on the root colony section.
+	colony *colonyDecoded
 }
 
 // MirrorRecorder records every table a mirror publishes into the serve's
@@ -123,6 +127,11 @@ func recordSection(dir string, p mirror.Published) {
 				frame.Removed = append(frame.Removed, held.keys[k])
 			}
 		}
+	}
+	if !frame.Key && len(frame.Upserts) == 0 && len(frame.Removed) == 0 && !bound(p.Section) {
+		// Nothing changed and no line names the version: the stream keeps
+		// the section as it was.
+		return
 	}
 	if err := rec.append(streamLine{Tick: domain.Tick(p.AsOf.Tick), Section: &frame}); err != nil {
 		delete(rec.sections, p.Section)
@@ -236,11 +245,24 @@ func elide(tree any, sections map[string]*recSection) (any, map[string]uint64) {
 		}
 		refs[b.section] = s.version
 	}
+	if elided, version, ok := elideColony(tree, sections); ok {
+		tree = elided
+		if refs == nil {
+			refs = map[string]uint64{}
+		}
+		refs[bridge.ColonySection] = version
+	}
 	return tree, refs
 }
 
 // restore puts back the fields elide dropped.
 func restore(tree any, refs map[string]uint64, sections map[string]*recSection) (any, error) {
+	if version, ok := refs[bridge.ColonySection]; ok {
+		var err error
+		if tree, err = restoreColony(tree, version, sections); err != nil {
+			return nil, err
+		}
+	}
 	for _, b := range bindings {
 		version, ok := refs[b.section]
 		if !ok {
@@ -261,7 +283,7 @@ func restore(tree any, refs map[string]uint64, sections map[string]*recSection) 
 		tree = setPath(tree, b.path, built, false)
 	}
 	for name := range refs {
-		if !bound(name) {
+		if name != bridge.ColonySection && !bound(name) {
 			return nil, fmt.Errorf("snapshot: line refers to unbound mirror section %s", name)
 		}
 	}

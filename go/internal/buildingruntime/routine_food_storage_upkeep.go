@@ -166,7 +166,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.native.ReadColonyFacts(call, identity, false, nil)
+	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

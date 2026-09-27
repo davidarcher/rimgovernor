@@ -94,7 +94,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
-	fresh, _, err := r.native.ReadColonyFacts(ctx, boundary.Identity(state.Snapshot), true, nil)
+	fresh, _, err := r.reviewer.colonyFacts(ctx, r.native, boundary.Identity(state.Snapshot), true)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

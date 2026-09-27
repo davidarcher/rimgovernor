@@ -102,7 +102,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{Reason: BuildingMethodRefused}, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
-	reply, _, err := r.native.ReadColonyFacts(call, identity, false, nil)
+	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}

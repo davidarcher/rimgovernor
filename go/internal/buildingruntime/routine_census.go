@@ -29,6 +29,10 @@ type routineCensus struct {
 	claims      bool
 	definitions map[string]bool
 	generation  uint64
+	// colony is the mirror version of each colony facts section the
+	// review read through the mirror (nil: it read none), which planners
+	// of this census serve (colonyFacts).
+	colony map[string]uint64
 }
 
 // routineCensusStore keeps the latest census across steps: a planning step
@@ -52,6 +56,16 @@ type routineCensusStore struct {
 	// benches is the mirror version of the bench table the latest review
 	// refreshed (0: it read none), which planners of its census serve.
 	benches uint64
+	// readColony is the colony sections the review in flight published,
+	// which retain hands to its census.
+	readColony map[string]uint64
+}
+
+// rememberColony records the colony sections the review just published.
+func (s *routineCensusStore) rememberColony(versions map[string]uint64) {
+	s.mu.Lock()
+	s.readColony = versions
+	s.mu.Unlock()
 }
 
 // rememberBenches records the bench table the review just published.
@@ -106,6 +120,7 @@ func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bo
 	}
 	s.mu.Lock()
 	census.generation = s.generation
+	census.colony, s.readColony = s.readColony, nil
 	s.latest = census
 	s.benches = 0
 	s.mu.Unlock()

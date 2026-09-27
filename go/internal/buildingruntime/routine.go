@@ -144,6 +144,14 @@ func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool, expected o
 		out.Pawns = func(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
 			return readPawns(ctx, r.mirror, scope, r.native, id, ids)
 		}
+		r.census.rememberColony(nil)
+		out.Colony = func(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
+			reply, receipt, versions, err := readColony(ctx, r.mirror, scope, r.native, id, planning)
+			if versions != nil {
+				r.census.rememberColony(versions)
+			}
+			return reply, receipt, err
+		}
 	}
 	if colony, ok := facts.Get[observation.ColonyProjection](r.store, facts.Colony); ok && policy.RoomTemperatureUrgent(colony.Value.Facts.DisasterConditions) {
 		out.MaxAge = map[facts.Section]int64{facts.Rooms: 0}

@@ -1055,7 +1055,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		if err != nil {
 			return err
 		}
-		server.EnableChat(interp, raw, database)
+		server.EnableChat(interp, session.ColonyFacts().Chat(raw), database)
 	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
