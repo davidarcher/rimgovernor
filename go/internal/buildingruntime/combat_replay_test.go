@@ -64,6 +64,7 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			layout = domain.Known(*s.Layout)
 		}
 		view := combatView(combat, in, s.Orderable, layout)
+		view.Rooms = s.Rooms
 		if stop := combatStop(combat, s.MemoryIn.Tick); !reflect.DeepEqual(stop, s.Stop) {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame's events answer %+v, the recording %+v", i, s.Tick, stop, s.Stop)
 		}

@@ -29,7 +29,15 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// A downed or dead defender keeps no role; its rescue is rescueStep's
 	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
-	if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
+	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
+		// The arrival row may leave a later frame; the fight keeps it (#891).
+		next.Pods = &pods
+	}
+	if next.Pods != nil && (next.Tactic != TacticPods || reform(view, stop, next)) {
+		// A pods arrival picks its own tactic (#891), not the squad fallback.
+		next.Tactic, next.Roles, next.Refusal = TacticPods, podFormation(view, *next.Pods), ""
+		next.Formed = view.Tick
+	} else if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
 		if ask := formationAsk(view); ask != nil && !geometry.Answered {
 			// Formation asks the game for its candidate cells by role in the
 			// stop's one geometry round trip; with nothing to ask (no
@@ -151,6 +159,10 @@ type CombatView struct {
 	Positional []DefensiveThreatFacts
 	Layout     domain.Fact[CombatLayout]
 	Orderable  []domain.PawnID
+	// Pods is the frame's drop-pod arrival (#870, #891); Rooms the layout
+	// plan's rooms, read for a pods fight.
+	Pods  domain.Fact[PodArrival]
+	Rooms []CombatRoom
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -306,6 +318,8 @@ type CombatMemory struct {
 	Tick     domain.Tick     `json:",omitempty"`
 	// Rescue is the rescue under way (#867).
 	Rescue *CombatRescue `json:",omitempty"`
+	// Pods is the drop-pod arrival this fight answers (#891).
+	Pods *PodArrival `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -327,6 +341,11 @@ func (m CombatMemory) clone() CombatMemory {
 		r := *m.Rescue
 		r.Doors = slices.Clone(r.Doors)
 		m.Rescue = &r
+	}
+	if m.Pods != nil {
+		p := *m.Pods
+		p.Landing = slices.Clone(p.Landing)
+		m.Pods = &p
 	}
 	return m
 }
@@ -397,6 +416,8 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	case TacticHold:
 		layout, ok := view.Layout.Value()
 		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, unpeeled(view, stop, m))
+	case TacticPods:
+		return reformPods(view, m)
 	case TacticSquad:
 		down := map[domain.PawnID]bool{}
 		for _, t := range view.Threats {

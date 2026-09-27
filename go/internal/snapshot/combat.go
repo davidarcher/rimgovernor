@@ -41,6 +41,8 @@ type CombatStop struct {
 	// was. Both are journal state no frame carries.
 	Orderable []domain.PawnID      `json:",omitempty"`
 	Layout    *policy.CombatLayout `json:",omitempty"`
+	// Rooms are the layout plan's rooms a pods fight read (#891).
+	Rooms []policy.CombatRoom `json:",omitempty"`
 	// Ask and Reply are the stop's one geometry round trip, when it had one.
 	Ask                 *policy.GeometryRequest `json:",omitempty"`
 	Reply               policy.GeometryReply

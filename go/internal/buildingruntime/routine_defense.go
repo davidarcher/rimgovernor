@@ -185,9 +185,18 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	view := combatView(combat, in, orderable, held)
 	tick := view.Tick
+	if _, pods := view.Pods.Value(); pods || memory.Pods != nil {
+		plan, ok, err := r.reviewer.layoutPlan(call, state.Snapshot, tick)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		if ok && !plan.Invalid {
+			view.Rooms = combatRooms(plan.Plan)
+		}
+	}
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
-	recorded := snap.CombatStop{Tick: tick, Stop: stop, Orderable: orderable, Ask: ask, MemoryIn: memory}
+	recorded := snap.CombatStop{Tick: tick, Stop: stop, Orderable: orderable, Ask: ask, MemoryIn: memory, Rooms: view.Rooms}
 	if l, known := held.Value(); known {
 		recorded.Layout = &l
 	}
@@ -337,7 +346,36 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, building := range in.buildings {
 		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
 	}
-	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout}
+	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat)}
+}
+
+// podArrival is the frame's newest drop-pod arrival row (#870), for the
+// pods tactic (#891).
+func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
+	var newest *mirrorpb.CombatEventRow
+	for _, row := range combat.Events {
+		if bridge.DropPodArrival(row) && (newest == nil || bridge.CombatBefore(newest.GetAt(), row.GetAt())) {
+			newest = row
+		}
+	}
+	if newest == nil {
+		return domain.Unknown[policy.PodArrival]()
+	}
+	pods := policy.PodArrival{Open: domain.Tick(newest.GetOpenTick())}
+	for _, c := range newest.GetLandingCells() {
+		pods.Landing = append(pods.Landing, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+	}
+	return domain.Known(pods)
+}
+
+// combatRooms is the layout plan's rooms and their doors, the pods
+// tactic's rooms (#891); none without a plan.
+func combatRooms(plan policy.LayoutPlan) []policy.CombatRoom {
+	var out []policy.CombatRoom
+	for _, r := range plan.Rooms {
+		out = append(out, policy.CombatRoom{Interior: r.Interior, Doors: plan.ShellDoors(r)})
+	}
+	return out
 }
 
 // buildingLinesOfFire is, for every standing hostile building, which
