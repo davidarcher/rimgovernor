@@ -2,36 +2,41 @@
 
 [Documentation](../README.md)
 
-The Go controller is the sole production runtime (G01.13). Autopilot (routine work)
-needs no model and no player text input; run:
+Double-click `RimGovernor.exe` (build it once per [setup](setup.md)). When every
+status row is OK, press **Play**: the launcher starts the Go controller, which
+starts RimWorld through GABS, and shows **Running** once the controller answers.
+**Open dashboard** opens the dashboard in your browser. Enable Run in background in RimWorld.
 
-```powershell
-.\launch.cmd
-```
+The game boots to its main menu; load a save there or from the dashboard.
 
-This builds `go/cmd/rimgovernor` if missing, reuses the built dashboard assets, and
-opens http://127.0.0.1:8787 in autonomous play.
-Enable Run in background in RimWorld. `launch-bridge.ps1` forwards to the same
-launcher. Launch uses the prepared GABS profile and preserves your normal saves and
-mod selection — see [setup](setup.md) to prepare it first.
+- **Stop** stops the controller only; the game keeps running.
+- **Restart** stops and starts the controller with the current settings.
+- **Close game** closes the RimWorld started from `.rimgovernor/native-rimworld`.
 
-```powershell
-.\launch.cmd -Observe       # Observation-only dashboard; no player writes
-.\launch.cmd -NoBrowser
-.\launch.cmd -Port 8788     # Use a different local port
-.\launch.cmd -Rebuild       # Force-rebuild the Go binary before starting
-```
+Play stops an earlier controller from this checkout first. The dashboard
+starts at port 8787 and moves up past ports another checkout is using.
+Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`.
 
-Each run opens a fresh Go state database (timestamped under `.rimgovernor/go/`); it
-does not reuse a controller already listening on the target port, so stop an existing
-session (or pick a different `-Port`) before starting a new one.
+## Settings
+
+Settings persist to `.rimgovernor/launcher.json`.
+
+- **Main**: Autopilot or Observe only (no writes); start the bot automatically
+  on every load (`--resume`); game speed (Ultrafast adaptive paces ticks to
+  your frame rate); continue the last state database or start fresh; optional
+  chat model and LM Studio URL.
+- **Colony policy**: allow slaughter or release of surplus animals, open
+  ancient shrine caskets (and the heat fallback), the layout overlay, and
+  food reserve days.
+- **Advanced**: debug logging and extra `rimgovernor serve` arguments
+  (`rimgovernor serve -h` lists them).
 
 ## Natural-language chat
 
-Chat appears in the dashboard when the controller runs with `--chat-model`
-(and `--chat-base-url` pointing at LM Studio's local server). It answers
-questions about the autopilot and applies at most one policy nudge per
-message; see [controls](controls.md#give-a-request).
+Chat appears in the dashboard when a chat model is set (with the LM Studio URL
+pointing at its local server). It answers questions about the autopilot and
+applies at most one policy nudge per message; see
+[controls](controls.md#give-a-request).
 
 ## Related reading
 

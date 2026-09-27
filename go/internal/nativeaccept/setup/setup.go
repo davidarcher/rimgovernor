@@ -50,7 +50,8 @@ type Options struct {
 	Layout Layout
 	Inputs *Inputs
 	// Fixtures are the -Fixture classes the mod build takes; nil means
-	// every class build_native_mod.ps1 accepts (AllFixtures).
+	// every class build_native_mod.ps1 accepts (AllFixtures); an empty
+	// non-nil slice is the production build (the player launcher's).
 	Fixtures []string
 	// Rebuild forces a mod build even when the installed one is current.
 	Rebuild bool
@@ -514,8 +515,12 @@ func installMod(ctx context.Context, o Options, s *Summary, note func(string, ..
 	if len(running) > 0 {
 		return fmt.Errorf("a game is running from %s (pid %v); stop it first (%s stop -root %s) -- a DLL must never be replaced under a running game", l.GameCopy, running, filepath.Join(l.Bin, "acceptance.exe"), l.Root)
 	}
-	output := filepath.Join(l.Builds, fmt.Sprintf("fixture-%s", time.Now().Format("20060102-150405")))
-	note("building the fixture mod (%s) into %s", reason, output)
+	role := "fixture"
+	if len(s.Fixtures) == 0 {
+		role = "production"
+	}
+	output := filepath.Join(l.Builds, fmt.Sprintf("%s-%s", role, time.Now().Format("20060102-150405")))
+	note("building the %s mod (%s) into %s", role, reason, output)
 	if err := runBuildScript(ctx, l, o.Inputs, wanted, output, o.Log); err != nil {
 		return err
 	}

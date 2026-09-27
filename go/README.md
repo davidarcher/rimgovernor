@@ -2,8 +2,8 @@
 
 `go/` is the RimGovernor runtime: it observes the colony through
 GABS/RimBridgeServer, runs deterministic routine policy, executes admitted work
-through Hands, and serves the dashboard and player API. `launch.cmd` /
-`launch-go.ps1` and the Docker `go-controller` target start this binary
+through Hands, and serves the dashboard and player API. The launcher
+(`cmd/launcher`, built as `RimGovernor.exe`) and the Docker `go-controller` target start this binary
 directly. Start from the [source map](../docs/developers/source-map.md) and
 [architecture overview](../docs/developers/architecture/overview.md); this page
 covers building, running and testing the module.
@@ -31,15 +31,16 @@ separate tests.
 
 ## Running
 
-**Windows**, from the repository root:
+**Windows**, from this directory:
 
 ```powershell
-.\launch.cmd                    # autonomous play, browser opens
-.\launch-go.ps1 -Observe        # observation-only dashboard, no writes
+go build -ldflags -H=windowsgui -o ..\RimGovernor.exe ./cmd/launcher
+..\RimGovernor.exe   # or double-click it
 ```
 
-`launch.cmd` builds the binary if missing, builds the dashboard's static assets
-(`dashboard/dist`, with `pnpm`) and requires prepared GABS/config/profile inputs
+The launcher rebuilds the controller, the production native mod, the dashboard
+(`dashboard/dist`, with `pnpm`), GABS and the game layout when stale, then
+starts `serve` with the settings it keeps in `.rimgovernor/launcher.json`
 ([setup](../docs/players/setup.md)). GABS is a native executable dependency of
 the controller.
 

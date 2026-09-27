@@ -35,7 +35,7 @@ export default function App(){
       <p role="status" className={error?'observation-notice observation-warning':'observation-notice'}>{error?`${error}. Reconnecting…`:'Waiting for the game controller…'}</p>
       <section className="observation-panel"><h2>Start the game</h2>
         <p>This dashboard connects once the RimGovernor controller is running and a colony is loaded.</p>
-        <p>On Windows, run <code>launch.cmd</code> from the repository root, then load or start a save in RimWorld.</p>
+        <p>On Windows, open <code>RimGovernor.exe</code> from the repository root and press Play, then load or start a save in RimWorld.</p>
         <p>See <a href="#help">Help</a> for full setup and launch instructions.</p>
       </section>
     </>}

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RimGovernor</title>
+<style>
+  :root {
+    --bg: #0c0e0a; --panel: #161915; --raised: #1f231c; --line: #3c3d34;
+    --text: #e9e6d9; --muted: #a8a697; --accent: #ddb975; --ok: #8caa75;
+    --warn: #d19a3a; --bad: #e0776c; --play: #4f7a3a; --play-hi: #5f9146;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 'Segoe UI', system-ui, sans-serif; user-select: none; }
+  main { max-width: 560px; margin: 0 auto; padding: 22px 22px 28px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .brand { font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+  .brand span { color: var(--accent); }
+  button { font: inherit; color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .icon { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+  .icon[aria-expanded=true] { color: var(--accent); }
+
+  .hero { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .headline { font-size: 22px; font-weight: 600; margin: 0; }
+  .sub { color: var(--muted); margin: 4px 0 18px; min-height: 1.45em; overflow-wrap: anywhere; }
+  .primary { width: 100%; font-size: 18px; font-weight: 600; padding: 14px; border: none; background: var(--play); color: #fff; border-radius: 8px; }
+  .primary:hover:not(:disabled) { background: var(--play-hi); }
+  .secondary { display: flex; gap: 8px; margin-top: 10px; }
+  .secondary button { flex: 1; }
+  .secondary[hidden] { display: none; }
+  .alert { margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: #3a1f1b; border: 1px solid #6d3a33; color: #f3d2cc; overflow-wrap: anywhere; user-select: text; }
+  .alert[hidden] { display: none; }
+  .spin { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  ul.status { list-style: none; margin: 16px 0 0; padding: 0; }
+  ul.status li { display: grid; grid-template-columns: 14px 130px 1fr; align-items: baseline; gap: 8px; padding: 5px 2px; border-top: 1px solid #23261f; }
+  ul.status li:first-child { border-top: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .ok .dot { background: var(--ok); } .pending .dot, .building .dot, .stale .dot { background: var(--warn); } .failed .dot, .missing .dot { background: var(--bad); }
+  .building .dot { animation: pulse 1s ease-in-out infinite alternate; }
+  @keyframes pulse { from { opacity: .35; } }
+  .name { color: var(--text); }
+  .detail { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .failed .detail { color: var(--bad); }
+
+  section.settings { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  section.settings[hidden] { display: none; }
+  section.settings h2 { font-size: 15px; margin: 0 0 10px; }
+  .note { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; }
+  .field label { color: var(--text); }
+  .check { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { padding: 5px 12px; cursor: pointer; color: var(--muted); }
+  .seg input:checked + label { background: #343d2d; color: var(--text); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+  select, input[type=text], input[type=number] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; }
+  input[type=text] { width: 230px; }
+  input[type=number] { width: 90px; }
+  input[type=checkbox] { accent-color: var(--ok); width: 16px; height: 16px; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
+  .err { color: var(--bad); font-size: 13px; min-height: 1.2em; margin-top: 6px; }
+  details.log { margin-top: 16px; }
+  pre { margin: 6px 0 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; height: 220px; overflow: auto; font: 12px/1.4 Consolas, monospace; color: var(--muted); white-space: pre-wrap; user-select: text; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">Rim<span>Governor</span></div>
+    <button class="icon" id="gear" aria-expanded="false" aria-controls="settings" title="Settings">&#9881; Settings</button>
+  </header>
+
+  <div class="hero">
+    <p class="headline" id="headline" aria-live="polite">Getting ready</p>
+    <p class="sub" id="sub"></p>
+    <button class="primary" id="primary" disabled>Play</button>
+    <div class="secondary" id="secondary" hidden>
+      <button id="restart">Restart</button>
+      <button id="stop">Stop</button>
+    </div>
+    <div class="secondary" id="gamebar" hidden>
+      <button id="closeGame">Close game</button>
+    </div>
+    <div class="alert" id="alert" role="alert" hidden></div>
+    <ul class="status" id="status" aria-label="Components"></ul>
+  </div>
+
+  <section class="settings" id="settings" hidden aria-label="Settings">
+    <h2>Settings</h2>
+    <p class="note" id="applyNote">Saved automatically. Changes apply the next time you press Play.</p>
+
+    <div class="field"><span>Mode</span>
+      <span class="seg" role="radiogroup" aria-label="Mode">
+        <input type="radio" name="mode" id="modeAuto" value="auto"><label for="modeAuto">Autopilot</label>
+        <input type="radio" name="mode" id="modeObserve" value="observe"><label for="modeObserve">Observe only</label>
+      </span>
+    </div>
+    <div class="field"><label for="speed">Game speed</label>
+      <select id="speed">
+        <option value="Normal">Normal</option><option value="Fast">Fast</option><option value="Superfast">Superfast</option>
+        <option value="Ultrafast">Ultrafast</option><option value="UltrafastAdaptive">Ultrafast (adaptive)</option>
+      </select>
+    </div>
+    <div class="check"><input type="checkbox" id="autoStart"><label for="autoStart">Start the autopilot as soon as a colony loads</label></div>
+    <div class="field"><span>Controller memory</span>
+      <span class="seg" role="radiogroup" aria-label="Controller memory">
+        <input type="radio" name="state" id="stateContinue" value="continue"><label for="stateContinue">Continue</label>
+        <input type="radio" name="state" id="stateFresh" value="fresh"><label for="stateFresh">Start fresh</label>
+      </span>
+    </div>
+
+    <details>
+      <summary>Colony policy</summary>
+      <div class="check"><input type="checkbox" id="allowRelease"><label for="allowRelease">Release surplus animals to the wild</label></div>
+      <div class="check"><input type="checkbox" id="allowSlaughter"><label for="allowSlaughter">Slaughter surplus animals</label></div>
+      <div class="check"><input type="checkbox" id="shrineOpenCaskets"><label for="shrineOpenCaskets">Open ancient shrine caskets</label></div>
+      <div class="check"><input type="checkbox" id="shrineHeatFallback"><label for="shrineHeatFallback">Heat the shrine when no melee guard is free</label></div>
+      <div class="check"><input type="checkbox" id="layoutOverlay"><label for="layoutOverlay">Show the layout plan in game</label></div>
+      <div class="field"><label for="foodReserveDays">Food reserve (days)</label><input type="number" id="foodReserveDays" min="0" step="0.5"></div>
+    </details>
+
+    <details>
+      <summary>Chat</summary>
+      <div class="field"><label for="chatModel">Model</label><input type="text" id="chatModel" placeholder="Off"></div>
+      <div class="field"><label for="chatBaseURL">LM Studio URL</label><input type="text" id="chatBaseURL" placeholder="http://127.0.0.1:1234/v1"></div>
+    </details>
+
+    <details>
+      <summary>Advanced</summary>
+      <div class="check"><input type="checkbox" id="debug"><label for="debug">Debug logging</label></div>
+      <div class="field"><label for="extraArgs">Extra serve arguments</label><input type="text" id="extraArgs" spellcheck="false"></div>
+    </details>
+    <div class="err" id="settingsErr" role="alert"></div>
+  </section>
+
+  <details class="log" id="logbox">
+    <summary>Details</summary>
+    <pre id="log"></pre>
+  </details>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const bools = ['autoStart', 'allowSlaughter', 'allowRelease', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'debug'];
+const texts = ['speed', 'chatModel', 'chatBaseURL', 'extraArgs'];
+let view = null, loaded = false, busyAction = false;
+
+function fill(s) {
+  (s.observe ? $('modeObserve') : $('modeAuto')).checked = true;
+  (s.continueState ? $('stateContinue') : $('stateFresh')).checked = true;
+  bools.forEach(k => $(k).checked = !!s[k]);
+  texts.forEach(k => $(k).value = s[k] || '');
+  $('foodReserveDays').value = s.foodReserveDays;
+  policyEnabled();
+}
+
+function read() {
+  const s = { observe: $('modeObserve').checked, continueState: $('stateContinue').checked,
+    foodReserveDays: Number($('foodReserveDays').value) };
+  bools.forEach(k => s[k] = $(k).checked);
+  texts.forEach(k => s[k] = $(k).value.trim());
+  return s;
+}
+
+// Observe only never writes to the game: play settings do not apply.
+function policyEnabled() {
+  const observe = $('modeObserve').checked;
+  ['speed', 'autoStart', 'allowSlaughter', 'allowRelease', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'foodReserveDays', 'chatModel', 'chatBaseURL']
+    .forEach(k => $(k).disabled = observe);
+  $('shrineHeatFallback').disabled = observe || !$('shrineOpenCaskets').checked;
+}
+
+async function save() {
+  policyEnabled();
+  if (!$('shrineOpenCaskets').checked) $('shrineHeatFallback').checked = false;
+  try { await saveSettings(read()); $('settingsErr').textContent = ''; }
+  catch (e) { $('settingsErr').textContent = String(e.message || e); }
+}
+$('settings').addEventListener('change', save);
+
+$('gear').onclick = () => {
+  const open = $('settings').hidden;
+  $('settings').hidden = !open;
+  $('gear').setAttribute('aria-expanded', String(open));
+};
+
+function summarize(v) {
+  const arts = v.artifacts;
+  const failed = arts.find(a => a.state === 'failed' || a.state === 'missing');
+  const building = arts.find(a => a.state === 'building');
+  const pending = arts.find(a => a.state === 'pending');
+  if (v.controller === 'running') return { head: 'Running', sub: 'Colony dashboard at ' + v.url, primary: 'Open dashboard', enabled: true, run: true };
+  if (v.controller === 'starting') return { head: 'Starting', sub: 'Launching the controller and RimWorld…', primary: 'Starting…', spin: true };
+  if (failed) return { head: 'Needs attention', sub: failed.name + ': ' + failed.detail, primary: 'Play' };
+  if (building) return { head: 'Getting ready', sub: building.name + ': ' + building.detail, primary: 'Preparing…', spin: true };
+  return { head: 'Ready to play', sub: pending ? 'A mod update will install once the game closes.' : 'Everything is up to date.', primary: 'Play', enabled: true };
+}
+
+async function refresh() {
+  let v;
+  try { v = await getState(); } catch (e) { return; }
+  view = v;
+  const s = summarize(v);
+  $('headline').textContent = s.head;
+  $('sub').textContent = s.sub;
+  const p = $('primary');
+  p.innerHTML = (s.spin ? '<span class="spin" aria-hidden="true"></span>' : '') + s.primary;
+  p.disabled = !s.enabled || busyAction;
+  $('secondary').hidden = !s.run;
+  $('gamebar').hidden = !v.gameUp;
+  $('alert').hidden = !v.message;
+  $('alert').textContent = v.message;
+  $('applyNote').textContent = s.run ? 'Saved automatically. Press Restart to apply changes.' : 'Saved automatically. Changes apply the next time you press Play.';
+  $('status').innerHTML = v.artifacts.map(a =>
+    `<li class="${a.state}"><span class="dot" aria-hidden="true"></span><span class="name">${esc(a.name)}</span><span class="detail">${esc(a.detail)}</span></li>`).join('');
+  const log = $('log'), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+  const text = v.log.join('\n');
+  if (log.textContent !== text) { log.textContent = text; if (atEnd) log.scrollTop = log.scrollHeight; }
+  if (!loaded) { fill(v.settings); loaded = true; }
+}
+
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
+
+async function act(fn) {
+  busyAction = true;
+  try { await fn(); } finally { setTimeout(() => { busyAction = false; refresh(); }, 400); }
+}
+
+$('primary').onclick = () => {
+  if (view && view.controller === 'running') openDashboard();
+  else act(play);
+};
+$('restart').onclick = () => act(restart);
+$('stop').onclick = () => act(stopController);
+$('closeGame').onclick = () => act(closeGame);
+window.addEventListener('focus', () => focused());
+setInterval(refresh, 600);
+refresh().then(() => $('primary').focus());
+</script>
+</body>
+</html>

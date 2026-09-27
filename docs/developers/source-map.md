@@ -22,7 +22,7 @@ flowchart LR
 
 | Piece | Responsibility and source |
 | --- | --- |
-| Entry and lifecycle | [launch.cmd](../../launch.cmd)/[launch-go.ps1](../../launch-go.ps1) build/reuse the Go binary and dashboard assets and start it; [go/cmd/rimgovernor](../../go/cmd/rimgovernor) is the `serve`/`version`/`help` entry point. |
+| Entry and lifecycle | [go/cmd/launcher](../../go/cmd/launcher) (RimGovernor.exe) rebuilds the controller, native mod, dashboard, GABS and game layout when stale and starts/stops `serve`; [go/cmd/rimgovernor](../../go/cmd/rimgovernor) is the `serve`/`version`/`help` entry point. |
 | Domain | [go/internal/domain](../../go/internal/domain) defines the core types — plans, actions, goals — shared across policy, store and executor. |
 | Policy | [go/internal/policy](../../go/internal/policy) evaluates routine survival facts, deficits and admission rules (food, power, temperature, mood, defense, disaster, work, and more — see [go/README.md](../../go/README.md)). |
 | Building runtime | [go/internal/buildingruntime](../../go/internal/buildingruntime) composes the routine reviewer, planners and player-command handlers into a running colony loop. |
