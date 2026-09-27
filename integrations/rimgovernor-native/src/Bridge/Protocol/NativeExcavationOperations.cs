@@ -109,134 +109,57 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    // Excavation completes when no rock remains at the cell; output stacks are
-    // not evidence. A pre-existing Mine designation is adopted rather than
-    // refused so a restarted controller can re-admit the same cell.
-    internal sealed class NativeExcavationRecord
+    // ExcavateIntent designates one visible rock cell for ordinary pawn
+    // mining. A standing Mine designation is adopted; a cell the pawns already
+    // cleared applies as cleared. Applied means designated, not mined: the
+    // site read decides progress.
+    internal static class NativeExcavationOperations
     {
-        private readonly Map map;
-        private readonly IntVec3 cell;
-        private readonly string definition;
-        private readonly bool adopted;
-        internal NativeExcavationRecord(Map map, IntVec3 cell, string definition, bool adopted)
-        { this.map = map; this.cell = cell; this.definition = definition; this.adopted = adopted; }
-        internal Receipts.ExcavationEffect Evidence()
+        private static string? Refusal(Operations.ExcavateIntent? intent, Common.ObservationContext context, out Map? map, out IntVec3 cell, out Mineable? rock)
         {
-            var rock = ExcavationTools.RockAt(cell, map);
-            var result = new Receipts.ExcavationEffect { Cell = new Common.Cell { X = cell.x, Z = cell.z }, MineableDefName = definition,
-                AdoptedExistingDesignation = adopted, Cleared = rock == null, Designated = rock != null && ExcavationTools.Designated(cell, map) };
-            result.Cancelled = rock != null && !result.Designated;
-            var record = MiningGuard.State().Excavations.LastOrDefault(r => r.MapId == map.uniqueID && r.X == cell.x && r.Z == cell.z);
-            if (record?.Blocker != null) result.Blocker = record.Blocker;
-            return result;
+            map = null; cell = IntVec3.Invalid; rock = null;
+            if (intent?.Cell == null || !intent.Cell.HasX || !intent.Cell.HasZ || intent.Cell.X < 0 || intent.Cell.Z < 0
+                || !intent.HasExpectedMineableDefName || !ProtoBoundary.IsIdentifier(intent.ExpectedMineableDefName)) return "Excavation requires a cell and the expected rock definition.";
+            map = ProtoBoundary.ResolveMap(context);
+            if (map == null) return "Current map required.";
+            if (map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) return "Roof collapse is pending on this map.";
+            cell = new IntVec3(intent.Cell.X, 0, intent.Cell.Z);
+            rock = ExcavationTools.RockAt(cell, map);
+            if (rock == null && cell.InBounds(map) && !cell.Fogged(map) && cell.Walkable(map)) return null;
+            if (rock == null || cell.Fogged(map) || rock.def.defName != intent.ExpectedMineableDefName) { rock = null; return "Expected rock is not visible at the cell."; }
+            var blocker = ExcavationTools.CellBlocker(cell, map);
+            if (blocker == null && ExcavationSafety.Check(map, new[] { cell }, out _, out var support) != ExcavationSafety.Support.Supported) blocker = support;
+            if (blocker == null && !ExcavationTools.Designated(cell, map) && !new Designator_Mine().CanDesignateCell(cell).Accepted) blocker = "Native mining designation is not accepted at this cell";
+            return blocker;
         }
-        internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.ExcavateIntent? intent, Common.ObservationContext context)
         {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
-            if (map != ProtoBoundary.ResolveMap(context)) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Excavation map is not the current map." }; return result; }
-            var observed = Evidence();
-            var evidence = new Receipts.EffectEvidence { Excavation = observed };
-            if (observed.Cleared) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
-            else if (observed.Designated) result.Pending = new Receipts.PendingEffect { Evidence = evidence };
-            else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence,
-                Detail = observed.HasBlocker ? observed.Blocker : "Excavation designation is gone and the rock remains." };
-            return result;
+            var refusal = Refusal(intent, context, out _, out _, out _);
+            return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal);
+        }
+        internal static Receipts.EffectEvidence Apply(Operations.ExcavateIntent intent, Common.ObservationContext context)
+        {
+            var refusal = Refusal(intent, context, out var map, out var cell, out var rock);
+            if (refusal != null) throw new InvalidOperationException("Excavation prerequisites changed before apply: " + refusal);
+            var adopted = rock != null && ExcavationTools.Designated(cell, map!);
+            if (rock != null)
+            {
+                if (MiningGuard.OpenExcavation(map!, cell) == null)
+                    MiningGuard.State().Excavations.Add(new ExcavationRecord { MapId = map!.uniqueID, X = cell.x, Z = cell.z, Definition = rock.def.defName, Started = Find.TickManager.TicksGame });
+                if (!adopted) new Designator_Mine().DesignateSingleCell(cell);
+            }
+            var now = ExcavationTools.RockAt(cell, map!);
+            var effect = new Receipts.ExcavationEffect { Cell = new Common.Cell { X = cell.x, Z = cell.z }, MineableDefName = intent.ExpectedMineableDefName,
+                AdoptedExistingDesignation = adopted, Cleared = now == null, Designated = now != null && ExcavationTools.Designated(cell, map!) };
+            effect.Cancelled = now != null && !effect.Designated;
+            if (!effect.Cleared && !effect.Designated) throw new InvalidOperationException("Excavation designation was not observed.");
+            return new Receipts.EffectEvidence { Excavation = effect };
         }
     }
 
-    internal static class NativeExcavationOperations
+    internal sealed class ExcavateActionHandler : IActionHandler
     {
-        internal static bool Valid(Operations.ExcavateCell? command) => command != null && command.Cell != null && command.Cell.HasX && command.Cell.HasZ
-            && command.Cell.X >= 0 && command.Cell.Z >= 0 && command.HasExpectedMineableDefName && ProtoBoundary.IsIdentifier(command.ExpectedMineableDefName)
-            && (!command.HasExpectedSnapshotToken || command.ExpectedSnapshotToken.Length > 0);
-
-        // An execute dispatched under a running clock omits the snapshot token
-        // (#244): the token hashes the rock's hit points, which move every
-        // tick once a miner works it, and the rules below are the check that
-        // refuses a moved world. A preview still sends it.
-        private static bool TokenSent(Operations.ExcavateCell command) => command.HasExpectedSnapshotToken && command.ExpectedSnapshotToken.Length > 0;
-
-        private static bool Prepare(Operations.ExcavateCell command, Common.ObservationContext context, out Mineable? rock, out bool cleared, out Common.Failure failure)
-        {
-            rock = null; cleared = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Excavation requires an exact visible rock cell snapshot, supported roof geometry and an eligible miner.");
-            if (!Valid(command)) return false;
-            var map = ProtoBoundary.ResolveMap(context);
-            if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required."); return false; }
-            if (map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Roof collapse is pending on this map."); return false; }
-            var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
-            rock = ExcavationTools.RockAt(cell, map);
-            if (rock == null && cell.InBounds(map) && !cell.Fogged(map) && cell.Walkable(map))
-            {
-                // Adopt a cell the pawns already cleared: the snapshot must
-                // still describe open ground, and nothing is designated.
-                if (TokenSent(command) && NativeExcavationSite.Token(context.Identity, cell, "", 0, ExcavationTools.Designated(cell, map)) != command.ExpectedSnapshotToken)
-                { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Cell snapshot changed; observe before new admission."); return false; }
-                cleared = true;
-                return true;
-            }
-            if (rock == null || cell.Fogged(map) || rock.def.defName != command.ExpectedMineableDefName) { rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Expected rock is not visible at the cell."); return false; }
-            var designated = ExcavationTools.Designated(cell, map);
-            if (TokenSent(command) && NativeExcavationSite.Token(context.Identity, cell, rock.def.defName, rock.HitPoints, designated) != command.ExpectedSnapshotToken)
-            { rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Rock snapshot changed; observe before new admission."); return false; }
-            var blocker = ExcavationTools.CellBlocker(cell, map);
-            if (blocker == null && ExcavationSafety.Check(map, new[] { cell }, out _, out var support) != ExcavationSafety.Support.Supported) blocker = support;
-            if (blocker == null && !designated && !new Designator_Mine().CanDesignateCell(cell).Accepted) blocker = "Native mining designation is not accepted at this cell";
-            if (blocker != null) { rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, blocker); return false; }
-            return true;
-        }
-
-        internal static Operations.PreviewReply Preview(Operations.ExcavateCell command, Common.ObservationContext context)
-        {
-            if (!Prepare(command, context, out _, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
-        }
-
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition; var command = request.Operation.ExcavateCell;
-            try
-            {
-                if (!Prepare(command, context, out var rock, out var cleared, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                var map = ProtoBoundary.LoadedMap(context); var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
-                if (cleared)
-                {
-                    // Nothing to designate: the receipt carries the cleared
-                    // evidence and observation completes the action.
-                    var done = new NativeExcavationRecord(map, cell, command.ExpectedMineableDefName, false);
-                    state.Excavation.Add(pre.Attempt.Clone(), done);
-                    evidence = new Receipts.EffectEvidence { Excavation = done.Evidence() };
-                    if (!evidence.Excavation.Cleared) throw new InvalidOperationException("Cleared excavation cell was not observed.");
-                    return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-                }
-                var adopted = ExcavationTools.Designated(cell, map);
-                var record = new NativeExcavationRecord(map, cell, rock!.def.defName, adopted);
-                state.Excavation.Add(pre.Attempt.Clone(), record);
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success
-                        || !Prepare(command, context, out var checkedRock, out _, out failure) || !ReferenceEquals(rock, checkedRock)) throw new InvalidOperationException("Excavation target changed before designation.");
-                    if (MiningGuard.OpenExcavation(map, cell) == null)
-                        MiningGuard.State().Excavations.Add(new ExcavationRecord { MapId = map.uniqueID, X = cell.x, Z = cell.z, Definition = rock.def.defName, Started = Find.TickManager.TicksGame });
-                    if (!adopted) new Designator_Mine().DesignateSingleCell(cell);
-                    evidence = new Receipts.EffectEvidence { Excavation = record.Evidence() };
-                    if (!evidence.Excavation.Designated) throw new InvalidOperationException("Excavation designation was not observed.");
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Excavation write interrupted: " + error.GetType().Name) };
-                return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Excavation failed: " + error.GetType().Name) };
-            }
-        }
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeExcavationOperations.Validate(action.Excavate, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeExcavationOperations.Apply(action.Excavate, context);
     }
 }

@@ -264,7 +264,7 @@ namespace HomeBridge.BridgeTools
                     plantResource = plant.def.plant.harvestedThingDef.defName, plantCell = new { x = plant.Position.x, z = plant.Position.z },
                     rockId = rock.GetUniqueLoadID(), rockToken = NativeMineAcquisition.Snapshot(rock, context).Token,
                     rockResource = rock.def.building.mineableThing.defName, rockCell = new { x = rock.Position.x, z = rock.Position.z },
-                    rockDef = rock.def.defName, excavateToken = NativeExcavationSite.Token(context.Identity, rockCell, rock.def.defName, rock.HitPoints, false),
+                    rockDef = rock.def.defName,
                     benchId = bench.GetUniqueLoadID(), benchToken,
                     preyId = prey.GetUniqueLoadID(),
                     preyResource = prey.RaceProps.corpseDef.defName, preyCell = new { x = prey.Position.x, z = prey.Position.z },

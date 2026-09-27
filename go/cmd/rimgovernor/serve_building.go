@@ -20,7 +20,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/growercrop"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
@@ -104,7 +103,6 @@ type buildingServiceBridge struct {
 	writes              boundary.BuildingWriter
 	acquisition         *acquisition.AcquisitionCapabilities
 	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
-	excavation          *excavation.ExcavationCapabilities
 	moveBuilding        *movebuilding.Capabilities
 	draft               *draft.DraftCapabilities
 	clock               *buildingruntime.ClockCapabilities
@@ -181,10 +179,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	excavationWriter, err := bridge.NewExcavationControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	attack, err := bridge.NewAttackControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -252,7 +246,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter, moodReliefWorld: client,
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
-		excavation:      &excavation.ExcavationCapabilities{Native: client, Writer: excavationWriter},
 		moveBuilding:    &movebuilding.Capabilities{Native: client, Writer: moveBuildingWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
@@ -412,13 +405,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("acquisition plans require typed capabilities")
 		}
 		acquisitionCapabilities = client.acquisition
-	}
-	var excavationCapabilities *excavation.ExcavationCapabilities
-	if config.routineShelterPlans || config.routineExpansionPlans {
-		if client.excavation == nil {
-			return errors.New("shelter and expansion plans require typed excavation capabilities")
-		}
-		excavationCapabilities = client.excavation
 	}
 	var mineAcquisitionCapabilities *mineacquisition.MineAcquisitionCapabilities
 	if config.routineResourcePlans || config.routineAnimalFeedPlans {
@@ -589,7 +575,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Executor:            executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Acquisition:         acquisitionCapabilities,
 		MineAcquisition:     mineAcquisitionCapabilities,
-		Excavation:          excavationCapabilities,
 		Draft:               client.draft,
 		Clock:               clockCapabilities,
 		Melee:               meleeCapabilities,

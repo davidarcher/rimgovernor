@@ -41,7 +41,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeTendRecord> Tends = new Dictionary<Common.AttemptKey, NativeTendRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRepairRecord> Repairs = new Dictionary<Common.AttemptKey, NativeRepairRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeOpenCasketRecord> OpenCaskets = new Dictionary<Common.AttemptKey, NativeOpenCasketRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeSubdueRecord> Subdues = new Dictionary<Common.AttemptKey, NativeSubdueRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeArrestRecord> Arrests = new Dictionary<Common.AttemptKey, NativeArrestRecord>();
@@ -147,8 +146,6 @@ namespace HomeBridge.BridgeTools
                 return NativeMoodReliefOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                 return NativeWasteOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
-                return NativeExcavationOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
                 return NativeWallRemovalOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
@@ -209,8 +206,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                     return ProtoBoundary.Encode(NativeWasteOperations.Preview(parsed.Operation.ManageWaste, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
-                    return ProtoBoundary.Encode(NativeExcavationOperations.Preview(parsed.Operation.ExcavateCell, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
                     return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
@@ -307,9 +302,6 @@ namespace HomeBridge.BridgeTools
                     NativeTendRecord tend;
                     if (state.Tends.TryGetValue(parsed.Attempt, out tend))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) });
-                    NativeExcavationRecord excavation;
-                    if (state.Excavation.TryGetValue(parsed.Attempt, out excavation))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) });
                     NativeWallRemovalRecord wallRemoval;
                     if (state.Subdues.TryGetValue(parsed.Attempt, out var subdue))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = subdue.Observe(parsed.Attempt, context) });

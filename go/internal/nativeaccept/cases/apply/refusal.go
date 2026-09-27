@@ -25,7 +25,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "apply/refusal",
 		Scope: "Apply-time precondition refusals (#242, #252): for zone cell edit, stockpile patch, zone creation, " +
-			"Allow, haul, work settings, bills, build, hunt, tame, grower crop, plant and mine acquisition, excavation and wall " +
+			"Allow, haul, work settings, bills, build, hunt, tame, grower crop, plant and mine acquisition and wall " +
 			"removal, a write whose token was valid when read is executed after the fixture moved the world and is refused " +
 			"with the documented reason naming the moved fact; the acquisition writes are refused the same way without a " +
 			"token, as live dispatch sends them (#243).",
@@ -87,7 +87,7 @@ func run(ctx context.Context, s cases.Session) error {
 	plantCell, rockCell, preyCell, buildCell := cellOf("plantCell"), cellOf("rockCell"), cellOf("preyCell"), cellOf("buildCell")
 	tokens := map[string]string{}
 	for _, key := range []string{"zoneId", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
-		"pawnId", "pawnWorkToken", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef", "excavateToken",
+		"pawnId", "pawnWorkToken", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef",
 		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerToken", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
 			return err
@@ -370,14 +370,6 @@ func run(ctx context.Context, s cases.Session) error {
 		"source":          map[string]any{"entityId": tokens["rockId"]},
 		"resourceDefName": tokens["rockResource"], "cell": rockCell,
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Mine refused: the rock is already designated for mining"); err != nil {
-		return err
-	}
-
-	// Excavation: the mining designation moved the rock's cell token, and
-	// no earlier rule names a designation, so the closing token rule fires.
-	if err := refused("excavate", map[string]any{"excavateCell": map[string]any{
-		"cell": rockCell, "expectedMineableDefName": tokens["rockDef"], "expectedSnapshotToken": tokens["excavateToken"],
-	}}, "FAILURE_CODE_STALE_IDENTITY", "Rock snapshot changed; observe before new admission."); err != nil {
 		return err
 	}
 

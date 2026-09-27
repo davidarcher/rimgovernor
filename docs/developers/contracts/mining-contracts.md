@@ -87,15 +87,14 @@ flag, miner availability and reachability of the access cell (a standing cell be
 it that a mobile colonist can path to; a walled-off mouth is unreachable even when
 the pocket behind it is walkable). A fogged cell is
 unknown, never eligible and never a support witness, so support is reported unknown
-until the pawns have opened enough rock to see. `ExcavateCell` prepares against that
-read while paused, rejects any pending collapse or an unsupported single-cell removal,
+until the pawns have opened enough rock to see. `ExcavateIntent` on Actions/Apply (#940) checks the
+rock live when it applies, rejects any pending collapse or an unsupported single-cell removal,
 adopts an existing Mine designation idempotently (reported as adopted), adopts a cell
 the pawns already cleared as done (applied with cleared evidence and no designation),
 and records a save-persistent excavation record. The excavation guard rechecks cell eligibility and
 set-based support before each pick hit; when the surroundings have changed it
-records the blocker, cancels the designation and ends the job, so the controller's
-next observation reads the action as unsuccessful with that blocker rather than
-pending forever. It does not apply the resource radius rule. Designation, job
+records the blocker, cancels the designation and ends the job, so the next site
+read shows the rock undesignated with that blocker rather than pending forever. It does not apply the resource radius rule. Designation, job
 completion and clearance remain native outcomes; a receipt is not a certificate of a
 usable room.
 

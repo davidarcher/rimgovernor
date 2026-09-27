@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 5, 20, 55, 56, 60;
-  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover";
+  reserved 5, 20, 47, 55, 56, 60;
+  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -96,7 +96,6 @@ message Operation {
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
     PawnTargetOrder pawn_target_order = 36;
-    ExcavateCell excavate_cell = 47;
     CancelAcquisition cancel_acquisition = 54;
     Arrest arrest = 57;
     Uninstall uninstall = 61;
@@ -116,9 +115,6 @@ message DefCount { optional string def_name = 1; optional int32 count = 2; }
 message CellList { repeated rimgovernor.common.v1.Cell cells = 1; }
 message Rectangle { rimgovernor.common.v1.Cell origin = 1; optional int32 width = 2; optional int32 height = 3; }
 message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectangle = 2; } }
-// Excavation designates one rock cell for ordinary pawn mining as part of a
-// staged room/corridor. An existing Mine designation at the cell is adopted.
-message ExcavateCell { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; optional string expected_snapshot_token = 3; }
 message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
 // Designates one exact installed, minifiable, player-owned building for
 // vanilla Uninstall (#843). No snapshot token: native re-evaluates every rule
@@ -412,6 +408,7 @@ message Action {
     CoverIntent cover = 32;
     DesignateIntent designate = 33;
     DeconstructIntent deconstruct = 34;
+    ExcavateIntent excavate = 35;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -434,6 +431,11 @@ message DesignateIntent { optional string thing_id = 1; optional ThingDesignatio
 // designator live when it applies; a target this controller already owns
 // applies again. Revoking authority releases every owned designation.
 message DeconstructIntent { optional string target_id = 1; }
+// Designate one rock cell for ordinary pawn mining as part of a staged
+// room/corridor, adopting a Mine designation already there. Native checks
+// the rock, roof support and the game designator live when it applies; a
+// cell the pawns already cleared applies as cleared.
+message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
 // and label stand in for an entity precondition, and native refuses on any drift.

@@ -15,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/growercrop"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
@@ -71,7 +70,6 @@ type SessionConfig struct {
 	Trade           *TradeCapabilities
 	WallRemoval     *WallRemovalCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
-	Excavation      *excavation.ExcavationCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -344,9 +342,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer ==", ErrControl))
 	}
-	if config.Excavation != nil && (config.Excavation.Native == nil || config.Excavation.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Excavation != nil && (config.Excavation.Native == nil || config.Excavation.Writer == nil)", ErrControl))
-	}
 	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
 	switch {
 	case meleeBoundary != nil && rangedBoundary != nil && moves != nil:
@@ -407,11 +402,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.MineAcquisition != nil {
 		if err := worker.EnableMineAcquisition(mineacquisition.NewMineAcquisitionBoundary(place, *config.MineAcquisition)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Excavation != nil {
-		if err := worker.EnableExcavation(excavation.NewExcavationBoundary(place, *config.Excavation)); err != nil {
 			return cleanup(err)
 		}
 	}
