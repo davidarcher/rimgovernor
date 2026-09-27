@@ -87,15 +87,17 @@ Every GoalID in `go/internal/policy`:
 
 | Concept | GoalIDs |
 | --- | --- |
-| Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices` |
-| Project | `AllowStartingSupplies`, `EnsureInitialShelter`, `EnsureFoodSupply`, `EnsureCooking`, `EnsureBasicDefense`, `EnsureBasicPower`, `EnsureBasicComfort`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
+| Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
+| Project | `AllowStartingSupplies`, `EnsureInitialShelter`, `EnsureCooking`, `EnsureBasicPower`, `EnsureBasicComfort`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainWaste`, `RemoveBlight`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
-| Standard | `EnsureTemperatureSafety`, `EnsureComfort`, `EnsureExpansion`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `TradeWithCaravan`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainStorage` |
+| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `EnsureExpansion`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainStorage` |
 | Rule | none (see above) |
 
-The foothold goals are Projects even where they measure a quantity (food
-days, armed colonists): the foothold is reached once, and a later shortfall
-opens a new Project.
+`policy.GoalConcept` returns this classification, and a test fails on any
+unclassified GoalID. The foothold goals are Projects, except `EnsureFoodSupply`
+and `EnsureBasicDefense`: food days and armed colonists are measured targets
+held over time, so they are Standards. `TradeWithCaravan` handles a caravan
+arrival, so it is a Response.
 
 ## Execute under supervision
 
