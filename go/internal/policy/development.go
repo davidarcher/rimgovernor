@@ -221,7 +221,10 @@ type DevelopmentRequest struct {
 	LaborUse domain.Fact[LaborUse]
 	// Weights zero value uses DefaultDevelopmentWeights.
 	Weights     DevelopmentWeights
-	Goals       []DevelopmentGoal
+	Goals []DevelopmentGoal
+	// Assessments are the review's routine needs; any EmergencyRule holds
+	// freezes development, exactly as it suspends the review.
+	Assessments []RoutineAssessment
 	Commitments []Commitment
 	Previous    DevelopmentState
 	// Partial marks this review's planner pass as a wake subset.
@@ -373,9 +376,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			return DevelopmentState{}, errors.New("invalid development goal")
 		}
 		seen[g.ID] = true
-		// A mental break's mood goal is priority 1 but not an emergency: it
-		// ends only as ticks pass, so it must not freeze development.
-		emergency = emergency || g.Priority < 2 && !IsMoodGoal(g.ID)
+	}
+	for _, a := range r.Assessments {
+		emergency = emergency || EmergencyRule(a)
 	}
 	if len(r.Dependencies) > MaxDevelopmentDependencies {
 		return DevelopmentState{}, errors.New("invalid development dependencies")
