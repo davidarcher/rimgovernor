@@ -246,6 +246,9 @@ func podDoorOrders(m *CombatMemory) []CombatOrder {
 	for i := range m.PodDoors {
 		send(&m.PodDoors[i])
 	}
+	for i := range m.WaitDoors {
+		send(&m.WaitDoors[i])
+	}
 	if m.ManhunterDoor != nil {
 		send(m.ManhunterDoor)
 	}

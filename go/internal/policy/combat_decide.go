@@ -30,6 +30,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
 	formed := false // a manhunter formation this stop (#900)
+	manhunterWaitTurn(view, &next)
 	if pods, ok := view.Pods.Value(); ok && next.Pods == nil {
 		// The arrival row may leave a later frame; the fight keeps it (#891).
 		next.Pods = &pods
@@ -69,6 +70,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	next.Roles = dropMissingTargets(view, next.Roles)
 	manhunterKite(view, &next)
 	manhunterDoor(view, formed, &next)
+	manhunterShelter(view, &next)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -353,6 +355,10 @@ type CombatMemory struct {
 	// chaser past the line (#901).
 	Kiter   domain.PawnID `json:",omitempty"`
 	Leading bool          `json:",omitempty"`
+	// ManhunterWait is a manhunter fight sheltering, outmatched, behind
+	// the doors WaitDoors closes and forbids (#902).
+	ManhunterWait bool      `json:",omitempty"`
+	WaitDoors     []PodDoor `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -376,6 +382,7 @@ func (m CombatMemory) clone() CombatMemory {
 		m.Rescue = &r
 	}
 	m.PodDoors = slices.Clone(m.PodDoors)
+	m.WaitDoors = slices.Clone(m.WaitDoors)
 	if m.ManhunterDoor != nil {
 		d := *m.ManhunterDoor
 		m.ManhunterDoor = &d

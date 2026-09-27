@@ -54,7 +54,12 @@ func waveView(n int) CombatView {
 		}
 		pack = append(pack, animal(PawnID(fmt.Sprintf("w%d", i)), "Wolf_Timber", cell, 6.8))
 	}
-	return withAnimals(view, pack...)
+	view = withAnimals(view, pack...)
+	// Small animals: the pack does not outmatch us (#902).
+	for i := range view.Threats {
+		view.Threats[i].BodySize = domain.Known(0.5)
+	}
+	return view
 }
 
 // {6 manhunters nearest two doors, 2 brawlers, rooms} -> one blocker on
