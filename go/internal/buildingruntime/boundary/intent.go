@@ -28,8 +28,14 @@ func IntentKey(p executor.Placement) string {
 // attempt conflict; a batch failure or a lost reply is unknown, which an
 // idempotent intent may resend.
 func (b *Boundary) DispatchIntent(ctx context.Context, p executor.Placement, writer ActionsWriter) (executor.Receipt, error) {
+	return DispatchIntent(ctx, b.Leases, p, writer)
+}
+
+// DispatchIntent is Boundary.DispatchIntent for a family boundary that keeps
+// only a lease source.
+func DispatchIntent(ctx context.Context, leases LeaseSource, p executor.Placement, writer ActionsWriter) (executor.Receipt, error) {
 	out := executor.Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptUnknown}
-	lease, err := b.Leases.Lease(p.Snapshot)
+	lease, err := leases.Lease(p.Snapshot)
 	if err != nil {
 		return out, err
 	}

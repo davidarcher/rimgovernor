@@ -49,6 +49,9 @@ type RoutineSecureSuppliesPlanner struct {
 type RoutineSecureSuppliesResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks asks for a clock window while an ordered haul is
+	// still on its way (haulWait).
+	NativeWorkTicks uint32
 }
 
 func NewRoutineSecureSuppliesPlanner(reviewer *RoutineReviewer, native RoutineSecureSuppliesSource) (*RoutineSecureSuppliesPlanner, error) {
@@ -68,9 +71,9 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 
 // maxSecureSuppliesHaulAttempts bounds direct hauls of one item per goal
 // episode before SecureSupplies tries its covered-storage fallbacks. Two is
-// enough: a haul that native refuses for a whole stall grace (no storage
-// accepts the item) is cancelled by cancelStaleHaulMethods, and a second
-// identical refusal means the map, not the hauler, is the problem.
+// enough: a haul native refuses (no storage accepts the item) fails its
+// method, and a second identical refusal means the map, not the hauler, is
+// the problem.
 const maxSecureSuppliesHaulAttempts = 2
 
 func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
@@ -122,9 +125,6 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	// SecureSupplies competes for the same bounded concurrent-project capacity
 	// as comfort/expansion/other priority>=3 autopilot goals; only act while
 	// this review's arbitration actually selected it.
-	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
-		return PlanResult{}, err
-	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.SecureSupplies && row.Selected
@@ -161,7 +161,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	if len(targetIDs) == 0 {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
 	}
-	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
 		return PlanResult{}, err
 	} else if open {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil
@@ -242,7 +242,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	snap.NoteSecureSupplies(call, snap.SecureSuppliesCall{Items: items, Pawns: pawns})
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
 	if !ok {
-		return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}, nil
+		return haulWait(items, pawns), nil
 	}
 	haul, err := domain.NewHaul(pawn, item.ID, item.Definition, item.Cell)
 	if err != nil {
@@ -821,6 +821,9 @@ func secureSuppliesHaulerFacts(pawn domain.PawnID, row *n.PawnState) policy.Secu
 	facts := policy.SecureSuppliesHaulerFacts{Pawn: pawn, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
 	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") {
 		facts.PlayerForced = boundary.FactBool(row.Job.PlayerForced)
+	}
+	if row.Job != nil && row.Job.GetDefName() == "HaulToCell" {
+		facts.Hauling = row.Job.GetTargetA().GetEntity().GetId()
 	}
 	if health := row.Health; health != nil && !boundary.IssueField(health.Issues, "health") {
 		facts.NeedsTend, facts.Bleeding = boundary.FactBool(health.NeedsTend), boundary.FactBool(health.Bleeding)

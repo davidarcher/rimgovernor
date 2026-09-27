@@ -26,7 +26,7 @@ func pawnOrderCommand(command *o.PawnTargetOrder) error {
 	if err := draftEntity(command.Target); err != nil {
 		return err
 	}
-	if command.Pawn.GetEntityId() == command.Target.GetEntityId() || command.Kind == nil || len(pawnOrderJobDefs(command.GetKind())) == 0 || command.RequireSafeStorage == nil || command.GetRequireSafeStorage() != pawnOrderRequiresSafeStorage(command.GetKind()) {
+	if command.Pawn.GetEntityId() == command.Target.GetEntityId() || command.Kind == nil || len(pawnOrderJobDefs(command.GetKind())) == 0 || command.RequireSafeStorage == nil || command.GetRequireSafeStorage() {
 		return contract("supported undrafted pawn order kind required")
 	}
 	return nil
@@ -49,7 +49,7 @@ func pawnOrderAttempt(v PawnOrderAttempt) (PawnOrderAttempt, error) {
 	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
-	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || len(pawnOrderJobDefs(v.Kind)) == 0 || v.RequireSafeStorage != pawnOrderRequiresSafeStorage(v.Kind) {
+	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || len(pawnOrderJobDefs(v.Kind)) == 0 || v.RequireSafeStorage {
 		return PawnOrderAttempt{}, contract("invalid pawn order attempt target or kind")
 	}
 	return v, nil

@@ -290,9 +290,9 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// Item 1: a worker is assigned and hauls it into shared storage; poll the
 	// production journal for the goal binding, the committed method's plan,
-	// and its Completed stage -- these transitions are set only by the
-	// production executor's own native observation of completion, the same
-	// mechanism the live game and the live service just exercised for real.
+	// and its Completed stage. Haul is an intent-mode kind (#856): Completed
+	// means native applied the order; the delivery itself shows as the
+	// goal's next deficit being the second item, not this one.
 	goalID, method1, err := waitHaulMethod(ctx, verifyStore, w, "", nil)
 	if err != nil {
 		return fmt.Errorf("first haul method: %w", err)
@@ -597,28 +597,15 @@ func waitHaulMethod(ctx context.Context, s *store.Store, w na.Wait, knownGoal do
 }
 
 // waitHaulCompleted polls one haul plan until its single action reaches a
-// terminal stage. Completed returns the hauled item's thing id. Unsuccessful
-// is always a genuine failure.
+// terminal stage. Completed (the order applied) returns the hauled item's
+// thing id. Unsuccessful is always a genuine failure.
 //
-// Cancelled needs a closer look: domain.Progress.observe (go/internal/domain/progress.go)
-// sets Stage=Cancelled from its EffectAbsent branch specifically when the
-// action's *dispatch-time* GenerationSnapshot no longer matches the current
-// one -- e.g. because the load token or native generation advanced. That happens whenever this
-// harness's own authorityKeepAlive reacquires player authority mid-dispatch,
-// which live observation confirms a disposable headless colony can trigger
-// well before either haul even begins (an incidental native interruption --
-// a random letter, not anything this test scripted -- see authorityKeepAlive's
-// doc comment above). domain.Progress.Observe's own doc comment explains why
-// this is correct, not a bug: it deliberately refuses to resolve a dispatch
-// across an authority discontinuity, rather than risk misattributing its
-// effect. So this Cancelled shape is not a test failure -- it is the executor
-// safely abandoning an in-flight attempt, and the still-live MaintainStorage
-// deficit is expected to get a fresh method on the next routine review. That
-// signal is returned as incidentalCancel=true so the caller can wait for the
-// renewal instead of failing outright -- see waitHaulItem.
-//
-// Any other Cancelled shape (Effect not observed as Absent) is treated as a
-// genuine failure, same as Unsuccessful.
+// A Cancelled action whose effect reads absent is an attempt the executor
+// abandoned before it applied (the planner cancelling a haul whose item left
+// the target list, or authority moving under it); the still-live
+// MaintainStorage deficit gets a fresh method on the next routine review, so
+// it is returned as incidentalCancel=true for the caller to wait for the
+// renewal (waitHaulItem). Any other Cancelled shape is a genuine failure.
 func waitHaulCompleted(ctx context.Context, s *store.Store, w na.Wait, planID domain.PlanID) (item string, incidentalCancel bool, err error) {
 	_, err = na.WaitPlan(ctx, s, w, planID, func(state store.PlanState) (string, bool, error) {
 		actions := state.Spec.Actions()

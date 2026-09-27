@@ -469,7 +469,7 @@ var plannerCatalog = []plannerEntry{
 				return "", err
 			}
 			arbiter.propose("secureSupplies", result, func(outcome ProposalOutcome) {
-				out.SecureSupplies = &RoutineSecureSuppliesResult{Reason: outcome.Reason, Plan: outcome.Plan}
+				out.SecureSupplies = &RoutineSecureSuppliesResult{Reason: outcome.Reason, Plan: outcome.Plan, NativeWorkTicks: uint32(result.NativeWorkTicks)}
 			})
 			return "", nil
 		}},
@@ -566,7 +566,7 @@ var plannerCatalog = []plannerEntry{
 			}
 			arbiter.propose("haul", result, func(outcome ProposalOutcome) {
 				clockSchedulerLog("Haul.step result: reason=%v plan=%s", outcome.Reason, outcome.Plan)
-				out.Haul = &RoutineHaulResult{Reason: outcome.Reason, Plan: outcome.Plan}
+				out.Haul = &RoutineHaulResult{Reason: outcome.Reason, Plan: outcome.Plan, NativeWorkTicks: uint32(result.NativeWorkTicks)}
 			})
 			return "", nil
 		}},

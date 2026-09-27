@@ -7,60 +7,34 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
+
+// bridge registers haul as an intent-mode kind at init; this package does
+// not import bridge.
+func init() { domain.RegisterIntentKind(domain.HaulAction) }
 
 type haulEnvironment struct {
 	*environment
-	inspected, dispatched, observed int
-	uncertain, ineligible, foreign  bool
-	absent                          bool
-	effect                          domain.Effect
-	// running makes each inspection's preview land a few ticks after the
-	// one before while the pawn row keeps its first tick: the step's fact
-	// cache serving a re-read under a running window (#306, #323).
-	running bool
+	inspected, dispatched int
+	uncertain             bool
+	receipt               domain.Receipt
 }
 
-func (n *haulEnvironment) haulFacts(target Target) policy.HaulFacts {
-	haul, _ := target.Action.Haul()
-	pawn := policy.HaulPawnFacts{Pawn: haul.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
-	facts := policy.HaulFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Pawn: pawn, ThingSnapshotToken: "thing-token", NativeCanTry: domain.Known(!n.ineligible)}
-	if n.absent {
-		facts.ThingPresent, facts.ThingSnapshotToken, facts.NativeCanTry = domain.Known(false), "", domain.Known(false)
-	}
-	if n.running {
-		facts.PreviewTick += domain.Tick(3 * n.inspected)
-	}
-	return facts
-}
 func (n *haulEnvironment) InspectHaul(_ context.Context, target Target) (HaulInspection, error) {
 	n.inspected++
 	now := n.clock.Now()
-	return HaulInspection{StartedAt: now, ObservedAt: now, Facts: n.haulFacts(target)}, nil
+	return HaulInspection{StartedAt: now, ObservedAt: now, Snapshot: target.Snapshot, Tick: n.tick}, nil
 }
-func (n *haulEnvironment) HaulThing(_ context.Context, dispatch HaulDispatch) (Receipt, error) {
+func (n *haulEnvironment) WriteHaul(_ context.Context, p Placement) (Receipt, error) {
 	n.dispatched++
 	if n.uncertain {
 		return Receipt{}, errors.New("reply lost")
 	}
-	p := dispatch.Attempt
-	return Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptAccepted}, nil
-}
-func (n *haulEnvironment) ObserveHaul(_ context.Context, dispatch HaulDispatch, current domain.GenerationSnapshot) (HaulEvidence, error) {
-	n.observed++
-	p := dispatch.Attempt
-	pawn, thing := dispatch.Admission.Pawn, dispatch.Admission.Thing
-	if n.foreign {
-		thing = "foreign-thing"
+	kind := n.receipt
+	if kind == "" {
+		kind = domain.ReceiptAccepted
 	}
-	effect := n.effect
-	if effect == "" {
-		effect = domain.EffectUnknown
-	}
-	now := n.clock.Now()
-	return HaulEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causalityFor(effect)}, StartedAt: now, ObservedAt: now, Complete: effect != domain.EffectUnknown, Pawn: pawn, Thing: thing}, nil
+	return Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: kind}, nil
 }
 
 func haulFixture(t *testing.T) (*fixture, *haulEnvironment) {
@@ -88,104 +62,42 @@ func haulFixture(t *testing.T) (*fixture, *haulEnvironment) {
 	return f, n
 }
 
-// TestHaulDispatchesUnderRunningWindow is the #306 stall in the haul family
-// (#323): the second inspection's pawn row is the cached first one while its
-// preview tick has moved past the tick the first preview prepared the action
-// at.
-func TestHaulDispatchesUnderRunningWindow(t *testing.T) {
+// An applied haul is ordered, and its receipt completes the action; where
+// the item went is the next planner review's to read.
+func TestHaulAppliedReceiptCompletes(t *testing.T) {
 	f, n := haulFixture(t)
-	n.running = true
 	result, err := f.run()
-	if err != nil || !result.Progress.View().Unresolved || n.dispatched != 1 || len(result.Refused) != 0 {
+	if err != nil || result.Progress.View().Stage != domain.Completed || result.Progress.View().Unresolved || n.dispatched != 1 || n.inspected != 1 {
 		t.Fatal(result, err, n.dispatched)
 	}
-	if v := result.Progress.View(); v.Tick != n.tick+6 {
-		t.Fatalf("dispatched at %d, want the second preview tick %d", v.Tick, n.tick+6)
+	if result.Progress.View().Tick != n.tick {
+		t.Fatalf("dispatched at %d, want the read tick %d", result.Progress.View().Tick, n.tick)
 	}
 }
 
-func TestHaulAdmitsAndDispatches(t *testing.T) {
+// Native refused the intent against live state: the action fails and the
+// owning routine replans.
+func TestHaulRefusedReceiptFails(t *testing.T) {
 	f, n := haulFixture(t)
+	n.receipt = domain.ReceiptRefused
 	result, err := f.run()
-	if err != nil || !result.Progress.View().Unresolved || n.dispatched != 1 {
-		t.Fatal(result, err, n.dispatched)
-	}
-	state, err := f.store.LoadPlan(context.Background(), f.plan.ID())
-	if err != nil || len(state.HaulAdmissions) != 1 || state.Spec.Actions()[0] != f.action {
-		t.Fatal(state, err)
-	}
-	n.effect = domain.EffectCompleted
-	result, err = f.run()
-	if err != nil || result.Progress.View().Stage != domain.Completed || n.dispatched != 1 {
-		t.Fatal(result, err, n.dispatched)
+	if err != nil || result.Progress.View().Stage != domain.Unsuccessful || n.dispatched != 1 {
+		t.Fatal(result, err)
 	}
 }
 
-func TestHaulUnknownReplyReopensAndObservesAfterManual(t *testing.T) {
+// A lost reply leaves the outcome unknown; the idempotent intent is sent
+// again on the next run.
+func TestHaulLostReplyResends(t *testing.T) {
 	f, n := haulFixture(t)
 	n.uncertain = true
 	result, err := f.run()
-	if err == nil || !result.Progress.View().Unresolved || n.dispatched != 1 || n.inspected != 2 {
-		t.Fatal(result, err, n)
+	if err == nil || result.Progress.View().Stage != domain.Pending || n.dispatched != 1 {
+		t.Fatal(result, err)
 	}
-	if err = f.store.Close(); err != nil {
-		t.Fatal(err)
-	}
-	f.store, err = store.Open(context.Background(), f.path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.store.Close()
-	f.executor.journal, f.executor.haulJournal = f.store, f.store
-	f.authority.Enabled = false
-	if err = f.executor.UpdateAuthority(f.authority); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = f.run(); err != nil {
-		t.Fatal(err)
-	}
-	if n.dispatched != 1 || n.observed != 1 {
-		t.Fatal("uncertainty retried")
-	}
-	n.effect = domain.EffectCompleted
+	n.uncertain = false
 	result, err = f.run()
-	if err != nil || result.Progress.View().Stage != domain.Completed || n.dispatched != 1 {
-		t.Fatal(result, err)
-	}
-}
-
-func TestHaulNativeIneligibleBlocksDispatch(t *testing.T) {
-	f, n := haulFixture(t)
-	n.ineligible = true
-	result, err := f.run()
-	if err != ErrHeld || result.Progress.View().Stage != domain.Pending || n.dispatched != 0 {
-		t.Fatal(result, err)
-	}
-	held, ok := result.Progress.View().FreshHeldReason()
-	if !ok || len(held) != 1 || held[0] != domain.HeldNativeIneligible {
-		t.Fatal("ordinary refusal was not persisted as a held reason", held)
-	}
-}
-
-// A thing that left its cell can never be hauled by this proposal; the action
-// settles as cancelled so the goal's method slot frees for a fresh target.
-func TestHaulAbsentThingCancelsTheAction(t *testing.T) {
-	f, n := haulFixture(t)
-	n.absent = true
-	result, err := f.run()
-	if !errors.Is(err, ErrHeld) || result.Progress.View().Stage != domain.Cancelled || n.dispatched != 0 {
-		t.Fatal(result, err)
-	}
-}
-
-func TestHaulReconcileRejectsForeignThing(t *testing.T) {
-	f, n := haulFixture(t)
-	n.uncertain = true
-	if _, err := f.run(); err == nil {
-		t.Fatal("expected uncertain dispatch")
-	}
-	n.foreign = true
-	if _, err := f.run(); err != ErrEvidence {
-		t.Fatal(err)
+	if err != nil || result.Progress.View().Stage != domain.Completed || n.dispatched != 2 {
+		t.Fatal(result, err, n.dispatched)
 	}
 }

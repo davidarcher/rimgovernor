@@ -39,6 +39,24 @@ type RoutineHaulPlanner struct {
 type RoutineHaulResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks asks for a clock window while an ordered haul is
+	// still on its way (haulWait).
+	NativeWorkTicks uint32
+}
+
+// haulTransitTicks is the window lent while a pawn carries out an ordered
+// haul, after which the census is read again.
+const haulTransitTicks = 250
+
+// haulWait is the result when no item and hauler pair is left to propose.
+// Haul is an intent-mode kind: an applied haul completed its method when it
+// was ordered, and while a pawn is still on its way the item stays listed.
+// Only game time moves it, so the planner lends the clock a short window.
+func haulWait(items []policy.UpkeepItem, pawns []policy.SecureSuppliesHaulerFacts) PlanResult {
+	if policy.HaulInTransit(items, pawns) {
+		return PlanResult{Kind: PlanWaiting, Dependency: "haul in transit", NativeWorkTicks: haulTransitTicks, Reason: BuildingMethodExistingWork}
+	}
+	return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}
 }
 
 func NewRoutineHaulPlanner(reviewer *RoutineReviewer, native RoutineHaulSource) (*RoutineHaulPlanner, error) {
@@ -131,9 +149,6 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	// would refuse a goal that already has a haul in flight on every review
 	// cycle after admission, instead of recognizing it as existing work --
 	// stalling completion and never letting the clock settle (issue #42).
-	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
-		return PlanResult{}, err
-	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
@@ -170,7 +185,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	if len(targetIDs) == 0 {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
 	}
-	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
 		return PlanResult{}, err
 	} else if open {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil
@@ -251,7 +266,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	snap.NoteSecureSupplies(call, snap.SecureSuppliesCall{Items: items, Pawns: pawns})
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
 	if !ok {
-		return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}, nil
+		return haulWait(items, pawns), nil
 	}
 	haul, err := domain.NewHaul(pawn, item.ID, item.Definition, item.Cell)
 	if err != nil {

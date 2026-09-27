@@ -347,7 +347,7 @@ message SetPrisonerInteraction { EntityPrecondition pawn = 1; optional PrisonerI
 message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
 enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
-enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_HAUL = 5; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; reserved 11; }
+enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; reserved 5, 11; reserved "PAWN_ORDER_KIND_HAUL"; }
 message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; optional bool require_safe_storage = 4; }
 // Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
 // one live trade session. Native validates each against live state when it
@@ -437,6 +437,7 @@ message Action {
   oneof intent {
     TradeIntent trade = 10;
     MoveIntent move = 12;
+    HaulIntent haul = 13;
     MeleeIntent melee = 14;
   }
 }
@@ -455,6 +456,13 @@ message MeleeIntent {
 message MoveIntent {
   optional string pawn_id = 1;
   rimgovernor.common.v1.Cell destination = 2;
+}
+// Order one colonist to haul one loose item to the storage the game's own
+// hauling WorkGiver picks. Native refuses when the pawn cannot take the job
+// or the item is gone; a pawn already hauling the item is applied again.
+message HaulIntent {
+  optional string pawn_id = 1;
+  optional string thing_id = 2;
 }
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator (the step's own ids are ignored).

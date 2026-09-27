@@ -30,6 +30,7 @@ func registerIntentKind(kind domain.ActionKind, build func(domain.Action) (*o.Ac
 
 func init() {
 	registerIntentKind(domain.TradeAction, tradeAction)
+	registerIntentKind(domain.HaulAction, haulAction)
 	registerIntentKind(domain.MeleeAttackAction, meleeAction)
 	registerIntentKind(domain.MovementAction, movementAction)
 }

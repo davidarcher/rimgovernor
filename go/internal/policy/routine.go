@@ -81,12 +81,6 @@ type RoutinePolicy struct {
 	// open work forever and blocks the planner from ever trying a different
 	// prey or a non-hunt source.
 	HuntStallTicks int64
-	// HaulStallTicks bounds how long a proposed haul may stay held as
-	// native_ineligible (no storage accepts the thing, no hauler can reach
-	// it) before the planner cancels it so the attempt count advances toward
-	// the covered-storage fallback instead of re-inspecting the same refusal
-	// forever.
-	HaulStallTicks int64
 	// AcquisitionStallTicks bounds how long a dispatched plant-harvest
 	// acquisition may stay designated with its effect pending (no colonist
 	// has taken the designation) before the acquisition and medical
@@ -153,7 +147,7 @@ type RoutinePolicy struct {
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder()}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder()}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -187,9 +181,6 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.HuntStallTicks <= 0 {
 		return errors.New("invalid hunt stall grace")
-	}
-	if p.HaulStallTicks <= 0 {
-		return errors.New("invalid haul stall grace")
 	}
 	if p.AcquisitionStallTicks <= 0 {
 		return errors.New("invalid acquisition stall grace")

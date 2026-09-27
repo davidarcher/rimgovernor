@@ -56,11 +56,11 @@ func TestCancelStaleHaulMethodsFreesTheGoalWhenTheThingIsNoLongerTargeted(t *tes
 	defer journal.Close()
 	goal := staleHaulGoal(t, journal, "Thing_MedicineHerbal1")
 
-	open, err := cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_MedicineHerbal1", "Thing_Other"}, 20, haulContract(6000))
+	open, err := cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_MedicineHerbal1", "Thing_Other"})
 	if err != nil || !open {
 		t.Fatalf("still-targeted haul must stay open: open=%v err=%v", open, err)
 	}
-	open, err = cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_Other"}, 20, haulContract(6000))
+	open, err = cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_Other"})
 	if err != nil || open {
 		t.Fatalf("stale haul must be cancelled: open=%v err=%v", open, err)
 	}
@@ -73,40 +73,7 @@ func TestCancelStaleHaulMethodsFreesTheGoalWhenTheThingIsNoLongerTargeted(t *tes
 	}
 }
 
-// A haul that native keeps refusing (no storage accepts the thing) is
-// cancelled once the same hold has persisted for the stall grace, but not
-// before, so the goal's attempt count can reach its storage fallback.
-func TestCancelStaleHaulMethodsCancelsLongNativeIneligibleHolds(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	journal, err := store.Open(ctx, filepath.Join(t.TempDir(), "stalled.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer journal.Close()
-	goal := staleHaulGoal(t, journal, "Thing_MedicineHerbal1")
-	targets := []string{"Thing_MedicineHerbal1"}
-	for _, tick := range []domain.Tick{100, 3000, 5000} {
-		if _, err = journal.Hold(ctx, "haul-plan", "haul-plan-0", []domain.HeldReason{domain.HeldNativeIneligible}, tick); err != nil {
-			t.Fatal(err)
-		}
-	}
-	open, err := cancelStaleHaulMethods(ctx, journal, goal, targets, 6000, haulContract(6000))
-	if err != nil || !open {
-		t.Fatalf("hold younger than the grace must stay open: open=%v err=%v", open, err)
-	}
-	open, err = cancelStaleHaulMethods(ctx, journal, goal, targets, 6100, haulContract(6000))
-	if err != nil || open {
-		t.Fatalf("hold older than the grace must be cancelled: open=%v err=%v", open, err)
-	}
-}
-
 // The stall contracts under test, with the deadline the case names.
-func haulContract(deadline int64) policy.ProgressContract {
-	p := policy.DefaultRoutinePolicy()
-	p.HaulStallTicks = deadline
-	return p.HaulProgress()
-}
 func huntContract(deadline int64) policy.ProgressContract {
 	p := policy.DefaultRoutinePolicy()
 	p.HuntStallTicks = deadline

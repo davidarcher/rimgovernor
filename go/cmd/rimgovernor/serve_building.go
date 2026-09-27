@@ -379,7 +379,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		capture:             &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
 		equip:               &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
-		haul:                &haul.HaulCapabilities{Native: client, Writer: pawnOrder},
+		haul:                &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		repair:              &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
 		clean:               &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
 		waste:               &buildingruntime.WasteCapabilities{Native: client, Writer: wasteWriter},

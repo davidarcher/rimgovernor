@@ -6,40 +6,29 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
+// HaulJournal is Journal plus the untyped Prepare: a haul intent names its
+// pawn and item itself and native checks both when it applies, so there is
+// no haul admission row to persist.
 type HaulJournal interface {
 	Journal
-	PrepareHaul(context.Context, domain.PlanID, domain.ActionID, store.HaulAdmission) (domain.Progress, error)
+	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 }
 
+// HaulInspection is the native read a haul dispatch is journaled at.
 type HaulInspection struct {
 	StartedAt, ObservedAt time.Time
-	Facts                 policy.HaulFacts
+	Snapshot              domain.GenerationSnapshot
+	Tick                  domain.Tick
 }
 
-type HaulDispatch struct {
-	Attempt   Placement
-	Admission store.HaulAdmission
-}
-
-type HaulEvidence struct {
-	Observation           domain.Observation
-	StartedAt, ObservedAt time.Time
-	Complete              bool
-	Pawn                  domain.PawnID
-	Thing                 string
-}
-
-// HaulBoundary is optionally composed, like TendBoundary: the pawn is not
-// drafted, and the planner has already selected the pawn/thing pair, so this
-// family attaches without a hard NewWithHaul ctor.
+// HaulBoundary is optionally composed, like TradeBoundary: the planner has
+// already selected the pawn and the item. Haul is an intent-mode kind, so
+// its receipt is terminal and there is nothing to observe.
 type HaulBoundary interface {
 	InspectHaul(context.Context, Target) (HaulInspection, error)
-	HaulThing(context.Context, HaulDispatch) (Receipt, error)
-	ObserveHaul(context.Context, HaulDispatch, domain.GenerationSnapshot) (HaulEvidence, error)
+	WriteHaul(context.Context, Placement) (Receipt, error)
 }
 
 // EnableHaul activates the haul capability; see EnableAcquisition (in

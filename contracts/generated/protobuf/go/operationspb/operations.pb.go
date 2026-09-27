@@ -912,7 +912,6 @@ const (
 	PawnOrderKind_PAWN_ORDER_KIND_RESCUE      PawnOrderKind = 2
 	PawnOrderKind_PAWN_ORDER_KIND_CAPTURE     PawnOrderKind = 3
 	PawnOrderKind_PAWN_ORDER_KIND_TEND        PawnOrderKind = 4
-	PawnOrderKind_PAWN_ORDER_KIND_HAUL        PawnOrderKind = 5
 	PawnOrderKind_PAWN_ORDER_KIND_WORK        PawnOrderKind = 6
 	PawnOrderKind_PAWN_ORDER_KIND_REPAIR      PawnOrderKind = 7
 	PawnOrderKind_PAWN_ORDER_KIND_CLEAN       PawnOrderKind = 8
@@ -928,7 +927,6 @@ var (
 		2:  "PAWN_ORDER_KIND_RESCUE",
 		3:  "PAWN_ORDER_KIND_CAPTURE",
 		4:  "PAWN_ORDER_KIND_TEND",
-		5:  "PAWN_ORDER_KIND_HAUL",
 		6:  "PAWN_ORDER_KIND_WORK",
 		7:  "PAWN_ORDER_KIND_REPAIR",
 		8:  "PAWN_ORDER_KIND_CLEAN",
@@ -941,7 +939,6 @@ var (
 		"PAWN_ORDER_KIND_RESCUE":      2,
 		"PAWN_ORDER_KIND_CAPTURE":     3,
 		"PAWN_ORDER_KIND_TEND":        4,
-		"PAWN_ORDER_KIND_HAUL":        5,
 		"PAWN_ORDER_KIND_WORK":        6,
 		"PAWN_ORDER_KIND_REPAIR":      7,
 		"PAWN_ORDER_KIND_CLEAN":       8,
@@ -8876,6 +8873,7 @@ type Action struct {
 	//
 	//	*Action_Trade
 	//	*Action_Move
+	//	*Action_Haul
 	//	*Action_Melee
 	Intent        isAction_Intent `protobuf_oneof:"intent"`
 	unknownFields protoimpl.UnknownFields
@@ -8944,6 +8942,15 @@ func (x *Action) GetMove() *MoveIntent {
 	return nil
 }
 
+func (x *Action) GetHaul() *HaulIntent {
+	if x != nil {
+		if x, ok := x.Intent.(*Action_Haul); ok {
+			return x.Haul
+		}
+	}
+	return nil
+}
+
 func (x *Action) GetMelee() *MeleeIntent {
 	if x != nil {
 		if x, ok := x.Intent.(*Action_Melee); ok {
@@ -8965,6 +8972,10 @@ type Action_Move struct {
 	Move *MoveIntent `protobuf:"bytes,12,opt,name=move,proto3,oneof"`
 }
 
+type Action_Haul struct {
+	Haul *HaulIntent `protobuf:"bytes,13,opt,name=haul,proto3,oneof"`
+}
+
 type Action_Melee struct {
 	Melee *MeleeIntent `protobuf:"bytes,14,opt,name=melee,proto3,oneof"`
 }
@@ -8972,6 +8983,8 @@ type Action_Melee struct {
 func (*Action_Trade) isAction_Intent() {}
 
 func (*Action_Move) isAction_Intent() {}
+
+func (*Action_Haul) isAction_Intent() {}
 
 func (*Action_Melee) isAction_Intent() {}
 
@@ -9094,6 +9107,61 @@ func (x *MoveIntent) GetDestination() *commonpb.Cell {
 	return nil
 }
 
+// Order one colonist to haul one loose item to the storage the game's own
+// hauling WorkGiver picks. Native refuses when the pawn cannot take the job
+// or the item is gone; a pawn already hauling the item is applied again.
+type HaulIntent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PawnId        *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
+	ThingId       *string                `protobuf:"bytes,2,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HaulIntent) Reset() {
+	*x = HaulIntent{}
+	mi := &file_operations_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HaulIntent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HaulIntent) ProtoMessage() {}
+
+func (x *HaulIntent) ProtoReflect() protoreflect.Message {
+	mi := &file_operations_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HaulIntent.ProtoReflect.Descriptor instead.
+func (*HaulIntent) Descriptor() ([]byte, []int) {
+	return file_operations_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *HaulIntent) GetPawnId() string {
+	if x != nil && x.PawnId != nil {
+		return *x.PawnId
+	}
+	return ""
+}
+
+func (x *HaulIntent) GetThingId() string {
+	if x != nil && x.ThingId != nil {
+		return *x.ThingId
+	}
+	return ""
+}
+
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator (the step's own ids are ignored).
 type TradeIntent struct {
@@ -9113,7 +9181,7 @@ type TradeIntent struct {
 
 func (x *TradeIntent) Reset() {
 	*x = TradeIntent{}
-	mi := &file_operations_proto_msgTypes[105]
+	mi := &file_operations_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9125,7 +9193,7 @@ func (x *TradeIntent) String() string {
 func (*TradeIntent) ProtoMessage() {}
 
 func (x *TradeIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[105]
+	mi := &file_operations_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9138,7 +9206,7 @@ func (x *TradeIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeIntent.ProtoReflect.Descriptor instead.
 func (*TradeIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{105}
+	return file_operations_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *TradeIntent) GetTraderId() string {
@@ -9236,7 +9304,7 @@ type Refusal struct {
 
 func (x *Refusal) Reset() {
 	*x = Refusal{}
-	mi := &file_operations_proto_msgTypes[106]
+	mi := &file_operations_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9248,7 +9316,7 @@ func (x *Refusal) String() string {
 func (*Refusal) ProtoMessage() {}
 
 func (x *Refusal) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[106]
+	mi := &file_operations_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9261,7 +9329,7 @@ func (x *Refusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Refusal.ProtoReflect.Descriptor instead.
 func (*Refusal) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{106}
+	return file_operations_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *Refusal) GetCode() commonpb.FailureCode {
@@ -9293,7 +9361,7 @@ type ActionResult struct {
 
 func (x *ActionResult) Reset() {
 	*x = ActionResult{}
-	mi := &file_operations_proto_msgTypes[107]
+	mi := &file_operations_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9305,7 +9373,7 @@ func (x *ActionResult) String() string {
 func (*ActionResult) ProtoMessage() {}
 
 func (x *ActionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[107]
+	mi := &file_operations_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9318,7 +9386,7 @@ func (x *ActionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionResult.ProtoReflect.Descriptor instead.
 func (*ActionResult) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{107}
+	return file_operations_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *ActionResult) GetKey() string {
@@ -9395,7 +9463,7 @@ type ApplyReply struct {
 
 func (x *ApplyReply) Reset() {
 	*x = ApplyReply{}
-	mi := &file_operations_proto_msgTypes[108]
+	mi := &file_operations_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9407,7 +9475,7 @@ func (x *ApplyReply) String() string {
 func (*ApplyReply) ProtoMessage() {}
 
 func (x *ApplyReply) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[108]
+	mi := &file_operations_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9420,7 +9488,7 @@ func (x *ApplyReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyReply.ProtoReflect.Descriptor instead.
 func (*ApplyReply) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{108}
+	return file_operations_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *ApplyReply) GetResults() []*ActionResult {
@@ -10205,12 +10273,13 @@ const file_operations_proto_rawDesc = "" +
 	"\f_max_quality\"\x88\x01\n" +
 	"\fApplyRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
-	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\"\xee\x01\n" +
+	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\"\xab\x02\n" +
 	"\x06Action\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12>\n" +
 	"\x05trade\x18\n" +
 	" \x01(\v2&.rimgovernor.operations.v1.TradeIntentH\x00R\x05trade\x12;\n" +
-	"\x04move\x18\f \x01(\v2%.rimgovernor.operations.v1.MoveIntentH\x00R\x04move\x12>\n" +
+	"\x04move\x18\f \x01(\v2%.rimgovernor.operations.v1.MoveIntentH\x00R\x04move\x12;\n" +
+	"\x04haul\x18\r \x01(\v2%.rimgovernor.operations.v1.HaulIntentH\x00R\x04haul\x12>\n" +
 	"\x05melee\x18\x0e \x01(\v2&.rimgovernor.operations.v1.MeleeIntentH\x00R\x05meleeB\b\n" +
 	"\x06intentB\x06\n" +
 	"\x04_key\"\x8f\x01\n" +
@@ -10228,7 +10297,14 @@ const file_operations_proto_rawDesc = "" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12=\n" +
 	"\vdestination\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\vdestinationB\n" +
 	"\n" +
-	"\b_pawn_id\"\x81\x03\n" +
+	"\b_pawn_id\"c\n" +
+	"\n" +
+	"HaulIntent\x12\x1c\n" +
+	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1e\n" +
+	"\bthing_id\x18\x02 \x01(\tH\x01R\athingId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_pawn_idB\v\n" +
+	"\t_thing_id\"\x81\x03\n" +
 	"\vTradeIntent\x12 \n" +
 	"\ttrader_id\x18\x01 \x01(\tH\x01R\btraderId\x88\x01\x01\x12(\n" +
 	"\rnegotiator_id\x18\x02 \x01(\tH\x02R\fnegotiatorId\x88\x01\x01\x12:\n" +
@@ -10348,20 +10424,19 @@ const file_operations_proto_rawDesc = "" +
 	"\x17ATTACK_MODE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ATTACK_MODE_AUTO\x10\x01\x12\x15\n" +
 	"\x11ATTACK_MODE_MELEE\x10\x02\x12\x16\n" +
-	"\x12ATTACK_MODE_RANGED\x10\x03*\xcc\x02\n" +
+	"\x12ATTACK_MODE_RANGED\x10\x03*\xce\x02\n" +
 	"\rPawnOrderKind\x12\x1f\n" +
 	"\x1bPAWN_ORDER_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PAWN_ORDER_KIND_EQUIP\x10\x01\x12\x1a\n" +
 	"\x16PAWN_ORDER_KIND_RESCUE\x10\x02\x12\x1b\n" +
 	"\x17PAWN_ORDER_KIND_CAPTURE\x10\x03\x12\x18\n" +
 	"\x14PAWN_ORDER_KIND_TEND\x10\x04\x12\x18\n" +
-	"\x14PAWN_ORDER_KIND_HAUL\x10\x05\x12\x18\n" +
 	"\x14PAWN_ORDER_KIND_WORK\x10\x06\x12\x1a\n" +
 	"\x16PAWN_ORDER_KIND_REPAIR\x10\a\x12\x19\n" +
 	"\x15PAWN_ORDER_KIND_CLEAN\x10\b\x12\x1f\n" +
 	"\x1bPAWN_ORDER_KIND_OPEN_CASKET\x10\t\x12\x1a\n" +
 	"\x16PAWN_ORDER_KIND_SUBDUE\x10\n" +
-	"\"\x04\b\v\x10\v*j\n" +
+	"\"\x04\b\x05\x10\x05\"\x04\b\v\x10\v*\x14PAWN_ORDER_KIND_HAUL*j\n" +
 	"\fEndTradeKind\x12\x1e\n" +
 	"\x1aEND_TRADE_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15END_TRADE_KIND_CANCEL\x10\x01\x12\x1f\n" +
@@ -10394,7 +10469,7 @@ func file_operations_proto_rawDescGZIP() []byte {
 }
 
 var file_operations_proto_enumTypes = make([]protoimpl.EnumInfo, 19)
-var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 109)
+var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 110)
 var file_operations_proto_goTypes = []any{
 	(CombatFireMode)(0),                    // 0: rimgovernor.operations.v1.CombatFireMode
 	(CombatDoorMode)(0),                    // 1: rimgovernor.operations.v1.CombatDoorMode
@@ -10520,39 +10595,40 @@ var file_operations_proto_goTypes = []any{
 	(*Action)(nil),                         // 121: rimgovernor.operations.v1.Action
 	(*MeleeIntent)(nil),                    // 122: rimgovernor.operations.v1.MeleeIntent
 	(*MoveIntent)(nil),                     // 123: rimgovernor.operations.v1.MoveIntent
-	(*TradeIntent)(nil),                    // 124: rimgovernor.operations.v1.TradeIntent
-	(*Refusal)(nil),                        // 125: rimgovernor.operations.v1.Refusal
-	(*ActionResult)(nil),                   // 126: rimgovernor.operations.v1.ActionResult
-	(*ApplyReply)(nil),                     // 127: rimgovernor.operations.v1.ApplyReply
-	(*authoritypb.WritePrecondition)(nil),  // 128: rimgovernor.authority.v1.WritePrecondition
-	(*receiptspb.Receipt)(nil),             // 129: rimgovernor.receipts.v1.Receipt
-	(*commonpb.Failure)(nil),               // 130: rimgovernor.common.v1.Failure
-	(*commonpb.Identity)(nil),              // 131: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),    // 132: rimgovernor.common.v1.ObservationContext
-	(*receiptspb.EffectEvidence)(nil),      // 133: rimgovernor.receipts.v1.EffectEvidence
-	(*placementpb.PlacementEvaluated)(nil), // 134: rimgovernor.placement.v1.PlacementEvaluated
-	(*commonpb.Cell)(nil),                  // 135: rimgovernor.common.v1.Cell
-	(*placementpb.PlacementCandidate)(nil), // 136: rimgovernor.placement.v1.PlacementCandidate
-	(placementpb.Rotation)(0),              // 137: rimgovernor.placement.v1.Rotation
-	(commonpb.CorpseClass)(0),              // 138: rimgovernor.common.v1.CorpseClass
-	(*receiptspb.JobEffect)(nil),           // 139: rimgovernor.receipts.v1.JobEffect
-	(commonpb.FailureCode)(0),              // 140: rimgovernor.common.v1.FailureCode
+	(*HaulIntent)(nil),                     // 124: rimgovernor.operations.v1.HaulIntent
+	(*TradeIntent)(nil),                    // 125: rimgovernor.operations.v1.TradeIntent
+	(*Refusal)(nil),                        // 126: rimgovernor.operations.v1.Refusal
+	(*ActionResult)(nil),                   // 127: rimgovernor.operations.v1.ActionResult
+	(*ApplyReply)(nil),                     // 128: rimgovernor.operations.v1.ApplyReply
+	(*authoritypb.WritePrecondition)(nil),  // 129: rimgovernor.authority.v1.WritePrecondition
+	(*receiptspb.Receipt)(nil),             // 130: rimgovernor.receipts.v1.Receipt
+	(*commonpb.Failure)(nil),               // 131: rimgovernor.common.v1.Failure
+	(*commonpb.Identity)(nil),              // 132: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),    // 133: rimgovernor.common.v1.ObservationContext
+	(*receiptspb.EffectEvidence)(nil),      // 134: rimgovernor.receipts.v1.EffectEvidence
+	(*placementpb.PlacementEvaluated)(nil), // 135: rimgovernor.placement.v1.PlacementEvaluated
+	(*commonpb.Cell)(nil),                  // 136: rimgovernor.common.v1.Cell
+	(*placementpb.PlacementCandidate)(nil), // 137: rimgovernor.placement.v1.PlacementCandidate
+	(placementpb.Rotation)(0),              // 138: rimgovernor.placement.v1.Rotation
+	(commonpb.CorpseClass)(0),              // 139: rimgovernor.common.v1.CorpseClass
+	(*receiptspb.JobEffect)(nil),           // 140: rimgovernor.receipts.v1.JobEffect
+	(commonpb.FailureCode)(0),              // 141: rimgovernor.common.v1.FailureCode
 }
 var file_operations_proto_depIdxs = []int32{
-	128, // 0: rimgovernor.operations.v1.ExecuteRequest.precondition:type_name -> rimgovernor.authority.v1.WritePrecondition
+	129, // 0: rimgovernor.operations.v1.ExecuteRequest.precondition:type_name -> rimgovernor.authority.v1.WritePrecondition
 	29,  // 1: rimgovernor.operations.v1.ExecuteRequest.operation:type_name -> rimgovernor.operations.v1.Operation
-	129, // 2: rimgovernor.operations.v1.ExecuteReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
-	130, // 3: rimgovernor.operations.v1.ExecuteReply.failure:type_name -> rimgovernor.common.v1.Failure
-	131, // 4: rimgovernor.operations.v1.PreviewRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	130, // 2: rimgovernor.operations.v1.ExecuteReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
+	131, // 3: rimgovernor.operations.v1.ExecuteReply.failure:type_name -> rimgovernor.common.v1.Failure
+	132, // 4: rimgovernor.operations.v1.PreviewRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	29,  // 5: rimgovernor.operations.v1.PreviewRequest.operation:type_name -> rimgovernor.operations.v1.Operation
 	23,  // 6: rimgovernor.operations.v1.PreviewReply.evaluated:type_name -> rimgovernor.operations.v1.PreviewEvaluation
-	130, // 7: rimgovernor.operations.v1.PreviewReply.failure:type_name -> rimgovernor.common.v1.Failure
-	132, // 8: rimgovernor.operations.v1.PreviewEvaluation.context:type_name -> rimgovernor.common.v1.ObservationContext
-	133, // 9: rimgovernor.operations.v1.PreviewEvaluation.projected:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	131, // 7: rimgovernor.operations.v1.PreviewReply.failure:type_name -> rimgovernor.common.v1.Failure
+	133, // 8: rimgovernor.operations.v1.PreviewEvaluation.context:type_name -> rimgovernor.common.v1.ObservationContext
+	134, // 9: rimgovernor.operations.v1.PreviewEvaluation.projected:type_name -> rimgovernor.receipts.v1.EffectEvidence
 	26,  // 10: rimgovernor.operations.v1.PreviewEvaluation.caravan:type_name -> rimgovernor.operations.v1.CaravanPreparation
 	27,  // 11: rimgovernor.operations.v1.PreviewEvaluation.surgery:type_name -> rimgovernor.operations.v1.SurgeryPreparation
 	28,  // 12: rimgovernor.operations.v1.PreviewEvaluation.trade:type_name -> rimgovernor.operations.v1.TradePreparation
-	134, // 13: rimgovernor.operations.v1.PreviewEvaluation.placement:type_name -> rimgovernor.placement.v1.PlacementEvaluated
+	135, // 13: rimgovernor.operations.v1.PreviewEvaluation.placement:type_name -> rimgovernor.placement.v1.PlacementEvaluated
 	34,  // 14: rimgovernor.operations.v1.CaravanPreparation.selected_cargo:type_name -> rimgovernor.operations.v1.DefCount
 	34,  // 15: rimgovernor.operations.v1.CaravanPreparation.carried_cargo:type_name -> rimgovernor.operations.v1.DefCount
 	24,  // 16: rimgovernor.operations.v1.CaravanPreparation.materials:type_name -> rimgovernor.operations.v1.StockAvailability
@@ -10616,26 +10692,26 @@ var file_operations_proto_depIdxs = []int32{
 	46,  // 74: rimgovernor.operations.v1.Operation.combat_orders:type_name -> rimgovernor.operations.v1.CombatOrders
 	30,  // 75: rimgovernor.operations.v1.SetDrugPolicy.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	32,  // 76: rimgovernor.operations.v1.Assignment.clear:type_name -> rimgovernor.operations.v1.Clear
-	135, // 77: rimgovernor.operations.v1.CellList.cells:type_name -> rimgovernor.common.v1.Cell
-	135, // 78: rimgovernor.operations.v1.Rectangle.origin:type_name -> rimgovernor.common.v1.Cell
+	136, // 77: rimgovernor.operations.v1.CellList.cells:type_name -> rimgovernor.common.v1.Cell
+	136, // 78: rimgovernor.operations.v1.Rectangle.origin:type_name -> rimgovernor.common.v1.Cell
 	35,  // 79: rimgovernor.operations.v1.Cells.explicit_cells:type_name -> rimgovernor.operations.v1.CellList
 	36,  // 80: rimgovernor.operations.v1.Cells.rectangle:type_name -> rimgovernor.operations.v1.Rectangle
-	136, // 81: rimgovernor.operations.v1.PlaceBuilding.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	135, // 82: rimgovernor.operations.v1.ExcavateCell.cell:type_name -> rimgovernor.common.v1.Cell
+	137, // 81: rimgovernor.operations.v1.PlaceBuilding.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
+	136, // 82: rimgovernor.operations.v1.ExcavateCell.cell:type_name -> rimgovernor.common.v1.Cell
 	30,  // 83: rimgovernor.operations.v1.CancelConstruction.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 84: rimgovernor.operations.v1.CancelConstruction.cell:type_name -> rimgovernor.common.v1.Cell
+	136, // 84: rimgovernor.operations.v1.CancelConstruction.cell:type_name -> rimgovernor.common.v1.Cell
 	30,  // 85: rimgovernor.operations.v1.InstallBuilding.packed_or_inner:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 86: rimgovernor.operations.v1.InstallBuilding.destination:type_name -> rimgovernor.common.v1.Cell
-	137, // 87: rimgovernor.operations.v1.InstallBuilding.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	136, // 86: rimgovernor.operations.v1.InstallBuilding.destination:type_name -> rimgovernor.common.v1.Cell
+	138, // 87: rimgovernor.operations.v1.InstallBuilding.rotation:type_name -> rimgovernor.placement.v1.Rotation
 	30,  // 88: rimgovernor.operations.v1.Uninstall.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	30,  // 89: rimgovernor.operations.v1.CombatRescue.downed:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 90: rimgovernor.operations.v1.CombatRescue.dest:type_name -> rimgovernor.common.v1.Cell
-	135, // 91: rimgovernor.operations.v1.CombatDoor.cell:type_name -> rimgovernor.common.v1.Cell
+	136, // 90: rimgovernor.operations.v1.CombatRescue.dest:type_name -> rimgovernor.common.v1.Cell
+	136, // 91: rimgovernor.operations.v1.CombatDoor.cell:type_name -> rimgovernor.common.v1.Cell
 	1,   // 92: rimgovernor.operations.v1.CombatDoor.mode:type_name -> rimgovernor.operations.v1.CombatDoorMode
 	30,  // 93: rimgovernor.operations.v1.CombatOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 94: rimgovernor.operations.v1.CombatOrder.move:type_name -> rimgovernor.common.v1.Cell
+	136, // 94: rimgovernor.operations.v1.CombatOrder.move:type_name -> rimgovernor.common.v1.Cell
 	30,  // 95: rimgovernor.operations.v1.CombatOrder.attack:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 96: rimgovernor.operations.v1.CombatOrder.attack_ground:type_name -> rimgovernor.common.v1.Cell
+	136, // 96: rimgovernor.operations.v1.CombatOrder.attack_ground:type_name -> rimgovernor.common.v1.Cell
 	0,   // 97: rimgovernor.operations.v1.CombatOrder.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
 	32,  // 98: rimgovernor.operations.v1.CombatOrder.hold_position:type_name -> rimgovernor.operations.v1.Clear
 	44,  // 99: rimgovernor.operations.v1.CombatOrder.door:type_name -> rimgovernor.operations.v1.CombatDoor
@@ -10643,13 +10719,13 @@ var file_operations_proto_depIdxs = []int32{
 	43,  // 101: rimgovernor.operations.v1.CombatOrder.rescue:type_name -> rimgovernor.operations.v1.CombatRescue
 	45,  // 102: rimgovernor.operations.v1.CombatOrders.orders:type_name -> rimgovernor.operations.v1.CombatOrder
 	30,  // 103: rimgovernor.operations.v1.AcquireResource.source:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 104: rimgovernor.operations.v1.AcquireResource.cell:type_name -> rimgovernor.common.v1.Cell
+	136, // 104: rimgovernor.operations.v1.AcquireResource.cell:type_name -> rimgovernor.common.v1.Cell
 	30,  // 105: rimgovernor.operations.v1.CancelAcquisition.source:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 106: rimgovernor.operations.v1.CancelAcquisition.cell:type_name -> rimgovernor.common.v1.Cell
+	136, // 106: rimgovernor.operations.v1.CancelAcquisition.cell:type_name -> rimgovernor.common.v1.Cell
 	30,  // 107: rimgovernor.operations.v1.DesignateThing.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	2,   // 108: rimgovernor.operations.v1.DesignateThing.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
 	30,  // 109: rimgovernor.operations.v1.ClearCover.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	135, // 110: rimgovernor.operations.v1.ClearCover.cell:type_name -> rimgovernor.common.v1.Cell
+	136, // 110: rimgovernor.operations.v1.ClearCover.cell:type_name -> rimgovernor.common.v1.Cell
 	30,  // 111: rimgovernor.operations.v1.PatchBuilding.building:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	3,   // 112: rimgovernor.operations.v1.PatchBuilding.power:type_name -> rimgovernor.operations.v1.PowerSetting
 	33,  // 113: rimgovernor.operations.v1.PatchBuilding.owner:type_name -> rimgovernor.operations.v1.Assignment
@@ -10671,7 +10747,7 @@ var file_operations_proto_depIdxs = []int32{
 	33,  // 129: rimgovernor.operations.v1.BillSettings.worker:type_name -> rimgovernor.operations.v1.Assignment
 	59,  // 130: rimgovernor.operations.v1.BillSettings.store:type_name -> rimgovernor.operations.v1.BillStore
 	58,  // 131: rimgovernor.operations.v1.BillSettings.ingredients:type_name -> rimgovernor.operations.v1.FilterPatch
-	138, // 132: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
+	139, // 132: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
 	30,  // 133: rimgovernor.operations.v1.AddBill.bench:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	60,  // 134: rimgovernor.operations.v1.AddBill.settings:type_name -> rimgovernor.operations.v1.BillSettings
 	30,  // 135: rimgovernor.operations.v1.BillPrecondition.bench:type_name -> rimgovernor.operations.v1.EntityPrecondition
@@ -10749,47 +10825,48 @@ var file_operations_proto_depIdxs = []int32{
 	30,  // 207: rimgovernor.operations.v1.AcceptQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	30,  // 208: rimgovernor.operations.v1.FulfillQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	30,  // 209: rimgovernor.operations.v1.FulfillQuest.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	131, // 210: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	132, // 210: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	30,  // 211: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	115, // 212: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	132, // 213: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
-	139, // 214: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
+	133, // 213: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
+	140, // 214: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
 	115, // 215: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	132, // 216: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
+	133, // 216: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
 	116, // 217: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
 	116, // 218: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
 	117, // 219: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
-	130, // 220: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
+	131, // 220: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
 	30,  // 221: rimgovernor.operations.v1.SetApparelPolicy.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	131, // 222: rimgovernor.operations.v1.ApplyRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	132, // 222: rimgovernor.operations.v1.ApplyRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	121, // 223: rimgovernor.operations.v1.ApplyRequest.actions:type_name -> rimgovernor.operations.v1.Action
-	124, // 224: rimgovernor.operations.v1.Action.trade:type_name -> rimgovernor.operations.v1.TradeIntent
+	125, // 224: rimgovernor.operations.v1.Action.trade:type_name -> rimgovernor.operations.v1.TradeIntent
 	123, // 225: rimgovernor.operations.v1.Action.move:type_name -> rimgovernor.operations.v1.MoveIntent
-	122, // 226: rimgovernor.operations.v1.Action.melee:type_name -> rimgovernor.operations.v1.MeleeIntent
-	135, // 227: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	102, // 228: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
-	104, // 229: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
-	105, // 230: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
-	106, // 231: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
-	140, // 232: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
-	129, // 233: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
-	125, // 234: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
-	130, // 235: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
-	126, // 236: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
-	130, // 237: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
-	21,  // 238: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
-	19,  // 239: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
-	115, // 240: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	120, // 241: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
-	22,  // 242: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
-	20,  // 243: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
-	118, // 244: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	127, // 245: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
-	242, // [242:246] is the sub-list for method output_type
-	238, // [238:242] is the sub-list for method input_type
-	238, // [238:238] is the sub-list for extension type_name
-	238, // [238:238] is the sub-list for extension extendee
-	0,   // [0:238] is the sub-list for field type_name
+	124, // 226: rimgovernor.operations.v1.Action.haul:type_name -> rimgovernor.operations.v1.HaulIntent
+	122, // 227: rimgovernor.operations.v1.Action.melee:type_name -> rimgovernor.operations.v1.MeleeIntent
+	136, // 228: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	102, // 229: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
+	104, // 230: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
+	105, // 231: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
+	106, // 232: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
+	141, // 233: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
+	130, // 234: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
+	126, // 235: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
+	131, // 236: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
+	127, // 237: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
+	131, // 238: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
+	21,  // 239: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
+	19,  // 240: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
+	115, // 241: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	120, // 242: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
+	22,  // 243: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
+	20,  // 244: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
+	118, // 245: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	128, // 246: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
+	243, // [243:247] is the sub-list for method output_type
+	239, // [239:243] is the sub-list for method input_type
+	239, // [239:239] is the sub-list for extension type_name
+	239, // [239:239] is the sub-list for extension extendee
+	0,   // [0:239] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }
@@ -10974,18 +11051,20 @@ func file_operations_proto_init() {
 	file_operations_proto_msgTypes[102].OneofWrappers = []any{
 		(*Action_Trade)(nil),
 		(*Action_Move)(nil),
+		(*Action_Haul)(nil),
 		(*Action_Melee)(nil),
 	}
 	file_operations_proto_msgTypes[103].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[104].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[105].OneofWrappers = []any{
+	file_operations_proto_msgTypes[105].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[106].OneofWrappers = []any{
 		(*TradeIntent_Open)(nil),
 		(*TradeIntent_SetLines)(nil),
 		(*TradeIntent_Accept)(nil),
 		(*TradeIntent_End)(nil),
 	}
-	file_operations_proto_msgTypes[106].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[107].OneofWrappers = []any{
+	file_operations_proto_msgTypes[107].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[108].OneofWrappers = []any{
 		(*ActionResult_Applied)(nil),
 		(*ActionResult_Refused)(nil),
 		(*ActionResult_Failed)(nil),
@@ -10996,7 +11075,7 @@ func file_operations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_operations_proto_rawDesc), len(file_operations_proto_rawDesc)),
 			NumEnums:      19,
-			NumMessages:   109,
+			NumMessages:   110,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

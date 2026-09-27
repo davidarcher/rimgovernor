@@ -1242,6 +1242,13 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Trade != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Trade.NativeWorkTicks)
 	}
+	// An ordered haul is carried out on native ticks alone (#856).
+	if out.Haul != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Haul.NativeWorkTicks)
+	}
+	if out.SecureSupplies != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.SecureSupplies.NativeWorkTicks)
+	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoutineResourceResult.NativeWorkTicks).
 	for _, result := range []*RoutineResourceResult{out.Resource, out.AnimalFeed} {
@@ -1880,7 +1887,7 @@ func (s *ClockScheduler) runningWork(call context.Context, snapshot domain.Gener
 // clockWatchedKind reports whether the native clock keeps an operation
 // record for kind that a watch can observe (NativeClockWatch.cs).
 func clockWatchedKind(kind domain.ActionKind) bool {
-	return kind == domain.BuildingAction || kind == domain.HaulAction
+	return kind == domain.BuildingAction
 }
 
 // routineWork is clockSchedulerWork over the authorized routine plans of

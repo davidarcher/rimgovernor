@@ -8,8 +8,7 @@ import (
 
 // RepairTarget refreshes one exact player-owned structure's CAS snapshot
 // token. The general upkeep census deliberately strips snapshot tokens from
-// its rows, so a fresh scoped read is required before dispatch, mirroring
-// ReadHaulTargets for loose things.
+// its rows, so a fresh scoped read is required before dispatch.
 type RepairTarget struct {
 	Context                 *c.ObservationContext
 	Structure               string

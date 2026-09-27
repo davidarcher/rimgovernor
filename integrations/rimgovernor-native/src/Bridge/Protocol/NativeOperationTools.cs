@@ -41,7 +41,6 @@ namespace HomeBridge.BridgeTools
         // Uninstall admissions (NativeUninstallBuilding, #843), observed by the uninstall designation.
         internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Uninstalls = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CoverClearances = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
-        internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
@@ -168,7 +167,6 @@ namespace HomeBridge.BridgeTools
                 {
                     case Operations.PawnOrderKind.Subdue: return NativeSubdueOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Equip: return NativeEquipOperations.Execute(state, request, context);
-                    case Operations.PawnOrderKind.Haul: return NativeHaulOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Capture:
                     case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Clean: return NativeCleanOperations.Execute(state, request, context);
@@ -325,14 +323,13 @@ namespace HomeBridge.BridgeTools
                     {
                         case Operations.PawnOrderKind.Subdue: return ProtoBoundary.Encode(NativeSubdueOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Equip: return ProtoBoundary.Encode(NativeEquipOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        case Operations.PawnOrderKind.Haul: return ProtoBoundary.Encode(NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Capture:
                         case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Clean: return ProtoBoundary.Encode(NativeCleanOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Repair: return ProtoBoundary.Encode(NativeRepairOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                     case Operations.PawnOrderKind.OpenCasket: return ProtoBoundary.Encode(NativeOpenCasketOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Tend: return ProtoBoundary.Encode(NativeTendOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.") });
+                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.") });
                     }
                 }
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
@@ -477,9 +474,6 @@ namespace HomeBridge.BridgeTools
                     NativeDraftRecord draft;
                     if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) }));
-                    NativeHaulRecord haul;
-                    if (state.Hauls.TryGetValue(parsed.Attempt, out haul))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = haul.Observe(parsed.Attempt, context) }));
                     NativeCustodyRecord custody;
                     if (state.Custody.TryGetValue(parsed.Attempt, out custody))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = custody.Observe(parsed.Attempt, context) }));

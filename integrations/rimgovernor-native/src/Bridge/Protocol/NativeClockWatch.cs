@@ -13,8 +13,8 @@ namespace HomeBridge.BridgeTools
     // Native action watches: an epoch armed with watched attempts stops at the
     // tick boundary on which any of them reaches a terminal outcome, instead
     // of playing out its whole tick budget. A key is watchable when it names
-    // a tracked construction or haul record under the requesting identity
-    // (the families whose records observe their own terminal outcome);
+    // a tracked construction record under the requesting identity (the
+    // family whose records observe their own terminal outcome);
     // otherwise the start is refused.
     internal static partial class Supervisor
     {
@@ -32,7 +32,6 @@ namespace HomeBridge.BridgeTools
         private static Func<Common.AttemptKey, Common.ObservationContext, Receipts.Progress>? WatchedRecord(NativeOperationState state, Common.AttemptKey key)
         {
             if (state.Construction.TryGetValue(key, out var construction)) return construction.Observe;
-            if (state.Hauls.TryGetValue(key, out var haul)) return haul.Observe;
             return null;
         }
         private static Common.Failure? ValidWatchedAttempts(Clock.WatchPolicy policy, Common.Identity identity)
@@ -42,7 +41,7 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Watched attempts name no admitted native operation under this identity.");
             foreach (var key in policy.WatchedAttempts)
                 if (WatchedRecord(state, key) == null)
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Watched attempt " + key.ActionId + "/" + key.AttemptId + " is not a tracked construction or haul operation.");
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Watched attempt " + key.ActionId + "/" + key.AttemptId + " is not a tracked construction operation.");
             return null;
         }
         // Caller holds Gate; the epoch has just started. An attempt that is

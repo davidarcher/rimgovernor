@@ -129,13 +129,6 @@ func (p RoutinePolicy) HuntProgress() ProgressContract {
 	return ProgressContract{Method: "hunt", Expected: "designated animal killed or the hunt settled", Deadline: domain.Tick(p.HuntStallTicks)}
 }
 
-// HaulProgress is the haul stall policy: a proposed haul native holds as
-// ineligible (no storage accepts it, no hauler reaches it) for
-// HaulStallTicks is cancelled so the attempt count advances to the fallback.
-func (p RoutinePolicy) HaulProgress() ProgressContract {
-	return ProgressContract{Method: "haul", Expected: "thing carried into storage", Deadline: domain.Tick(p.HaulStallTicks)}
-}
-
 // AcquisitionProgress is the designation stall policy: a plant harvest
 // designated with its effect pending (no colonist took it) for
 // AcquisitionStallTicks is cancelled so the goal re-plans from another

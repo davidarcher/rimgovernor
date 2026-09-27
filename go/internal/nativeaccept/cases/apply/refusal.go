@@ -164,13 +164,6 @@ func run(ctx context.Context, s cases.Session) error {
 	at := func(cell map[string]any) string { return fmt.Sprintf("(%v, %v)", cell["x"], cell["z"]) }
 	zone := map[string]any{"entityId": tokens["zoneId"], "expectedSnapshotToken": tokens["zoneToken"]}
 
-	// The haul order carries the pawn's control snapshot, which only the
-	// pawn listing reports; it is read before the fixture drafts the pawn.
-	pawnToken, err := controlToken(ctx, h, identity, tokens["pawnId"])
-	if err != nil {
-		return err
-	}
-
 	// Build: the open build cell is walled over after the preview accepted
 	// it; the execute refusal is the re-planned preview's own reason.
 	placement := map[string]any{"placeBuilding": map[string]any{"placement": map[string]any{
@@ -248,12 +241,26 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := move("draft-pawn", map[string]any{"action": "draft_pawn", "id": tokens["pawnId"]}); err != nil {
 		return err
 	}
-	if err := refused("haul", map[string]any{"pawnTargetOrder": map[string]any{
-		"pawn":   map[string]any{"entityId": tokens["pawnId"], "expectedSnapshotToken": pawnToken},
-		"target": map[string]any{"entityId": tokens["haulItemId"], "expectedSnapshotToken": tokens["haulItemToken"]},
-		"kind":   "PAWN_ORDER_KIND_HAUL", "requireSafeStorage": true,
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Haul refused: the pawn is drafted"); err != nil {
-		return err
+	// Haul is an intent on Actions/Apply (#856): the refusal is the action's
+	// result, not a failure reply.
+	{
+		reply, err := h.Wire(ctx, "apply-haul", "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{
+			"key": "refusal-haul", "haul": map[string]any{"pawnId": tokens["pawnId"], "thingId": tokens["haulItemId"]},
+		}}})
+		if err != nil {
+			return err
+		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return fmt.Errorf("haul: expected one result, got %#v", reply)
+		}
+		result, _ := na.AsMap(results[0])
+		refusal, ok := na.AsMap(result["refused"])
+		got := na.AsString(refusal["reason"])
+		if !ok || na.AsString(refusal["code"]) != "FAILURE_CODE_INVALID_REQUEST" || !strings.Contains(got, "Haul refused: the pawn is drafted") {
+			return fmt.Errorf("haul: expected the drafted refusal, got %#v", result)
+		}
+		report["haul"] = got
 	}
 	if err := refused("work-settings", map[string]any{"patchPawn": map[string]any{
 		"pawn": map[string]any{"entityId": tokens["pawnId"], "expectedSnapshotToken": tokens["pawnWorkToken"]},
@@ -368,34 +375,4 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	return nil
-}
-
-// controlToken reads pawnID's control snapshot token from the pawn listing,
-// the token a haul order carries for its pawn.
-func controlToken(ctx context.Context, h *na.Harness, identity map[string]any, pawnID string) (string, error) {
-	reply, err := h.Wire(ctx, "list-pawn", "observations_list_pawns", map[string]any{
-		"scope":   map[string]any{"expectedIdentity": identity},
-		"filter":  map[string]any{"ids": []string{pawnID}},
-		"details": map[string]any{},
-		"page":    map[string]any{"limit": 1},
-	})
-	if err != nil {
-		return "", err
-	}
-	_, observed, err := na.Outcome(reply, "observed")
-	if err != nil {
-		return "", err
-	}
-	rows := na.AsSlice(observed["pawns"])
-	if len(rows) != 1 {
-		return "", fmt.Errorf("list-pawn: expected exactly one observed pawn, got %#v", observed)
-	}
-	row, _ := na.AsMap(rows[0])
-	pawn, _ := na.AsMap(row["pawn"])
-	snapshot, _ := na.AsMap(pawn["snapshot"])
-	token := na.AsString(snapshot["token"])
-	if na.AsString(pawn["id"]) != pawnID || token == "" {
-		return "", fmt.Errorf("list-pawn: missing control snapshot for %s: %#v", pawnID, row)
-	}
-	return token, nil
 }

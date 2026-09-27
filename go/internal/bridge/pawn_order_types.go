@@ -46,8 +46,6 @@ func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 		return []string{"Rescue"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE:
 		return []string{"Capture"}
-	case o.PawnOrderKind_PAWN_ORDER_KIND_HAUL:
-		return []string{"HaulToCell", "HaulToContainer"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP:
 		return []string{"Equip"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN:
@@ -67,10 +65,4 @@ func pawnOrderJobDefAllowed(kind o.PawnOrderKind, jobDef string) bool {
 		}
 	}
 	return false
-}
-
-// pawnOrderRequiresSafeStorage is true only for haul, whose exact-quantity
-// ledger the native side gates on this flag; tend/rescue carry no ledger.
-func pawnOrderRequiresSafeStorage(kind o.PawnOrderKind) bool {
-	return kind == o.PawnOrderKind_PAWN_ORDER_KIND_HAUL
 }
