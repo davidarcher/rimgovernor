@@ -47,6 +47,9 @@ message CaravanPreparation { optional float mass_usage = 1; optional float mass_
 message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
 message TradePreparation { optional string session_id = 1; optional string deal_signature = 2; optional string sheet_snapshot_token = 3; optional int32 available_silver = 4; optional int32 goodwill = 5; optional int32 expected_goodwill_gain = 6; optional string resource_def = 7; optional int32 required_count = 8; optional int32 available_count = 9; optional string settlement_id = 10; }
 message Operation {
+  // Trade moved to Actions/Apply (TradeIntent).
+  reserved 37 to 40;
+  reserved "open_trade", "set_trade_lines", "accept_trade", "end_trade";
   oneof command {
     PlaceBuilding place_building = 1;
     CancelConstruction cancel_construction = 2;
@@ -84,10 +87,6 @@ message Operation {
     MovePawn move_pawn = 34;
     AttackTarget attack_target = 35;
     PawnTargetOrder pawn_target_order = 36;
-    OpenTrade open_trade = 37;
-    SetTradeLines set_trade_lines = 38;
-    AcceptTrade accept_trade = 39;
-    EndTrade end_trade = 40;
     FormCaravan form_caravan = 41;
     TravelCaravan travel_caravan = 42;
     GiftCaravanSilver gift_caravan_silver = 43;
@@ -354,10 +353,11 @@ enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
 enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_HAUL = 5; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; PAWN_ORDER_KIND_OPEN_CASKET_HEAT = 11; }
 message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; optional bool require_safe_storage = 4; }
-// Trade intents act on RimWorld's one live trade session. Native validates
-// each against live state when it applies and refuses with a reason when the
-// session is gone or held by a different trader or negotiator; repeating an
-// intent is harmless. OpenTrade reuses a matching open session or walk.
+// Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
+// one live trade session. Native validates each against live state when it
+// applies and refuses with a reason when the session is gone or held by a
+// different trader or negotiator; repeating one is harmless. OpenTrade
+// reuses a matching open session or walk.
 message OpenTrade { reserved 1, 2; optional bool gift_mode = 3; optional string trader_id = 4; optional string negotiator_id = 5; }
 message TradeLine { optional string line_id = 1; optional int32 absolute_count = 2; }
 message SetTradeLines { reserved 1; repeated TradeLine lines = 2; optional bool allow_pawns = 3; optional string trader_id = 4; optional string negotiator_id = 5; }

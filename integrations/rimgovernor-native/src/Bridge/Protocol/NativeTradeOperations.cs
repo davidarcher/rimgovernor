@@ -15,7 +15,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Typed dispatch for the four-step trade vertical: OpenTrade,
+    // The trade arm of Actions/Apply (NativeActionDispatch): OpenTrade,
     // SetTradeLines, AcceptTrade, EndTrade. Ports the legacy JSON home/trade
     // tool's (HomeTradeTools) native mechanics -- RimWorld's own static
     // TradeSession/TradeDeal, TradeSession.SetupWith, Tradeable.AdjustTo,
@@ -523,7 +523,7 @@ namespace HomeBridge.BridgeTools
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
             // close_dialog: the escape hatch. It always succeeds at sweeping
             // any stray Dialog_Trade window; it only additionally closes the
-            // session (below, in Execute) when the named pair holds it.
+            // session (ApplyEnd) when the named pair holds it.
             return true;
         }
 
@@ -694,105 +694,5 @@ namespace HomeBridge.BridgeTools
             if (matches) CloseSession(command.HasReceiveQuest && command.ReceiveQuest);
             return new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = sessionIdForEvidence, Executed = false, Closed = matches } };
         }
-        // -------------------------------------------------------- execute
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            var operation = request.Operation; var pre = request.Precondition;
-            var intent = new Operations.TradeIntent();
-            switch (operation.CommandCase)
-            {
-                case Operations.Operation.CommandOneofCase.OpenTrade: intent.Open = operation.OpenTrade; intent.TraderId = operation.OpenTrade.TraderId; intent.NegotiatorId = operation.OpenTrade.NegotiatorId; break;
-                case Operations.Operation.CommandOneofCase.SetTradeLines: intent.SetLines = operation.SetTradeLines; intent.TraderId = operation.SetTradeLines.TraderId; intent.NegotiatorId = operation.SetTradeLines.NegotiatorId; break;
-                case Operations.Operation.CommandOneofCase.AcceptTrade: intent.Accept = operation.AcceptTrade; intent.TraderId = operation.AcceptTrade.TraderId; intent.NegotiatorId = operation.AcceptTrade.NegotiatorId; break;
-                case Operations.Operation.CommandOneofCase.EndTrade: intent.End = operation.EndTrade; intent.TraderId = operation.EndTrade.TraderId; intent.NegotiatorId = operation.EndTrade.NegotiatorId; break;
-                default: return Refuse(Common.FailureCode.Unsupported, "Trade execute implements OpenTrade, SetTradeLines, AcceptTrade and EndTrade only.");
-            }
-            NativeAttemptLedger.Admission? handle = null;
-            try
-            {
-                var failure = Validate(intent, context.Identity);
-                if (failure != null) return new Operations.ExecuteReply { Failure = failure };
-                if (!TryAdmit(state, request, context, out handle, out var authority, out var refusal)) return refusal;
-                Receipts.EffectEvidence evidence;
-                using (authority.Owned()) evidence = Apply(intent, context);
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
-            }
-            catch (Exception error)
-            {
-                return handle == null
-                    ? Refuse(Common.FailureCode.NativeFailure, "Trade validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, null, "Admitted trade order requires observation: " + error.GetType().Name) };
-            }
-        }
-
-        // Returns null when admission succeeded (handle/authority are set and
-        // the caller should proceed into authority.Owned()), or the exact
-        // reply to return immediately otherwise -- an authority refusal or
-        // the ledger's own retry/duplicate/conflict reply.
-        private static bool TryAdmit(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context,
-            [NotNullWhen(true)] out NativeAttemptLedger.Admission? handle, [NotNullWhen(true)] out NativeControlAuthority? authority,
-            [NotNullWhen(false)] out Operations.ExecuteReply? refusal)
-        {
-            handle = null; authority = null; refusal = null;
-            var pre = request.Precondition;
-            if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)
-            { refusal = Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required."); return false; }
-            var guard = authority.Check(pre.ExpectedGeneration);
-            context.NativeGeneration = guard.Snapshot.Generation;
-            if (!guard.Success) { refusal = new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) }; return false; }
-            var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-            if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) { refusal = admission.DecidedReply; return false; }
-            handle = admission.AdmittedHandle;
-            return true;
-        }
-
-        // -------------------------------------------------------- preview
-        internal static Operations.PreviewReply Preview(Operations.Operation operation, Common.ObservationContext context)
-        {
-            try
-            {
-                var identity = context.Identity;
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.OpenTrade)
-                {
-                    if (!PrepareOpen(operation.OpenTrade, identity, out var trader, out _, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                    var faction = trader!.Faction;
-                    return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
-                    {
-                        Context = context.Clone(), Accepted = true,
-                        Projected = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { FactionId = faction != null ? faction.GetUniqueLoadID() : "" } },
-                        Trade = new Operations.TradePreparation { SettlementId = trader.GetUniqueLoadID(), Goodwill = faction != null ? SafeInt(() => faction.PlayerGoodwill) : 0 },
-                    } });
-                }
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.SetTradeLines)
-                {
-                    var all = RequireSession(identity, out var sessionFailure) ? _sessionDeal!.AllTradeables : new List<Tradeable>();
-                    if (!PrepareLines(operation.SetTradeLines, identity, all, out var prepared, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                    var evidence = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = _sessionId ?? "", DealSignature = DealSignature() } };
-                    foreach (var l in prepared) evidence.Trade.Lines.Add(new Receipts.TradeLineEffect { LineId = "#" + l.Index, BeforeCount = l.Before, AfterCount = l.Target });
-                    return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
-                    { Context = context.Clone(), Accepted = true, Projected = evidence,
-                      Trade = new Operations.TradePreparation { SessionId = _sessionId ?? "", DealSignature = DealSignature(), AvailableSilver = SessionSilver() } } });
-                }
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.AcceptTrade)
-                {
-                    if (!PrepareAccept(operation.AcceptTrade, identity, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                    return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
-                    { Context = context.Clone(), Accepted = true,
-                      Projected = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = _sessionId ?? "", DealSignature = DealSignature() } },
-                      Trade = new Operations.TradePreparation { SessionId = _sessionId ?? "", DealSignature = DealSignature(), AvailableSilver = SessionSilver() } } });
-                }
-                if (operation.CommandCase == Operations.Operation.CommandOneofCase.EndTrade)
-                {
-                    if (!PrepareEnd(operation.EndTrade, identity, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                    return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
-                    { Context = context.Clone(), Accepted = true, Projected = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { SessionId = _sessionId ?? "" } },
-                      Trade = new Operations.TradePreparation { SessionId = _sessionId ?? "", DealSignature = DealSignature(), AvailableSilver = SessionSilver() } } });
-                }
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Trade preview implements OpenTrade, SetTradeLines, AcceptTrade and EndTrade only.") };
-            }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Trade preview failed: " + error.GetType().Name) }; }
-        }
-
-        private static Operations.ExecuteReply Refuse(Common.FailureCode code, string detail) => new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(code, detail) };
     }
 }

@@ -195,11 +195,6 @@ namespace HomeBridge.BridgeTools
                 return NativePrisonerInteractionOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                 return NativeWasteOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.OpenTrade
-                || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetTradeLines
-                || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcceptTrade
-                || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.EndTrade)
-                return NativeTradeOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.FormCaravan)
                 return NativeCaravanOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcceptQuest)
@@ -362,11 +357,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativePrisonerInteractionOperations.Preview(parsed.Operation.SetPrisonerInteraction, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                     return ProtoBoundary.Encode(NativeWasteOperations.Preview(parsed.Operation.ManageWaste, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.OpenTrade
-                    || parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetTradeLines
-                    || parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AcceptTrade
-                    || parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.EndTrade)
-                    return ProtoBoundary.Encode(NativeTradeOperations.Preview(parsed.Operation, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.FormCaravan)
                     return ProtoBoundary.Encode(NativeCaravanOperations.Preview(parsed.Operation.FormCaravan, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AcceptQuest)

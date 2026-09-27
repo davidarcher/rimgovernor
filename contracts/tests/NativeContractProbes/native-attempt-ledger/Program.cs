@@ -122,24 +122,24 @@ internal static class NativeAttemptLedgerProbe
     {
         var ledger=new NativeAttemptLedger(Identity());
         var request=Request();
-        request.Operation=new Operations.Operation { SetTradeLines=new Operations.SetTradeLines
-            { TraderId="trader",NegotiatorId="negotiator",AllowPawns=false } };
-        request.Operation.SetTradeLines.Lines.Add(new Operations.TradeLine { LineId="a",AbsoluteCount=0 });
-        request.Operation.SetTradeLines.Lines.Add(new Operations.TradeLine { LineId="b",AbsoluteCount=1 });
+        request.Operation=new Operations.Operation { FormCaravan=new Operations.FormCaravan
+            { ExpectedCatalogToken="catalog",DestinationTile=0 } };
+        request.Operation.FormCaravan.Cargo.Add(new Operations.CargoSelection { GroupId="a",Count=0 });
+        request.Operation.FormCaravan.Cargo.Add(new Operations.CargoSelection { GroupId="b",Count=1 });
         ledger.Admit(Method,request,Context());
         var reordered=Operations.ExecuteRequest.Parser.ParseJson("{\"operation\":"+JsonFormatter.Default.Format(request.Operation)
             +",\"precondition\":"+JsonFormatter.Default.Format(request.Precondition)+"}");
         Check(ledger.Inspect(Method,reordered).Kind==Kind.InFlight,"field wire order does not alter typed identity");
-        var changed=request.Clone(); changed.Operation.SetTradeLines.ClearAllowPawns();
-        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"false versus absent conflicts");
-        changed=request.Clone(); changed.Operation.SetTradeLines.ClearNegotiatorId();
-        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"original participant precondition preserved");
-        changed=request.Clone(); changed.Operation.SetTradeLines.Lines[0].ClearAbsoluteCount();
+        var changed=request.Clone(); changed.Operation.FormCaravan.ClearDestinationTile();
+        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"zero versus absent conflicts");
+        changed=request.Clone(); changed.Operation.FormCaravan.ClearExpectedCatalogToken();
+        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"original token precondition preserved");
+        changed=request.Clone(); changed.Operation.FormCaravan.Cargo[0].ClearCount();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated nested zero presence preserved");
         changed=request.Clone();
-        var first=changed.Operation.SetTradeLines.Lines[0];
-        changed.Operation.SetTradeLines.Lines[0]=changed.Operation.SetTradeLines.Lines[1];
-        changed.Operation.SetTradeLines.Lines[1]=first;
+        var first=changed.Operation.FormCaravan.Cargo[0];
+        changed.Operation.FormCaravan.Cargo[0]=changed.Operation.FormCaravan.Cargo[1];
+        changed.Operation.FormCaravan.Cargo[1]=first;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated order preserved");
         changed=request.Clone(); changed.Operation.PlaceBuilding=new Operations.PlaceBuilding();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"different command oneof conflicts");

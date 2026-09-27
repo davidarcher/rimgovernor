@@ -7,7 +7,7 @@ import (
 )
 
 // TradeOperationKind selects one of the four native trade sub-operations
-// (NativeTradeOperations.cs / bridge/trade.go's TradeWriter): opening a
+// (NativeTradeOperations.cs / bridge/trade.go's tradeAction): opening a
 // session with an already-selected trader/negotiator pair, staging an
 // already-computed set of line adjustments, accepting an already-observed
 // deal, or ending the session. Trade is RimWorld's single global session
@@ -37,7 +37,7 @@ const (
 
 // TradeLine is one requested row adjustment for SetTradeLines: an absolute
 // (not relative) target count for one already-identified trade sheet row. It
-// mirrors bridge.TradeLineInput exactly, the same way CaravanDeparture's
+// mirrors operations.proto's TradeLine, the same way CaravanDeparture's
 // CargoItem mirrors its own wire counterpart.
 //
 // AbsoluteCount is signed, exactly as operations.proto's own int32
