@@ -122,7 +122,6 @@
       <div class="check"><input type="checkbox" id="shrineOpenCaskets"><label for="shrineOpenCaskets">Open ancient shrine caskets</label></div>
       <div class="check"><input type="checkbox" id="shrineHeatFallback"><label for="shrineHeatFallback">Heat the shrine when no melee guard is free</label></div>
       <div class="check"><input type="checkbox" id="layoutOverlay"><label for="layoutOverlay">Show the layout plan in game</label></div>
-      <div class="field"><label for="foodReserveDays">Food reserve (days)</label><input type="number" id="foodReserveDays" min="0" step="0.5"></div>
     </details>
 
     <details>
@@ -156,13 +155,11 @@ function fill(s) {
   (s.continueState ? $('stateContinue') : $('stateFresh')).checked = true;
   bools.forEach(k => $(k).checked = !!s[k]);
   texts.forEach(k => $(k).value = s[k] || '');
-  $('foodReserveDays').value = s.foodReserveDays;
   policyEnabled();
 }
 
 function read() {
-  const s = { observe: $('modeObserve').checked, continueState: $('stateContinue').checked,
-    foodReserveDays: Number($('foodReserveDays').value) };
+  const s = { observe: $('modeObserve').checked, continueState: $('stateContinue').checked };
   bools.forEach(k => s[k] = $(k).checked);
   texts.forEach(k => s[k] = $(k).value.trim());
   return s;
@@ -171,7 +168,7 @@ function read() {
 // Observe only never writes to the game: play settings do not apply.
 function policyEnabled() {
   const observe = $('modeObserve').checked;
-  ['speed', 'autoStart', 'allowSlaughter', 'allowRelease', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'foodReserveDays', 'chatModel', 'chatBaseURL']
+  ['speed', 'autoStart', 'allowSlaughter', 'allowRelease', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'chatModel', 'chatBaseURL']
     .forEach(k => $(k).disabled = observe);
   $('shrineHeatFallback').disabled = observe || !$('shrineOpenCaskets').checked;
 }

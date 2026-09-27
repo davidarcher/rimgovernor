@@ -3,6 +3,7 @@ package food
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,10 +14,17 @@ import (
 
 const reservePrepareOp, reserveProbeOp = "test/food_reserve_prepare", "test/food_reserve_probe"
 
-// reserveSeed is the unforbidden pemmican the fixture leaves in the food
-// room: under a one-day reserve it covers part of the target, so the goal
-// must both hold it and refill the rest with a preserve bill.
-const reserveSeed = 150
+// reserveSeedShare is the share of the default reserve target the fixture
+// seeds as unforbidden pemmican in the food room: the stock stays short of
+// the target, so the goal must both hold it and refill the rest with a
+// preserve bill.
+const reserveSeedShare = 0.7
+
+// reserveTargetUnits is the pemmican count the default reserve asks for:
+// DefaultFoodReserveDays of 1.6 nutrition per colonist at 0.05 per unit.
+func reserveTargetUnits(colonists int) int {
+	return int(math.Ceil(policy.DefaultFoodReserveDays * float64(colonists) * 1.6 / 0.05))
+}
 
 // reserveRoundTicks is the game time one service round runs before the
 // case stops it to read native state: the bill, the holds and the meals
@@ -33,10 +41,17 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h := s.Harness()
 	identity := s.Identity()
-	prepared, err := h.Call(ctx, "reserve-prepare", reservePrepareOp, map[string]any{"pemmican": reserveSeed})
+	prepared, err := h.Call(ctx, "reserve-prepare", reservePrepareOp, map[string]any{"reserveDays": policy.DefaultFoodReserveDays, "seedShare": reserveSeedShare})
 	if err != nil {
 		return err
 	}
+	seeded, _ := prepared["pemmican"].(float64)
+	colonists, _ := prepared["colonists"].(float64)
+	expected := reserveTargetUnits(int(colonists))
+	if colonists < 1 || seeded < 1 || int(seeded) >= expected {
+		return fmt.Errorf("fixture must seed pemmican short of the %d-unit reserve target: %v", expected, prepared)
+	}
+	report["expected_target_units"] = expected
 	report["fixture"] = prepared
 	if _, err = na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
@@ -44,7 +59,7 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 	// The cooking family stays out: its meal bill sits above the reserve bill
 	// on the single stove and, with meals eaten as fast as they are cooked,
 	// never lets the cook reach the pemmican.
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"bill", "food-storage-upkeep"}, Extra: append(na.ClockSpeedArgs(), "--routine-food-reserve-days", "1")})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"bill", "food-storage-upkeep"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -147,7 +162,7 @@ func runFoodReserve(ctx context.Context, s cases.Session) error {
 		if e == nil {
 			target, _ := bill["target"].(float64)
 			paused, _ := na.AsBool(bill["paused"])
-			if bill["repeat"] == "TargetCount" && paused && held >= int(target) && held >= reserveSeed {
+			if bill["repeat"] == "TargetCount" && paused && held >= int(target) && held >= int(seeded) && target > seeded {
 				break
 			}
 		}

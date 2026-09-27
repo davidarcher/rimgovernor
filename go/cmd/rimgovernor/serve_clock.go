@@ -852,7 +852,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 // and the planner never runs.
 func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.RoutineCapabilities) {
 	thresholds := policy.DefaultRoutinePolicy()
-	thresholds.FoodReserveDays = sc.routineFoodReserveDays
 	capabilities := buildingruntime.RoutineCapabilities{LayoutOverlay: sc.layoutOverlay}
 	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
@@ -942,7 +941,6 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 	}
 	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans || sc.routinePopulationJoinerPlans {
-		thresholds.PrisonerReleaseAfterDays = sc.routinePrisonerReleaseAfterDays
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
 	}
 	if sc.routineHomeCoveragePlans {

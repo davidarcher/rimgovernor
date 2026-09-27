@@ -27,8 +27,8 @@ and lists the installed exclusive interactions `SetPrisonerInteraction` accepts:
 A write requires the exact prior prisoner settings token and a living current-map
 colony prisoner; native gates (recruitable, wild man, classic ideology mode) refuse
 ineligible modes. Routine planning (`MaintainPopulation`) proposes `AttemptRecruit`
-for any recruitable prisoner not already set to it and, only once the operator sets
-`--routine-prisoner-release-after-days N`, `Release` for a prisoner held at least
+for any recruitable prisoner not already set to it and, with
+`RoutinePolicy.PrisonerReleaseAfterDays` = `N` (15 by default), `Release` for a prisoner held at least
 `N` days whom the colony cannot turn (recruit resistance still above zero, or never
 recruitable) while the colony food runway is below its routine target
 (`RoutinePolicy.FoodTargetDays`); a colony at or above its target keeps feeding the
