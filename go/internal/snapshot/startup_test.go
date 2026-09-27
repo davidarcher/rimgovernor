@@ -67,3 +67,36 @@ func TestReplayUpkeepOutlivesTheRecoveredShelter(t *testing.T) {
 		}
 	}
 }
+
+// A wood shortage does not retire the owed shelter (#758): with the
+// recorded review's wood census emptied, the initial shelter stays open
+// and MaintainResource opens beside it to chop the wood back, so the
+// adopted shell holds (TestRoutineShelterHoldsThroughWoodShortage) rather
+// than the goal closing and a second shell being sited once wood returns.
+func TestReplayWoodShortageKeepsTheShelterOwed(t *testing.T) {
+	t.Parallel()
+	r, err := Load(shelterOpen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.Wood = domain.Known(int64(0))
+	resources, _ := r.Facts.Resources.Value()
+	short := make([]policy.Amount, 0, len(resources))
+	for _, a := range resources {
+		if a.Resource != "WoodLog" {
+			short = append(short, a)
+		}
+	}
+	r.Facts.Resources = domain.Known(short)
+	needs, err := r.Detect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	open := map[policy.GoalID]bool{}
+	for _, a := range needs.Assessments {
+		open[a.ID] = a.Need == domain.NeedDeficit
+	}
+	if !open[policy.EnsureInitialShelter] || !open[policy.MaintainResource] {
+		t.Fatalf("wood shortage: shelter owed=%v resource open=%v", open[policy.EnsureInitialShelter], open[policy.MaintainResource])
+	}
+}

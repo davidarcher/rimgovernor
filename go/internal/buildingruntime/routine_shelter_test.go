@@ -202,6 +202,39 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 	}
 }
 
+// An adopted shell holds through a wood shortage (#758): once the ring is
+// on record, a step that reads no wood (or none at all) keeps the plan,
+// previews nothing and sites no second shell; the frames wait natively for
+// the wood MaintainResource chops (TestReplayWoodShortageKeepsTheShelterOwed).
+func TestRoutineShelterHoldsThroughWoodShortage(t *testing.T) {
+	t.Parallel()
+	r, db, n := shelterFixture(t)
+	result, err := r.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	shell := shellMethod(result.Decision.Goal).Plan
+	base, previews := n.onPreview, n.previews
+	n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
+		base(ctx, v)
+		v.Stock.Values[0].Available = domain.Known(int64(0))
+	}
+	for range 3 {
+		again, err := r.Step(context.Background())
+		if err != nil || again.Reason != BuildingMethodExistingWork || n.previews != previews {
+			t.Fatal("shortage replanned the shell", again, err, n.previews)
+		}
+	}
+	plans, err := db.LoadPlans(context.Background(), 256)
+	if err != nil || len(plans) != 5 {
+		t.Fatal("second shell or order under the shortage", len(plans), err)
+	}
+	plan, err := db.LoadPlan(context.Background(), shell)
+	if err != nil || len(plan.Progress) != 32 || !domain.GoalWorkOpen(plan.Progress) {
+		t.Fatal("adopted shell dropped", plan, err)
+	}
+}
+
 func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 	for _, change := range []string{"late-refusal", "footprint", "stock-conflict", "definition", "room-unknown", "terrain", "zone", "protected", "direction"} {
 		t.Run(change, func(t *testing.T) {
