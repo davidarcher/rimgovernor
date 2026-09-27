@@ -3,11 +3,13 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // RoutineAnimalContainmentPlanner composes MaintainAnimalContainment's
@@ -160,6 +162,15 @@ func animalContainmentStuff(a, b observation.PlanningDefinition) (string, bool) 
 	}
 }
 
+// animalContainmentDevelopmentGated reports whether an unselected
+// low-priority goal must wait for development: only a new shell does. Once
+// a shell stands, its PenMarker is the step that makes it a working pen, so
+// a development row refusing Construction labor (the ring's own bottleneck)
+// never strands a finished fence ring without a marker.
+func animalContainmentDevelopmentGated(priority int, selected bool, reason policy.AnimalContainmentReason) bool {
+	return priority >= 3 && !selected && reason == policy.ContainmentBuildShell
+}
+
 func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -191,14 +202,9 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	if goal.Goal.Priority >= 3 {
-		selected := false
-		for _, row := range review.Development.Rows {
-			selected = selected || row.Goal == policy.MaintainAnimalContainment && row.Selected
-		}
-		if !selected {
-			return RoutineAnimalContainmentResult{Reason: BuildingMethodRefused}, nil
-		}
+	selected := false
+	for _, row := range review.Development.Rows {
+		selected = selected || row.Goal == policy.MaintainAnimalContainment && row.Selected
 	}
 	shellStage := policy.ContainmentShellNone
 	markerAttempted := false
@@ -253,6 +259,9 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerAttempted)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
+	}
+	if animalContainmentDevelopmentGated(goal.Goal.Priority, selected, choice.Reason) {
+		return RoutineAnimalContainmentResult{Reason: BuildingMethodRefused}, nil
 	}
 	switch choice.Reason {
 	case policy.ContainmentNoDeficit, policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
@@ -481,6 +490,10 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 		break
 	}
 	if !found {
+		// A finished ring without a marker is not a pen; say why the
+		// interior refused one instead of idling silently.
+		slog.Default().Warn("pen marker found no legal interior cell", telemetry.ComponentKey, "animal-containment",
+			"shell", fmt.Sprintf("%d,%d %dx%d", room.X, room.Z, room.Width, room.Height), "interior_cells", len(cells), "candidates", len(search.Candidates()))
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoSpace}, nil
 	}
 	plan, err := domain.NewPlan(planID, 1, []domain.Action{chosen.Action})
