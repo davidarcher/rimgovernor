@@ -942,9 +942,10 @@ func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope Co
 // draft that native is still executing holds it outright: a recovered goal
 // cancels the plan's unissued orders (settleUnissuedWork) and leaves the
 // dispatched ones to close on their own, which they cannot once the pawn
-// is undrafted under them. A completed intent-mode order (#856) stands on
-// its draft the same way: its receipt is terminal and native keeps executing
-// the job, so the draft is held until the planner cancels the order.
+// is undrafted under them. A completed subdue order (#856) stands
+// on its draft the same way: its intent receipt is terminal while native
+// keeps fighting, so the draft is held until the planner cancels the order
+// (releaseBreakWork, once the victim is downed or out of the break).
 func workerPlanHoldsDraft(plan store.PlanState, v domain.ProgressView) bool {
 	switch v.Stage {
 	case domain.Completed, domain.Dispatched, domain.AwaitingObservation:
@@ -972,7 +973,7 @@ func workerPlanHoldsDraft(plan store.PlanState, v domain.ProgressView) bool {
 		case domain.Pending, domain.Prepared:
 			unfinished = true
 		case domain.Completed:
-			if rides == v.Action && p.Action().Kind().IntentMode() {
+			if rides == v.Action && p.Action().Subdues() {
 				return true
 			}
 		}

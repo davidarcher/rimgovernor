@@ -2,36 +2,19 @@ package executor
 
 import (
 	"context"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"time"
 )
 
+// MeleeJournal is DraftJournal plus the untyped Prepare: a melee intent
+// names its pawn and target and native validates them live, so there is no
+// admission row.
 type MeleeJournal interface {
 	DraftJournal
-	PrepareMelee(context.Context, domain.PlanID, domain.ActionID, store.MeleeAdmission) (domain.Progress, error)
+	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 }
 
-type MeleeInspection struct {
-	StartedAt, ObservedAt time.Time
-	Facts                 policy.MeleeDefenseFacts
-}
-
-type MeleeDispatch struct {
-	Attempt   Placement
-	Admission store.MeleeAdmission
-}
-
-type MeleeEvidence struct {
-	Observation           domain.Observation
-	StartedAt, ObservedAt time.Time
-	Complete              bool
-	Pawn, Target          domain.PawnID
-}
-
+// MeleeBoundary sends a melee attack or subdue intent through Actions/Apply.
 type MeleeBoundary interface {
-	InspectMelee(context.Context, Target, domain.DraftClaim) (MeleeInspection, error)
-	AttackMelee(context.Context, MeleeDispatch) (Receipt, error)
-	ObserveMelee(context.Context, MeleeDispatch, domain.GenerationSnapshot) (MeleeEvidence, error)
+	WriteMelee(context.Context, Placement) (Receipt, error)
 }

@@ -32,6 +32,7 @@ namespace HomeBridge.BridgeTools
         {
             [Operations.Action.IntentOneofCase.Trade] = new TradeActionHandler(),
             [Operations.Action.IntentOneofCase.Move] = new MoveActionHandler(),
+            [Operations.Action.IntentOneofCase.Melee] = new MeleeActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

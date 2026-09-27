@@ -437,7 +437,17 @@ message Action {
   oneof intent {
     TradeIntent trade = 10;
     MoveIntent move = 12;
+    MeleeIntent melee = 14;
   }
+}
+// Put a drafted pawn on a melee attack on a hostile target (a pawn or a
+// census-listed hostile building), or with subdue on a blunt containment
+// attack on an aggressive colonist. Native validates both pawns live and
+// keeps an attack already running on that target.
+message MeleeIntent {
+  optional string pawn_id = 1;
+  optional string target_id = 2;
+  optional bool subdue = 3;
 }
 // Order one alive, spawned, drafted pawn to walk to one standable,
 // reachable cell. Applied means the order was given, or already matched (the

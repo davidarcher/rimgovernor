@@ -247,7 +247,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Draft != nil && (config.Draft.Native == nil || config.Draft.Writer == nil || config.Draft.Cleanup == nil) {
 		return nil, errors.New("complete draft capabilities required")
 	}
-	if config.Melee != nil && (config.Melee.Native == nil || config.Melee.Writer == nil || config.Draft == nil) {
+	if config.Melee != nil && (config.Melee.Writer == nil || config.Draft == nil) {
 		return nil, errors.New("complete melee and draft capabilities required")
 	}
 	if config.Ranged != nil && (config.Ranged.Native == nil || config.Ranged.Writer == nil || config.Draft == nil) {
@@ -309,7 +309,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	var meleeBoundary *melee.MeleeBoundary
 	if config.Melee != nil {
-		meleeBoundary, err = melee.NewMeleeBoundary(config.Melee.Native, config.Melee.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		meleeBoundary, err = melee.NewMeleeBoundary(place, config.Melee.Writer)
 		if err != nil {
 			return cleanup(err)
 		}

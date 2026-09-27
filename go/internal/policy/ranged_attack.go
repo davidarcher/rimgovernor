@@ -9,7 +9,7 @@ import (
 )
 
 // EvaluateRangedDefense admits one observed opponent under an existing exact
-// draft claim, mirroring EvaluateMeleeDefense. The pawn must have a ranged
+// draft claim. The pawn must have a ranged
 // weapon equipped; native previews still decide whether the shot itself is
 // legal (line of sight, distance, ammunition). Explosive-only launchers are
 // never treated as admitting this contract.

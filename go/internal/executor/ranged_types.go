@@ -11,7 +11,7 @@ import (
 
 type RangedJournal interface {
 	DraftJournal
-	PrepareRangedAttack(context.Context, domain.PlanID, domain.ActionID, store.MeleeAdmission) (domain.Progress, error)
+	PrepareRangedAttack(context.Context, domain.PlanID, domain.ActionID, store.RangedAdmission) (domain.Progress, error)
 }
 
 type RangedInspection struct {
@@ -21,7 +21,7 @@ type RangedInspection struct {
 
 type RangedDispatch struct {
 	Attempt   Placement
-	Admission store.MeleeAdmission
+	Admission store.RangedAdmission
 }
 
 type RangedEvidence struct {

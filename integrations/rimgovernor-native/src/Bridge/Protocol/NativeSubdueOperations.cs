@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null && command.HasKind && command.Kind == Operations.PawnOrderKind.Subdue
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
             && command.Pawn.EntityId != command.Target.EntityId && command.HasRequireSafeStorage && !command.RequireSafeStorage;
-        private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
+        internal static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
             out Pawn? pawn, out Pawn? target, out NativePawnSnapshot? snapshot, out Common.Failure failure)
         {
             identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
@@ -88,6 +88,33 @@ namespace HomeBridge.BridgeTools
                 Projected = new Receipts.EffectEvidence { Job = new Receipts.JobEffect { PawnId = command.Pawn.EntityId, JobDef = "AttackMelee",
                     TargetA = new Receipts.JobTarget { ThingId = command.Target.EntityId }, CanTry = true, Issued = false, Verified = false } } } };
         }
+        // Drafts an undrafted subduer under an owned claim; call under authority.
+        internal static NativePawnSnapshot EnsureDrafted(NativeControlIdentity identity, Pawn pawn, NativePawnSnapshot before)
+        {
+            if (before.Drafted) return before;
+            if (NativePawnControlState.PrepareClaim(identity, pawn, before.Token, out var ticket, out _) != NativePawnControlResult.Ready) throw new InvalidOperationException("Draft preparation changed.");
+            pawn.drafter.Drafted = true;
+            if (NativePawnControlState.CompleteClaim(ticket!, out var after) != NativePawnControlResult.Ready || after?.Claim == null) throw new InvalidOperationException("Draft claim unverified.");
+            return after;
+        }
+        // A containment melee job: a legal native blunt attack (including
+        // fists) when available, never killing the downed victim.
+        // JobDriver_AttackMelee passes this verb to TryMeleeAttack unchanged.
+        internal static Job MakeJob(Pawn pawn, Pawn victim)
+        {
+            var job = JobMaker.MakeJob(JobDefOf.AttackMelee, victim); job.killIncappedTarget = false;
+            job.verbToUse = pawn.meleeVerbs.GetUpdatedAvailableVerbsList(false)
+                .Select(v => v.verb).FirstOrDefault(v => v.IsUsableOn(victim) && v.verbProps.meleeDamageDef == DamageDefOf.Blunt);
+            return job;
+        }
+        // Orders the job; it ends once the victim is downed or out of the break.
+        internal static bool Take(Pawn pawn, Job job, Pawn victim)
+        {
+            bool accepted = pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+            if (accepted && pawn.CurJob == job) pawn.jobs.curDriver.AddEndCondition(() => victim.Dead || victim.Destroyed ? JobCondition.Incompletable
+                : victim.Downed || !victim.InAggroMentalState ? JobCondition.Succeeded : JobCondition.Ongoing);
+            return accepted;
+        }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
             var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
@@ -102,23 +129,13 @@ namespace HomeBridge.BridgeTools
                 handle = admission.AdmittedHandle;
                 using (authority.Owned()) {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out identity, out pawn, out target, out before, out _)) throw new InvalidOperationException("Subdue prerequisites changed.");
-                    if (!before!.Drafted) {
-                        if (NativePawnControlState.PrepareClaim(identity, pawn!, before.Token, out var ticket, out _) != NativePawnControlResult.Ready) throw new InvalidOperationException("Draft preparation changed.");
-                        pawn!.drafter.Drafted = true;
-                        if (NativePawnControlState.CompleteClaim(ticket!, out before) != NativePawnControlResult.Ready || before?.Claim == null) throw new InvalidOperationException("Draft claim unverified.");
-                    }
+                    before = EnsureDrafted(identity, pawn!, before!);
                     var victim = target!;
-                    var job = JobMaker.MakeJob(JobDefOf.AttackMelee, victim); job.killIncappedTarget = false;
-                    // Use a legal native blunt attack (including fists) when available.
-                    // JobDriver_AttackMelee passes this verb to TryMeleeAttack unchanged.
-                    job.verbToUse = pawn!.meleeVerbs.GetUpdatedAvailableVerbsList(false)
-                        .Select(v => v.verb).FirstOrDefault(v => v.IsUsableOn(victim) && v.verbProps.meleeDamageDef == DamageDefOf.Blunt);
+                    var job = MakeJob(pawn!, victim);
                     var record = new NativeSubdueRecord(identity, pawn!, victim, job, before!, context);
                     state.Subdues.Add(pre.Attempt.Clone(), record);
-                    bool accepted = pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                    if (accepted && pawn.CurJob == job) pawn.jobs.curDriver.AddEndCondition(() => victim.Dead || victim.Destroyed ? JobCondition.Incompletable
-                        : victim.Downed || !victim.InAggroMentalState ? JobCondition.Succeeded : JobCondition.Ongoing);
-                    if (NativePawnControlState.Observe(identity, pawn, out var after) != NativePawnControlResult.Ready || after == null) throw new InvalidOperationException("Subdue readback unavailable.");
+                    bool accepted = Take(pawn!, job, victim);
+                    if (NativePawnControlState.Observe(identity, pawn!, out var after) != NativePawnControlResult.Ready || after == null) throw new InvalidOperationException("Subdue readback unavailable.");
                     bool correlated = record.Capture(before!, after); evidence = record.Evidence(after, accepted, correlated);
                     if (!accepted || !correlated) throw new InvalidOperationException("Subdue dispatch unverified.");
                 }

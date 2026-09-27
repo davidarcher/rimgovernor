@@ -372,7 +372,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		deconstruction:  &buildingruntime.DeconstructionCapabilities{Native: client, Writer: deconstructionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
-		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
+		melee:               &melee.MeleeCapabilities{Writer: actionsWriter},
 		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
 		movement:            &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},

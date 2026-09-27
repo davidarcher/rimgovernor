@@ -165,7 +165,7 @@ namespace HomeBridge.BridgeTools
             }
             return definition!=null;
         }
-        private static bool Resolve(Operations.AttackTarget command,Common.ObservationContext context,out NativeControlIdentity identity,
+        internal static bool Resolve(Operations.AttackTarget command,Common.ObservationContext context,out NativeControlIdentity identity,
             out Pawn? pawn,out Thing? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure,bool requireLegal=true)
         {
             identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);

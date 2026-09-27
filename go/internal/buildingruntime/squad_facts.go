@@ -9,8 +9,8 @@ import (
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// meleeCapable mirrors the equipment-known derivation already inline in
-// InspectMelee: melee needs no specific weapon, only complete information
+// meleeCapable reports whether equipment is completely known:
+// melee needs no specific weapon, only complete information
 // about whether one is equipped (native picks fists or an equipped weapon).
 func meleeCapable(equipment *n.PawnEquipment) domain.Fact[bool] {
 	if equipment == nil || equipment.Armed == nil || boundary.IssueField(equipment.Issues, "equipped") || boundary.IssueField(equipment.Issues, "armed") {

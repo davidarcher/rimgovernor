@@ -16,15 +16,13 @@ func TestBreakResponseStateKinds(t *testing.T) {
 	}{{"Berserk", true}, {"MurderousRage", true}, {"Slaughterer", true}, {"ModdedAggression", true}, {"Wander_Sad", false}, {"Binging_Food", false}, {"Tantrum", false}, {"HideInRoom", false}} {
 		t.Run(tc.name, func(t *testing.T) {
 			pawn := breakingPawn(tc.name, tc.aggro)
-			r := meleeRequest(t)
-			facts := r.Facts.Emergency.facts
-			facts.Threats = nil
-			facts.Colonists = append(facts.Colonists, pawn)
-			snapshot, err := NewEmergencySnapshot(r.Current, 13, facts)
+			current := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Native: 1}
+			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}, pawn}}
+			snapshot, err := NewEmergencySnapshot(current, 13, facts)
 			if err != nil {
 				t.Fatal(err)
 			}
-			threats, _ := EmergencyNeeds(snapshot, r.Current, 13)
+			threats, _ := EmergencyNeeds(snapshot, current, 13)
 			n, known := threats.Value()
 			if !known || (n == 1) != tc.aggro {
 				t.Fatalf("emergency: %v", threats)
@@ -126,45 +124,5 @@ func TestBreakResponseSquadBoundsAndEligibility(t *testing.T) {
 	}
 	if !InBreakRadius(domain.Cell{X: 8}, domain.Cell{}) || InBreakRadius(domain.Cell{X: 9}, domain.Cell{}) {
 		t.Fatal("radius boundary")
-	}
-}
-
-func TestSubdueAdmissionPreemptsOtherMedicalButNotResponderHealth(t *testing.T) {
-	base := meleeRequest(t)
-	m, _ := domain.NewSubdue("pawn", "target", "draft")
-	a, _ := domain.NewMeleeAttackAction("attack", m)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{base.DraftProgress.Action(), a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	base.Action = a
-	base.Progress, _ = domain.NewProgress(plan, a.ID())
-	victim := breakingPawn("Berserk", true)
-	victim.Bleeding = domain.Known(true)
-	base.Facts.Emergency.facts.Threats = nil
-	base.Facts.Emergency.facts.Colonists = append(base.Facts.Emergency.facts.Colonists, victim)
-	base.Facts.Target.MentalState = victim.MentalState
-	base.Facts.Target.FreeColonist = domain.Known(true)
-	base.Facts.Target.Hostile = domain.Known(false)
-	if d := EvaluateMeleeDefense(base); !d.Admitted {
-		t.Fatal(d)
-	}
-	for _, kind := range []string{"recovered", "noncolonist", "downed", "unhealthy"} {
-		t.Run(kind, func(t *testing.T) {
-			r := base
-			switch kind {
-			case "recovered":
-				r.Facts.Target.MentalState = domain.Known(MentalState{DefName: "Wander_Sad"})
-			case "noncolonist":
-				r.Facts.Target.FreeColonist = domain.Known(false)
-			case "downed":
-				r.Facts.Target.Downed = domain.Known(true)
-			case "unhealthy":
-				r.Facts.Pawn.NeedsTend = domain.Known(true)
-			}
-			if EvaluateMeleeDefense(r).Admitted {
-				t.Fatal("unsafe subdue admitted")
-			}
-		})
 	}
 }

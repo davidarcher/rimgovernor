@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
@@ -14,15 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	"google.golang.org/protobuf/proto"
 )
-
-type meleeSessionNative struct{ *melee.Fixture }
-
-func (f meleeSessionNative) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-	return bridge.EmergencyObservation{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []policy.EmergencyThreat{{ID: "target", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}}}, bridge.Result{}, nil
-}
 
 func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	t.Parallel()
@@ -34,16 +25,13 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	}
 	defer journal.Close()
 	_, f, dispatch := melee.NewFixture(t)
-	native := meleeSessionNative{f}
 	id, err := journal.Identity(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Receipt.Attempt.ControllerSessionId = proto.String(string(id))
-	f.Progress.Attempt.ControllerSessionId = proto.String(string(id))
 	pawnDraft, _ := domain.NewOwnedDraft("pawn")
 	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Attempt.Action})
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +39,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, building := boundary.NewFixture(t)
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Writer: f}}
 	s, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 1}, sessionNative{building}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +48,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if s.State().Enabled || f.Writes != 0 {
 		t.Fatal("constructor granted or wrote")
 	}
-	snapshot, err := s.Acquire(ctx, dispatch.Attempt.Snapshot)
+	snapshot, err := s.Acquire(ctx, dispatch.Snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,8 +58,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if _, err = journal.Dispatch(ctx, plan.ID(), d.ID(), snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
-	claim := dispatch.Admission.DraftClaim
-	claim.Session = domain.ControllerSessionID(id)
+	claim := domain.DraftClaim{Action: d.ID(), Attempt: 1, Pawn: "pawn", Claim: "claim", Session: domain.ControllerSessionID(id), Origin: snapshot}
 	if _, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot, domain.Known(claim)); err != nil {
 		t.Fatal(err)
 	}
@@ -82,26 +69,54 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if !workerEligible(state, state.Progress[1].View(), s.State(), playerWorld(snapshot)) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot), false) {
 		t.Fatal("pending melee did not retain draft")
 	}
-	r, err := s.Run(ctx, plan.ID(), dispatch.Attempt.Action.ID())
-	if err != nil || !r.NativeCalled || f.Writes != 1 {
+	r, err := s.Run(ctx, plan.ID(), dispatch.Action.ID())
+	if err != nil || !r.NativeCalled || f.Applies != 1 || r.Progress.View().Stage != domain.Completed {
 		t.Fatal(r, err)
 	}
-	r, err = s.Run(ctx, plan.ID(), dispatch.Attempt.Action.ID())
-	if err != nil || r.Progress.View().Stage != domain.Completed {
-		t.Fatal(r, err)
-	}
+	// The applied subdue is terminal but native keeps fighting: its draft is
+	// held, and the resume sweep leaves it alone.
 	state, err = journal.LoadPlan(ctx, plan.ID())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot), false) {
-		t.Fatal("completed melee retained draft")
+	world := playerWorld(snapshot)
+	if !workerPlanHoldsDraft(state, state.Progress[0].View()) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), world, false) {
+		t.Fatal("completed subdue released its draft")
 	}
-	if err = s.Manual(ctx); err != nil {
+	if err = s.drafts.run(ctx, true); err != nil || f.Releases != 0 {
+		t.Fatal("sweep released a held draft", err)
+	}
+	if !domain.GoalWorkOpen(state.Progress) {
+		t.Fatal("held draft let the goal close")
+	}
+	// The victim still raging keeps the order; once downed, the break review
+	// cancels it, the draft is released and the goal's work closes.
+	victim := policy.EmergencyPawn{ID: "target", MentalState: domain.Known(policy.MentalState{DefName: "Berserk", IsAggro: true}), Dead: domain.Known(false), Downed: domain.Known(false)}
+	facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false)}, victim}}
+	plans, err := journal.LoadPlans(ctx, 256)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Releases != 1 || s.State().Enabled {
-		t.Fatal("manual did not release original draft")
+	if err = releaseBreakWork(ctx, journal, snapshot, facts, plans); err != nil {
+		t.Fatal(err)
+	}
+	if state, err = journal.LoadPlan(ctx, plan.ID()); err != nil || !workerPlanHoldsDraft(state, state.Progress[0].View()) {
+		t.Fatal("a raging victim released the subdue", err)
+	}
+	facts.Colonists[1].Downed = domain.Known(true)
+	if err = releaseBreakWork(ctx, journal, snapshot, facts, plans); err != nil {
+		t.Fatal(err)
+	}
+	if state, err = journal.LoadPlan(ctx, plan.ID()); err != nil || state.Progress[1].View().Stage != domain.Cancelled || workerPlanHoldsDraft(state, state.Progress[0].View()) {
+		t.Fatal("downed victim did not end the subdue", err)
+	}
+	for range 3 {
+		if err = s.drafts.run(ctx, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if state, err = journal.LoadPlan(ctx, plan.ID()); err != nil || f.Releases != 1 || domain.GoalWorkOpen(state.Progress) {
+		t.Fatal("cancelled subdue did not release its draft and close", f.Releases, err)
 	}
 }
 
@@ -119,16 +134,13 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	}
 	defer journal.Close()
 	_, f, dispatch := melee.NewFixture(t)
-	native := meleeSessionNative{f}
 	id, err := journal.Identity(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Receipt.Attempt.ControllerSessionId = proto.String(string(id))
-	f.Progress.Attempt.ControllerSessionId = proto.String(string(id))
 	pawnDraft, _ := domain.NewOwnedDraft("pawn")
 	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Attempt.Action})
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Action})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,13 +148,13 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, building := boundary.NewFixture(t)
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Writer: f}}
 	s, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 1}, sessionNative{building}, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close(ctx)
-	snapshot, err := s.Acquire(ctx, dispatch.Attempt.Snapshot)
+	snapshot, err := s.Acquire(ctx, dispatch.Snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,8 +164,7 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	if _, err = journal.Dispatch(ctx, plan.ID(), d.ID(), snapshot, 10); err != nil {
 		t.Fatal(err)
 	}
-	claim := dispatch.Admission.DraftClaim
-	claim.Session = domain.ControllerSessionID(id)
+	claim := domain.DraftClaim{Action: d.ID(), Attempt: 1, Pawn: "pawn", Claim: "claim", Session: domain.ControllerSessionID(id), Origin: snapshot}
 	if _, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot, domain.Known(claim)); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +182,7 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	}
 	// The resume's drain keeps it too, and the pending order is eligible
 	// again under the new scope.
-	resumed, err := s.Acquire(ctx, dispatch.Attempt.Snapshot)
+	resumed, err := s.Acquire(ctx, dispatch.Snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +195,7 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 		t.Fatal("resumed scope does not carry the held draft", scope)
 	}
 	// Only a plan that still holds it: a cancelled sibling makes it cleanup.
-	if _, err = journal.Cancel(ctx, plan.ID(), dispatch.Attempt.Action.ID()); err != nil {
+	if _, err = journal.Cancel(ctx, plan.ID(), dispatch.Action.ID()); err != nil {
 		t.Fatal(err)
 	}
 	if cancelled, err := journal.LoadPlan(ctx, plan.ID()); err != nil || !workerCleanupEligible(cancelled, cancelled.Progress[0].View(), scope, world, false) {
@@ -209,13 +220,11 @@ func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) 
 	defer journal.Close()
 	_, native, _ := melee.NewFixture(t)
 	_, building := boundary.NewFixture(t)
-	for _, mode := range []string{"missing-draft", "missing-native", "missing-writer"} {
-		config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: native.Fixture, Writer: native.Fixture, Cleanup: native.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
+	for _, mode := range []string{"missing-draft", "missing-writer"} {
+		config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: native.Fixture, Writer: native.Fixture, Cleanup: native.Fixture}, Melee: &melee.MeleeCapabilities{Writer: native}}
 		switch mode {
 		case "missing-draft":
 			config.Draft = nil
-		case "missing-native":
-			config.Melee.Native = nil
 		case "missing-writer":
 			config.Melee.Writer = nil
 		}
@@ -238,15 +247,15 @@ func TestMeleeWorkerDisabledOnlyReconcilesOriginalWorld(t *testing.T) {
 	_, native, dispatch := melee.NewFixture(t)
 	pawnDraft, _ := domain.NewOwnedDraft("pawn")
 	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
-	plan, _ := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Attempt.Action})
+	plan, _ := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Action})
 	p, _ := domain.NewProgress(plan, "attack")
 	state := store.PlanState{Spec: plan, Progress: []domain.Progress{p}}
-	world := playerWorld(dispatch.Attempt.Snapshot)
+	world := playerWorld(dispatch.Snapshot)
 	if workerEligible(state, p.View(), ControlState{}, world) {
 		t.Fatal("disabled pending attack eligible")
 	}
-	p, _ = p.Prepare(dispatch.Attempt.Snapshot, 10)
-	p, _ = p.MarkDispatched(dispatch.Attempt.Snapshot, 10)
+	p, _ = p.Prepare(dispatch.Snapshot, 10)
+	p, _ = p.MarkDispatched(dispatch.Snapshot, 10)
 	if !workerEligible(state, p.View(), ControlState{}, world) {
 		t.Fatal("disabled unresolved attack cannot reconcile")
 	}
@@ -254,7 +263,7 @@ func TestMeleeWorkerDisabledOnlyReconcilesOriginalWorld(t *testing.T) {
 	if workerEligible(state, p.View(), ControlState{}, world) {
 		t.Fatal("replacement world retargeted attack")
 	}
-	if native.Writes != 0 {
+	if native.Applies != 0 {
 		t.Fatal("eligibility wrote native")
 	}
 }

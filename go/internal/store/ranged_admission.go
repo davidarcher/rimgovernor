@@ -12,7 +12,10 @@ import (
 
 type ActionRangedAdmission = ranged.ActionAdmission
 
-func validateRangedPrerequisite(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, v MeleeAdmission, live bool) error {
+// RangedAdmission binds the exact pawn pair and prerequisite draft at dispatch.
+type RangedAdmission = ranged.Admission
+
+func validateRangedPrerequisite(ctx context.Context, tx *sql.Tx, state PlanState, action domain.ActionID, v RangedAdmission, live bool) error {
 	if err := checkClaimSession(ctx, tx, v.DraftClaim); err != nil {
 		return err
 	}
@@ -45,8 +48,8 @@ func validateRangedPrerequisite(ctx context.Context, tx *sql.Tx, state PlanState
 }
 
 // PrepareRangedAttack records both exact pawn snapshots and the verified
-// prerequisite in the same transaction as preparation, mirroring PrepareMelee.
-func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, action domain.ActionID, v MeleeAdmission) (domain.Progress, error) {
+// prerequisite in the same transaction as preparation.
+func (s *Store) PrepareRangedAttack(ctx context.Context, plan domain.PlanID, action domain.ActionID, v RangedAdmission) (domain.Progress, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return domain.Progress{}, err

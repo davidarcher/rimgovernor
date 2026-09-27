@@ -58,7 +58,7 @@ func (e *Executor) runRangedAttack(ctx context.Context, action domain.Action, pr
 	}
 	minimum := v.Tick
 	var inspection RangedInspection
-	var admission store.MeleeAdmission
+	var admission store.RangedAdmission
 	for range 2 {
 		if err := e.guard(ctx, expected, generation); err != nil {
 			return result, err
@@ -104,7 +104,7 @@ func (e *Executor) runRangedAttack(ctx context.Context, action domain.Action, pr
 			return result, ErrHeld
 		}
 		facts := inspection.Facts
-		admission = store.MeleeAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: m.Pawn(), Target: m.Target(), PawnSnapshotToken: facts.Pawn.SnapshotToken, TargetSnapshotToken: facts.Target.SnapshotToken, DraftClaim: claim}
+		admission = store.RangedAdmission{Snapshot: expected, Tick: facts.PreviewTick, Pawn: m.Pawn(), Target: m.Target(), PawnSnapshotToken: facts.Pawn.SnapshotToken, TargetSnapshotToken: facts.Target.SnapshotToken, DraftClaim: claim}
 		next, err := e.rangedJournal.PrepareRangedAttack(ctx, v.Plan, v.Action, admission)
 		if err != nil {
 			return result, err
@@ -155,7 +155,7 @@ func (e *Executor) reconcileRangedAttack(ctx context.Context, result Result, gen
 	if err != nil {
 		return result, err
 	}
-	var admission store.MeleeAdmission
+	var admission store.RangedAdmission
 	found := false
 	for _, record := range state.RangedAdmissions {
 		if record.Action == v.Action {

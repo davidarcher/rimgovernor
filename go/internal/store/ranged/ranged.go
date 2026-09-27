@@ -1,7 +1,6 @@
 // Package ranged holds the ranged-attack action family's admission record,
 // validation and load logic, split out of internal/store for independent
-// build/test caching. Ranged attacks share their admission shape with melee
-// (see internal/store/melee); the prerequisite-draft cross-check and dispatch
+// build/test caching. The prerequisite-draft cross-check and dispatch
 // guard stay in internal/store because they operate over the full plan
 // aggregate (PlanState), which would otherwise create an import cycle.
 package ranged
@@ -14,10 +13,17 @@ import (
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/store/melee"
 )
 
-type Admission = melee.Admission
+// Admission binds the exact pawn pair and prerequisite draft at dispatch.
+// Snapshot tokens and the claim are evidence, never a persisted lease.
+type Admission struct {
+	Snapshot                               domain.GenerationSnapshot
+	Tick                                   domain.Tick
+	Pawn, Target                           domain.PawnID
+	PawnSnapshotToken, TargetSnapshotToken string
+	DraftClaim                             domain.DraftClaim
+}
 type ActionAdmission struct {
 	Action    domain.ActionID
 	Admission Admission

@@ -84,7 +84,8 @@ const (
 // simply excluded here rather than equipped inline (RoutineEquipPlanner arms
 // colonists on its own independently-scheduled goal).
 //
-// Assignments are a proposal only; EvaluateMeleeDefense/EvaluateRangedDefense
+// Assignments are a proposal only; native (melee intents) and
+// EvaluateRangedDefense
 // re-validate each chosen (defender, target) pair against fresh facts before
 // dispatch, and downed/dead opponents drop out at that point without being
 // re-selected here.

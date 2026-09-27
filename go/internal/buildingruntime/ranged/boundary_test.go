@@ -68,7 +68,7 @@ func newRangedFixture(t *testing.T) (*RangedAttackBoundary, *rangedFixture, exec
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := executor.RangedDispatch{Attempt: f.P, Admission: store.MeleeAdmission{Snapshot: f.P.Snapshot, Tick: 10, Pawn: "pawn", Target: "target", PawnSnapshotToken: "cas", TargetSnapshotToken: "target-cas", DraftClaim: claim}}
+	d := executor.RangedDispatch{Attempt: f.P, Admission: store.RangedAdmission{Snapshot: f.P.Snapshot, Tick: 10, Pawn: "pawn", Target: "target", PawnSnapshotToken: "cas", TargetSnapshotToken: "target-cas", DraftClaim: claim}}
 	return b, fixture, d
 }
 func (f *rangedFixture) ReadCombatPawns(ctx context.Context, id *c.Identity, ids []string) (*n.ListPawnsReply, bridge.Result, error) {

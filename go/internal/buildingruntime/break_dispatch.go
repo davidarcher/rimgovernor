@@ -26,6 +26,9 @@ func breakCell(row *n.PawnState) domain.Fact[domain.Cell] {
 
 // Release the breaking pawn's action claims through ordinary cancellation;
 // dispatched attempts remain reconcilable and owned drafts retain cleanup.
+// A subdue order, applied or not, is cancelled once its victim is no longer
+// in an aggressive break (downed, recovered or gone): that ends the hold on
+// its draft (workerPlanHoldsDraft), the cleanup releases it and the plan retires.
 func releaseBreakWork(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot, f policy.EmergencyFacts, plans []store.PlanState) error {
 	broken := map[domain.PawnID]bool{}
 	aggressive := map[domain.PawnID]bool{}
@@ -57,7 +60,7 @@ func releaseBreakWork(ctx context.Context, journal *store.Store, current domain.
 		}
 		for _, p := range plan.Progress {
 			v := p.View()
-			if m, ok := p.Action().MeleeAttack(); ok && m.Subdue() && ck && complete && !aggressive[m.Target()] && !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared) {
+			if m, ok := p.Action().MeleeAttack(); ok && m.Subdue() && ck && complete && !aggressive[m.Target()] && !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Completed) {
 				if _, err = journal.Cancel(ctx, plan.Spec.ID(), v.Action); err != nil {
 					return err
 				}

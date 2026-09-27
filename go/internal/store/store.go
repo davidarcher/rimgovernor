@@ -30,7 +30,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
 	"github.com/davidarcher/RimGovernor/go/internal/store/haul"
-	"github.com/davidarcher/RimGovernor/go/internal/store/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/store/repair"
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
@@ -67,7 +66,6 @@ type PlanState struct {
 	Progress                      []domain.Progress
 	Admissions                    []ActionAdmission
 	DraftAdmissions               []ActionDraftAdmission
-	MeleeAdmissions               []ActionMeleeAdmission
 	AcquisitionAdmissions         []ActionAcquisitionAdmission
 	SupplyAdmissions              []ActionSupplyAdmission
 	WorkAdmissions                []ActionWorkAdmission
@@ -268,7 +266,6 @@ CREATE TABLE zone_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), 
 CREATE TABLE work_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE supply_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE melee_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE rescue_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE capture_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -371,7 +368,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM melee_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM haul_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM research_select_admissions LIMIT 0", "SELECT action_id,payload FROM confirm_colony_names_admissions LIMIT 0", "SELECT action_id,payload FROM apparel_policy_admissions LIMIT 0", "SELECT action_id,payload FROM dialog_answer_admissions LIMIT 0", "SELECT action_id,payload FROM husbandry_admissions LIMIT 0", "SELECT action_id,payload FROM home_coverage_admissions LIMIT 0", "SELECT action_id,payload FROM prisoner_interaction_admissions LIMIT 0", "SELECT action_id,payload FROM quest_accept_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM cover_clearance_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM caravan_departure_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT action_id,payload FROM bed_assign_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM haul_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM research_select_admissions LIMIT 0", "SELECT action_id,payload FROM confirm_colony_names_admissions LIMIT 0", "SELECT action_id,payload FROM apparel_policy_admissions LIMIT 0", "SELECT action_id,payload FROM dialog_answer_admissions LIMIT 0", "SELECT action_id,payload FROM husbandry_admissions LIMIT 0", "SELECT action_id,payload FROM home_coverage_admissions LIMIT 0", "SELECT action_id,payload FROM prisoner_interaction_admissions LIMIT 0", "SELECT action_id,payload FROM quest_accept_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM cover_clearance_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM caravan_departure_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT action_id,payload FROM bed_assign_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -733,16 +730,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if present {
 			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
 		}
-		meleeAdmission, meleePresent, e := melee.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.MeleeAttackAction && !meleePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("melee progress lacks admission")
-		}
-		if meleePresent {
-			state.MeleeAdmissions = append(state.MeleeAdmissions, ActionMeleeAdmission{Action: a.ID(), Admission: meleeAdmission})
-		}
 		tendAdmission, tendPresent, e := tend.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -982,11 +969,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if wallRemovalPresent {
 			state.WallRemovalAdmissions = append(state.WallRemovalAdmissions, ActionWallRemovalAdmission{Action: a.ID(), Admission: wallRemovalAdmission})
-		}
-	}
-	for _, record := range state.MeleeAdmissions {
-		if err := validateMeleePrerequisite(ctx, tx, state, record.Action, record.Admission, false); err != nil {
-			return PlanState{}, err
 		}
 	}
 	for _, record := range state.RangedAdmissions {
@@ -1510,9 +1492,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 	}
 	if err = guardDraftAdvance(ctx, tx, state, action, event); err != nil {
-		return domain.Progress{}, err
-	}
-	if err = guardMeleeAdvance(ctx, tx, state, action, event); err != nil {
 		return domain.Progress{}, err
 	}
 	if err = guardRangedAdvance(ctx, tx, state, action, event); err != nil {

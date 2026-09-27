@@ -8,7 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func rangedStoreFixture(t *testing.T, completed bool) (*Store, string, MeleeAdmission) {
+func rangedStoreFixture(t *testing.T, completed bool) (*Store, string, RangedAdmission) {
 	t.Helper()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "ranged.db")
@@ -30,14 +30,14 @@ func rangedStoreFixture(t *testing.T, completed bool) (*Store, string, MeleeAdmi
 		t.Fatal(err)
 	}
 	claim := domain.DraftClaim{Action: "draft", Attempt: 1, Pawn: "pawn", Claim: "claim", Session: domain.ControllerSessionID(session), Origin: snapshot}
-	v := MeleeAdmission{Snapshot: snapshot, Tick: 12, Pawn: "pawn", Target: "hostile", PawnSnapshotToken: "pawn-cas", TargetSnapshotToken: "target-cas", DraftClaim: claim}
+	v := RangedAdmission{Snapshot: snapshot, Tick: 12, Pawn: "pawn", Target: "hostile", PawnSnapshotToken: "pawn-cas", TargetSnapshotToken: "target-cas", DraftClaim: claim}
 	if completed {
 		rangedCompleteDraft(t, s, v)
 	}
 	return s, path, v
 }
 
-func rangedCompleteDraft(t *testing.T, s *Store, v MeleeAdmission) {
+func rangedCompleteDraft(t *testing.T, s *Store, v RangedAdmission) {
 	t.Helper()
 	ctx := context.Background()
 	if _, err := s.PrepareDraft(ctx, "plan", "draft", DraftAdmission{Snapshot: v.Snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "draft-cas"}); err != nil {
@@ -58,7 +58,7 @@ func rangedCompleteDraft(t *testing.T, s *Store, v MeleeAdmission) {
 	}
 }
 
-func rangedBeginRelease(t *testing.T, s *Store, v MeleeAdmission) domain.DraftRelease {
+func rangedBeginRelease(t *testing.T, s *Store, v RangedAdmission) domain.DraftRelease {
 	t.Helper()
 	p, err := s.BeginDraftCleanup(context.Background(), "plan", "draft", domain.DraftReleaseRequest{Claim: v.DraftClaim, PawnSnapshotToken: "release-cas", Observed: v.Snapshot, Tick: 12})
 	if err != nil {
@@ -77,17 +77,17 @@ func TestRangedAdmissionRequiresVerifiedMatchingClaimAndFreshTokens(t *testing.T
 		t.Fatal("pending draft admitted attack")
 	}
 	rangedCompleteDraft(t, s, v)
-	changes := []func(*MeleeAdmission){
-		func(v *MeleeAdmission) { v.DraftClaim.Claim = "wrong" },
-		func(v *MeleeAdmission) { v.DraftClaim.Session = "foreign" },
-		func(v *MeleeAdmission) { v.DraftClaim.Attempt++ },
-		func(v *MeleeAdmission) { v.Snapshot.Load = "replacement"; v.DraftClaim.Origin = v.Snapshot },
-		func(v *MeleeAdmission) { v.Snapshot.Native++; v.DraftClaim.Origin = v.Snapshot },
-		func(v *MeleeAdmission) { v.Snapshot.Native++; v.DraftClaim.Origin = v.Snapshot },
-		func(v *MeleeAdmission) { v.PawnSnapshotToken = "" },
-		func(v *MeleeAdmission) { v.TargetSnapshotToken = "\x00" },
-		func(v *MeleeAdmission) { v.Target = "other" },
-		func(v *MeleeAdmission) { v.Tick = 10 },
+	changes := []func(*RangedAdmission){
+		func(v *RangedAdmission) { v.DraftClaim.Claim = "wrong" },
+		func(v *RangedAdmission) { v.DraftClaim.Session = "foreign" },
+		func(v *RangedAdmission) { v.DraftClaim.Attempt++ },
+		func(v *RangedAdmission) { v.Snapshot.Load = "replacement"; v.DraftClaim.Origin = v.Snapshot },
+		func(v *RangedAdmission) { v.Snapshot.Native++; v.DraftClaim.Origin = v.Snapshot },
+		func(v *RangedAdmission) { v.Snapshot.Native++; v.DraftClaim.Origin = v.Snapshot },
+		func(v *RangedAdmission) { v.PawnSnapshotToken = "" },
+		func(v *RangedAdmission) { v.TargetSnapshotToken = "\x00" },
+		func(v *RangedAdmission) { v.Target = "other" },
+		func(v *RangedAdmission) { v.Tick = 10 },
 	}
 	for i, change := range changes {
 		bad := v
