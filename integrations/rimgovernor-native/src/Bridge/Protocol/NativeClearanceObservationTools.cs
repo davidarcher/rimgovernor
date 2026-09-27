@@ -54,12 +54,8 @@ namespace HomeBridge.BridgeTools
                     ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count + chunks.Count);
                     began = Now();
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
-                    var salvageSafety = parsed.IncludeSalvage ? new EventLootFacts.HaulingSafety(map) : null;
-                    var salvageYields = new Dictionary<ThingDef, (Thing item, long headroom)>();
                     var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
-                    long salvageHits = 0, salvageRecomputes = 0;
-                    var salvageSeen = new HashSet<int>();
-                    if (salvageSafety != null) PrepareSalvageCache(map, salvageSafety);
+                    var salvage = parsed.IncludeSalvage ? SalvageRead.Begin(map) : null;
                     var undelivered = new List<Thing>();
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
                         if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
@@ -98,28 +94,16 @@ namespace HomeBridge.BridgeTools
                         var blocker = RoofSupportSafety.Blocker(building, out _);
                         roofTicks += Now() - phase;
                         if (blocker != null) row.RoofBlocker = blocker;
-                        if (!row.InHome && salvageSafety != null) {
+                        if (!row.InHome && salvage != null) {
                             phase = Now();
-                            var local = LocalSignature(building);
-                            if (salvageCache.TryGetValue(building.thingIDNumber, out var cached) && cached.local == local) salvageHits++;
-                            else {
-                                salvageCache[building.thingIDNumber] = cached = (local, Salvage(map, building, salvageSafety, salvageYields));
-                                salvageRecomputes++;
-                            }
-                            salvageSeen.Add(building.thingIDNumber);
-                            row.Salvage = cached.evidence.Clone();
+                            var evidence = salvage.Evidence(building);
+                            if (evidence != null) row.Salvage = evidence;
                             salvageTicks += Now() - phase;
                             salvageRows++;
                         }
                         snapshot.Targets.Add(row);
                     }
-                    salvageSafety?.Dispose();
-                    if (salvageSafety != null) {
-                        // Evict buildings that left the census (removed,
-                        // deconstructed, now in Home or fogged).
-                        foreach (var gone in salvageCache.Keys.Where(k => !salvageSeen.Contains(k)).ToList()) salvageCache.Remove(gone);
-                        ObservationWork.Captured("clearanceSalvageRecompute", 0, salvageRecomputes, salvageHits + salvageRecomputes);
-                    }
+                    salvage?.End();
                     // #984: per-phase main-thread cost of the target rows; the
                     // row remainder is fog/footprint checks, designations and
                     // proto construction.
@@ -173,25 +157,140 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        // Cross-read salvage cache (#984): a live map census paid ~1 ms per
+        // Cross-read salvage cache (#984): salvage evidence costs ~1 ms per
         // out-of-Home ruin (colonist path searches, return routes, storage
-        // headroom) on every routine read. Evidence is kept per building
-        // thingIDNumber for one map of one game and dropped wholesale when the
-        // colony-wide signature changes: the game hour, the free colonists
-        // (identity, drafted, hauling, area restriction), the visible
-        // hazard count and the storage cell count/group layout. A per-building
-        // signature (forbidden, burning, hit points, position) recomputes that
-        // row alone. Staleness is bounded to one game hour of stockpile
-        // occupancy and colonist positions (path lengths drift); the
-        // deconstruct job itself re-paths natively when it runs. Main thread
-        // only, like every census read.
+        // headroom), so it is kept per building thingIDNumber for one map of
+        // one game and refreshed over frames by RefreshSalvage (driven from
+        // ObservationFrameHook, main thread) instead of inside a Read. An
+        // entry is stale when its per-building signature (forbidden,
+        // burning, hit points, position) or the colony signature it was
+        // computed under (game hour, visible hazard count, free colonists'
+        // identity/drafted/hauling/area, storage groups) changed; a stale
+        // entry keeps serving its old value until the refresher reaches it,
+        // oldest first, within salvageFrameBudgetMs per update. Read serves
+        // every cached entry and computes only rows with no entry, capped at
+        // salvageInlineBudgetMs except on a Read that starts with an empty
+        // cache; a row past the cap carries no Salvage (remote salvage holds
+        // it as salvage_unknown) and the refresher fills it for the next
+        // Read. The refresher only walks targets a Read listed, so a colony
+        // that never asks pays nothing.
         private const int salvageTickBucket = 2500;
-        private static readonly Dictionary<int, (long local, Obs.SalvageEvidence evidence)> salvageCache = new Dictionary<int, (long, Obs.SalvageEvidence)>();
+        private const double salvageFrameBudgetMs = 1.5;
+        private const double salvageInlineBudgetMs = 5;
+        private const double salvageSignatureEveryMs = 250;
+        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal Obs.SalvageEvidence Evidence = null!; }
+        private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
+        private static readonly Dictionary<int, Building> salvageTargets = new Dictionary<int, Building>();
         private static Game? salvageGame;
         private static int salvageMap = -1;
-        private static long salvageSignature;
+        private static long salvageSignature, salvageStamp;
+        // The shared hauling-safety pass: rebuilt, and the colony signature
+        // recomputed from it, at most every salvageSignatureEveryMs.
+        private static EventLootFacts.HaulingSafety? passSafety;
+        private static readonly Dictionary<ThingDef, (Thing item, long headroom)> passYields = new Dictionary<ThingDef, (Thing, long)>();
+        private static long passBuilt;
+        private static long backgroundRows, backgroundTicks;
 
-        private static void PrepareSalvageCache(Map map, EventLootFacts.HaulingSafety safety)
+        private static double Ms(long ticks) => ticks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
+        private static void DropPass() { passSafety?.Dispose(); passSafety = null; passYields.Clear(); }
+
+        private static EventLootFacts.HaulingSafety Pass(Map map)
+        {
+            var now = Now();
+            if (passSafety != null && Ms(now - passBuilt) < salvageSignatureEveryMs) return passSafety;
+            DropPass();
+            passSafety = new EventLootFacts.HaulingSafety(map);
+            passBuilt = now;
+            salvageSignature = ColonySignature(map, passSafety);
+            return passSafety;
+        }
+
+        private static Obs.SalvageEvidence Store(Map map, Building b, long local)
+        {
+            var safety = Pass(map);
+            var entry = new SalvageEntry { Local = local, Colony = salvageSignature, Stamp = ++salvageStamp, Evidence = Salvage(map, b, safety, passYields) };
+            salvageCache[b.thingIDNumber] = entry;
+            return entry.Evidence;
+        }
+
+        private static void Forget(IEnumerable<int> gone)
+        {
+            foreach (var id in gone.ToList()) { salvageTargets.Remove(id); salvageCache.Remove(id); }
+        }
+
+        // RefreshSalvage runs once per Unity update on the game thread.
+        internal static void RefreshSalvage()
+        {
+            if (salvageTargets.Count == 0 || salvageGame != Current.Game) return;
+            var map = Find.Maps.FirstOrDefault(m => m.uniqueID == salvageMap);
+            if (map == null) return;
+            var began = Now();
+            Pass(map);
+            List<int>? gone = null;
+            var stale = new List<(long stamp, Building building, long local)>();
+            foreach (var kv in salvageTargets) {
+                var b = kv.Value;
+                if (!b.Spawned || b.Map != map) { (gone ??= new List<int>()).Add(kv.Key); continue; }
+                var local = LocalSignature(b);
+                if (!salvageCache.TryGetValue(kv.Key, out var e)) stale.Add((long.MinValue, b, local));
+                else if (e.Local != local || e.Colony != salvageSignature) stale.Add((e.Stamp, b, local));
+            }
+            if (gone != null) Forget(gone);
+            foreach (var s in stale.OrderBy(s => s.stamp)) {
+                if (Ms(Now() - began) >= salvageFrameBudgetMs) break;
+                Store(map, s.building, s.local);
+                backgroundRows++;
+            }
+            backgroundTicks += Now() - began;
+        }
+
+        private sealed class SalvageRead
+        {
+            private readonly Map map;
+            private readonly bool unbounded;
+            private readonly HashSet<int> seen = new HashSet<int>();
+            private long inline, served, inlineTicks;
+            private SalvageRead(Map map, bool unbounded) { this.map = map; this.unbounded = unbounded; }
+
+            internal static SalvageRead Begin(Map map)
+            {
+                if (salvageGame != Current.Game || salvageMap != map.uniqueID) {
+                    salvageCache.Clear();
+                    salvageTargets.Clear();
+                    DropPass();
+                    salvageGame = Current.Game;
+                    salvageMap = map.uniqueID;
+                }
+                return new SalvageRead(map, salvageCache.Count == 0);
+            }
+
+            internal Obs.SalvageEvidence? Evidence(Building b)
+            {
+                var id = b.thingIDNumber;
+                seen.Add(id);
+                salvageTargets[id] = b;
+                if (salvageCache.TryGetValue(id, out var e)) { served++; return e.Evidence.Clone(); }
+                if (!unbounded && Ms(inlineTicks) >= salvageInlineBudgetMs) return null;
+                var began = Now();
+                var evidence = Store(map, b, LocalSignature(b));
+                inlineTicks += Now() - began;
+                inline++;
+                return evidence.Clone();
+            }
+
+            // End evicts buildings that left the census (removed,
+            // deconstructed, now in Home or fogged) and reports the counters.
+            internal void End()
+            {
+                Forget(salvageTargets.Keys.Where(k => !seen.Contains(k)));
+                ObservationWork.Captured("clearanceSalvageRecompute", 0, inline, served + inline);
+                ObservationWork.Captured("clearanceSalvageBackground", backgroundTicks, backgroundRows);
+                backgroundTicks = backgroundRows = 0;
+            }
+        }
+
+        private static long ColonySignature(Map map, EventLootFacts.HaulingSafety safety)
         {
             unchecked {
                 long sig = 17;
@@ -207,10 +306,7 @@ namespace HomeBridge.BridgeTools
                 var groups = map.haulDestinationManager.AllGroupsListInPriorityOrder;
                 Mix(groups.Count);
                 foreach (var g in groups) { Mix(g.CellsList.Count); Mix((int)(g.Settings?.Priority ?? 0)); }
-                if (salvageGame != Current.Game || salvageMap != map.uniqueID || salvageSignature != sig) salvageCache.Clear();
-                salvageGame = Current.Game;
-                salvageMap = map.uniqueID;
-                salvageSignature = sig;
+                return sig;
             }
         }
 

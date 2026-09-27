@@ -94,6 +94,15 @@ namespace HomeBridge.BridgeTools
             {
                 // Never let the account interrupt an update.
             }
+            // Clearance salvage evidence refreshes over frames (#984).
+            try
+            {
+                if (Current.Game != null) NativeClearanceObservationTools.RefreshSalvage();
+            }
+            catch (Exception)
+            {
+                // Never let the refresh interrupt an update.
+            }
         }
     }
 }
