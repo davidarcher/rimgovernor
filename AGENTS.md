@@ -185,6 +185,11 @@ commit, not a file-by-file narrative.
   follows the performance checklist in choose-tests: Core-only, quiet
   storyteller, stall-bounded waits, minute-scale budgets. Playing a colony
   into its precondition for 20 minutes is a fixture bug.
+- A new fixture case starts on `cases.LabStart()` (the blank 100x100 lab,
+  #729) and spawns what it needs at known offsets from the centre the op
+  replies; it never searches a random world for a site.
+  `TestFixtureCasesStartPinned` refuses an unpinned random start unless
+  the case is on its exemption list with a terrain reason.
 - Snapshot first (#738). A new native case states, in its scope text, why
   a Go snapshot test over recorded colony facts cannot cover it (a native
   op or read contract, an end-to-end signal, vanilla physics). A planner
