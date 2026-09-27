@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -74,6 +75,11 @@ func TestPlanningWindowViewFillsTheRefresher(t *testing.T) {
 	}
 	if stored, ok := facts.Get[observation.PlanningCells](w.store, facts.PlanningCells); !ok || stored.AsOf != 4900 || stored.Source != planningWindowViewSource {
 		t.Fatalf("stored = %+v", stored)
+	}
+	// The view's rows are the planning_cells mirror section too, so the
+	// recording holds what the review's cells are rebuilt from.
+	if table, ok := mirror.Get[domain.Cell, policy.SiteCell](w.mirror, mirrorScope(scope, identity), string(facts.PlanningCells)); !ok || table.AsOf != mirror.At(4900) || len(table.Rows) != 12 {
+		t.Fatalf("mirrored = %+v %v", table, ok)
 	}
 	// A second ask in the step is the held window, not the view again.
 	if _, err = w.PlanningWindow(stepAt(5000, "load"), identity, viewTestRegion); err != nil || native.reads != 0 || w.view != nil {

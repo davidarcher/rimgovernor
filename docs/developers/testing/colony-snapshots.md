@@ -46,7 +46,10 @@ rows it upserted and the keys it dropped, stamped with the section's
 watermark and version (`internal/snapshot/mirror.go`). A review whose site
 cells are exactly the mirror's leaves them out and names the section
 version instead; replay puts them back, so a review materialises exactly
-what it read either way. `snapshot.MirrorAt` gives every section as held
+what it read either way. Every review keyframe after the first is a sync
+point: each section is written again as a keyframe just before it, so
+loading one review or step read (`LoadReview`, `trim`) replays from the
+last sync point before it, never from the stream's start. `snapshot.MirrorAt` gives every section as held
 at one review. Reviews are named
 `<tick>-<seq>`, `<seq>` counting from 1 for several at one paused tick;
 a failed write is

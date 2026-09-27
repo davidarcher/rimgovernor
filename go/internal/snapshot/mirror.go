@@ -354,15 +354,19 @@ func (s *recSection) export(name string) Section {
 // review at was recorded (seq 0: the last review at the tick).
 func MirrorAt(path string, at Review) (map[string]Section, error) {
 	var out map[string]Section
-	err := walk(path, func(line streamLine, st *replayState) (bool, error) {
-		if line.Section != nil || line.Step != nil || line.Tick != at.Tick || (at.Seq != 0 && line.Seq != at.Seq) {
-			return true, nil
-		}
-		out = make(map[string]Section, len(st.sections))
-		for name, s := range st.sections {
-			out[name] = s.export(name)
-		}
-		return at.Seq == 0, nil
+	err := seek(path, reviewBefore(at.Tick, at.Seq), func(from int64) (bool, error) {
+		out = nil
+		err := walkFrom(path, from, func(line streamLine, st *replayState) (bool, error) {
+			if line.Section != nil || line.Step != nil || line.Tick != at.Tick || (at.Seq != 0 && line.Seq != at.Seq) {
+				return true, nil
+			}
+			out = make(map[string]Section, len(st.sections))
+			for name, s := range st.sections {
+				out[name] = s.export(name)
+			}
+			return at.Seq == 0, nil
+		})
+		return out != nil, err
 	})
 	if err == nil && out == nil {
 		err = fmt.Errorf("%s: no review %s", path, at)

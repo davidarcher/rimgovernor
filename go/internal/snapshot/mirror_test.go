@@ -140,4 +140,23 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 			t.Errorf("step %s does not round-trip", s)
 		}
 	}
+	// The KeyEvery-th review is a sync point: every section is keyed again
+	// before it, and the last review and step read replay from there alone.
+	from, err := syncBefore(paths[0], reviewBefore(last.Tick, 0))
+	if err != nil || from == 0 {
+		t.Fatal("no sync point before the last review", from, err)
+	}
+	found := false
+	err = replayFrom(paths[0], from, func(r Review) bool { return r.Tick == last.Tick }, func(_ Review, got Routine) (bool, error) {
+		found = reflect.DeepEqual(got, last)
+		return false, nil
+	})
+	if err != nil || !found {
+		t.Fatal("the last review does not replay from its sync point", err)
+	}
+	var step Step
+	err = walkFrom(paths[0], from, visitStep(steps[len(steps)-1].String(), &step, &found))
+	if step.Recorded = ""; err != nil || !reflect.DeepEqual(step, wantSteps[len(wantSteps)-1]) {
+		t.Fatal("the last step read does not replay from its sync point", err)
+	}
 }

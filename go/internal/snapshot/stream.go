@@ -36,6 +36,10 @@ import (
 //
 // Seq numbers the reviews at one tick from 1. Every KeyEvery-th line is a
 // keyframe, so materialising a review replays at most KeyEvery-1 patches.
+// Each keyframe after the first is a sync point: every mirror section held
+// is written again as a keyframe (mirror.go) just before it, so loading one
+// review or step read replays from the last sync point before it rather
+// than from the stream's start.
 const KeyEvery = 20
 
 // streamLine is one line of a stream: a review (Key or Patch), a mirror
@@ -63,6 +67,9 @@ type streamWriter struct {
 	sections map[string]*recSection
 	// steps numbers the step reads per planner, goal and tick.
 	steps map[string]int
+	// keyed is set once a review keyframe is written: the later ones are
+	// sync points.
+	keyed bool
 }
 
 var (
@@ -117,8 +124,12 @@ func Record(dir string, r Routine) error {
 	if rec.lines > 0 && rec.last == r.Tick {
 		line.Seq = rec.seq + 1
 	}
+	key := rec.lines%KeyEvery == 0
+	if key && rec.keyed {
+		rec.keySections()
+	}
 	tree, line.Mirror = elide(tree, rec.sections)
-	if rec.lines%KeyEvery == 0 {
+	if key {
 		line.Key, err = json.Marshal(tree)
 	} else {
 		patch, _ := diffTree(rec.prev, tree)
@@ -133,6 +144,7 @@ func Record(dir string, r Routine) error {
 		return err
 	}
 	rec.prev, rec.last, rec.seq = tree, r.Tick, line.Seq
+	rec.keyed = rec.keyed || key
 	rec.lines++
 	return nil
 }
@@ -389,7 +401,11 @@ func (r Review) String() string { return fmt.Sprintf("%d-%d", r.Tick, r.Seq) }
 // review that want accepts (nil accepts all) until fn returns false. Only
 // accepted reviews are decoded; the rest are patched as trees.
 func Replay(path string, want func(Review) bool, fn func(Review, Routine) (bool, error)) error {
-	return walk(path, func(line streamLine, st *replayState) (bool, error) {
+	return replayFrom(path, 0, want, fn)
+}
+
+func replayFrom(path string, from int64, want func(Review) bool, fn func(Review, Routine) (bool, error)) error {
+	return walkFrom(path, from, func(line streamLine, st *replayState) (bool, error) {
 		if line.Section != nil || line.Step != nil {
 			return true, nil
 		}
@@ -419,18 +435,18 @@ type replayState struct {
 // walk replays the stream at path line by line, calling visit after each
 // line is applied until it returns false.
 func walk(path string, visit func(streamLine, *replayState) (bool, error)) error {
-	f, err := os.Open(path)
+	return walkFrom(path, 0, visit)
+}
+
+// walkFrom is walk from byte offset from, a sync point (syncBefore).
+func walkFrom(path string, from int64, visit func(streamLine, *replayState) (bool, error)) error {
+	in, done, err := openStreamFile(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	var in io.Reader = f
-	if strings.HasSuffix(path, ".gz") {
-		data, err := readFile(path)
-		if err != nil {
-			return err
-		}
-		in = bytes.NewReader(data)
+	defer done()
+	if _, err = in.Seek(from, io.SeekStart); err != nil {
+		return err
 	}
 	lines := bufio.NewReader(in)
 	st := &replayState{sections: map[string]*recSection{}}
@@ -504,9 +520,13 @@ func Reviews(path string) ([]Review, error) {
 func LoadReview(path string, tick domain.Tick, seq int) (Routine, error) {
 	var out Routine
 	found := false
-	err := Replay(path, func(r Review) bool { return r.Tick == tick && (seq == 0 || r.Seq == seq) }, func(_ Review, r Routine) (bool, error) {
-		out, found = r, true
-		return seq == 0, nil
+	err := seek(path, reviewBefore(tick, seq), func(from int64) (bool, error) {
+		found = false
+		err := replayFrom(path, from, func(r Review) bool { return r.Tick == tick && (seq == 0 || r.Seq == seq) }, func(_ Review, r Routine) (bool, error) {
+			out, found = r, true
+			return seq == 0, nil
+		})
+		return found, err
 	})
 	if err != nil || found {
 		return out, err

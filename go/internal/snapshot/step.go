@@ -3,6 +3,7 @@ package snapshot
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -126,7 +127,36 @@ func Steps(path string) ([]StepRead, error) {
 func LoadStreamStep(path, name string) (Step, error) {
 	var out Step
 	found := false
-	err := walk(path, func(line streamLine, st *replayState) (bool, error) {
+	// A step read at a tick may precede that tick's reviews: sync strictly
+	// before it.
+	before := func(domain.Tick, int) bool { return false }
+	if parts := strings.Split(name, "-"); len(parts) >= 3 {
+		if tick, err := strconv.ParseInt(parts[len(parts)-2], 10, 64); err == nil {
+			before = func(t domain.Tick, _ int) bool { return t < domain.Tick(tick) }
+		}
+	}
+	err := seek(path, before, func(from int64) (bool, error) {
+		found = false
+		err := walkFrom(path, from, visitStep(name, &out, &found))
+		return found, err
+	})
+	if err != nil || found {
+		return out, err
+	}
+	steps, err := Steps(path)
+	if err != nil {
+		return Step{}, err
+	}
+	names := make([]string, 0, len(steps))
+	for _, s := range steps {
+		names = append(names, s.String())
+	}
+	return Step{}, fmt.Errorf("%s: no %s; recorded %s", path, name, strings.Join(names, " "))
+}
+
+// visitStep materialises the step read name into out.
+func visitStep(name string, out *Step, found *bool) func(streamLine, *replayState) (bool, error) {
+	return func(line streamLine, st *replayState) (bool, error) {
 		if line.Step == nil || (StepRead{Planner: line.Step.Planner, Goal: line.Step.Goal, Tick: line.Tick, Seq: line.Seq}).String() != name {
 			return true, nil
 		}
@@ -146,21 +176,9 @@ func LoadStreamStep(path, name string) (Step, error) {
 		if err != nil {
 			return false, err
 		}
-		found = true
-		return false, Decode(data, &out)
-	})
-	if err != nil || found {
-		return out, err
+		*found = true
+		return false, Decode(data, out)
 	}
-	steps, err := Steps(path)
-	if err != nil {
-		return Step{}, err
-	}
-	names := make([]string, 0, len(steps))
-	for _, s := range steps {
-		names = append(names, s.String())
-	}
-	return Step{}, fmt.Errorf("%s: no %s; recorded %s", path, name, strings.Join(names, " "))
 }
 
 // LoadStep reads a recorded planner step read: committed testdata, or a

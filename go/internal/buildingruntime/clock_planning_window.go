@@ -101,22 +101,17 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 		if err != nil {
 			return facts.Held[observation.PlanningCells]{}, err
 		}
-		return p.put(window.Region, window.Cells, window.Context.GetTick()), nil
+		return p.put(identity, window.Region, window.Cells, window.Context.GetTick()), nil
 	}
 	// The held window is refreshed where it is, through the mirror (#795):
 	// a delta since its watermark merged by cell, fogged cells dropped,
 	// with the mirror's resync backstop. The step's bundle carries this
 	// very delta (#593). The mirror is kept on the held rows, which a
 	// view or a routine read may have filed without it.
-	if p.mirror == nil {
-		p.mirror = mirror.New()
-	}
 	region = held.Value.Region
 	section := cellMirror{native: p.native, id: identity, region: region}
 	ms := mirrorScope(p.scope, identity)
-	if table, mirrored := mirror.Get[domain.Cell, policy.SiteCell](p.mirror, ms, section.Name()); !mirrored || table.AsOf != mirror.At(held.AsOf) || len(table.Rows) != len(held.Value.Cells) {
-		mirror.Put(p.mirror, ms, section.Name(), cellRows(held.Value.Cells), mirror.At(held.AsOf))
-	}
+	p.file(identity, held)
 	if requested {
 		p.mirror.RequestResync(section.Name())
 	}
@@ -129,7 +124,7 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 	if err != nil {
 		clockSchedulerLog("planning window: resync read failed, keeping the delta as of %d: %v", table.AsOf.Tick, err)
 	}
-	return p.put(region, siteCells(table.Rows), table.AsOf.Tick), nil
+	return p.put(identity, region, siteCells(table.Rows), table.AsOf.Tick), nil
 }
 
 // fromView serves the window from the step's planning window view: the
@@ -168,9 +163,7 @@ func (p *planningWindow) fromView(ctx context.Context, identity *c.Identity, reg
 	p.view = nil
 	clockEvent(ctx, "facts", "planning_window_view", fmt.Sprintf("planning window view served: %d/%d chunks reused, validated %d ticks before the step", view.Reused(), len(view.Chunks), p.tick-int64(validated)),
 		"revision", view.Revision, "incarnation", view.Incarnation, "chunks", len(view.Chunks), "reused", view.Reused(), "age", p.tick-int64(validated))
-	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: view.Region, Cells: view.Cells}, AsOf: int64(validated), Complete: true, Source: planningWindowViewSource, Region: planningRegionRect(view.Region)}
-	facts.Put(p.store, p.scope, facts.PlanningCells, out)
-	return out, ""
+	return p.file(identity, facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: view.Region, Cells: view.Cells}, AsOf: int64(validated), Complete: true, Source: planningWindowViewSource, Region: planningRegionRect(view.Region)}), ""
 }
 
 // planningWindowViewSource is the provenance a view-filled window carries.
@@ -203,9 +196,7 @@ func (p *planningWindow) fromPannedView(ctx context.Context, identity *c.Identit
 	clockEvent(ctx, "facts", "planning_window_view", fmt.Sprintf("planning window view served panned: %d cells from the view, %d read natively, validated %d ticks before the step", reused, read, p.tick-validated),
 		"revision", view.Revision, "incarnation", view.Incarnation, "chunks", len(view.Chunks), "reused", view.Reused(), "age", p.tick-validated,
 		"panned", true, "view_cells", int(overlap.Width*overlap.Height), "read_cells", read)
-	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: region, Cells: cells}, AsOf: asOf, Complete: true, Source: planningWindowViewSource, Region: planningRegionRect(region)}
-	facts.Put(p.store, p.scope, facts.PlanningCells, out)
-	return out, ""
+	return p.file(identity, facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: region, Cells: cells}, AsOf: asOf, Complete: true, Source: planningWindowViewSource, Region: planningRegionRect(region)}), ""
 }
 
 // planningWindowOverlap is the intersection of two regions, and whether
@@ -247,10 +238,37 @@ func viewScope(context *c.ObservationContext) domain.ReadScope {
 	return domain.ReadScope{Colony: domain.ColonyID(identity.GetColonyId()), Map: domain.MapID(identity.GetMapId()), Load: domain.LoadID(identity.GetLoadToken()), Native: domain.NativeGeneration(context.GetNativeGeneration())}
 }
 
-func (p *planningWindow) put(region policy.Rectangle, cells []policy.SiteCell, tick int64) facts.Held[observation.PlanningCells] {
-	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: region, Cells: cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_get_cells", Region: planningRegionRect(region)}
+func (p *planningWindow) put(identity *c.Identity, region policy.Rectangle, cells []policy.SiteCell, tick int64) facts.Held[observation.PlanningCells] {
+	return p.file(identity, facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: region, Cells: cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_get_cells", Region: planningRegionRect(region)})
+}
+
+// file puts the window in the store and publishes its rows as the
+// planning_cells mirror section, however it was read (a view, a full or a
+// delta read), so the next refresh deltas from them and a recording holds
+// the rows a review's cells are rebuilt from (snapshot bindings). An
+// unchanged table is not republished.
+func (p *planningWindow) file(identity *c.Identity, out facts.Held[observation.PlanningCells]) facts.Held[observation.PlanningCells] {
 	facts.Put(p.store, p.scope, facts.PlanningCells, out)
+	if p.mirror == nil {
+		p.mirror = mirror.New()
+	}
+	ms := mirrorScope(p.scope, identity)
+	if table, ok := mirror.Get[domain.Cell, policy.SiteCell](p.mirror, ms, string(facts.PlanningCells)); !ok || table.AsOf != mirror.At(out.AsOf) || !sameWindowRows(table.Rows, out.Value.Cells) {
+		mirror.Put(p.mirror, ms, string(facts.PlanningCells), cellRows(out.Value.Cells), mirror.At(out.AsOf))
+	}
 	return out
+}
+
+func sameWindowRows(rows map[domain.Cell]policy.SiteCell, cells []policy.SiteCell) bool {
+	if len(rows) != len(cells) {
+		return false
+	}
+	for _, cell := range cells {
+		if row, ok := rows[cell.Cell]; !ok || row != cell {
+			return false
+		}
+	}
+	return true
 }
 
 // planningRegionRect is the inclusive cell bounds of a planning region, so
