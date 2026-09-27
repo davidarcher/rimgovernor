@@ -42,10 +42,8 @@ type CaravanPawnFact struct {
 // currently aboard (with dead/downed status), its home routes and remaining
 // travel food, and its full cargo census. It exists so a boundary can tell
 // "still travelling" from "no longer a caravan" (the World Object disappears
-// once its pawns enter any map, home or foreign) without depending on
-// FormCaravan's own attempt/receipt machinery, which only ever reports "did
-// native form and start this caravan" (see NativeCaravanRecord's doc
-// comment). This type does not surface CaravanState.pawns' remaining
+// once its pawns enter any map, home or foreign); a caravan departure's
+// receipt only reports that formation started. This type does not surface CaravanState.pawns' remaining
 // PawnState fields (needs, health details, and so on) or mass fields; a
 // future slice adds those once a caller needs them. Silver is the one
 // inventory quantity settlement-gift admission needs (a conservative reserve

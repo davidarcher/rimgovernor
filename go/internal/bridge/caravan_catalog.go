@@ -10,8 +10,7 @@ import (
 )
 
 // CaravanCatalogRead is the validated subset of native's caravan catalog
-// census the departure boundary needs: the catalog's own CAS token
-// (FormCaravan's expected_catalog_token), the cargo groups with their food
+// census a pack is composed from: the catalog token, the cargo groups with their food
 // facts (#464: per-unit nutrition, unrefrigerated shelf life, the reserve
 // flag and the colonists whose diet admits each group), and the route
 // facts for the requested destination. Crew eligibility is read separately
@@ -24,7 +23,7 @@ type CaravanCatalogRead struct {
 	Routes      []*o.WorldRoute
 }
 
-// ReadCaravanCatalog reads the native FormCaravan catalog for one destination
+// ReadCaravanCatalog reads the native caravan formation catalog for one destination
 // tile (NativeCaravanCatalog.BuildDialog: no window opens, no camera moves).
 func (client *Client) ReadCaravanCatalog(ctx context.Context, identity *c.Identity, destination int32) (CaravanCatalogRead, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {

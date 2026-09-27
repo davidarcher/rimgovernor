@@ -3,17 +3,17 @@ package domain
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"sort"
 )
 
 // CaravanDeparture is explicit intent to form and send one already-selected
-// crew, carrying already-selected cargo, toward one already-scouted world
-// tile. It reuses the native FormCaravan operation, the same one Python's
-// expedition_policy.evaluate_expedition gates through home/world_progression
-// before any caravan/travel_caravan call. Native reachability, home staffing,
-// route/food adequacy and destination risk are established by policy before
-// dispatch, not here; a canonical crew/cargo encoding keeps Action comparable
-// the same way WorkAssignment encodes its settings list.
+// crew, carrying an already-composed pack (journey food included, by
+// definition), toward one already-scouted world tile. It is a
+// FormCaravanIntent on Actions/Apply (#942): native checks the crew, cargo,
+// home staffing, route, mass and a day of food when it applies. A canonical
+// crew/cargo encoding keeps Action comparable the same way WorkAssignment
+// encodes its settings list.
 type CargoItem struct {
 	Definition string
 	Count      uint64
@@ -45,7 +45,7 @@ func NewCaravanDeparture(crew []PawnID, cargo []CargoItem, destinationTile int32
 	}
 	seenCargo := make(map[string]bool, len(items))
 	for _, item := range items {
-		if !validID(item.Definition) || item.Count == 0 || item.Count > 1<<32 || seenCargo[item.Definition] {
+		if !validID(item.Definition) || item.Count == 0 || item.Count > math.MaxInt32 || seenCargo[item.Definition] {
 			return CaravanDeparture{}, errors.New("invalid or duplicate caravan cargo item")
 		}
 		seenCargo[item.Definition] = true

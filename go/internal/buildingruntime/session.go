@@ -91,14 +91,13 @@ type SessionConfig struct {
 	OpenCasket *OpenCasketCapabilities
 	// BedAssign backs the sleeping family's bed ownership transfer, the
 	// same one-shot CAS write shape as BedUse.
-	BedAssign        *bedassign.Capabilities
-	Trade            *TradeCapabilities
-	Husbandry        *HusbandryCapabilities
-	HomeCoverage     *HomeCoverageCapabilities
-	WallRemoval      *WallRemovalCapabilities
-	CaravanDeparture *CaravanDepartureCapabilities
-	MineAcquisition  *mineacquisition.MineAcquisitionCapabilities
-	Excavation       *excavation.ExcavationCapabilities
+	BedAssign       *bedassign.Capabilities
+	Trade           *TradeCapabilities
+	Husbandry       *HusbandryCapabilities
+	HomeCoverage    *HomeCoverageCapabilities
+	WallRemoval     *WallRemovalCapabilities
+	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
+	Excavation      *excavation.ExcavationCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -407,9 +406,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.CaravanDeparture != nil && (config.CaravanDeparture.Native == nil || config.CaravanDeparture.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -685,15 +681,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableWallRemoval(wallRemovalBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.CaravanDeparture != nil {
-		caravanDepartureBoundary, err := NewCaravanDepartureBoundary(caravanColonyFacts{config.CaravanDeparture.Native, colonyFacts}, config.CaravanDeparture.Writer, journal, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.CaravanDeparture.HomeFoodMinDays)
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableCaravanDeparture(caravanDepartureBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

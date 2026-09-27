@@ -81,12 +81,9 @@ type ExpeditionPolicyFields struct {
 // persistence side and interpreter.Guidance.ExpeditionPolicy for the chat
 // nudge that feeds it.
 //
-// This is a distinct concept from policy.CaravanDeparturePolicy and
-// policy.WorldEvaluationPolicy. Those two are hardcoded, read-only, narrower
-// subsets of the same contract, each consumed by one internal
-// admission or evaluation function. This value is the writable player-facing
-// whole. Making those two read from this store is a separate refactor and is
-// deliberately not attempted here.
+// This is a distinct concept from policy.WorldEvaluationPolicy, a
+// hardcoded, read-only, narrower subset of the same contract consumed by one
+// evaluation function. This value is the writable player-facing whole.
 type ExpeditionPolicy struct {
 	fields ExpeditionPolicyFields
 }

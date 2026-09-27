@@ -143,15 +143,6 @@ func (n chatColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identi
 	return n.facts.read(ctx, n.ChatFactsNative, identity, planning, definitions)
 }
 
-type caravanColonyFacts struct {
-	CaravanDepartureNative
-	facts *ColonyFacts
-}
-
-func (n caravanColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	return n.facts.read(ctx, n.CaravanDepartureNative, identity, planning, definitions)
-}
-
 type deconstructionColonyFacts struct {
 	DeconstructionNative
 	facts *ColonyFacts

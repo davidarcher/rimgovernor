@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
 
         // Mirrors legacy WorldProgressionTools' per-caravan homeRoutes: one
         // route fact per player-home map, so Go can tell whether a caravan
-        // could path home without depending on the FormCaravan catalog
+        // could path home without depending on the caravan formation catalog
         // (which only ever evaluates one destination at a time).
         private static List<Obs.WorldRoute> HomeRoutes(Caravan caravan)
         {

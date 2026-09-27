@@ -142,7 +142,6 @@ type buildingServiceBridge struct {
 	gearReplace         *buildingruntime.GearReplaceCapabilities
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	husbandry           *buildingruntime.HusbandryCapabilities
-	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedUse              *beduse.Capabilities
@@ -272,10 +271,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	caravanDepartureWriter, err := bridge.NewCaravanDepartureWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	buildingTemperatureControl, err := bridge.NewBuildingTemperatureControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -353,7 +348,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
-		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
@@ -701,16 +695,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		tradeCapabilities = client.trade
 	}
-	// The departure adapter (#464) composes with caravan journey tracking:
-	// a completed FormCaravan starts the tracking the tracker reconciles,
-	// and the pack keeps the routine food floor at home.
-	var caravanDepartureCapabilities *buildingruntime.CaravanDepartureCapabilities
-	if config.caravanJourneyTracking && client.caravanDeparture != nil {
-		thresholds, _ := routineCapabilities(config)
-		capabilities := *client.caravanDeparture
-		capabilities.HomeFoodMinDays = thresholds.FoodMinDays
-		caravanDepartureCapabilities = &capabilities
-	}
 	// The refrigeration family patches cooler targets through the shared
 	// executor.
 	var buildingTemperatureCapabilities *buildingtemperature.Capabilities
@@ -829,7 +813,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,
 		Husbandry:           husbandryCapabilities,
-		CaravanDeparture:    caravanDepartureCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedUse:              bedUseCapabilities,

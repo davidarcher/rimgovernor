@@ -15,8 +15,8 @@ namespace HomeBridge.BridgeTools
 {
     // Typed dispatch for TravelCaravan: ports legacy CaravanTools.Execute's
     // "move"/"visit"/"return"/"stop" actions (CaravanTool.cs) behind the
-    // typed boundary. Unlike FormCaravan (NativeCaravanOperations, which
-    // forms and departs in one native call), this family only ever acts on
+    // typed boundary. Unlike caravan formation (NativeCaravanOperations),
+    // this family only ever acts on
     // an already-formed, already-observed player caravan through its
     // existing path follower -- there is no dialog/catalog step.
     //
@@ -198,11 +198,9 @@ namespace HomeBridge.BridgeTools
 
         // Route completion (arrival, settlement visit, disbanding at home) is
         // expected to remove the caravan from the world, so its disappearance
-        // reads as Completed for Move/Visit/ReturnHome -- unlike FormCaravan's
-        // Observe, which treats disappearance as ambiguous because there is no
-        // prior "still assembling" state to distinguish from arrival. A held
-        // (Stop) caravan disappearing is never an expected outcome of holding,
-        // so that case stays Unknown, matching FormCaravan's own caution.
+        // reads as Completed for Move/Visit/ReturnHome. A held (Stop) caravan
+        // disappearing is never an expected outcome of holding, so that case
+        // stays Unknown.
         internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, NativeCaravanTravelRecord record)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };

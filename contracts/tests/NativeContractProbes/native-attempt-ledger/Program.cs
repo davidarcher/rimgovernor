@@ -122,24 +122,26 @@ internal static class NativeAttemptLedgerProbe
     {
         var ledger=new NativeAttemptLedger(Identity());
         var request=Request();
-        request.Operation=new Operations.Operation { FormCaravan=new Operations.FormCaravan
-            { ExpectedCatalogToken="catalog",DestinationTile=0 } };
-        request.Operation.FormCaravan.Cargo.Add(new Operations.CargoSelection { GroupId="a",Count=0 });
-        request.Operation.FormCaravan.Cargo.Add(new Operations.CargoSelection { GroupId="b",Count=1 });
+        request.Operation=new Operations.Operation { CreateZone=new Operations.CreateZone
+            { ExpectedMapSnapshotToken="catalog",Type=Operations.ZoneType.Unspecified,
+              Cells=new Operations.Cells { ExplicitCells=new Operations.CellList() } } };
+        request.Operation.CreateZone.Cells.ExplicitCells.Cells.Add(new Common.Cell { X=0,Z=0 });
+        request.Operation.CreateZone.Cells.ExplicitCells.Cells.Add(new Common.Cell { X=1,Z=1 });
         ledger.Admit(Method,request,Context());
         var reordered=Operations.ExecuteRequest.Parser.ParseJson("{\"operation\":"+JsonFormatter.Default.Format(request.Operation)
             +",\"precondition\":"+JsonFormatter.Default.Format(request.Precondition)+"}");
         Check(ledger.Inspect(Method,reordered).Kind==Kind.InFlight,"field wire order does not alter typed identity");
-        var changed=request.Clone(); changed.Operation.FormCaravan.ClearDestinationTile();
+        var changed=request.Clone(); changed.Operation.CreateZone.ClearType();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"zero versus absent conflicts");
-        changed=request.Clone(); changed.Operation.FormCaravan.ClearExpectedCatalogToken();
+        changed=request.Clone(); changed.Operation.CreateZone.ClearExpectedMapSnapshotToken();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"original token precondition preserved");
-        changed=request.Clone(); changed.Operation.FormCaravan.Cargo[0].ClearCount();
+        changed=request.Clone(); changed.Operation.CreateZone.Cells.ExplicitCells.Cells[0].ClearX();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated nested zero presence preserved");
         changed=request.Clone();
-        var first=changed.Operation.FormCaravan.Cargo[0];
-        changed.Operation.FormCaravan.Cargo[0]=changed.Operation.FormCaravan.Cargo[1];
-        changed.Operation.FormCaravan.Cargo[1]=first;
+        var cells=changed.Operation.CreateZone.Cells.ExplicitCells.Cells;
+        var first=cells[0];
+        cells[0]=cells[1];
+        cells[1]=first;
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated order preserved");
         changed=request.Clone(); changed.Operation.ExcavateCell=new Operations.ExcavateCell();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"different command oneof conflicts");

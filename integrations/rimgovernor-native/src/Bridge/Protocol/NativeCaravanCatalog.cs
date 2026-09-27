@@ -19,9 +19,9 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Shared native FormCaravan dialog calculation used by both the
+    // Shared native Dialog_FormCaravan calculation used by both the
     // CaravanCatalog observation read and NativeCaravanOperations'
-    // FormCaravan execute/preview. Ports legacy CaravanTools.Run's
+    // FormCaravanIntent handler. Ports legacy CaravanTools.Run's
     // Dialog_FormCaravan-without-UI pattern (home/caravan) behind the typed
     // boundary: same private CalculateAndRecacheTransferables call, no
     // window ever opens, no camera ownership is taken. Stateless: every
@@ -38,8 +38,8 @@ namespace HomeBridge.BridgeTools
         internal static (float days, float tillRot) FoodDays(Dialog_FormCaravan dialog) =>
             ((float, float))typeof(Dialog_FormCaravan).GetProperty("DaysWorthOfFood", Private)!.GetValue(dialog)!;
 
-        // A stable ordinal-smallest constituent ThingID; used as both
-        // FormCaravan.Cargo's group_id and this catalog's CargoGroup.group_id.
+        // A stable ordinal-smallest constituent ThingID: this catalog's
+        // CargoGroup.group_id.
         // RimWorld's TransferableOneWay grouping merges non-pawn rows by def,
         // stuff, quality, ingredients, rot stage and hit points (ten apart), so
         // one def may span several rows; only the group id is unique.
@@ -130,9 +130,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Freshness token covering both home-colonist eligibility and cargo
-        // availability -- FormCaravan carries no per-pawn precondition (unlike
-        // ImproveGear's EntityPrecondition), so the catalog token is the only
-        // CAS guard a formation admission gets.
+        // availability, so a reader can tell whether the catalog changed.
         internal static string Token(Common.ObservationContext context, List<Obs.CargoGroup> cargo, List<Obs.CaravanPawnEligibility> pawns)
         {
             using (var stream = new MemoryStream())

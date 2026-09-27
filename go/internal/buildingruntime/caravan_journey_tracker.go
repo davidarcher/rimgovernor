@@ -38,7 +38,7 @@ type CaravanJourneyJournal interface {
 }
 
 // CaravanJourneyCapabilities gates the caravan-journey tracking capability;
-// see EnableCaravanDeparture (executor package) for why capabilities are
+// see EnableAcquisition (executor package) for why capabilities are
 // wired this way rather than inferred from a composed boundary.
 type CaravanJourneyCapabilities struct {
 	Native CaravanJourneyNative
@@ -96,7 +96,7 @@ const (
 //
 // Reconciliation is deliberately minimal: mark the tracking record
 // resolved. There is no separate "claim" or reservation on a departed
-// crew to release -- FormCaravan's own crew leaves the home map, so every
+// crew to release -- a departed crew leaves the home map, so every
 // home-scoped read (ReadHomeColonists, routine work assignment, and so on)
 // already excludes them for as long as they are away, with no bookkeeping
 // of RimGovernor's own to undo. Once ClassifyCaravanJourney reports

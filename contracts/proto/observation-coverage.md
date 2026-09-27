@@ -310,7 +310,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
 | SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
-| FormCaravan.catalog/pawns/cargo | ReadCaravanCatalog.snapshot; pawn IDs; cargo_groups.group_id |
+| FormCaravanIntent pawns/cargo | ReadCaravanCatalog pawn IDs; cargo_groups.def_name |
 | TravelCaravan/GiftCaravanSilver/FulfillQuest.caravan | ReadWorldProgression.caravan.snapshot |
 | GiftCaravanSilver.faction | ReadWorldProgression.faction.snapshot or ReadWorld.settlement.faction_snapshot |
 | FulfillQuest.quest | ReadWorldProgression.quest.snapshot |

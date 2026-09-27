@@ -134,8 +134,6 @@ type Executor struct {
 	bedAssignJournal           BedAssignJournal
 	trade                      TradeBoundary
 	tradeJournal               TradeJournal
-	caravanDeparture           CaravanDepartureBoundary
-	caravanDepartureJournal    CaravanDepartureJournal
 	husbandry                  HusbandryBoundary
 	husbandryJournal           HusbandryJournal
 	homeCoverage               HomeCoverageBoundary
@@ -415,9 +413,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.CaravanDepartureAction && e.caravanDeparture != nil {
-		return e.runCaravanDeparture(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.HusbandryAction && e.husbandry != nil {
 		return e.runHusbandry(ctx, action, progress, authority, generation)

@@ -1,14 +1,12 @@
-// The caravan/departure case exercises the CaravanDeparture vertical end to
-// end against a live game through the real Go departure adapter
-// (buildingruntime.CaravanDepartureBoundary): the native caravan catalog
-// with its food facts (NativeCaravanCatalog.cs, #464), the pack the adapter
-// composes from them (policy.PlanCaravanCargo: the action's trade cargo plus
-// the crew's journey food, reserve first, simple meals left home), the
-// admission (policy.EvaluateCaravanDeparture), the FormCaravan dispatch and
-// its observation, and finally native's own caravan inventory census, which
-// must carry exactly the composed pack. Uses a private disposable fixture
-// (test/caravan_departure_prepare) to guarantee a colony shaped for the
-// admission policy (leave >=1 home colonist, a home doctor, the routine
+// The caravan/departure case exercises the FormCaravanIntent arm of
+// Actions/Apply (#942) end to end against a live game: the native caravan
+// catalog with its food facts (NativeCaravanCatalog.cs, #464), the pack a
+// planner composes from them (policy.PlanCaravanCargo: WoodLog trade cargo
+// plus the crew's journey food, reserve first, simple meals left home), the
+// intent applied through rimgovernor/operations_apply, and finally native's
+// own caravan inventory census, which must carry exactly the composed pack.
+// Uses a private disposable fixture (test/caravan_departure_prepare) to
+// guarantee a colony shaped for it (leave >=1 home colonist, the routine
 // food floor kept at home) with a forbidden pemmican reserve, survival
 // meals, simple meals and WoodLog cargo, and a real reachable destination.
 package caravan
@@ -18,47 +16,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const departureOwner = "native-caravan-departure-acceptance"
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "caravan/departure",
-		Scope: "Native CaravanDeparture vertical through the Go departure adapter: catalog food facts, " +
-			"a pack composed reserve-first (pemmican, then survival meals, simple meals left home) over the " +
-			"routine home food floor, admission, an actual FormCaravan dispatch, its observed completion and " +
-			"native's caravan inventory carrying exactly that pack; plus native's home-staffing and " +
-			"post-departure stale-catalog refusals.",
+		Scope: "Native FormCaravanIntent: catalog food facts, a pack composed reserve-first (pemmican, " +
+			"then survival meals, simple meals left home) over the routine home food floor, an actual " +
+			"formation through Actions/Apply, native's caravan inventory carrying exactly that pack, " +
+			"native's home-staffing refusal, replay and a departed crew applied again.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/caravan_departure_prepare", Args: map[string]any{"crewCount": 1}},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
 		Run:    runDeparture,
 	})
 }
-
-// staticLeases stands in for the session's lease source: this case owns the
-// granted authority itself.
-type staticLeases string
-
-func (l staticLeases) Lease(domain.GenerationSnapshot) (string, error) { return string(l), nil }
-
-type wallClock struct{}
-
-func (wallClock) Now() time.Time { return time.Now() }
 
 func runDeparture(ctx context.Context, s cases.Session) error {
 	h, identity, names, prepared := s.Harness(), s.Identity(), s.Names(), s.Prepared()
@@ -78,14 +59,8 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("caravan_departure_prepare: unexpected fixture identifiers: %#v", prepared)
 	}
 
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
-	if err != nil {
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity); err != nil {
 		return err
-	}
-	grantContext, _ := na.AsMap(grant["context"])
-	generation := uint64(na.AsNumber(grantContext["nativeGeneration"]))
-	if generation == 0 {
-		return fmt.Errorf("acquire: missing native generation: %#v", grant)
 	}
 	identityData, err := json.Marshal(identity)
 	if err != nil {
@@ -95,42 +70,8 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 	if err := protojson.Unmarshal(identityData, id); err != nil {
 		return err
 	}
-	snapshot := domain.GenerationSnapshot{Colony: domain.ColonyID(id.GetColonyId()), Load: domain.LoadID(id.GetLoadToken()), Map: domain.MapID(id.GetMapId()), Plan: "caravan-departure-plan", Revision: 1, Native: domain.NativeGeneration(generation)}
 
-	// The action names crew, trade cargo and destination only; the adapter
-	// composes the food.
-	departure, err := domain.NewCaravanDeparture([]domain.PawnID{domain.PawnID(crewPawnIDs[0])}, []domain.CargoItem{{Definition: "WoodLog", Count: 10}}, int32(destinationTile))
-	if err != nil {
-		return err
-	}
-	action, err := domain.NewCaravanDepartureAction("caravan-departure", departure)
-	if err != nil {
-		return err
-	}
-	plan, err := domain.NewPlan(snapshot.Plan, snapshot.Revision, []domain.Action{action})
-	if err != nil {
-		return err
-	}
-	progress, err := domain.NewProgress(plan, action.ID())
-	if err != nil {
-		return err
-	}
-	journal, err := store.Open(ctx, filepath.Join(h.Output, "caravan-departure.sqlite"))
-	if err != nil {
-		return err
-	}
-	defer journal.Close()
-	writer, err := bridge.NewCaravanDepartureWriter(h.Client)
-	if err != nil {
-		return err
-	}
-	floor := policy.DefaultRoutinePolicy().FoodMinDays
-	adapter, err := buildingruntime.NewCaravanDepartureBoundary(h.Client, writer, journal, staticLeases("acceptance-lease"), wallClock{}, departureOwner, floor)
-	if err != nil {
-		return err
-	}
-
-	// The catalog's food facts, read the way the adapter reads them.
+	// The catalog's food facts, the pack is composed from.
 	catalog, _, err := h.Client.ReadCaravanCatalog(ctx, id, int32(destinationTile))
 	if err != nil {
 		return fmt.Errorf("catalog-before: %w", err)
@@ -207,147 +148,157 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("catalog-before: expected perishable simple meals with a few days of shelf life, got %#v", meals)
 	}
 
-	// Inspect: the adapter composes and previews the pack.
-	inspection, err := adapter.InspectCaravanDeparture(ctx, executor.Target{Action: action, Snapshot: snapshot})
+	// Compose the pack the way a planner would (policy.PlanCaravanCargo,
+	// #464): the WoodLog trade cargo plus the crew's journey food, reserve
+	// first, with the routine food floor kept at home.
+	colony, _, err := h.Client.ReadColonyFacts(ctx, id, false, nil)
 	if err != nil {
-		return fmt.Errorf("inspect: %w", err)
+		return fmt.Errorf("colony-facts: %w", err)
 	}
-	facts := inspection.Facts
-	if facts.CargoRefusal != "" {
-		return fmt.Errorf("inspect: the adapter refused the pack: %s (policy %+v)", facts.CargoRefusal, inspection.Policy)
+	demand := map[domain.PawnID]float64{}
+	for _, consumer := range colony.GetObserved().GetFoodSupply().GetObserved().GetConsumers() {
+		if consumer.NutritionPerDay != nil {
+			demand[domain.PawnID(consumer.GetPawnId())] = consumer.GetNutritionPerDay()
+		}
 	}
-	if inspection.Policy.MinimumHomeFoodDays != floor || facts.Cargo.HomeRunwayDays < floor {
-		return fmt.Errorf("inspect: home food floor %v not kept: runway %v", inspection.Policy.MinimumHomeFoodDays, facts.Cargo.HomeRunwayDays)
+	journeyDays := 0.0
+	for _, route := range catalog.Routes {
+		if route.GetDestination() == int32(destinationTile) && route.EstimatedTicks != nil {
+			journeyDays = float64(route.GetEstimatedTicks())/60000 + 1
+		}
 	}
-	if len(facts.Cargo.Food) == 0 || facts.Cargo.Food[0].GroupID != pemmican.GroupID {
-		return fmt.Errorf("inspect: expected the pemmican reserve packed first, got %+v", facts.Cargo.Food)
+	if journeyDays == 0 {
+		return fmt.Errorf("catalog-before: no travel estimate to the destination: %+v", catalog.Routes)
+	}
+	var rows []policy.CaravanCargoGroup
+	for _, group := range catalog.CargoGroups {
+		nutrition := domain.Unknown[float64]()
+		if group.Nutrition != nil {
+			nutrition = domain.Known(group.GetNutrition())
+		}
+		rot := domain.Unknown[float64]()
+		if group.RotDays != nil {
+			rot = domain.Known(group.GetRotDays())
+		}
+		row := policy.CaravanCargoGroup{GroupID: group.GetGroupId(), Definition: group.GetDefName(), Count: group.GetCount(), Nutrition: nutrition, Perishable: group.GetPerishable(), RotDays: rot, Reserve: group.GetReserve()}
+		for _, eater := range group.EaterIds {
+			row.Eaters = append(row.Eaters, domain.PawnID(eater))
+		}
+		rows = append(rows, row)
+	}
+	floor := policy.DefaultRoutinePolicy().FoodMinDays
+	pack, refusal := policy.PlanCaravanCargo(policy.CaravanCargoRequest{Crew: []domain.PawnID{domain.PawnID(crewPawnIDs[0])}, Cargo: []domain.CargoItem{{Definition: "WoodLog", Count: 10}}, Groups: rows, Demand: demand, JourneyDays: journeyDays, HomeFoodMinDays: floor})
+	if refusal != "" {
+		return fmt.Errorf("pack: refused %s (demand %v, journey %.1f days)", refusal, demand, journeyDays)
+	}
+	if pack.HomeRunwayDays < floor {
+		return fmt.Errorf("pack: home food floor %v not kept: runway %v", floor, pack.HomeRunwayDays)
+	}
+	if len(pack.Food) == 0 || pack.Food[0].GroupID != pemmican.GroupID {
+		return fmt.Errorf("pack: expected the pemmican reserve packed first, got %+v", pack.Food)
 	}
 	packed := map[string]int64{}
-	for _, line := range facts.Cargo.Cargo {
+	for _, line := range pack.Cargo {
 		packed[line.Definition] += line.Count
 	}
 	if packed["WoodLog"] != 10 || packed["MealSimple"] != 0 || packed["Pemmican"] == 0 {
-		return fmt.Errorf("inspect: unexpected pack %v (food %+v)", packed, facts.Cargo.Food)
+		return fmt.Errorf("pack: unexpected pack %v (food %+v)", packed, pack.Food)
 	}
 	if packed["Pemmican"] < 20 && packed["MealSurvivalPack"] != 0 {
-		return fmt.Errorf("inspect: survival meals packed before the reserve was exhausted: %v", packed)
+		return fmt.Errorf("pack: survival meals packed before the reserve was exhausted: %v", packed)
 	}
-	// The whole pack must outlast the journey: pemmican covers up to 10
-	// crew-days, survival meals the rest.
-	if _, known := facts.RouteReachable.Value(); !known {
-		return fmt.Errorf("inspect: route reachability unknown: %+v", facts)
+	fmt.Fprintf(os.Stderr, "pack: %v, home runway %.1f days\n", packed, pack.HomeRunwayDays)
+	var cargo []map[string]any
+	for def, count := range packed {
+		cargo = append(cargo, map[string]any{"defName": def, "count": count})
 	}
-	fmt.Fprintf(os.Stderr, "inspect: pack %v, home runway %.1f days, preview accepted %v\n", packed, facts.Cargo.HomeRunwayDays, facts.NativeCanTry)
 
-	decision := policy.EvaluateCaravanDeparture(policy.CaravanDepartureRequest{Action: action, Progress: progress, Current: snapshot, MinimumTick: 0, Policy: inspection.Policy, Facts: facts})
-	if !decision.Admitted {
-		return fmt.Errorf("admission: refused %+v (facts %+v)", decision.Refused, facts)
+	apply := func(label, key string, pawnIDs []string) (map[string]any, error) {
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{
+			map[string]any{"key": key, "formCaravan": map[string]any{"pawnIds": pawnIDs, "cargo": cargo, "destinationTile": destinationTile}},
+		}})
+		if err != nil {
+			return nil, err
+		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
 	}
-	crew := make([]store.CaravanCrewAdmission, len(facts.Crew))
-	for i, member := range facts.Crew {
-		crew[i] = store.CaravanCrewAdmission{Pawn: member.Pawn, SnapshotToken: member.SnapshotToken}
+	formed := func(label string, result map[string]any) error {
+		receipt, _ := na.AsMap(result["applied"])
+		applied, _ := na.AsMap(receipt["applied"])
+		observed, _ := na.AsMap(applied["observed"])
+		effect, _ := na.AsMap(observed["caravan"])
+		if started, _ := na.AsBool(effect["assemblyStarted"]); !started || na.AsNumber(effect["destinationTile"]) != destinationTile {
+			return fmt.Errorf("%s: expected an applied formation toward the destination, got %#v", label, result)
+		}
+		return nil
 	}
-	cargo := make([]store.CaravanCargoAdmission, len(facts.Cargo.Cargo))
-	for i, line := range facts.Cargo.Cargo {
-		cargo[i] = store.CaravanCargoAdmission{GroupID: line.GroupID, Definition: line.Definition, Count: line.Count}
-	}
-	admission := store.CaravanDepartureAdmission{Snapshot: snapshot, Tick: facts.PreviewTick, Crew: crew, CatalogToken: facts.CatalogToken, Cargo: cargo}
-	dispatch := executor.CaravanDepartureDispatch{Attempt: executor.Placement{Action: action, Attempt: 1, Snapshot: snapshot, Tick: facts.PreviewTick}, Admission: admission}
 
-	// Refusal: leaving zero colonists home is refused by native's own
-	// FormCaravan admission check, the same home-staffing floor
-	// policy.CaravanDeparturePolicy's MinimumHomeColonists enforces.
+	// Refusal: native keeps at least one colonist home.
 	allPawnIDs := append(append([]string{}, crewPawnIDs...), remainingPawnIDs...)
-	buildOperation := func(token string, pawnIDs []string, cargoSelection []map[string]any) map[string]any {
-		return map[string]any{"formCaravan": map[string]any{
-			"expectedCatalogToken": token, "pawnIds": pawnIDs, "cargo": cargoSelection, "destinationTile": destinationTile,
-		}}
-	}
-	leaveNoOneHomeReply, err := h.Wire(ctx, "leave-no-one-home", "operations_preview", map[string]any{
-		"identity": identity, "operation": buildOperation(facts.CatalogToken, allPawnIDs, nil),
-	})
+	result, err := apply("leave-no-one-home", "caravan-departure-everyone", allPawnIDs)
 	if err != nil {
 		return err
 	}
-	_, leaveNoOneHomeFailure, err := na.Outcome(leaveNoOneHomeReply, "failure")
+	if refusal, _ := na.AsMap(result["refused"]); refusal == nil || na.AsString(refusal["code"]) != "FAILURE_CODE_INVALID_REQUEST" {
+		return fmt.Errorf("leave-no-one-home: expected an invalid-request refusal, got %#v", result)
+	}
+
+	// Apply: the real native Dialog_FormCaravan mechanism
+	// (TryFormAndSendCaravan) with exactly the composed pack.
+	if result, err = apply("apply", "caravan-departure", crewPawnIDs); err != nil {
+		return err
+	}
+	if err = formed("apply", result); err != nil {
+		return err
+	}
+	// Replay: the same key returns the identical result.
+	replay, err := apply("replay", "caravan-departure", crewPawnIDs)
 	if err != nil {
 		return err
 	}
-	if na.AsString(leaveNoOneHomeFailure["code"]) != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("leave-no-one-home: expected FAILURE_CODE_INVALID_REQUEST, got %#v", leaveNoOneHomeFailure)
+	if !na.DeepEqual(replay, result) {
+		return fmt.Errorf("replay: the same key returned a different result: %#v", replay)
 	}
 
-	// Dispatch: the real native Dialog_FormCaravan mechanism
-	// (TryFormAndSendCaravan) with exactly the admitted pack. RimWorld's own
-	// post-formation steps are not exception-safe, so native may report
-	// uncertain rather than applied; either resolves through observation.
-	receipt, err := adapter.DepartCaravan(ctx, dispatch)
-	if err != nil {
-		return fmt.Errorf("depart: %w", err)
-	}
-	if receipt.Kind == domain.ReceiptRefused {
-		return fmt.Errorf("depart: native refused the admitted pack")
-	}
-	if receipt.Kind != domain.ReceiptAccepted {
-		fmt.Fprintln(os.Stderr, "depart: native returned uncertain; resolving via observe")
-	}
-
-	// Observe: the crew walks to the exit tile in game time, so the wait is
-	// a tick budget (RunUntil runs and re-pauses the clock), not seconds.
-	var evidence executor.CaravanDepartureEvidence
+	// The crew gathers the pack and walks to the exit in game time, so the
+	// wait is a tick budget (RunUntil runs and re-pauses the clock).
+	var caravan bridge.CaravanJourney
 	if _, err := na.RunUntil(ctx, h, "observe-formation", na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
-		evidence, err = adapter.ObserveCaravanDeparture(ctx, dispatch, snapshot)
+		world, _, err := h.Client.ReadWorldProgression(ctx, id, false)
 		if err != nil {
 			return "", false, err
 		}
-		return fmt.Sprintf("%s/%s", evidence.Observation.Effect, evidence.CaravanID), evidence.Complete, nil
+		for _, row := range world.Caravans {
+			if len(row.PawnIDs) == 1 && row.PawnIDs[0] == crewPawnIDs[0] {
+				caravan = row
+				return row.ID, true, nil
+			}
+		}
+		return fmt.Sprintf("%d caravans", len(world.Caravans)), false, nil
 	}); err != nil {
-		return fmt.Errorf("observe: caravan formation did not complete: %w (last %+v)", err, evidence)
+		return fmt.Errorf("observe: caravan formation did not complete: %w", err)
 	}
-	if evidence.Observation.Effect != domain.EffectCompleted || evidence.CaravanID == "" || len(evidence.Crew) != 1 || string(evidence.Crew[0]) != crewPawnIDs[0] {
-		return fmt.Errorf("observe: expected a completed departure with a caravan id, got %+v", evidence)
-	}
-
 	// Native's own caravan census carries exactly the composed pack: the
 	// reserve and survival meals aboard, every simple meal left home.
-	world, _, err := h.Client.ReadWorldProgression(ctx, id, false)
-	if err != nil {
-		return fmt.Errorf("world-progression: %w", err)
-	}
-	var inventory map[string]int64
-	for _, caravan := range world.Caravans {
-		if caravan.ID == evidence.CaravanID {
-			inventory = caravan.Inventory
-		}
-	}
-	if inventory == nil {
-		return fmt.Errorf("world-progression: caravan %s missing from %+v", evidence.CaravanID, world.Caravans)
-	}
 	for _, def := range []string{"WoodLog", "Pemmican", "MealSurvivalPack", "MealSimple"} {
-		if inventory[def] != packed[def] {
-			return fmt.Errorf("world-progression: caravan carries %s x%d, the pack had x%d (inventory %v)", def, inventory[def], packed[def], inventory)
+		if caravan.Inventory[def] != packed[def] {
+			return fmt.Errorf("world-progression: caravan carries %s x%d, the pack had x%d (inventory %v)", def, caravan.Inventory[def], packed[def], caravan.Inventory)
 		}
 	}
 
-	// Refusal: a brand-new attempt after the crew has departed is refused as
-	// stale (the catalog census and its CAS token changed) rather than
-	// re-admitted or double-formed.
-	staleReply, err := h.Wire(ctx, "post-departure-retry", "operations_execute", map[string]any{
-		"precondition": map[string]any{
-			"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
-			"attempt": map[string]any{"controllerSessionId": departureOwner, "actionId": "caravan-departure-again", "attemptId": "1"},
-		},
-		"operation": buildOperation(facts.CatalogToken, crewPawnIDs, []map[string]any{{"groupId": wood.GroupID, "count": 10}}),
-	})
+	// A fresh key after the crew departed is applied again: the intent
+	// already holds, so a resend after a lost reply cannot form twice.
+	again, err := apply("apply-again", "caravan-departure-again", crewPawnIDs)
 	if err != nil {
 		return err
 	}
-	_, staleFailure, err := na.Outcome(staleReply, "failure")
-	if err != nil {
+	if err = formed("apply-again", again); err != nil {
 		return err
-	}
-	if na.AsString(staleFailure["code"]) != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("post-departure-retry: expected FAILURE_CODE_INVALID_REQUEST, got %#v", staleFailure)
 	}
 
 	logData, err := os.ReadFile(s.Config().StartupLogPath())

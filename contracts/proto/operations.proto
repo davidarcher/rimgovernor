@@ -68,9 +68,10 @@ message Operation {
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
-  // Quest acceptance moved to Actions/Apply (AcceptQuestIntent, #942).
-  reserved 44;
-  reserved "accept_quest";
+  // Quest acceptance and caravan formation moved to Actions/Apply
+  // (AcceptQuestIntent, FormCaravanIntent, #942).
+  reserved 41, 44;
+  reserved "form_caravan", "accept_quest";
   oneof command {
     InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
@@ -94,7 +95,6 @@ message Operation {
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
     PawnTargetOrder pawn_target_order = 36;
-    FormCaravan form_caravan = 41;
     TravelCaravan travel_caravan = 42;
     GiftCaravanSilver gift_caravan_silver = 43;
     FulfillQuest fulfill_quest = 45;
@@ -363,8 +363,6 @@ message AcceptTrade { reserved 1, 6, 7; reserved "trader_id", "negotiator_id"; o
 enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
 // A cancel with no live session is a no-op, not a refusal.
 message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
-message CargoSelection { optional string group_id = 1; optional int32 count = 2; }
-message FormCaravan { optional string expected_catalog_token = 1; repeated string pawn_ids = 2; repeated CargoSelection cargo = 3; optional int32 destination_tile = 4; }
 enum TravelKind { TRAVEL_KIND_UNSPECIFIED = 0; TRAVEL_KIND_MOVE = 1; TRAVEL_KIND_VISIT = 2; TRAVEL_KIND_RETURN_HOME = 3; TRAVEL_KIND_STOP = 4; }
 message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind = 2; optional int32 destination_tile = 3; }
 message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
@@ -434,6 +432,7 @@ message Action {
     DialogIntent dialog = 18;
     PrisonerInteractionIntent prisoner = 19;
     AcceptQuestIntent accept_quest = 20;
+    FormCaravanIntent form_caravan = 21;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
@@ -460,6 +459,19 @@ message ResearchIntent { optional string project_def = 1; }
 // colonist; tainted apparel is always excluded and forced or locked apparel
 // is released. A pawn already on a matching policy is applied again.
 message ApparelPolicyIntent { optional string pawn_id = 1; optional string name = 2; repeated string allowed_defs = 3; optional float min_hit_points = 4; optional float max_hit_points = 5; optional int32 min_quality = 6; optional int32 max_quality = 7; }
+// Form a caravan of the named home colonists carrying cargo (by definition,
+// journey food included) toward destination_tile, and send it: RimWorld's
+// own formation, whose crew gathers the cargo and walks to the exit before
+// the caravan exists. Native checks the crew, the cargo, at least one
+// colonist left home, the exit route, mass, a day of food and the game's own
+// formation errors when it applies. A crew already forming or already a
+// caravan is applied again. Applied says formation started, not that the
+// caravan left.
+message FormCaravanIntent {
+  repeated string pawn_ids = 1;
+  repeated DefCount cargo = 2;
+  optional int32 destination_tile = 3;
+}
 // Accept one visible quest offer, choosing reward option reward_choice of its
 // single choice part (-1 when it has none) and, when the quest requires one,
 // naming the accepting colonist. Native checks the game's own acceptance

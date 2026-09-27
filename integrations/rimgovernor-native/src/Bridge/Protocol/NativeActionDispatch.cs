@@ -40,6 +40,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Dialog] = new DialogActionHandler(),
             [Operations.Action.IntentOneofCase.Prisoner] = new PrisonerInteractionActionHandler(),
             [Operations.Action.IntentOneofCase.AcceptQuest] = new AcceptQuestActionHandler(),
+            [Operations.Action.IntentOneofCase.FormCaravan] = new FormCaravanActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

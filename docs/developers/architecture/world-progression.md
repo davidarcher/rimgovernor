@@ -11,10 +11,11 @@ Cold-weather readiness assessment uses stored-food forecasts, indoor sleeping,
 actual sleeping temperatures and observed cold exposure. Future harvest and a
 warm-weather shelter sample cannot establish winter readiness.
 
-Explicit FormCaravan, RouteCaravan and AcceptQuest commands join the shared plan
-and Hands. Caravan manifests reserve native cargo costs through assembly, even
-after cancellation or an uncertain write, until loaded departure is observed.
-Native scope checks reject old colony/load/map arguments. Route actions retain
+Caravan formation is a `FormCaravanIntent` on Actions/Apply: native checks
+the crew, the cargo by definition (reserve stock first), a colonist left home,
+the exit route, mass and a day of food when it applies, and a crew already
+forming or travelling together is applied again. Applied means formation
+started, not departure. Native scope checks reject old colony/load/map arguments. Route actions retain
 exact caravan membership and wait for world arrival or living home-map return.
 Quest acceptance is an `AcceptQuestIntent` on Actions/Apply: native validates
 eligibility and the explicit reward choice when it applies;
@@ -26,8 +27,10 @@ colony census's typed `joiner_letters` section. MaintainPopulation answers their
 native Accept option using the same population capacity policy; see
 [population commitments](../contracts/population-contracts.md).
 
-Expedition policy checks native travel estimates, food margins, seasonal destination
-temperature, diplomatic relations, concurrent parties and remaining home staff.
+Expedition policy records limits on travel estimates, food margins, seasonal
+destination temperature, diplomatic relations, concurrent parties and remaining
+home staff. Since #942 no departure path enforces them: a caravan departure
+carries only native's own formation checks.
 Native first-rot estimates produce a separate warning: food quantity alone does
 not guarantee supplies after spoilage, and the first expiring stack does not mean
 every carried food item expires then.

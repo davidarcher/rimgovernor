@@ -50,7 +50,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeTendRecord> Tends = new Dictionary<Common.AttemptKey, NativeTendRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRepairRecord> Repairs = new Dictionary<Common.AttemptKey, NativeRepairRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeOpenCasketRecord> OpenCaskets = new Dictionary<Common.AttemptKey, NativeOpenCasketRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeCaravanRecord> Caravans = new Dictionary<Common.AttemptKey, NativeCaravanRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeSettlementGiftRecord> SettlementGifts = new Dictionary<Common.AttemptKey, NativeSettlementGiftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetDrugPolicy> DrugPolicies = new Dictionary<Common.AttemptKey, Operations.SetDrugPolicy>();
@@ -177,8 +176,6 @@ namespace HomeBridge.BridgeTools
                 return NativeHusbandryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                 return NativeWasteOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.FormCaravan)
-                return NativeCaravanOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.GiftCaravanSilver)
                 return NativeSettlementGiftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.FulfillQuest)
@@ -272,8 +269,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeHusbandryOperations.Preview(parsed.Operation, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                     return ProtoBoundary.Encode(NativeWasteOperations.Preview(parsed.Operation.ManageWaste, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.FormCaravan)
-                    return ProtoBoundary.Encode(NativeCaravanOperations.Preview(parsed.Operation.FormCaravan, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.GiftCaravanSilver)
                     return ProtoBoundary.Encode(NativeSettlementGiftOperations.Preview(parsed.Operation.GiftCaravanSilver, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.FulfillQuest)
@@ -413,9 +408,6 @@ namespace HomeBridge.BridgeTools
                     NativeTendRecord tend;
                     if (state.Tends.TryGetValue(parsed.Attempt, out tend))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) });
-                    NativeCaravanRecord caravan;
-                    if (state.Caravans.TryGetValue(parsed.Attempt, out caravan))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCaravanOperations.Observe(parsed.Attempt, context, caravan) });
                     NativeSettlementGiftRecord settlementGift;
                     if (state.SettlementGifts.TryGetValue(parsed.Attempt, out settlementGift))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeSettlementGiftOperations.Observe(parsed.Attempt, context, settlementGift) });

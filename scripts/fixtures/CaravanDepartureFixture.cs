@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Selects crewCount existing free
     // colonists to depart and leaves the rest home (at least one of them
     // Doctor-eligible), tops up home food and WoodLog cargo stock so the
-    // native FormCaravan admission checks (home staffing, home food, cargo
+    // native FormCaravanIntent checks (home staffing, home food, cargo
     // availability) are genuinely satisfied rather than incidentally true of
     // whatever the debug save happens to start with, and picks an existing
     // non-hostile visitable settlement as a real reachable destination tile.

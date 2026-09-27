@@ -108,16 +108,16 @@ when the journey cannot be covered.
 
 The caravan catalog (`observations_read_caravan_catalog`) carries those facts
 per cargo group: nutrition, perishability, unrefrigerated rot days, the reserve
-flag and the pawns eligible to eat it. `PlanCaravanCargo` in the departure
-adapter (`buildingruntime.CaravanDepartureBoundary`) combines the action's
-trade cargo with a `SelectCaravanFood` pack for the crew over the route's
-estimated days plus the expedition travel margin, then checks the home runway
-remaining after the pack (excluding reserve stock, counting kibble only when a
-home eater remains) against the routine food floor (`RoutinePolicy.FoodMinDays`);
-an unknown journey, an uncoverable journey or a breached floor refuses the
-attempt without a preview. The admitted cargo lines are recorded with the
-catalog token and replayed exactly at dispatch; changed groups are stale
-evidence. Packing the reserve is how it leaves home: MaintainFoodStorage
+flag and the pawns eligible to eat it. `PlanCaravanCargo` combines trade
+cargo with a `SelectCaravanFood` pack for the crew over the route's estimated
+days plus a travel margin, then checks the home runway remaining after the
+pack (excluding reserve stock, counting kibble only when a home eater remains)
+against the routine food floor (`RoutinePolicy.FoodMinDays`); an unknown
+journey, an uncoverable journey or a breached floor returns no pack. The
+composed pack, by definition, is the caravan departure's cargo; native fills
+each definition reserve stock first when the `FormCaravanIntent` applies
+(#942). No production planner composes a departure yet. Packing the reserve
+is how it leaves home: MaintainFoodStorage
 observes the reduced reserve stock afterwards and refills it through its
 ordinary holds and preservation bills.
 

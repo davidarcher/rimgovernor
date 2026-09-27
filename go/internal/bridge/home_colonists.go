@@ -9,9 +9,7 @@ import (
 )
 
 // ReadHomeColonists lists every current-map living colonist's identity and
-// Doctor work-type enablement, the exact census CaravanDepartureBoundary
-// needs to decide whether a caravan crew would leave home without any
-// available doctor. Unlike ReadPawns/ReadTendPawns this is not id-scoped:
+// Doctor work-type enablement: who is home. Unlike ReadPawns/ReadTendPawns this is not id-scoped:
 // this family must first learn who stays home before it can ask about their
 // facts, not merely confirm facts about pawns it already named.
 func (client *Client) ReadHomeColonists(ctx context.Context, identity *c.Identity) (*o.ListPawnsReply, Result, error) {

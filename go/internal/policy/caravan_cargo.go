@@ -10,6 +10,10 @@ import (
 // the journey covers the crew's demand for it (SelectCaravanFood refused).
 const CaravanFoodInsufficient Reason = "caravan_food_insufficient"
 
+// CaravanHomeFoodInsufficient: the pack would leave the home colony's
+// unreserved food runway under the floor.
+const CaravanHomeFoodInsufficient Reason = "caravan_home_food_insufficient"
+
 // CaravanCargoGroup is one native catalog cargo group with its food facts
 // (bridge.CaravanCatalogRead's CargoGroup rows in plain values). Nutrition is
 // per unit and unknown for anything that is not food; Eaters lists the
@@ -40,7 +44,7 @@ type CaravanCargoRequest struct {
 	HomeFoodMinDays float64
 }
 
-// CaravanCargoSelection is one FormCaravan cargo line: a catalog group and
+// CaravanCargoSelection is one pack line: a catalog group and
 // the units loaded from it.
 type CaravanCargoSelection struct {
 	GroupID    string

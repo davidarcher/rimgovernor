@@ -12,13 +12,11 @@ import (
 )
 
 // CaravanTracking records one caravan RimGovernor formed and is still
-// waiting to see return home. It is created once, from confirmed
-// FormCaravan completion evidence (CaravanDepartureBoundary.ObserveCaravanDeparture's
-// domain.EffectCompleted outcome), and resolved once, when
+// waiting to see return home. It is created once, by StartCaravanTracking,
+// and resolved once, when
 // policy.ClassifyCaravanJourney reports CaravanJourneyReturnedHome for it.
 // It is deliberately independent of the departure plan/action's own
-// admission and progress records: those exist to gate one FormCaravan
-// dispatch and are retired with the plan, while a caravan can remain away
+// progress records: those are retired with the plan, while a caravan can remain away
 // for an unbounded number of ticks after its departure action completes.
 type CaravanTracking struct {
 	CaravanID string
@@ -81,7 +79,7 @@ func caravanTrackingDecode(data []byte) ([]domain.PawnID, error) {
 }
 
 // StartCaravanTracking begins tracking one departed caravan. It is
-// idempotent on caravanID: re-observing the same FormCaravan completion
+// idempotent on caravanID: re-observing the same departure
 // (e.g. after a restart replays reconciliation) leaves the existing record
 // untouched rather than erroring or duplicating it, but a caravanID already
 // tracked with a different crew is rejected as conflicting evidence.

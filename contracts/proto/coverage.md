@@ -29,7 +29,7 @@ discovered/mapped, not as live source links.
 | `home/medical_operations` | Observations.ReadMedicalCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan_gift` | Operations.Preview / Execute: GiftCaravanSilver | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/fulfill_quest` | Operations.Preview / Execute: FulfillQuest | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/caravan` | Operations.Preview / Execute: FormCaravan / TravelCaravan; Observations.ReadCaravanCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/caravan` | Actions.Apply: FormCaravanIntent; Operations.Preview / Execute: TravelCaravan; Observations.ReadCaravanCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/accept_quest` | Actions.Apply: AcceptQuestIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/manage_waste` | Operations.Preview / Execute: ManageWaste | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/gear_upkeep` | Operations.Preview / Execute: ImproveGear; Observations.ReadGear | Typed | `controller/rimgovernor/bridge_game.py:15` |
