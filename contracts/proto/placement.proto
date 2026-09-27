@@ -31,6 +31,10 @@ message PlacementCandidate {
   optional Rotation rotation = 4;
   // Absent or empty requests the game's default material.
   optional string stuff = 5;
+  // Previews the placement as though natural rock at the cell were already
+  // mined, for a planned building whose excavation the same plan orders
+  // first (#874). Dispatch never sets it.
+  optional bool ignore_natural_rock = 6;
 }
 message PlacementReply {
   oneof outcome {

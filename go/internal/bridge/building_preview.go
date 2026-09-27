@@ -39,6 +39,22 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 // a failed row fails the whole read. Later chunks of an oversized sweep are
 // separate hops, and each must observe the same native generation.
 func (caller *Client) PreviewBuildings(ctx context.Context, actions []domain.Action, snapshot domain.GenerationSnapshot) ([]BuildingPreview, Result, error) {
+	return caller.previewBuildings(ctx, actions, snapshot, false)
+}
+
+// PreviewBuildingOverRock previews one action as though natural rock on its
+// footprint were already mined (#874): a planned building whose excavation
+// the same plan orders first. Dispatch never previews this way; the
+// executor re-previews plainly once the rock is gone.
+func (caller *Client) PreviewBuildingOverRock(ctx context.Context, action domain.Action, snapshot domain.GenerationSnapshot) (BuildingPreview, Result, error) {
+	previews, raw, err := caller.previewBuildings(ctx, []domain.Action{action}, snapshot, true)
+	if err != nil {
+		return BuildingPreview{}, raw, err
+	}
+	return previews[0], raw, nil
+}
+
+func (caller *Client) previewBuildings(ctx context.Context, actions []domain.Action, snapshot domain.GenerationSnapshot, overRock bool) ([]BuildingPreview, Result, error) {
 	if err := snapshot.Validate(); err != nil || snapshot.Native == 0 {
 		return nil, Result{}, contract("building preview snapshot")
 	}
@@ -56,6 +72,9 @@ func (caller *Client) PreviewBuildings(ctx context.Context, actions []domain.Act
 			return nil, Result{}, err
 		}
 		candidates = append(candidates, &p.PlacementCandidate{DefName: proto.String(b.Definition()), Stuff: proto.String(b.Stuff()), X: proto.Int32(b.Cell().X), Z: proto.Int32(b.Cell().Z), Rotation: rotations[b.Rotation()].Enum()})
+		if overRock {
+			candidates[len(candidates)-1].IgnoreNaturalRock = proto.Bool(true)
+		}
 	}
 	out := make([]BuildingPreview, 0, len(actions))
 	var raw Result

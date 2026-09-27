@@ -11,8 +11,11 @@ namespace HomeBridge.BridgeTools
 {
     internal sealed class PlacementQuery
     {
-        internal PlacementQuery(string defName, int x, int z, string rotation, string? stuff)
-        { DefName = defName; X = x; Z = z; Rotation = rotation; Stuff = stuff; }
+        internal PlacementQuery(string defName, int x, int z, string rotation, string? stuff, bool ignoreNaturalRock = false)
+        { DefName = defName; X = x; Z = z; Rotation = rotation; Stuff = stuff; IgnoreNaturalRock = ignoreNaturalRock; }
+        // Previews as though natural rock in the footprint were mined (#874):
+        // a planned building whose excavation the same plan orders first.
+        internal bool IgnoreNaturalRock { get; }
         internal string DefName { get; }
         internal int X { get; }
         internal int Z { get; }
@@ -184,7 +187,7 @@ namespace HomeBridge.BridgeTools
                 if (result.passability != "Standable" && result.passability != "PassThroughOnly" && result.passability != "Impassable")
                     return new PlacementPreviewFailure("Native passability is unavailable.");
                 foreach (var rotation in rotations)
-                    result.rotations.Add(EvaluateRotation(map, definition, definition.blueprintDef, center, new Rot4(rotation), material, godMode));
+                    result.rotations.Add(EvaluateRotation(map, definition, definition.blueprintDef, center, new Rot4(rotation), material, godMode, ignoreNaturalRock: candidate.IgnoreNaturalRock));
                 if (!result.researchFinished)
                     foreach (var rotation in result.rotations)
                     {
@@ -212,10 +215,14 @@ namespace HomeBridge.BridgeTools
             }
         }
 
+        // Natural rock the plan mines before the building (#874).
+        private static bool NaturalRock(Thing thing) => thing.def.building?.isNaturalRock == true;
+
         internal static PlacementRotation EvaluateRotation(Map map, BuildableDef definition, ThingDef? blueprint,
-            IntVec3 center, Rot4 rotation, ThingDef? material, bool godMode, bool bounded = true)
+            IntVec3 center, Rot4 rotation, ThingDef? material, bool godMode, bool bounded = true, bool ignoreNaturalRock = false)
         {
-            var report = GenConstruct.CanPlaceBlueprintAt(definition, center, rotation, map, godMode, null, null, material);
+            Predicate<Thing>? skipRock = ignoreNaturalRock ? NaturalRock : null;
+            var report = GenConstruct.CanPlaceBlueprintAt_NewTemp(definition, center, rotation, map, godMode, null, null, material, skipBlockingThing: skipRock);
             var result = new PlacementRotation {
                 rotation = RotationNames[rotation.AsInt & 3], accepted = report.Accepted,
                 reason = Diagnostic(report.Accepted ? "" : report.Reason ?? ""), Rect = GenAdj.OccupiedRect(center, rotation, definition.Size)
@@ -235,6 +242,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var thing in map.thingGrid.ThingsListAtFast(cell))
                 {
                     if (thing == null || thing.def == null || !seen.Add(thing.thingIDNumber)) continue;
+                    if (skipRock != null && skipRock(thing)) continue;
                     if (bounded && seen.Count > 4096) throw new PlacementLimitException("Native footprint exceeds 4096 things");
                     if (bounded) DefinitionName(thing.def.category.ToString());
                     // Placement wipes with the blueprint definition; loose items displaced

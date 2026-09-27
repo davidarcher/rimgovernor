@@ -54,12 +54,12 @@ func (p LayoutPlan) RoomDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
 }
 
 // ExhaustDig lists the rock in a standing room's planned exhaust shaft
-// (#836). A cooler cannot stand on rock and mining its wall cell would open
-// the room, so a back wall still in rock digs nothing and the cooler takes
-// another vented wall.
+// (#836). When CoolerCellRock also holds, mining the wall cell would open
+// the room, so the caller mines it only in the plan that places the cooler
+// there (#874).
 func (p LayoutPlan) ExhaustDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
-	site, area, ok := p.CoolerExhaust(room)
-	if !ok || len(rockAmong(map[domain.Cell]bool{site.Cell: true}, cells)) > 0 {
+	_, area, ok := p.CoolerExhaust(room)
+	if !ok {
 		return nil
 	}
 	want := map[domain.Cell]bool{}
@@ -67,6 +67,13 @@ func (p LayoutPlan) ExhaustDig(room LayoutRoom, cells []SiteCell) []domain.Cell 
 		want[c] = true
 	}
 	return rockAmong(want, cells)
+}
+
+// CoolerCellRock reports that a room's planned cooler wall cell is known
+// natural rock (#874): a standing room whose back wall is still rock.
+func (p LayoutPlan) CoolerCellRock(room LayoutRoom, cells []SiteCell) bool {
+	site, _, ok := p.CoolerExhaust(room)
+	return ok && len(rockAmong(map[domain.Cell]bool{site.Cell: true}, cells)) > 0
 }
 
 // rockAmong is the cells of want known to be natural rock, in site order.

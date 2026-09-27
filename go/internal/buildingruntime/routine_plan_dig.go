@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -22,7 +23,11 @@ const planDigPrefix = "routine-plan-dig"
 // read, or nothing the native side can dig now, so the caller builds as
 // before; while designations stand or the method already ran this epoch it
 // holds the build, since a shell or cooler cannot stand on rock.
-func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excavationStep, rock []domain.Cell, access domain.Cell, method domain.MethodID, check func() error) (RoutineBuildingResult, bool, error) {
+//
+// A non-nil cooler is a planned cooler whose wall cell is among rock (#874):
+// the same plan places it, previewed as though the rock were mined and
+// depending on every excavation, so the room is never left open.
+func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excavationStep, rock []domain.Cell, access domain.Cell, method domain.MethodID, cooler *policy.PlannedCoolerSite, check func() error) (RoutineBuildingResult, bool, error) {
 	if len(rock) == 0 {
 		return RoutineBuildingResult{}, false, nil
 	}
@@ -71,24 +76,46 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", s.goal.Goal.ID, s.goal.Goal.Epoch, method)))
 	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", planDigPrefix, digest[:16]))
-	actions := make([]domain.Action, 0, len(excavations))
-	for i, excavation := range excavations {
-		action, err := domain.NewExcavationAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), excavation)
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
+	var previews []policy.Preview
+	actions := make([]domain.Action, 0, len(excavations)+1)
+	if cooler != nil {
+		// The cooler is action -0, as previewCoolerWall names it.
+		var reason RoutineBuildingReason
+		previews, stock, reason, err = b.previewCoolerWall(call, snapshot, s.facts, nil, check, cooler.Cell, cooler.Rotation, true)
+		if err != nil || reason != "" {
+			return RoutineBuildingResult{Reason: reason}, reason != "", err
+		}
+		actions = append(actions, previews[0].Action)
+	}
+	var dependencies []domain.ActionDependency
+	for _, excavation := range excavations {
+		action, err := domain.NewExcavationAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), excavation)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
+		if cooler != nil {
+			dependencies = append(dependencies, domain.ActionDependency{Action: actions[0].ID(), Requires: action.ID()})
+		}
 		actions = append(actions, action)
 	}
-	plan, err := domain.NewPlan(snapshot.Plan, 1, actions)
+	plan, err := domain.NewPlan(snapshot.Plan, 1, actions, dependencies...)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	result, err := dig.admitExcavation(call, epoch, s, snapshot, method, plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, check)
+	result, err := dig.admitExcavation(call, epoch, s, snapshot, method, plan, previews, stock, check)
 	if err != nil {
 		return result, false, err
 	}
 	clockSchedulerLog("%s: %s: %d rock cells reason=%s", b.goal, method, len(actions), result.Reason)
 	return result, true, nil
+}
+
+// overRockPreviewer is the native preview of a building as though natural
+// rock on its footprint were mined (bridge.Client.PreviewBuildingOverRock,
+// #874).
+type overRockPreviewer interface {
+	PreviewBuildingOverRock(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
 
 // digMethod is the per-epoch method that mines what for room (#836).
@@ -103,7 +130,7 @@ func (b *RoutineBuildingPlanner) digPlannedRoom(call, epoch context.Context, s e
 	if err != nil {
 		return RoutineBuildingResult{}, false, nil
 	}
-	return b.digPlanned(call, epoch, s, plan.RoomDig(room, s.facts.Cells), shell.Threshold(), digMethod("room", room), check)
+	return b.digPlanned(call, epoch, s, plan.RoomDig(room, s.facts.Cells), shell.Threshold(), digMethod("room", room), nil, check)
 }
 
 // digPlannedShells mines the first planned room of this builder's role
@@ -129,7 +156,9 @@ func (b *RoutineBuildingPlanner) digPlannedShells(call, epoch context.Context, s
 
 // digExhaust mines the planned exhaust shaft of the room the refrigeration
 // proposal cools (#836), reached from inside the room; until it is open
-// the proposal falls back to any vented wall.
+// the proposal falls back to any vented wall. A cooler wall cell still in
+// rock is mined in the same plan that places the planned cooler (#874),
+// when the native source can preview over rock.
 func (b *RoutineBuildingPlanner) digExhaust(call, epoch context.Context, s excavationStep, check func() error) (RoutineBuildingResult, bool, error) {
 	plan, pk := s.facts.LayoutPlan.Value()
 	rooms, rk := s.facts.Rooms.Value()
@@ -145,7 +174,15 @@ func (b *RoutineBuildingPlanner) digExhaust(call, epoch context.Context, s excav
 			continue
 		}
 		cooler := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}
-		return b.digPlanned(call, epoch, s, plan.ExhaustDig(room, s.facts.Cells), cooler.Cold(), digMethod("exhaust", room), check)
+		rock := plan.ExhaustDig(room, s.facts.Cells)
+		var place *policy.PlannedCoolerSite
+		if plan.CoolerCellRock(room, s.facts.Cells) {
+			if _, ok := b.native.(overRockPreviewer); !ok {
+				return RoutineBuildingResult{}, false, nil
+			}
+			rock, place = append([]domain.Cell{site.Cell}, rock...), &site
+		}
+		return b.digPlanned(call, epoch, s, rock, cooler.Cold(), digMethod("exhaust", room), place, check)
 	}
 	return RoutineBuildingResult{}, false, nil
 }

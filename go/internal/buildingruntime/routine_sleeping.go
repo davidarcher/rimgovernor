@@ -905,7 +905,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		return r.previewRefrigeration(call, snapshot, facts, protected, check)
 	}
 	if r.temperature != nil && r.temperature.Method == policy.TemperatureCoolPowered {
-		return r.previewCoolerWall(call, snapshot, facts, protected, check, r.temperature.Cell, r.temperature.Rotation)
+		return r.previewCoolerWall(call, snapshot, facts, protected, check, r.temperature.Cell, r.temperature.Rotation, false)
 	}
 	if r.lighting != nil {
 		return r.previewLighting(call, snapshot, facts, protected, check)

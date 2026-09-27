@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -167,13 +168,15 @@ func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snaps
 	if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
 		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, "", ErrControl
 	}
-	return r.previewCoolerWall(ctx, snapshot, facts, protected, check, r.refrigeration.Cell, r.refrigeration.Rotation)
+	return r.previewCoolerWall(ctx, snapshot, facts, protected, check, r.refrigeration.Cell, r.refrigeration.Rotation, false)
 }
 
 // previewCoolerWall previews one Cooler on the exact wall cell and rotation
 // a policy chose (the refrigeration family for a food store, the
 // temperature family for a sleeping room); there is no fallback cell.
-func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+// overRock previews it as though natural rock on the cell were mined, for
+// the exhaust dig that mines the cell in the same plan (#874).
+func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation, overRock bool) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	for _, c := range protected {
 		if c == cell {
@@ -188,7 +191,16 @@ func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot
 	if err != nil {
 		return nil, stock, "", err
 	}
-	preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
+	var preview bridge.BuildingPreview
+	if overRock {
+		source, ok := r.native.(overRockPreviewer)
+		if !ok {
+			return nil, stock, BuildingMethodUnknown, nil
+		}
+		preview, _, err = source.PreviewBuildingOverRock(ctx, action, snapshot)
+	} else {
+		preview, _, err = r.native.PreviewBuilding(ctx, action, snapshot)
+	}
 	if err != nil {
 		return nil, stock, "", err
 	}

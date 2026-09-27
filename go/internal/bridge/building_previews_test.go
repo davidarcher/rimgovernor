@@ -73,3 +73,38 @@ func TestBuildingPreviewsBatchesOneHopPerLimit(t *testing.T) {
 		})
 	}
 }
+
+// Only the over-rock preview asks native to ignore natural rock (#874); a
+// plain preview leaves the field absent.
+func TestBuildingPreviewOverRockSetsIgnoreNaturalRock(t *testing.T) {
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}
+	b, _ := domain.NewBuilding("Cooler", domain.Cell{X: 3, Z: 1}, domain.North, "")
+	action, _ := domain.NewBuildingAction("cooler", b)
+	var seen []*p.PlacementCandidate
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+			return nil, err
+		}
+		request := &p.PlacementRequest{}
+		if err := protojson.Unmarshal([]byte(outer.Request), request); err != nil {
+			return nil, err
+		}
+		seen = append(seen, request.Placements[0])
+		row := proto.Clone(pbBatch().GetBatch().Results[0]).(*p.CandidateReply)
+		row.GetEvaluated().Rotations[0].OccupiedCells = []*c.Cell{{X: proto.Int32(3), Z: proto.Int32(1)}}
+		return pbResult(&p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Context: pbContext(), Results: []*p.CandidateReply{row}}}}), nil
+	}}
+	client := testClient(t, s, testBudget)
+	if _, _, err := client.PreviewBuildingOverRock(context.Background(), action, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.PreviewBuilding(context.Background(), action, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || !seen[0].GetIgnoreNaturalRock() || seen[1].IgnoreNaturalRock != nil {
+		t.Fatal(seen)
+	}
+}

@@ -30,7 +30,8 @@ namespace HomeBridge.BridgeTools
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
-                        PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null);
+                        PlacementProtocol.RotationName(candidate.Rotation), candidate.HasStuff ? candidate.Stuff : null,
+                        candidate.HasIgnoreNaturalRock && candidate.IgnoreNaturalRock);
                     batch.Results.Add(PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context));
                 }
                 return PlacementProtocol.Bounded(new PlacementReply { Batch = batch });

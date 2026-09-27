@@ -193,9 +193,13 @@ type PlacementCandidate struct {
 	Z        *int32                 `protobuf:"varint,3,opt,name=z,proto3,oneof" json:"z,omitempty"`
 	Rotation *Rotation              `protobuf:"varint,4,opt,name=rotation,proto3,enum=rimgovernor.placement.v1.Rotation,oneof" json:"rotation,omitempty"`
 	// Absent or empty requests the game's default material.
-	Stuff         *string `protobuf:"bytes,5,opt,name=stuff,proto3,oneof" json:"stuff,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Stuff *string `protobuf:"bytes,5,opt,name=stuff,proto3,oneof" json:"stuff,omitempty"`
+	// Previews the placement as though natural rock at the cell were already
+	// mined, for a planned building whose excavation the same plan orders
+	// first (#874). Dispatch never sets it.
+	IgnoreNaturalRock *bool `protobuf:"varint,6,opt,name=ignore_natural_rock,json=ignoreNaturalRock,proto3,oneof" json:"ignore_natural_rock,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PlacementCandidate) Reset() {
@@ -261,6 +265,13 @@ func (x *PlacementCandidate) GetStuff() string {
 		return *x.Stuff
 	}
 	return ""
+}
+
+func (x *PlacementCandidate) GetIgnoreNaturalRock() bool {
+	if x != nil && x.IgnoreNaturalRock != nil {
+		return *x.IgnoreNaturalRock
+	}
+	return false
 }
 
 type PlacementReply struct {
@@ -1024,18 +1035,20 @@ const file_placement_proto_rawDesc = "" +
 	"\n" +
 	"placements\x18\x01 \x03(\v2,.rimgovernor.placement.v1.PlacementCandidateR\n" +
 	"placements\x12;\n" +
-	"\bidentity\x18\x02 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xea\x01\n" +
+	"\bidentity\x18\x02 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xb7\x02\n" +
 	"\x12PlacementCandidate\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x11\n" +
 	"\x01x\x18\x02 \x01(\x05H\x01R\x01x\x88\x01\x01\x12\x11\n" +
 	"\x01z\x18\x03 \x01(\x05H\x02R\x01z\x88\x01\x01\x12C\n" +
 	"\brotation\x18\x04 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x03R\brotation\x88\x01\x01\x12\x19\n" +
-	"\x05stuff\x18\x05 \x01(\tH\x04R\x05stuff\x88\x01\x01B\v\n" +
+	"\x05stuff\x18\x05 \x01(\tH\x04R\x05stuff\x88\x01\x01\x123\n" +
+	"\x13ignore_natural_rock\x18\x06 \x01(\bH\x05R\x11ignoreNaturalRock\x88\x01\x01B\v\n" +
 	"\t_def_nameB\x04\n" +
 	"\x02_xB\x04\n" +
 	"\x02_zB\v\n" +
 	"\t_rotationB\b\n" +
-	"\x06_stuff\"\x99\x01\n" +
+	"\x06_stuffB\x16\n" +
+	"\x14_ignore_natural_rock\"\x99\x01\n" +
 	"\x0ePlacementReply\x12@\n" +
 	"\x05batch\x18\x01 \x01(\v2(.rimgovernor.placement.v1.PlacementBatchH\x00R\x05batch\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +

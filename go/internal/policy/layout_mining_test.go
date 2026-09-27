@@ -79,13 +79,21 @@ func TestPlannedDig(t *testing.T) {
 			t.Fatalf("%v not dug", c)
 		}
 	}
-	if got := p.ExhaustDig(freezer, cells); got != nil {
-		t.Fatalf("rock back wall dug %v", got)
+	// A rock back wall still lists the shaft; the cooler cell is left to
+	// the plan that places the cooler (#874).
+	if !p.CoolerCellRock(freezer, cells) {
+		t.Fatal("rock cooler cell not reported")
+	}
+	if got := p.ExhaustDig(freezer, cells); len(got) != len(RectangleCells(shaft)) {
+		t.Fatalf("rock back wall shaft dig %v, want %v", got, shaft)
 	}
 	for i := range cells {
 		if cells[i].Cell == site.Cell {
 			cells[i].NaturalRock = domain.Known(false)
 		}
+	}
+	if p.CoolerCellRock(freezer, cells) {
+		t.Fatal("mined cooler cell reported rock")
 	}
 	if got := p.ExhaustDig(freezer, cells); len(got) != len(RectangleCells(shaft)) {
 		t.Fatalf("shaft dig %v, want %v", got, shaft)
