@@ -65,6 +65,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// A sapper or breacher raid posts inside its predicted breach (#913).
 			next.Tactic, next.Roles, next.Refusal = TacticSapper, sapperFormation(view, b), ""
 			next.SapperBreach = &b.Wall
+			next.Rushing = false
 		} else {
 			next.SapperBreach = nil
 			next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
@@ -80,6 +81,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	next.Roles = dropMissingTargets(view, next.Roles)
 	manhunterKite(view, &next)
 	sapperIntercept(view, &next)
+	sapperRush(view, stop, &next)
 	manhunterDoor(view, formed, &next)
 	manhunterShelter(view, &next)
 	orderable := map[domain.PawnID]bool{}
@@ -379,6 +381,8 @@ type CombatMemory struct {
 	SapperBreach *domain.Cell `json:",omitempty"`
 	// Intercept is a sapper fight whose gunners went out to the diggers (#914).
 	Intercept bool `json:",omitempty"`
+	// Rushing is a sapper fight whose posted brawlers rush the breach (#915).
+	Rushing bool `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
