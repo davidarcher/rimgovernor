@@ -31,7 +31,7 @@ func init() {
 		Name: "combatlab/mirror",
 		Scope: "Combat mirror sections and combat.geometry (#851) on lab-ranged: the combat_pawns keyframe lists the 4 riflemen and 4 raiders with rifles; " +
 			"combat.geometry gives a sandbagged rifleman cover against the raider north of him, an open cell none, line of fire to every raider, a colonist in the path from the cell behind a rifleman, " +
-			"path ticks for a named pawn, and a read at 64 cells x 8 pawns under 50 ms of main thread; the firefight's first downing or death arrives as a combat_events row and, in the same delta, " +
+			"path ticks for a named pawn, and a read at 64 cells x 8 pawns under 50 ms of main thread; proposing cover_behind_line on the sandbags returns every cell behind them, and a firing_cells proposal at the radius cap fills 64 cells within budget (#871); the firefight's first downing or death arrives as a combat_events row and, in the same delta, " +
 			"the pawn's row (downed, stamped with the event's watermark) or its tombstone.",
 		Start:       cases.Lab{Colonists: 4},
 		RequiredOps: []string{na.LabStartTool, StageTool},
@@ -214,6 +214,74 @@ func geometry(ctx context.Context, h *na.Harness, identity *c.Identity, staged S
 		"projectedAtCapsMs": projected, "caps": fmt.Sprintf("%dx%d", bridge.CombatGeometryMaxCells, bridge.CombatGeometryMaxHostiles)}
 	if projected > geometryBudgetMs {
 		return fmt.Errorf("geometry at the caps projects %.1f ms (worst %.1f ms at %dx%d), over %.0f ms", projected, worst, len(cells), len(targets), geometryBudgetMs)
+	}
+	return propose(ctx, h, identity, staged, rifleman, report)
+}
+
+// propose (#871): cover_behind_line on the sandbag line returns every cell
+// behind it (the riflemen's row), and a firing_cells proposal at the
+// radius cap, 64 cells scored against every staged pawn, stays in budget.
+func propose(ctx context.Context, h *na.Harness, identity *c.Identity, staged Staged, rifleman Pawn, report na.Report) error {
+	cell := func(x, z int) *c.Cell { return &c.Cell{X: proto.Int32(int32(x)), Z: proto.Int32(int32(z))} }
+	var line []*c.Cell
+	behind := map[[2]int32]bool{}
+	for _, th := range staged.Fixture.Things {
+		if th.Def == "Sandbags" {
+			line = append(line, cell(th.X, th.Z))
+			behind[[2]int32{int32(th.X), int32(th.Z - 1)}] = true
+		}
+	}
+	request := bridge.CombatGeometryProposeAsk(identity, &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{
+		CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}, staged.Hostiles(), "")
+	reply := &mp.CombatGeometryReply{}
+	if err := wireProto(ctx, h, "combat-geometry-propose-cover", "combat_geometry", request, reply); err != nil {
+		return err
+	}
+	g := reply.GetObserved()
+	if err := bridge.ValidateCombatGeometry(g, request); err != nil {
+		return fmt.Errorf("propose cover_behind_line %v: %w", reply.GetFailure(), err)
+	}
+	var proposed [][2]int32
+	for _, row := range g.GetProposed() {
+		key := [2]int32{row.GetCell().GetX(), row.GetCell().GetZ()}
+		proposed = append(proposed, key)
+		delete(behind, key)
+	}
+	report["proposeCover"] = map[string]any{"cells": proposed, "ms": g.GetMainThreadMs()}
+	if len(behind) != 0 {
+		return fmt.Errorf("cover_behind_line on the sandbags missed %v; proposed %v", behind, proposed)
+	}
+	pawns := append(append([]string{}, staged.Hostiles()...), staged.Colonists()...)
+	var targets []*c.Cell
+	for _, pawn := range staged.Fixture.Pawns {
+		targets = append(targets, cell(pawn.X, pawn.Z))
+	}
+	firing := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_FiringCells{FiringCells: &mp.CombatFiringCells{
+		Targets: targets, From: cell(rifleman.X, rifleman.Z-3), Radius: proto.Int32(bridge.CombatGeometryMaxRadius)}}}
+	var samples []float64
+	for i := 0; i < 5; i++ {
+		request := bridge.CombatGeometryProposeAsk(identity, firing, pawns, staged.Colonists()[1])
+		reply := &mp.CombatGeometryReply{}
+		if err := wireProto(ctx, h, fmt.Sprintf("combat-geometry-propose-cap-%d", i), "combat_geometry", request, reply); err != nil {
+			return err
+		}
+		if err := bridge.ValidateCombatGeometry(reply.GetObserved(), request); err != nil {
+			return fmt.Errorf("propose firing_cells %v: %w", reply.GetFailure(), err)
+		}
+		if n := len(reply.GetObserved().GetProposed()); n != bridge.CombatGeometryMaxCells {
+			return fmt.Errorf("propose firing_cells at radius %d gave %d cells, want %d", bridge.CombatGeometryMaxRadius, n, bridge.CombatGeometryMaxCells)
+		}
+		samples = append(samples, reply.GetObserved().GetMainThreadMs())
+	}
+	sort.Float64s(samples)
+	worst := samples[len(samples)-1]
+	// Scan and scoring are linear in targets and hostiles: 8 each here,
+	// the caps are 16.
+	projected := worst * float64(bridge.CombatGeometryMaxHostiles) / float64(len(pawns))
+	report["proposeTiming"] = map[string]any{"targets": len(targets), "hostiles": len(pawns), "radius": bridge.CombatGeometryMaxRadius,
+		"msSorted": samples, "worstMs": worst, "projectedAtCapsMs": projected}
+	if projected > geometryBudgetMs {
+		return fmt.Errorf("propose at the caps projects %.1f ms (worst %.1f ms), over %.0f ms", projected, worst, geometryBudgetMs)
 	}
 	return nil
 }

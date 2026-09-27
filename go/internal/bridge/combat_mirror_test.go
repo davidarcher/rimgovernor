@@ -112,6 +112,108 @@ func TestCombatGeometryRequestCaps(t *testing.T) {
 	}
 }
 
+// Each propose role (#871) validates its anchor; named plus proposed
+// cells share the cells cap.
+func TestCombatGeometryProposeRequest(t *testing.T) {
+	id := pbIdentity()
+	at := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	line := func(n int) []*c.Cell {
+		out := make([]*c.Cell, n)
+		for i := range out {
+			out[i] = at(int32(i), 1)
+		}
+		return out
+	}
+	cover := func(cells []*c.Cell) *mp.CombatGeometryPropose {
+		return &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: cells}}}
+	}
+	choke := func(choke, side *c.Cell) *mp.CombatGeometryPropose {
+		return &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_AdjacentToChoke{AdjacentToChoke: &mp.CombatAdjacentToChoke{Choke: choke, OurSide: side}}}
+	}
+	firing := func(targets []*c.Cell, from *c.Cell, radius *int32) *mp.CombatGeometryPropose {
+		return &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_FiringCells{FiringCells: &mp.CombatFiringCells{Targets: targets, From: from, Radius: radius}}}
+	}
+	hostiles := []string{"Thing_Human1"}
+	for name, p := range map[string]*mp.CombatGeometryPropose{
+		"cover at cap":  cover(line(CombatGeometryMaxCells)),
+		"choke":         choke(at(5, 5), at(5, 0)),
+		"firing at cap": firing(line(CombatGeometryMaxHostiles), at(3, 3), proto.Int32(CombatGeometryMaxRadius)),
+	} {
+		if err := ValidateCombatGeometryRequest(CombatGeometryProposeAsk(id, p, hostiles, "")); err != nil {
+			t.Errorf("%s refused: %v", name, err)
+		}
+	}
+	withNamed := CombatGeometryAsk(id, line(CombatGeometryMaxCells-1), hostiles, "")
+	withNamed.Propose = cover(line(1))
+	if err := ValidateCombatGeometryRequest(withNamed); err != nil {
+		t.Errorf("63 named cells plus a proposal refused: %v", err)
+	}
+	full := CombatGeometryAsk(id, line(CombatGeometryMaxCells), hostiles, "")
+	full.Propose = cover(line(1))
+	repeated := line(2)
+	repeated[1] = repeated[0]
+	for name, request := range map[string]*mp.CombatGeometryRequest{
+		"no role":            CombatGeometryProposeAsk(id, &mp.CombatGeometryPropose{}, hostiles, ""),
+		"empty line":         CombatGeometryProposeAsk(id, cover(nil), hostiles, ""),
+		"line over cap":      CombatGeometryProposeAsk(id, cover(line(CombatGeometryMaxCells+1)), hostiles, ""),
+		"repeated line cell": CombatGeometryProposeAsk(id, cover(repeated), hostiles, ""),
+		"no choke":           CombatGeometryProposeAsk(id, choke(nil, at(1, 1)), hostiles, ""),
+		"no side":            CombatGeometryProposeAsk(id, choke(at(1, 1), nil), hostiles, ""),
+		"side on choke":      CombatGeometryProposeAsk(id, choke(at(1, 1), at(1, 1)), hostiles, ""),
+		"no targets":         CombatGeometryProposeAsk(id, firing(nil, at(1, 1), proto.Int32(4)), hostiles, ""),
+		"targets over":       CombatGeometryProposeAsk(id, firing(line(CombatGeometryMaxHostiles+1), at(1, 1), proto.Int32(4)), hostiles, ""),
+		"no from":            CombatGeometryProposeAsk(id, firing(line(1), nil, proto.Int32(4)), hostiles, ""),
+		"no radius":          CombatGeometryProposeAsk(id, firing(line(1), at(1, 1), nil), hostiles, ""),
+		"radius over":        CombatGeometryProposeAsk(id, firing(line(1), at(1, 1), proto.Int32(CombatGeometryMaxRadius+1)), hostiles, ""),
+		"no hostiles":        CombatGeometryProposeAsk(id, cover(line(1)), nil, ""),
+		"no room":            full,
+	} {
+		if ValidateCombatGeometryRequest(request) == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// Proposals are standable, distinct from the named cells, within the cap,
+// and scored like named cells; a request without propose gets none.
+func TestCombatGeometryProposedReply(t *testing.T) {
+	at := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: []*c.Cell{at(5, 5)}}}}
+	request := CombatGeometryAsk(pbIdentity(), []*c.Cell{at(1, 2)}, []string{"h1"}, "")
+	request.Propose = propose
+	row := func(cell *c.Cell) *mp.CombatGeometryCell {
+		return &mp.CombatGeometryCell{Cell: cell, Standable: proto.Bool(true), Lines: []*mp.CombatSightLine{{HostileId: proto.String("h1"), Cover: proto.Float64(0.5)}}}
+	}
+	reply := func() *mp.CombatGeometry {
+		return &mp.CombatGeometry{Context: pbContext(), Cells: []*mp.CombatGeometryCell{row(at(1, 2))}, Proposed: []*mp.CombatGeometryCell{row(at(5, 4)), row(at(4, 4))}}
+	}
+	if err := ValidateCombatGeometry(reply(), request); err != nil {
+		t.Fatalf("good reply refused: %v", err)
+	}
+	for name, mutate := range map[string]func(*mp.CombatGeometry){
+		"not standable":  func(g *mp.CombatGeometry) { g.Proposed[0].Standable = proto.Bool(false) },
+		"repeats named":  func(g *mp.CombatGeometry) { g.Proposed[0].Cell = at(1, 2) },
+		"repeats itself": func(g *mp.CombatGeometry) { g.Proposed[1].Cell = at(5, 4) },
+		"lines missing":  func(g *mp.CombatGeometry) { g.Proposed[0].Lines = nil },
+		"path sans pawn": func(g *mp.CombatGeometry) { g.Proposed[0].PathTicks = proto.Int32(3) },
+		"over the cap": func(g *mp.CombatGeometry) {
+			for i := 0; len(g.Proposed) < CombatGeometryMaxCells; i++ {
+				g.Proposed = append(g.Proposed, row(at(int32(10+i), 9)))
+			}
+		},
+	} {
+		g := reply()
+		mutate(g)
+		if ValidateCombatGeometry(g, request) == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	request.Propose = nil
+	if ValidateCombatGeometry(reply(), request) == nil {
+		t.Error("proposals without propose accepted")
+	}
+}
+
 // A geometry reply must answer its request cell by cell, line by line.
 func TestCombatGeometryReplyValidation(t *testing.T) {
 	request := CombatGeometryAsk(pbIdentity(), []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}, []string{"h1", "h2"}, "")

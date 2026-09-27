@@ -132,9 +132,49 @@ message CombatEventRow {
 // measured on lab-ranged under the 50 ms main-thread budget.
 message CombatGeometryRequest {
   rimgovernor.common.v1.Identity identity = 1; // required
-  repeated rimgovernor.common.v1.Cell cells = 2; // 1..cap, distinct, in bounds
+  // 1..cap, distinct, in bounds; 0..cap with propose. Named plus proposed
+  // cells together score at most the cells cap.
+  repeated rimgovernor.common.v1.Cell cells = 2;
   repeated string hostile_ids = 3; // 1..cap, distinct pawn load ids
   optional string pawn_id = 4; // optional: path ticks for this pawn to each cell
+  // Optional (#871): the native proposes candidate cells for one role and
+  // scores them like named cells, in the same read.
+  CombatGeometryPropose propose = 5;
+}
+
+// A role and its anchor (#871). Every proposal is a standable, in-bounds
+// cell not among the named cells, scored against the request's hostiles,
+// ranked best first, at most the cells cap minus the named cells (so a
+// propose request names at most cap-1 cells). Anchor cells are in bounds.
+message CombatGeometryPropose {
+  oneof role {
+    CombatCoverBehindLine cover_behind_line = 1;
+    CombatAdjacentToChoke adjacent_to_choke = 2;
+    CombatFiringCells firing_cells = 3;
+  }
+}
+
+// Cells within one step (8-way) of the line, not on it, whose best cover
+// against the named hostiles (CoverUtility) is above zero; ranked by that
+// cover, then by distance to the line.
+message CombatCoverBehindLine {
+  repeated rimgovernor.common.v1.Cell line = 1; // 1..cells cap, distinct
+}
+
+// The choke's 8-way neighbours strictly nearer our_side than the choke;
+// ranked by distance to our_side.
+message CombatAdjacentToChoke {
+  rimgovernor.common.v1.Cell choke = 1; // required
+  rimgovernor.common.v1.Cell our_side = 2; // required: any cell on our side
+}
+
+// Cells within radius of from with line of fire (GenSight) to at least
+// one target; ranked by targets in sight, then best cover, then distance
+// to from.
+message CombatFiringCells {
+  repeated rimgovernor.common.v1.Cell targets = 1; // 1..hostiles cap, distinct
+  rimgovernor.common.v1.Cell from = 2; // required
+  optional int32 radius = 3; // required, 1..12
 }
 
 // One (cell, hostile) pair.
@@ -161,6 +201,9 @@ message CombatGeometry {
   rimgovernor.common.v1.ObservationContext context = 1;
   repeated CombatGeometryCell cells = 2; // request cell order
   optional double main_thread_ms = 3; // the read's own main-thread time
+  // The propose block's cells (#871), ranked best first, scored like
+  // cells; empty without propose.
+  repeated CombatGeometryCell proposed = 4;
 }
 
 message CombatGeometryReply {
