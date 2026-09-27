@@ -2,9 +2,10 @@ package policy
 
 import (
 	"errors"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // AcquisitionSource is an observed native-approved source, not inventory.

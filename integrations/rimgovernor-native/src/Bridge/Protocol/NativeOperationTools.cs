@@ -23,11 +23,8 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeGearRecord> Gear = new Dictionary<Common.AttemptKey, NativeGearRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeSubdueRecord> Subdues = new Dictionary<Common.AttemptKey, NativeSubdueRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeArrestRecord> Arrests = new Dictionary<Common.AttemptKey, NativeArrestRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, [NotNullWhen(true)] out NativeOperationState? state)
@@ -95,22 +92,10 @@ namespace HomeBridge.BridgeTools
                 return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CombatOrders)
                 return NativeCombatOrders.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
-            {
-                switch (request.Operation.PawnTargetOrder.Kind)
-                {
-                    case Operations.PawnOrderKind.Subdue: return NativeSubdueOperations.Execute(state, request, context);
-                    case Operations.PawnOrderKind.Capture:
-                    case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
-                    default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.");
-                }
-            }
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
                 return NativeGearOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                 return NativeMoodReliefOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
-                return NativeArrestOperations.Execute(state, request, context);
             return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
         }
 
@@ -132,22 +117,10 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativePlantAcquisition.Preview(parsed.Operation.AcquireResource, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
-                {
-                    switch (parsed.Operation.PawnTargetOrder.Kind)
-                    {
-                        case Operations.PawnOrderKind.Subdue: return ProtoBoundary.Encode(NativeSubdueOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        case Operations.PawnOrderKind.Capture:
-                        case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.") });
-                    }
-                }
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
                     return ProtoBoundary.Encode(NativeGearOperations.Preview(parsed.Operation.ImproveGear, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
-                    return ProtoBoundary.Encode(NativeArrestOperations.Preview(parsed.Operation.Arrest, context));
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -195,19 +168,12 @@ namespace HomeBridge.BridgeTools
                     NativeDraftRecord draft;
                     if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) });
-                    NativeCustodyRecord custody;
-                    if (state.Custody.TryGetValue(parsed.Attempt, out custody))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = custody.Observe(parsed.Attempt, context) });
                     NativeMoodReliefRecord relief;
                     if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) });
                     NativeGearRecord gear;
                     if (state.Gear.TryGetValue(parsed.Attempt, out gear))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = gear.Observe(parsed.Attempt, context) });
-                    if (state.Subdues.TryGetValue(parsed.Attempt, out var subdue))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = subdue.Observe(parsed.Attempt, context) });
-                    if (state.Arrests.TryGetValue(parsed.Attempt, out var arrest))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) });
                 }
                 var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                     Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };

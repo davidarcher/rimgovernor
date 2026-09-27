@@ -9,13 +9,11 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -32,8 +30,6 @@ type SessionConfig struct {
 	Haul            *haul.HaulCapabilities
 	Ranged          *ranged.RangedCapabilities
 	Movement        *MovementCapabilities
-	Rescue          *rescue.RescueCapabilities
-	Capture         *capture.CaptureCapabilities
 	GearReplace     *GearReplaceCapabilities
 	MoodRelief      *MoodReliefCapabilities
 	Trade           *TradeCapabilities
@@ -255,9 +251,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil)", ErrControl))
 	}
-	if config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil)", ErrControl))
-	}
 	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil)", ErrControl))
 	}
@@ -321,24 +314,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableHaul(haulBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Rescue != nil {
-		rescueBoundary, err := rescue.NewRescueBoundary(config.Rescue.Native, config.Rescue.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableRescue(rescueBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Capture != nil {
-		captureBoundary, err := capture.NewCaptureBoundary(config.Capture.Native, config.Capture.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableCapture(captureBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

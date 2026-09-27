@@ -1,9 +1,10 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestResourceRunwayHistoryWindow(t *testing.T) {

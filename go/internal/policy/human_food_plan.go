@@ -1,9 +1,10 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // HumanFoodChannel routes finite stocks. It deliberately contributes no new

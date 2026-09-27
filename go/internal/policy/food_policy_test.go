@@ -1,9 +1,10 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"slices"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestFoodPolicyFreshEligibilityAndUnknown(t *testing.T) {

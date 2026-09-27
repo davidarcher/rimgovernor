@@ -1,8 +1,9 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 const BreakExclusionRadius = 8

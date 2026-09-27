@@ -1,8 +1,9 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func larderCorpse(id string, forbidden bool, meat, size float64) FoodStock {

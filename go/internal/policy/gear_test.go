@@ -1,10 +1,11 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func gearFixture() GearPlanningRequest {

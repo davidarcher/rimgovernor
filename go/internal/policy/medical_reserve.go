@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // MedicineStack is an observed medicine stack, not a recipe or promised output.

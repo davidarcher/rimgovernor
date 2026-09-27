@@ -81,6 +81,10 @@ message Operation {
   // Caravan travel, settlement gifts and quest fulfilment had no Go sender (#942).
   reserved 42, 43, 45;
   reserved "travel_caravan", "gift_caravan_silver", "fulfill_quest";
+  // Pawn-target orders and arrest moved to Actions/Apply PawnOrderIntent;
+  // subdue is a MeleeIntent (#939).
+  reserved 36, 57;
+  reserved "pawn_target_order", "arrest";
   oneof command {
     AcquireResource acquire_resource = 4;
     // Preview only: the siting read planners run per candidate; zones are
@@ -90,9 +94,7 @@ message Operation {
     ImproveGear improve_gear = 28;
     SetDrafted set_drafted = 33;
     AttackTarget attack_target = 35;
-    PawnTargetOrder pawn_target_order = 36;
     CancelAcquisition cancel_acquisition = 54;
-    Arrest arrest = 57;
     CombatOrders combat_orders = 62;
   }
   // Why the controller issues this operation, one short ASCII line such as
@@ -252,10 +254,6 @@ message ZoneCellsIntent { optional string zone_id = 1; optional CellEdit edit = 
 // storable definitions when it applies; settings that already hold apply
 // again.
 message StockpileIntent { optional string target_id = 1; StockpileSettings settings = 2; }
-// Vanilla custody: an armed, violence-capable, owned drafted arrester and a
-// target still in a legal arrestable mental state. Destination is a prisoner
-// bed; hostile aggressive states (including Berserk) are refused by native rules.
-message Arrest { EntityPrecondition pawn = 1; EntityPrecondition target = 2; EntityPrecondition bed = 3; }
 enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
 // expected_target_snapshot_token is decoupled from target's own EntityPrecondition
 // (whose token field is unused for this operation; only entity_id identity is
@@ -278,8 +276,7 @@ enum PrisonerInteraction {
 message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
 enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
 message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
-enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_SUBDUE = 10; reserved 5, 11; reserved "PAWN_ORDER_KIND_HAUL"; }
-message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; reserved 4; reserved "require_safe_storage"; }
+enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; PAWN_ORDER_KIND_OPEN_CASKET = 9; PAWN_ORDER_KIND_ARREST = 12; reserved 5, 6, 10, 11; reserved "PAWN_ORDER_KIND_HAUL", "PAWN_ORDER_KIND_WORK", "PAWN_ORDER_KIND_SUBDUE"; }
 // Trade steps, sent as TradeIntent through Actions/Apply, act on RimWorld's
 // one live trade session. Native validates each against live state when it
 // applies and refuses with a reason when the session is gone or held by a
@@ -384,11 +381,13 @@ message Action {
   }
 }
 // Order one pawn onto one target with the job the game's own work giver or
-// float menu builds for that kind (repair, clean, open a casket). Native
-// checks the pawn and the target live; a pawn already running that job on
-// the target applies again. Applied means ordered, not finished; the next
-// census reads the outcome.
-message PawnOrderIntent { optional string pawn_id = 1; optional string target_id = 2; optional PawnOrderKind kind = 3; }
+// float menu builds for that kind (repair, clean, open a casket, tend,
+// equip, rescue, capture, arrest). Native checks the pawn and the target
+// live; a pawn already running that job on the target applies again.
+// Applied means ordered, not finished; the next census reads the outcome.
+// ARREST alone names bed_id, the exact prisoner bed; it needs an armed arrester
+// with an owned draft and a target in an arrestable mental state.
+message PawnOrderIntent { optional string pawn_id = 1; optional string target_id = 2; optional PawnOrderKind kind = 3; optional string bed_id = 4; }
 // Extend Home over the missing cells of one facility's bounded batch (a
 // colonist building plus its connected enclosed roofed rooms, or a
 // stockpile's cells), recomputed live when native applies it. A batch

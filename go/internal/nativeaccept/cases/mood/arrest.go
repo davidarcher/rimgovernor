@@ -3,7 +3,6 @@ package mood
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -12,10 +11,10 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "Existing Arrest operation delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
+	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "The ARREST PawnOrderIntent delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{On: cases.LabStart(), Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
 	cases.Register(cases.Case{
 		Name:   "mood/arrest",
-		Scope:  "Vanilla Arrest custody: refuse normal targets, unarmed arresters, hostile Berserk and non-prisoner beds; require owned draft; replay/lookup and observe a living sad-wander target in the exact prisoner bed with its mental state ended.",
+		Scope:  "Vanilla Arrest custody through the ARREST PawnOrderIntent on Actions/Apply: refuse normal targets, unarmed arresters, hostile Berserk and non-prisoner beds; require owned draft; a resend applies again; a living sad-wander target ends in the exact prisoner bed with its mental state ended.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/arrest_prepare", ArgsFrom: startersite.ArgsFor(7)},
 		Keep:   []string{string(na.NeedRest)},
 		Budget: 2 * time.Minute,
@@ -39,7 +38,6 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 		}
 		return na.PawnRow(reply, identity, pawnID)
 	}
-	var request, receipt, attempt map[string]any
 	scenarios := []struct {
 		name, fixture, reason string
 		draft                 bool
@@ -49,7 +47,6 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 		{"berserk", "berserk", "native arrest eligibility", true},
 		{"ordinary-bed", "legal", "prisoner bed", true},
 		{"unowned", "legal", "owned draft claim", false},
-		{"stale", "legal", "snapshot changed", true},
 		{"legal", legalFixture, "", true},
 	}
 	for i, scenario := range scenarios {
@@ -89,117 +86,59 @@ func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) 
 		if scenario.name == "ordinary-bed" {
 			bed = ordinaryBedID
 		}
-		pawn := na.Target(row)
-		if scenario.name == "stale" {
-			pawn["expectedSnapshotToken"] = "stale-arrest-token"
-		}
-		operation := map[string]any{"arrest": map[string]any{"pawn": pawn, "target": map[string]any{"entityId": targetID}, "bed": map[string]any{"entityId": bed}}}
-		request = map[string]any{"operation": operation, "precondition": map[string]any{"identity": identity, "expectedGeneration": fmt.Sprint(na.GrantGeneration(grant)), "attempt": map[string]any{"controllerSessionId": na.Controller, "actionId": "arrest-" + scenario.name, "attemptId": "1"}}}
-		preview, err := h.Wire(ctx, "preview-"+scenario.name, "operations_preview", map[string]any{"identity": identity, "operation": operation})
+		intent := map[string]any{"pawnOrder": map[string]any{"pawnId": pawnID, "targetId": targetID, "bedId": bed, "kind": "PAWN_ORDER_KIND_ARREST"}}
+		executed, err := na.ApplyOne(ctx, h, "apply-"+scenario.name, identity, "arrest-"+scenario.name, intent)
 		if err != nil {
 			return err
 		}
 		if scenario.reason != "" {
-			if err := arrestRefusal(preview, scenario.reason); err != nil {
-				return fmt.Errorf("preview %s: %w", scenario.name, err)
-			}
-		} else {
-			evaluated, _ := na.AsMap(preview["evaluated"])
-			if accepted, _ := na.AsBool(evaluated["accepted"]); !accepted {
-				return fmt.Errorf("legal preview: %#v", preview)
-			}
-		}
-		unchanged, err := read("after-preview-" + scenario.name)
-		if err != nil {
-			return err
-		}
-		if err := na.SameControl(row, unchanged); err != nil {
-			return fmt.Errorf("preview mutated arrester: %w", err)
-		}
-		executed, err := h.Wire(ctx, "execute-"+scenario.name, "operations_execute", request)
-		if err != nil {
-			return err
-		}
-		if scenario.reason != "" {
-			if err := arrestRefusal(executed, scenario.reason); err != nil {
-				return fmt.Errorf("execute %s: %w", scenario.name, err)
+			if err := na.Refused(scenario.name, executed, scenario.reason); err != nil {
+				return err
 			}
 			s.Report()["refused_"+scenario.name] = executed
 			after, err := read("after-refusal-" + scenario.name)
 			if err != nil {
 				return err
 			}
-			if err := na.SameControl(unchanged, after); err != nil {
+			if err := na.SameControl(row, after); err != nil {
 				return fmt.Errorf("refusal mutated arrester: %w", err)
 			}
 			continue
 		}
-		_, receipt, err = na.Outcome(executed, "receipt")
+		job, err := na.AppliedJob("arrest", executed)
 		if err != nil {
 			return err
 		}
-		applied, _ := na.AsMap(receipt["applied"])
-		observed, _ := na.AsMap(applied["observed"])
-		job, _ := na.AsMap(observed["job"])
 		if issued, _ := na.AsBool(job["issued"]); !issued || na.AsString(job["jobDef"]) != "Arrest" {
-			return fmt.Errorf("arrest was not issued: %#v", receipt)
+			return fmt.Errorf("arrest was not issued: %#v", executed)
 		}
-		pre, _ := na.AsMap(request["precondition"])
-		attempt = map[string]any{"identity": identity, "attempt": pre["attempt"]}
+		// A resend while the arrest runs applies again without a second order.
+		again, err := na.ApplyOne(ctx, h, "apply-legal-again", identity, "arrest-legal-again", intent)
+		if err != nil {
+			return err
+		}
+		if job, err := na.AppliedJob("arrest resend", again); err != nil {
+			return err
+		} else if issued, _ := na.AsBool(job["issued"]); issued {
+			return fmt.Errorf("arrest resend issued a second job: %#v", again)
+		}
 	}
-	pending, err := h.Wire(ctx, "arrest-pending", "receipts_observe_progress", attempt)
-	if err != nil {
+	var inspected map[string]any
+	if _, err := na.RunUntil(ctx, h, "arrest-custody", 6000, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		got, err := h.Call(ctx, "custody-inspect", "test/arrest_inspect", map[string]any{"targetId": targetID})
+		if err != nil {
+			return "", false, err
+		}
+		inspected = got
+		if alive, _ := na.AsBool(got["alive"]); !alive || na.AsNumber(got["deadColonists"]) != 0 {
+			return "", false, fmt.Errorf("arrest cost a life: %#v", got)
+		}
+		mental, _ := na.AsBool(got["mental"])
+		prisoner, _ := na.AsBool(got["prisoner"])
+		return fmt.Sprint(mental, prisoner, got["bed"]), !mental && prisoner && na.AsString(got["bed"]) == bedID, nil
+	}); err != nil {
 		return err
-	}
-	_, progress, err := na.Outcome(pending, "progress")
-	if err != nil {
-		return err
-	}
-	if _, ok := progress["pending"]; !ok {
-		return fmt.Errorf("admission must remain pending: %#v", progress)
-	}
-	completed, err := na.ObserveCompleted(ctx, h, "arrest-complete", 6000, attempt)
-	if err != nil {
-		return err
-	}
-	s.Report()["completed"] = completed
-	inspected, err := h.Call(ctx, "custody-postcondition", "test/arrest_inspect", map[string]any{"targetId": targetID})
-	if err != nil {
-		return err
-	}
-	alive, _ := na.AsBool(inspected["alive"])
-	mental, hasMental := na.AsBool(inspected["mental"])
-	prisoner, _ := na.AsBool(inspected["prisoner"])
-	if !alive || !hasMental || mental || !prisoner || na.AsString(inspected["bed"]) != bedID || na.AsNumber(inspected["deadColonists"]) != 0 {
-		return fmt.Errorf("native custody postcondition: %#v", inspected)
 	}
 	s.Report()["custody"] = inspected
-	for _, check := range []struct {
-		label, tool string
-		body        map[string]any
-	}{{"arrest-replay", "operations_execute", request}, {"arrest-lookup", "receipts_lookup", attempt}} {
-		reply, err := h.Wire(ctx, check.label, check.tool, check.body)
-		if err != nil {
-			return err
-		}
-		_, got, err := na.Outcome(reply, "receipt")
-		if err != nil {
-			return err
-		}
-		if !na.DeepEqual(got, receipt) {
-			return fmt.Errorf("%s changed original receipt", check.label)
-		}
-	}
-	return nil
-}
-
-func arrestRefusal(reply map[string]any, reason string) error {
-	_, failure, err := na.Outcome(reply, "failure")
-	if err != nil {
-		return err
-	}
-	if !strings.Contains(na.AsString(failure["detail"]), reason) {
-		return fmt.Errorf("expected refusal %q: %#v", reason, failure)
-	}
 	return nil
 }

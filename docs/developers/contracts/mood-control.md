@@ -101,7 +101,7 @@ it neither activates ActiveCombat nor selects a subdue response. Independent
 hostile threats and urgent medical needs retain their emergency classification.
 
 Other standing aggressive colonists activate defense. The controller drafts one or
-two nearest healthy armed-melee colonists and dispatches SUBDUE through the shared
+two nearest healthy armed-melee colonists and dispatches a subdue MeleeIntent through the shared
 owned-draft and melee lifecycle. Other dispatch stays outside an eight-cell radius
 of the target; uncertain attempts and draft cleanup remain reconcilable. Downing
 the target ends containment and lets the ordinary RESCUE planner carry the pawn
@@ -166,4 +166,4 @@ a legal blunt verb, including fists, without changing native damage. It
 ends when the target is downed or its aggressive break ends. Death is failure,
 never successful containment. Progress requires the same draft claim and order.
 The operation neither changes damage rules nor creates prisoner custody.
-The mood/subdue case covers native refusal, replay and living containment.
+The mood/subdue case covers native refusal, resend and living containment.

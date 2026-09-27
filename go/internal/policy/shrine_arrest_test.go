@@ -1,8 +1,9 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestShrineArrestRoutesOnlyStandingNeutralCaptureDecisions(t *testing.T) {
@@ -82,39 +83,5 @@ func TestShrineArrestCreatesPopulationDeficitAndSelectsArmedPerformer(t *testing
 	busy.Drafted, busy.DraftOwned = domain.Known(true), domain.Known(true)
 	if got := ShrineArrester([]ShrineDefenderFacts{unarmed, busy, shrineDefender("c", false, 0)}); got != "c" {
 		t.Fatal(got)
-	}
-}
-
-func TestArrestAdmissionRequiresStandingPatientDraftAndNativeEligibility(t *testing.T) {
-	makeRequest := func() CaptureRequest {
-		r := captureRequest(t)
-		intent, _ := domain.NewArrest("capturer", "patient", "prison")
-		action, _ := domain.NewCaptureAction("capture", intent)
-		draft, _ := domain.NewOwnedDraft("capturer")
-		da, _ := domain.NewOwnedDraftAction("draft", draft)
-		plan, err := domain.NewPlan("plan", 1, []domain.Action{da, action}, domain.ActionDependency{Action: action.ID(), Requires: da.ID(), Coupled: true})
-		if err != nil {
-			t.Fatal(err)
-		}
-		r.Action = action
-		r.Progress, _ = domain.NewProgress(plan, action.ID())
-		r.Facts.Capturer.Drafted = domain.Known(true)
-		r.Facts.Patient.Downed = domain.Known(false)
-		return r
-	}
-	if got := EvaluateCapture(makeRequest()); !got.Admitted {
-		t.Fatal(got)
-	}
-	for _, change := range []func(*CaptureRequest){
-		func(r *CaptureRequest) { r.Facts.Capturer.Drafted = domain.Known(false) },
-		func(r *CaptureRequest) { r.Facts.Patient.Downed = domain.Known(true) },
-		func(r *CaptureRequest) { r.Facts.Patient.Prisoner = domain.Known(true) },
-		func(r *CaptureRequest) { r.Facts.NativeCanTry = domain.Known(false) },
-	} {
-		r := makeRequest()
-		change(&r)
-		if got := EvaluateCapture(r); got.Admitted {
-			t.Fatal(got)
-		}
 	}
 }

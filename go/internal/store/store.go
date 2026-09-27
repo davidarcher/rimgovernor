@@ -21,17 +21,15 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/store/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	"github.com/davidarcher/RimGovernor/go/internal/store/core"
 	"github.com/davidarcher/RimGovernor/go/internal/store/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/store/gearreplace"
 	"github.com/davidarcher/RimGovernor/go/internal/store/ranged"
-	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 147
+const schemaVersion = 148
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -55,8 +53,6 @@ type PlanState struct {
 	Admissions                []ActionAdmission
 	DraftAdmissions           []ActionDraftAdmission
 	AcquisitionAdmissions     []ActionAcquisitionAdmission
-	RescueAdmissions          []ActionRescueAdmission
-	CaptureAdmissions         []ActionCaptureAdmission
 	RangedAdmissions          []ActionRangedAdmission
 	GearReplaceAdmissions     []ActionGearReplaceAdmission
 	MoodReliefAdmissions      []ActionMoodReliefAdmission
@@ -259,8 +255,6 @@ CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), paylo
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE rescue_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE capture_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE ranged_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE gear_replace_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -332,7 +326,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("%w: %d/%d", ErrIncompatible, app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -601,26 +595,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if present {
 			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
 		}
-		rescueAdmission, rescuePresent, e := rescue.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.RescueAction && !rescuePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("rescue progress lacks admission")
-		}
-		if rescuePresent {
-			state.RescueAdmissions = append(state.RescueAdmissions, ActionRescueAdmission{Action: a.ID(), Admission: rescueAdmission})
-		}
-		captureAdmission, capturePresent, e := capture.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.CaptureAction && !capturePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("capture progress lacks admission")
-		}
-		if capturePresent {
-			state.CaptureAdmissions = append(state.CaptureAdmissions, ActionCaptureAdmission{Action: a.ID(), Admission: captureAdmission})
-		}
 		rangedAdmission, rangedPresent, e := ranged.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -816,22 +790,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		if !accounted {
 			return domain.Progress{}, errors.New("zone requires shared footprint admission")
-		}
-	}
-	if current.Action().Kind() == domain.RescueAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("rescue requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !rescue.GuardDispatch(state.RescueAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("rescue dispatch lacks current admission")
-		}
-	}
-	if current.Action().Kind() == domain.CaptureAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("capture requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !capture.GuardDispatch(state.CaptureAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("capture dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.GearReplaceAction {

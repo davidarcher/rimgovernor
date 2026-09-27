@@ -132,7 +132,6 @@ var materialHolds = map[domain.HeldReason]bool{
 var workerHolds = map[domain.HeldReason]bool{
 	domain.HeldDraftOwnership:             true,
 	domain.HeldGearReplacePawnUnavailable: true,
-	domain.HeldRescuerUnavailable:         true,
 	domain.HeldUrgentCompetingWork:        true,
 }
 

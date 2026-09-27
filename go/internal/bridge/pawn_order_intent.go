@@ -56,3 +56,31 @@ func equipAction(action domain.Action) (*o.Action, error) {
 	}
 	return pawnOrderIntent(v.Pawn(), v.Thing(), o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP)
 }
+
+func rescueAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.Rescue()
+	if !ok {
+		return nil, contract("not a rescue action")
+	}
+	return pawnOrderIntent(v.Rescuer(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE)
+}
+
+// captureAction orders a capture of a downed pawn, or, with a bed, an arrest
+// of a standing one; the arrest rides the capturer's coupled owned draft.
+func captureAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.Capture()
+	if !ok {
+		return nil, contract("not a capture action")
+	}
+	if !v.Arrest() {
+		return pawnOrderIntent(v.Capturer(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE)
+	}
+	if validID(v.Bed()) != nil {
+		return nil, contract("arrest intent requires a valid bed")
+	}
+	out, err := pawnOrderIntent(v.Capturer(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_ARREST)
+	if err == nil {
+		out.GetPawnOrder().BedId = proto.String(v.Bed())
+	}
+	return out, err
+}

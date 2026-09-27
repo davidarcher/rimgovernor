@@ -3,124 +3,105 @@ package mood
 import (
 	"context"
 	"fmt"
+	"time"
+
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/startersite"
-	"time"
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment: refuse non-aggro targets and ranged weapons; draft, issue, replay, lookup and observe a living downed or recovered colonist without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Run: runSubdue})
+	cases.Register(cases.Case{Name: "mood/subdue", Scope: "Ordinary melee containment through a subdue MeleeIntent on Actions/Apply: refuse non-aggro targets and ranged weapons; draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.", Start: cases.Fixture{Op: "test/subdue_prepare", ArgsFrom: startersite.ArgsFor(7), On: cases.LabStart()}, Budget: 2 * time.Minute, Run: runSubdue})
 }
+
 func runSubdue(ctx context.Context, s cases.Session) error {
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	pawn, target := na.AsString(prepared["pawn"]), na.AsString(prepared["target"])
-	for _, scenario := range []string{"normal", "ranged", "legal"} {
-		if _, err := h.Call(ctx, "stage-"+scenario, "test/subdue_stage", map[string]any{"pawnId": pawn, "targetId": target, "scenario": scenario}); err != nil {
-			return err
-		}
-		grant, err := na.GrantAuto(ctx, h.WireFunc(), "grant-"+scenario, identity)
+	intent := map[string]any{"melee": map[string]any{"pawnId": pawn, "targetId": target, "subdue": true}}
+	read := func(label string) (map[string]any, error) {
+		reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{pawn}}})
 		if err != nil {
-			return err
+			return nil, err
 		}
-		read := func(label string) (map[string]any, map[string]any, error) {
-			reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{pawn, target}}})
-			if err != nil {
-				return nil, nil, err
-			}
-			a, err := na.PawnRow(reply, identity, pawn)
-			if err != nil {
-				return nil, nil, err
-			}
-			b, err := na.PawnRow(reply, identity, target)
-			return a, b, err
-		}
-		a, b, err := read("before-" + scenario)
-		if err != nil {
-			return err
-		}
-		operation := map[string]any{"pawnTargetOrder": map[string]any{"pawn": na.Target(a), "target": na.Target(b), "kind": "PAWN_ORDER_KIND_SUBDUE", "requireSafeStorage": false}}
-		preview, err := h.Wire(ctx, "preview-"+scenario, "operations_preview", map[string]any{"identity": identity, "operation": operation})
-		if err != nil {
-			return err
-		}
-		after, _, err := read("after-preview-" + scenario)
-		if err != nil {
-			return err
-		}
-		if err = na.SameControl(a, after); err != nil {
-			return err
-		}
-		pre := map[string]any{"identity": identity, "expectedGeneration": fmt.Sprint(na.GrantGeneration(grant)), "attempt": map[string]any{"controllerSessionId": na.Controller, "actionId": "subdue-" + scenario, "attemptId": "1"}}
-		request := map[string]any{"operation": operation, "precondition": pre}
-		executed, err := h.Wire(ctx, "execute-"+scenario, "operations_execute", request)
-		if err != nil {
-			return err
-		}
-		if scenario != "legal" {
-			if _, ok := preview["failure"]; !ok {
-				return fmt.Errorf("%s preview accepted: %#v", scenario, preview)
-			}
-			if _, ok := executed["failure"]; !ok {
-				return fmt.Errorf("%s execution accepted: %#v", scenario, executed)
-			}
-			after, _, err = read("after-refusal-" + scenario)
-			if err != nil {
-				return err
-			}
-			if err = na.SameControl(a, after); err != nil {
-				return err
-			}
-			continue
-		}
-		_, receipt, err := na.Outcome(executed, "receipt")
-		if err != nil {
-			return err
-		}
-		if _, ok := receipt["applied"]; !ok {
-			return fmt.Errorf("subdue not applied: %#v", receipt)
-		}
-		attempt := map[string]any{"identity": identity, "attempt": pre["attempt"]}
-		selected, err := h.Call(ctx, "blunt-preference", "test/subdue_inspect", map[string]any{"targetId": target, "pawnId": pawn})
-		if err != nil {
-			return err
-		}
-		if blunt, known := na.AsBool(selected["blunt"]); !known || !blunt {
-			return fmt.Errorf("subdue did not prefer a legal blunt attack: %#v", selected)
-		}
-		for _, check := range []struct {
-			label, tool string
-			body        map[string]any
-		}{{"replay", "operations_execute", request}, {"lookup", "receipts_lookup", attempt}} {
-			got, err := h.Wire(ctx, check.label, check.tool, check.body)
-			if err != nil {
-				return err
-			}
-			_, r, err := na.Outcome(got, "receipt")
-			if err != nil {
-				return err
-			}
-			if _, ok := r["applied"]; !ok {
-				return fmt.Errorf("%s lost receipt: %#v", check.label, r)
-			}
-		}
-		completed, err := na.ObserveCompleted(ctx, h, "subdue-complete", 6000, attempt)
-		if err != nil {
-			return err
-		}
-		s.Report()["completed"] = completed
-		facts, err := h.Call(ctx, "postcondition", "test/subdue_inspect", map[string]any{"targetId": target, "pawnId": pawn})
-		if err != nil {
-			return err
-		}
-		alive, _ := na.AsBool(facts["alive"])
-		downed, _ := na.AsBool(facts["downed"])
-		aggro, known := na.AsBool(facts["aggro"])
-		prisoner, pk := na.AsBool(facts["prisoner"])
-		if !alive || !known || !pk || prisoner || !downed && aggro {
-			return fmt.Errorf("containment failed: %#v", facts)
-		}
-		s.Report()["containment"] = facts
+		return na.PawnRow(reply, identity, pawn)
 	}
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "grant", identity); err != nil {
+		return err
+	}
+	for _, scenario := range []struct{ name, reason string }{{"normal", "standing aggressive colonist"}, {"ranged", "ranged weapons"}} {
+		if _, err := h.Call(ctx, "stage-"+scenario.name, "test/subdue_stage", map[string]any{"pawnId": pawn, "targetId": target, "scenario": scenario.name}); err != nil {
+			return err
+		}
+		before, err := read("before-" + scenario.name)
+		if err != nil {
+			return err
+		}
+		result, err := na.ApplyOne(ctx, h, "apply-"+scenario.name, identity, "subdue-"+scenario.name, intent)
+		if err != nil {
+			return err
+		}
+		if err := na.Refused(scenario.name, result, scenario.reason); err != nil {
+			return err
+		}
+		after, err := read("after-refusal-" + scenario.name)
+		if err != nil {
+			return err
+		}
+		if err := na.SameControl(before, after); err != nil {
+			return err
+		}
+	}
+	if _, err := h.Call(ctx, "stage-legal", "test/subdue_stage", map[string]any{"pawnId": pawn, "targetId": target, "scenario": "legal"}); err != nil {
+		return err
+	}
+	result, err := na.ApplyOne(ctx, h, "apply-legal", identity, "subdue-legal", intent)
+	if err != nil {
+		return err
+	}
+	job, err := na.AppliedJob("subdue", result)
+	if err != nil {
+		return err
+	}
+	if issued, _ := na.AsBool(job["issued"]); !issued || na.AsString(job["jobDef"]) != "AttackMelee" {
+		return fmt.Errorf("subdue was not ordered: %#v", result)
+	}
+	selected, err := h.Call(ctx, "blunt-preference", "test/subdue_inspect", map[string]any{"targetId": target, "pawnId": pawn})
+	if err != nil {
+		return err
+	}
+	if blunt, known := na.AsBool(selected["blunt"]); !known || !blunt {
+		return fmt.Errorf("subdue did not prefer a legal blunt attack: %#v", selected)
+	}
+	// A resend while the attack runs applies again without a second order.
+	again, err := na.ApplyOne(ctx, h, "apply-legal-again", identity, "subdue-legal-again", intent)
+	if err != nil {
+		return err
+	}
+	if job, err := na.AppliedJob("subdue resend", again); err != nil {
+		return err
+	} else if issued, _ := na.AsBool(job["issued"]); issued {
+		return fmt.Errorf("subdue resend issued a second job: %#v", again)
+	}
+	var facts map[string]any
+	if _, err := na.RunUntil(ctx, h, "subdue-contained", 6000, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		got, err := h.Call(ctx, "subdue-inspect", "test/subdue_inspect", map[string]any{"targetId": target, "pawnId": pawn})
+		if err != nil {
+			return "", false, err
+		}
+		facts = got
+		alive, _ := na.AsBool(got["alive"])
+		if !alive {
+			return "", false, fmt.Errorf("subdue killed the colonist: %#v", got)
+		}
+		downed, _ := na.AsBool(got["downed"])
+		aggro, _ := na.AsBool(got["aggro"])
+		return fmt.Sprint(downed, aggro), downed || !aggro, nil
+	}); err != nil {
+		return err
+	}
+	if prisoner, known := na.AsBool(facts["prisoner"]); !known || prisoner {
+		return fmt.Errorf("containment failed: %#v", facts)
+	}
+	s.Report()["containment"] = facts
 	return nil
 }

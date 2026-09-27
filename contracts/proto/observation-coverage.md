@@ -297,7 +297,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | ImproveGear.pawn/target/loadout | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
 | HusbandryIntent.animal_id/target_id | ReadHusbandry.pawn (same animal ID), allowed area and master IDs |
 | PrisonerInteractionIntent.pawn_id | ReadPopulation.pawn and current interaction |
-| SetDrafted/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
+| SetDrafted/AttackTarget/PawnOrderIntent | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
 | SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |

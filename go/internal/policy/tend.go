@@ -7,10 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-const (
-	PatientIneligible Reason = "patient_ineligible"
-)
-
 // TendDoctorFacts describes one undrafted candidate doctor. Self-tend (doctor
 // equals patient) is out of scope here: native AI already self-tends a pawn
 // with no eligible doctor, so the controller has nothing bounded left to order.

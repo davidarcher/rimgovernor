@@ -45,18 +45,18 @@ namespace HomeBridge.BridgeTools
             var target = (Thing?)map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == melee.TargetId)
                 ?? (player == null ? null : NativeObservationTools.HostileBuildings(map, player).SingleOrDefault(t => t.GetUniqueLoadID() == melee.TargetId));
             if (pawn == null || target == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn or target is not spawned on this map.");
+            if (melee.Subdue)
+            {
+                var refused = NativeSubdueOperations.Resolve(melee.PawnId, melee.TargetId, context, out identity, out var subduer, out var victim, out var snapshot);
+                if (refused != null) return refused;
+                resolved = new Resolved { Identity = identity, Pawn = subduer!, Target = victim!, Before = snapshot! };
+                return null;
+            }
             var pawnToken = Token(identity, context, pawn);
             var targetToken = Token(identity, context, target);
             if (pawnToken == null || targetToken == null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The pawn or target snapshot is unreadable.");
             var pawnRef = new Operations.EntityPrecondition { EntityId = melee.PawnId, ExpectedSnapshotToken = pawnToken };
             var targetRef = new Operations.EntityPrecondition { EntityId = melee.TargetId, ExpectedSnapshotToken = targetToken };
-            if (melee.Subdue)
-            {
-                var order = new Operations.PawnTargetOrder { Pawn = pawnRef, Target = targetRef, Kind = Operations.PawnOrderKind.Subdue };
-                if (!NativeSubdueOperations.Prepare(order, context, out identity, out var subduer, out var victim, out var snapshot, out var refused)) return refused;
-                resolved = new Resolved { Identity = identity, Pawn = subduer!, Target = victim!, Before = snapshot! };
-                return null;
-            }
             var command = new Operations.AttackTarget { Pawn = pawnRef, Target = targetRef, Mode = Operations.AttackMode.Melee, RequireHostile = true, RequireStanding = true, RequireCombatHealth = true };
             if (!NativeCombatOperations.Resolve(command, context, out identity, out var attacker, out var resolvedTarget, out var before, out var definition, out _, out var failure)) return failure;
             if (!NativeMovementOperations.Owns(before!)) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A melee attack requires an eligible drafted pawn with an owned draft claim.");

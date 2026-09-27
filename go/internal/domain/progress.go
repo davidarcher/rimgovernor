@@ -98,9 +98,7 @@ const (
 	HeldDraftOwnership             HeldReason = "draft_ownership"
 	HeldGearReplacePawnUnavailable HeldReason = "gear_replace_pawn_unavailable"
 	HeldNativeIneligible           HeldReason = "native_ineligible"
-	HeldPatientIneligible          HeldReason = "patient_ineligible"
 	HeldPlayerOrder                HeldReason = "player_order"
-	HeldRescuerUnavailable         HeldReason = "rescuer_unavailable"
 	HeldUnsuitableEquipment        HeldReason = "unsuitable_equipment"
 	HeldUnsupportedThreat          HeldReason = "unsupported_threat"
 	HeldWallRemovalGeometryChanged HeldReason = "wall_removal_geometry_changed"
@@ -122,8 +120,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldDependencyBlocked, HeldGeometryBlocked, HeldSpendingBlocked, HeldInsufficientStock,
 	HeldInvalidHeld, HeldArithmeticOverflow,
 	HeldDraftOwnership, HeldGearReplacePawnUnavailable,
-	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder,
-	HeldRescuerUnavailable,
+	HeldNativeIneligible, HeldPlayerOrder,
 	HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
 	HeldExcavationUnsupported, HeldExcavationGeometryChanged,

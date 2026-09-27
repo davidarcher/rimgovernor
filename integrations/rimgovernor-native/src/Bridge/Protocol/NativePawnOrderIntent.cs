@@ -52,6 +52,8 @@ namespace HomeBridge.BridgeTools
                 case Operations.PawnOrderKind.OpenCasket: return NativeOpenCasketOperations.Validate(intent, context);
                 case Operations.PawnOrderKind.Tend: return NativeTendOperations.Validate(intent, context);
                 case Operations.PawnOrderKind.Equip: return NativeEquipOperations.Validate(intent, context);
+                case Operations.PawnOrderKind.Rescue: case Operations.PawnOrderKind.Capture: return NativeCustodyOperations.Validate(intent, context);
+                case Operations.PawnOrderKind.Arrest: return NativeArrestOperations.Validate(intent, context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This pawn order kind is not an Actions/Apply intent.");
             }
         }
@@ -66,6 +68,8 @@ namespace HomeBridge.BridgeTools
                 case Operations.PawnOrderKind.OpenCasket: return NativeOpenCasketOperations.Apply(intent, context);
                 case Operations.PawnOrderKind.Tend: return NativeTendOperations.Apply(intent, context);
                 case Operations.PawnOrderKind.Equip: return NativeEquipOperations.Apply(intent, context);
+                case Operations.PawnOrderKind.Rescue: case Operations.PawnOrderKind.Capture: return NativeCustodyOperations.Apply(intent, context);
+                case Operations.PawnOrderKind.Arrest: return NativeArrestOperations.Apply(intent, context);
                 default: throw new System.InvalidOperationException("Unsupported pawn order kind.");
             }
         }

@@ -19,8 +19,7 @@ func allKnownReasons() []policy.Reason {
 		policy.InvalidHeld,
 
 		policy.DraftOwnership, policy.GearReplacePawnUnavailable,
-		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder,
-		policy.RescuerUnavailable,
+		policy.NativeIneligible, policy.PlayerOrder,
 		policy.UnsuitableEquipment,
 		policy.UnsupportedThreat,
 		policy.ExcavationUnsupported, policy.ExcavationGeometryChanged,

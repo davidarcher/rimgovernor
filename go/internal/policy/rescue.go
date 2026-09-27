@@ -2,13 +2,9 @@ package policy
 
 import (
 	"sort"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
-
-const RescuerUnavailable Reason = "rescuer_unavailable"
 
 // RescuerFacts describes one undrafted candidate rescuer.
 type RescuerFacts struct {
@@ -80,120 +76,4 @@ func SelectRescue(rescuers []RescuerFacts, patients []RescuePatientFacts) (domai
 	})
 	sort.Slice(patientPool, func(i, j int) bool { return patientPool[i].Pawn < patientPool[j].Pawn })
 	return rescuerPool[0].Pawn, patientPool[0].Pawn, true
-}
-
-type RescueFacts struct {
-	Snapshot              domain.GenerationSnapshot
-	PawnTick, PreviewTick domain.Tick
-	Rescuer               RescuerFacts
-	Patient               RescuePatientFacts
-	NativeCanTry          domain.Fact[bool]
-	Emergency             EmergencySnapshot
-}
-
-type RescueRequest struct {
-	Action      domain.Action
-	Progress    domain.Progress
-	Current     domain.GenerationSnapshot
-	MinimumTick domain.Tick
-	Facts       RescueFacts
-}
-
-// EvaluateRescue re-validates one already-selected rescuer/patient pair
-// immediately before dispatch. Admission proves eligibility now; it does not
-// prove the rescue job will be issued, accepted or completed.
-func EvaluateRescue(r RescueRequest) DraftDecision {
-	refuse := func(reason Reason) DraftDecision {
-		return DraftDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
-	}
-	rescue, ok := r.Action.Rescue()
-	canonical, err := domain.NewRescueAction(r.Action.ID(), rescue)
-	if !ok || err != nil || canonical != r.Action {
-		return refuse(NotReady)
-	}
-	v := r.Progress.View()
-	f := r.Facts
-	// The admission anchors on the preview tick, the inspection's one live
-	// read; the pawn row may come from the step's fact cache at an earlier
-	// tick (#306, #323).
-	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PreviewTick < r.MinimumTick {
-		return refuse(StaleFacts)
-	}
-	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
-		return refuse(NotReady)
-	}
-	if f.PreviewTick < v.Tick || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
-		return refuse(StaleFacts)
-	}
-	validToken := func(s string) bool {
-		return len(s) <= 256 && utf8.ValidString(s) && strings.TrimSpace(s) != "" && !strings.ContainsRune(s, 0)
-	}
-	if f.Rescuer.Pawn != rescue.Rescuer() || f.Patient.Pawn != rescue.Patient() || !validToken(f.Rescuer.SnapshotToken) || !validToken(f.Patient.SnapshotToken) {
-		return refuse(UnknownFacts)
-	}
-	// EmergencyCriticalMedical fires for the downed patient this action exists
-	// to rescue, so it is deliberately excluded here, matching EvaluateTend.
-	// Combat safety (EmergencyUnsafeThreat) still gates dispatch.
-	for _, hold := range EvaluateEmergency(f.Emergency, r.Current, f.PreviewTick).Holds {
-		switch hold.Reason {
-		case EmergencyStaleFacts:
-			return refuse(StaleFacts)
-		case EmergencyUnknownFacts:
-			return refuse(UnknownFacts)
-		case EmergencyUnsafeThreat:
-			return refuse(UnsupportedThreat)
-		}
-	}
-	for _, fact := range []domain.Fact[bool]{f.Rescuer.Dead, f.Rescuer.Downed, f.Rescuer.Drafted, f.Rescuer.MentalState} {
-		if _, known := fact.Value(); !known {
-			return refuse(UnknownFacts)
-		}
-	}
-	existingRescuerJob, known := f.Rescuer.ExistingJobDef.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	dead, _ := f.Rescuer.Dead.Value()
-	downed, _ := f.Rescuer.Downed.Value()
-	drafted, _ := f.Rescuer.Drafted.Value()
-	mental, _ := f.Rescuer.MentalState.Value()
-	if dead || downed {
-		return refuse(CriticalMedical)
-	}
-	if drafted || mental {
-		return refuse(PlayerOrder)
-	}
-	if existingRescuerJob == "Rescue" {
-		return refuse(RescuerUnavailable)
-	}
-	for _, fact := range []domain.Fact[bool]{f.Patient.Dead, f.Patient.Downed, f.Patient.InBed} {
-		if _, known := fact.Value(); !known {
-			return refuse(UnknownFacts)
-		}
-	}
-	existingPatientJob, known := f.Patient.ExistingJobDef.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	patientDead, _ := f.Patient.Dead.Value()
-	patientDowned, _ := f.Patient.Downed.Value()
-	patientInBed, _ := f.Patient.InBed.Value()
-	if patientDead {
-		return refuse(PatientIneligible)
-	}
-	if !patientDowned || patientInBed {
-		// Already rescued or never needed rescue; nothing left to admit.
-		return refuse(PatientIneligible)
-	}
-	if existingPatientJob == "Rescue" {
-		return refuse(PatientIneligible)
-	}
-	eligible, known := f.NativeCanTry.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	if !eligible {
-		return refuse(NativeIneligible)
-	}
-	return DraftDecision{Admitted: true}
 }

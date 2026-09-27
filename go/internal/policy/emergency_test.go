@@ -1,11 +1,12 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func emergencyScope() domain.GenerationSnapshot {

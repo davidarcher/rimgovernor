@@ -1,8 +1,9 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 type ClockWindowReview struct {

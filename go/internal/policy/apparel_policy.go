@@ -1,8 +1,9 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 type ApparelDefinition struct {

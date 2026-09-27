@@ -1,8 +1,9 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestEmergencyNeedsCountPatientsAndThreatsWithoutDoubleCounting(t *testing.T) {

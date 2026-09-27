@@ -1,9 +1,10 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {

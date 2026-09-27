@@ -2,9 +2,10 @@ package policy
 
 import (
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestAcquisitionSubtractsPendingWithoutClaimingStock(t *testing.T) {
