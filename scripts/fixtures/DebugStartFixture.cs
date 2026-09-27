@@ -4,10 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
@@ -326,6 +328,162 @@ namespace HomeBridge.BridgeTools
                 GenSpawn.Spawn(thing, cell, map, rot);
                 return new { success = true, id = thing.GetUniqueLoadID(), thingId = thing.ThingID, kind, def = thing.def.defName,
                     stuff = thing.Stuff?.defName, cell = new { x = thing.Position.x, z = thing.Position.z }, stackCount = thing.stackCount };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // Stages a whole combat lab fixture (#854) on a wiped lab in one call:
+    // the spec (built in Go, internal/nativeaccept/cases/combatlab) lists
+    // structures, the lab colonists' cells and gear, and hostiles with fixed
+    // weapons, skills and no apparel, spawned under a fixed seed and given an
+    // assault lord. The reply reads every staged pawn back from the live map,
+    // and a digest without generated names, so two stagings compare equal.
+    public static class LabStage
+    {
+        private const int Seed = 854;
+        private const int HostileSkill = 8;
+
+        public static object Stage(Map map, JObject spec)
+        {
+            var things = new List<object>();
+            var pawns = new List<Pawn>();
+            var hostiles = new List<Pawn>();
+            Rand.PushState(Seed);
+            try
+            {
+                foreach (JObject t in spec["things"] as JArray ?? new JArray())
+                {
+                    var def = DefDatabase<ThingDef>.GetNamedSilentFail((string)t["def"]) ?? throw new ArgumentException($"No ThingDef {t["def"]}.");
+                    var stuffName = (string)t["stuff"] ?? "";
+                    var stuff = def.MadeFromStuff ? (stuffName == "" ? GenStuff.DefaultStuffFor(def) : DefDatabase<ThingDef>.GetNamedSilentFail(stuffName) ?? throw new ArgumentException($"No stuff {stuffName}.")) : null;
+                    var cell = Cell(map, t);
+                    var thing = ThingMaker.MakeThing(def, stuff);
+                    if (def.category == ThingCategory.Building) thing.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(thing, cell, map, new Rot4((int?)t["rotation"] ?? 0));
+                    things.Add(new { def = def.defName, x = cell.x, z = cell.z });
+                }
+                var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
+                var faction = HostileFaction();
+                foreach (JObject p in spec["pawns"] as JArray ?? new JArray())
+                {
+                    var cell = Cell(map, p);
+                    Pawn pawn;
+                    if ((string)p["side"] == "colonist")
+                    {
+                        var index = (int)p["index"];
+                        if (index < 0 || index >= colonists.Count) throw new ArgumentException($"Colonist index {index}: the lab has {colonists.Count}.");
+                        pawn = colonists[index];
+                        pawn.Position = cell;
+                        pawn.Notify_Teleported(true, true);
+                    }
+                    else if ((string)p["side"] == "hostile")
+                    {
+                        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail((string)p["kind"]) ?? throw new ArgumentException($"No PawnKindDef {p["kind"]}.");
+                        pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true,
+                            allowAddictions: false, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult));
+                        foreach (var trait in pawn.story.traits.allTraits.ToList()) pawn.story.traits.RemoveTrait(trait);
+                        foreach (var hediff in pawn.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) pawn.health.RemoveHediff(hediff);
+                        foreach (var skill in pawn.skills.skills) { skill.Level = HostileSkill; skill.passion = Passion.None; }
+                        pawn.apparel?.DestroyAll();
+                        pawn.inventory?.DestroyAll();
+                        GenSpawn.Spawn(pawn, cell, map);
+                        hostiles.Add(pawn);
+                    }
+                    else throw new ArgumentException($"Unknown side {p["side"]}.");
+                    Arm(pawn, (string)p["weapon"] ?? "", (string)p["weaponStuff"] ?? "");
+                    pawns.Add(pawn);
+                }
+            }
+            finally
+            {
+                Rand.PopState();
+            }
+            if (hostiles.Count > 0)
+                LordMaker.MakeNewLord(hostiles[0].Faction, new LordJob_AssaultColony(hostiles[0].Faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), map, hostiles);
+            var rows = pawns.Select(p => new { id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", kind = p.kindDef.defName,
+                x = p.Position.x, z = p.Position.z, weapon = p.equipment?.Primary?.def.defName, hostile = p.HostileTo(Faction.OfPlayer),
+                lordJob = p.GetLord()?.LordJob?.GetType().Name, health = p.health.summaryHealth.SummaryHealthPercent, apparel = p.apparel?.WornApparelCount ?? 0 }).ToList();
+            return new { success = true, faction = hostiles.FirstOrDefault()?.Faction.def.defName, things, pawns = rows, digest = Digest(map), digestRows = DigestRows(map) };
+        }
+
+        private static IntVec3 Cell(Map map, JObject o)
+        {
+            var cell = new IntVec3((int)o["x"], 0, (int)o["z"]);
+            if (!cell.InBounds(map)) throw new ArgumentException($"Cell {cell.x},{cell.z} is out of bounds.");
+            return cell;
+        }
+
+        private static void Arm(Pawn pawn, string weapon, string stuffName)
+        {
+            pawn.equipment.DestroyAllEquipment();
+            if (weapon == "") return;
+            var def = DefDatabase<ThingDef>.GetNamedSilentFail(weapon) ?? throw new ArgumentException($"No weapon {weapon}.");
+            var stuff = def.MadeFromStuff ? (stuffName == "" ? GenStuff.DefaultStuffFor(def) : DefDatabase<ThingDef>.GetNamed(stuffName)) : null;
+            var thing = (ThingWithComps)ThingMaker.MakeThing(def, stuff);
+            thing.TryGetComp<CompQuality>()?.SetQuality(QualityCategory.Normal, ArtGenerationContext.Outsider);
+            pawn.equipment.AddEquipment(thing);
+        }
+
+        // Pirates when the world has them, else the first hostile humanlike
+        // faction by def name, so the choice does not depend on list order.
+        private static Faction HostileFaction()
+        {
+            return Find.FactionManager.AllFactionsListForReading
+                .Where(f => !f.IsPlayer && !f.def.hidden && f.def.humanlikeFaction && f.HostileTo(Faction.OfPlayer))
+                .OrderBy(f => f.def == FactionDefOf.Pirate ? 0 : 1).ThenBy(f => f.def.defName).FirstOrDefault()
+                ?? throw new InvalidOperationException("No hostile humanlike faction for lab hostiles.");
+        }
+
+        // What a staging controls, one row per thing and pawn: a pawn is its
+        // side, kind, cell, weapon, Shooting and Melee and apparel count.
+        // Generated names and backstories (and the non-combat skills a
+        // backstory disables) differ between stagings in one world.
+        public static List<string> DigestRows(Map map)
+        {
+            var rows = new List<string>();
+            foreach (var thing in map.listerThings.AllThings.Where(t => !(t is Pawn)).OrderBy(t => t.Position.x).ThenBy(t => t.Position.z).ThenBy(t => t.def.defName))
+                rows.Add($"{thing.def.defName}:{thing.Stuff?.defName}@{thing.Position.x},{thing.Position.z}");
+            foreach (var pawn in map.mapPawns.AllPawnsSpawned.OrderBy(p => p.Position.x).ThenBy(p => p.Position.z))
+                rows.Add($"{(pawn.Faction == Faction.OfPlayer ? "c" : "h")}:{pawn.kindDef.defName}@{pawn.Position.x},{pawn.Position.z}:{pawn.equipment?.Primary?.def.defName}"
+                    + $":{pawn.skills?.GetSkill(SkillDefOf.Shooting).Level},{pawn.skills?.GetSkill(SkillDefOf.Melee).Level}:{pawn.apparel?.WornApparelCount ?? 0}");
+            return rows;
+        }
+
+        public static string Digest(Map map)
+        {
+            var hash = 2166136261u;
+            foreach (var row in DigestRows(map)) { foreach (var ch in row) hash = (hash ^ ch) * 16777619u; hash = (hash ^ '|') * 16777619u; }
+            return hash.ToString("x8");
+        }
+    }
+
+    public sealed class LabStageFixture
+    {
+        // A tick call holds the main thread; 2000 ticks of a lab skirmish is
+        // well under the call ceiling.
+        private const int MaxTicks = 2000;
+
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation}], pawns:[{side:colonist|hostile, index (colonist), kind (hostile PawnKindDef), x, z, weapon, weaponStuff}]}. Hostiles get fixed skills, no apparel and an assault lord. Replies each staged pawn read back from the map and a name-free digest. action read instead replies every pawn's cell, side and downed/dead state, and the tick.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
+            [ToolParameter(Description = "stage (default), read, or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",
+            [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
+                if (float.IsNaN(AcceptanceWorld.Lab)) throw new InvalidOperationException("test/lab_stage needs a lab map (test/lab_start first).");
+                if (action == "tick")
+                {
+                    if (ticks < 1 || ticks > MaxTicks) throw new ArgumentException($"ticks must be within 1..{MaxTicks}.");
+                    if (!Find.TickManager.Paused) throw new InvalidOperationException("tick needs a paused game.");
+                    for (var i = 0; i < ticks; i++) Find.TickManager.DoSingleTick();
+                    action = "read";
+                }
+                if (action == "read")
+                    return new { success = true, tick = Find.TickManager.TicksGame, pawns = map.mapPawns.AllPawns.Where(p => p.Spawned || p.Corpse?.Spawned == true).Select(p => new {
+                        id = p.GetUniqueLoadID(), side = p.Faction == Faction.OfPlayer ? "colonist" : "hostile", x = p.PositionHeld.x, z = p.PositionHeld.z, downed = p.Downed, dead = p.Dead }).ToList() };
+                if (action != "stage") throw new ArgumentException("Unknown action.");
+                return LabStage.Stage(map, JObject.Parse(spec ?? "{}"));
             }, cancellationToken).ConfigureAwait(false);
         }
     }
