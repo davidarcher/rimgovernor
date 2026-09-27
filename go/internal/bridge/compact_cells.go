@@ -11,7 +11,7 @@ import (
 
 // ExpandCompactCells validates the compact representation before expanding it
 // into ordinary planning rows. Existing row validation still owns scope,
-// completeness, delta ticks and individual fact invariants.
+// completeness and individual fact invariants.
 func ExpandCompactCells(v *o.CellsSnapshot) error {
 	p := v.GetCompact()
 	if p == nil {
@@ -45,7 +45,7 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 		}
 	}
 	cells := make([]*o.CellState, 0, int(width*height))
-	fertility, unchanged := 0, uint32(0)
+	fertility := 0
 	for z, data := range p.Rows {
 		for x := int64(0); x < width; x++ {
 			if len(data) < 2 {
@@ -54,11 +54,7 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			flags := binary.LittleEndian.Uint16(data)
 			data = data[2:]
 			if flags&1 != 0 {
-				if flags != 1 {
-					return bad()
-				}
-				unchanged++
-				continue
+				return bad()
 			}
 			row := &o.CellState{Cell: &c.Cell{X: proto.Int32(v.Region.Minimum.GetX() + int32(x)), Z: proto.Int32(v.Region.Minimum.GetZ() + int32(z))}}
 			if flags&2 != 0 {
@@ -133,7 +129,7 @@ func ExpandCompactCells(v *o.CellsSnapshot) error {
 			return bad()
 		}
 	}
-	if fertility != len(p.Fertility) || unchanged != v.GetUnchanged() || v.GetCompleteness().GetFiltered() != 0 {
+	if fertility != len(p.Fertility) || v.GetCompleteness().GetFiltered() != 0 {
 		return bad()
 	}
 	v.Cells = cells

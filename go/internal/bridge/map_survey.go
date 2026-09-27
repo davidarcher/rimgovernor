@@ -44,7 +44,7 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 	var context *c.ObservationContext
 	for z := int32(0); z < bounds.Height; z += int32(rows) {
 		band := policy.Rectangle{Z: z, Width: bounds.Width, Height: min(int32(rows), bounds.Height-z)}
-		snapshot, raw, err := client.readCellsBand(ctx, identity, band, 0, mapSurveyFields())
+		snapshot, raw, err := client.readCellsBand(ctx, identity, band, mapSurveyFields())
 		last = raw
 		if err != nil {
 			return policy.MapSurvey{}, raw, err

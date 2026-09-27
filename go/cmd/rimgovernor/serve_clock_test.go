@@ -15,6 +15,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -69,12 +70,18 @@ func (f *clockServiceFake) ReadClockStatus(context.Context, *c.Identity) (*k.Sta
 	return nil, bridge.Result{}, errors.New("clock status unavailable")
 }
 
+func (f *clockServiceFake) MirrorPoll(context.Context, *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
+	return nil, bridge.Result{}, f.unavailable()
+}
 func (f *clockServiceFake) ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+	return nil, bridge.Result{}, f.unavailable()
+}
+func (f *clockServiceFake) unavailable() error {
 	select {
 	case f.polled <- struct{}{}:
 	default:
 	}
-	return nil, bridge.Result{}, errors.New("event source unavailable")
+	return errors.New("event source unavailable")
 }
 
 // The serve clock holds its journal read under a running window and leaves

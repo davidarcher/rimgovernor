@@ -16,8 +16,7 @@ import (
 
 // MirrorPollNative is the native side of rimgovernor/mirror_poll (#795,
 // bridge.Client.MirrorPoll). A native with it feeds the clock journal and
-// the polled sections through one long poll; one without it keeps the
-// bundle's events page and the per-review list reads.
+// the polled sections through one long poll.
 type MirrorPollNative interface {
 	MirrorPoll(context.Context, *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error)
 }
@@ -323,7 +322,7 @@ func pollEntitySections(ctx context.Context, native MirrorPollNative, f *clockFa
 	request := &mp.MirrorPollRequest{Identity: proto.Clone(identity).(*c.Identity), Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes)}
 	reply, _, err := native.MirrorPoll(bridge.WithAdmissionClass(ctx, bridge.AdmissionObservation), request)
 	if err != nil {
-		clockSchedulerLog("mirror poll: review read failed, reading the sections' lists: %v", err)
+		clockSchedulerLog("mirror poll: review read failed, keeping the held sections: %v", err)
 		return nil
 	}
 	applied := f.applyMirrorPage(ctx, reply.GetPage())

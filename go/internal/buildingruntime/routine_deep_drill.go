@@ -21,7 +21,7 @@ import (
 
 type deepDrillBuildingSource interface {
 	RoutineBuildingSource
-	ReadBuildings(context.Context, *c.Identity, int64) (bridge.EntityRows[*o.BuildingState], bridge.Result, error)
+	ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error)
 	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
 }
 
@@ -195,7 +195,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	if len(deepDrillSites(f, review.ResourceRunwayState())) == 0 {
 		return RoutineResourceResult{}, false, nil
 	}
-	buildings, _, err := native.ReadBuildings(call, boundary.Identity(state.Snapshot), 0)
+	buildings, _, err := native.ReadBuildings(call, boundary.Identity(state.Snapshot))
 	if err != nil {
 		return RoutineResourceResult{}, true, err
 	}

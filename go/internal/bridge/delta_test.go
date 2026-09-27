@@ -114,12 +114,12 @@ func TestRemovedAbsentChecksTombstones(t *testing.T) {
 	}
 }
 
-// The store key ignores the token and the bundle's moving parts.
-func TestDeltaKeyIgnoresMovingParts(t *testing.T) {
-	a := &o.BundleRequest{ColonyFacts: proto.Bool(true), Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(3)}, PlanningWindow: &o.BundlePlanningWindowRequest{ChangedSinceTick: proto.Int64(5)}}
-	b := &o.BundleRequest{ColonyFacts: proto.Bool(true), ChangedSince: &o.SectionDeltaAsk{Tracker: proto.String("x")}, Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(9)}, PlanningWindow: &o.BundlePlanningWindowRequest{ChangedSinceTick: proto.Int64(7)}}
+// The store key ignores the ask.
+func TestDeltaKeyIgnoresTheAsk(t *testing.T) {
+	a := &o.BundleRequest{ColonyFacts: proto.Bool(true)}
+	b := &o.BundleRequest{ColonyFacts: proto.Bool(true), ChangedSince: &o.SectionDeltaAsk{Tracker: proto.String("x")}}
 	if deltaKey("m", a) != deltaKey("m", b) {
-		t.Fatal("moving parts shape the key")
+		t.Fatal("the ask shapes the key")
 	}
 	if deltaKey("m", a) == deltaKey("m", &o.BundleRequest{Population: proto.Bool(true)}) {
 		t.Fatal("sections do not shape the key")

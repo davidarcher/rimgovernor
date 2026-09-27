@@ -8,45 +8,30 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Per-map last-changed tick grid behind GetCellsRequest.changed_since_tick
-    // (issue #357): one int per cell, bumped in O(1) by the map events and
-    // patches below whenever a fact a CellState row derives can change, so a
-    // cells read can omit the cells unchanged since a tick the caller names.
-    // The native keeps no per-client state: a tracker is created on a map's
-    // first cells read with every cell stamped one tick before it, so an ask
-    // for a tick the tracker never saw returns the whole selection.
+    // Per-map change hooks behind the planning-window view's change ledger
+    // (#652): the map events and patches below number a cell's tile in
+    // Ledger, in O(1), whenever a fact a planning row derives can change.
+    // A tracker is created on a map's first view capture or zone read
+    // (ZoneTracking starts at Since).
     //
     // Hooked (map.events, RimWorld 1.6): terrain, roof, fog, path cost and
     // thing spawn/despawn for anything but pawns, motes, filth and
     // projectiles. Patched (no event): the zone grid (ZoneManager.AddZoneGridCell
     // / ClearZoneGridCell, which Zone.AddCell, RemoveCell, Delete and the
-    // load-time rebuild all go through) and RoofGrid.RemoveRoofUnsafe.
-    // Indoors has no per-cell event, so a read compares it against the
-    // shadow it kept from its last visit and stamps the cell when it
-    // differs. room_id is deliberately not a change: rooms are renumbered
-    // whenever regions rebuild (one wall spawn gives the whole outdoors a
-    // new id), so a cell omitted as unchanged may carry a stale room_id
-    // and a reader that keys on it must read in full. The store's periodic
-    // full resync (Go) is the backstop against anything this list misses.
-    // Every bump also numbers its tile in Ledger, the planning-window
-    // view's change ledger (#652), which additionally counts room rebuilds
-    // (RegionsRoomsChanged) so the view never reuses a stale room_id.
+    // load-time rebuild all go through) and RoofGrid.RemoveRoofUnsafe. The
+    // ledger additionally counts room rebuilds (RegionsRoomsChanged) so the
+    // view never reuses a stale room_id or indoors.
     internal sealed class CellTracking
     {
         private static readonly ConditionalWeakTable<Map, CellTracking> Maps = new ConditionalWeakTable<Map, CellTracking>();
         private static bool installed;
 
         private readonly Map map;
-        private readonly int[] lastChanged;
-        private readonly bool[] indoors, roomSeen;
-        private readonly bool[] polluted, growthSeen;
-        private readonly float[] glow;
-
         // The planning-window view's change ledger (#652): every bump below
         // also numbers the cell's tile there, in O(1).
         internal readonly PlanningViewLedger Ledger;
 
-        // Since is the tick every cell was stamped with at creation.
+        // Since is the tick before the tracker's creation.
         internal readonly int Since;
 
         internal static CellTracking For(Map map)
@@ -58,16 +43,8 @@ namespace HomeBridge.BridgeTools
         private CellTracking(Map map)
         {
             this.map = map;
-            int count = map.cellIndices.NumGridCells;
             Since = Find.TickManager.TicksGame - 1;
             ZoneTracking.Initialize(map, Since);
-            lastChanged = new int[count];
-            for (int i = 0; i < count; i++) lastChanged[i] = Since;
-            indoors = new bool[count];
-            roomSeen = new bool[count];
-            polluted = new bool[count];
-            growthSeen = new bool[count];
-            glow = new float[count];
             Ledger = new PlanningViewLedger(map.Size.x, map.Size.z);
             var events = map.events;
             events.TerrainChanged += Bump;
@@ -80,70 +57,23 @@ namespace HomeBridge.BridgeTools
             events.RegionsRoomsChanged += Ledger.MarkTopology;
         }
 
-        // Unchanged reports a cell whose row is the same as at tick since
-        // (room_id aside): stamped before it and, for indoors, identical to
-        // the shadow of the last visit. A differing indoors stamps the cell.
-        internal bool Unchanged(IntVec3 cell, long since)
-        {
-            int index = map.cellIndices.CellToIndex(cell);
-            if (lastChanged[index] >= since) return false;
-            var room = cell.GetRoom(map);
-            if (!roomSeen[index] || indoors[index] != Indoors(room)) { NoteRoom(index, room); lastChanged[index] = Find.TickManager.TicksGame; return false; }
-            return true;
-        }
-
-        // NoteRoom records the indoors a read emitted for the cell.
-        internal void NoteRoom(IntVec3 cell, Room? room) => NoteRoom(map.cellIndices.CellToIndex(cell), room);
-
-        // Pollution and glow have no cell event in this tracker. Compare
-        // their native values on a growth delta read before omitting a row.
-        internal bool GrowthUnchanged(IntVec3 cell)
-        {
-            int index = map.cellIndices.CellToIndex(cell);
-            bool dirty = !growthSeen[index] || polluted[index] != (ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell))
-                || glow[index] != map.glowGrid.GroundGlowAt(cell);
-            if (dirty) lastChanged[index] = Find.TickManager.TicksGame;
-            return !dirty;
-        }
-
-        internal void NoteGrowth(IntVec3 cell, bool pollution, float groundGlow)
-        {
-            int index = map.cellIndices.CellToIndex(cell);
-            growthSeen[index] = true;
-            polluted[index] = pollution;
-            glow[index] = groundGlow;
-        }
-
-        private void NoteRoom(int index, Room? room)
-        {
-            roomSeen[index] = true;
-            indoors[index] = Indoors(room);
-        }
-
         // Indoors is CellState.indoors as the cells read computes it.
         internal static bool Indoors(Room? room) => room != null && room.ProperRoom && !room.PsychologicallyOutdoors;
 
         private void Bump(IntVec3 cell)
         {
             if (!cell.InBounds(map)) return;
-            lastChanged[map.cellIndices.CellToIndex(cell)] = Find.TickManager.TicksGame;
             Ledger.Mark(cell.x, cell.z);
         }
 
         private void Bump(int index)
         {
-            if (index < 0 || index >= lastChanged.Length) return;
-            lastChanged[index] = Find.TickManager.TicksGame;
+            if (index < 0 || index >= map.cellIndices.NumGridCells) return;
             var cell = map.cellIndices.IndexToCell(index);
             Ledger.Mark(cell.x, cell.z);
         }
 
-        private void BumpAll()
-        {
-            int now = Find.TickManager.TicksGame;
-            for (int i = 0; i < lastChanged.Length; i++) lastChanged[i] = now;
-            Ledger.MarkBroad();
-        }
+        private void BumpAll() => Ledger.MarkBroad();
 
         private void Thing(Thing thing)
         {

@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_list_buildings";
 
-        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet. changed_since_tick (reads without ids, def_names, statuses, damaged_below_fraction or region) lists the buildings whose row changed at or after that tick, counts the rest in unchanged and names the buildings removed since in removed_ids; an ask older than the tombstone window (60000 ticks, 4096 ids) gets a full reply instead. as_of_tick, the context tick, marks a delta reply; a full reply omits it.")]
+        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
         public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
@@ -48,30 +48,13 @@ namespace HomeBridge.BridgeTools
                 var seed = QuerySeed(parsed);
                 // Entity tracking (issue #358) follows every unfiltered
                 // read: a full one primes the shadow and sweeps the
-                // removed, a changed_since one lists only the changed.
+                // removed, and mirror_poll asks it for the changed (#795).
                 var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.PlayerOnly + (parsed.Category ?? "")) : null;
-                // An ask the tombstones cannot answer is read in full (#795).
-                var delta = parsed.HasChangedSinceTick && tracking!.Covers(parsed.ChangedSinceTick);
                 var snapshot = new Obs.BuildingsSnapshot { Context = context,
                     NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
                 var rows = new Dictionary<string, Obs.BuildingState>();
-                if (delta) { snapshot.AsOfTick = context.Tick; snapshot.Unchanged = 0; }
                 var listed = matched;
-                if (delta)
-                {
-                    listed = new List<Thing>();
-                    foreach (var thing in matched)
-                    {
-                        var row = Row(thing, context);
-                        if (tracking!.Note(row.Building.Id, row) >= parsed.ChangedSinceTick) { rows[row.Building.Id] = row; listed.Add(thing); }
-                        else snapshot.Unchanged++;
-                    }
-                }
-                if (tracking != null)
-                {
-                    tracking.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
-                    if (delta) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
-                }
+                tracking?.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
                 var afterCursor = listed;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                 {
@@ -148,9 +131,9 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Inspect strings and bill ingredient detail are not supported by this read adapter.");
                 return false;
             }
-            if (request.HasChangedSinceTick && (request.ChangedSinceTick < 0 || !Unfiltered(request)))
+            if (request.HasChangedSinceTick)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick needs a non-negative tick and a read without ids, def_names, statuses, damaged_below_fraction or region.");
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick is retired; building deltas ride mirror_poll.");
                 return false;
             }
             return true;

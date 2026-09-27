@@ -10,11 +10,9 @@ import (
 )
 
 // BundlePlanningWindow is the planning window band a bundle request asks
-// for: the region and, for a held window, the as-of tick the delta is
-// taken since (zero reads every cell).
+// for: the region, every cell.
 type BundlePlanningWindow struct {
 	Region policy.Rectangle
-	Since  int64
 }
 
 // BundleStepAsks names the step families a review step's planners asked
@@ -78,10 +76,10 @@ func (s *StepReadCache) StepAsks() BundleStepAsks {
 				continue
 			}
 			region := policy.Rectangle{X: rect.GetMinimum().GetX(), Z: rect.GetMinimum().GetZ(), Width: rect.GetMaximum().GetX() - rect.GetMinimum().GetX() + 1, Height: rect.GetMaximum().GetZ() - rect.GetMinimum().GetZ() + 1}
-			if sameRequest(request, planningBandRequest(request.GetScope().GetExpectedIdentity(), region, request.GetChangedSinceTick())) {
+			if sameRequest(request, planningBandRequest(request.GetScope().GetExpectedIdentity(), region)) {
 				// The last band asked wins: a window that moved is asked
 				// for at its new place.
-				asks.PlanningWindow = &BundlePlanningWindow{Region: region, Since: request.GetChangedSinceTick()}
+				asks.PlanningWindow = &BundlePlanningWindow{Region: region}
 			}
 		}
 	}
@@ -113,11 +111,7 @@ func BundlePlanningWindowRequest(window *BundlePlanningWindow) *o.BundlePlanning
 	if !ok {
 		return nil
 	}
-	request := &o.BundlePlanningWindowRequest{Region: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}}
-	if window.Since > 0 {
-		request.ChangedSinceTick = proto.Int64(window.Since)
-	}
-	return request
+	return &o.BundlePlanningWindowRequest{Region: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}}
 }
 
 // validateBundleStepFamilies checks the step families a bundle carries
@@ -159,13 +153,13 @@ func validateBundleStepFamilies(request *o.BundleRequest, v *o.BundleSnapshot) e
 func (client *Client) seedBundleStepFamilies(ctx context.Context, request *o.BundleRequest, v *o.BundleSnapshot, seed func(method string, request, reply proto.Message)) {
 	identity := v.Context.Identity
 	if v.Buildings != nil {
-		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity, 0, ""), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
+		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity, ""), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
 	}
 	if v.BuiltBuildings != nil {
 		seed("rimgovernor/observations_list_buildings", constructionBuildingsRequest(identity, nil), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.BuiltBuildings}})
 	}
 	if v.Bills != nil {
-		seed("rimgovernor/observations_read_bills", billsListRequest(identity, 0, ""), &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: v.Bills}})
+		seed("rimgovernor/observations_read_bills", billsListRequest(identity, ""), &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: v.Bills}})
 	}
 	if v.Zones != nil {
 		seed("rimgovernor/observations_list_zones", zoneSectionRequest(identity, 0, ""), &o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: v.Zones}})
@@ -183,7 +177,7 @@ func (client *Client) seedBundleStepFamilies(ctx context.Context, request *o.Bun
 		rect := window.GetRegion()
 		region := policy.Rectangle{X: rect.GetMinimum().GetX(), Z: rect.GetMinimum().GetZ(), Width: rect.GetMaximum().GetX() - rect.GetMinimum().GetX() + 1, Height: rect.GetMaximum().GetZ() - rect.GetMinimum().GetZ() + 1}
 		if band, ok := bundlePlanningBand(BundlePlanningWindow{Region: region}); ok {
-			seed("rimgovernor/observations_get_cells", planningBandRequest(identity, band, window.GetChangedSinceTick()), &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: v.PlanningWindow}})
+			seed("rimgovernor/observations_get_cells", planningBandRequest(identity, band), &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: v.PlanningWindow}})
 		}
 	}
 }

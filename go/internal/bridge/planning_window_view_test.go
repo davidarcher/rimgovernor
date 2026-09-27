@@ -123,7 +123,7 @@ func TestBundleViewNeverSeedsTheBand(t *testing.T) {
 	if _, err := DecodePlanningWindowView(reply.GetObserved().GetPlanningWindowView(), request.PlanningWindowView); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := client.ReadPlanningWindow(step, pbIdentity(), bundleStepRegion, 0); err != nil || server.calls["rimgovernor/observations_get_cells"].Load() != 1 {
+	if _, _, err := client.ReadPlanningWindow(step, pbIdentity(), bundleStepRegion); err != nil || server.calls["rimgovernor/observations_get_cells"].Load() != 1 {
 		t.Fatal("the view seeded the planning window band", err)
 	}
 	for name, mutate := range map[string]func(*o.BundleRequest, *o.BundleSnapshot){

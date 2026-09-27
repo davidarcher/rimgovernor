@@ -67,11 +67,10 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity, since
 }
 
 // ReadBuildings lists every built, pending or blueprint player building
-// (artificial) through observations_list_buildings, every page. A
-// positive since asks for the buildings changed at or after that tick.
-func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity, since int64) (EntityRows[*o.BuildingState], Result, error) {
-	return readEntities(ctx, client, identity, since, "rimgovernor/observations_list_buildings",
-		func(cursor string) proto.Message { return buildingsListRequest(identity, since, cursor) },
+// (artificial) through observations_list_buildings, every page.
+func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (EntityRows[*o.BuildingState], Result, error) {
+	return readEntities(ctx, client, identity, 0, "rimgovernor/observations_list_buildings",
+		func(cursor string) proto.Message { return buildingsListRequest(identity, cursor) },
 		func() proto.Message { return &o.ListBuildingsReply{} },
 		func(reply proto.Message) (entityPageReply[*o.BuildingState], error) {
 			switch v := reply.(*o.ListBuildingsReply).Outcome.(type) {
@@ -98,11 +97,10 @@ func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity, s
 }
 
 // ReadBillStacks lists every player bench's bill stack through
-// observations_read_bills, every page, keyed by bench id. A positive since
-// asks for the stacks changed at or after that tick.
-func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity, since int64) (EntityRows[*o.BillStack], Result, error) {
-	return readEntities(ctx, client, identity, since, "rimgovernor/observations_read_bills",
-		func(cursor string) proto.Message { return billsListRequest(identity, since, cursor) },
+// observations_read_bills, every page, keyed by bench id.
+func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) (EntityRows[*o.BillStack], Result, error) {
+	return readEntities(ctx, client, identity, 0, "rimgovernor/observations_read_bills",
+		func(cursor string) proto.Message { return billsListRequest(identity, cursor) },
 		func() proto.Message { return &o.BillsReply{} },
 		func(reply proto.Message) (entityPageReply[*o.BillStack], error) {
 			switch v := reply.(*o.BillsReply).Outcome.(type) {
@@ -138,20 +136,12 @@ func zonesListRequest(identity *c.Identity, since int64, cursor string) *o.ListZ
 	return request
 }
 
-func buildingsListRequest(identity *c.Identity, since int64, cursor string) *o.ListBuildingsRequest {
-	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: entityPage(buildingsPage, cursor)}
-	if since > 0 {
-		request.ChangedSinceTick = proto.Int64(since)
-	}
-	return request
+func buildingsListRequest(identity *c.Identity, cursor string) *o.ListBuildingsRequest {
+	return &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: entityPage(buildingsPage, cursor)}
 }
 
-func billsListRequest(identity *c.Identity, since int64, cursor string) *o.BillsRequest {
-	request := &o.BillsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: entityPage(billsPage, cursor)}
-	if since > 0 {
-		request.ChangedSinceTick = proto.Int64(since)
-	}
-	return request
+func billsListRequest(identity *c.Identity, cursor string) *o.BillsRequest {
+	return &o.BillsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: entityPage(billsPage, cursor)}
 }
 
 func entityPage(limit uint32, cursor string) *c.PageRequest {

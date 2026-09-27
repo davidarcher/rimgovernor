@@ -19,7 +19,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/defense"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/dialog"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/draft"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/entities"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/facility"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/farm"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/floor"

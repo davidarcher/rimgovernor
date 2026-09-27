@@ -21,6 +21,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -459,41 +460,53 @@ func (n *speedNative) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: n.page(request)}}, bridge.Result{}, ctx.Err()
 }
 
-// ReadBundle waits like the long poll first, then composes every section
-// from one locked snapshot so the tick, status, emergency and events page
-// agree, as the native bundle does.
+// ReadBundle composes every section from one locked snapshot so the tick,
+// status and emergency agree, as the native bundle does.
 func (n *speedNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
 	n.read(ctx)
-	if request.Events != nil {
-		n.arrive(&k.EventsRequest{AfterCursor: proto.Int64(request.Events.GetAfterCursor())})
-	}
-	if request.Events != nil {
-		n.await(ctx, request.Events.GetAfterCursor(), time.Duration(request.Events.GetWaitMs())*time.Millisecond)
-	}
 	n.mu.Lock()
 	n.advance()
-	if request.Events != nil {
-		n.noteRead(proto.Int64(request.Events.GetAfterCursor()))
-	} else {
-		n.noteRead(nil)
-	}
-	snapshot := &speedNative{status: proto.Clone(n.status).(*k.Status), emergency: n.emergency, events: n.events}
+	n.noteRead(nil)
+	snapshot := n.snapshot()
 	n.mu.Unlock()
-	parts := bundleParts{
+	return composeBundle(ctx, request, snapshot.parts())
+}
+
+// MirrorPoll waits like the long poll first, then composes the journal
+// page from one locked snapshot, as the native poll does.
+func (n *speedNative) MirrorPoll(ctx context.Context, request *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
+	n.read(ctx)
+	n.arrive(&k.EventsRequest{AfterCursor: proto.Int64(request.GetJournalAfterCursor())})
+	n.await(ctx, request.GetJournalAfterCursor(), time.Duration(request.GetWaitMs())*time.Millisecond)
+	n.mu.Lock()
+	n.advance()
+	n.noteRead(proto.Int64(request.GetJournalAfterCursor()))
+	snapshot := n.snapshot()
+	n.mu.Unlock()
+	return composeMirrorPoll(ctx, request, snapshot.parts())
+}
+
+// snapshot copies what a composed read answers from; the caller holds mu.
+func (n *speedNative) snapshot() *speedNative {
+	return &speedNative{status: proto.Clone(n.status).(*k.Status), emergency: n.emergency, events: n.events}
+}
+
+// parts are a snapshot's reads, for composeBundle and composeMirrorPoll.
+func (n *speedNative) parts() bundleParts {
+	return bundleParts{
 		tick: func(ctx context.Context) (*l.TickReply, bridge.Result, error) {
-			return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: snapshot.context()}}}, bridge.Result{}, ctx.Err()
+			return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: n.context()}}}, bridge.Result{}, ctx.Err()
 		},
 		status: func(ctx context.Context, id *c.Identity) (*k.StatusReply, bridge.Result, error) {
-			return &k.StatusReply{Outcome: &k.StatusReply_Status{Status: proto.Clone(snapshot.status).(*k.Status)}}, bridge.Result{}, ctx.Err()
+			return &k.StatusReply{Outcome: &k.StatusReply_Status{Status: proto.Clone(n.status).(*k.Status)}}, bridge.Result{}, ctx.Err()
 		},
 		emergency: func(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-			return bridge.EmergencyObservation{Context: snapshot.context(), Facts: snapshot.emergency}, bridge.Result{}, ctx.Err()
+			return bridge.EmergencyObservation{Context: n.context(), Facts: n.emergency}, bridge.Result{}, ctx.Err()
 		},
 		events: func(ctx context.Context, request *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
-			return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: snapshot.page(request)}}, bridge.Result{}, ctx.Err()
+			return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: n.page(request)}}, bridge.Result{}, ctx.Err()
 		},
 	}
-	return composeBundle(ctx, request, parts)
 }
 
 // arrive is a long poll's first hop: like native, the cursor acknowledges

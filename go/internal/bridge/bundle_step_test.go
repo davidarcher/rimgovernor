@@ -53,7 +53,7 @@ func newBundleStepServer(t *testing.T) *bundleStepServer {
 	s.traders = &o.TradersReply{Outcome: &o.TradersReply_Observed{Observed: &o.TradersSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: complete(0)}}}
 	s.world = &o.WorldProgressionReply{Outcome: &o.WorldProgressionReply_Observed{Observed: worldProgressionFixture()}}
 	s.resources = &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: &o.ResourceSourcesSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Resource: proto.String("Steel"), Storage: validResourceStorage(), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
-	s.cells = &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(planningBandRequest(pbIdentity(), bundleStepRegion, 0), nil)}}
+	s.cells = &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(planningBandRequest(pbIdentity(), bundleStepRegion), nil)}}
 	for _, message := range []proto.Message{s.buildings, s.built, s.bills, s.zones, s.traders, s.world, s.resources, s.cells} {
 		retagContexts(message, context)
 	}
@@ -118,13 +118,13 @@ func bundleStepRequest() *o.BundleRequest {
 func (s *bundleStepServer) stepReads(t *testing.T, ctx context.Context, client *Client) int64 {
 	t.Helper()
 	before := s.stepCalls()
-	if _, _, err := client.ReadBuildings(ctx, pbIdentity(), 0); err != nil {
+	if _, _, err := client.ReadBuildings(ctx, pbIdentity()); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := client.ReadConstructionBuildings(ctx, pbIdentity(), nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := client.ReadBillStacks(ctx, pbIdentity(), 0); err != nil {
+	if _, _, err := client.ReadBillStacks(ctx, pbIdentity()); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := client.ReadZoneSection(ctx, pbIdentity(), 0); err != nil {
@@ -139,7 +139,7 @@ func (s *bundleStepServer) stepReads(t *testing.T, ctx context.Context, client *
 	if _, _, _, err := client.ReadResourceSources(ctx, pbIdentity(), "Steel"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion, 0); err != nil {
+	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion); err != nil {
 		t.Fatal(err)
 	}
 	return s.stepCalls() - before
@@ -169,11 +169,8 @@ func TestBundleReadSeedsTheStepFamilies(t *testing.T) {
 	if n := server.stepReads(t, ctx, client); n != 0 {
 		t.Fatal("seeded step families crossed the bridge", n)
 	}
-	// Another shape is another key: a delta, another resource, another
-	// band, storage included.
-	if _, _, err = client.ReadBuildings(ctx, pbIdentity(), 5); err != nil || server.calls["rimgovernor/observations_list_buildings"].Load() != 1 {
-		t.Fatal(err, "delta served from the bundle")
-	}
+	// Another shape is another key: another resource, another band,
+	// storage included.
 	server.resources.GetObserved().Resource = proto.String("Plasteel")
 	server.resources.GetObserved().Storage.Resource = proto.String("Plasteel")
 	if _, _, _, err = client.ReadResourceSources(ctx, pbIdentity(), "Plasteel"); err != nil || server.calls["rimgovernor/observations_list_resource_sources"].Load() != 1 {
@@ -193,23 +190,6 @@ func TestBundleReadSeedsTheStepFamilies(t *testing.T) {
 	}
 	if n := server.stepReads(t, ctx, client); n != 8 {
 		t.Fatal("omitted families served without a read", n)
-	}
-	// A planning window delta rides under the delta's key.
-	server = newBundleStepServer(t)
-	server.snapshot.PlanningWindow.AsOfTick = proto.Int64(server.snapshot.Context.GetTick())
-	server.snapshot.PlanningWindow.Cells = nil
-	server.snapshot.PlanningWindow.Completeness = &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(0), Returned: proto.Uint64(0), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
-	server.snapshot.PlanningWindow.Unchanged = proto.Uint32(6)
-	client = testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
-	ctx = WithStepReadCache(context.Background(), NewStepReadCache())
-	request := bundleStepRequest()
-	request.PlanningWindow = BundlePlanningWindowRequest(&BundlePlanningWindow{Region: bundleStepRegion, Since: 5})
-	if _, _, err = client.ReadBundle(ctx, request); err != nil {
-		t.Fatal(err)
-	}
-	window, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion, 5)
-	if err != nil || !window.Delta || window.Unchanged != 6 || server.calls["rimgovernor/observations_get_cells"].Load() != 0 {
-		t.Fatalf("%+v %v calls=%d", window, err, server.calls["rimgovernor/observations_get_cells"].Load())
 	}
 }
 
@@ -277,18 +257,18 @@ func TestStepAsksDecodesTheBundleShapes(t *testing.T) {
 		}
 	}
 	wide := policy.Rectangle{X: 0, Z: 0, Width: 300, Height: 300}
-	server.cells = &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(planningBandRequest(pbIdentity(), policy.Rectangle{X: 0, Z: 0, Width: 300, Height: 218}, 0), nil)}}
+	server.cells = &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(planningBandRequest(pbIdentity(), policy.Rectangle{X: 0, Z: 0, Width: 300, Height: 218}), nil)}}
 	retagContexts(server.cells, authorityTestContext(7))
-	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), wide, 0); err == nil {
+	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), wide); err == nil {
 		t.Fatal("a banded window read must not decode as one band")
 	}
-	server.cells = &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(planningBandRequest(pbIdentity(), bundleStepRegion, 0), nil)}}
+	server.cells = &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(planningBandRequest(pbIdentity(), bundleStepRegion), nil)}}
 	retagContexts(server.cells, authorityTestContext(7))
-	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion, 0); err != nil {
+	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion); err != nil {
 		t.Fatal(err)
 	}
 	asks := cache.StepAsks()
-	if !asks.BuiltBuildings || !asks.Traders || asks.WorldProgression || len(asks.Resources) != 1 || asks.Resources[0] != "Steel" || asks.PlanningWindow == nil || asks.PlanningWindow.Region != bundleStepRegion || asks.PlanningWindow.Since != 0 {
+	if !asks.BuiltBuildings || !asks.Traders || asks.WorldProgression || len(asks.Resources) != 1 || asks.Resources[0] != "Steel" || asks.PlanningWindow == nil || asks.PlanningWindow.Region != bundleStepRegion {
 		t.Fatalf("%+v", asks)
 	}
 	// The asks name what the next bundle can carry, and a bundle carrying
@@ -309,7 +289,7 @@ func TestStepAsksDecodesTheBundleShapes(t *testing.T) {
 	if _, _, _, err := client.ReadResourceSources(ctx, pbIdentity(), "Steel"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion, 0); err != nil {
+	if _, _, err := client.ReadPlanningWindow(ctx, pbIdentity(), bundleStepRegion); err != nil {
 		t.Fatal(err)
 	}
 	if n := server.stepCalls() - before; n != 0 {
@@ -326,11 +306,8 @@ func TestBundlePlanningWindowRequest(t *testing.T) {
 	if BundlePlanningWindowRequest(nil) != nil || BundlePlanningWindowRequest(&BundlePlanningWindow{Region: policy.Rectangle{X: -1, Z: 0, Width: 2, Height: 2}}) != nil || BundlePlanningWindowRequest(&BundlePlanningWindow{Region: policy.Rectangle{Width: 300, Height: 300}}) != nil {
 		t.Fatal("declined regions carried")
 	}
-	request := BundlePlanningWindowRequest(&BundlePlanningWindow{Region: bundleStepRegion, Since: 9})
-	if request.GetRegion().GetMinimum().GetX() != 10 || request.GetRegion().GetMaximum().GetX() != 12 || request.GetRegion().GetMaximum().GetZ() != 21 || request.GetChangedSinceTick() != 9 {
+	request := BundlePlanningWindowRequest(&BundlePlanningWindow{Region: bundleStepRegion})
+	if request.GetRegion().GetMinimum().GetX() != 10 || request.GetRegion().GetMaximum().GetX() != 12 || request.GetRegion().GetMaximum().GetZ() != 21 || request.ChangedSinceTick != nil {
 		t.Fatal(request)
-	}
-	if BundlePlanningWindowRequest(&BundlePlanningWindow{Region: bundleStepRegion}).ChangedSinceTick != nil {
-		t.Fatal("full read carries a since tick")
 	}
 }

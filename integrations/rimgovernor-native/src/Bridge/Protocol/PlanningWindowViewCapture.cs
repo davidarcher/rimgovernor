@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
             // refresh compares already counts that change.
             map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
             var refresh = new PlanningViewRefreshJob(tracking.Ledger, ticket, publisher.Acquire(), identity.Clone(), context.NativeGeneration,
-                map.Size.x, map.Size.z, minX, minZ, maxX, maxZ, context.Tick, new MapSource(map, tracking), new PlanningViewRefreshStats());
+                map.Size.x, map.Size.z, minX, minZ, maxX, maxZ, context.Tick, new MapSource(map), new PlanningViewRefreshStats());
             return new CaptureJob(map, tracking, refresh);
         }
 
@@ -176,10 +176,9 @@ namespace HomeBridge.BridgeTools
         private sealed class MapSource : IPlanningViewSource
         {
             private readonly Map map;
-            private readonly CellTracking tracking;
-            internal MapSource(Map map, CellTracking tracking) { this.map = map; this.tracking = tracking; }
+            internal MapSource(Map map) { this.map = map; }
 
-            public PlanningViewCell Read(int x, int z) => PlanningWindowViewCapture.Read(map, tracking, new IntVec3(x, 0, z));
+            public PlanningViewCell Read(int x, int z) => PlanningWindowViewCapture.Read(map, new IntVec3(x, 0, z));
 
             // Glow, pollution and indoors have no complete event stream:
             // compare their live values with the held row.
@@ -196,7 +195,7 @@ namespace HomeBridge.BridgeTools
 
         // The planning fields of one cell, as NativeObservationTools.ReadCells
         // emits them: a fogged cell carries only its fog.
-        private static PlanningViewCell Read(Map map, CellTracking tracking, IntVec3 cell)
+        private static PlanningViewCell Read(Map map, IntVec3 cell)
         {
             if (cell.Fogged(map)) return PlanningViewCell.Fog;
             var flags = 0;
@@ -212,14 +211,12 @@ namespace HomeBridge.BridgeTools
             if (zone != null) zoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (NativeZoneCreation.StorageEmpty(cell, map)) flags |= PlanningViewCell.StorageEmpty;
             var room = cell.GetRoom(map);
-            tracking.NoteRoom(cell, room);
             if (room != null) roomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
             if (CellTracking.Indoors(room)) flags |= PlanningViewCell.Indoors;
             var polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
             if (polluted) flags |= PlanningViewCell.Polluted;
             var groundGlow = map.glowGrid.GroundGlowAt(cell);
             var glow = Finite(groundGlow);
-            tracking.NoteGrowth(cell, polluted, (float)glow);
             var fertility = map.fertilityGrid.FertilityAt(cell);
             double fertile = 0;
             if (fertility > 0f) { fertile = Finite(fertility); flags |= PlanningViewCell.HasFertility; }

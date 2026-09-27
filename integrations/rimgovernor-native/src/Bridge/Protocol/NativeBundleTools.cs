@@ -15,13 +15,12 @@ namespace HomeBridge.BridgeTools
     /// <summary>
     /// The scheduler's batched per-step read (issue #127): the observation
     /// scope lifecycle_read_tick reports plus, as requested, the owned clock
-    /// status, the emergency status and one clock events page, each the same
-    /// read its dedicated tool answers, taken in one main-thread hop so every
-    /// section describes one tick. Without a scope the bundle describes the
-    /// current map; with one, a changed identity is the StaleIdentity failure
-    /// the dedicated reads report. An events section long-polls like
-    /// clock_read_events: the first hop registers the waiter, and the hop
-    /// after the wake re-reads the whole bundle without waiting.
+    /// status and the emergency status, each the same read its dedicated tool
+    /// answers, taken in one main-thread hop so every section describes one
+    /// tick. Without a scope the bundle describes the current map; with one,
+    /// a changed identity is the StaleIdentity failure the dedicated reads
+    /// report. Clock events are read through mirror_poll (#795); a request
+    /// carrying the retired events section is refused.
     ///
     /// A planning step also asks for the routine census's families (issue
     /// #180): the planning colony facts, the population, the research state
@@ -47,36 +46,22 @@ namespace HomeBridge.BridgeTools
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
         [Tool(ToolName, Title = "Read scheduler bundle",
-            Description = "Official BundleRequest ProtoJSON. One read of the current scope plus, as requested, the owned clock status, the emergency status (colonists and threats), one clock events page (cursor>=0, limit1..128, wait_ms<=5000) and, best effort, the planning colony facts, population, research and colonist pawn detail families, all from one tick. Read-only.")]
+            Description = "Official BundleRequest ProtoJSON. One read of the current scope plus, as requested, the owned clock status, the emergency status (colonists and threats) and, best effort, the planning colony facts, population, research and colonist pawn detail families, all from one tick. Read-only.")]
         [ToolResponse("payload", "string", "Official observations BundleReply ProtoJSON.", Always = true)]
         public async Task<object> ReadBundle(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a BundleRequest ProtoJSON string.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.BundleRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.BundleReply { Failure = failure });
-            var waitMs = parsed.Events != null && parsed.Events.HasWaitMs ? (int)parsed.Events.WaitMs : 0;
             // An encoder slot is reserved before the capture is admitted, so
             // no captured reply ever waits for an encoder (#644).
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
             if (lease == null) return Saturated();
             try
             {
-                var first = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, waitMs, cancellationToken), cancellationToken).ConfigureAwait(false);
-                ReplyEncoder.Lease owned;
-                if (first.Value.Wake == null)
-                {
-                    owned = lease; lease = null;
-                    return await ProtoBoundary.EncodeDetached(first, owned, Encode, cancellationToken).ConfigureAwait(false);
-                }
-                // A held poll's page is discarded, so it holds no encoder
-                // while it waits; the hop after the wake reserves again.
-                lease.Dispose(); lease = null;
-                await Supervisor.AwaitWake(first.Value.Wake, waitMs, cancellationToken).ConfigureAwait(false);
-                lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
-                if (lease == null) return Saturated();
-                var woken = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, 0, cancellationToken), cancellationToken).ConfigureAwait(false);
-                owned = lease; lease = null;
-                return await ProtoBoundary.EncodeDetached(woken, owned, Encode, cancellationToken).ConfigureAwait(false);
+                var first = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed, cancellationToken), cancellationToken).ConfigureAwait(false);
+                var owned = lease; lease = null;
+                return await ProtoBoundary.EncodeDetached(first, owned, Encode, cancellationToken).ConfigureAwait(false);
             }
             finally { lease?.Dispose(); }
         }
@@ -85,28 +70,26 @@ namespace HomeBridge.BridgeTools
             "Bundle reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
 
         // What one game-thread hop captured: the detached reply, which step
-        // and census groups it may drop for the envelope, and a held poll's
-        // wake. The reply owns everything it references: every section is
-        // built for this hop from the game (events are parsed from the
-        // journal's stored text, the clock status clones its epoch), so no
+        // and census groups it may drop for the envelope. The reply owns
+        // everything it references: every section is built for this hop from
+        // the game (the clock status clones its epoch), so no
         // live game object, engine collection or shared cache crosses to the
         // encoder.
         private sealed class Capture
         {
             internal readonly Obs.BundleReply Reply;
             internal readonly bool Step, Families;
-            internal readonly Task<bool>? Wake;
             internal PlanningWindowViewCapture.Served View; // the planning window view's root or pending status (#650, #654)
             internal Obs.BundlePlanningWindowViewRequest? ViewRequest;
             internal string? DeltaShape; // the read's SectionDelta shape and ask (#773)
             internal Obs.SectionDeltaAsk? DeltaAsk;
-            internal Capture(Obs.BundleReply reply, bool step = false, bool families = false, Task<bool>? wake = null)
-            { Reply = reply; Step = step; Families = families; Wake = wake; }
+            internal Capture(Obs.BundleReply reply, bool step = false, bool families = false)
+            { Reply = reply; Step = step; Families = families; }
         }
 
         private static bool Validate(Obs.BundleRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bundle events require explicit cursor>=0, limit1..128 and wait_ms<=" + NativeClockTools.MaxWaitMs + ".");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bundle events are retired; read clock events through mirror_poll.");
             if (request.Scope != null && !ProtoBoundary.Complete(request.Scope.ExpectedIdentity))
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A bundle scope must carry a complete valid colony, load and map identity.");
@@ -117,16 +100,13 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bundle colonist pawns require the emergency section.");
                 return false;
             }
-            var events = request.Events;
-            return events == null || events.HasAfterCursor && events.AfterCursor >= 0 && events.HasLimit && events.Limit >= 1 && events.Limit <= 128
-                && (!events.HasWaitMs || events.WaitMs <= NativeClockTools.MaxWaitMs);
+            return request.Events == null;
         }
 
         // On the main thread. Every section shares the context read here.
         // Only reads: formatting and the envelope bound are Encode's.
-        private static Capture Read(Obs.BundleRequest request, int waitMs, CancellationToken cancellationToken)
+        private static Capture Read(Obs.BundleRequest request, CancellationToken cancellationToken)
         {
-            Task<bool>? wake = null;
             Map? map;
             Common.ObservationContext? context;
             if (request.Scope != null)
@@ -173,23 +153,6 @@ namespace HomeBridge.BridgeTools
                 }
                 observed.Emergency = emergency;
             }
-            if (request.Events != null)
-            {
-                var events = new Clock.EventsRequest { Identity = context.Identity.Clone(), AfterCursor = request.Events.AfterCursor, Limit = request.Events.Limit };
-                if (waitMs > 0) events.WaitMs = (uint)waitMs;
-                var began = Now();
-                var page = Supervisor.TypedEvents(events, context, waitMs, out wake);
-                ObservationWork.Captured("events", Now() - began, page.Page != null ? page.Page.Events.Count : 0);
-                if (page.Failure != null)
-                {
-                    ObservationWork.Outcome("failure");
-                    return new Capture(new Obs.BundleReply { Failure = page.Failure });
-                }
-                observed.Events = page.Page;
-                // A held poll's page is discarded: the hop after the wake
-                // reads the whole bundle, families included.
-                if (wake != null) return new Capture(new Obs.BundleReply { Observed = observed }, wake: wake);
-            }
             var families = ReadFamilies(map, request, context, observed);
             var step = ReadStepFamilies(map, request, context, observed);
             return new Capture(new Obs.BundleReply { Observed = observed }, step || request.PlanningWindowView != null, families) 
@@ -220,13 +183,11 @@ namespace HomeBridge.BridgeTools
             return envelope;
         }
 
-        // DeltaShape keys a tracked bundle by what its sections read: the
-        // events page and the planning window's since tick move every read.
+        // DeltaShape keys a tracked bundle by what its sections read.
         private static string DeltaShape(Obs.BundleRequest request, Common.ObservationContext context)
         {
             var shape = request.Clone();
-            shape.ChangedSince = null; shape.Events = null;
-            if (shape.PlanningWindow != null) shape.PlanningWindow.ClearChangedSinceTick();
+            shape.ChangedSince = null;
             return SectionDelta.Shape(ToolName, context.Identity, shape);
         }
 
@@ -250,8 +211,7 @@ namespace HomeBridge.BridgeTools
 
         // On the main thread. Adds the requested census families to observed,
         // each keyed as its dedicated read, omitting any that fails; reports
-        // whether any was added. A waiting events hop carries none: the hop
-        // after the wake reads them, so the census describes the woken tick.
+        // whether any was added.
         private static bool ReadFamilies(Map map, Obs.BundleRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
         {
             var added = false;
@@ -366,7 +326,6 @@ namespace HomeBridge.BridgeTools
                     var cells = new Obs.GetCellsRequest { Scope = Scope(), Rectangle = window.Region.Clone(), Compact = true,
                         Fields = new Obs.CellFields { Terrain = false, Roof = true, Visibility = true, Traversal = true, Zone = true, Areas = false, Things = false, Designations = false, Room = true, Growth = true },
                         Page = new Common.PageRequest { Limit = (uint)(width * height) } };
-                    if (window.HasChangedSinceTick && window.ChangedSinceTick > 0) cells.ChangedSinceTick = window.ChangedSinceTick;
                     if (NativeObservationTools.ValidateCells(cells, out _))
                     {
                         var began = Now();

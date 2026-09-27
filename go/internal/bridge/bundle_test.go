@@ -19,7 +19,7 @@ import (
 )
 
 func bundleTestRequest() *o.BundleRequest {
-	return &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true), Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(0), Limit: proto.Uint32(128)}}
+	return &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
 }
 
 // bundleTestSnapshot is a full bundle at generation 7, tick 12: every
@@ -28,7 +28,7 @@ func bundleTestSnapshot() *o.BundleSnapshot {
 	emergency := emergencyFixture()
 	emergency.Context = authorityTestContext(7)
 	emergency.Colonists.Context = authorityTestContext(7)
-	return &o.BundleSnapshot{Context: authorityTestContext(7), Paused: proto.Bool(false), ClockStatus: clockTestStatus(), Emergency: emergency, Events: clockEventPage(2)}
+	return &o.BundleSnapshot{Context: authorityTestContext(7), Paused: proto.Bool(false), ClockStatus: clockTestStatus(), Emergency: emergency}
 }
 
 // bundleServer answers the bundle read with its snapshot and counts every
@@ -83,7 +83,7 @@ func TestBundleReadCarriesEverySectionOfOneTick(t *testing.T) {
 		t.Fatal(reply, err, server.request)
 	}
 	observed := reply.GetObserved()
-	if observed.GetContext().GetTick() != 12 || observed.GetPaused() || observed.GetClockStatus().GetRunning() == nil || len(observed.GetEvents().Events) != 2 {
+	if observed.GetContext().GetTick() != 12 || observed.GetPaused() || observed.GetClockStatus().GetRunning() == nil {
 		t.Fatal(observed)
 	}
 	emergency, err := BundleEmergency(observed)
@@ -92,10 +92,6 @@ func TestBundleReadCarriesEverySectionOfOneTick(t *testing.T) {
 	}
 	if complete, known := emergency.Facts.ColonistsComplete.Value(); !complete || !known {
 		t.Fatal("emergency section lost its completeness")
-	}
-	request := BundleEventsRequest(observed.Context.Identity, bundleTestRequest().Events)
-	if !proto.Equal(request, clockEventsRequest()) {
-		t.Fatal(request)
 	}
 	// A scoped bundle names the identity, and the sections the request left
 	// out are absent.
@@ -115,9 +111,7 @@ func TestBundleReadValidatesRequestAndSections(t *testing.T) {
 	for name, request := range map[string]*o.BundleRequest{
 		"nil":            nil,
 		"scope identity": {Scope: &o.ReadScope{ExpectedIdentity: &c.Identity{ColonyId: proto.String("colony")}}},
-		"events cursor":  {Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(-1), Limit: proto.Uint32(1)}},
-		"events limit":   {Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(0), Limit: proto.Uint32(129)}},
-		"events wait":    {Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(0), Limit: proto.Uint32(1), WaitMs: proto.Uint32(ClockEventsMaxWaitMs + 1)}},
+		"events":         {Events: &o.BundleEventsRequest{AfterCursor: proto.Int64(0), Limit: proto.Uint32(1)}},
 	} {
 		if _, _, err := client.ReadBundle(context.Background(), request); !errors.Is(err, ErrContract) {
 			t.Fatal(name, err)
@@ -128,7 +122,8 @@ func TestBundleReadValidatesRequestAndSections(t *testing.T) {
 	}
 	cases := map[string]func(*o.BundleSnapshot){
 		"pause missing":         func(s *o.BundleSnapshot) { s.Paused = nil },
-		"section unrequested":   func(s *o.BundleSnapshot) { s.Events = nil },
+		"section unrequested":   func(s *o.BundleSnapshot) { s.Events = clockEventPage(2) },
+		"section missing":       func(s *o.BundleSnapshot) { s.Emergency = nil },
 		"clock status tick":     func(s *o.BundleSnapshot) { s.ClockStatus.Context.Tick = proto.Int64(13) },
 		"clock status identity": func(s *o.BundleSnapshot) { s.ClockStatus.Context.Identity.LoadToken = proto.String("other") },
 		"emergency tick": func(s *o.BundleSnapshot) {
@@ -137,8 +132,6 @@ func TestBundleReadValidatesRequestAndSections(t *testing.T) {
 		},
 		"emergency identity":       func(s *o.BundleSnapshot) { s.Emergency.Context.Identity.LoadToken = proto.String("other") },
 		"emergency section":        func(s *o.BundleSnapshot) { s.Emergency.Threats = nil },
-		"events tick":              func(s *o.BundleSnapshot) { s.Events.Context.Tick = proto.Int64(13) },
-		"events page":              func(s *o.BundleSnapshot) { s.Events.NextCursor = nil },
 		"scope identity mismatch":  func(s *o.BundleSnapshot) { s.Context.Identity.LoadToken = proto.String("other") },
 		"context invalid":          func(s *o.BundleSnapshot) { s.Context.Tick = proto.Int64(-1) },
 		"clock status unavailable": func(s *o.BundleSnapshot) { s.ClockStatus.State = nil },

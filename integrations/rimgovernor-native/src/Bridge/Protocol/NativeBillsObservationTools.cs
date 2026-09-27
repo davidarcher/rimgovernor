@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal const string RecipesToolName = "rimgovernor/observations_read_recipes";
         private const int MaxRows = 256;
 
-        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes. changed_since_tick (reads without bench_id) lists the benches whose stack changed at or after that tick, counts the rest in unchanged and names the benches removed since in removed_ids; an ask older than the tombstone window (60000 ticks, 4096 ids) gets a full reply instead. as_of_tick, the context tick, marks a delta reply; a full reply omits it.")]
+        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes.")]
         [ToolResponse("payload", "string", "Official ProtoJSON BillsReply.", Always = true)]
         public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)
@@ -55,29 +55,12 @@ namespace HomeBridge.BridgeTools
                 var seed = "bills" + parsed.AllFactions + (parsed.HasBenchId ? parsed.BenchId : "");
                 // Entity tracking (issue #358) follows every read of all
                 // benches: a full one primes the shadow and sweeps the
-                // removed, a changed_since one lists only the changed.
+                // removed, and mirror_poll asks it for the changed (#795).
                 var tracking = parsed.HasBenchId ? null : EntityTracking.For(map, BillsToolName + parsed.AllFactions);
-                // An ask the tombstones cannot answer is read in full (#795).
-                var delta = parsed.HasChangedSinceTick && tracking!.Covers(parsed.ChangedSinceTick);
                 var snapshot = new Obs.BillsSnapshot { Context = context };
                 var rows = new Dictionary<string, Obs.BillStack>();
-                if (delta) { snapshot.AsOfTick = context.Tick; snapshot.Unchanged = 0; }
                 var listed = benches;
-                if (delta)
-                {
-                    listed = new List<Thing>();
-                    foreach (var bench in benches)
-                    {
-                        var row = Stack(bench, map, context);
-                        if (tracking!.Note(bench.GetUniqueLoadID(), row) >= parsed.ChangedSinceTick) { rows[bench.GetUniqueLoadID()] = row; listed.Add(bench); }
-                        else snapshot.Unchanged++;
-                    }
-                }
-                if (tracking != null)
-                {
-                    tracking.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
-                    if (delta) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
-                }
+                tracking?.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
                 var afterCursor = listed;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                 {
@@ -153,9 +136,9 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional bench id and page limit 1..256 are required.");
             if (request?.Scope?.ExpectedIdentity == null || !Page(request.Page) || request.HasBenchId && !ProtoBoundary.IsIdentifier(request.BenchId)) return false;
-            if (request.HasChangedSinceTick && (request.ChangedSinceTick < 0 || request.HasBenchId))
+            if (request.HasChangedSinceTick)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick needs a non-negative tick and a read without bench_id.");
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick is retired; bills deltas ride mirror_poll.");
                 return false;
             }
             return true;

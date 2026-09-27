@@ -102,40 +102,11 @@ func (z *zoneMirror) census(table mirror.Table[string, *o.ZoneState]) bridge.Zon
 	return out
 }
 
-// cellMirror is the planning window over one region as a mirror section,
-// keyed by cell; a delta's fogged cells are its tombstones. The cell grid
-// keeps no tombstone window (#357): any watermark is answered.
-type cellMirror struct {
-	native PlanningWindowNative
-	id     *c.Identity
-	region policy.Rectangle
-}
-
-func (w cellMirror) Name() string                    { return string(facts.PlanningCells) }
-func (w cellMirror) Equal(a, b policy.SiteCell) bool { return a == b }
-func (w cellMirror) Read(ctx context.Context, since mirror.Watermark) (mirror.Read[domain.Cell, policy.SiteCell], error) {
-	window, _, err := w.native.ReadPlanningWindow(ctx, w.id, w.region, since.Tick)
-	if err != nil {
-		return mirror.Read[domain.Cell, policy.SiteCell]{}, err
-	}
-	return mirror.Read[domain.Cell, policy.SiteCell]{AsOf: mirror.At(window.Context.GetTick()), Delta: window.Delta, Rows: cellRows(window.Cells), Removed: window.Fogged, Unchanged: window.Unchanged}, nil
-}
-
 func cellRows(cells []policy.SiteCell) map[domain.Cell]policy.SiteCell {
 	out := make(map[domain.Cell]policy.SiteCell, len(cells))
 	for _, row := range cells {
 		out[row.Cell] = row
 	}
-	return out
-}
-
-// siteCells is a cell table as the window's rows, in row order.
-func siteCells(rows map[domain.Cell]policy.SiteCell) []policy.SiteCell {
-	out := make([]policy.SiteCell, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, row)
-	}
-	bridge.SortSiteCells(out)
 	return out
 }
 

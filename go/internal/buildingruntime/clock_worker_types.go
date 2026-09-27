@@ -9,9 +9,12 @@ import (
 	"time"
 )
 
-// ClockEventNative serves the event poll: one bundle read carrying the
-// current scope and the events page after the review's cursor.
+// ClockEventNative serves the event poll: one mirror_poll carrying the
+// journal page after the review's cursor, its scope, and the polled
+// mirror sections (#795), and the bare bundle read that finds the world
+// to ask for when no epoch is held.
 type ClockEventNative interface {
+	MirrorPollNative
 	ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error)
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -45,13 +44,8 @@ func (client *Client) ReadBundle(ctx context.Context, request *o.BundleRequest) 
 			return nil, Result{}, err
 		}
 	}
-	if events := request.Events; events != nil {
-		if events.AfterCursor == nil || events.GetAfterCursor() < 0 || events.Limit == nil || events.GetLimit() < 1 || events.GetLimit() > 128 {
-			return nil, Result{}, contract("bundle events cursor/limit")
-		}
-		if events.GetWaitMs() > ClockEventsMaxWaitMs {
-			return nil, Result{}, contract("bundle events wait bound")
-		}
+	if request.Events != nil {
+		return nil, Result{}, contract("bundle events are read through mirror_poll")
 	}
 	if request.GetColonistPawns() && !request.GetEmergency() {
 		return nil, Result{}, contract("bundle colonist pawns require the emergency section")
@@ -91,7 +85,7 @@ func (client *Client) bundleObserved(ctx context.Context, request *o.BundleReque
 	if v.Paused == nil {
 		return contract("bundle pause state missing")
 	}
-	if request.GetClockStatus() != (v.ClockStatus != nil) || request.GetEmergency() != (v.Emergency != nil) || (request.Events != nil) != (v.Events != nil) {
+	if request.GetClockStatus() != (v.ClockStatus != nil) || request.GetEmergency() != (v.Emergency != nil) || v.Events != nil {
 		return contract("bundle sections differ from the request")
 	}
 	if !request.GetColonyFacts() && v.ColonyFacts != nil || !request.GetPopulation() && v.Population != nil || !request.GetResearch() && v.Research != nil || !request.GetColonistPawns() && v.ColonistPawns != nil {
@@ -129,14 +123,6 @@ func (client *Client) bundleObserved(ctx context.Context, request *o.BundleReque
 			return contract("bundle emergency context mismatch")
 		}
 	}
-	if v.Events != nil {
-		if err := clockEventsPage(v.Events, BundleEventsRequest(identity, request.Events)); err != nil {
-			return err
-		}
-		if v.Events.Context.GetTick() != v.Context.GetTick() {
-			return contract("bundle events context mismatch")
-		}
-	}
 	if err := validateBundleStepFamilies(request, v); err != nil {
 		return err
 	}
@@ -148,16 +134,6 @@ func (client *Client) bundleObserved(ctx context.Context, request *o.BundleReque
 		return unavailable(v.ClockStatus.GetUnavailable(), raw)
 	}
 	return nil
-}
-
-// BundleEventsRequest is the clock events request a bundle's events section
-// answers, for the validators and the journal append that take one.
-func BundleEventsRequest(identity *c.Identity, events *o.BundleEventsRequest) *k.EventsRequest {
-	request := &k.EventsRequest{Identity: proto.Clone(identity).(*c.Identity), AfterCursor: proto.Int64(events.GetAfterCursor()), Limit: proto.Uint32(events.GetLimit())}
-	if events.GetWaitMs() > 0 {
-		request.WaitMs = proto.Uint32(events.GetWaitMs())
-	}
-	return request
 }
 
 // BundleEmergency decodes a bundle's emergency section into the observation

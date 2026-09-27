@@ -21,7 +21,7 @@ type drillNative struct {
 func (n *drillNative) ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error) {
 	return bridge.ResearchRead{Context: n.reply.GetObserved().Context, Finished: []string{"DeepDrilling", "GroundPenetratingScanner"}}, bridge.Result{}, nil
 }
-func (n *drillNative) ReadBuildings(context.Context, *c.Identity, int64) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
+func (n *drillNative) ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
 	rows := map[string]*o.BuildingState{}
 	if n.existing {
 		rows["drill"] = &o.BuildingState{BuildDefName: proto.String("DeepDrill")}

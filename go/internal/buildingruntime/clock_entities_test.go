@@ -48,14 +48,14 @@ func (f *entityFake) ReadZones(_ context.Context, _ *c.Identity, since int64) (b
 	return bridge.EntityRows[*o.ZoneState]{Context: context, Rows: f.full}, bridge.Result{}, nil
 }
 
-func (f *entityFake) ReadBuildings(_ context.Context, _ *c.Identity, since int64) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
-	f.ask(facts.Buildings, since)
-	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: map[string]*o.BuildingState{}, Delta: since > 0}, bridge.Result{}, nil
+func (f *entityFake) ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
+	f.ask(facts.Buildings, 0)
+	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: map[string]*o.BuildingState{}}, bridge.Result{}, nil
 }
 
-func (f *entityFake) ReadBillStacks(_ context.Context, _ *c.Identity, since int64) (bridge.EntityRows[*o.BillStack], bridge.Result, error) {
-	f.ask(facts.Bills, since)
-	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: map[string]*o.BillStack{}, Delta: since > 0}, bridge.Result{}, nil
+func (f *entityFake) ReadBillStacks(context.Context, *c.Identity) (bridge.EntityRows[*o.BillStack], bridge.Result, error) {
+	f.ask(facts.Bills, 0)
+	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: map[string]*o.BillStack{}}, bridge.Result{}, nil
 }
 
 func zoneState(id, label string) *o.ZoneState {
@@ -74,10 +74,13 @@ func TestRefreshEntitySectionsFullThenDelta(t *testing.T) {
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	native := &entityFake{tick: 100, full: map[string]*o.ZoneState{"Zone_1": zoneState("Zone_1", "a"), "Zone_2": zoneState("Zone_2", "b")}}
 	refreshEntitySections(context.Background(), native, f, identity, scope, 100, entitySectionsCarried{})
-	for _, section := range []facts.Section{facts.Zones, facts.Buildings, facts.Bills} {
-		if asks := native.since[section]; len(asks) != 1 || asks[0] != 0 || !f.store.Fresh(section, 100) {
-			t.Fatalf("%s: since=%v fresh=%v", section, asks, f.store.Fresh(section, 100))
-		}
+	if asks := native.since[facts.Zones]; len(asks) != 1 || asks[0] != 0 || !f.store.Fresh(facts.Zones, 100) {
+		t.Fatalf("since=%v fresh=%v", asks, f.store.Fresh(facts.Zones, 100))
+	}
+	// Buildings and bills are read only as the bundle's keyframe; a
+	// native without mirror_poll leaves them unheld.
+	if len(native.since[facts.Buildings])+len(native.since[facts.Bills]) != 0 {
+		t.Fatal(native.since)
 	}
 	held, ok := facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
 	if !ok || len(held.Value) != 2 || held.AsOf != 100 || held.Source != "rimgovernor/observations_list_zones" {
@@ -115,13 +118,12 @@ func TestRefreshEntitySectionsFullThenDelta(t *testing.T) {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	// A section the bundle carried in full is read in full, whatever the
-	// held as-of tick (#593); the others still read their deltas.
+	// held as-of tick (#593).
 	f.store.InvalidateFamily(bridge.FactColony)
 	native.tick = 60302
-	refreshEntitySections(context.Background(), native, f, identity, scope, 60302, entitySectionsCarried{zones: true})
+	refreshEntitySections(context.Background(), native, f, identity, scope, 60302, entitySectionsCarried{zones: true, buildings: true})
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	buildings := native.since[facts.Buildings]
-	if asks := native.since[facts.Zones]; len(asks) != 5 || asks[4] != 0 || held.AsOf != 60302 || len(held.Value) != 2 || held.Value["Zone_3"] == nil || buildings[len(buildings)-1] != 60301 {
+	if asks := native.since[facts.Zones]; len(asks) != 5 || asks[4] != 0 || held.AsOf != 60302 || len(held.Value) != 2 || held.Value["Zone_3"] == nil || len(native.since[facts.Buildings]) != 1 || !f.store.Fresh(facts.Buildings, 60302) {
 		t.Fatalf("%+v since=%v", held.Value, native.since)
 	}
 }

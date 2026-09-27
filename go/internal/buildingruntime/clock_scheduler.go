@@ -1873,13 +1873,13 @@ func (s *ClockScheduler) planningWindowView() *o.BundlePlanningWindowViewRequest
 }
 
 // legacyPlanningWindow is the same-tick planning window band for the held
-// window, a delta since its as-of tick; nil when none is held.
+// window; nil when none is held.
 func (s *ClockScheduler) legacyPlanningWindow() *o.BundlePlanningWindowRequest {
 	held, ok := facts.Get[observation.PlanningCells](s.facts.store, facts.PlanningCells)
 	if !ok {
 		return nil
 	}
-	return bridge.BundlePlanningWindowRequest(&bridge.BundlePlanningWindow{Region: held.Value.Region, Since: held.AsOf})
+	return bridge.BundlePlanningWindowRequest(&bridge.BundlePlanningWindow{Region: held.Value.Region})
 }
 
 // bundleMasks is the review bundle's field mask per continuous family

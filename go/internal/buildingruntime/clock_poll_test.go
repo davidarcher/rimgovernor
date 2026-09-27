@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"path/filepath"
@@ -37,13 +38,16 @@ func (f *clockPollNative) ReadClockEvents(ctx context.Context, request *k.Events
 	}
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: proto.Clone(f.page).(*k.EventsPage)}}, bridge.Result{}, nil
 }
-func (f *clockPollNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+func (f *clockPollNative) MirrorPoll(ctx context.Context, request *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
 	// before runs while the native call is out: the scope and the page it
 	// answers with are both read after it.
 	if f.before != nil {
 		f.before()
 	}
-	return composeBundle(ctx, request, bundleParts{tick: f.core.Tick, events: f.ReadClockEvents})
+	return composeMirrorPoll(ctx, request, bundleParts{tick: f.core.Tick, events: f.ReadClockEvents})
+}
+func (f *clockPollNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+	return composeBundle(ctx, request, bundleParts{tick: f.core.Tick})
 }
 func clockPollFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *sql.DB) {
 	t.Helper()
@@ -245,7 +249,7 @@ func TestClockPollStandingHoldKeepsAcquireEpoch(t *testing.T) {
 }
 func TestClockPollReadFailureAndCancellationCleanup(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"read", "cancel", "stale generation", "backlog"} {
+	for _, kind := range []string{"read", "cancel", "backlog"} {
 		t.Run(kind, func(t *testing.T) {
 			s, f, _ := clockPollFixture(t)
 			if _, err := s.Step(context.Background()); err != nil {
@@ -259,8 +263,6 @@ func TestClockPollReadFailureAndCancellationCleanup(t *testing.T) {
 				native.err = errors.New("transport")
 			case "cancel":
 				native.before = cancel
-			case "stale generation":
-				native.page.Context.NativeGeneration = proto.Uint64(1)
 			case "backlog":
 				native.page.NewestCursor = proto.Int64(2)
 			}

@@ -156,7 +156,7 @@ func DecodePlanningWindowView(v *o.PlanningWindowView, request *o.BundlePlanning
 		}
 		n := uint64(len(band.Cells))
 		band.Completeness = &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
-		if err := validatePlanningCells(band, v.Context, v.MapSize, 0); err != nil {
+		if err := validatePlanningCells(band, v.Context, v.MapSize); err != nil {
 			return PlanningWindowView{}, err
 		}
 		cells, filtered := PlanningCells(band)

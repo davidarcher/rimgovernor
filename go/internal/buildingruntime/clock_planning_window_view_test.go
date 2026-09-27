@@ -141,7 +141,7 @@ func TestReadStepBundleFallsBackToTheLegacyBand(t *testing.T) {
 		t.Fatal(reply, err, len(n.requests))
 	}
 	legacy := n.requests[1]
-	if legacy.PlanningWindowView != nil || legacy.PlanningWindow.GetChangedSinceTick() != 100 || !s.facts.viewUnsupported || s.planningWindowView() != nil {
+	if legacy.PlanningWindowView != nil || legacy.PlanningWindow == nil || legacy.PlanningWindow.ChangedSinceTick != nil || !s.facts.viewUnsupported || s.planningWindowView() != nil {
 		t.Fatal("fallback", legacy, s.facts.viewUnsupported)
 	}
 	if viewRefused(errors.New("transport")) || viewRefused(&bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_STALE_IDENTITY.Enum()}}) ||

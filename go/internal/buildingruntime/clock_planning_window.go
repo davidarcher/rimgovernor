@@ -16,9 +16,9 @@ import (
 // PlanningWindowNative is the optional native read behind the planning
 // window (bridge.Client.ReadPlanningWindow); a scheduler whose native side
 // lacks it serves no window and a current native's colony read plans no
-// site. The since tick asks for a delta over a held window (#357).
+// site.
 type PlanningWindowNative interface {
-	ReadPlanningWindow(context.Context, *c.Identity, policy.Rectangle, int64) (bridge.PlanningWindow, bridge.Result, error)
+	ReadPlanningWindow(context.Context, *c.Identity, policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error)
 }
 
 // planningWindow is the step's refresher for the planning_cells section
@@ -32,13 +32,9 @@ type PlanningWindowNative interface {
 // re-planned at apply (operations_preview, CAS tokens). The step's read
 // cache makes a second ask in the same step free.
 //
-// A refresh of a held window goes through the colony mirror (#795): the
-// cells changed since its as-of tick, merged (#357). Every
-// mirror.ResyncEvery-th refresh, and the first after a planner's apply was
-// refused on a map CAS token (facts.Store.RequestResync), reads the whole
-// window as well and logs how many rows the delta got wrong as `[facts]
-// planning_cells resync drift=<n>`; non-zero drift is a bug against the
-// native hook list.
+// A native with mirror_poll serves the window as a cell grid (#795,
+// pollGrid): a delta over the held grid. Without it, or when the poll
+// does not answer, the window is read whole.
 type planningWindow struct {
 	native PlanningWindowNative
 	store  *facts.Store
@@ -109,36 +105,18 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 			return held, nil
 		}
 	}
-	requested := p.store.ResyncDue(facts.PlanningCells)
-	if !ok {
-		window, _, err := p.native.ReadPlanningWindow(ctx, identity, region, 0)
-		if err != nil {
-			return facts.Held[observation.PlanningCells]{}, err
-		}
-		return p.put(identity, window.Region, window.Cells, window.Context.GetTick()), nil
+	if ok {
+		region = held.Value.Region
 	}
-	// The held window is refreshed where it is, through the mirror (#795):
-	// a delta since its watermark merged by cell, fogged cells dropped,
-	// with the mirror's resync backstop. The step's bundle carries this
-	// very delta (#593). The mirror is kept on the held rows, which a
-	// view or a routine read may have filed without it.
-	region = held.Value.Region
-	section := cellMirror{native: p.native, id: identity, region: region}
-	ms := mirrorScope(p.scope, identity)
-	p.file(identity, held)
-	if requested {
-		p.mirror.RequestResync(section.Name())
-	}
-	table, out, err := mirror.Refresh(ctx, p.mirror, ms, p.tick, section)
-	mirrorEvent(ctx, facts.PlanningCells, out)
-	if err != nil && out.Kind != mirror.Delta {
-		clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)
-		return held, nil
-	}
+	window, _, err := p.native.ReadPlanningWindow(ctx, identity, region)
 	if err != nil {
-		clockSchedulerLog("planning window: resync read failed, keeping the delta as of %d: %v", table.AsOf.Tick, err)
+		if ok {
+			clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)
+			return held, nil
+		}
+		return facts.Held[observation.PlanningCells]{}, err
 	}
-	return p.put(identity, region, siteCells(table.Rows), table.AsOf.Tick), nil
+	return p.put(identity, window.Region, window.Cells, window.Context.GetTick()), nil
 }
 
 // fromView serves the window from the step's planning window view: the
@@ -197,7 +175,7 @@ func (p *planningWindow) fromPannedView(ctx context.Context, identity *c.Identit
 	reused := len(cells)
 	asOf, read := validated, 0
 	for _, strip := range planningWindowUncovered(region, overlap) {
-		window, _, err := p.native.ReadPlanningWindow(ctx, identity, strip, 0)
+		window, _, err := p.native.ReadPlanningWindow(ctx, identity, strip)
 		if err != nil {
 			return facts.Held[observation.PlanningCells]{}, fmt.Sprintf("strip %+v read failed: %v", strip, err)
 		}
@@ -257,9 +235,9 @@ func (p *planningWindow) put(identity *c.Identity, region policy.Rectangle, cell
 }
 
 // file puts the window in the store and publishes its rows as the
-// planning_cells mirror section, however it was read (a view, a full or a
-// delta read), so the next refresh deltas from them and a recording holds
-// the rows a review's cells are rebuilt from (snapshot bindings). An
+// planning_cells mirror section, however it was read (a view or a full
+// read), so a recording holds the rows a review's cells are rebuilt from
+// (snapshot bindings). An
 // unchanged table is not republished.
 func (p *planningWindow) file(identity *c.Identity, out facts.Held[observation.PlanningCells]) facts.Held[observation.PlanningCells] {
 	facts.Put(p.store, p.scope, facts.PlanningCells, out)

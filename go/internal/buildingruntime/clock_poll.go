@@ -15,7 +15,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -63,69 +62,52 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	before := s.session.State()
-	// The poll's one native read: the current scope and the events page
-	// after the review's cursor, from the same hop (issue #127). The page is
-	// read for the scope the bundle reports, so a load between the two is
-	// impossible; authority is judged against that scope below.
-	// A native with mirror_poll (#795) answers the same page with the
-	// polled mirror sections beside it, from the same hop; the page's
-	// journal context is the current scope.
+	// The poll's one native read (#795): the journal page after the
+	// review's cursor with the polled mirror sections beside it, from the
+	// same hop (issue #127); the page's journal context is the current
+	// scope, so authority is judged against it below.
 	var current *c.ObservationContext
 	var request *k.EventsRequest
 	var page *k.EventsPage
 	var mirrored *mp.MirrorPage
-	if poller, ok := native.(MirrorPollNative); ok {
-		// The poll is asked for a world (#795): the epoch's, else the
-		// current scope read once. A load between them answers
-		// StaleIdentity with the current context; the poll re-anchors on
-		// it and asks again, once.
-		identity, err := s.mirrorIdentity(call, native)
-		if err != nil {
-			return fail(err)
-		}
-		var ask *mp.MirrorPollRequest
-		var reply *mp.MirrorPollReply
-		for attempt := 0; ; attempt++ {
-			epoch, asks := s.facts.mirrorAsks(nil)
-			if epoch != nil && !proto.Equal(epoch.Identity, identity) {
-				// Watermarks of another world: keyframes for this one.
-				s.facts.resetEpoch()
-				epoch, asks = s.facts.mirrorAsks(nil)
-			}
-			ask = &mp.MirrorPollRequest{Identity: proto.Clone(identity).(*c.Identity), Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), JournalAfterCursor: proto.Int64(review.InboxCursor)}
-			if wait > 0 {
-				ask.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
-			}
-			reply, _, err = poller.MirrorPoll(call, ask)
-			var stale *bridge.NativeFailure
-			if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {
-				identity = stale.Value.GetObservedContext().GetIdentity()
-				s.facts.resetEpoch()
-				continue
-			}
-			break
-		}
-		if err != nil {
-			return fail(err)
-		}
-		mirrored = reply.GetPage()
-		out.Mirror = true
-		page = mirrored.GetJournal()
-		current = page.GetContext()
-		request = bridge.MirrorJournalRequest(current.GetIdentity(), ask)
-	} else {
-		events := &o.BundleEventsRequest{AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
-		if wait > 0 {
-			events.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
-		}
-		reply, _, err := native.ReadBundle(call, &o.BundleRequest{Events: events})
-		if err != nil {
-			return fail(err)
-		}
-		current = reply.GetObserved().GetContext()
-		request = bridge.BundleEventsRequest(current.GetIdentity(), events)
-		page = reply.GetObserved().GetEvents()
+	// The poll is asked for a world (#795): the epoch's, else the
+	// current scope read once. A load between them answers
+	// StaleIdentity with the current context; the poll re-anchors on
+	// it and asks again, once.
+	identity, err := s.mirrorIdentity(call, native)
+	if err != nil {
+		return fail(err)
 	}
+	var ask *mp.MirrorPollRequest
+	var reply *mp.MirrorPollReply
+	for attempt := 0; ; attempt++ {
+		epoch, asks := s.facts.mirrorAsks(nil)
+		if epoch != nil && !proto.Equal(epoch.Identity, identity) {
+			// Watermarks of another world: keyframes for this one.
+			s.facts.resetEpoch()
+			epoch, asks = s.facts.mirrorAsks(nil)
+		}
+		ask = &mp.MirrorPollRequest{Identity: proto.Clone(identity).(*c.Identity), Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), JournalAfterCursor: proto.Int64(review.InboxCursor)}
+		if wait > 0 {
+			ask.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+		}
+		reply, _, err = native.MirrorPoll(call, ask)
+		var stale *bridge.NativeFailure
+		if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {
+			identity = stale.Value.GetObservedContext().GetIdentity()
+			s.facts.resetEpoch()
+			continue
+		}
+		break
+	}
+	if err != nil {
+		return fail(err)
+	}
+	mirrored = reply.GetPage()
+	out.Mirror = true
+	page = mirrored.GetJournal()
+	current = page.GetContext()
+	request = bridge.MirrorJournalRequest(current.GetIdentity(), ask)
 	if err = bridge.ValidateContext(current); err != nil {
 		return fail(err)
 	}
@@ -160,9 +142,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	if !state.Enabled && clockPollLastCursor(page) <= s.history.cursor {
 		fresh = false
-	}
-	if page.Context.GetTick() < current.GetTick() || current.NativeGeneration != nil && (page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() < current.GetNativeGeneration()) {
-		return fail(executor.ErrEvidence)
 	}
 	latest := s.session.State()
 	if !clockPollMatchesAuthority(page.Context, latest) {
@@ -239,10 +218,8 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	// The page's sections are filed after its events invalidated the
 	// store: they describe the same snapshot, at or after every event.
-	if mirrored != nil {
-		applied := s.facts.applyMirrorPage(call, mirrored)
-		out.More, out.MirrorChanged = applied.more, applied.changed > 0
-	}
+	applied := s.facts.applyMirrorPage(call, mirrored)
+	out.More, out.MirrorChanged = applied.more, applied.changed > 0
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
 		return fail(err)

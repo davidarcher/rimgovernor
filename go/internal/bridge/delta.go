@@ -222,17 +222,11 @@ func (caller *Client) recordDelta(ctx context.Context, name string, delta *o.Sec
 }
 
 // deltaKey is the store key of a tracked request: its bytes without the
-// ask and, for the bundle, without the parts that move every read.
+// ask.
 func deltaKey(name string, request proto.Message) string {
 	shape := proto.Clone(request)
 	message := shape.ProtoReflect()
 	message.Clear(message.Descriptor().Fields().ByName("changed_since"))
-	if bundle, ok := shape.(*o.BundleRequest); ok {
-		bundle.Events = nil
-		if bundle.PlanningWindow != nil {
-			bundle.PlanningWindow.ChangedSinceTick = nil
-		}
-	}
 	encoded, _ := proto.MarshalOptions{Deterministic: true}.Marshal(shape)
 	return name + "\x00" + string(encoded)
 }

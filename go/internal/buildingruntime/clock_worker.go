@@ -28,8 +28,8 @@ type ClockWorker struct {
 	disable  func() error
 	cleanup  func(context.Context) error
 	poll     func(context.Context, time.Duration) (ClockPollResult, error)
-	// held reports whether the next poll may hold its native read for
-	// config.PollWait; nil holds whenever PollWait is set.
+	// held reports a window running (the running poll cadence); nil
+	// counts as running.
 	held       func() bool
 	trace      func() telemetry.Trace
 	validity   func() (domain.ReadValidity, bool)
@@ -45,11 +45,8 @@ type ClockWorker struct {
 	// pollHeld records whether the running loop already re-polls itself.
 	pollWake chan struct{}
 	pollHeld atomic.Bool
-	// mirror is set when the poll reads through mirror_poll (#795): its
-	// wait is off the game thread and takes no admission slot, so it is
-	// held between windows too. writes reports a queued side-effect call,
-	// under which the poll does not wait.
-	mirror bool
+	// writes reports a queued side-effect call, under which the poll does
+	// not wait.
 	writes func() bool
 }
 
@@ -89,7 +86,6 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
 	}
-	_, w.mirror = nativeEvents.(MirrorPollNative)
 	if writes, ok := nativeEvents.(writesPending); ok {
 		w.writes = writes.WritesPending
 	}
@@ -193,22 +189,18 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 	}
 }
 
-// pollLoop reads the native journal. While held reports a window running
-// the read is a long poll bounded by PollWait, so a stop wakes the step as
-// soon as its event lands instead of at the next PollInterval, or, with
-// PollWait zero, an unheld read at the RunningPollInterval cadence;
-// between windows the loop waits locally on scheduler completion (pollWake).
-// The native read is never held under a paused review, where it would queue
-// ahead of the planners' reads. A call that
-// waited (it returned no sooner than half of its wait) or that captured
-// evidence is followed by the next poll at once; a call that returned early
-// against a native build that ignores wait_ms falls back to the cadence.
-//
-// Through mirror_poll (#795) the read is held whether or not a window runs
-// (its wait holds neither the game thread nor an admission slot), except
-// while a side-effect call is queued or the last page left a section for
-// the next (more); a page that applied anything is followed by the next
-// poll at once, and a failed call backs off from 250 ms to 2 s.
+// pollLoop reads the native journal through mirror_poll (#795). The read
+// is a long poll bounded by PollWait whether or not a window runs (its
+// wait holds neither the game thread nor an admission slot), so a stop
+// wakes the step as soon as its event lands, except while a side-effect
+// call is queued or the last page left a section for the next (more).
+// With PollWait zero the read is unheld, at the RunningPollInterval
+// cadence while held reports a window running; between windows the loop
+// waits locally on scheduler completion (pollWake). A call that waited
+// (it returned no sooner than half of its wait), captured evidence or
+// applied anything is followed by the next poll at once; a call that
+// returned early against a native build that ignores wait_ms falls back
+// to the cadence, and a failed call backs off from 250 ms to 2 s.
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	backoff := time.Duration(0)
@@ -216,7 +208,7 @@ func (w *ClockWorker) pollLoop() {
 	for w.ctx.Err() == nil {
 		var wait time.Duration
 		running := w.held == nil || w.held()
-		if w.config.PollWait > 0 && (running || w.mirror) && !more && (w.writes == nil || !w.writes()) {
+		if w.config.PollWait > 0 && !more && (w.writes == nil || !w.writes()) {
 			wait = w.config.PollWait
 		}
 		w.pollHeld.Store(wait > 0)
@@ -249,7 +241,7 @@ func (w *ClockWorker) pollLoop() {
 			}
 			continue
 		}
-		if err != nil && w.mirror {
+		if err != nil {
 			backoff = min(pollBackoffMax, max(pollBackoffMin, backoff*2))
 			interval = backoff
 		} else if err == nil {

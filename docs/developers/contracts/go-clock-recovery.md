@@ -568,32 +568,13 @@ tick, so `as_of_spread` is non-zero on steps served from the store. The
 row carries no `reachable` (`placement_preview` refuses an unreachable
 site) and never lists a fogged cell (`Completeness.filtered` counts them).
 
-A held window refreshes incrementally (#357). Every `get_cells` reply
-stamps `as_of_tick` (the context tick), and the native keeps a per-map
-last-changed tick grid (`CellTracking.cs`, created on the map's first
-cells read with every cell stamped one tick before it, bumped by the
-1.6 map events for terrain, roof, fog, path cost and thing spawn or
-despawn, and by Harmony postfixes on the zone grid and roof removal;
-indoors is compared against the last visit's shadow at read time, while
-room id is never a change on its own, rooms being renumbered on every
-region rebuild, so `SiteCell` carries none). A refresh of a held window asks `changed_since_tick = held.AsOf`
-and the native omits the cells unchanged since that tick, counting them
-in `unchanged` (a cell changed at that tick is re-sent, since the harness
-applies at the tick it reads); `len(cells) + filtered + unchanged` must
-equal the area, and `unchanged` without an ask, or without `as_of_tick`,
-is a contract fault. `planningWindow` merges the delta over the held rows
-through the colony mirror (below; keyed by cell, changed rows replace,
-fogged cells are the tombstones) and files the merge with the reply's tick; an older native answers in
-full and the merge is skipped. A whole-section invalidation keeps an
-incremental section too, marked `Stale.All` (`Section.Incremental`), as a
-narrowed one marks its rectangle, so the next refresh is a delta rather
-than a full read. The backstop is a full read beside the
-delta every eighth refresh (`mirror.ResyncEvery`) and on the first
-refresh after a native-refused dispatch of a map-consuming kind
-(`facts.Store.RequestResync`, from the worker): when both reads share a
-tick the rows that differ are counted and logged as
-`[facts] planning_cells resync drift=<n>` (event `planning_cells_resync`
-in the flight recorder), and the full read replaces the merge.
+A held window refreshes through `mirror_poll` (#795): the poll's
+`planning_cells` section carries the window as a cell grid, a delta over
+the grid the worker holds, and `planningWindow` serves it (`pollGrid`)
+after the planning-window view (#650). Without either it reads the held
+region whole. The #357 `changed_since_tick` delta on `get_cells` and its
+per-cell change grid are retired; `CellTracking.cs` now only feeds the
+view's change ledger.
 
 The continuous sections follow the same pattern with a cadence each
 (#360). The reviewer attaches `observation.RoutineStore` (the store plus
@@ -618,39 +599,27 @@ facts, so onset lags one step) rooms get `MaxAge` 0 and are read every
 review. What a policy decides is unchanged: it sees the same decoded
 values, at most one cadence older.
 
-The entity list reads follow the same pattern per row (#358). An
-unfiltered `list_zones`, `list_buildings` or `read_bills` read (no ids, name, region, status,
-damage or `bench_id` filter) may ask `changed_since_tick`: the native
+The entity list reads follow the same pattern per row (#358). The native
 keeps a per-map, per-query-shape shadow (`EntityTracking.cs`) of each
 row's digest (FNV-1a over the row bytes with every CAS snapshot's context
-stripped) and last-changed tick, compared at read time rather than hooked,
-so a changed row is one whose projection differs and the delta costs the
-same projection a full read does while sending only the changed rows;
-the rest are counted in `unchanged`, and the ids swept out since the ask
-come back in `removed_ids`. A delta reply stamps `as_of_tick` (the
-context tick); a full reply omits it. Tombstones live one game day
-(60000 ticks) and at most 4096 per tracker (`EntityTracking.TombstoneWindow`,
-`MaxTombstones`: a heavy building day retires a few hundred to a thousand
-blueprint and frame ids, and 4096 keeps a tracker near 0.5 MB). An ask the
-tombstones cannot answer (older than the window, or than a tombstone the
-cap dropped) gets the full reply inline, in the same round trip, and the
-reader replaces what it holds (#795). The store holds `zones`, `buildings` and `bills` as
-incremental sections keyed by id (`buildingruntime.EntitySection`):
-`refreshEntitySections` (and `zoneRefresher` for the policy zone census)
-runs on every review step after the bundle and refreshes each section
-through the colony mirror: a delta since the mirror's watermark, merged,
-even while the section is fresh, so an unchanged review costs a few bytes
-per section; a full read when nothing is held or the scope moved. The
-review bundle carries these sections whole only in those keyframe cases
-(`bundleStepFamilies`). Every eighth refresh and after
-`RequestResync` a full read beside the merge counts the differing rows as
-`[facts] <section> resync drift=<n>` (event `<section>_resync`) and
-replaces the merge.
+stripped) and last-changed stamp, compared at read time rather than
+hooked, plus tombstones for the ids swept out. Tombstones live one game
+day (60000 ticks) and at most 4096 per tracker
+(`EntityTracking.TombstoneWindow`, `MaxTombstones`). `mirror_poll` asks
+the tracker for the `buildings` and `bills` rows changed after its last
+page; an ask the tombstones cannot answer gets the full section inline
+(#795). An unfiltered `list_zones` read still accepts `changed_since_tick`
+(below); `list_buildings` and `read_bills` refuse it. The store holds
+`zones`, `buildings` and `bills` as incremental sections keyed by id
+(`buildingruntime.EntitySection`): `refreshEntitySections` runs on every
+review step after the bundle, files buildings and bills from the bundle
+when it carried them (the keyframe cases, `bundleStepFamilies`) and from
+the poll otherwise, and refreshes zones through the colony mirror.
 
 The colony mirror (`go/internal/mirror`, #795) is the row store under
 these refreshers: per section, keyed rows and the watermark they are
 complete through (`mirror.Watermark`: a tick and a seq ordering changes
-within that tick; the #357/#358 reads stamp ticks only, seq 0), refreshed by `mirror.Refresh` (keyframe, delta with
+within that tick; the zones read stamps ticks only, seq 0), refreshed by `mirror.Refresh` (keyframe, delta with
 upserts and tombstones, a full reply replacing the section, resync
 backstop and drift count). Its scope is the load, map and native generation, so a reload, a
 map change or an authority generation flip makes the next refresh of
@@ -673,9 +642,7 @@ table the same way. There is no paused review bracket: CAS evidence on
 every write refuses a decision the world moved past. Research
 stays bundle-borne (its rows are defs with continuous progress, not
 entities that come and go) and areas and designations have no list read
-to page, so neither carries the fields. `entities/changed-since` proves
-add, change, remove, tombstone and the inline full reply past the window
-natively.
+to page, so neither carries the fields.
 
 ## Independent clock workers
 

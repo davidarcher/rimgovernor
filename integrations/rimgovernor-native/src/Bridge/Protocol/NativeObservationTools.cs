@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read bounded map cells",
-            Description = "Official GetCellsRequest ProtoJSON. Exact cells (1..256) or inclusive rectangle (1..4096 cells; compact planning fields up to65536). Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Traversal adds occupied/doorway/supports_light, zone adds zone_id/storage_empty, room adds room_id/indoors, growth adds fertility where the ground has any; a fogged cell under visibility carries only fogged, and an absent roof/zone/room is the applied field with no value. changed_since_tick omits the cells unchanged at or after that tick (counted in unchanged; room_id alone never counts as a change, rooms being renumbered on every region rebuild); as_of_tick is always the context tick. Areas and designations are unavailable until migrated.")]
+            Description = "Official GetCellsRequest ProtoJSON. Exact cells (1..256) or inclusive rectangle (1..4096 cells; compact planning fields up to65536). Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Traversal adds occupied/doorway/supports_light, zone adds zone_id/storage_empty, room adds room_id/indoors, growth adds fertility where the ground has any; a fogged cell under visibility carries only fogged, and an absent roof/zone/room is the applied field with no value. Areas and designations are unavailable until migrated.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -60,17 +60,11 @@ namespace HomeBridge.BridgeTools
                 if (cells.Any(cell => !cell.InBounds(map))) return new Obs.GetCellsReply {
                     Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
                 var fields = Fields(parsed.Fields);
-                // The change grid (issue #357) exists from a map's first
-                // cells read, so a later ask since this read's tick is
-                // answered from it; every read stamps as_of_tick.
-                var tracking = CellTracking.For(map);
                 var snapshot = new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
                     Region = new Obs.Rectangle { Minimum = Cell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = Cell(cells.Max(c => c.x), cells.Max(c => c.z)) },
-                    AppliedFields = fields, AsOfTick = context.Tick, Unchanged = 0 };
+                    AppliedFields = fields };
                 foreach (var cell in cells) {
-                    if (parsed.HasChangedSinceTick && tracking.Unchanged(cell, parsed.ChangedSinceTick)
-                        && (!fields.Growth || tracking.GrowthUnchanged(cell))) { snapshot.Unchanged++; continue; }
                     var row = new Obs.CellState { Cell = Cell(cell.x, cell.z) };
                     // A fogged cell reveals nothing but its fog: the row
                     // carries no other fact, as the planning window it
@@ -114,16 +108,14 @@ namespace HomeBridge.BridgeTools
                         if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                         row.StorageEmpty = NativeZoneCreation.StorageEmpty(cell, map);
                     }
-                    var room = cell.GetRoom(map);
-                    tracking.NoteRoom(cell, room);
                     if (fields.Room) {
+                        var room = cell.GetRoom(map);
                         if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                         row.Indoors = CellTracking.Indoors(room);
                     }
                     if (fields.Growth) {
                         row.Polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
                         row.Glow = Finite(map.glowGrid.GroundGlowAt(cell));
-                        tracking.NoteGrowth(cell, row.Polluted, (float)row.Glow);
                         // Fertility only where the ground has any (issue #335).
                         var fertility = map.fertilityGrid.FertilityAt(cell);
                         if (fertility > 0f) row.Fertility = Finite(fertility);
@@ -175,7 +167,7 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, bounded unique exact cells or inclusive rectangle required.");
-            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, request.Compact ? CompactCellEncoding.Limit : CellsPageLimit) || request.HasChangedSinceTick && request.ChangedSinceTick < 0) return false;
+            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, request.Compact ? CompactCellEncoding.Limit : CellsPageLimit) || request.HasChangedSinceTick) return false;
             if (request.Compact && (request.SelectionCase != Obs.GetCellsRequest.SelectionOneofCase.Rectangle || !CompactCellEncoding.Supports(Fields(request.Fields)))) return false;
             var fields = request.Fields;
             if (fields != null && (fields.Areas || fields.Designations)) {

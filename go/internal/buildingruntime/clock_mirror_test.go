@@ -51,12 +51,12 @@ func (n *trackingNative) ReadZones(_ context.Context, _ *c.Identity, since int64
 	return rows, bridge.Result{}, err
 }
 
-func (n *trackingNative) ReadBuildings(_ context.Context, _ *c.Identity, since int64) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
-	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(n.tick)}, Rows: map[string]*o.BuildingState{}, Delta: since > 0}, bridge.Result{}, nil
+func (n *trackingNative) ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
+	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(n.tick)}, Rows: map[string]*o.BuildingState{}}, bridge.Result{}, nil
 }
 
-func (n *trackingNative) ReadBillStacks(_ context.Context, _ *c.Identity, since int64) (bridge.EntityRows[*o.BillStack], bridge.Result, error) {
-	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(n.tick)}, Rows: map[string]*o.BillStack{}, Delta: since > 0}, bridge.Result{}, nil
+func (n *trackingNative) ReadBillStacks(context.Context, *c.Identity) (bridge.EntityRows[*o.BillStack], bridge.Result, error) {
+	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(n.tick)}, Rows: map[string]*o.BillStack{}}, bridge.Result{}, nil
 }
 
 // The mirrored section a review serves is the projection a whole read of
