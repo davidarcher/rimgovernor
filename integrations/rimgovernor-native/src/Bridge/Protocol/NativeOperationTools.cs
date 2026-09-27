@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchPawn> WorkSettings = new Dictionary<Common.AttemptKey, Operations.PatchPawn>();
         // PatchBuilding admissions of any implemented field (target_temperature via
-        // NativeBuildingTemperature, medical via NativeBedMedical, plant_def via
+        // NativeBuildingTemperature, medical via NativeBedUse, plant_def via
         // NativeGrowerCrop), observed by field.
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
                 return NativeWorkSettings.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
                 return request.Operation.PatchBuilding.HasMedical || request.Operation.PatchBuilding.HasForPrisoners
-                    ? NativeBedMedical.Execute(state, request, context)
+                    ? NativeBedUse.Execute(state, request, context)
                     : request.Operation.PatchBuilding.HasPlantDef
                         ? NativeGrowerCrop.Execute(state, request, context)
                         : request.Operation.PatchBuilding.HasClaim
@@ -313,7 +313,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeWorkSettings.Preview(parsed.Operation.PatchPawn, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)
                     return ProtoBoundary.Encode(parsed.Operation.PatchBuilding.HasMedical || parsed.Operation.PatchBuilding.HasForPrisoners
-                        ? NativeBedMedical.Preview(parsed.Operation.PatchBuilding, context)
+                        ? NativeBedUse.Preview(parsed.Operation.PatchBuilding, context)
                         : parsed.Operation.PatchBuilding.HasPlantDef
                             ? NativeGrowerCrop.Preview(parsed.Operation.PatchBuilding, context)
                             : parsed.Operation.PatchBuilding.HasClaim
@@ -487,7 +487,7 @@ namespace HomeBridge.BridgeTools
                     Operations.PatchBuilding buildingPatch;
                     if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical || buildingPatch.HasForPrisoners
-                            ? NativeBedMedical.Observe(parsed.Attempt, context, buildingPatch)
+                            ? NativeBedUse.Observe(parsed.Attempt, context, buildingPatch)
                             : buildingPatch.HasPlantDef
                                 ? NativeGrowerCrop.Observe(parsed.Attempt, context, buildingPatch)
                                 : buildingPatch.HasClaim

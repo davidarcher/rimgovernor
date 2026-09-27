@@ -212,7 +212,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
-	target, _, err := native.ReadBedMedicalTarget(call, boundary.Identity(state.Snapshot), bed)
+	target, _, err := native.ReadBedUseTarget(call, boundary.Identity(state.Snapshot), bed)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -226,7 +226,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	preview, _, err := native.PreviewBedMedical(call, boundary.Identity(state.Snapshot), patch)
+	preview, _, err := native.PreviewBedUse(call, boundary.Identity(state.Snapshot), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -235,7 +235,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-jail-mark-%x", digest[:16]))
-	action, err := domain.NewBedMedicalAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

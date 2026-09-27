@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
                     home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
                     holdsRoof = b.def.holdsRoof, stuff = b.Stuff?.defName,
                     repairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
-                        || b is Building_Bed medicalBed && medicalBed.Medical ? 0
+                        || b is Building_Bed useBed && medicalBed.Medical ? 0
                         : b.def.holdsRoof || b is Building_WorkTable || b is Building_Bed ? 1 : 2,
                     flammability = b.GetStatValue(StatDefOf.Flammability),
                     roofed = b.OccupiedRect().All(c => c.Roofed(map))

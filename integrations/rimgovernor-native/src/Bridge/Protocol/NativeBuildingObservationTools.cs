@@ -92,15 +92,15 @@ namespace HomeBridge.BridgeTools
             // Only the implemented PatchBuilding fields carry a
             // settings row with their own dedicated CAS snapshot:
             // target_temperature_c (NativeBuildingTemperature), a
-            // humanlike bed's medical flag (NativeBedMedical), a
+            // humanlike bed's medical flag (NativeBedUse), a
             // plant grower's crop (NativeGrowerCrop) and a claimable
             // building's faction (NativeClaimBuilding, #459). forbidden/
             // power/owner remain the "settings" unsupported issue below.
             var tempControl = thing.TryGetComp<CompTempControl>();
             if (tempControl != null)
                 row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
-            else if (NativeBedMedical.Eligible(thing))
-                row.Settings = NativeBedMedical.Settings((Building_Bed)thing, context);
+            else if (NativeBedUse.Eligible(thing))
+                row.Settings = NativeBedUse.Settings((Building_Bed)thing, context);
             else if (NativeGrowerCrop.Eligible(thing))
                 row.Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context);
             else if (NativeClaimBuilding.Eligible(thing))
@@ -210,10 +210,10 @@ namespace HomeBridge.BridgeTools
             // carries no settings row; a temp-controlled thing gets
             // target_temperature_c, a humanlike bed its medical flag and a
             // plant grower its crop, each with its own snapshot, filled in by
-            // the caller below (see NativeBuildingTemperature, NativeBedMedical,
+            // the caller below (see NativeBuildingTemperature, NativeBedUse,
             // NativeGrowerCrop) -- forbidden/power/owner/forPrisoners remain
             // unimplemented either way.
-            var fields = thing.TryGetComp<CompTempControl>() != null || NativeBedMedical.Eligible(thing) || NativeGrowerCrop.Eligible(thing) || NativeClaimBuilding.Eligible(thing)
+            var fields = thing.TryGetComp<CompTempControl>() != null || NativeBedUse.Eligible(thing) || NativeGrowerCrop.Eligible(thing) || NativeClaimBuilding.Eligible(thing)
                 ? new[] { "service", "thermal_sides", "bills" }
                 : new[] { "settings", "service", "thermal_sides", "bills" };
             foreach (var field in fields)

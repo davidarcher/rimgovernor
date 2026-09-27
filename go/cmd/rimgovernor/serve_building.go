@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
@@ -152,7 +152,7 @@ type buildingServiceBridge struct {
 	trade               *buildingruntime.TradeCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
-	bedMedical          *bedmedical.Capabilities
+	bedUse              *beduse.Capabilities
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
 	zoneDelete          *zonedelete.Capabilities
@@ -322,7 +322,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	bedMedicalControl, err := bridge.NewBedMedicalControl(client)
+	bedUseControl, err := bridge.NewBedUseControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -401,7 +401,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: tradeWriter},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
-		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
+		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
 		zoneDelete:          &zonedelete.Capabilities{Native: client, Writer: zoneDeleteControl},
@@ -816,12 +816,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		buildingTemperatureCapabilities = client.buildingTemperature
 	}
 	// The hospital family patches beds medical through the shared executor.
-	var bedMedicalCapabilities *bedmedical.Capabilities
+	var bedUseCapabilities *beduse.Capabilities
 	if config.routineHospitalPlans {
-		if client.bedMedical == nil {
+		if client.bedUse == nil {
 			return errors.New("hospital plans require typed capabilities")
 		}
-		bedMedicalCapabilities = client.bedMedical
+		bedUseCapabilities = client.bedUse
 	}
 	// The field family re-crops plant growers through the shared executor.
 	var growerCropCapabilities *growercrop.Capabilities
@@ -933,7 +933,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Trade:               tradeCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
-		BedMedical:          bedMedicalCapabilities,
+		BedUse:              bedUseCapabilities,
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
 		ZoneDelete:          zoneDeleteCapabilities,

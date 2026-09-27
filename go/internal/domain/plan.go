@@ -34,7 +34,7 @@ const WasteAction ActionKind = "waste"
 const RecoveryServiceAction ActionKind = "recovery_service"
 const MovementAction ActionKind = "movement"
 const BuildingTemperatureAction ActionKind = "building_temperature"
-const BedMedicalAction ActionKind = "bed_medical"
+const BedUseAction ActionKind = "bed_medical"
 const GrowerCropAction ActionKind = "grower_crop"
 const ClaimBuildingAction ActionKind = "claim_building"
 const ZoneDeleteAction ActionKind = "zone_delete"
@@ -121,7 +121,7 @@ type Action struct {
 	waste               Waste
 	recoveryService     RecoveryService
 	buildingTemperature BuildingTemperature
-	bedMedical          BedMedical
+	bedUse              BedUse
 	growerCrop          GrowerCrop
 	claimBuilding       ClaimBuilding
 	zoneDelete          ZoneDelete
@@ -156,12 +156,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, SupplyForbidAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, ApparelPolicyAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, BuildingTemperatureAction, BedMedicalAction, GrowerCropAction, ClaimBuildingAction, ZoneDeleteAction, OpenCasketAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction, DialogAnswerAction, CutPlantAction, CoverClearanceAction, DeconstructionAction, TradeAction, CaravanDepartureAction, MoveBuildingAction, UninstallBuildingAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction, SupplyForbidAction, WorkAssignmentAction, AcquisitionAction, ZoneCreateAction, TendAction, RescueAction, CaptureAction, RangedAttackAction, ProductionBillAction, HaulAction, EquipAction, GearReplaceAction, ApparelPolicyAction, RepairAction, CleanAction, WasteAction, RecoveryServiceAction, MovementAction, BuildingTemperatureAction, BedUseAction, GrowerCropAction, ClaimBuildingAction, ZoneDeleteAction, OpenCasketAction, BedAssignAction, ResearchSelectAction, HusbandryAction, HomeCoverageAction, PrisonerInteractionAction, QuestAcceptAction, MineAcquisitionAction, WallRemovalAction, ExcavationAction, ProductionPolicyAction, MoodReliefAction, NamingConfirmationAction, DialogAnswerAction, CutPlantAction, CoverClearanceAction, DeconstructionAction, TradeAction, CaravanDepartureAction, MoveBuildingAction, UninstallBuildingAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != SupplyForbidAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != ApparelPolicyAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != BuildingTemperatureAction && kind != BedMedicalAction && kind != GrowerCropAction && kind != ClaimBuildingAction && kind != ZoneDeleteAction && kind != OpenCasketAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction && kind != DialogAnswerAction && kind != CutPlantAction && kind != CoverClearanceAction && kind != DeconstructionAction && kind != TradeAction && kind != CaravanDepartureAction && kind != MoveBuildingAction && kind != UninstallBuildingAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction && kind != SupplyForbidAction && kind != WorkAssignmentAction && kind != AcquisitionAction && kind != ZoneCreateAction && kind != TendAction && kind != RescueAction && kind != CaptureAction && kind != RangedAttackAction && kind != ProductionBillAction && kind != HaulAction && kind != EquipAction && kind != ApparelPolicyAction && kind != GearReplaceAction && kind != RepairAction && kind != CleanAction && kind != WasteAction && kind != RecoveryServiceAction && kind != MovementAction && kind != BuildingTemperatureAction && kind != BedUseAction && kind != GrowerCropAction && kind != ClaimBuildingAction && kind != ZoneDeleteAction && kind != OpenCasketAction && kind != BedAssignAction && kind != ResearchSelectAction && kind != HusbandryAction && kind != HomeCoverageAction && kind != PrisonerInteractionAction && kind != QuestAcceptAction && kind != MineAcquisitionAction && kind != WallRemovalAction && kind != ExcavationAction && kind != ProductionPolicyAction && kind != MoodReliefAction && kind != NamingConfirmationAction && kind != DialogAnswerAction && kind != CutPlantAction && kind != CoverClearanceAction && kind != DeconstructionAction && kind != TradeAction && kind != CaravanDepartureAction && kind != MoveBuildingAction && kind != UninstallBuildingAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -261,8 +261,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewMovementAction(a.id, a.movement)
 		case BuildingTemperatureAction:
 			canonical, err = NewBuildingTemperatureAction(a.id, a.buildingTemperature)
-		case BedMedicalAction:
-			canonical, err = NewBedMedicalAction(a.id, a.bedMedical)
+		case BedUseAction:
+			canonical, err = NewBedUseAction(a.id, a.bedUse)
 		case GrowerCropAction:
 			canonical, err = NewGrowerCropAction(a.id, a.growerCrop)
 		case ClaimBuildingAction:

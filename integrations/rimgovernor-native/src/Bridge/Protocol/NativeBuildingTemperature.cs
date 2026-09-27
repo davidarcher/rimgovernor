@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     // write (see BuildingConfigTool.cs's PlanTemperature, verified against
     // Assembly-CSharp 1.6.9676.17735: RimWorld.CompTempControl.targetTemperature
     // is a public settable float, clamped by the game's own -273.15..1000 C
-    // interface range). medical is NativeBedMedical's field and plant_def
+    // interface range). medical is NativeBedUse's field and plant_def
     // NativeGrowerCrop's; forbidden/power/
     // owner/forPrisoners on PatchBuilding are not yet implemented by any
     // adapter, and a command that sets them is refused rather than ignored.

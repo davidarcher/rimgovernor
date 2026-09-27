@@ -13,7 +13,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PatchBuilding's medical field only -- the typed-Operation successor of
+    // PatchBuilding's medical and for_prisoners fields -- the typed-Operation successor of
     // the legacy home/building_config tool's `medical=` write (see
     // BuildingConfigTool.cs's PlanMedical, verified against Assembly-CSharp
     // 1.6: RimWorld.Building_Bed.Medical's setter early-returns on an equal
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
     // written, because the game's setter would silently ignore it. The CAS
     // token covers the medical flag and the owner set, so an owner the
     // planner did not see being dropped stales the admission.
-    internal static class NativeBedMedical
+    internal static class NativeBedUse
     {
         internal static bool Valid(Operations.PatchBuilding? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Building) && command.HasMedical != command.HasForPrisoners
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true } });
             }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed medical preview failed: " + error.GetType().Name) }; }
+            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed use preview failed: " + error.GetType().Name) }; }
         }
 
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
@@ -133,26 +133,26 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success
                         || !Prepare(command, context, out var checkedBed, out failure) || !ReferenceEquals(bed, checkedBed))
-                        throw new InvalidOperationException("Bed medical admission changed before effect.");
+                        throw new InvalidOperationException("Bed use admission changed before effect.");
                     if (Prisoners(command)) bed!.ForOwnerType = BedOwnerType.Prisoner;
                     else bed!.Medical = command.Medical;
                     var snapshot = Snapshot(bed, context);
-                    if (snapshot == null || !Matches(bed, command)) throw new InvalidOperationException("Native bed medical requires readback.");
+                    if (snapshot == null || !Matches(bed, command)) throw new InvalidOperationException("Native bed use requires readback.");
                     evidence = Evidence(command, snapshot.Token, true);
                 }
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
             }
             catch (Exception error)
             {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed medical admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted bed medical patch requires observation: " + error.GetType().Name) };
+                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed use admission failed: " + error.GetType().Name) }
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted bed use patch requires observation: " + error.GetType().Name) };
             }
         }
 
         internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Operations.PatchBuilding command)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false,
-                Unknown = new Receipts.UnknownEffect { Reason = "Exact bed medical state is unavailable." } };
+                Unknown = new Receipts.UnknownEffect { Reason = "Exact bed use state is unavailable." } };
             try
             {
                 var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);

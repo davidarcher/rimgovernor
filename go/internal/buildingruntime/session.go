@@ -8,7 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
@@ -73,11 +73,11 @@ type SessionConfig struct {
 	// BuildingTemperature backs the refrigeration family's cooler setpoint
 	// patch; the one-shot CAS write shares the placement boundary's lease.
 	BuildingTemperature *buildingtemperature.Capabilities
-	// BedMedical backs the hospital family's medical-bed patch, the same
+	// BedUse backs the hospital family's medical-bed patch, the same
 	// one-shot CAS write shape as BuildingTemperature.
-	BedMedical *bedmedical.Capabilities
+	BedUse *beduse.Capabilities
 	// GrowerCrop backs the field family's basin re-crop, the same one-shot
-	// CAS write shape as BedMedical.
+	// CAS write shape as BedUse.
 	GrowerCrop *growercrop.Capabilities
 	// ClaimBuilding backs the shrine family's casket claim (#459), the same
 	// one-shot CAS write shape as GrowerCrop.
@@ -89,7 +89,7 @@ type SessionConfig struct {
 	// pawn order whose opener the melee lock drafts first.
 	OpenCasket *OpenCasketCapabilities
 	// BedAssign backs the sleeping family's bed ownership transfer, the
-	// same one-shot CAS write shape as BedMedical.
+	// same one-shot CAS write shape as BedUse.
 	BedAssign           *bedassign.Capabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
@@ -392,7 +392,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperature.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.BedMedical != nil && (config.BedMedical.Native == nil || config.BedMedical.Writer == nil) {
+	if config.BedUse != nil && (config.BedUse.Native == nil || config.BedUse.Writer == nil) {
 		return cleanup(ErrControl)
 	}
 	if config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil) {
@@ -515,8 +515,8 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 	}
-	if config.BedMedical != nil {
-		if err := worker.EnableBedMedical(bedmedical.NewBoundary(place, *config.BedMedical)); err != nil {
+	if config.BedUse != nil {
+		if err := worker.EnableBedUse(beduse.NewBoundary(place, *config.BedUse)); err != nil {
 			return cleanup(err)
 		}
 	}
