@@ -9,7 +9,6 @@ type GoalSource string
 const (
 	AutopilotGoal GoalSource = "autopilot"
 	PlayerGoal    GoalSource = "player"
-	AdviserGoal   GoalSource = "adviser"
 )
 
 type GoalStatus string
@@ -53,7 +52,7 @@ func (g Goal) Validate() error {
 		return errors.New("invalid maintained goal")
 	}
 	switch g.Source {
-	case AutopilotGoal, PlayerGoal, AdviserGoal:
+	case AutopilotGoal, PlayerGoal:
 	default:
 		return errors.New("invalid goal source")
 	}

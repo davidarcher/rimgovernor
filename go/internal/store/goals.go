@@ -308,7 +308,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 		return GoalState{}, fmt.Errorf("%w: goal %s is at revision %d, not %d", ErrConflict, id, state.Revision, revision)
 	}
 	g := state.Goal
-	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit || g.Source == domain.AdviserGoal {
+	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit {
 		return GoalState{}, errors.New("goal does not admit a method")
 	}
 	if err = admitRoutineDevelopment(ctx, tx, g, plan); err != nil {
@@ -539,7 +539,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current 
 	}
 	g := state.Goal
 	s := g.Snapshot
-	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || g.Source == domain.AdviserGoal || epoch != strconv.FormatUint(g.Epoch, 10) ||
+	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || epoch != strconv.FormatUint(g.Epoch, 10) ||
 		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}

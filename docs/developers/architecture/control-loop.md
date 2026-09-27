@@ -99,6 +99,23 @@ and `EnsureBasicDefense`: food days and armed colonists are measured targets
 held over time, so they are Standards. `TradeWithCaravan` handles a caravan
 arrival, so it is a Response.
 
+A second axis, the domain, tags every GoalID with the colony area it serves,
+like a Civ advisor. `policy.GoalDomain` returns it and the same test fails on
+any untagged GoalID. A domain only groups goals in panels; it never ranks goals
+or budgets labor.
+
+| Domain | GoalIDs |
+| --- | --- |
+| Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainFoodStorage`, `MaintainRefrigeration`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment`, `RemoveBlight` |
+| Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
+| Production | `EnsureBasicPower`, `MaintainResource` |
+| Research | `EnsureResearch` |
+| Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
+| Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves` |
+| Labor | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MoodGoal(pawn)` |
+| Supply | `AllowStartingSupplies`, `SecureSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `MaintainStorage`, `TradeWithCaravan` |
+| Upkeep | `MaintainWaste`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainRoutes`, `RecoverDisasterServices`, `AnswerDialog`, `ConfirmColonyNames` |
+
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock

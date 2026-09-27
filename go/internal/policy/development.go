@@ -15,7 +15,6 @@ type GoalSource = domain.GoalSource
 const (
 	AutopilotGoal = domain.AutopilotGoal
 	PlayerGoal    = domain.PlayerGoal
-	AdviserGoal   = domain.AdviserGoal
 )
 
 type DevelopmentGoal struct {
@@ -111,7 +110,6 @@ type DevelopmentReason string
 
 const (
 	DevelopmentCancelled DevelopmentReason = "cancelled"
-	DevelopmentAdviser   DevelopmentReason = "adviser"
 	DevelopmentEmergency DevelopmentReason = "emergency"
 	DevelopmentStartup   DevelopmentReason = "startup_survival"
 	DevelopmentBlocked   DevelopmentReason = "blocked"
@@ -256,7 +254,7 @@ func donatedOrder(row DevelopmentRow) int {
 }
 
 func validGoal(id GoalID, source GoalSource, priority int) bool {
-	return validResource(Resource(id)) && (source == AutopilotGoal || source == PlayerGoal || source == AdviserGoal) && priority >= 0 && priority <= 4
+	return validResource(Resource(id)) && (source == AutopilotGoal || source == PlayerGoal) && priority >= 0 && priority <= 4
 }
 
 // RankDevelopment ports development_priorities.arbitrate. It grants selection
@@ -315,7 +313,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			return DevelopmentState{}, errors.New("invalid development commitment")
 		}
 		seenActions[v.Action] = true
-		if c.Source == AdviserGoal || c.Source != PlayerGoal && c.Priority < 3 {
+		if c.Source != PlayerGoal && c.Priority < 3 {
 			continue
 		}
 		// Unknown effects retain capacity even after cancellation. A terminal
@@ -411,8 +409,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		switch {
 		case g.Cancelled:
 			row.Reason = DevelopmentCancelled
-		case g.Source == AdviserGoal:
-			row.Reason = DevelopmentAdviser
 		case emergency:
 			row.Reason = DevelopmentEmergency
 		case g.Blocked:

@@ -71,7 +71,7 @@ func TestUnavailableMethodDoesNotStarveExecutableDevelopment(t *testing.T) {
 }
 
 func TestDevelopmentHolds(t *testing.T) {
-	for _, kind := range []string{"emergency", "unknown", "cancelled", "adviser", "blocked"} {
+	for _, kind := range []string{"emergency", "unknown", "cancelled", "blocked"} {
 		t.Run(kind, func(t *testing.T) {
 			r := developmentFixture()
 			r.Goals = r.Goals[:1]
@@ -82,8 +82,6 @@ func TestDevelopmentHolds(t *testing.T) {
 				r.Goals[0].Deficit = domain.Unknown[float64]()
 			case "cancelled":
 				r.Goals[0].Cancelled = true
-			case "adviser":
-				r.Goals[0].Source = AdviserGoal
 			case "blocked":
 				r.Goals[0].Blocked = true
 			}

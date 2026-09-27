@@ -47,12 +47,21 @@ func TestGoalConceptCoversEveryGoalID(t *testing.T) {
 					if GoalConcept(GoalID(value)) == ConceptUnknown {
 						t.Errorf("%s: GoalID %s (%q) has no concept", n, name.Name, value)
 					}
+					if GoalDomain(GoalID(value)) == DomainUnknown {
+						t.Errorf("%s: GoalID %s (%q) has no domain", n, name.Name, value)
+					}
 				}
 			}
 		}
 	}
 	if found != len(goalConcepts) {
 		t.Errorf("found %d GoalID constants, classified %d", found, len(goalConcepts))
+	}
+	if found != len(goalDomains) {
+		t.Errorf("found %d GoalID constants, tagged %d with a domain", found, len(goalDomains))
+	}
+	if GoalDomain(MoodGoal("pawn1")) != DomainLabor || GoalDomain("NotAGoal") != DomainUnknown {
+		t.Error("GoalDomain misclassifies a mood goal or an unknown id")
 	}
 	for id, want := range map[GoalID]Concept{
 		MoodGoal("pawn1"):                          ConceptResponse,

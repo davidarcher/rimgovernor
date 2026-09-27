@@ -56,7 +56,7 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 		}
 		seen[row.Goal] = true
 		switch row.Reason {
-		case "", DevelopmentCancelled, DevelopmentAdviser, DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentLaborIdle, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable, DevelopmentRisk, DevelopmentDisabled, DevelopmentStage, DevelopmentOvercommitted:
+		case "", DevelopmentCancelled, DevelopmentEmergency, DevelopmentStartup, DevelopmentBlocked, DevelopmentCommitted, DevelopmentLaborIdle, DevelopmentWorkersUnknown, DevelopmentNoWorkers, DevelopmentUnknown, DevelopmentCapacity, DevelopmentMethodUnavailable, DevelopmentRisk, DevelopmentDisabled, DevelopmentStage, DevelopmentOvercommitted:
 			if row.Bottleneck != "" {
 				return errors.New("invalid development bottleneck")
 			}

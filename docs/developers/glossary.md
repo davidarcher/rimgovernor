@@ -12,6 +12,7 @@
 | Project | A goal with a finite finished state and dependency links to other Projects. |
 | Response | An incident triggered by an event, one row per occurrence. |
 | Rule | An admission veto; it rejects proposals and pursues nothing. |
+| Domain | The colony area a goal serves (Food, Shelter, Production, Research, Military, Medical, Labor, Supply, Upkeep), like a Civ advisor. A grouping tag only; it never ranks goals or budgets labor. See [goal concepts](architecture/control-loop.md#goal-concepts). |
 | Method | A selected way to pursue a goal, retaining its attempts and step associations. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |
 | ColonyPlan | The shared persistent goal/action system used by player requests and routine control. |
