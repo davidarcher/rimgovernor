@@ -80,7 +80,7 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 		}
 	}
 	floors := herdFoodLimits(observed, herd)
-	candidates, unknown := herdSurplusCandidates(observed, floors)
+	candidates, unknown := herdSurplusCandidates(observed, floors, herd.FeedShort)
 	if unknown {
 		return nil
 	}
@@ -141,7 +141,7 @@ func FoodSlaughterChoice(plan domain.Fact[FoodPlan], animals domain.Fact[[]Upkee
 	if !pk || !rk {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	}
-	safe, unknown := herdSurplusCandidates(rows, herdFoodLimits(rows, herd))
+	safe, unknown := herdSurplusCandidates(rows, herdFoodLimits(rows, herd), herd.FeedShort)
 	if unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	}

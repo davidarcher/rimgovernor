@@ -108,7 +108,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 	// A food slaughter offer protects productive animals selected
 	// by the non-destructive portfolio before adding a single removal method.
 	if animals, known := p.FoodChannels.Value(); known && plan.GapPerDay > 0 {
-		herd := policy.FoodHerdPolicy(policy.HerdFor(p.Facts.AnimalUpkeep.Animals, p.Facts.Wealth), domain.Known(plan))
+		herd := policy.FoodHerdPolicy(policy.HerdFor(p.Facts.AnimalUpkeep.Animals, p.Facts.Wealth, p.Facts.PenGrazing), domain.Known(plan))
 		offers := policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herd)
 		if len(offers) > 0 {
 			channels = append(channels, offers...)
@@ -118,7 +118,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 			}
 		}
 	}
-	herd := policy.FoodHerdPolicy(policy.HerdFor(p.Facts.AnimalUpkeep.Animals, p.Facts.Wealth), domain.Known(plan))
+	herd := policy.FoodHerdPolicy(policy.HerdFor(p.Facts.AnimalUpkeep.Animals, p.Facts.Wealth, p.Facts.PenGrazing), domain.Known(plan))
 	for i := range plan.Portfolio {
 		e := &plan.Portfolio[i]
 		if e.Channel.Kind == policy.FoodAnimalProduct {

@@ -21,9 +21,11 @@ const MaintainHerd GoalID = "MaintainHerd"
 // HerdPolicy is the per-race population band MaintainHerd plans from.
 // PopulationMin drives tame designations on wild animals; PopulationMax
 // drives surplus removal. A race missing from PopulationMax has no known cap
-// and is never culled for surplus.
+// and is never culled for surplus. FeedShort (pasture below pen demand)
+// lets juveniles be culled.
 type HerdPolicy struct {
 	PopulationMin, PopulationMax map[Resource]int64
+	FeedShort                    bool
 }
 
 // HusbandryPlanReason names why RoutineHusbandryPlanner did or did not
@@ -93,7 +95,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 		if !known {
 			return domain.Unknown[bool]()
 		}
-		candidates, unknown := herdTameCandidates(rows, wildRows, herd.PopulationMin)
+		candidates, unknown := herdTameCandidates(rows, wildRows, herd)
 		if unknown {
 			return domain.Unknown[bool]()
 		}
@@ -107,7 +109,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 			}
 		}
 	}
-	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax); unknown {
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort); unknown {
 		return domain.Unknown[bool]()
 	} else if len(removals) > 0 {
 		deficit = true
@@ -122,7 +124,11 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 // animals, since those are leaving. A wild row with an unknown tameable or
 // tame-designation fact, or a player row with unknown designation facts,
 // makes the result unknown.
-func herdTameCandidates(rows, wild []UpkeepAnimal, populationMin map[Resource]int64) ([]UpkeepAnimal, bool) {
+//
+// The shortfall stops at the race's max (pen and feed room, #875), and a
+// dangerous race (herdDangerous) outside the allowlist is never tamed.
+func herdTameCandidates(rows, wild []UpkeepAnimal, herd HerdPolicy) ([]UpkeepAnimal, bool) {
+	populationMin := herd.PopulationMin
 	counts := map[Resource]int64{}
 	eligible := map[Resource][]UpkeepAnimal{}
 	for _, a := range rows {
@@ -152,12 +158,15 @@ func herdTameCandidates(rows, wild []UpkeepAnimal, populationMin map[Resource]in
 			counts[a.Definition]++
 			continue
 		}
-		if tameable {
+		if tameable && !herdDangerous(a) {
 			eligible[a.Definition] = append(eligible[a.Definition], a)
 		}
 	}
 	var candidates []UpkeepAnimal
 	for race, minimum := range populationMin {
+		if ceiling, ok := herd.PopulationMax[race]; ok {
+			minimum = min(minimum, ceiling)
+		}
 		shortfall := minimum - counts[race]
 		if shortfall <= 0 {
 			continue
@@ -225,7 +234,7 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 		if !known {
 			return HusbandryChoice{Reason: HusbandryUnknown}
 		}
-		candidates, unknown := herdTameCandidates(rows, wildRows, herd.PopulationMin)
+		candidates, unknown := herdTameCandidates(rows, wildRows, herd)
 		if unknown {
 			return HusbandryChoice{Reason: HusbandryUnknown}
 		}
@@ -243,7 +252,7 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 			}
 		}
 	}
-	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax); unknown {
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort); unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	} else if len(removals) > 0 {
 		return HusbandryChoice{Animal: removals[0].animal.ID, Method: removals[0].method}

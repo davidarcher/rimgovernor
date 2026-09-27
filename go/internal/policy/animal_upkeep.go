@@ -37,6 +37,8 @@ type UpkeepAnimal struct {
 	// needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor
 	// answers whether the roster has it.
 	MinimumHandlingSkill domain.Fact[int]
+	// Herd carries the sizing facts MaintainHerd culls and tames by (#875).
+	Herd HerdFacts
 	// ReachableBenches names the player work tables the animal can reach
 	// inside its allowed area (sorted); a bill there drops feed where the
 	// animal eats it.

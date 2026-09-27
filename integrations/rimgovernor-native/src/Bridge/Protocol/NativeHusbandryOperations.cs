@@ -97,6 +97,25 @@ namespace HomeBridge.BridgeTools
             && !Designated(animal, DesignationDefOf.Tame) && !Designated(animal, DesignationDefOf.Hunt)
             && new Designator_Tame().CanDesignateThing(animal).Accepted;
 
+        // Herd sizing facts (#875) MaintainHerd reads from the colony census:
+        // age against RaceProps.lifeExpectancy, sickness, adulthood, tame
+        // danger, and whether the player's primary ideo venerates the race or
+        // carries any AnimalSlaughter precept (Disapproved/Horrible/Prohibited).
+        internal static void HerdFacts(Pawn animal, RimGovernor.Protocol.Observations.AnimalState state)
+        {
+            state.AgeYears = animal.ageTracker.AgeBiologicalYearsFloat;
+            state.LifeExpectancyYears = animal.RaceProps.lifeExpectancy;
+            state.Adult = animal.ageTracker.Adult;
+            state.ManhunterOnTameFail = animal.RaceProps.manhunterOnTameFailChance;
+            state.Gender = animal.gender.ToString();
+            if (animal.Faction != Faction.OfPlayer) return;
+            state.Sick = animal.health.hediffSet.AnyHediffMakesSickThought;
+            var ideo = ModsConfig.IdeologyActive ? Faction.OfPlayer.ideos?.PrimaryIdeo : null;
+            state.Venerated = ideo != null && ideo.IsVeneratedAnimal(animal);
+            state.SlaughterBarred = state.Venerated || ideo != null
+                && ideo.PreceptsListForReading.Any(p => p.def.issue?.defName == "AnimalSlaughter");
+        }
+
         // Mirrors HusbandryTools.SafeToSlaughter.
         internal static bool SafeToSlaughter(Pawn animal) => !animal.Dead && !animal.Downed && !animal.InMentalState
             && animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.Master == null

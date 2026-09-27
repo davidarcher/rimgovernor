@@ -4330,8 +4330,17 @@ type AnimalState struct {
 	FollowFieldwork      *bool   `protobuf:"varint,24,opt,name=follow_fieldwork,json=followFieldwork,proto3,oneof" json:"follow_fieldwork,omitempty"`
 	Obedient             *bool   `protobuf:"varint,25,opt,name=obedient,proto3,oneof" json:"obedient,omitempty"`
 	SupportsAllowedAreas *bool   `protobuf:"varint,26,opt,name=supports_allowed_areas,json=supportsAllowedAreas,proto3,oneof" json:"supports_allowed_areas,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Herd sizing facts (#875): RaceProps.lifeExpectancy in years, any hediff
+	// that makes colonists feel sick, the player ideo bars slaughter by precept
+	// or venerates this race, RaceProps.manhunterOnTameFailChance, and adult age stage.
+	LifeExpectancyYears *float64 `protobuf:"fixed64,27,opt,name=life_expectancy_years,json=lifeExpectancyYears,proto3,oneof" json:"life_expectancy_years,omitempty"`
+	Sick                *bool    `protobuf:"varint,28,opt,name=sick,proto3,oneof" json:"sick,omitempty"`
+	SlaughterBarred     *bool    `protobuf:"varint,29,opt,name=slaughter_barred,json=slaughterBarred,proto3,oneof" json:"slaughter_barred,omitempty"`
+	Venerated           *bool    `protobuf:"varint,30,opt,name=venerated,proto3,oneof" json:"venerated,omitempty"`
+	ManhunterOnTameFail *float64 `protobuf:"fixed64,31,opt,name=manhunter_on_tame_fail,json=manhunterOnTameFail,proto3,oneof" json:"manhunter_on_tame_fail,omitempty"`
+	Adult               *bool    `protobuf:"varint,32,opt,name=adult,proto3,oneof" json:"adult,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *AnimalState) Reset() {
@@ -4542,6 +4551,48 @@ func (x *AnimalState) GetObedient() bool {
 func (x *AnimalState) GetSupportsAllowedAreas() bool {
 	if x != nil && x.SupportsAllowedAreas != nil {
 		return *x.SupportsAllowedAreas
+	}
+	return false
+}
+
+func (x *AnimalState) GetLifeExpectancyYears() float64 {
+	if x != nil && x.LifeExpectancyYears != nil {
+		return *x.LifeExpectancyYears
+	}
+	return 0
+}
+
+func (x *AnimalState) GetSick() bool {
+	if x != nil && x.Sick != nil {
+		return *x.Sick
+	}
+	return false
+}
+
+func (x *AnimalState) GetSlaughterBarred() bool {
+	if x != nil && x.SlaughterBarred != nil {
+		return *x.SlaughterBarred
+	}
+	return false
+}
+
+func (x *AnimalState) GetVenerated() bool {
+	if x != nil && x.Venerated != nil {
+		return *x.Venerated
+	}
+	return false
+}
+
+func (x *AnimalState) GetManhunterOnTameFail() float64 {
+	if x != nil && x.ManhunterOnTameFail != nil {
+		return *x.ManhunterOnTameFail
+	}
+	return 0
+}
+
+func (x *AnimalState) GetAdult() bool {
+	if x != nil && x.Adult != nil {
+		return *x.Adult
 	}
 	return false
 }
@@ -35693,7 +35744,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xaa\v\n" +
+	"\a_reason\"\x8f\x0e\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -35723,7 +35774,13 @@ const file_observations_proto_rawDesc = "" +
 	"\x0efollow_drafted\x18\x17 \x01(\bH\x13R\rfollowDrafted\x88\x01\x01\x12.\n" +
 	"\x10follow_fieldwork\x18\x18 \x01(\bH\x14R\x0ffollowFieldwork\x88\x01\x01\x12\x1f\n" +
 	"\bobedient\x18\x19 \x01(\bH\x15R\bobedient\x88\x01\x01\x129\n" +
-	"\x16supports_allowed_areas\x18\x1a \x01(\bH\x16R\x14supportsAllowedAreas\x88\x01\x01B\t\n" +
+	"\x16supports_allowed_areas\x18\x1a \x01(\bH\x16R\x14supportsAllowedAreas\x88\x01\x01\x127\n" +
+	"\x15life_expectancy_years\x18\x1b \x01(\x01H\x17R\x13lifeExpectancyYears\x88\x01\x01\x12\x17\n" +
+	"\x04sick\x18\x1c \x01(\bH\x18R\x04sick\x88\x01\x01\x12.\n" +
+	"\x10slaughter_barred\x18\x1d \x01(\bH\x19R\x0fslaughterBarred\x88\x01\x01\x12!\n" +
+	"\tvenerated\x18\x1e \x01(\bH\x1aR\tvenerated\x88\x01\x01\x128\n" +
+	"\x16manhunter_on_tame_fail\x18\x1f \x01(\x01H\x1bR\x13manhunterOnTameFail\x88\x01\x01\x12\x19\n" +
+	"\x05adult\x18  \x01(\bH\x1cR\x05adult\x88\x01\x01B\t\n" +
 	"\a_genderB\f\n" +
 	"\n" +
 	"_age_yearsB\x10\n" +
@@ -35753,7 +35810,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\v\n" +
 	"\t_obedientB\x19\n" +
-	"\x17_supports_allowed_areas\"\x89\x14\n" +
+	"\x17_supports_allowed_areasB\x18\n" +
+	"\x16_life_expectancy_yearsB\a\n" +
+	"\x05_sickB\x13\n" +
+	"\x11_slaughter_barredB\f\n" +
+	"\n" +
+	"_veneratedB\x19\n" +
+	"\x17_manhunter_on_tame_failB\b\n" +
+	"\x06_adult\"\x89\x14\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +

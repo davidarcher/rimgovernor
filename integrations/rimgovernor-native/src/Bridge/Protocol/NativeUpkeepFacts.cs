@@ -434,8 +434,9 @@ namespace HomeBridge.BridgeTools
                         Release = map.designationManager.DesignationOn(p, DesignationDefOf.ReleaseAnimalToWild) != null,
                         Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null,
                         SafeToRelease = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToRelease(p),
-                        Gender = p.gender.ToString()
+                        SafeToSlaughter = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToSlaughter(p)
                     };
+                    NativeHusbandryOperations.HerdFacts(p, state);
                     // MaintainHerd's training deficit reads this bundle, not
                     // husbandry_facts: without the rows no trainable is ever due.
                     if (p.training != null)
@@ -454,7 +455,7 @@ namespace HomeBridge.BridgeTools
                         state.SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(p);
                     }
                     var value = new Obs.AnimalFeed {
-                        Pawn = new Obs.PawnState { Pawn = Ref(p), AnimalState = state },
+                        Pawn = new Obs.PawnState { Pawn = Ref(p), Predator = p.RaceProps.predator, AnimalState = state },
                         Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
                     };
                     if (suitable != null) value.SuitablePenId = Id(suitable.parent.GetUniqueLoadID());
@@ -507,12 +508,15 @@ namespace HomeBridge.BridgeTools
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
                     .OrderBy(p => p.thingIDNumber).ToList();
                 Require(wild.Count, 256);
-                result.WildAnimals.AddRange(wild.Select(p => new Obs.AnimalFeed {
-                    Pawn = new Obs.PawnState { Pawn = Ref(p), Wild = true, AnimalState = new Obs.AnimalState {
+                result.WildAnimals.AddRange(wild.Select(p => {
+                    var state = new Obs.AnimalState {
                         Tameable = NativeHusbandryOperations.Tameable(p),
                         Tame = map.designationManager.DesignationOn(p, DesignationDefOf.Tame) != null,
-                        MinimumHandlingSkill = TrainableUtility.MinimumHandlingSkill(p) } },
-                    Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false
+                        MinimumHandlingSkill = TrainableUtility.MinimumHandlingSkill(p) };
+                    NativeHusbandryOperations.HerdFacts(p, state);
+                    return new Obs.AnimalFeed {
+                        Pawn = new Obs.PawnState { Pawn = Ref(p), Wild = true, Predator = p.RaceProps.predator, AnimalState = state },
+                        Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false };
                 }));
             });
         }

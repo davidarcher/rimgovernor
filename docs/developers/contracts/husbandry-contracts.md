@@ -5,19 +5,33 @@
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
 ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
-- **Cap.** Every observed race is capped at `HerdWealthCap(colony wealth)`:
-  `clamp(floor(30 × 50000 / max(wealth, 50000)), 6, 30)` — 30 per race up to
-  50k wealth, 15 at 100k, 6 from 250k. Unknown wealth caps nothing.
-- **Floor.** The food plan's productive-animal floor (`FoodHerdPolicy`),
-  clipped to the cap. Below it, the lowest-ID tameable wild animal of that race
-  is designated (`tame`) while `MaintainAnimalFeed`'s review reports no
-  shortfall and a [handler](work-assignment.md#situational-roles) (`TamerFor`)
-  clears its `minimum_handling_skill`.
+- **Cap.** Every observed race is capped at the smaller of
+  `HerdWealthCap(colony wealth)` —
+  `clamp(floor(30 × 50000 / max(wealth, 50000)), 6, 30)`, i.e. 30 per race up
+  to 50k wealth, 15 at 100k, 6 from 250k — and, for pen animals, the pasture
+  cap `floor(n × B / D)`: `B` is the pens' worst-quadrum pasture plus stored
+  feed spread over 15 days, `D` their grazing demand, `n` the race's penned
+  count. RimWorld's pen capacity is this same nutrition balance
+  (`PenFoodCalculator`), so there is no separate density term. Predators are
+  never penned; they eat meat and stay under the stored-food feed gate.
+  Unknown wealth or pen facts leave that term out.
+- **Floor.** The food plan's productive-animal floor (`FoodHerdPolicy`), and a
+  breeding pair for any race producing milk, wool, chemfuel or eggs, clipped
+  to the cap. Below it, the lowest-ID tameable wild animal of that race is
+  designated (`tame`) while `MaintainAnimalFeed`'s review reports no shortfall
+  and a [handler](work-assignment.md#situational-roles) (`TamerFor`) clears its
+  `minimum_handling_skill`. Predators and races with
+  `manhunterOnTameFailChance ≥ 0.2` are never tamed, except grizzly and polar
+  bears and wargs.
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
-  designated); by `release` only when slaughter is refused and
-  `SafeToRelease` allows it (same exclusions). Untrained animals go before
-  those that learned Haul, Rescue or Release (attack), then lowest ID.
+  designated) and the player ideo neither venerates the race nor has an
+  `AnimalSlaughter` precept; otherwise by `release` when `SafeToRelease`
+  allows it (same exclusions). Cull order: old (past 80% of
+  `lifeExpectancy`) or sick; males beyond one per five females; untrained
+  adults by highest grazing demand per meat; adults that learned Haul, Rescue
+  or Release (attack); juveniles only while pasture is short (`B < D`). Ties
+  go to the lowest ID.
 - **Breeding pair.** No removal leaves a race with fewer than one male and two
   females; an animal of unknown sex is never removed. Standing designations
   that would break the pair, or no longer match a surplus or an open food

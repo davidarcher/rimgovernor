@@ -298,7 +298,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v)
 	r.Facts.Sleeping = colonySleeping(v)
-	r.Facts.AnimalUpkeep.Animals = colonyAnimals(v)
+	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v), r.FoodChannels)
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v)
 	r.Facts.Waste = colonyWaste(v)
 	r.Facts.Blight = colonyBlight(v)
