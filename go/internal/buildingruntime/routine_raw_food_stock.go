@@ -155,7 +155,7 @@ func (r *RoutineRawFoodStockPlanner) step(call, epoch context.Context) (RoutineR
 	var evaluated policy.Preview
 	accepted := false
 	for _, candidate := range sites {
-		value, err := domain.NewFilteredStockpileZone(rawFoodFilter, domain.CriticalPriority, candidate)
+		value, err := domain.NewFilteredStockpileZone(domain.RawFoodFilter(), domain.CriticalPriority, candidate)
 		if err != nil {
 			return RoutineRawFoodStockResult{}, err
 		}
@@ -271,15 +271,3 @@ func roomStorageSites(room []domain.Cell, anchor domain.Cell, bounds policy.Boun
 	}
 	return out, nil
 }
-
-// ingredientStorageFailed reports a zone plan whose every action ended
-// unsuccessful or cancelled, the only outcome that earns another attempt.
-
-// rawFoodFilter is raw meat and raw plant food, never rotten.
-var rawFoodFilter = func() domain.StockpileFilter {
-	f, err := domain.NewStockpileFilter(domain.BaseNothing, []domain.FilterSelector{domain.CategoryDef("MeatRaw"), domain.CategoryDef("PlantFoodRaw")}, []domain.FilterSelector{domain.SpecialFilter("AllowRotten")})
-	if err != nil {
-		panic(err)
-	}
-	return f
-}()

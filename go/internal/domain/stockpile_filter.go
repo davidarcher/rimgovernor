@@ -196,6 +196,13 @@ func CorpseLarderFilter() StockpileFilter {
 	return f
 }
 
+// RawFoodFilter holds raw meat and raw plant food, never rotten: the
+// freezer's cooking-ingredient stock (#722).
+func RawFoodFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("MeatRaw"), CategoryDef("PlantFoodRaw")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	return f
+}
+
 // AllowOnlyFilter disallows everything except the named thing definitions
 // (1..32 of them).
 func AllowOnlyFilter(definitions []string) (StockpileFilter, error) {

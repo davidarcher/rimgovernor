@@ -71,6 +71,14 @@ func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
 	}
 }
 
+func TestRawFoodZoneAllowsRawMeatAndPlantFoodOnly(t *testing.T) {
+	settings := StockpileSettings(domain.RawFoodFilter(), domain.CriticalPriority)
+	f := settings.GetFilter()
+	if settings.GetPriority() != op.StoragePriority_STORAGE_PRIORITY_CRITICAL || settings.GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || len(f.GetAllow()) != 2 || f.Allow[0].GetCategoryDef() != "MeatRaw" || f.Allow[1].GetCategoryDef() != "PlantFoodRaw" || len(f.GetDisallow()) != 1 || f.Disallow[0].GetSpecialFilterDef() != "AllowRotten" || f.HitPointsMin != nil || f.QualityMin != nil {
+		t.Fatal(settings)
+	}
+}
+
 func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	cells := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
 	growing, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", cells)
