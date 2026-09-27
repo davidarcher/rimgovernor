@@ -348,8 +348,12 @@ func nearestHostile(view CombatView, from domain.Cell) domain.PawnID {
 }
 
 // reformPods is the pods tactic's re-formation row: a responder's target
-// is down, or a responder has none while a hostile is out.
+// is down, or a responder has none while a hostile is out. A fight
+// waiting behind closed doors (#893) re-forms only on a raid phase change.
 func reformPods(view CombatView, m CombatMemory) bool {
+	if m.PodWait {
+		return false
+	}
 	for _, r := range m.Roles {
 		if r.Duty == DutyEvacuee {
 			continue

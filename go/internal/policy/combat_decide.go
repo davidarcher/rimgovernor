@@ -38,6 +38,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		var doors []PodDoor
 		next.Tactic, next.Refusal = TacticPods, ""
 		next.Roles, doors = podFormation(view, *next.Pods)
+		if podWait(view, stop, &next) {
+			next.Roles, doors = holdBehindDoors(next.Roles, doors)
+		}
 		next.PodDoors = keepSent(next.PodDoors, doors)
 		next.Formed = view.Tick
 	} else if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
@@ -52,7 +55,10 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	peel(view, stop, &next)
 	pullBackTank(stop, &next)
-	next.Roles = focusFire(view, next.Roles, memory.Roles)
+	if !next.PodWait {
+		// A pods fight waiting behind closed doors engages no one (#893).
+		next.Roles = focusFire(view, next.Roles, memory.Roles)
+	}
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -325,6 +331,10 @@ type CombatMemory struct {
 	Pods *PodArrival `json:",omitempty"`
 	// PodDoors are the doors the pods tactic holds open or shut (#892).
 	PodDoors []PodDoor `json:",omitempty"`
+	// PodWait is a pods fight holding behind closed doors, outmatched;
+	// PodStruck one that struck when the raid fled or looted (#893).
+	PodWait   bool `json:",omitempty"`
+	PodStruck bool `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
