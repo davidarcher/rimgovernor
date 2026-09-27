@@ -149,7 +149,15 @@ message Uninstall { EntityPrecondition target = 1; }
 // back in CombatOrdersEffect; only a malformed batch or missing authority
 // fails the whole call.
 enum CombatFireMode { COMBAT_FIRE_MODE_UNSPECIFIED = 0; COMBAT_FIRE_MODE_AT_WILL = 1; COMBAT_FIRE_MODE_HOLD = 2; }
-enum CombatDoorMode { COMBAT_DOOR_MODE_UNSPECIFIED = 0; COMBAT_DOOR_MODE_HOLD_OPEN = 1; COMBAT_DOOR_MODE_CLOSE = 2; }
+// FORBID and ALLOW (#867) set the door's forbidden flag, which every player
+// pawn's path respects, drafted or not (ForbidUtility.IsForbiddenToPass).
+enum CombatDoorMode { COMBAT_DOOR_MODE_UNSPECIFIED = 0; COMBAT_DOOR_MODE_HOLD_OPEN = 1; COMBAT_DOOR_MODE_CLOSE = 2; COMBAT_DOOR_MODE_FORBID = 3; COMBAT_DOOR_MODE_ALLOW = 4; }
+// Rescue (#867): the pawn carries the downed colonist to a bed by the
+// vanilla rescue job, under the pawn-target rescue order's eligibility
+// (HealthAIUtility.CanRescueNow, a non-hostile patient) and bed search.
+// dest, when set, is the bed's cell; absent, the vanilla bed search picks.
+// Refusals: cannot_rescue, no_bed, unreachable.
+message CombatRescue { EntityPrecondition downed = 1; rimgovernor.common.v1.Cell dest = 2; }
 message CombatDoor { rimgovernor.common.v1.Cell cell = 1; optional CombatDoorMode mode = 2; }
 message CombatOrder {
   EntityPrecondition pawn = 1;
@@ -163,6 +171,7 @@ message CombatOrder {
     Clear hold_position = 6;
     CombatDoor door = 7;
     Clear stop = 8;
+    CombatRescue rescue = 9;
   }
 }
 message CombatOrders { repeated CombatOrder orders = 1; }

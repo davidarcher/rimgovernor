@@ -28,13 +28,13 @@ func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
 	s.AutoStart, s.Speed, s.ChatModel, s.ChatBaseURL = true, "UltrafastAdaptive", "qwen", "http://x/v1"
 	s.AllowSlaughter, s.AllowRelease, s.ShrineOpenCaskets, s.ShrineHeatFallback = true, true, true, true
-	s.LayoutOverlay, s.FoodReserveDays, s.Debug, s.ExtraArgs = false, 2.5, true, `--routine-food-reserve-days 3 --x "a b"`
+	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[15:], " ")
-	want := "--resume --clock-speed Ultrafast --chat-model qwen --chat-base-url http://x/v1 --routine-allow-slaughter --routine-allow-release --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --routine-food-reserve-days 2.5 --debug --routine-food-reserve-days 3 --x a b"
+	want := "--resume --clock-speed Ultrafast --chat-model qwen --chat-base-url http://x/v1 --routine-allow-slaughter --routine-allow-release --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
 	if got[14] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}

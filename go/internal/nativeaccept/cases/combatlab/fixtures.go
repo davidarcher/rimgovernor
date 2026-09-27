@@ -32,6 +32,8 @@ type Pawn struct {
 	Z           int    `json:"z"`
 	Weapon      string `json:"weapon,omitempty"`
 	WeaponStuff string `json:"weaponStuff,omitempty"`
+	// Downed stages the pawn downed under anesthetic (#867).
+	Downed bool `json:"downed,omitempty"`
 }
 
 // Fixture is one staged combat. Colonists is the lab wipe's colonist

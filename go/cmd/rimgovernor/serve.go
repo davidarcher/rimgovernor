@@ -86,7 +86,6 @@ type serveConfig struct {
 	routineHerdPopulationMax        herdPopulationMaxFlags
 	routineHerdPopulationMin        herdPopulationMaxFlags
 	routinePrisonerInteractionPlans bool
-	routinePrisonerReleaseAfterDays float64
 	routinePopulationCustodyPlans   bool
 	routinePopulationJoinerPlans    bool
 	routineHomeCoveragePlans        bool
@@ -99,7 +98,6 @@ type serveConfig struct {
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
 	routineStoneBlockTarget         int64
-	routineFoodReserveDays          float64
 	routineAnimalFeedPlans          bool
 	routineProductionPolicyPlans    bool
 	routineResourceReserves         resourceReserveFlags
@@ -158,7 +156,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.Int64Var(&c.routineComponentTarget, "routine-component-target", 0, "ComponentIndustrial stock TradeWithCaravan buys toward and, with the resource family, MaintainResource mines toward; 0 tracks no component target")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward; any use replaces the default floors (policy.DefaultResourceTargets)")
-	flags.Float64Var(&c.routineFoodReserveDays, "routine-food-reserve-days", policy.DefaultFoodReserveDays, "days of forbidden durable food kept outside ordinary runway; 0 disables reserve management")
 	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", policy.DefaultStoneBlockTarget, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
@@ -169,7 +166,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
 	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
-	flags.Float64Var(&c.routinePrisonerReleaseAfterDays, "routine-prisoner-release-after-days", 0, "days in custody after which MaintainPopulation proposes releasing a prisoner whose recruit resistance is unbroken (or who was never recruitable) while the colony food runway is below its routine target; 0 (the default) never releases")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
 	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
 	flags.StringVar(&c.chatBaseURL, "chat-base-url", "http://127.0.0.1:1234/v1", "local OpenAI-compatible base URL (e.g. LM Studio) chat sends completions to")
@@ -223,9 +219,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 			}
 		}
 	}
-	if !(c.routineFoodReserveDays >= 0 && c.routineFoodReserveDays <= 60) {
-		return c, errors.New("--routine-food-reserve-days must be within 0..60")
-	}
 	if c.routineStoneBlockTarget < 0 || c.routineStoneBlockTarget > 10000 {
 		return c, errors.New("--routine-stone-block-target must be within 0..10000")
 	}
@@ -243,9 +236,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.routineShrineHeatFallback && !c.routineShrineOpenCaskets {
 		return c, errors.New("--routine-shrine-heat-fallback requires --routine-shrine-open-caskets")
-	}
-	if c.routinePrisonerReleaseAfterDays != 0 && !c.routinePrisonerInteractionPlans {
-		return c, errors.New("--routine-prisoner-release-after-days requires the prisoner-interaction routine family")
 	}
 	for race, minimum := range c.routineHerdPopulationMin {
 		if max, ok := c.routineHerdPopulationMax[race]; ok && minimum > max {

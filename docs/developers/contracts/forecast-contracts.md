@@ -93,8 +93,8 @@ product; other reserve products reduce that target. Existing recipe bills keep
 their settings. The policy review proposes IDs only; the shared goal and Hands
 integration owns holds, releases, replenishment timing and policy configuration.
 
-RoutinePolicy.FoodReserveDays (serve: --routine-food-reserve-days, default 5,
-0 disables) sizes the reserve. MaintainFoodStorage schedules refill independently
+RoutinePolicy.FoodReserveDays (policy.DefaultFoodReserveDays, 5 days,
+fixed) sizes the reserve. MaintainFoodStorage schedules refill independently
 of ordinary food deficit and commits bounded supply actions for holds/releases.
 Release uses the shared portfolio delivery leads; unknown channels cannot prove
 an emergency. Reserve access has foothold priority and does not wait for a
