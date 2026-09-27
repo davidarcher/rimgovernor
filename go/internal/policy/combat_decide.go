@@ -66,6 +66,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		// A pods fight waiting behind closed doors engages no one (#893).
 		next.Roles = focusFire(view, next.Roles, memory.Roles)
 	}
+	manhunterKite(view, &next)
 	manhunterDoor(view, formed, &next)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
@@ -347,6 +348,10 @@ type CombatMemory struct {
 	PodStruck bool `json:",omitempty"`
 	// ManhunterDoor is the manhunter tactic's potshot door (#900).
 	ManhunterDoor *PodDoor `json:",omitempty"`
+	// Kiter is the manhunter tactic's kiter, Leading once it leads the
+	// chaser past the line (#901).
+	Kiter   domain.PawnID `json:",omitempty"`
+	Leading bool          `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
