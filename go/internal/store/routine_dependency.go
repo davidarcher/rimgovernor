@@ -177,7 +177,7 @@ func routineDependencies(ctx context.Context, tx *sql.Tx, records []DependencyRe
 		}
 		open := map[domain.ActionID]bool{}
 		for _, p := range plan.Progress {
-			if domain.GoalWorkOpen([]domain.Progress{p}) {
+			if ProgressOpen(plan, p) {
 				open[p.View().Action] = true
 			}
 		}

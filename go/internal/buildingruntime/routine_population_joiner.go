@@ -84,7 +84,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		if err != nil {
 			return RoutinePopulationJoinerResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutinePopulationJoinerResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

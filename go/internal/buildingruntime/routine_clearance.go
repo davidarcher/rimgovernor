@@ -93,7 +93,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		if err != nil {
 			return RoutineClearanceResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineClearanceResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

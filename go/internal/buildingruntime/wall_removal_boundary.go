@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
@@ -22,6 +23,7 @@ import (
 // re-listing candidate sites and matching the exact one this step targets.
 type WallRemovalNative interface {
 	ReadWallUpgradeSites(context.Context, *c.Identity, string) (bridge.WallUpgradeSites, bridge.Result, error)
+	ReadConstructionBuildings(context.Context, *c.Identity, []string) (*n.ListBuildingsReply, bridge.Result, error)
 	LookupWallRemoval(context.Context, bridge.WallRemovalAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveWallRemovalProgress(context.Context, bridge.WallRemovalAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
@@ -72,6 +74,25 @@ func site(removal domain.WallRemoval, rows []bridge.WallUpgradeSite) (bridge.Wal
 	return *found, true, nil
 }
 
+// backupBuilt reads the site's wall in the building census: it is the backup
+// once native reports it built under the backup action's intent key (#856).
+// An applied receipt only proves the blueprint went down.
+func (b *WallRemovalBoundary) backupBuilt(ctx context.Context, target executor.Target, backup domain.ActionID, wall string) (domain.Fact[bool], error) {
+	reply, _, err := b.native.ReadConstructionBuildings(ctx, boundary.Identity(target.Snapshot), []string{wall})
+	if err != nil {
+		return domain.Unknown[bool](), err
+	}
+	built := false
+	for _, row := range reply.GetObserved().GetBuildings() {
+		if row.GetBuilding().GetId() != wall {
+			continue
+		}
+		action, ok := policy.IntentAction(row.GetIntentKey())
+		built = ok && action == backup
+	}
+	return domain.Known(built), nil
+}
+
 func (b *WallRemovalBoundary) InspectWallRemoval(ctx context.Context, target executor.Target) (executor.WallRemovalInspection, error) {
 	out := executor.WallRemovalInspection{StartedAt: b.clock.Now()}
 	removal, ok := target.Action.WallRemoval()
@@ -92,9 +113,15 @@ func (b *WallRemovalBoundary) InspectWallRemoval(ctx context.Context, target exe
 		return out, err
 	}
 	facts := policy.WallRemovalFacts{Snapshot: current, ObservationTick: domain.Tick(observed.Context.GetTick())}
+	facts.BackupBuilt = domain.Unknown[bool]()
 	if found {
 		facts.TargetIdentity = domain.Known(row.TargetID)
 		facts.SiteEligible = domain.Known(row.Eligible())
+		if removal.BackupOf() != "" && row.TargetID != "" {
+			if facts.BackupBuilt, err = b.backupBuilt(ctx, target, removal.BackupOf(), row.TargetID); err != nil {
+				return out, err
+			}
+		}
 	} else {
 		facts.TargetIdentity = domain.Unknown[string]()
 		facts.SiteEligible = domain.Unknown[bool]()

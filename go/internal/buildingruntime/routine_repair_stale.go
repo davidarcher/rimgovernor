@@ -24,7 +24,7 @@ func cancelSettledRepairMethods(ctx context.Context, journal *store.Store, goal 
 		if err != nil {
 			return err
 		}
-		if !domain.GoalWorkOpen(plan.Progress) {
+		if !store.PlanOpen(plan) {
 			continue
 		}
 		repairs := map[domain.ActionID]bool{}

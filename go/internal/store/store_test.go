@@ -123,16 +123,8 @@ func TestRetryAttemptsAndReceiptsSurviveRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := p.View().Attempt
+	// A building intent is idempotent (#856): an unknown receipt sends it again.
 	if _, err = s.RecordReceipt(ctx, "p", "a", first, domain.ReceiptUnknown); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = s.Observe(ctx, "p", domain.Observation{Action: "a", Attempt: first, Snapshot: scope(), Tick: 11, Effect: domain.EffectUnknown}, scope()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = s.Prepare(ctx, "p", "a", scope(), 12); err == nil {
-		t.Fatal("unknown read released retry")
-	}
-	if _, err = s.Observe(ctx, "p", domain.Observation{Action: "a", Attempt: first, Snapshot: scope(), Tick: 12, Effect: domain.EffectAbsent}, scope()); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Close(); err != nil {
@@ -164,8 +156,8 @@ func TestRetryAttemptsAndReceiptsSurviveRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	p = state.Progress[0]
-	if p.View().Stage != domain.AwaitingObservation || !p.View().Unresolved {
-		t.Fatal("receipt completed work")
+	if p.View().Stage != domain.Completed || p.View().Unresolved {
+		t.Fatal("applied intent receipt did not settle", p.View())
 	}
 	if got, known := p.View().Receipt.Value(); !known || got != domain.ReceiptAccepted {
 		t.Fatal("receipt lost")

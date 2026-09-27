@@ -204,13 +204,7 @@ func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot
 	if err != nil {
 		return nil, stock, "", err
 	}
-	if err = check(); err != nil {
-		return nil, stock, "", err
-	}
 	p := preview.Preview
-	if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return nil, stock, "", ErrControl
-	}
 	footprint, fk := p.Footprint.Value()
 	made, mk := p.MadeFromStuff.Value()
 	legal, lk := p.CanPlace.Value()

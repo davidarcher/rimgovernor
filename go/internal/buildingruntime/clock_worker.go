@@ -323,8 +323,6 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 	proposals := make([]string, 0, len(result.Proposals))
 	for _, outcome := range result.Proposals {
 		switch {
-		case outcome.Admitted && len(outcome.Preempted) != 0:
-			proposals = append(proposals, fmt.Sprintf("%s admitted preempting %v", outcome.Proposal, outcome.Preempted))
 		case outcome.Admitted:
 			proposals = append(proposals, outcome.Proposal+" admitted")
 		case len(outcome.Demand) != 0:

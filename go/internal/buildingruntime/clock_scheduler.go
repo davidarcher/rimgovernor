@@ -251,10 +251,6 @@ type ClockSchedulerResult struct {
 	// wrapped with the planner's name. A failed planner does not abort the
 	// step: its peers still run and the clock window is still evaluated (#62).
 	PlannerFailures []error
-	// Watched counts the attempts the admitted window watches natively:
-	// zero for a routine window, whose native work allowances already
-	// bound it, so a completed order never stops the clock (#244).
-	Watched int
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
 	// Waiting names the planners the selection skipped because each still
@@ -1320,16 +1316,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, executor.ErrHeld
 	}
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
-	namespace, err := s.player.journal.Identity(call)
-	if err != nil {
-		return out, err
-	}
-	// A routine window watches nothing: a completed order is not a reason
-	// to stop the clock, the event poll carries its outcome to the Worker
-	// under the running window, and the routine review runs there too
-	// (#243, #244). A combat window watches its dispatched orders so the
-	// fight's next step starts at the outcome tick (#207).
-	start.Policy.WatchedAttempts = nil
+	// No window watches attempts: a completed order is not a reason to
+	// stop the clock, the event poll carries its outcome to the Worker
+	// under the running window (#243, #244, #856).
 	s.facts.remember(fingerprint)
 	// A colonist already known downed is acknowledged in either mode: the
 	// native watcher otherwise stops every window at zero ticks on the same
@@ -1344,8 +1333,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// hostiles the policy admitted and runs under the combat budget.
 		out.Combat = true
 		start.Policy.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum()
-		start.Policy.WatchedAttempts = clockSchedulerWatches(fingerprint, string(namespace))
-		out.Watched = len(start.Policy.WatchedAttempts)
 		start.Policy.AcknowledgedHostileIds = make([]string, 0, len(out.Decision.Hostiles))
 		for _, id := range out.Decision.Hostiles {
 			start.Policy.AcknowledgedHostileIds = append(start.Policy.AcknowledgedHostileIds, string(id))
@@ -1557,8 +1544,6 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	out.Proposals, commitFailures = arbiter.coordinate(call, budget, scope)
 	for _, outcome := range out.Proposals {
 		switch {
-		case outcome.Admitted && len(outcome.Preempted) != 0:
-			clockSchedulerLog("proposal %s admitted plan %s after preempting %v", outcome.Proposal, outcome.Plan, outcome.Preempted)
 		case outcome.Admitted:
 			clockSchedulerLog("proposal %s admitted plan %s", outcome.Proposal, outcome.Plan)
 		case outcome.Stale != "":
@@ -1601,17 +1586,8 @@ func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionRe
 	})
 }
 
-// commitmentHorizon is how long an undispatched hold outlives the tick of
-// its latest evidence before the coordinator stops counting it against the
-// step's claims: one in-game day. The plan keeps its reservation in the
-// journal; only the step's view releases it, and the admission path beneath
-// the next dispatch checks stock again.
-const commitmentHorizon domain.Tick = 60000
-
 // stepBudget is the coordinator's quantity budget for this step (#628): the
-// stock the routine review's resource runways observed, the journal's
-// ActivePlanCommitments view at the review tick and the preempt path
-// (store.PreemptGoalMethod). Nothing is read when no proposal claims a
+// stock the routine review's resource runways observed. Nothing is read when no proposal claims a
 // quantity, and a step without a review carries no stock, so every
 // quantity is unbounded here and checked beneath the commit.
 func (s *ClockScheduler) stepBudget(call context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (stepBudget, error) {
@@ -1628,19 +1604,7 @@ func (s *ClockScheduler) stepBudget(call context.Context, out *ClockSchedulerRes
 	if len(stock) == 0 {
 		return stepBudget{}, nil
 	}
-	journal := s.player.journal
-	commitments, err := journal.LoadPlanCommitments(call, review.Snapshot, review.Tick, commitmentHorizon)
-	if err != nil {
-		return stepBudget{}, fmt.Errorf("plan commitments: %w", err)
-	}
-	if demand := commitments.DemandTotals(); len(demand) != 0 {
-		clockSchedulerLog("plan commitments at tick %d: held %v, demand %v", review.Tick, commitments.CommittedTotals(), demand)
-	}
-	preempt := func(ctx context.Context, held store.PlanCommitment) error {
-		_, err := journal.PreemptGoalMethod(ctx, held.Goal, held.Revision, held.Plan)
-		return err
-	}
-	return stepBudget{Stock: stock, Commitments: commitments, Preempt: preempt}, nil
+	return stepBudget{Stock: stock}, nil
 }
 
 // livePace measures the running window's pace from the previous step's
@@ -1841,34 +1805,10 @@ type clockWorkItem struct {
 	Unresolved bool
 }
 
-// clockSchedulerWatches names the dispatched attempts the native clock
-// watches for a combat window, in catalog order and bounded. A latched
-// terminal outcome stops the window at once instead of running out the tick
-// budget. Only families with a native operation record the clock can
-// observe are armed: construction and haul (#108). Immediate designations
-// (allow, zones, work settings) settle within their own write and have
-// nothing to watch. Routine windows arm none (#244).
-func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.AttemptKey {
-	var watched []*c.AttemptKey
-	for _, item := range items {
-		if !clockWatchedKind(item.Kind) || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
-			continue
-		}
-		if len(watched) == bridge.ClockWatchedAttemptsMax {
-			break
-		}
-		watched = append(watched, &c.AttemptKey{ControllerSessionId: proto.String(namespace), ActionId: proto.String(string(item.Action)), AttemptId: proto.Uint64(uint64(item.Attempt))})
-	}
-	return watched
-}
-
 // runningWork reads the current plan under a running epoch and reports two
-// things about it. The count is the dispatched attempts of a watched kind
-// the epoch does not watch: every one under a routine window (#244) and the
-// work the Worker dispatched after a combat window was armed; the window
-// runs on and the event poll carries their outcome (#243), so the count is
-// step evidence only, and it skips the plan when the watch list is already
-// at the native bound (more attempts than that go unwatched by design). The
+// things about it. The count is the dispatched building attempts; the
+// window runs on and the event poll carries their outcome (#243), so the
+// count is step evidence only. The
 // names are the coupled orders whose prerequisite has completed at the
 // epoch's current tick (domain.PlanSpec.CoupledPending), which the step
 // plans live for without ending the window (#584). Both are empty when the plan no longer
@@ -1884,20 +1824,9 @@ func (s *ClockScheduler) runningWork(call context.Context, snapshot domain.Gener
 		return 0, nil, nil
 	}
 	coupled := plan.Spec.CoupledPending(plan.Progress, snapshot, domain.Tick(status.GetContext().GetTick()))
-	watched := epoch.GetPolicy().GetWatchedAttempts()
-	if len(watched) >= bridge.ClockWatchedAttemptsMax {
-		return 0, coupled, nil
-	}
-	armed := map[string]bool{}
-	for _, key := range watched {
-		armed[fmt.Sprintf("%s/%d", key.GetActionId(), key.GetAttemptId())] = true
-	}
 	live := 0
 	for _, item := range items {
-		if !clockWatchedKind(item.Kind) || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
-			continue
-		}
-		if !armed[fmt.Sprintf("%s/%d", item.Action, item.Attempt)] {
+		if clockWatchedKind(item.Kind) && item.Attempt != 0 && (item.Stage == domain.Dispatched || item.Stage == domain.AwaitingObservation) {
 			live++
 		}
 	}
@@ -1943,6 +1872,12 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 	for _, p := range plan.Progress {
 		v := p.View()
 		items = append(items, clockWorkItem{v.Action, p.Action().Kind(), v.Stage, v.Attempt, v.Unresolved})
+		// An applied building is pawn work until census-aware retirement
+		// ends its plan (#856): its blueprint or frame needs ticks.
+		if v.Stage == domain.Completed && p.Action().Kind() == domain.BuildingAction && !plan.Retired {
+			work = true
+			continue
+		}
 		if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || !v.Unresolved && v.Stage == domain.Completed {
 			continue
 		}

@@ -179,7 +179,7 @@ func TestSelectScopesFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllHarnesses || !slices.Contains(sel.Cases, "construction") || !slices.Contains(sel.Cases, "defense") || slices.Contains(sel.Cases, "light") {
+	if sel.AllHarnesses || !slices.Contains(sel.Cases, "defense") || slices.Contains(sel.Cases, "light") {
 		t.Errorf("guarded construction fixture change selected %+v", sel)
 	}
 	sel, err = Select(r, []string{"scripts/fixtures/CombatFixtures.csproj"})

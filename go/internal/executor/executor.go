@@ -5,7 +5,6 @@ package executor
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -23,7 +22,9 @@ var (
 
 type Journal interface {
 	LoadPlan(context.Context, domain.PlanID) (store.PlanState, error)
-	ReserveAndPrepare(context.Context, domain.PlanID, domain.ActionID, store.Admission) (domain.Progress, error)
+	// Prepare is the untyped preparation of an intent-mode action: native
+	// re-validates the intent itself, so nothing is admitted in the journal.
+	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 	Dispatch(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 	RecordReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, domain.Receipt) (domain.Progress, error)
 	Observe(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot) (domain.Progress, error)
@@ -45,24 +46,6 @@ type Target struct {
 	Snapshot domain.GenerationSnapshot
 }
 
-// Inspection combines current native facts with runtime-owned accounting inputs.
-// Current's colony/map/load must come from actual native observation, not copied
-// blindly from Target. Tick is shared by preview, stock and dependency evidence.
-type Inspection struct {
-	Current               domain.GenerationSnapshot
-	Tick                  domain.Tick
-	StartedAt, ObservedAt time.Time
-	Bounds                domain.Fact[policy.Bounds]
-	Preview               policy.Preview
-	Stock                 policy.StockObservation
-	Emergency             policy.EmergencySnapshot
-	Held                  []policy.Reservation
-	// Held contains other-plan commitments only. Completeness must come from
-	// the runtime's accounting owner, never from an empty native response.
-	ExternalHoldsComplete bool
-	admission             store.Admission
-}
-
 // Placement's composite identity is the native deduplication/precondition token.
 // The native adapter must verify colony/map/load and deduplicate Action+Attempt
 // atomically with placement. This package never wires an unguarded bridge call.
@@ -79,21 +62,11 @@ type Receipt struct {
 	Kind     domain.Receipt
 }
 
-// Evidence is an observation for a specific dispatched attempt. Complete means
-// the entire target/effect scope was inspected. Built describes the completed
-// native building; a blueprint/frame or uncorrelated matching object cannot prove
-// completion. The adapter must establish native attempt attribution regardless
-// of tick; equal ticks additionally require Observation.Causality=AfterDispatch.
-type Evidence struct {
-	Observation           domain.Observation
-	StartedAt, ObservedAt time.Time
-	Complete              bool
-	Built                 domain.Fact[domain.Building]
-}
 type Boundary interface {
-	Inspect(context.Context, Target) (Inspection, error)
-	Place(context.Context, Placement) (Receipt, error)
-	Observe(context.Context, Placement, domain.GenerationSnapshot) (Evidence, error)
+	// InspectBuilding anchors a building intent's dispatch to the current
+	// native tick; WriteBuilding sends the intent through Actions/Apply.
+	InspectBuilding(context.Context, Target) (BuildingInspection, error)
+	WriteBuilding(context.Context, Placement) (Receipt, error)
 }
 type Result struct {
 	Progress     domain.Progress
@@ -499,166 +472,7 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")
 	}
-	result := Result{Progress: progress}
-	if progress.View().Unresolved {
-		return e.reconcile(ctx, action, progress, generation)
-	}
-	switch progress.View().Stage {
-	case domain.Completed, domain.Cancelled, domain.Unsuccessful:
-		return result, nil
-	case domain.Pending, domain.Prepared:
-	default:
-		return result, ErrEvidence
-	}
-	expected := authority.Snapshot
-	if expected.Plan != state.Spec.ID() || expected.Revision != state.Spec.Revision() {
-		if e.routineScope == nil {
-			return result, ErrAuthority
-		}
-		expected.Plan, expected.Revision = state.Spec.ID(), state.Spec.Revision()
-	}
-	if err = e.guard(ctx, expected, generation); err != nil {
-		return result, err
-	}
-	inspection, refusals, held, err := e.inspect(ctx, Target{action, expected}, progress, generation)
-	result.Refused = refusals
-	if err != nil {
-		result.Progress = held
-		return result, err
-	}
-	progress, err = e.journal.ReserveAndPrepare(ctx, plan, actionID, inspection.admission)
-	if err != nil {
-		return result, err
-	}
-	result.Progress = progress
-	// Refresh after durable preparation: resources and native safety may have
-	// changed while journaling. Prepared restart follows the same fresh admission.
-	inspection, refusals, held, err = e.inspect(ctx, Target{action, expected}, progress, generation)
-	result.Refused = refusals
-	if err != nil {
-		result.Progress = held
-		return result, err
-	}
-	if err = e.guard(ctx, expected, generation); err != nil {
-		return result, err
-	}
-	progress, err = e.journal.ReserveAndPrepare(ctx, plan, actionID, inspection.admission)
-	if err != nil {
-		return result, err
-	}
-	result.Progress = progress
-	if err = e.guard(ctx, expected, generation); err != nil {
-		return result, err
-	}
-	if !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
-		return result, ErrHeld
-	}
-	progress, err = e.journal.Dispatch(ctx, plan, actionID, expected, inspection.Tick)
-	if err != nil {
-		return result, err
-	}
-	result.Progress = progress
-	placement := Placement{Action: action, Attempt: progress.View().Attempt, Snapshot: expected, Tick: inspection.Tick}
-	if err = e.guard(ctx, expected, generation); err != nil {
-		return e.record(result, plan, placement, domain.ReceiptUnknown, err)
-	}
-	if !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
-		return e.record(result, plan, placement, domain.ReceiptUnknown, ErrHeld)
-	}
-	result.NativeCalled = true
-	receipt, callErr := e.boundary.Place(ctx, placement)
-	kind := receipt.Kind
-	if callErr != nil {
-		kind = receiptAfterCallError(callErr)
-	} else if receipt.Action != actionID || receipt.Attempt != placement.Attempt || !receipt.Snapshot.Matches(expected) {
-		kind = domain.ReceiptUnknown
-		callErr = ErrEvidence
-	} else {
-		switch kind {
-		case domain.ReceiptAccepted, domain.ReceiptRefused, domain.ReceiptUnknown:
-		default:
-			kind = domain.ReceiptUnknown
-			callErr = ErrEvidence
-		}
-	}
-	return e.record(result, plan, placement, kind, errors.Join(callErr, ctx.Err()))
-}
-
-func (e *Executor) inspect(ctx context.Context, target Target, progress domain.Progress, generation context.Context) (Inspection, []policy.Refusal, domain.Progress, error) {
-	inspection, err := e.boundary.Inspect(ctx, target)
-	if err != nil {
-		return inspection, nil, progress, err
-	}
-	if err = e.guard(ctx, target.Snapshot, generation); err != nil {
-		return inspection, nil, progress, err
-	}
-	if !inspection.Current.Matches(target.Snapshot) || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
-		return inspection, nil, progress, ErrHeld
-	}
-
-	emergency := policy.EvaluateEmergency(inspection.Emergency, inspection.Current, inspection.Tick)
-	if !emergency.Clear {
-		seen := map[policy.Reason]bool{}
-		refused := []policy.Refusal{}
-		for _, hold := range emergency.Holds {
-			reason := policy.UnknownFacts
-			switch hold.Reason {
-			case policy.EmergencyUnsafeThreat:
-				reason = policy.UnsafeThreat
-			case policy.EmergencyCriticalMedical:
-				reason = policy.CriticalMedical
-			case policy.EmergencyStaleFacts:
-				reason = policy.StaleFacts
-			}
-			if !seen[reason] {
-				seen[reason] = true
-				refused = append(refused, policy.Refusal{Action: target.Action.ID(), Reason: reason})
-			}
-		}
-		progress = e.holdEmergency(ctx, target.Snapshot.Plan, target.Action.ID(), emergency, inspection.Tick, progress)
-		return inspection, refused, progress, ErrHeld
-	}
-	if !inspection.ExternalHoldsComplete {
-		return inspection, nil, progress, ErrHeld
-	}
-	state, err := e.journal.LoadPlan(ctx, target.Snapshot.Plan)
-	if err != nil {
-		return inspection, nil, progress, err
-	}
-	reservations, err := persistentHolds(state, target.Action.ID(), progress)
-	if err != nil {
-		return inspection, nil, progress, err
-	}
-	for _, external := range inspection.Held {
-		if external.Progress.View().Plan == state.Spec.ID() {
-			return inspection, nil, progress, fmt.Errorf("%w: current-plan holds must come from the journal", ErrEvidence)
-		}
-		reservations = append(reservations, external)
-	}
-	// The fresh check spends under the class the method was admitted with:
-	// a shell's walls are not held for stock at dispatch any more than they
-	// were at admission (#602). Work without a record is routine.
-	purpose := policy.Routine
-	for _, record := range state.Admissions {
-		if record.Action == target.Action.ID() {
-			purpose = record.Admission.SpendingPurpose()
-		}
-	}
-	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: reservations, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: purpose, Preview: inspection.Preview}}})
-	if err != nil {
-		return inspection, nil, progress, fmt.Errorf("%w: %v", ErrEvidence, err)
-	}
-	decision := policy.Admit(input)
-	if len(decision.Admitted) != 1 || decision.Admitted[0].Action != target.Action {
-		progress = e.holdRefusal(ctx, target.Snapshot.Plan, target.Action.ID(), decision.Refused, inspection.Tick, progress)
-		return inspection, decision.Refused, progress, ErrHeld
-	}
-	accepted := decision.Admitted[0]
-	inspection.admission = store.Admission{Snapshot: accepted.Snapshot, Tick: inspection.Tick, Footprint: append([]domain.Cell(nil), accepted.Footprint...), Costs: make([]store.MaterialCost, len(accepted.Costs)), Purpose: purpose}
-	for i, cost := range accepted.Costs {
-		inspection.admission.Costs[i] = store.MaterialCost{Definition: string(cost.Resource), Count: cost.Count}
-	}
-	return inspection, nil, progress, nil
+	return e.runBuilding(ctx, action, progress, authority, generation)
 }
 
 // holdEmergency durably records an emergency-gated, not-yet-dispatched
@@ -726,57 +540,4 @@ func (e *Executor) record(result Result, plan domain.PlanID, placement Placement
 func (e *Executor) settleIntent(progress domain.Progress) (Result, error) {
 	v := progress.View()
 	return e.record(Result{Progress: progress}, v.Plan, Placement{Action: progress.Action(), Attempt: v.Attempt, Snapshot: v.Snapshot, Tick: v.Tick}, domain.ReceiptUnknown, nil)
-}
-
-func (e *Executor) reconcile(ctx context.Context, action domain.Action, progress domain.Progress, generation context.Context) (Result, error) {
-	result := Result{Progress: progress}
-	view := progress.View()
-	if generation.Err() != nil {
-		return result, ErrAuthority
-	}
-	current := e.current().Snapshot
-	if err := current.Validate(); err != nil {
-		return result, ErrAuthority
-	}
-	if view.Snapshot.Colony != current.Colony || view.Snapshot.Map != current.Map || view.Snapshot.Load != current.Load {
-		return result, ErrAuthority
-	}
-	placement := Placement{Action: action, Attempt: view.Attempt, Snapshot: view.Snapshot, Tick: view.Tick}
-	evidence, err := e.boundary.Observe(ctx, placement, current)
-	if err != nil {
-		return result, err
-	}
-	if err = ctx.Err(); err != nil {
-		return result, err
-	}
-	if generation.Err() != nil || !e.current().Snapshot.Matches(current) || !e.fresh(evidence.StartedAt, evidence.ObservedAt) {
-		return result, ErrHeld
-	}
-	observed := evidence.Observation
-	if observed.ConstructionObserved && !evidence.Complete {
-		return result, ErrEvidence
-	}
-	if observed.Action != action.ID() || observed.Attempt != view.Attempt || !observed.Snapshot.Matches(current) {
-		return result, ErrEvidence
-	}
-	switch observed.Effect {
-	case domain.EffectAbsent, domain.EffectUnsuccessful:
-		if !evidence.Complete {
-			return result, ErrEvidence
-		}
-	case domain.EffectCompleted:
-		built, known := evidence.Built.Value()
-		wanted, _ := action.Building()
-		if !evidence.Complete || !known || built != wanted {
-			return result, ErrEvidence
-		}
-	case domain.EffectPending, domain.EffectUnknown:
-	default:
-		return result, ErrEvidence
-	}
-	progress, err = e.journal.Observe(ctx, view.Plan, observed, current)
-	if err == nil {
-		result.Progress = progress
-	}
-	return result, err
 }

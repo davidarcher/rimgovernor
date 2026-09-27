@@ -96,7 +96,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 		if err != nil {
 			return RoutineStoneShellResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineStoneShellResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -329,9 +329,6 @@ func (r *RoutineStoneShellPlanner) previewWall(ctx context.Context, action domai
 		return bridge.BuildingPreview{}, false, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return bridge.BuildingPreview{}, false, ErrControl
-	}
 	footprint, fk := v.Footprint.Value()
 	made, mk := v.MadeFromStuff.Value()
 	legal, lk := v.CanPlace.Value()

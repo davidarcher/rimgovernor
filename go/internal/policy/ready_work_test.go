@@ -52,6 +52,17 @@ func readyProgress(t *testing.T, spec domain.PlanSpec, id domain.ActionID, stage
 	if p, err = p.Prepare(snap, 10); err == nil {
 		p, err = p.MarkDispatched(snap, 10)
 	}
+	if p.Action().Kind().IntentMode() {
+		// An intent's receipt is terminal (#856): "dispatched" is the attempt
+		// in flight, "completed" its applied receipt.
+		if err == nil && stage == "completed" {
+			p, err = p.RecordReceipt(1, domain.ReceiptAccepted)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
 	if err == nil {
 		p, err = p.RecordReceipt(1, domain.ReceiptAccepted)
 	}
@@ -117,11 +128,24 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	if c := got["building:Wall"]; c.State != ReadyRunnable || c.Parallelism != 1 || c.Work[0] != WorkConstruction {
 		t.Fatalf("wall %+v", c)
 	}
-	if c := got["building:WoodPlankFloor"]; c.State != ReadyRunnable {
+	// A building intent in flight awaits its receipt (#856).
+	if c := got["building:WoodPlankFloor"]; c.State != ReadyAwaiting {
 		t.Fatalf("floor blueprint %+v", c)
 	}
+	// Applied is only the blueprint: while the census shows it (or cannot
+	// say) the floor stays awaiting and the bed keeps waiting on it.
 	plan.Progress[0] = readyProgress(t, spec, "floor", "completed")
-	got = byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}}))
+	blueprint := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{}, Intents: []ConstructionIntent{{Key: "floor/1", Stage: "blueprint"}}})
+	for _, census := range []domain.Fact[CurrentConstruction]{domain.Unknown[CurrentConstruction](), blueprint} {
+		got = byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}, Construction: census}))
+		if got["building:WoodPlankFloor"].State != ReadyAwaiting || got["building:Bed"].State != ReadyBlocked {
+			t.Fatalf("floor blueprint standing %+v", got)
+		}
+	}
+	// Built under its key, the floor leaves the projection and frees the bed.
+	b, _ := floor.Building()
+	built := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{{ID: "floor-thing", Building: b, Cells: []domain.Cell{b.Cell()}, IntentKey: "floor/1"}}})
+	got = byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}, Construction: built}))
 	if _, ok := got["building:WoodPlankFloor"]; ok || got["building:Bed"].State != ReadyRunnable {
 		t.Fatalf("after floor %+v", got)
 	}

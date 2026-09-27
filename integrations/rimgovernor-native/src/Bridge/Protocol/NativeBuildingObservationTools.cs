@@ -43,11 +43,21 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
                     return new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
                 var source = Source(map, parsed.HasCategory && parsed.Category == "all");
-                var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
+                var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.BuildingsSnapshot { Context = context,
                     NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
                 snapshot.Completeness = Complete(matched.Count, source.Count - matched.Count);
-                foreach (var thing in matched) snapshot.Buildings.Add(Row(thing, context));
+                var keys = ConstructionLineage.Keys(map);
+                foreach (var thing in matched)
+                {
+                    var row = Row(thing, context);
+                    if (keys.TryGetValue(thing.GetUniqueLoadID(), out var key)) row.IntentKey = key;
+                    snapshot.Buildings.Add(row);
+                }
+                // The keyed blueprints and frames still standing: the census's
+                // open building intents (#856).
+                foreach (var open in ConstructionLineage.OpenIntents(map))
+                    snapshot.Intents.Add(new Obs.ConstructionIntent { Key = open.Key, Stage = open.Stage });
                 return new Obs.ListBuildingsReply { Observed = snapshot };
             }
             catch (Exception) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
@@ -239,7 +249,7 @@ namespace HomeBridge.BridgeTools
             row.Issues.Add(Issue("completable_ever", Common.UnavailableReason.Unsupported, "Completion eligibility is not evaluated."));
             return row;
         }
-
+
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256
             && values.All(ProtoBoundary.IsIdentifier) && values.Distinct(StringComparer.Ordinal).Count() == values.Count();
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;

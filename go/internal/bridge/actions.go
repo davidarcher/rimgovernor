@@ -32,6 +32,7 @@ func init() {
 	registerIntentKind(domain.TradeAction, tradeAction)
 	registerIntentKind(domain.HaulAction, haulAction)
 	registerIntentKind(domain.MeleeAttackAction, meleeAction)
+	registerIntentKind(domain.BuildingAction, buildingAction)
 	registerIntentKind(domain.MovementAction, movementAction)
 }
 

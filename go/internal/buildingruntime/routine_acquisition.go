@@ -204,7 +204,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		// hunt-only plan is admitted over them.
 		// MaintainResource shares its goal with the bill and mine planner:
 		// any open work of either holds the next method.
-		if stockGoal && domain.GoalWorkOpen(plan.Progress) {
+		if stockGoal && store.PlanOpen(plan) {
 			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
 		}
 		if !pest && acquisitionBlockingWork(plan.Progress) {

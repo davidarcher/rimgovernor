@@ -114,7 +114,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 		if err != nil {
 			return RoutineHomeCoverageResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineHomeCoverageResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

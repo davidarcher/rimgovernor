@@ -112,7 +112,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 			continue
 		}
-		if r.purpose != policy.CookFood && domain.GoalWorkOpen(plan.Progress) {
+		if r.purpose != policy.CookFood && store.PlanOpen(plan) {
 			return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

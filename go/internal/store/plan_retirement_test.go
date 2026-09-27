@@ -70,6 +70,8 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 
 func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 	t.Parallel()
+	// EffectUnsuccessful stands for a refused building intent (Unsuccessful,
+	// effect absent): it settles and sets the floor like an applied one.
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		for _, cancelled := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/%v", effect, cancelled), func(t *testing.T) {
@@ -88,10 +90,12 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 					t.Fatal(err)
 				}
 				action := q.Plan.Actions()[0].ID()
-				if _, err = s.ReserveAndPrepare(ctx, q.Plan.ID(), action, p.Admissions[0].Admission); err != nil {
+				if _, err = s.Prepare(ctx, q.Plan.ID(), action, q.Current, q.Tick); err != nil {
 					t.Fatal(err)
 				}
-				if _, err = s.Dispatch(ctx, q.Plan.ID(), action, q.Current, q.Tick); err != nil {
+				// A building intent settles on its receipt at the dispatch
+				// tick (#856), so dispatch at the evidence tick.
+				if _, err = s.Dispatch(ctx, q.Plan.ID(), action, q.Current, 15); err != nil {
 					t.Fatal(err)
 				}
 				if cancelled {
@@ -99,13 +103,16 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				observation := domain.Observation{Action: action, Attempt: 1, Snapshot: q.Current, Tick: 15, Effect: effect}
+				receipt := domain.ReceiptAccepted
 				if effect == domain.EffectUnsuccessful {
-					observation.UnsuccessfulReason = domain.NativeFailure
+					receipt = domain.ReceiptRefused
 				}
-				if _, err = s.Observe(ctx, q.Plan.ID(), observation, q.Current); err != nil {
+				if _, err = s.RecordReceipt(ctx, q.Plan.ID(), action, 1, receipt); err != nil {
 					t.Fatal(err)
 				}
+				// Retirement reads the census: the applied wall stands built.
+				built, _ := q.Plan.Actions()[0].Building()
+				r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: built, Cells: []domain.Cell{built.Cell()}, IntentKey: string(action) + "/1"}}})
 				prepared := plan(t, "prepared", "prepared-a")
 				if err = s.CreatePlan(ctx, prepared); err != nil {
 					t.Fatal(err)
@@ -139,7 +146,7 @@ func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
 				s.Close()
 				s = open(t, path)
 				p, err = s.LoadPlan(ctx, q.Plan.ID())
-				if err != nil || !p.Retired || len(p.Admissions) != 1 {
+				if err != nil || !p.Retired {
 					t.Fatal(p, err)
 				}
 				if _, err = s.Dispatch(ctx, prepared.ID(), "prepared-a", preparedScope, 14); err == nil {
@@ -246,11 +253,12 @@ func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
 				if _, err := s.Dispatch(ctx, p.ID(), "method-a", current, 10); err != nil {
 					t.Fatal(err)
 				}
-				ob := domain.Observation{Action: "method-a", Attempt: 1, Snapshot: current, Tick: 11, Effect: domain.EffectCompleted}
+				// An unknown intent receipt leaves it to be sent again (#856).
+				receipt := domain.ReceiptAccepted
 				if kind == "unknown" {
-					ob.Effect = domain.EffectUnknown
+					receipt = domain.ReceiptUnknown
 				}
-				if _, err := s.Observe(ctx, p.ID(), ob, current); err != nil {
+				if _, err := s.RecordReceipt(ctx, p.ID(), "method-a", 1, receipt); err != nil {
 					t.Fatal(err)
 				}
 				if kind != "dependency" {

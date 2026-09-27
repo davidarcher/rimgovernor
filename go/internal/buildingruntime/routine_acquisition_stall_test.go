@@ -87,7 +87,7 @@ func TestStalledAcquisitionDesignationsMeasureFromDispatch(t *testing.T) {
 	if _, err = db.Cancel(ctx, "medical-plan", got[0].Action); err != nil {
 		t.Fatal(err)
 	}
-	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || !domain.GoalWorkOpen(plan.Progress) {
+	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || !store.PlanOpen(plan) {
 		t.Fatal("cancelled designation released the work before its withdrawal", err)
 	}
 	if got, err = stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000)); err != nil || got != nil {
@@ -109,7 +109,7 @@ func TestStalledAcquisitionDesignationsMeasureFromDispatch(t *testing.T) {
 	if db, err = store.Open(ctx, path); err != nil {
 		t.Fatal(err)
 	}
-	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || domain.GoalWorkOpen(plan.Progress) || plan.Progress[0].View().Attempt != 2 {
+	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || store.PlanOpen(plan) || plan.Progress[0].View().Attempt != 2 {
 		t.Fatal("withdrawn designation still open after replay", err)
 	}
 }

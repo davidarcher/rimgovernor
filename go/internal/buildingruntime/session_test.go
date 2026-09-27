@@ -89,8 +89,9 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			fixture.Receipt.AdmittedContext.Tick = proto.Int64(11)
 			fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
 			fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
+			// The apply receipt settles the intent at once (#856).
 			result, err := session.Run(ctx, "plan", "action")
-			if err != nil || !result.NativeCalled || !result.Progress.View().Unresolved {
+			if err != nil || !result.NativeCalled || result.Progress.View().Stage != domain.Completed {
 				t.Fatalf("dispatch %v %v", result, err)
 			}
 			if restart {

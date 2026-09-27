@@ -124,8 +124,7 @@ func completeExcavation(t *testing.T, db *store.Store, decision store.BuildingMe
 			}
 			delete(x.rock, excavation.Cell())
 		} else {
-			b, _ := action.Building()
-			if _, err := db.ReserveAndPrepare(ctx, planID, action.ID(), store.Admission{Snapshot: snapshot, Tick: 7, Costs: []store.MaterialCost{{Definition: "WoodLog", Count: 25}}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
+			if _, err := db.Prepare(ctx, planID, action.ID(), snapshot, 7); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -135,10 +134,16 @@ func completeExcavation(t *testing.T, db *store.Store, decision store.BuildingMe
 		if _, err := db.RecordReceipt(ctx, planID, action.ID(), 1, domain.ReceiptAccepted); err != nil {
 			t.Fatal(err)
 		}
+		// A building intent settles on its receipt (#856); only an
+		// excavation is observed.
+		if action.Kind() != domain.ExcavationAction {
+			continue
+		}
 		if _, err := db.Observe(ctx, planID, domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
 			t.Fatal(err)
 		}
 	}
+	markBuilt(t, db, x.routineNative)
 }
 
 func excavationCells(t *testing.T, db *store.Store, decision store.BuildingMethodDecision, method domain.MethodID) (domain.PlanID, []domain.Cell) {
@@ -246,6 +251,10 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		t.Fatal(again, err)
 	}
 	completeExcavation(t, db, result.Decision, excavationDoorMethod, x)
+	// Census-aware retirement closes the applied door (#856).
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if done, err := r.Step(ctx); err != nil || done.Reason != BuildingMethodUsed {
 		t.Fatal(done, err)
 	}
@@ -884,7 +893,7 @@ func TestCancelStalledExcavation(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan, _ := db.LoadPlan(ctx, planID)
-	if !domain.GoalWorkOpen(plan.Progress) {
+	if !store.PlanOpen(plan) {
 		t.Fatal("stage cancelled within the grace")
 	}
 	// Past it, only the held action is cancelled; the other stays pending.

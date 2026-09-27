@@ -85,7 +85,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineDialogResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineDialogResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

@@ -31,7 +31,7 @@ func TestRoutineScopeRecheckedBeforeDispatchWithoutChangingAuthority(t *testing.
 			}
 			return nil
 		})
-		f.env.onInspect = func(_ int, in Inspection) Inspection {
+		f.env.onInspect = func(_ int, in BuildingInspection) BuildingInspection {
 			if revoke {
 				allowed = false
 			}

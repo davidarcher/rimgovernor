@@ -248,12 +248,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// outdoors. The rungs and the shell each stay idempotent on
 			// their own method binding. The indoor furnishing step still
 			// waits for the bunks, and says so, so the shell step runs.
-			if !r.shelter && domain.GoalWorkOpen(plan.Progress) {
+			if !r.shelter && store.PlanOpen(plan) {
 				bunksOpen = true
 			}
 			continue
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -604,7 +604,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// again in the same epoch; the completed method yields to a numbered
 		// successor the same way a staged bed's does (#217).
 		if r.goal == policy.MaintainSleeping || r.goal == policy.EnsureCooking {
-			if method, err = r.nextSleepingBedMethod(call, goal, method); err != nil {
+			if method, err = r.nextSleepingBedMethod(call, goal, method, facts.Facts.CurrentConstruction); err != nil {
 				return RoutineBuildingResult{}, err
 			}
 		}
@@ -776,7 +776,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.shelter || r.power != nil && r.power.Method == policy.PowerShelter {
 		purpose = policy.Shelter
 	}
-	return r.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose, check: check})
+	return r.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: purpose})
 }
 
 // routineAdmission is what admitPreviews commits: the previews a method
@@ -786,7 +786,6 @@ type routineAdmission struct {
 	review store.RoutineReview
 	goal   store.GoalState
 	facts  observation.ColonyProjection
-	read   observation.ColonyReading
 	method domain.MethodID
 	// reason is the planner's short why, stored with the method (#846).
 	reason   string
@@ -794,36 +793,13 @@ type routineAdmission struct {
 	selected []policy.Preview
 	stock    policy.StockObservation
 	purpose  policy.Purpose
-	check    func() error
 }
 
-// admitPreviews re-verifies the observation boundary the previews were
-// taken under (native identity, reading age, review revision) and admits
-// the plan, the previews in dispatch order.
+// admitPreviews admits the plan, the previews in dispatch order. Native
+// validates each building intent when it applies it (#856), so the siting
+// reads carry no boundary re-check here.
 func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a routineAdmission) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
-	last, _, err := r.native.Identity(call)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	actual, err := observation.DecodeIdentity(last)
-	if err != nil || !routineBuildingBoundary(actual, a.state.Snapshot, a.facts.Identity.Tick) {
-		return RoutineBuildingResult{}, ErrControl
-	}
-	now := r.reviewer.clock.Now()
-	if now.Before(a.read.StartedAt) || now.Sub(a.read.StartedAt) > r.reviewer.maxAge {
-		return RoutineBuildingResult{}, observation.ErrStale
-	}
-	if err = a.check(); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	latest, err := p.journal.LoadRoutineReview(call)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if latest.Revision != a.review.Revision || !latest.Enabled {
-		return RoutineBuildingResult{}, ErrControl
-	}
 	actions := make([]domain.Action, len(a.selected))
 	// A shell goes out as one wave with its door first in dispatch order
 	// (the preview lists it first). The walls are not gated on the door
@@ -1075,12 +1051,6 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		preview, _, err := r.native.PreviewBuilding(call, a, snapshot)
 		if err != nil {
 			return placementChoice{}, false, "", err
-		}
-		if err = check(); err != nil {
-			return placementChoice{}, false, "", err
-		}
-		if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) {
-			return placementChoice{}, false, "", ErrControl
 		}
 		made, known := preview.Preview.MadeFromStuff.Value()
 		if (r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort) && (r.definition == "HorseshoesPin" || r.definition == "TubeTelevision") {
@@ -1335,10 +1305,11 @@ const sleepingBedsPerEpoch = 8
 // selection names a method by the beds still owed, but that count need not
 // fall after a staged bed is assigned (the colonist it went to may have been
 // counted as housed, or another colonist's bed may have turned unsuitable),
-// so a completed bed's method yields to a numbered successor; a method whose
-// plan is still open, or ended without a bed, stays the one reported used.
-// A cooking campfire that burnt out is re-staged the same way.
-func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.GoalState, method domain.MethodID) (domain.MethodID, error) {
+// so a method whose plan is no longer open yields to a numbered successor;
+// only a method whose plan is still open stays the one reported used. A
+// building gone from the census (a campfire that burnt out, a bed that
+// disappeared) and one never built both mean try again (#856).
+func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.GoalState, method domain.MethodID, census domain.Fact[policy.CurrentConstruction]) (domain.MethodID, error) {
 	p := r.reviewer.player
 	base := method
 	for n := 1; n < sleepingBedsPerEpoch; n++ {
@@ -1353,28 +1324,12 @@ func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goa
 		if err != nil {
 			return "", err
 		}
-		if domain.GoalWorkOpen(plan.Progress) || !routineBuildingCompleted(plan.Progress) {
+		if store.PlanWorkOpen(plan, census) {
 			return method, nil
 		}
 		method = domain.MethodID(fmt.Sprintf("%s-%d", base, n))
 	}
 	return method, nil
-}
-
-// routineBuildingCompleted reports whether every action of a settled plan
-// completed with its effect observed.
-func routineBuildingCompleted(progress []domain.Progress) bool {
-	if len(progress) == 0 {
-		return false
-	}
-	for _, p := range progress {
-		v := p.View()
-		effect, known := v.Effect.Value()
-		if v.Stage != domain.Completed || !known || effect != domain.EffectCompleted {
-			return false
-		}
-	}
-	return true
 }
 
 // placementChoice is a valid previewed footprint held while nearer-scored

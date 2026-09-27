@@ -3,7 +3,7 @@
 // RecoverService operation (integrations/rimgovernor-native/src/Bridge/
 // Protocol/NativeRecoveryOperations.cs), wired onto its own distinct
 // CommandOneofCase.RecoverService in NativeOperationTools.cs the same way
-// PlaceBuilding (proven live by animalcontainmentaccept) is -- not a
+// every other typed operation is -- not a
 // kind-based sub-routing that could silently misroute. A genuinely damaged
 // player Wall (HitPoints below MaxHitPoints, useHitPoints=true) is actually
 // repaired by a real native WorkGiver_Repair job carried out by an

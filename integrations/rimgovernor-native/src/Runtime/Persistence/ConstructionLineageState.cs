@@ -7,6 +7,8 @@ namespace HomeBridge.BridgeTools
     {
         public string Origin = "", Current = "", Definition = "", Stage = "";
         public string? Stuff, Blocker;
+        // The Actions/Apply key of the building intent that placed it (#856).
+        public string? Key;
         public int MapId, X, Z, Rotation, Started, Failures;
         public void ExposeData()
         {
@@ -15,7 +17,7 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref Stage, "stage", ""); Scribe_Values.Look(ref Blocker, "blocker");
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Rotation, "rotation"); Scribe_Values.Look(ref Started, "started");
-            Scribe_Values.Look(ref Failures, "failures");
+            Scribe_Values.Look(ref Failures, "failures"); Scribe_Values.Look(ref Key, "key");
         }
     }
 

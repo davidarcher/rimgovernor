@@ -94,7 +94,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		if err != nil {
 			return RoutineRecoveryResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			open = append(open, plan)
 		}
 	}

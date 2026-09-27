@@ -31,25 +31,23 @@ func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
 	if _, e = s.Prepare(ctx, "p", "b", scope(), 10); !errors.Is(e, domain.ErrDependency) {
 		t.Fatal(e)
 	}
-	admission := Admission{Snapshot: scope(), Tick: 10, Costs: []MaterialCost{}, Footprint: []domain.Cell{{X: 3, Z: 7}}}
-	if _, e = s.ReserveAndPrepare(ctx, "p", "b", admission); !errors.Is(e, domain.ErrDependency) {
+	admission := Admission{Snapshot: scope(), Tick: 10, Footprint: []domain.Cell{{X: 3, Z: 7}}}
+	if _, e = s.Prepare(ctx, "p", "b", admission.Snapshot, admission.Tick); !errors.Is(e, domain.ErrDependency) {
 		t.Fatal(e)
 	}
 	prepare(t, s, "a")
 	if _, e = s.Dispatch(ctx, "p", "a", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
+	if _, e = s.Prepare(ctx, "p", "b", scope(), 11); !errors.Is(e, domain.ErrDependency) {
+		t.Fatal("dispatch advanced work", e)
+	}
+	// An applied intent's receipt completes it (#856).
 	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptAccepted); e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Prepare(ctx, "p", "b", scope(), 11); !errors.Is(e, domain.ErrDependency) {
-		t.Fatal("receipt advanced work", e)
-	}
-	if _, e = s.Observe(ctx, "p", domain.Observation{Action: "a", Attempt: 1, Snapshot: scope(), Tick: 11, Effect: domain.EffectCompleted}, scope()); e != nil {
-		t.Fatal(e)
-	}
 	admission.Tick = 11
-	if _, e = s.ReserveAndPrepare(ctx, "p", "b", admission); e != nil {
+	if _, e = s.Prepare(ctx, "p", "b", admission.Snapshot, admission.Tick); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = s.Dispatch(ctx, "p", "b", scope(), 11); e != nil {

@@ -512,7 +512,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		assessed[n.ID] = true
 	}
 	if request.Enabled {
-		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick); err != nil {
+		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick, request.Facts.CurrentConstruction); err != nil {
 			return RoutineReviewResult{}, err
 		}
 	}

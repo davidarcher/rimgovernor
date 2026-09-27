@@ -315,27 +315,28 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 			action := p.Action().ID()
 			snapshot := review.Snapshot
 			snapshot.Plan, snapshot.Revision = plan, state.Spec.Revision()
-			b, _ := p.Action().Building()
-			if _, err = db.ReserveAndPrepare(ctx, plan, action, store.Admission{Snapshot: snapshot, Tick: review.Tick, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
+			if _, err = db.Prepare(ctx, plan, action, snapshot, review.Tick); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = db.Dispatch(ctx, plan, action, snapshot, review.Tick); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptUnknown); err != nil {
-				t.Fatal(err)
-			}
-			if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: review.Snapshot, Tick: review.Tick, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, review.Snapshot); err != nil {
+			if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptAccepted); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
 	complete("sleeping-Bed-1")
+	// The census shows the bed built, so its plan retires (#856).
+	markBuilt(t, db, native.routineNative)
+	if _, err := planner.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	result, err = planner.Step(ctx)
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if methods := sleepingGoal(t, db).Methods; len(methods) != 2 || methods[1].Method != "sleeping-Bed-1-1" {
+	if methods := sleepingGoal(t, db).Methods; len(methods) == 0 || methods[len(methods)-1].Method != "sleeping-Bed-1-1" { // the retired first bed leaves the list
 		t.Fatal(methods)
 	}
 	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {

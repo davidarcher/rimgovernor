@@ -91,13 +91,13 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 		}
 		scope := current
 		scope.Plan, scope.Revision = spec.ID(), spec.Revision()
-		if _, err = db.ReserveAndPrepare(ctx, spec.ID(), a.ID(), store.Admission{Snapshot: scope, Tick: 7, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{wall.Cell()}}); err != nil {
+		if _, err = db.Prepare(ctx, spec.ID(), a.ID(), scope, 7); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = db.Dispatch(ctx, spec.ID(), a.ID(), scope, 7); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.Observe(ctx, spec.ID(), domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: scope, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch, Construction: &domain.ConstructionIdentity{Origin: "blueprint", Current: "wall-1"}}, scope); err != nil {
+		if _, err = db.RecordReceipt(ctx, spec.ID(), a.ID(), 1, domain.ReceiptAccepted); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -154,7 +154,7 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 		t.Fatal(result, err, n.previews)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(plan.Progress) != 2 || len(plan.Admissions) != 1 {
+	if err != nil || len(plan.Progress) != 2 {
 		t.Fatal(plan, err)
 	}
 	actions := plan.Spec.Actions()
@@ -166,9 +166,8 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 	if !ok || replacement.Definition() != "Wall" || replacement.Cell() != (domain.Cell{X: 4, Z: 4}) || replacement.Stuff() != "BlocksGranite" {
 		t.Fatal(actions[1])
 	}
-	admission := plan.Admissions[0]
-	if admission.Action != actions[1].ID() || admission.Admission.Tick != 7 || len(admission.Admission.Costs) != 1 || admission.Admission.Costs[0] != (store.MaterialCost{Definition: "BlocksGranite", Count: 5}) {
-		t.Fatal(admission)
+	if len(plan.Admissions) != 0 {
+		t.Fatal(plan.Admissions)
 	}
 	if deps := plan.Spec.Dependencies(); len(deps) != 1 || deps[0] != (domain.ActionDependency{Action: actions[1].ID(), Requires: actions[0].ID()}) {
 		t.Fatal(deps)
@@ -190,70 +189,20 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 	}
 }
 
-// A stock observation without the current snapshot and tick is exactly what
-// the planner used to build: admission must refuse it as stale_facts rather
-// than admit against unverified stock.
-func TestRoutineStoneShellRefusesZeroStockObservationAsStaleFacts(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	p, db, n := stoneShellFixture(t)
-	n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
-		b, _ := v.Preview.Action.Building()
-		v.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
-		v.Preview.MadeFromStuff = domain.Known(true)
-		v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 5}})
-		v.Stock.Values = []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(100))}}
-	}
-	review, err := db.LoadRoutineReview(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var goal store.GoalState
-	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainStoneShell {
-			if goal, err = db.LoadGoal(ctx, binding.Goal); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	snapshot := p.reviewer.player.session.State().Snapshot
-	snapshot.Plan, snapshot.Revision = "stale-stock-plan", 1
-	wall, _ := domain.NewBuilding("Wall", domain.Cell{X: 4, Z: 4}, domain.North, "BlocksGranite")
-	action, _ := domain.NewBuildingAction("stale-stock-replace", wall)
-	preview, _, err := n.PreviewBuilding(ctx, action, snapshot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := domain.NewPlan("stale-stock-plan", 1, []domain.Action{action})
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: "stale-stock", Plan: spec, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 9, Height: 9}), Previews: []policy.Preview{preview.Preview}, Purpose: policy.Routine}
-	var zero policy.StockObservation
-	if err := mergeRoutineStock(&zero, preview.Stock, true); err != nil {
-		t.Fatal(err)
-	}
-	request.Stock = zero
-	decision, err := db.AdmitBuildingMethod(ctx, request)
-	if err != nil || decision.Admitted || len(decision.Refused) != 1 || decision.Refused[0].Reason != policy.StaleFacts {
-		t.Fatal(decision, err)
-	}
-	fresh := policy.StockObservation{Snapshot: snapshot, Tick: 7}
-	if err := mergeRoutineStock(&fresh, preview.Stock, true); err != nil {
-		t.Fatal(err)
-	}
-	request.Stock = fresh
-	if decision, err = db.AdmitBuildingMethod(ctx, request); err != nil || !decision.Admitted || len(decision.Refused) != 0 {
-		t.Fatal(decision, err)
-	}
-}
-
 func TestRoutineStoneShellAdmitsPlayerBuiltWall(t *testing.T) {
 	p, db, _ := stoneShellFixtureHistory(t, false)
 	claims, err := db.ConstructionClaims(context.Background(), p.reviewer.player.session.State().Snapshot, 7)
 	rows, known := claims.Value()
-	if err != nil || !known || len(rows) != 0 {
-		t.Fatal("fixture has construction history", rows, known, err)
+	// The shelter bunks are open claims of their own; only a wall claim
+	// would make this a history the player did not build.
+	walls := 0
+	for _, row := range rows {
+		if row.Building.Definition() == "Wall" {
+			walls++
+		}
+	}
+	if err != nil || !known || walls != 0 {
+		t.Fatal("fixture has wall construction history", rows, known, err)
 	}
 	result, err := p.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted {

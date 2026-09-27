@@ -183,7 +183,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 			if err != nil {
 				return RoutineResearchResult{}, err
 			}
-			if domain.GoalWorkOpen(plan.Progress) {
+			if store.PlanOpen(plan) {
 				return RoutineResearchResult{Reason: BuildingMethodExistingWork}, nil
 			}
 		}

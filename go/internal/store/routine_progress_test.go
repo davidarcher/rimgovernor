@@ -123,17 +123,21 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 	}
 	target := scope()
 	target.Plan = "wood"
-	if _, err := s.ReserveAndPrepare(ctx, "wood", "wood-action", Admission{Snapshot: target, Tick: r.Tick, Costs: []MaterialCost{{Definition: "Steel", Count: 1}}, Footprint: []domain.Cell{{X: 3, Z: 7}}}); err != nil {
+	if _, err := s.Prepare(ctx, "wood", "wood-action", target, r.Tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Dispatch(ctx, "wood", "wood-action", target, r.Tick); err != nil {
 		t.Fatal(err)
 	}
+	// The applied intent is the order's settlement (#856): the review that
+	// sees it counts it as progress once, and the building stays open work
+	// until the census shows it built.
 	if _, err := s.RecordReceipt(ctx, "wood", "wood-action", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	r.Tick += 3000
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1})
+	reviewRoutine(t, s, &r)
+	r.Tick += 3000
 	second := reviewRoutine(t, s, &r)
 	wood = progressRecord(t, second.Review, policy.MaintainResource)
 	// Still Foothold: the one-hour deadline applies here too.

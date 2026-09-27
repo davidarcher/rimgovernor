@@ -138,7 +138,7 @@ func (r *RoutineTradePlanner) phase(ctx context.Context, goal store.GoalState, k
 		found := false
 		for _, progress := range plan.Progress {
 			if _, ok := progress.Action().Trade(); ok {
-				out = tradePhase{found: true, open: domain.GoalWorkOpen(plan.Progress), completed: progress.View().Stage == domain.Completed, attempt: attempt}
+				out = tradePhase{found: true, open: store.PlanOpen(plan), completed: progress.View().Stage == domain.Completed, attempt: attempt}
 				found = true
 			}
 		}
@@ -217,7 +217,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil {
 			return RoutineTradeResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineTradeResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

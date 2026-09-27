@@ -275,65 +275,6 @@ internal static class NativeClockProbe
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation,
             "history recovery changed clock or authority");
     }
-    private static bool PumpUntilAnswered(Context ctx, Task<object> poll)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (!poll.IsCompleted && DateTime.UtcNow < deadline) { ctx.Pump(); Thread.Yield(); }
-        return poll.Status == TaskStatus.RanToCompletion;
-    }
-    // A watched construction attempt latches the epoch at the tick boundary on
-    // which the record turns terminal: the operation_outcome row precedes the
-    // watch_latched stop on the same tick, and a long poll parked past the
-    // started row wakes with both rows in one page.
-    private static void WatchedAttemptLatches()
-    {
-        Reset();
-        var key = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "construction/1", AttemptId = 1 };
-        var record = new NativeConstructionRecord();
-        NativeOperationState.ForAdmission(Identity).Construction[key] = record;
-        var unknown = Request(); unknown.Policy.WatchedAttempts.Add(new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "construction/9", AttemptId = 1 });
-        Check(Start(unknown).Failure?.Code == Common.FailureCode.InvalidRequest && !Supervisor.IsActiveForFixture(), "untracked watched attempt admitted");
-        var request = Request(); request.Policy.WatchedAttempts.Add(key);
-        var reply = Start(request);
-        Check(reply.Receipt?.Applied?.Status?.Running != null && reply.Receipt.Applied.Status.Running.Epoch.Policy.WatchedAttempts.Single().Equals(key), "watched start not running with its policy");
-        var started = Events().Page;
-        Check(started.Events.Count == 1 && started.Events[0].Started != null, "pending watch produced rows at start");
-        // Park a long poll past the started row; the wait runs off the probe thread.
-        var ctx = new Context(); var text = JsonFormatter.Default.Format(new Clock.EventsRequest { Identity = Identity, AfterCursor = started.NextCursor, Limit = 128, WaitMs = NativeClockTools.MaxWaitMs });
-        ctx.Arguments["request"] = text;
-        var poll = Tools.ReadEvents(ctx, default, text);
-        Check(ctx.Invocations == 1 && !poll.Wait(100), "long poll answered an empty page without waiting");
-        // A tick that leaves the record pending neither latches nor wakes.
-        Find.TickManager.TicksGame = 1; Supervisor.OnUpdate();
-        Check(Supervisor.IsActiveForFixture() && !poll.Wait(50) && ctx.Invocations == 1, "pending watch latched or woke the poll");
-        record.Next = new Receipts.Progress { Completed = new Receipts.CompletedEffect { Evidence = record.Next.Pending.Evidence.Clone() } };
-        Find.TickManager.TicksGame = 2; Supervisor.OnUpdate();
-        // The woken poll's second hop queues for the main thread; pump until it answers.
-        Check(PumpUntilAnswered(ctx, poll) && ctx.Invocations == 2, "latch did not wake the parked long poll for exactly one more hop");
-        var woken = Clock.EventsReply.Parser.ParseJson((string)((Dictionary<string, object>)poll.Result)["payload"]).Page;
-        Check(woken != null && woken.Events.Count == 2 && woken.Events[0].OperationOutcome != null && woken.Events[1].Stopped?.Watch != null, "woken page lacks outcome then latched stop");
-        var outcome = woken.Events[0].OperationOutcome;
-        Check(outcome.Attempt.Equals(key) && outcome.LatchedTick == 2 && outcome.Completed != null && outcome.Completed.Evidence.Construction.DefName == "Wall", "operation_outcome lost the attempt's terminal evidence");
-        var stop = woken.Events[1].Stopped;
-        Check(stop.Reason == Clock.StopReason.WatchLatched && stop.Watch.Outcome.Equals(outcome) && stop.Watch.TickDeadline == 10, "watch_latched stop lacks its outcome or deadline");
-        Check(Status().Status.Stopped?.Reason == Clock.StopReason.WatchLatched && Status().Status.Stopped.PauseVerified && Find.TickManager.Paused, "latched epoch kept playing");
-        // A poll that times out answers the empty page after its second hop.
-        ctx = new Context(); text = JsonFormatter.Default.Format(new Clock.EventsRequest { Identity = Identity, AfterCursor = woken.NextCursor, Limit = 128, WaitMs = 50 });
-        ctx.Arguments["request"] = text; poll = Tools.ReadEvents(ctx, default, text);
-        Check(PumpUntilAnswered(ctx, poll), "timed-out poll never answered");
-        var empty = Clock.EventsReply.Parser.ParseJson((string)((Dictionary<string, object>)poll.Result)["payload"]).Page;
-        Check(ctx.Invocations == 2 && empty != null && empty.Events.Count == 0 && empty.NewestCursor == woken.NewestCursor, "timed-out poll fabricated rows or skipped its final read");
-        // An attempt already terminal at start is reported once and the epoch keeps its budget.
-        Reset();
-        var done = new NativeConstructionRecord { Next = new Receipts.Progress { Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Construction = new Receipts.ConstructionEffect { DefName = "Wall", Stage = Receipts.ConstructionStage.Building, Present = true, Started = true } } } } };
-        NativeOperationState.ForAdmission(Identity).Construction[key] = done;
-        request = Request(); request.Policy.WatchedAttempts.Add(key);
-        Check(Start(request).Receipt?.Applied?.Status?.Running != null, "already-terminal watch stopped the start");
-        var early = Events().Page.Events;
-        Check(early.Count == 2 && early[0].Started != null && early[1].OperationOutcome?.Completed != null, "already-terminal watch not reported once at start");
-        Find.TickManager.TicksGame = 3; Supervisor.OnUpdate();
-        Check(Supervisor.IsActiveForFixture() && Events().Page.Events.Count == 2, "already-terminal watch reported again or latched later");
-    }
     // #626: the hazard probe is tick-paced at every production speed, the
     // digests run on their own cadence, and the status carries both counters.
     private static void ProbeAndDigestCadence()
@@ -414,7 +355,7 @@ internal static class NativeClockProbe
     }
     internal static void Invoke()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart(); WatchedAttemptLatches(); ProbeAndDigestCadence();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart(); ProbeAndDigestCadence();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }

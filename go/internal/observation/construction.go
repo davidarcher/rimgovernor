@@ -74,7 +74,13 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 			}
 			cells = append(cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
-		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells})
+		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells, IntentKey: row.GetIntentKey()})
+	}
+	for _, in := range v.Intents {
+		if in.GetKey() == "" {
+			return unknown, ErrContract
+		}
+		r.Intents = append(r.Intents, policy.ConstructionIntent{Key: in.GetKey(), Stage: in.GetStage()})
 	}
 	return domain.Known(r), nil
 }

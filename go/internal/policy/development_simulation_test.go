@@ -35,11 +35,12 @@ func newDevelopmentSim(t *testing.T, limit int, goals ...DevelopmentGoal) *devel
 
 func (s *developmentSim) commitment(goal GoalID, source GoalSource, priority int, dispatched bool) Commitment {
 	s.t.Helper()
-	b, err := domain.NewBuilding("Wall", domain.Cell{X: 1, Z: 1}, domain.North, "WoodLog")
+	// An observed (non-intent) kind: commitments follow per-attempt effects.
+	cut, err := domain.NewCutPlant("plant", "Plant_Healroot", domain.Cell{X: 1, Z: 1})
 	if err != nil {
 		s.t.Fatal(err)
 	}
-	a, err := domain.NewBuildingAction(domain.ActionID(string(goal)+"-action"), b)
+	a, err := domain.NewCutPlantAction(domain.ActionID(string(goal)+"-action"), cut)
 	if err != nil {
 		s.t.Fatal(err)
 	}

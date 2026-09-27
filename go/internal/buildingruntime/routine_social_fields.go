@@ -33,7 +33,7 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

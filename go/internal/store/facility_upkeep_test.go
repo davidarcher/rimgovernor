@@ -46,7 +46,8 @@ func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirs
 	if _, err = s.Prepare(ctx, p.ID(), a.ID(), current, 10); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.Dispatch(ctx, p.ID(), a.ID(), current, 10); err != nil {
+	// The receipt settles at the dispatch tick (#856).
+	if _, err = s.Dispatch(ctx, p.ID(), a.ID(), current, 11); err != nil {
 		t.Fatal(err)
 	}
 	if cancelFirst {
@@ -55,11 +56,12 @@ func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirs
 			t.Fatal(err)
 		}
 	}
-	observed := domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: current, Tick: 11, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}
+	// Without proof the intent was refused: nothing was applied to claim.
+	receipt := domain.ReceiptRefused
 	if proof {
-		observed.Construction = &domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}
+		receipt = domain.ReceiptAccepted
 	}
-	if _, err = s.Observe(ctx, p.ID(), observed, current); err != nil {
+	if _, err = s.RecordReceipt(ctx, p.ID(), a.ID(), 1, receipt); err != nil {
 		t.Fatal(err)
 	}
 	return s, path, g, b
@@ -100,7 +102,7 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	s, path, _, building := completedFacility(t, domain.AutopilotGoal, true, false)
 	r := routineRequest()
 	r.Tick = 12
-	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Requested: []string{"wall"}, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building}}})
+	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building, Cells: []domain.Cell{building.Cell()}, IntentKey: "placed/1"}}})
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Revision: 1, Targets: []policy.HomeCoverageTarget{{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}}}})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	// Home coverage follows the census alone (#719): the wall stays missing
@@ -131,9 +133,8 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	defer s.Close()
 	r.Enabled = true
 	assertNeeds(reviewRoutine(t, s, &r), domain.NeedUnknown)
-	// A complete exact-ID query now reports the owned wall missing. The player
-	// replacement at its old coordinates does not inherit autonomous upkeep.
-	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Requested: []string{"wall"}})
+	// A complete census now reports the owned wall gone.
+	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
 	assertNeeds(reviewRoutine(t, s, &r), domain.NeedRecovered)
 }
 
@@ -143,8 +144,10 @@ func TestRoutineReviewCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	defer s.Close()
 	r := routineRequest()
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
-	r.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "fake", Action: "fake", Goal: "fake", Identity: domain.ConstructionIdentity{Origin: "fake", Current: "wall"}, Building: b}})
-	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Requested: []string{"wall"}, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: b}}})
+	// A caller-supplied claim is replaced by the journal's; the census holds
+	// no building, so nothing is owned (#719 counts census buildings).
+	r.Facts.ConstructionClaims = domain.Known([]policy.ConstructionClaim{{Plan: "fake", Action: "fake", Goal: "fake", Identity: domain.ConstructionIdentity{Current: "wall"}, Building: b}})
+	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRoutine(t, s, &r)

@@ -156,7 +156,7 @@ func (r *RoutineTidyPlanner) finishFurniture(call context.Context, state Control
 	if plan, err = p.journal.LoadPlan(call, domain.PlanID(planID)); err != nil {
 		return RoutineTidyResult{}, err
 	}
-	if domain.GoalWorkOpen(plan.Progress) {
+	if store.PlanOpen(plan) {
 		return RoutineTidyResult{Reason: BuildingMethodExistingWork}, nil
 	}
 	// A piece's final leg is its last action in the batch.

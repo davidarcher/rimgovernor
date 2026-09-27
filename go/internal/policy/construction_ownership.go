@@ -3,13 +3,18 @@ package policy
 import (
 	"errors"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Journal claims retain completed autonomous construction provenance. Planning
-// ownership may also come from the current player-faction census; those rows
-// carry Identity.Current, Building and Cells, without invented action provenance.
+// ConstructionClaim names the autonomous action that owns a building. The
+// journal supplies Plan, Action, Goal and Building for every applied
+// building intent; OwnedConstructions fills Identity (the building's
+// current id) and Cells from the census row whose intent key names the
+// action. A census row no intent built carries Identity, Building and
+// Cells only.
 type ConstructionClaim struct {
 	Plan     domain.PlanID
 	Action   domain.ActionID
@@ -22,98 +27,107 @@ type CurrentBuilding struct {
 	ID       string
 	Building domain.Building
 	Cells    []domain.Cell
+	// IntentKey is the Actions/Apply key of the building intent that placed
+	// this building (BuildingState.intent_key), empty when none did.
+	IntentKey string
 }
 
-// CurrentConstruction distinguishes a colony census from an exact refresh.
-// Exact refreshes retain causal identity only with the original geometry.
+// CurrentConstruction is the colony's built, player-owned buildings.
+// Colony marks a complete census; Requested scopes an exact-ID read.
 type CurrentConstruction struct {
-	// Colony marks a complete built/artificial/player-only census. Requested
-	// otherwise scopes an exact-ID refresh of journal claims.
 	Colony    bool
 	Requested []string
 	Buildings []CurrentBuilding
+	// Intents are building intents still standing as a blueprint or frame.
+	Intents []ConstructionIntent
 }
 
+// ConstructionIntent is one keyed blueprint or frame on the map.
+type ConstructionIntent struct {
+	Key   string
+	Stage string
+}
+
+// BuildingWork is where an applied building intent stands.
+type BuildingWork int
+
+const (
+	// BuildingOpen: its blueprint or frame stands, or the census is unknown.
+	BuildingOpen BuildingWork = iota
+	// BuildingDone: a built row carries its key.
+	BuildingDone
+	// BuildingGone: neither exists; the work closed without a building.
+	BuildingGone
+)
+
+// WorkOpen classifies an applied building action against the census.
+func WorkOpen(action domain.ActionID, observed domain.Fact[CurrentConstruction]) BuildingWork {
+	census, known := observed.Value()
+	if !known || !census.Colony {
+		return BuildingOpen
+	}
+	for _, row := range census.Buildings {
+		if a, ok := IntentAction(row.IntentKey); ok && a == action {
+			return BuildingDone
+		}
+	}
+	for _, in := range census.Intents {
+		if a, ok := IntentAction(in.Key); ok && a == action {
+			return BuildingOpen
+		}
+	}
+	return BuildingGone
+}
+
+// IntentAction is the action an intent key (<action>/<attempt>) names.
+func IntentAction(key string) (domain.ActionID, bool) {
+	i := strings.LastIndexByte(key, '/')
+	if i <= 0 {
+		return "", false
+	}
+	if _, err := strconv.ParseUint(key[i+1:], 10, 64); err != nil {
+		return "", false
+	}
+	return domain.ActionID(key[:i]), true
+}
+
+// BuiltActions maps each action whose building stands built in a complete
+// census to that building's id. Native reports a key only on a finished
+// building, so presence here is the "built" fact every gate reads.
+func BuiltActions(observed domain.Fact[CurrentConstruction]) (map[domain.ActionID]string, bool) {
+	census, known := observed.Value()
+	if !known || !census.Colony {
+		return nil, false
+	}
+	built := map[domain.ActionID]string{}
+	for _, row := range census.Buildings {
+		if action, ok := IntentAction(row.IntentKey); ok {
+			built[action] = row.ID
+		}
+	}
+	return built, true
+}
+
+// OwnedConstructions is the common current geometry/ownership view for
+// facility planning and colony extent: every census building, annotated with
+// the journal claim whose action its intent key names. History neither
+// excludes player-built facilities nor transfers provenance by geometry.
 func OwnedConstructions(claims domain.Fact[[]ConstructionClaim], observed domain.Fact[CurrentConstruction]) (domain.Fact[[]ConstructionClaim], error) {
 	unknown := domain.Unknown[[]ConstructionClaim]()
-	invalid := errors.New("invalid construction ownership evidence")
-	census, observedKnown := observed.Value()
-	if !observedKnown {
+	census, known := observed.Value()
+	if !known || !census.Colony {
 		return unknown, nil
 	}
-	if census.Colony {
-		return observedConstructions(claims, census)
-	}
-	wanted, known := claims.Value()
-	if !known {
-		return unknown, nil
-	}
-	if len(wanted) > 256 {
-		return unknown, invalid
-	}
-	actions := map[domain.ActionID]bool{}
-	identities := map[string]bool{}
-	for _, claim := range wanted {
-		b := claim.Building
-		if !foodID(string(claim.Plan)) || !foodID(string(claim.Action)) || !foodID(string(claim.Goal)) || claim.Identity.Validate() != nil || actions[claim.Action] || identities[claim.Identity.Current] {
-			return unknown, invalid
-		}
-		if _, err := domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), b.Stuff()); err != nil {
-			return unknown, invalid
-		}
-		actions[claim.Action] = true
-		identities[claim.Identity.Current] = true
-	}
-	if len(wanted) == 0 {
-		return domain.Known([]ConstructionClaim{}), nil
-	}
-	if len(census.Requested) > 256 || len(census.Buildings) > 256 {
-		return unknown, invalid
-	}
-	requested := map[string]bool{}
-	for _, id := range census.Requested {
-		if !foodID(id) || requested[id] {
-			return unknown, invalid
-		}
-		requested[id] = true
-	}
-	for _, claim := range wanted {
-		if !requested[claim.Identity.Current] {
-			return unknown, nil
-		}
-	}
-	current := map[string]domain.Building{}
-	for _, row := range census.Buildings {
-		if !foodID(row.ID) || !requested[row.ID] {
-			return unknown, invalid
-		}
-		if _, exists := current[row.ID]; exists {
-			return unknown, invalid
-		}
-		if _, err := domain.NewBuilding(row.Building.Definition(), row.Building.Cell(), row.Building.Rotation(), row.Building.Stuff()); err != nil {
-			return unknown, invalid
-		}
-		current[row.ID] = row.Building
-	}
-	result := []ConstructionClaim{}
-	for _, claim := range wanted {
-		if building, ok := current[claim.Identity.Current]; ok && building == claim.Building {
-			result = append(result, claim)
-		}
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Identity.Current < result[j].Identity.Current })
-	return domain.Known(result), nil
-}
-
-// observedConstructions is the common current geometry/ownership view for
-// facility planning and colony extent. History annotates an exact match only;
-// it neither excludes player-built facilities nor transfers causal provenance.
-func observedConstructions(claims domain.Fact[[]ConstructionClaim], census CurrentConstruction) (domain.Fact[[]ConstructionClaim], error) {
-	unknown := domain.Unknown[[]ConstructionClaim]()
 	if len(census.Buildings) > 256 || len(census.Requested) != 0 {
 		return unknown, errors.New("invalid colony construction census")
 	}
 	history, _ := claims.Value()
+	byAction := map[domain.ActionID]ConstructionClaim{}
+	for _, claim := range history {
+		if foodID(string(claim.Plan)) && foodID(string(claim.Action)) && foodID(string(claim.Goal)) {
+			byAction[claim.Action] = claim
+		}
+	}
 	result := make([]ConstructionClaim, 0, len(census.Buildings))
 	seen := map[string]bool{}
 	for _, row := range census.Buildings {
@@ -135,13 +149,13 @@ func observedConstructions(claims domain.Fact[[]ConstructionClaim], census Curre
 			return unknown, errors.New("building anchor outside footprint")
 		}
 		seen[row.ID] = true
-		owned := ConstructionClaim{Identity: domain.ConstructionIdentity{Current: row.ID}, Building: b}
-		for _, claim := range history {
-			if claim.Identity.Current == row.ID && claim.Building == b && claim.Identity.Validate() == nil && foodID(string(claim.Plan)) && foodID(string(claim.Action)) && foodID(string(claim.Goal)) {
+		owned := ConstructionClaim{Building: b}
+		if action, ok := IntentAction(row.IntentKey); ok {
+			if claim, claimed := byAction[action]; claimed && claim.Building == b {
 				owned = claim
-				break
 			}
 		}
+		owned.Identity = domain.ConstructionIdentity{Current: row.ID}
 		owned.Cells = append([]domain.Cell{}, row.Cells...)
 		result = append(result, owned)
 	}

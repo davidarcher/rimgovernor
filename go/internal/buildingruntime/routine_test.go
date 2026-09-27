@@ -30,6 +30,8 @@ type routineNative struct {
 	// reply's tick the way the step's fact cache serves it under a running
 	// window (#662).
 	identityTick *int64
+	// built is the fake construction census (routine_built_census_test.go).
+	built map[domain.ActionID]*o.BuildingState
 }
 
 // Translate the legacy colony fixture's zone data at the new list boundary.

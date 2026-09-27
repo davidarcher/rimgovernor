@@ -48,7 +48,7 @@ Reads do not initialize game components or authority. Native lifecycle hooks
 initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.
 
-Operations implement `PlaceBuilding`, temporary `SetDrafted`, guarded `AttackTarget` and `DesignateThing` restricted to Allow on an
+Operations implement temporary `SetDrafted`, guarded `AttackTarget` and `DesignateThing` restricted to Allow on an
 exact visible loose supply item. Other command variants remain unsupported.
 Admission checks current identity, generation, lease and
 ordinary native placement rules on the game thread. One unsaved per-load ledger

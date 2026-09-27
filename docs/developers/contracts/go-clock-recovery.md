@@ -655,15 +655,11 @@ passes, or a full step runs, and a step that skips it lists it under
 census is retired by any typed-event invalidation (`routineCensusStore`
 generation) so a same-tick reuse never serves facts an event made stale.
 
-The scheduler arms `WatchPolicy.watched_attempts` for a combat window only,
-with the dispatched or awaiting-observation building and haul attempts of
-the planned wave (first 16, zone and allow designations are never armed), so
-the fight's next step starts at the outcome tick; a routine window's list is
-empty (#244). The policy is part of the window key, so a changed watch set
-is a new logical window. A verified `STOP_REASON_WATCH_LATCHED` stop is a
-finished window like a tick-budget stop except that its last tick may
-precede the deadline; the native clock still emits it for any armed window,
-which the reactivewatch case drives directly.
+No window watches attempts: the `watched_attempts` policy field is retired
+(#856), since a building intent settles on its Apply receipt and the census
+says when it is built. An applied building on a plan not yet retired counts
+as clock work, so the window runs until the construction census retires the
+plan.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a

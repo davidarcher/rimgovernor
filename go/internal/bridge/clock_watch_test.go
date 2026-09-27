@@ -64,27 +64,6 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 	}
 }
 
-func TestClockPolicyWatchedAttemptsBounded(t *testing.T) {
-	policy := clockTestPolicy()
-	for i := uint64(1); i <= ClockWatchedAttemptsMax; i++ {
-		policy.WatchedAttempts = append(policy.WatchedAttempts, clockTestAttempt(i))
-	}
-	if err := clockPolicy(policy, 600); err != nil {
-		t.Fatal(err)
-	}
-	over := proto.Clone(policy).(*k.WatchPolicy)
-	over.WatchedAttempts = append(over.WatchedAttempts, clockTestAttempt(ClockWatchedAttemptsMax+1))
-	duplicate := proto.Clone(policy).(*k.WatchPolicy)
-	duplicate.WatchedAttempts[1] = clockTestAttempt(1)
-	incomplete := proto.Clone(policy).(*k.WatchPolicy)
-	incomplete.WatchedAttempts[0].AttemptId = nil
-	for name, p := range map[string]*k.WatchPolicy{"over": over, "duplicate": duplicate, "incomplete": incomplete} {
-		if err := clockPolicy(p, 600); !errors.Is(err, ErrContract) {
-			t.Fatal(name, err)
-		}
-	}
-}
-
 func TestClockEventsWaitBound(t *testing.T) {
 	request := clockEventsRequest()
 	request.WaitMs = proto.Uint32(ClockEventsMaxWaitMs + 1)

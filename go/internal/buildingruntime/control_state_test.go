@@ -120,16 +120,13 @@ func TestControlStateAndDisableAfterClose(t *testing.T) {
 
 type stateBlockedInspection struct{ entered chan struct{} }
 
-func (b stateBlockedInspection) Inspect(ctx context.Context, _ executor.Target) (executor.Inspection, error) {
+func (b stateBlockedInspection) InspectBuilding(ctx context.Context, _ executor.Target) (executor.BuildingInspection, error) {
 	close(b.entered)
 	<-ctx.Done()
-	return executor.Inspection{}, ctx.Err()
+	return executor.BuildingInspection{}, ctx.Err()
 }
-func (stateBlockedInspection) Place(context.Context, executor.Placement) (executor.Receipt, error) {
+func (stateBlockedInspection) WriteBuilding(context.Context, executor.Placement) (executor.Receipt, error) {
 	panic("disabled inspection must never dispatch")
-}
-func (stateBlockedInspection) Observe(context.Context, executor.Placement, domain.GenerationSnapshot) (executor.Evidence, error) {
-	panic("unissued action has no effect to observe")
 }
 
 func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {

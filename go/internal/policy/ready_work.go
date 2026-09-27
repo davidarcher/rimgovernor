@@ -204,6 +204,9 @@ type ReadyRequest struct {
 	// Unserved goals have neither; each reads no_method.
 	Unserved []GoalID
 	Bounds   ReadyBounds
+	// Construction is the building census: an applied building intent stays
+	// open, and its dependents wait, until a built row carries its key (#856).
+	Construction domain.Fact[CurrentConstruction]
 }
 
 const maxReadyParallelism = 4
@@ -257,7 +260,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 				deferred[[2]string{string(p.Goal), ReadyDeferredDiscovery}]++
 				continue
 			}
-			c, ok := readyAction(p, a, byAction)
+			c, ok := readyAction(p, a, byAction, r.Construction)
 			if !ok {
 				continue
 			}
@@ -393,10 +396,11 @@ func billWork(recipe string) WorkType {
 	return WorkCrafting
 }
 
-func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]domain.Progress) (ReadyWork, bool) {
+func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]domain.Progress, census domain.Fact[CurrentConstruction]) (ReadyWork, bool) {
 	prog, has := byAction[a.ID()]
 	v := prog.View()
-	if has && (v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled) && !v.Unresolved {
+	blueprint := has && AppliedBuildingOpen(prog, census)
+	if has && !blueprint && (v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled) && !v.Unresolved {
 		return ReadyWork{}, false
 	}
 	c := ReadyWork{Goals: []GoalID{p.Goal}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
@@ -437,7 +441,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 			req, ok := byAction[d.Requires]
 			rv := req.View()
 			effect, known := rv.Effect.Value()
-			if !ok || rv.Stage != domain.Completed || rv.Unresolved || !known || effect != domain.EffectCompleted {
+			if !ok || rv.Stage != domain.Completed || rv.Unresolved || !known || effect != domain.EffectCompleted || AppliedBuildingOpen(req, census) {
 				c.Requires = append(c.Requires, string(d.Requires))
 			}
 		}
@@ -453,6 +457,10 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 			return set(ReadyBlocked, strings.Join(reasons, ",")), true
 		}
 		return runnable("admission"), true
+	}
+	// An applied building whose blueprint or frame still stands.
+	if blueprint {
+		return set(ReadyAwaiting, "blueprint_open"), true
 	}
 	// Dispatched or awaiting: the action is admitted and its effect open.
 	effect, known := v.Effect.Value()

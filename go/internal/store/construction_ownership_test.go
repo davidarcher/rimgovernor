@@ -8,6 +8,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// builtCensus is a complete census holding the plan() helper's wall, built
+// by the building intent key (empty for a player-built wall).
+func builtCensus(t *testing.T, id, key string) domain.Fact[policy.CurrentConstruction] {
+	t.Helper()
+	b, err := domain.NewBuilding("Modded_Wall", domain.Cell{X: 3, Z: 7}, domain.East, "GraniteBlocks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: id, Building: b, Cells: []domain.Cell{b.Cell()}, IntentKey: key}}})
+}
+
 func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -35,9 +46,11 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 		t.Fatal("dispatch conferred ownership", rows, err)
 	}
 	request.Tick++
-	if _, err = s.Observe(ctx, "method", domain.Observation{Action: "placed", Attempt: 1, Snapshot: scope, Tick: request.Tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch, Construction: &domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}}, scope); err != nil {
+	if _, err = s.RecordReceipt(ctx, "method", "placed", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
+	// Retirement reads the census: the intent's building stands built (#856).
+	request.Facts.CurrentConstruction = builtCensus(t, "wall", "placed/1")
 	reviewRoutine(t, s, &request)
 	retired, err := s.LoadPlan(ctx, "method")
 	if err != nil || !retired.Retired {
@@ -50,7 +63,7 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	defer s.Close()
 	claims, err := s.ConstructionClaims(ctx, request.Current, request.Tick)
 	rows, known = claims.Value()
-	if err != nil || !known || len(rows) != 1 || rows[0].Identity.Current != "wall" || rows[0].Action != "placed" {
+	if err != nil || !known || len(rows) != 1 || rows[0].Action != "placed" {
 		t.Fatal(rows, known, err)
 	}
 	other := request.Current

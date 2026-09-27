@@ -96,7 +96,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		if err != nil {
 			return RoutineHusbandryResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineHusbandryResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: wait}, nil
 		}
 	}

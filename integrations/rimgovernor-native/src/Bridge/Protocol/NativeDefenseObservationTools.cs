@@ -37,8 +37,8 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Failure = failure });
                 try {
-                    var cells = Region(parsed.Region, map);
-                    if (cells == null) return ProtoBoundary.Encode(new Obs.DefenseSiteReply {
+                    var cells = Region(parsed.Region);
+                    if (cells.Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.DefenseSiteReply {
                         Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") });
                     return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Observed = Site(map, parsed.Region, cells, context) });
                 }
@@ -69,9 +69,9 @@ namespace HomeBridge.BridgeTools
 
         internal static bool ValidateSite(Obs.DefenseSiteRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and an inclusive rectangle are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and an inclusive rectangle of 1..2048 cells are required.");
             if (request?.Scope?.ExpectedIdentity == null) return false;
-            try { Region(request.Region, null); return true; } catch (Exception) { return false; }
+            try { Region(request.Region); return true; } catch (Exception) { return false; }
         }
         internal static bool ValidateLines(Obs.LinesOfFireRequest request, out Common.Failure failure)
         {
@@ -87,15 +87,12 @@ namespace HomeBridge.BridgeTools
         }
         private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
         private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
-        // Region is null when the rectangle leaves the live map, checked on its
-        // corners before any cell is listed; a null map checks shape only.
-        internal static List<IntVec3>? Region(Obs.Rectangle? region, Map? map)
+        internal static List<IntVec3> Region(Obs.Rectangle? region)
         {
             var min = region?.Minimum; var max = region?.Maximum;
             if (!HasCell(min) || !HasCell(max) || max!.X < min!.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
-            if (map == null) return new List<IntVec3>();
-            if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return null;
             var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;
+            if (width > 1000 || height > 1000) throw new ArgumentException("Rectangle sides exceed any map size.");
             var result = new List<IntVec3>((int)(width * height));
             for (long z = min.Z; z <= max.Z; z++) for (long x = min.X; x <= max.X; x++) result.Add(new IntVec3((int)x, 0, (int)z));
             return result;

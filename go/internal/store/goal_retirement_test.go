@@ -75,7 +75,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	if err != nil || before.Retired {
 		t.Fatal(before, err)
 	}
-	if _, err = s.Observe(ctx, "p", domain.Observation{Action: "a", Attempt: 1, Snapshot: scope(), Tick: 11, Effect: domain.EffectCompleted}, scope()); err != nil {
+	if _, err = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
 	reviewRoutine(t, s, &r)

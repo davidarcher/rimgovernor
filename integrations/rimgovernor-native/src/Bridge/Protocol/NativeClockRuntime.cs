@@ -31,7 +31,6 @@ namespace HomeBridge.BridgeTools
             internal bool StopPauseVerified;
             // The armed combat event that stopped this epoch (#849), else unset.
             internal Clock.CombatEvent CombatEvent { get; set; }
-            internal readonly List<ArmedWatch> Watches = new List<ArmedWatch>();
         }
         private static TypedEpoch? pendingTyped;
         // Test acceleration (the native dev tick boost behind an Ultrafast
@@ -118,7 +117,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var ids in PolicyIds(request.Policy)) ResolveIds(ProtoBoundary.ResolveMap(request.Authority.Identity) ?? throw new InvalidOperationException("The requested map is not loaded."), ids);
                 }
                 catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
-                return ValidWatchedAttempts(request.Policy, request.Authority.Identity);
+                return null;
             }
         }
 
@@ -141,7 +140,6 @@ namespace HomeBridge.BridgeTools
                         (int)request.BlindTickBudget, (int)request.MaxTicksPerSecond,
                         request.Pacing == Clock.Pacing.PlayerAccelerated);
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
-                    ArmWatches(_state, context);
                     return TypedStatus(context);
                 }
                 finally { pendingTyped = null; }
@@ -541,8 +539,6 @@ namespace HomeBridge.BridgeTools
                 && policy.HasHostileWithin && !float.IsNaN(policy.HostileWithin) && policy.HostileWithin >= 1 && policy.HostileWithin <= 250
                 && policy.HasInjuryStopCooldownMs && policy.InjuryStopCooldownMs <= 1800000
                 && (policy.MedicalRestIds.Count == 0 || maxTicks <= 600)
-                && policy.WatchedAttempts.Count <= MaxWatchedAttempts && policy.WatchedAttempts.All(ValidWatchKey)
-                && policy.WatchedAttempts.Distinct().Count() == policy.WatchedAttempts.Count
                 && policy.ResourceThresholds.Count <= 32 && policy.ResourceThresholds.All(t => t.HasDefName && ProtoBoundary.IsIdentifier(t.DefName) && t.HasLevel && t.Level >= 1)
                 && policy.ResourceThresholds.Select(t => t.DefName).Distinct(StringComparer.Ordinal).Count() == policy.ResourceThresholds.Count
                 && (policy.CombatStopEvents.Count == 0 || policy.Mode == Clock.WatchMode.Combat)

@@ -290,10 +290,6 @@ namespace HomeBridge.BridgeTools
                 s.LastTick = tm.TicksGame;
                 CaptureTypedContext(s);
                 if (StopInvalidTypedAuthority(s)) return;
-                var watchBegan = System.Diagnostics.Stopwatch.GetTimestamp();
-                var latched = CheckWatches(s);
-                s.Timing.WatchElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - watchBegan;
-                if (latched) return;
                 // An armed combat event (#849) stops at this tick's boundary.
                 if (StopOnCombatEvent(s)) return;
                 // Preserve player and letter attribution if the final tick also
@@ -1357,12 +1353,12 @@ namespace HomeBridge.BridgeTools
 
         // Where an epoch's wall time went, per epoch, for the acceptance
         // speed work (#265): game ticks and frames, the tick-boundary hook,
-        // the watch checks inside it, the periodic hazard probe and, apart
+        // the periodic hazard probe and, apart
         // from it (#626), the fact-change digests. Logged once per stop, only
         // under the acceptance test-acceleration launch flag.
         private sealed class EpochTiming
         {
-            public long HookTicks, HookElapsed, WatchElapsed, ProbeElapsed, DigestElapsed;
+            public long HookTicks, HookElapsed, ProbeElapsed, DigestElapsed;
             public int Digests;
             public int Frames, FrameTicks, MaxFrameTicks;
             public long StartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -1375,9 +1371,9 @@ namespace HomeBridge.BridgeTools
             var wall = Ms(System.Diagnostics.Stopwatch.GetTimestamp() - t.StartedAt);
             var ticks = s.LastTick - s.StartTick;
             Log.Message(string.Format(CultureInfo.InvariantCulture,
-                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} watchMs={11:F1} probes={12} probeMs={13:F1} maxProbeTickGap={14} blindBudget={15} maxBlind={16} throttles={17} digests={18} digestMs={19:F1}",
+                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} probes={11} probeMs={12:F1} maxProbeTickGap={13} blindBudget={14} maxBlind={15} throttles={16} digests={17} digestMs={18:F1}",
                 s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
-                t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), Ms(t.WatchElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
+                t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
                 s.BlindTickBudget, s.MaxBlindTicks, s.RegulatorThrottles, t.Digests, Ms(t.DigestElapsed)));
         }
 

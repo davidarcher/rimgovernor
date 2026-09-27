@@ -7,52 +7,6 @@ import (
 	"testing"
 )
 
-func TestResourceHistoryCountsBuildOnceAndScopesWorld(t *testing.T) {
-	ctx := context.Background()
-	s, _ := fixture(t)
-	admission := evidence(10, 100)
-	admission.Costs = append(admission.Costs, MaterialCost{Definition: "Plasteel", Count: 50})
-	if _, err := s.ReserveAndPrepare(ctx, "p", "a", admission); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.Dispatch(ctx, "p", "a", scope(), 10); err != nil {
-		t.Fatal(err)
-	}
-	for _, o := range []domain.Observation{
-		{Action: "a", Attempt: 1, Snapshot: scope(), Tick: 11, Effect: domain.EffectPending, Causality: domain.AfterDispatch, ConstructionObserved: true},
-		{Action: "a", Attempt: 1, Snapshot: scope(), Tick: 12, Effect: domain.EffectCompleted},
-	} {
-		if _, err := s.Observe(ctx, "p", o, scope()); err != nil {
-			t.Fatal(err)
-		}
-	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tx.Rollback()
-	h, err := resourceHistory(ctx, tx, scope(), 60010)
-	if err != nil || len(h.Uses) != 3 {
-		t.Fatal(h, err)
-	}
-	if n, k := h.Uses[0].Count.Value(); !k || n != 100 {
-		t.Fatal(h)
-	}
-	if n, k := h.Uses[2].Count.Value(); !k || n != 50 || h.Uses[2].Resource != "Plasteel" {
-		t.Fatal(h)
-	}
-	forecast := policy.ForecastResourceRunway("Plasteel", domain.Known(int64(10)), domain.Known(int64(0)), 0, h)
-	if deficit, known := forecast.Deficit.Value(); !known || !deficit || forecast.Target != 250 {
-		t.Fatal(forecast)
-	}
-	other := scope()
-	other.Load = "other"
-	h, err = resourceHistory(ctx, tx, other, 60010)
-	if err != nil || len(h.Uses) != 0 || h.Start != h.End {
-		t.Fatal(h, err)
-	}
-}
-
 func TestCompletedBillConsumptionAndReviewPersistence(t *testing.T) {
 	ctx := context.Background()
 	s, path, a := billStoreFixture(t)

@@ -20,11 +20,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
-	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -155,7 +153,7 @@ func accepted(mode, expected string, result executor.Result) bool {
 		}
 	}
 	receipt, known := v.Receipt.Value()
-	return result.NativeCalled && known && receipt == domain.ReceiptAccepted && v.Stage == domain.AwaitingObservation && v.Unresolved
+	return result.NativeCalled && known && receipt == domain.ReceiptAccepted && v.Stage == domain.Completed
 }
 func reserveState(path, mode string) error {
 	if mode == "observe" {
@@ -310,7 +308,7 @@ func perform(opts options, out *report) (err error) {
 	if err != nil {
 		return err
 	}
-	writer, err := bridge.NewBuildingControl(client)
+	writer, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return err
 	}
@@ -340,23 +338,13 @@ func perform(opts options, out *report) (err error) {
 type recordingNative struct {
 	*bridge.Client
 	*bridge.AuthorityControl
-	writer  *bridge.BuildingControl
+	writer  *bridge.ActionsWriter
 	records *[]callRecord
 }
 
-func (n *recordingNative) PlaceBuilding(ctx context.Context, pre *a.WritePrecondition, candidate *p.PlacementCandidate) (*o.ExecuteReply, bridge.Result, error) {
-	reply, raw, err := n.writer.PlaceBuilding(ctx, pre, candidate)
-	*n.records = append(*n.records, callRecord{"operations_execute", raw})
-	return reply, raw, err
-}
-func (n *recordingNative) LookupBuildingAttempt(ctx context.Context, id *c.Identity, key *c.AttemptKey, generation uint64, candidate *p.PlacementCandidate) (*r.LookupReply, bridge.Result, error) {
-	reply, raw, err := n.Client.LookupBuildingAttempt(ctx, id, key, generation, candidate)
-	*n.records = append(*n.records, callRecord{"receipts_lookup", raw})
-	return reply, raw, err
-}
-func (n *recordingNative) ObserveBuildingProgress(ctx context.Context, receipt *r.Receipt, candidate *p.PlacementCandidate) (*r.ProgressReply, bridge.Result, error) {
-	reply, raw, err := n.Client.ObserveBuildingProgress(ctx, receipt, candidate)
-	*n.records = append(*n.records, callRecord{"receipts_observe_progress", raw})
+func (n *recordingNative) Apply(ctx context.Context, identity *c.Identity, actions []*o.Action) (*o.ApplyReply, bridge.Result, error) {
+	reply, raw, err := n.writer.Apply(ctx, identity, actions)
+	*n.records = append(*n.records, callRecord{"operations_apply", raw})
 	return reply, raw, err
 }
 

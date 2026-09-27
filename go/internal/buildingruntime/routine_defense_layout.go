@@ -185,7 +185,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -1116,9 +1116,6 @@ func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain
 		return bridge.BuildingPreview{}, false, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return bridge.BuildingPreview{}, false, defenseControlErr(400)
-	}
 	footprint, fk := v.Footprint.Value()
 	legal, lk := v.CanPlace.Value()
 	safe, sk := v.SafeToPlace.Value()

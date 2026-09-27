@@ -196,7 +196,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 				return RoutineMedicalResult{}, err
 			}
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

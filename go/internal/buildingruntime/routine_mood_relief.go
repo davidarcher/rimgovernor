@@ -162,7 +162,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			if err != nil {
 				return RoutineMoodReliefResult{}, err
 			}
-			open = open || domain.GoalWorkOpen(plan.Progress)
+			open = open || store.PlanOpen(plan)
 		}
 		if open {
 			return RoutineMoodReliefResult{Reason: BuildingMethodExistingWork}, nil

@@ -132,7 +132,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

@@ -47,7 +47,7 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 		t.Fatal(got, err)
 	}
 	plan, err := db.LoadPlan(ctx, got.Decision.Goal.Methods[0].Plan)
-	if err != nil || len(plan.Progress) != 1 || len(plan.Admissions) != 1 || plan.Progress[0].View().Attempt != 0 {
+	if err != nil || len(plan.Progress) != 1 || plan.Progress[0].View().Attempt != 0 {
 		t.Fatal(plan, err)
 	}
 	if again, err := r.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
@@ -92,7 +92,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 		t.Fatal(got, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), got.Decision.Goal.Methods[0].Plan)
-	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 0 {
+	if err != nil || len(plan.Progress) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
 	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {

@@ -58,30 +58,6 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 	}
 }
 
-func TestClockSchedulerWatchesConstructionOnly(t *testing.T) {
-	t.Parallel()
-	items := []clockWorkItem{
-		{Action: "allow", Kind: domain.SupplyAllowAction, Stage: domain.Dispatched, Attempt: 1},
-		{Action: "haul", Kind: domain.HaulAction, Stage: domain.Dispatched, Attempt: 1},
-		{Action: "tend", Kind: domain.TendAction, Stage: domain.Dispatched, Attempt: 1},
-		{Action: "planned", Kind: domain.BuildingAction, Stage: domain.Prepared, Attempt: 1},
-		{Action: "done", Kind: domain.BuildingAction, Stage: domain.Completed, Attempt: 1},
-		{Action: "wall", Kind: domain.BuildingAction, Stage: domain.Dispatched, Attempt: 2},
-		{Action: "door", Kind: domain.BuildingAction, Stage: domain.AwaitingObservation, Attempt: 1},
-	}
-	watched := clockSchedulerWatches(items, "session")
-	if len(watched) != 2 || watched[0].GetActionId() != "wall" || watched[0].GetAttemptId() != 2 || watched[1].GetActionId() != "door" || watched[0].GetControllerSessionId() != "session" {
-		t.Fatal(watched)
-	}
-	var many []clockWorkItem
-	for i := 0; i < 40; i++ {
-		many = append(many, clockWorkItem{Action: domain.ActionID(string(rune('a' + i))), Kind: domain.BuildingAction, Stage: domain.Dispatched, Attempt: 1})
-	}
-	if got := clockSchedulerWatches(many, "session"); len(got) != 16 || got[0].GetActionId() != "a" {
-		t.Fatal(len(got))
-	}
-}
-
 // A page whose external-pause stop precedes the acquisition of the
 // generation authority holds now (the service's own pause, save and
 // resume, as a checkpoint does) acknowledges the interruption hold and does

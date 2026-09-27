@@ -53,18 +53,66 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(ConstructionLineage), nameof(Spawned)));
             installed = true;
         }
-        internal static string? Register(Thing placed, BuildableDef definition)
+        internal static string? Register(Thing placed, BuildableDef definition, string? key = null)
         {
             if (!(definition is ThingDef) || placed?.Map == null) return null;
             var state = State(true);
-            if (state == null || state.Records.Count >= 4096) return null;
+            if (state == null) return null;
+            if (state.Records.Count >= 4096) Prune(state);
+            if (state.Records.Count >= 4096) return null;
             var id = placed.GetUniqueLoadID();
             state.Records.Add(new ConstructionLineageRecord { Origin = id, Current = id,
                 Definition = definition.defName, Stuff = StuffOf(placed),
                 MapId = placed.Map.uniqueID, X = placed.Position.x, Z = placed.Position.z,
                 Rotation = placed.Rotation.AsInt, Started = Find.TickManager.TicksGame,
-                Stage = placed is Blueprint ? "blueprint" : "built" });
+                Stage = placed is Blueprint ? "blueprint" : placed is Frame ? "frame" : "built", Key = key });
             return id;
+        }
+
+        // Prune drops the records whose current object is gone from every
+        // loaded map (destroyed, cancelled or on an abandoned map).
+        private static void Prune(ConstructionLineageState state)
+        {
+            var live = new HashSet<string>();
+            foreach (var map in Find.Maps)
+                foreach (var thing in map.listerThings.AllThings)
+                    live.Add(thing.GetUniqueLoadID());
+            state.Records.RemoveAll(r => !live.Contains(r.Current));
+        }
+
+        // Claim stamps an intent key on a blueprint, frame or building that
+        // already matches the intent: an unkeyed lineage takes the key, a
+        // keyed one keeps its first owner, and an untracked thing starts one.
+        internal static void Claim(Thing thing, BuildableDef definition, string key)
+        {
+            var state = State(true);
+            if (state == null || thing.Map == null) return;
+            var id = thing.GetUniqueLoadID();
+            var record = state.Records.FirstOrDefault(r => r.Current == id && r.MapId == thing.Map.uniqueID);
+            if (record == null) { Register(thing, definition, key); return; }
+            if (string.IsNullOrEmpty(record.Key)) record.Key = key;
+        }
+
+        // Keys maps each built building's load id to the intent key that
+        // placed it, for the building census (BuildingState.intent_key).
+        internal static Dictionary<string, string> Keys(Map map)
+        {
+            var keys = new Dictionary<string, string>();
+            foreach (var r in State()?.Records ?? new List<ConstructionLineageRecord>())
+                if (r.MapId == map.uniqueID && r.Stage == "built" && r.Blocker == null && !string.IsNullOrEmpty(r.Key))
+                    keys[r.Current] = r.Key!;
+            return keys;
+        }
+        // OpenIntents lists the keyed, unblocked lineages still standing as a
+        // blueprint or frame on the map.
+        internal static List<(string Key, string Stage)> OpenIntents(Map map)
+        {
+            var open = new List<(string Key, string Stage)>();
+            var live = new HashSet<string>(map.listerThings.AllThings.Select(t => t.GetUniqueLoadID()));
+            foreach (var r in State()?.Records ?? new List<ConstructionLineageRecord>())
+                if (r.MapId == map.uniqueID && (r.Stage == "blueprint" || r.Stage == "frame") && r.Blocker == null && !string.IsNullOrEmpty(r.Key) && live.Contains(r.Current))
+                    open.Add((r.Key!, r.Stage));
+            return open;
         }
         private static void FrameCreated(Blueprint_Build __instance, Thing __result)
         {

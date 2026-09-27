@@ -8,20 +8,21 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// Completed methods retain identity evidence after catalog retirement and
-// Manual. Explicit goal cancellation revokes upkeep ownership; world changes,
-// future observations and work completed only after cancellation confer none.
+// Every applied building intent of an autopilot goal claims what its key
+// builds (policy.OwnedConstructions matches the census row's intent key),
+// through catalog retirement and Manual. Explicit goal cancellation revokes
+// upkeep ownership; world changes and future receipts confer none.
 //
-// Only a plan holding a building action with an observe transition can carry a
-// completed building (domain.Progress reaches Completed solely through
-// Observe), so the link query excludes the rest before the full plan load;
-// every historical method is otherwise replayed on each routine review (#84).
+// Only a plan holding a building action with an accepted receipt can carry
+// an applied intent, so the link query excludes the rest before the full
+// plan load; every historical method is otherwise replayed on each routine
+// review (#84).
 func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.ConstructionClaim], error) {
 	unknown := domain.Unknown[[]policy.ConstructionClaim]()
 	rows, err := tx.QueryContext(ctx, `SELECT m.plan_id,m.goal_id FROM goal_methods m JOIN goals g ON g.id=m.goal_id
  WHERE json_extract(g.payload,'$.Source')=? AND json_extract(g.payload,'$.Snapshot.Colony')=?
  AND json_extract(g.payload,'$.Snapshot.Load')=? AND json_extract(g.payload,'$.Snapshot.Map')=?
- AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND json_extract(t.payload,'$.Kind')='observe')
+ AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND json_extract(t.payload,'$.Kind')='receipt' AND json_extract(t.payload,'$.Receipt')='accepted')
  ORDER BY m.plan_id LIMIT 257`, domain.AutopilotGoal, current.Colony, current.Load, current.Map)
 	if err != nil {
 		return unknown, err
@@ -68,12 +69,11 @@ func constructionClaims(ctx context.Context, tx *sql.Tx, current domain.Generati
 		for _, progress := range plan.Progress {
 			v := progress.View()
 			building, isBuilding := progress.Action().Building()
-			identity, known := v.Construction.Value()
 			effect, ek := v.Effect.Value()
-			if !isBuilding || !known || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
+			if !isBuilding || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, policy.ConstructionClaim{Plan: link.plan, Action: v.Action, Goal: link.goal, Identity: identity, Building: building})
+			result = append(result, policy.ConstructionClaim{Plan: link.plan, Action: v.Action, Goal: link.goal, Building: building})
 			if len(result) > 256 {
 				return unknown, nil
 			}

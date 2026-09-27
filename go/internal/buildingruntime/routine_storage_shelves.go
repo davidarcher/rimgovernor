@@ -153,7 +153,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		}
 		owner[z.ID] = z
 		request.Zones = append(request.Zones, policy.ShelfZone{Zone: z.ID, Cells: cells, Filter: z.Filter, Priority: z.Priority})
-		shelves, index, err := zoneShelves(call, p.journal, state.Snapshot, z.ID)
+		shelves, index, err := zoneShelves(call, p.journal, state.Snapshot, z.ID, facts.Facts.CurrentConstruction)
 		if err != nil {
 			return RoutineStorageShelvesResult{}, err
 		}
@@ -173,7 +173,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 
 // zoneShelves reads back the zone's shelf plans in index order: the
 // shelves built or in flight, and the next free index.
-func zoneShelves(ctx context.Context, journal *store.Store, s domain.GenerationSnapshot, zone string) ([]policy.ShelfRecord, int, error) {
+func zoneShelves(ctx context.Context, journal *store.Store, s domain.GenerationSnapshot, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
 	var out []policy.ShelfRecord
 	for index := 0; index < maxShelvesPerZone; index++ {
 		plan, err := journal.LoadPlan(ctx, shelfPlanID(s, zone, index))
@@ -197,17 +197,18 @@ func zoneShelves(ctx context.Context, journal *store.Store, s domain.GenerationS
 				}
 			}
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanWorkOpen(plan, census) {
 			record.Open = true
 			out = append(out, record)
 			continue
 		}
-		if !routineBuildingCompleted(plan.Progress) {
+		if !policy.PlanBuilt(plan.Progress, census) {
 			continue
 		}
+		built, _ := policy.BuiltActions(census)
 		for _, progress := range plan.Progress {
-			if built, ok := progress.View().Construction.Value(); ok {
-				record.Building = built.Current
+			if id, ok := built[progress.View().Action]; ok {
+				record.Building = id
 			}
 		}
 		if record.Building == "" {
@@ -259,9 +260,6 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 			return RoutineStorageShelvesResult{}, err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return RoutineStorageShelvesResult{}, ErrControl
-		}
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
@@ -273,7 +271,7 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 			return RoutineStorageShelvesResult{}, err
 		}
 		method := domain.MethodID(fmt.Sprintf("storage-shelf-%s-%d", step.Zone.Zone, index))
-		result, err := building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Routine, check: check})
+		result, err := building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Routine})
 		if err != nil || result.Reason != BuildingMethodAdmitted {
 			return RoutineStorageShelvesResult{Reason: result.Reason}, err
 		}

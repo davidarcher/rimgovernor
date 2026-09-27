@@ -208,7 +208,6 @@ namespace HomeBridge.BridgeTools
             s.LastTick = Verse.Find.TickManager.TicksGame; CaptureTypedContext(s);
             if (s.PendingKind != null) { Stop(s, s.PendingKind, s.PendingDetail, true, null); return; }
             if (StopInvalidTypedAuthority(s)) return;
-            if (CheckWatches(s)) return;
             if (s.LastTick >= s.TickDeadline) Stop(s, "tick_budget", "Budget", true, null);
         }
     }

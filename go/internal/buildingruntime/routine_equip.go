@@ -85,7 +85,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil {
 			return RoutineEquipResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineEquipResult{Reason: BuildingMethodExistingWork}, nil
 		}
 		for _, progress := range plan.Progress {

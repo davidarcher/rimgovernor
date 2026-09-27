@@ -54,8 +54,10 @@ message Operation {
   // Movement moved to Actions/Apply (MoveIntent).
   reserved 34;
   reserved "move_pawn";
+  // Building placement moved to Actions/Apply (BuildingIntent, #856).
+  reserved 1;
+  reserved "place_building";
   oneof command {
-    PlaceBuilding place_building = 1;
     CancelConstruction cancel_construction = 2;
     InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
@@ -129,7 +131,6 @@ message DefCount { optional string def_name = 1; optional int32 count = 2; }
 message CellList { repeated rimgovernor.common.v1.Cell cells = 1; }
 message Rectangle { rimgovernor.common.v1.Cell origin = 1; optional int32 width = 2; optional int32 height = 3; }
 message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectangle = 2; } }
-message PlaceBuilding { rimgovernor.placement.v1.PlacementCandidate placement = 1; }
 // Excavation designates one rock cell for ordinary pawn mining as part of a
 // staged room/corridor. An existing Mine designation at the cell is adopted.
 message ExcavateCell { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; optional string expected_snapshot_token = 3; }
@@ -445,11 +446,12 @@ message ApplyRequest {
   rimgovernor.common.v1.Identity identity = 1;
   repeated Action actions = 2;
 }
-// One intent kind per arm; 11 is held for shelter_bunks.
+// One intent kind per arm.
 message Action {
   optional string key = 1;
   oneof intent {
     TradeIntent trade = 10;
+    BuildingIntent building = 11;
     MoveIntent move = 12;
     HaulIntent haul = 13;
     MeleeIntent melee = 14;
@@ -477,6 +479,15 @@ message MoveIntent {
 message HaulIntent {
   optional string pawn_id = 1;
   optional string thing_id = 2;
+}
+// Place one ordinary blueprint (or an instant building). Native validates the
+// placement against live state and refuses with the placement reason; a
+// matching blueprint, frame or building already on the cell counts as
+// applied. Native stamps what it places with the action key and carries the
+// key blueprint -> frame -> building, saved with the game, so the building
+// census reports which intent built each building (BuildingState.intent_key).
+message BuildingIntent {
+  rimgovernor.placement.v1.PlacementCandidate placement = 1;
 }
 // One step against RimWorld's single live trade session, named by its
 // trader and negotiator (the step's own ids are ignored).

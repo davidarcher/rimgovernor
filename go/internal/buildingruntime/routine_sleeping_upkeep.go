@@ -202,7 +202,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

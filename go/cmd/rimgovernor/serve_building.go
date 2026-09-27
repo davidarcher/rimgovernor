@@ -194,10 +194,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	writes, err := bridge.NewBuildingControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	drafts, err := bridge.NewDraftControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -358,7 +354,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes, moodReliefWorld: client,
+	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter, moodReliefWorld: client,
 		bills:           &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:           &zone.ZoneCapabilities{Native: client, Writer: zones},
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
@@ -964,8 +960,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if client.movement != nil {
 		arrival.Moves = client.movement.Writer
 	}
-	previews, _ := client.native.(buildingruntime.BuildingPreviewSource)
-	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Pawns: arrival.Pawns, Moves: arrival.Moves, Previews: previews, RoutineMethods: config.routineMethods,
+	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Pawns: arrival.Pawns, Moves: arrival.Moves, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
 		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity,
 	}, player, session)

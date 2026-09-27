@@ -26,6 +26,9 @@ type WallRemovalAdmission struct {
 	BackupOf       domain.ActionID
 	TargetIdentity string
 	SiteEligible   bool
+	// BackupBuilt: the census reports the backup wall built under its
+	// intent key (#856). An applied receipt only proves the blueprint.
+	BackupBuilt bool `json:",omitempty"`
 }
 type ActionWallRemovalAdmission struct {
 	Action    domain.ActionID
@@ -48,8 +51,8 @@ func validateWallRemovalAdmission(a domain.Action, p domain.Progress, admission 
 		if admission.Original == "" || admission.TargetIdentity != admission.Original {
 			return errors.New("original wall removal admission must target its proven original identity")
 		}
-	} else if admission.TargetIdentity == "" {
-		return errors.New("backup wall removal admission requires a proven target identity")
+	} else if admission.TargetIdentity == "" || !admission.BackupBuilt {
+		return errors.New("backup wall removal admission requires its backup wall built under a proven identity")
 	}
 	return nil
 }
@@ -104,9 +107,8 @@ func (s *Store) PrepareWallRemoval(ctx context.Context, plan domain.PlanID, acti
 			return domain.Progress{}, ErrNotFound
 		}
 		bv := backup.View()
-		identity, known := bv.Construction.Value()
 		effect, ek := bv.Effect.Value()
-		if bv.Stage != domain.Completed || !known || !ek || effect != domain.EffectCompleted || identity.Current != admission.TargetIdentity {
+		if bv.Stage != domain.Completed || !ek || effect != domain.EffectCompleted {
 			return domain.Progress{}, errors.New("backup wall removal admission does not match its completed backup construction")
 		}
 	}

@@ -84,7 +84,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		if err != nil {
 			return RoutinePopulationCustodyResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

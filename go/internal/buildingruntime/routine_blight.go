@@ -96,7 +96,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineBlightResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineBlightResult{Reason: BuildingMethodExistingWork}, nil
 		}
 		for _, progress := range plan.Progress {

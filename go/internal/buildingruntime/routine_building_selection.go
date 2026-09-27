@@ -10,9 +10,16 @@ import (
 
 const BuildingExistingFacility RoutineBuildingReason = "existing_facility_needs_bill_or_upkeep"
 
+// pendingWork is open work on one action, counting an applied building
+// whose blueprint or frame may still stand (#856): only census-aware plan
+// retirement settles it.
+func pendingWork(progress domain.Progress) bool {
+	return domain.GoalWorkOpen([]domain.Progress{progress}) || policy.AppliedBuildingOpen(progress, domain.Unknown[policy.CurrentConstruction]())
+}
+
 func pendingFacility(progress domain.Progress, definition string) bool {
 	building, ok := progress.Action().Building()
-	return ok && building.Definition() == definition && domain.GoalWorkOpen([]domain.Progress{progress})
+	return ok && building.Definition() == definition && pendingWork(progress)
 }
 
 func NewRoutineCookingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {

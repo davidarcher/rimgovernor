@@ -194,9 +194,6 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 			return RoutineBuildingResult{}, err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return RoutineBuildingResult{}, ErrControl
-		}
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !ck || !can || !sk || !safe {
@@ -212,5 +209,5 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
 	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.Goal.ID, u.Room, u.Def, len(selected), u.Weakest)
-	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, check: check})
+	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

@@ -48,7 +48,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 	}
 }
 
-func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) {
+func TestRoutineBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	t.Parallel()
 	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "HiddenConduit"} {
 		t.Run(definition, func(t *testing.T) {
@@ -81,11 +81,11 @@ func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *tes
 			if budget(state, current, 7) != 0 {
 				t.Fatal("pending furniture granted time")
 			}
-			p, err = p.Prepare(snapshot, 7)
+			p, err = p.Prepare(snapshot, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
-			p, err = p.MarkDispatched(snapshot, 7)
+			p, err = p.MarkDispatched(snapshot, 100)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -93,14 +93,7 @@ func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *tes
 			if err != nil {
 				t.Fatal(err)
 			}
-			state.Progress[0] = p
-			if budget(state, current, 7) != 0 {
-				t.Fatal("receipt granted time")
-			}
-			p, err = p.Observe(domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
-			if err != nil {
-				t.Fatal(err)
-			}
+			// The apply receipt settles the building (#856).
 			state.Progress[0] = p
 			for _, row := range []struct {
 				tick domain.Tick

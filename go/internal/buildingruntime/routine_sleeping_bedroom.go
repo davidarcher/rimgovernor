@@ -191,9 +191,6 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 			return RoutineBuildingResult{}, err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return RoutineBuildingResult{}, ErrControl
-		}
 		footprint, fk := v.Footprint.Value()
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
@@ -209,5 +206,5 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if len(selected) == 0 {
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, check: check})
+	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

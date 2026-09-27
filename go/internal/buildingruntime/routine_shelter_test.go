@@ -97,7 +97,7 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 		t.Fatal(result, err, n.previews, n.calls)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
-	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 0 {
+	if err != nil || len(plan.Progress) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
 	actions := plan.Spec.Actions()
@@ -115,11 +115,6 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 		// Every wall is dispatchable alongside the unbuilt door.
 		if err := plan.Spec.CheckDependencies(action.ID(), plan.Progress, snapshot, 7); err != nil {
 			t.Fatal("wall waits for the door", action, err)
-		}
-	}
-	for _, admission := range plan.Admissions {
-		if admission.Admission.Purpose != policy.Shelter {
-			t.Fatal("shell not admitted as shelter work", admission)
 		}
 	}
 	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork || n.previews != 32 {
@@ -162,8 +157,8 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if err != nil || len(plan.Progress) != 32 {
 				t.Fatal(plan, err)
 			}
-			if len(plan.Admissions) != 32 || len(result.Decision.Refused) != 0 {
-				t.Fatal("shell not admitted whole", len(plan.Admissions), result.Decision.Refused)
+			if len(result.Decision.Refused) != 0 {
+				t.Fatal("shell not admitted whole", len(plan.Progress), result.Decision.Refused)
 			}
 			if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
 				t.Fatal(again, err)
@@ -200,13 +195,13 @@ func TestRoutineShelterHoldsThroughWoodShortage(t *testing.T) {
 		t.Fatal("second shell or order under the shortage", len(plans), err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shell)
-	if err != nil || len(plan.Progress) != 32 || !domain.GoalWorkOpen(plan.Progress) {
+	if err != nil || len(plan.Progress) != 32 || !store.PlanOpen(plan) {
 		t.Fatal("adopted shell dropped", plan, err)
 	}
 }
 
 func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
-	for _, change := range []string{"late-refusal", "footprint", "stock-conflict", "definition", "room-unknown", "terrain", "zone", "protected", "direction"} {
+	for _, change := range []string{"late-refusal", "footprint", "stock-conflict", "definition", "room-unknown", "terrain", "zone", "protected"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, n := shelterFixture(t)
 			base := n.onPreview
@@ -223,11 +218,6 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 					if n.previews == 32 {
 						v.Stock.Values[0].Available = domain.Known(int64(179))
 					}
-				case "direction":
-					session := r.reviewer.player.session.(*playerFakeSession)
-					session.mu.Lock()
-					session.state.Snapshot.Native++
-					session.mu.Unlock()
 				}
 			}
 			planning := n.reply.GetObserved().Planning.GetObserved()
@@ -280,7 +270,7 @@ func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 	}
 }
 
-func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testing.T) {
+func TestShelterRoofingBudgetCountsFromTheApplyReceiptAndDoesNotRenew(t *testing.T) {
 	t.Parallel()
 	r, db, _ := shelterFixture(t)
 	result, err := r.Step(context.Background())
@@ -298,25 +288,15 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 		t.Fatal("pending shell granted roofing time")
 	}
 	for i, p := range plan.Progress {
-		p, err = p.Prepare(snapshot, 7)
+		p, err = p.Prepare(snapshot, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p, err = p.MarkDispatched(snapshot, 7)
+		p, err = p.MarkDispatched(snapshot, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
 		p, err = p.RecordReceipt(1, domain.ReceiptAccepted)
-		if err != nil {
-			t.Fatal(err)
-		}
-		plan.Progress[i] = p
-	}
-	if shelterNativeWorkTicks(plan, current, 7) != 0 {
-		t.Fatal("receipts granted roofing time")
-	}
-	for i, p := range plan.Progress {
-		p, err = p.Observe(domain.Observation{Action: p.Action().ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -392,18 +372,14 @@ func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result Routine
 	}
 	snapshot := result.Decision.Goal.Goal.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
-	for i, action := range plan.Spec.Actions() {
-		admission := plan.Admissions[i]
-		if admission.Action != action.ID() {
-			t.Fatal(admission)
-		}
-		if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), action.ID(), admission.Admission); err != nil {
+	for _, action := range plan.Spec.Actions() {
+		if _, err := db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := db.Observe(ctx, plan.Spec.ID(), domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+		if _, err := db.RecordReceipt(ctx, plan.Spec.ID(), action.ID(), 1, domain.ReceiptAccepted); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -450,6 +426,10 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 		t.Fatal(shell, err)
 	}
 	completeRoutineBuildingMethod(t, db, shell)
+	markBuilt(t, db, n.routineNative)
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	// Some of the room is now roofed and can hold spots; the native capacity
 	// census still refuses to count a room with any open roof cells.
 	for _, c := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
@@ -464,6 +444,10 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 		t.Fatal(furnish, err)
 	}
 	completeRoutineBuildingMethod(t, db, furnish)
+	markBuilt(t, db, n.routineNative)
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	remaining, err := r.Step(ctx)
 	if err != nil || remaining.NativeWorkTicks != 10000 {
 		t.Fatal("furnishing stopped unfinished roofing", remaining, err)
@@ -565,12 +549,9 @@ func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	for i, p := range plan.Progress {
 		for _, step := range []func() (domain.Progress, error){
-			func() (domain.Progress, error) { return p.Prepare(snapshot, 7) },
-			func() (domain.Progress, error) { return p.MarkDispatched(snapshot, 7) },
+			func() (domain.Progress, error) { return p.Prepare(snapshot, 100) },
+			func() (domain.Progress, error) { return p.MarkDispatched(snapshot, 100) },
 			func() (domain.Progress, error) { return p.RecordReceipt(1, domain.ReceiptAccepted) },
-			func() (domain.Progress, error) {
-				return p.Observe(domain.Observation{Action: p.Action().ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
-			},
 		} {
 			if p, err = step(); err != nil {
 				t.Fatal(err)
@@ -1087,7 +1068,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	if err != nil || first.Reason != BuildingMethodAdmitted {
 		t.Fatal(first, err)
 	}
-	// The shell settles with one wall unsuccessful (the player cancelled its
+	// The shell settles with one wall unsuccessful (native refused its
 	// frame in-game); the goal keeps its epoch, so the bound method alone
 	// would leave the gap forever.
 	plan, err := db.LoadPlan(ctx, shellMethod(first.Decision.Goal).Plan)
@@ -1104,14 +1085,13 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	if b, _ := action.Building(); b.Cell() != gap.Cell() || b.Definition() != gap.Definition() {
 		t.Fatal("initial method issued the wrong cell", b, gap)
 	}
-	if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), action.ID(), plan.Admissions[0].Admission); err != nil {
+	if _, err := db.Prepare(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
 		t.Fatal(err)
 	}
-	failed := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectUnsuccessful, UnsuccessfulReason: domain.NativeCancelled, Causality: domain.AfterDispatch}
-	if _, err := db.Observe(ctx, plan.Spec.ID(), failed, snapshot); err != nil {
+	if _, err := db.RecordReceipt(ctx, plan.Spec.ID(), action.ID(), 1, domain.ReceiptRefused); err != nil {
 		t.Fatal(err)
 	}
 	n.last = r.reviewer.player.session.State().Snapshot

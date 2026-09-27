@@ -82,7 +82,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineNamingResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineNamingResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

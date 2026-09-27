@@ -34,7 +34,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zonedelete"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -175,8 +174,6 @@ func (s *sessionSink) stop(ctx context.Context) error {
 	return err
 }
 
-type sessionHolds struct{ journal *store.Store }
-
 type sessionBuildingLeases struct {
 	control *Control
 	journal *store.Store
@@ -233,10 +230,6 @@ func (l lazyRoutineLeases) Lease(target domain.GenerationSnapshot) (string, erro
 		return "", err
 	}
 	return control.Lease(root.Snapshot)
-}
-
-func (s sessionHolds) Holds(ctx context.Context, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
-	return executor.ExternalHolds(ctx, s.journal, current)
 }
 
 func NewSession(ctx context.Context, config SessionConfig, journal *store.Store, native boundary.Native, authority NativeAuthority, writer boundary.BuildingWriter, clock executor.Clock) (*Session, error) {
@@ -303,7 +296,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	sink.mu.Lock()
 	sink.control = control
 	sink.mu.Unlock()
-	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, sessionHolds{journal}, clock, string(namespace))
+	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 	if err != nil {
 		return cleanup(err)
 	}

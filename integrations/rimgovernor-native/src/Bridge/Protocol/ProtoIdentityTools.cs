@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
                     loaded.Capabilities.Add(new Lifecycle.Capability
                     {
                         FullMethodName = "rimgovernor.operations.v1.Operations/" + method,
-                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding and temporary SetDrafted are implemented; persistent drafting and other commands return unsupported."
+                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "Typed colony operations are implemented; building placement goes through Actions/Apply and unimplemented commands return unsupported."
                     });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {

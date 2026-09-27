@@ -165,7 +165,6 @@ func TestAdmissionSkipsStock(t *testing.T) {
 	}
 }
 func TestCancellationRetainsUncertainReservation(t *testing.T) {
-	ctx := current()
 	old := issue(t, candidate(t, "old", 1, 100))
 	p, err := old.Progress.Cancel()
 	if err != nil {
@@ -175,13 +174,14 @@ func TestCancellationRetainsUncertainReservation(t *testing.T) {
 	r := request(candidate(t, "new", 1, 1))
 	r.Held = []Reservation{hold(old)}
 	reason(t, r, GeometryBlocked)
-	old.Progress, err = old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: ctx, Tick: 11, Effect: domain.EffectUnknown}, ctx)
+	unknown := old
+	unknown.Progress, err = old.Progress.RecordReceipt(1, domain.ReceiptUnknown)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.Held = []Reservation{hold(old)}
+	r.Held = []Reservation{hold(unknown)}
 	reason(t, r, GeometryBlocked)
-	old.Progress, err = old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: ctx, Tick: 12, Effect: domain.EffectAbsent}, ctx)
+	old.Progress, err = old.Progress.RecordReceipt(1, domain.ReceiptRefused)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			p, err := old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: current(), Tick: 15, Effect: domain.EffectCompleted}, current())
+			p, err := old.Progress.RecordReceipt(1, domain.ReceiptAccepted)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -232,9 +232,11 @@ func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
 			r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
 			reason(t, r, UnsafePlacement)
 			r.Candidates = []Candidate{candidate(t, "new", 1, 1)}
-			r.Stock.Tick = 14
-			r.CurrentTick = 14
-			r.Candidates[0].Preview.Tick = 14
+			// A receipt settles at the dispatch tick (10); facts older than it
+			// cannot release the geometry.
+			r.Stock.Tick = 9
+			r.CurrentTick = 9
+			r.Candidates[0].Preview.Tick = 9
 			reason(t, r, GeometryBlocked)
 			r.CurrentTick = 20
 			r.Candidates[0].Preview.Tick = 20
@@ -288,7 +290,7 @@ func TestCompletedAndCancelledIntentIsNotAdmissible(t *testing.T) {
 	}
 	reason(t, request(c), NotReady)
 	c = issue(t, candidate(t, "a", 1, 10))
-	c.Progress, err = c.Progress.Observe(domain.Observation{Action: "a", Attempt: 1, Snapshot: current(), Tick: 11, Effect: domain.EffectCompleted}, current())
+	c.Progress, err = c.Progress.RecordReceipt(1, domain.ReceiptAccepted)
 	if err != nil {
 		t.Fatal(err)
 	}

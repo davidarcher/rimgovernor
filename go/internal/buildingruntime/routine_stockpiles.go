@@ -166,7 +166,7 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	}
 	request := stockpileRequest(projection, owned, patches, benches)
 	for _, z := range request.Zones {
-		shelves, _, err := zoneShelves(ctx, r.player.journal, snapshot, z.ID)
+		shelves, _, err := zoneShelves(ctx, r.player.journal, snapshot, z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
 			return policy.StockpileRequest{}, false, err
 		}
@@ -371,7 +371,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		if err != nil {
 			return RoutineStockpileResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineStockpileResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

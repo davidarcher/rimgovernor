@@ -84,7 +84,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineRescueResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineRescueResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

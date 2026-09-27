@@ -1,11 +1,9 @@
 // The animals/containment case exercises the MaintainAnimalContainment
 // native dispatch vertical (G01.07e, issue #27) end to end against a live
-// game: the same ordinary typed PlaceBuilding operation
-// (rimgovernor/operations_execute, already generically proven live by
-// cmd/constructionaccept and cmd/guardedconstructionaccept) is used to build
-// a durable Fence/FenceGate pen shell and a PenMarker exactly the way
+// game: one rimgovernor/operations_apply batch of BuildingIntents (#856)
+// authors a durable Fence/FenceGate pen shell and a PenMarker exactly the way
 // buildingruntime.RoutineAnimalContainmentPlanner's buildShell/placeMarker
-// compose it, then real game ticks carry a genuinely uncontained,
+// compose it, then real game ticks build it and carry a genuinely uncontained,
 // pen-requiring herd animal into that pen -- observed via
 // rimgovernor/observations_read_colony_facts's native AnimalFeed/AnimalState
 // facts (Contained=true, a non-empty PenId), not just a receipt. A
@@ -34,7 +32,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "animals/containment",
 		Scope: "Native MaintainAnimalContainment dispatch: a real Fence/FenceGate pen shell and " +
-			"PenMarker built through the typed PlaceBuilding operations contract, then a genuinely uncontained " +
+			"PenMarker authored as Actions/Apply building intents, then a genuinely uncontained " +
 			"pen-requiring herd animal carried into that pen by real native ticks (observed via " +
 			"observations_read_colony_facts, not just a receipt), while a non-pen-requiring pet is left alone.",
 		// Sited on the audited baseline: an unpinned debug start draws a
@@ -60,8 +58,8 @@ func run(ctx context.Context, s cases.Session) error {
 	h := s.Harness()
 	identity := s.Identity()
 	prepared := s.Prepared()
-	if !na.Contains(s.Names(), "rimgovernor/operations_execute") {
-		return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
+	if !na.Contains(s.Names(), "rimgovernor/operations_apply") {
+		return fmt.Errorf("missing rimgovernor/operations_apply in discovery")
 	}
 	animalID := na.AsString(prepared["animal"])
 	petID := na.AsString(prepared["pet"])
@@ -78,197 +76,82 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["fixture_room"] = room
 
-	// Authority is a single Auto/Manual mode switch (SIMP02): SetMode(Auto)
-	// grants outright at the current generation and there is no lease to
-	// renew or lose. Fixture spawning above and the Fast-speed observation
-	// windows below do not revoke anything; the per-write generation is simply
-	// re-read fresh before each dispatch. grantAuto is re-issued before the
-	// marker dispatch purely to mirror the production controller's own
-	// re-grant after a long observation window.
-	grantAuto := func(label string) error {
-		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
-		return err
-	}
-	if err := grantAuto("grant-auto"); err != nil {
+	// Authority is a single Auto/Manual mode switch (SIMP02): Actions/Apply
+	// applies under current native authority, so Auto is granted once.
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "grant-auto", identity); err != nil {
 		return err
 	}
 
-	currentGeneration := func(label string) (any, error) {
-		reply, err := h.Wire(ctx, label, "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return nil, err
-		}
-		_, status, err := na.Outcome(reply, "status")
-		if err != nil {
-			return nil, err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		return statusContext["nativeGeneration"], nil
-	}
-	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
-		return map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": generation,
-				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
-			},
-			"operation": operation,
-		}
-	}
-	placeOperation := func(defName, stuff string, x, z int) map[string]any {
-		placement := map[string]any{"defName": defName, "x": x, "z": z, "rotation": "ROTATION_NORTH"}
-		if stuff != "" {
-			placement["stuff"] = stuff
-		}
-		return map[string]any{"placeBuilding": map[string]any{"placement": placement}}
-	}
-	attemptRef := func(request map[string]any) map[string]any {
-		precondition, _ := na.AsMap(request["precondition"])
-		return map[string]any{"identity": identity, "attempt": precondition["attempt"]}
-	}
-
-	// --- Build the pen shell: 19 Fence + 1 FenceGate, matching
-	// previewPenShell's own perimeter/door layout exactly (door anchoring the
-	// south wall's center, Fence elsewhere). ---
+	// Author the whole pen in one Actions/Apply batch (#856): 19 Fence + 1
+	// FenceGate matching previewPenShell's perimeter/door layout (door
+	// anchoring the south wall's center, Fence elsewhere), and the PenMarker
+	// at the shell's nearest-northwest interior corner, as placeMarker picks.
 	type cellPlan struct {
-		defName string
-		x, z    int
+		defName, stuff string
+		x, z           int
 	}
-	door := cellPlan{"FenceGate", roomX + roomWidth/2, roomZ}
-	perimeter := []cellPlan{door}
+	door := cellPlan{"FenceGate", "WoodLog", roomX + roomWidth/2, roomZ}
+	pen := []cellPlan{door}
 	for x := roomX; x < roomX+roomWidth; x++ {
 		for z := roomZ; z < roomZ+roomHeight; z++ {
 			if x == door.x && z == door.z {
 				continue
 			}
 			if x == roomX || x == roomX+roomWidth-1 || z == roomZ || z == roomZ+roomHeight-1 {
-				perimeter = append(perimeter, cellPlan{"Fence", x, z})
+				pen = append(pen, cellPlan{"Fence", "WoodLog", x, z})
 			}
 		}
 	}
-	if len(perimeter) != 20 {
-		return fmt.Errorf("expected a 20-cell pen shell perimeter (19 Fence + 1 FenceGate), got %d", len(perimeter))
+	if len(pen) != 20 {
+		return fmt.Errorf("expected a 20-cell pen shell perimeter (19 Fence + 1 FenceGate), got %d", len(pen))
 	}
-
-	// Preview the door placement once: accepted, but never mutates the live
-	// building census, mirroring every other accept tool's own preview check.
-	previewReply, err := h.Wire(ctx, "preview-door", "operations_preview", map[string]any{
-		"identity": identity, "operation": placeOperation(door.defName, "WoodLog", door.x, door.z),
-	})
+	pen = append(pen, cellPlan{"PenMarker", "", roomX + 1, roomZ + 1})
+	actions := make([]any, 0, len(pen))
+	for i, cell := range pen {
+		placement := map[string]any{"defName": cell.defName, "x": cell.x, "z": cell.z, "rotation": "ROTATION_NORTH"}
+		if cell.stuff != "" {
+			placement["stuff"] = cell.stuff
+		}
+		actions = append(actions, map[string]any{"key": fmt.Sprintf("%s-pen-%d", sessionOwner, i), "building": map[string]any{"placement": placement}})
+	}
+	request := map[string]any{"identity": identity, "actions": actions}
+	reply, err := h.Wire(ctx, "apply-pen", "operations_apply", request)
 	if err != nil {
 		return err
 	}
-	previewEvaluated, ok := na.AsMap(previewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview-door: expected an evaluated reply, got %#v", previewReply)
+	results := na.AsSlice(reply["results"])
+	if len(results) != len(pen) {
+		return fmt.Errorf("apply-pen: expected %d results, got %#v", len(pen), reply)
 	}
-	if accepted, _ := na.AsBool(previewEvaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview-door: expected the FenceGate placement to be accepted, got %#v", previewEvaluated)
-	}
-
-	// The single SetMode(Auto) above covers this whole run of dispatches;
-	// only the per-cell generation is re-read fresh.
-	shellAttempts := make([]map[string]any, 0, len(perimeter))
-	for i, cell := range perimeter {
-		generation, err := currentGeneration(fmt.Sprintf("generation-shell-%d", i))
-		if err != nil {
-			return err
-		}
-		request := buildRequest(fmt.Sprintf("pen-shell-%d", i), generation, placeOperation(cell.defName, "WoodLog", cell.x, cell.z))
-		reply, err := h.Wire(ctx, fmt.Sprintf("place-shell-%d", i), "operations_execute", request)
-		if err != nil {
-			return err
-		}
-		_, receipt, err := na.Outcome(reply, "receipt")
-		if err != nil {
-			return err
-		}
-		applied, ok := na.AsMap(receipt["applied"])
-		if !ok {
-			return fmt.Errorf("place-shell-%d: expected an applied outcome, got %#v", i, receipt)
-		}
+	for i, raw := range results {
+		result, _ := na.AsMap(raw)
+		receipt, _ := na.AsMap(result["applied"])
+		applied, _ := na.AsMap(receipt["applied"])
 		observed, _ := na.AsMap(applied["observed"])
 		construction, ok := na.AsMap(observed["construction"])
 		if !ok {
-			return fmt.Errorf("place-shell-%d: expected a construction effect, got %#v", i, observed)
+			return fmt.Errorf("apply-pen %d (%s): expected an applied construction effect, got %#v", i, pen[i].defName, result)
 		}
 		if na.AsString(construction["stage"]) != "CONSTRUCTION_STAGE_BLUEPRINT" {
-			return fmt.Errorf("place-shell-%d: expected an initial Blueprint stage, got %#v", i, construction)
+			return fmt.Errorf("apply-pen %d (%s): expected an initial Blueprint stage, got %#v", i, pen[i].defName, construction)
 		}
-		shellAttempts = append(shellAttempts, attemptRef(request))
 	}
-	report["shell_cells_placed"] = len(shellAttempts)
+	report["pen_cells_placed"] = len(results)
 
-	// Observe: run real game time forward until every shell blueprint is
-	// actually built by the fixture's prepared handler/builder, not just
-	// issued; absence of the blueprint stage never proves completion by
-	// itself.
-	if _, err := na.ObserveCompleted(ctx, h, "observe-shell", 4*na.TicksPerDay, shellAttempts...); err != nil {
-		return err
-	}
-	report["shell_built"] = true
-
-	// --- Place the PenMarker at the shell's interior, matching placeMarker's
-	// own nearest-northwest-interior-corner choice. ---
-	markerX, markerZ := roomX+1, roomZ+1
-	if err := grantAuto("grant-auto-marker"); err != nil {
-		return err
-	}
-	markerGeneration, err := currentGeneration("generation-marker")
+	// Replay: resending the same keys returns the first results unchanged.
+	replay, err := h.Wire(ctx, "replay-pen", "operations_apply", request)
 	if err != nil {
 		return err
 	}
-	markerRequest := buildRequest("pen-marker", markerGeneration, placeOperation("PenMarker", "", markerX, markerZ))
-	markerReply, err := h.Wire(ctx, "place-marker", "operations_execute", markerRequest)
-	if err != nil {
-		return err
-	}
-	_, markerReceipt, err := na.Outcome(markerReply, "receipt")
-	if err != nil {
-		return err
-	}
-	markerApplied, ok := na.AsMap(markerReceipt["applied"])
-	if !ok {
-		return fmt.Errorf("place-marker: expected an applied outcome, got %#v", markerReceipt)
-	}
-	markerObserved, _ := na.AsMap(markerApplied["observed"])
-	if _, ok := na.AsMap(markerObserved["construction"]); !ok {
-		return fmt.Errorf("place-marker: expected a construction effect, got %#v", markerObserved)
-	}
-	markerAttempt := attemptRef(markerRequest)
-
-	if _, err := na.ObserveCompleted(ctx, h, "observe-marker", na.TicksPerDay, markerAttempt); err != nil {
-		return err
-	}
-	report["marker_built"] = true
-
-	// Replay: the exact same marker attempt returns an identical receipt.
-	replayReply, err := h.Wire(ctx, "replay-marker", "operations_execute", markerRequest)
-	if err != nil {
-		return err
-	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(replay, markerReceipt) {
-		return fmt.Errorf("replay-marker: replay of the same attempt returned a different receipt")
-	}
-	lookupReply, err := h.Wire(ctx, "lookup-marker", "receipts_lookup", markerAttempt)
-	if err != nil {
-		return err
-	}
-	_, lookup, err := na.Outcome(lookupReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(lookup, markerReceipt) {
-		return fmt.Errorf("lookup-marker: expected the same receipt as execute, got %#v", lookup)
+	if !na.DeepEqual(replay, reply) {
+		return fmt.Errorf("replay-pen: resent keys returned different results")
 	}
 
 	// --- Observe real containment: run ticks forward until the fixture's
 	// prepared handler is independently observed to have actually carried
 	// the herd animal into the new pen (Contained=true, a real PenId), not
-	// merely inferred from the shell/marker construction finishing. ---
+	// merely inferred from the shell/marker construction finishing. The
+	// budget covers building the shell (up to 4 days) and marker as well. ---
 	animalRow := func(label, id string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
 			"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 256},
@@ -297,7 +180,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 
 	var animalContained map[string]any
-	if _, err := na.RunUntil(ctx, h, "observe-contain", 3*na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+	if _, err := na.RunUntil(ctx, h, "observe-contain", 8*na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 		row, err := animalRow("contain-poll", animalID)
 		if err != nil {
 			return "", false, err

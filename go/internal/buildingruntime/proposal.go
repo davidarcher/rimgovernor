@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // PlanResultKind classifies what a planner's step produced (#622). Only a
@@ -104,10 +103,6 @@ type ProposalOutcome struct {
 	// claims and the admitted plans' commitments (#628). Nil unless Reason
 	// is BuildingMethodDemand.
 	Demand []policy.Amount
-	// Preempted names the plans the proposal retired to claim what they
-	// held: each was less urgent, undispatched, and is re-evaluated by its
-	// goal at the next review (#628).
-	Preempted []domain.PlanID
 }
 
 // BuildingMethodWaiting is a migrated planner's result when the
@@ -179,14 +174,9 @@ const BuildingMethodDemand RoutineBuildingReason = "unmet_demand"
 // stepBudget is what the coordinator checks a proposal's quantity claims
 // against (#628): Stock is the count the routine review observed for each
 // bounded resource (a resource absent from it is unbounded here and checked
-// by the admission path beneath the commit); Commitments is the journal's
-// ActivePlanCommitments view at the review tick; Preempt retires one held
-// commitment's plan through the journal so a more urgent proposal can claim
-// it, or is nil when preemption is unavailable.
+// by the admission path beneath the commit).
 type stepBudget struct {
-	Stock       map[policy.Resource]int64
-	Commitments store.PlanCommitments
-	Preempt     func(context.Context, store.PlanCommitment) error
+	Stock map[policy.Resource]int64
 }
 
 // proposalArrival is one PlanResult as the wave delivered it: the result,
@@ -253,8 +243,8 @@ func proposalRank(a, b *Proposal) bool {
 
 // claimIndex is the coordinator's view of what this step holds: the
 // arbiter's own pawn and entity claims (so un-migrated planners' first-
-// arrival claims are honoured), a quantity ledger against the budget's
-// stock, and the quantities admitted plans hold (#628). A resource absent
+// arrival claims are honoured) and a quantity ledger against the budget's
+// stock (#628). A resource absent
 // from the stock is unbounded: the admission path beneath the commit still
 // checks it.
 type claimIndex struct {
@@ -262,12 +252,10 @@ type claimIndex struct {
 	budget  stepBudget
 	used    map[policy.Resource]int64
 	holders map[string]string
-	// held are the budget's committed quantities not yet preempted this step.
-	held []store.PlanCommitment
 }
 
 func newClaimIndex(arbiter *stepArbiter, budget stepBudget) *claimIndex {
-	return &claimIndex{arbiter: arbiter, budget: budget, used: map[policy.Resource]int64{}, holders: map[string]string{}, held: append([]store.PlanCommitment(nil), budget.Commitments.Committed...)}
+	return &claimIndex{arbiter: arbiter, budget: budget, used: map[policy.Resource]int64{}, holders: map[string]string{}}
 }
 
 // refusal names the first pawn or entity claim of p already held, and by
@@ -286,19 +274,8 @@ func (c *claimIndex) refusal(p *Proposal) string {
 	return ""
 }
 
-// committed sums what admitted plans still hold of resource.
-func (c *claimIndex) committed(resource policy.Resource) int64 {
-	var total int64
-	for _, h := range c.held {
-		if h.Amount.Resource == resource {
-			total += h.Amount.Count
-		}
-	}
-	return total
-}
-
 // shortfall is what p's quantity claims need beyond the stock left after
-// this step's earlier claims and the admitted plans' holds, with the first
+// this step's earlier claims, with the first
 // refusing claim named and who holds the rest; nil when the stock covers
 // them.
 func (c *claimIndex) shortfall(p *Proposal) (string, []policy.Amount) {
@@ -309,132 +286,16 @@ func (c *claimIndex) shortfall(p *Proposal) (string, []policy.Amount) {
 		if !bounded {
 			continue
 		}
-		free := limit - c.used[amount.Resource] - c.committed(amount.Resource)
+		free := limit - c.used[amount.Resource]
 		if amount.Count <= free {
 			continue
 		}
 		demand = append(demand, policy.Amount{Resource: amount.Resource, Count: amount.Count - free})
 		if refused == "" {
 			refused = fmt.Sprintf("%s:%d of %d", amount.Resource, amount.Count, free) + c.holder(string(amount.Resource))
-			if plans := c.committedPlans(amount.Resource); plans != "" {
-				refused += " committed to " + plans
-			}
 		}
 	}
 	return refused, demand
-}
-
-// committedPlans lists the plans holding resource, for a log line.
-func (c *claimIndex) committedPlans(resource policy.Resource) string {
-	var plans []string
-	seen := map[domain.PlanID]bool{}
-	for _, h := range c.held {
-		if h.Amount.Resource == resource && !seen[h.Plan] {
-			seen[h.Plan] = true
-			plans = append(plans, string(h.Plan))
-		}
-	}
-	return strings.Join(plans, ",")
-}
-
-// preemptable chooses the plans whose retirement would cover p's shortfall:
-// the plans with a preemptible commitment on a short resource whose goal is
-// less urgent than p, taken least urgent first (then by plan) until every
-// shortage is covered, then pruned most urgent first of any plan the rest
-// still cover without. Nil when no such set covers it: a commitment as
-// urgent as p, or one whose plan has dispatched work, is never retired.
-func (c *claimIndex) preemptable(p *Proposal, demand []policy.Amount) []domain.PlanID {
-	if c.budget.Preempt == nil || len(demand) == 0 {
-		return nil
-	}
-	short := map[policy.Resource]bool{}
-	for _, d := range demand {
-		short[d.Resource] = true
-	}
-	type candidate struct {
-		plan     domain.PlanID
-		urgency  int
-		releases map[policy.Resource]int64
-	}
-	byPlan := map[domain.PlanID]*candidate{}
-	var candidates []*candidate
-	for _, h := range c.held {
-		if !h.Preemptible || h.Urgency <= p.Urgency {
-			continue
-		}
-		v, seen := byPlan[h.Plan]
-		if !seen {
-			v = &candidate{plan: h.Plan, urgency: h.Urgency, releases: map[policy.Resource]int64{}}
-			byPlan[h.Plan] = v
-		}
-		v.releases[h.Amount.Resource] += h.Amount.Count
-	}
-	for _, v := range byPlan {
-		for resource := range v.releases {
-			if short[resource] {
-				candidates = append(candidates, v)
-				break
-			}
-		}
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].urgency != candidates[j].urgency {
-			return candidates[i].urgency > candidates[j].urgency
-		}
-		return candidates[i].plan < candidates[j].plan
-	})
-	covered := func(chosen []*candidate) bool {
-		released := map[policy.Resource]int64{}
-		for _, v := range chosen {
-			for resource, count := range v.releases {
-				released[resource] += count
-			}
-		}
-		for _, d := range demand {
-			if released[d.Resource] < d.Count {
-				return false
-			}
-		}
-		return true
-	}
-	var chosen []*candidate
-	for _, v := range candidates {
-		if covered(chosen) {
-			break
-		}
-		chosen = append(chosen, v)
-	}
-	if !covered(chosen) {
-		return nil
-	}
-	for i := len(chosen) - 1; i >= 0; i-- {
-		without := append(append([]*candidate(nil), chosen[:i]...), chosen[i+1:]...)
-		if covered(without) {
-			chosen = without
-		}
-	}
-	plans := make([]domain.PlanID, len(chosen))
-	for i, v := range chosen {
-		plans[i] = v.plan
-	}
-	return plans
-}
-
-// release drops every commitment of plan from the index and returns the
-// first, which names the plan's goal and revision for the preempt path.
-func (c *claimIndex) release(plan domain.PlanID) (first store.PlanCommitment) {
-	kept := c.held[:0]
-	for _, h := range c.held {
-		if h.Plan == plan {
-			if first.Plan == "" {
-				first = h
-			}
-			continue
-		}
-		kept = append(kept, h)
-	}
-	c.held = kept
-	return first
 }
 
 func (c *claimIndex) holder(key string) string {
@@ -468,12 +329,8 @@ func (c *claimIndex) take(p *Proposal) {
 // since it was evaluated (a late proposal carried from an earlier step,
 // #623) is reported expired with the stale dependency named and never
 // commits. One that loses a pawn or entity is reported waiting on it,
-// never failed. A quantity the stock left after earlier claims and the
-// admitted plans' commitments cannot cover is first offered the preempt
-// path: the less urgent, undispatched plans whose retirement covers the
-// shortfall are retired through the journal (budget.Preempt) and the
-// proposal claims what they held in this same step; otherwise the proposal
-// is refused as demand with the shortfall on its outcome (#628).
+// never failed. A quantity the stock left after earlier claims cannot
+// cover is refused as demand with the shortfall on its outcome (#628).
 // Non-proposal results settle as they were reported. The outcomes are
 // returned in rank order; commit errors are returned beside them for the
 // step to isolate.
@@ -516,18 +373,6 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 		var demand []policy.Amount
 		if refused == "" {
 			refused, demand = index.shortfall(p)
-			for _, plan := range index.preemptable(p, demand) {
-				held := index.release(plan)
-				if err := budget.Preempt(ctx, held); err != nil {
-					failures = append(failures, fmt.Errorf("%s: preempt plan %s for %s: %w", arrival.planner, plan, p.ID, err))
-					break
-				}
-				clockSchedulerLog("proposal %s preempted plan %s (goal %s, urgency %d) for %s", p.ID, plan, held.Goal, held.Urgency, p.Claims)
-				outcome.Preempted = append(outcome.Preempted, plan)
-			}
-			if len(outcome.Preempted) != 0 {
-				refused, demand = index.shortfall(p)
-			}
 		}
 		if refused != "" {
 			outcome.Waiting, outcome.Reason = refused, BuildingMethodWaiting

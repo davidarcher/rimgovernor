@@ -131,7 +131,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return RoutineTidyResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineTidyResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

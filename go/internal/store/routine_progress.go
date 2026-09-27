@@ -53,15 +53,13 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				if effect, known := v.Effect.Value(); known && (effect == domain.EffectCompleted || effect == domain.EffectAbsent) && v.Tick > last.LastProgress && last.Goal == n.ID {
 					evidence.Advanced = true
 				}
-				if observed, known := v.ConstructionObserved.Value(); known && observed > last.LastProgress && last.Goal == n.ID {
-					evidence.Advanced = true
-				}
-				if !domain.GoalWorkOpen([]domain.Progress{p}) {
+				building := !plan.Retired && policy.AppliedBuildingOpen(p, request.Facts.CurrentConstruction)
+				if !building && !domain.GoalWorkOpen([]domain.Progress{p}) {
 					continue
 				}
 				method = m.Method
 				evidence.Open = true
-				if v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation || v.Unresolved {
+				if building || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation || v.Unresolved {
 					evidence.Dispatched = true
 				}
 				if receipt, known := v.Receipt.Value(); v.Stage == domain.Dispatched && v.Unresolved && (!known || receipt == domain.ReceiptUnknown) {

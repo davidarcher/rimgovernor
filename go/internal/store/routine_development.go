@@ -88,7 +88,7 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]poli
 	for _, plan := range plans {
 		var open domain.Progress
 		for _, p := range plan.state.Progress {
-			if domain.GoalWorkOpen([]domain.Progress{p}) {
+			if ProgressOpen(plan.state, p) {
 				open = p
 				break
 			}
@@ -130,7 +130,7 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 			unserved = append(unserved, g.ID)
 		}
 	}
-	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved})
+	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction})
 }
 
 // DispatchTick is the tick of the action's latest dispatch transition,

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Retained floors prevent old resource observations from becoming spendable
@@ -26,9 +27,33 @@ func guardRetirementFloor(ctx context.Context, tx *sql.Tx, current domain.Genera
 	return nil
 }
 
+// settledRetirementOutcome is dispatched evidence that settles an action for
+// retirement, so it also sets the retirement floor: a completed effect, a
+// building that ended unsuccessful, or a building intent native refused
+// (#856: a refusal is terminal, Unsuccessful with an absent effect).
+func settledRetirementOutcome(progress domain.Progress) bool {
+	w := progress.View()
+	effect, known := w.Effect.Value()
+	if !known {
+		return false
+	}
+	ended := w.Stage == domain.Unsuccessful || w.Stage == domain.Cancelled
+	switch {
+	case effect == domain.EffectCompleted:
+		return w.Stage == domain.Completed || w.Stage == domain.Cancelled
+	case progress.Action().Kind() != domain.BuildingAction:
+		return false
+	case effect == domain.EffectUnsuccessful:
+		return ended
+	case effect == domain.EffectAbsent:
+		return ended && w.Attempt > 0
+	}
+	return false
+}
+
 // Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
-func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) error {
+func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction]) error {
 	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
@@ -69,7 +94,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if err != nil {
 			return err
 		}
-		if domain.GoalWorkOpen(p.Progress) {
+		if PlanWorkOpen(p, census) {
 			continue
 		}
 		// A fight (#852) owns its empty plan while open or holding a
@@ -88,7 +113,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 			w := progress.View()
 			effect, known := w.Effect.Value()
 			absent := w.Stage == domain.Cancelled && (w.Attempt == 0 || known && effect == domain.EffectAbsent)
-			settledOutcome := known && ((effect == domain.EffectCompleted && (w.Stage == domain.Completed || w.Stage == domain.Cancelled)) || (progress.Action().Kind() == domain.BuildingAction && effect == domain.EffectUnsuccessful && (w.Stage == domain.Unsuccessful || w.Stage == domain.Cancelled)))
+			settledOutcome := settledRetirementOutcome(progress)
 			if !absent && !settledOutcome {
 				settled = false
 				break
@@ -106,7 +131,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		}
 		for _, progress := range p.Progress {
 			w := progress.View()
-			if effect, known := w.Effect.Value(); known && (effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful) {
+			if settledRetirementOutcome(progress) {
 				s := w.Snapshot
 				if _, err = tx.ExecContext(ctx, "INSERT INTO retirement_floors(colony,load_token,map_id,tick) VALUES(?,?,?,?) ON CONFLICT(colony,load_token,map_id) DO UPDATE SET tick=max(tick,excluded.tick)", s.Colony, s.Load, s.Map, w.Tick); err != nil {
 					return err

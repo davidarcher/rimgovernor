@@ -161,11 +161,12 @@ func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 }
 func developmentProgress(t *testing.T) domain.Progress {
 	t.Helper()
-	b, e := domain.NewBuilding("Wall", domain.Cell{X: 1, Z: 1}, domain.North, "WoodLog")
+	// An observed (non-intent) kind: commitments follow per-attempt effects.
+	cut, e := domain.NewCutPlant("plant", "Plant_Healroot", domain.Cell{X: 1, Z: 1})
 	if e != nil {
 		t.Fatal(e)
 	}
-	a, e := domain.NewBuildingAction("action", b)
+	a, e := domain.NewCutPlantAction("action", cut)
 	if e != nil {
 		t.Fatal(e)
 	}

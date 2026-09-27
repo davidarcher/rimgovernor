@@ -85,7 +85,7 @@ func TestGoalCancellationRetainsIssuedUncertainty(t *testing.T) {
 	if _, e = s.Prepare(ctx, "p", "waiting", scope(), 11); e == nil {
 		t.Fatal("cancelled goal prepared")
 	}
-	if _, e = s.Observe(ctx, "p", domain.Observation{Action: "issued", Attempt: 1, Snapshot: scope(), Tick: 11, Effect: domain.EffectCompleted}, scope()); e != nil {
+	if _, e = s.RecordReceipt(ctx, "p", "issued", 1, domain.ReceiptAccepted); e != nil {
 		t.Fatal("cancelled work could not reconcile", e)
 	}
 }
@@ -133,7 +133,9 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if e != nil || g.Goal.Status == domain.GoalSatisfied {
 		t.Fatal(g, e)
 	}
-	if _, e = s.Observe(ctx, "p", domain.Observation{Action: "a", Attempt: 1, Snapshot: scope(), Tick: 11, Effect: domain.EffectCompleted}, scope()); e != nil {
+	// An applied building stays open work until retirement reads the census
+	// (#856), so settle the method with a refusal to close it here.
+	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptRefused); e != nil {
 		t.Fatal(e)
 	}
 	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 12, domain.NeedRecovered, false)
@@ -153,7 +155,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 		t.Fatal(g, e)
 	}
 	old, e := s.LoadPlan(ctx, "p")
-	if e != nil || old.Progress[0].View().Stage != domain.Completed {
+	if e != nil || old.Progress[0].View().Stage != domain.Unsuccessful {
 		t.Fatal(old, e)
 	}
 }
@@ -260,7 +262,7 @@ func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 	if _, e = s.Prepare(ctx, "p", "a", scope(), 11); e == nil {
 		t.Fatal("unknown need prepared")
 	}
-	if _, e = s.ReserveAndPrepare(ctx, "p", "a", Admission{Snapshot: scope(), Tick: 11, Costs: []MaterialCost{}, Footprint: []domain.Cell{{X: 3, Z: 7}}}); e == nil {
+	if _, e = s.Prepare(ctx, "p", "a", scope(), 11); e == nil {
 		t.Fatal("unknown need reserved")
 	}
 	p, e := s.LoadPlan(ctx, "p")

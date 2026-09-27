@@ -14,7 +14,7 @@ import (
 func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	planner, db, session, _, _ := sleepingFixture(t)
+	planner, db, session, _, native := sleepingFixture(t)
 	current := session.State().Snapshot
 	goal, err := domain.NewGoal("comfort-history", domain.AutopilotGoal, 4, current, 7)
 	if err != nil {
@@ -49,15 +49,17 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	}
 	scope := current
 	scope.Plan, scope.Revision = spec.ID(), spec.Revision()
-	if _, err = db.ReserveAndPrepare(ctx, spec.ID(), a.ID(), store.Admission{Snapshot: scope, Tick: 7, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
+	if _, err = db.Prepare(ctx, spec.ID(), a.ID(), scope, 7); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = db.Dispatch(ctx, spec.ID(), a.ID(), scope, 7); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Observe(ctx, spec.ID(), domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: current, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, current); err != nil {
+	if _, err = db.RecordReceipt(ctx, spec.ID(), a.ID(), 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
+	// The census shows the chair built, so its plan retires (#856).
+	markBuilt(t, db, native.routineNative)
 	if _, err = planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

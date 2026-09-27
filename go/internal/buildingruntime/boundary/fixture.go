@@ -38,6 +38,10 @@ type Fixture struct {
 	Unknown                           bool
 	Leases, Places, Lookups, Observes int
 	LastPre                           *a.WritePrecondition
+	// Refuse, when set, is the reason Apply refuses every intent with;
+	// LastKeys are the keys of the last Apply batch.
+	Refuse   string
+	LastKeys []string
 }
 
 func NewFixture(t *testing.T) (*Boundary, *Fixture) {
@@ -61,7 +65,7 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	f.Receipt = &r.Receipt{Attempt: attempt, AdmittedContext: ctx, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}
 	effect := &r.ConstructionEffect{OriginThingId: proto.String("blueprint1"), CurrentThingId: proto.String("building1"), DefName: proto.String("Wall"), Stuff: proto.String("WoodLog"), Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Rotation: p.Rotation_ROTATION_NORTH.Enum(), Stage: r.ConstructionStage_CONSTRUCTION_STAGE_BUILDING.Enum(), Present: proto.Bool(true), Started: proto.Bool(true), Failed: proto.Bool(false)}
 	f.Progress = &r.Progress{Attempt: proto.Clone(attempt).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: &r.EffectEvidence{Effect: &r.EffectEvidence_Construction{Construction: effect}}}}}
-	boundary, err := NewBoundary(f, f, f, f, FixedClock{}, "session")
+	boundary, err := NewBoundary(f, f, f, FixedClock{}, "session")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,27 +94,27 @@ func (f *Fixture) ReadMapBounds(context.Context, *c.Identity, domain.Cell) (brid
 	}
 	return f.Bounds, bridge.Result{}, nil
 }
-func (f *Fixture) LookupBuildingAttempt(_ context.Context, identity *c.Identity, attempt *c.AttemptKey, generation uint64, _ *p.PlacementCandidate) (*r.LookupReply, bridge.Result, error) {
-	f.Lookups++
-	if !proto.Equal(identity, f.Receipt.AdmittedContext.Identity) || !proto.Equal(attempt, f.Receipt.Attempt) || generation != 1 {
-		return nil, bridge.Result{}, executor.ErrEvidence
-	}
-	if f.Unknown {
-		return &r.LookupReply{Outcome: &r.LookupReply_Unknown{Unknown: &r.UnknownAttempt{Context: f.Progress.Context}}}, bridge.Result{}, nil
-	}
-	return &r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: f.Receipt}}, bridge.Result{}, nil
-}
-func (f *Fixture) ObserveBuildingProgress(context.Context, *r.Receipt, *p.PlacementCandidate) (*r.ProgressReply, bridge.Result, error) {
-	f.Observes++
-	return &r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: f.Progress}}, bridge.Result{}, nil
-}
-func (f *Fixture) PlaceBuilding(_ context.Context, pre *a.WritePrecondition, _ *p.PlacementCandidate) (*o.ExecuteReply, bridge.Result, error) {
+
+// Apply is the fake Actions/Apply: every building intent applies, unless
+// PlaceErr fails the call or Refuse refuses it.
+func (f *Fixture) Apply(_ context.Context, identity *c.Identity, actions []*o.Action) (*o.ApplyReply, bridge.Result, error) {
 	f.Places++
-	f.LastPre = pre
+	f.LastKeys = f.LastKeys[:0]
 	if f.PlaceErr != nil {
 		return nil, bridge.Result{}, f.PlaceErr
 	}
-	return &o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: f.Receipt}}, bridge.Result{}, nil
+	reply := &o.ApplyReply{}
+	for _, action := range actions {
+		f.LastKeys = append(f.LastKeys, action.GetKey())
+		if f.Refuse != "" {
+			reply.Results = append(reply.Results, &o.ActionResult{Key: action.Key, Outcome: &o.ActionResult_Refused{Refused: &o.Refusal{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Reason: proto.String(f.Refuse)}}})
+			continue
+		}
+		ctx := &c.ObservationContext{Identity: proto.Clone(identity).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
+		applied := &r.Receipt{AdmittedContext: ctx, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: &r.EffectEvidence{}}}}
+		reply.Results = append(reply.Results, &o.ActionResult{Key: action.Key, Outcome: &o.ActionResult_Applied{Applied: applied}})
+	}
+	return reply, bridge.Result{}, nil
 }
 func (f *Fixture) Lease(domain.GenerationSnapshot) (string, error) {
 	f.Leases++

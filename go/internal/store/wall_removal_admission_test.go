@@ -92,7 +92,7 @@ func completeBackupWall(t *testing.T, s *Store, scope domain.GenerationSnapshot,
 	if _, err := s.Dispatch(ctx, "plan", "backup", scope, tick); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Observe(ctx, "plan", domain.Observation{Action: "backup", Attempt: 1, Snapshot: scope, Tick: tick + 1, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch, Construction: &domain.ConstructionIdentity{Origin: "blueprint", Current: identity}}, scope); err != nil {
+	if _, err := s.RecordReceipt(ctx, "plan", "backup", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -106,17 +106,13 @@ func TestBackupWallRemovalAdmissionRequiresCompletedBackup(t *testing.T) {
 	}
 	completeBackupWall(t, s, scope, 12, "backup-thing")
 	v.Tick = 14
+	// Applied is only the blueprint: until the census reports the wall
+	// built under the backup's intent key the removal waits (#856).
+	if _, err := s.PrepareWallRemoval(ctx, "plan", "backup-removal", v); err == nil {
+		t.Fatal("admission accepted before the census reported the backup wall built")
+	}
+	v.BackupBuilt = true
 	if _, err := s.PrepareWallRemoval(ctx, "plan", "backup-removal", v); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestBackupWallRemovalAdmissionRejectsIdentityMismatch(t *testing.T) {
-	ctx := context.Background()
-	s, scope := backupWallRemovalStoreFixture(t)
-	completeBackupWall(t, s, scope, 12, "backup-thing")
-	v := WallRemovalAdmission{Snapshot: scope, Tick: 14, BackupOf: "backup", TargetIdentity: "a-different-thing", SiteEligible: true}
-	if _, err := s.PrepareWallRemoval(ctx, "plan", "backup-removal", v); err == nil {
-		t.Fatal("admission accepted a target identity that does not match the completed backup")
 	}
 }

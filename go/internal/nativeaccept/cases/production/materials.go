@@ -159,7 +159,7 @@ func seedMaterialHistory(ctx context.Context, journal *store.Store, identity map
 		return err
 	}
 	snapshot := domain.GenerationSnapshot{Colony: domain.ColonyID(na.AsString(identity["colonyId"])), Load: domain.LoadID(na.AsString(identity["loadToken"])), Map: domain.MapID(na.AsNumber(identity["mapId"])), Plan: "materials-history", Revision: 1}
-	_, err = journal.ReserveAndPrepare(ctx, "materials-history", "materials-history-action", store.Admission{Snapshot: snapshot, Tick: tick - 60000, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{{X: 1, Z: 1}}})
+	_, err = journal.Prepare(ctx, "materials-history", "materials-history-action", snapshot, tick-60000)
 	if err != nil {
 		return err
 	}

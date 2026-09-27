@@ -47,7 +47,7 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
-	if err != nil || len(plan.Progress) != 1 || len(plan.Admissions) != 1 || plan.Admissions[0].Admission.Costs[0].Count != 5 {
+	if err != nil || len(plan.Progress) != 1 || len(plan.Admissions) != 0 {
 		t.Fatal(plan, err)
 	}
 	b, _ := plan.Spec.Actions()[0].Building()
@@ -90,36 +90,6 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 	}
 }
 
-func TestRoutineCookingWaitsForOtherCommittedCampfire(t *testing.T) {
-	t.Parallel()
-	p, db, native := cookingFixture(t)
-	ctx := context.Background()
-	b, err := domain.NewBuilding("Campfire", domain.Cell{X: 30, Z: 30}, domain.North, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := domain.NewBuildingAction("other-fire", b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	plan, err := domain.NewPlan("other-cooking", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreatePlan(ctx, plan); err != nil {
-		t.Fatal(err)
-	}
-	scope := p.reviewer.player.State().Snapshot
-	scope.Plan = plan.ID()
-	if _, err = db.ReserveAndPrepare(ctx, plan.ID(), a.ID(), store.Admission{Snapshot: scope, Tick: 7, Costs: []store.MaterialCost{{Definition: "WoodLog", Count: 5}}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
-		t.Fatal(err)
-	}
-	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodExistingWork || native.previews != 0 {
-		t.Fatal(result, err)
-	}
-}
-
 // A campfire the pawns let burn out leaves the census without a cooking
 // bench in the same goal epoch; the completed method yields to a numbered
 // successor instead of holding the goal at method_already_used (#217).
@@ -133,13 +103,21 @@ func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
 	}
 	completeRoutineBuildingMethod(t, db, result)
 	// The census still reports no cooking bench: the campfire burnt out.
+	// Its intent is gone from a known census too (#856).
+	native.built = map[domain.ActionID]*o.BuildingState{}
+	if _, err := p.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
 	again, err := p.Step(ctx)
 	if err != nil || again.Reason != BuildingMethodAdmitted || native.previews != 2 {
 		t.Fatal(again, err, native.previews)
 	}
-	methods := again.Decision.Goal.Methods
-	if len(methods) != 2 || methods[0].Method != "campfire" || methods[1].Method != "campfire-1" {
-		t.Fatal(methods)
+	// The burnt-out campfire's plan retired on the census (#856); the
+	// goal's history still binds both methods.
+	goal := again.Decision.Goal.Goal
+	methods, err := db.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
+	if err != nil || len(methods) != 2 || methods[0].Method != "campfire" || methods[1].Method != "campfire-1" {
+		t.Fatal(methods, err)
 	}
 	if next, err := p.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatal(next, err)

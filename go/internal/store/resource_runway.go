@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -26,13 +25,13 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 	if first.Valid {
 		h.Start = max(domain.Tick(first.Int64), tick-policy.ResourceHistoryWindow)
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT a.kind,t.payload,ad.payload FROM transitions t
- JOIN actions a ON a.id=t.action_id LEFT JOIN admissions ad ON ad.action_id=a.id
- WHERE a.kind IN ('building','production_bill') AND json_extract(t.payload,'$.Kind')='observe'
+	rows, err := tx.QueryContext(ctx, `SELECT a.kind,t.payload FROM transitions t
+ JOIN actions a ON a.id=t.action_id
+ WHERE a.kind='production_bill' AND json_extract(t.payload,'$.Kind')='observe'
  AND json_extract(t.payload,'$.Observation.Snapshot.Colony')=?
  AND json_extract(t.payload,'$.Observation.Snapshot.Load')=?
  AND json_extract(t.payload,'$.Observation.Snapshot.Map')=?
- AND (json_extract(t.payload,'$.Observation.Effect')='completed' OR (a.kind='building' AND json_extract(t.payload,'$.Observation.ConstructionObserved')=1))
+ AND json_extract(t.payload,'$.Observation.Effect')='completed'
  GROUP BY a.id HAVING min(t.sequence)=t.sequence
  AND json_extract(t.payload,'$.Observation.Tick')>? AND json_extract(t.payload,'$.Observation.Tick')<=?
  ORDER BY t.sequence LIMIT 4097`, current.Colony, current.Load, current.Map, h.Start, tick)
@@ -49,8 +48,8 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 			return h, nil
 		}
 		var kind string
-		var payload, costs []byte
-		if err := rows.Scan(&kind, &payload, &costs); err != nil {
+		var payload []byte
+		if err := rows.Scan(&kind, &payload); err != nil {
 			return h, err
 		}
 		var event transition
@@ -62,27 +61,7 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 			continue
 		}
 		var steel, components, plasteel domain.Fact[int64]
-		if kind == "building" {
-			var admission Admission
-			if len(costs) > 0 {
-				if err := json.Unmarshal(costs, &admission); err != nil {
-					return h, err
-				}
-			}
-			if admission.Costs != nil {
-				steel, components, plasteel = domain.Known(int64(0)), domain.Known(int64(0)), domain.Known(int64(0))
-			}
-			for _, cost := range admission.Costs {
-				switch cost.Definition {
-				case "Steel":
-					steel = domain.Known(cost.Count)
-				case "Plasteel":
-					plasteel = domain.Known(cost.Count)
-				case "ComponentIndustrial":
-					components = domain.Known(cost.Count)
-				}
-			}
-		} else if use := o.BillConsumption; use != nil {
+		if use := o.BillConsumption; use != nil {
 			if use.Steel != nil {
 				steel = domain.Known(*use.Steel)
 			}

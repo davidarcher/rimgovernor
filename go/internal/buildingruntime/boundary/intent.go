@@ -16,10 +16,14 @@ type ActionsWriter interface {
 	Apply(context.Context, *c.Identity, []*o.Action) (*o.ApplyReply, bridge.Result, error)
 }
 
-// IntentKey is an intent-mode attempt's idempotency key: the plan (which
-// names the goal) and the attempt.
+// IntentKey is an intent-mode attempt's idempotency key: the action (whose
+// plan names the goal) and the attempt. The action, not the plan, keys it:
+// a plan's building actions each start at attempt 1, and the native replay
+// window would answer the second with the first's result. Native stamps a
+// building intent's key on what it builds, which is how the construction
+// census names the owning action (store.ConstructionClaims).
 func IntentKey(p executor.Placement) string {
-	return fmt.Sprintf("%s/%d", p.Snapshot.Plan, p.Attempt)
+	return fmt.Sprintf("%s/%d", p.Action.ID(), p.Attempt)
 }
 
 // DispatchIntent sends one intent-mode action through Actions/Apply. Only

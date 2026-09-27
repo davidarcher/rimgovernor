@@ -128,7 +128,7 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 				return RoutineGearResult{}, err
 			}
 			// An apparel policy write holds no development slot (#660).
-			if domain.GoalWorkOpen(plan.Progress) && !apparelPolicyPlan(plan.Spec) {
+			if store.PlanOpen(plan) && !apparelPolicyPlan(plan.Spec) {
 				open++
 			}
 		}
@@ -209,7 +209,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoutineGearResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			for _, action := range plan.Spec.Actions() {
 				if wear, ok := action.GearReplace(); ok {
 					busy[wear.Pawn()] = true

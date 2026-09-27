@@ -182,8 +182,7 @@ func TestClockSchedulerDefersAdmissionOnAnUnreconciledLatchedOutcome(t *testing.
 		t.Fatal(err)
 	}
 	action, snapshot := state.Progress[0].Action(), s.session.State().Snapshot
-	building, _ := action.Building()
-	if _, err = s.player.journal.ReserveAndPrepare(ctx, snapshot.Plan, action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{building.Cell()}}); err != nil {
+	if _, err = s.player.journal.Prepare(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
 		t.Fatal(err)
 	}
 	p, err := s.player.journal.Dispatch(ctx, snapshot.Plan, action.ID(), snapshot, 1)
@@ -297,7 +296,7 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 	s, f := schedulerFixture(t)
 	ctx := context.Background()
 	got, err := s.Step(ctx)
-	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || got.Watched != 0 {
+	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied {
 		t.Fatal(got, err)
 	}
 	if got, err = s.Step(ctx); err != nil || !got.Running || f.pauses != 0 {
@@ -310,8 +309,7 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 		t.Fatal(err)
 	}
 	action := state.Progress[0].Action()
-	building, _ := action.Building()
-	if _, err = s.player.journal.ReserveAndPrepare(ctx, snapshot.Plan, action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{building.Cell()}}); err != nil {
+	if _, err = s.player.journal.Prepare(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.player.journal.Dispatch(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
@@ -357,17 +355,13 @@ func TestClockSchedulerKeepsARunningWindowForACoupledOrder(t *testing.T) {
 			t.Fatal(err)
 		}
 		action := state.Progress[0].Action()
-		building, _ := action.Building()
-		if _, err = s.player.journal.ReserveAndPrepare(ctx, snapshot.Plan, action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{building.Cell()}}); err != nil {
+		if _, err = s.player.journal.Prepare(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = s.player.journal.Dispatch(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = s.player.journal.RecordReceipt(ctx, snapshot.Plan, action.ID(), 1, domain.ReceiptAccepted); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = s.player.journal.Observe(ctx, snapshot.Plan, domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 2, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
 			t.Fatal(err)
 		}
 		got, err := s.Step(ctx)

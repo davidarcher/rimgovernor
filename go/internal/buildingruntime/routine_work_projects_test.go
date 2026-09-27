@@ -61,14 +61,16 @@ func TestRoutineProjectWorkTracksSharedLifecycleAndWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	dispatched := p
 	p, err = p.Cancel()
 	if err != nil {
 		t.Fatal(err)
 	}
 	plans[0].Progress[0] = p
 	check("HospitalBed", "Wall")
-	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectAbsent} {
-		settled, err := p.Observe(domain.Observation{Action: p.Action().ID(), Attempt: 1, Snapshot: scope, Tick: 2, Effect: effect}, scope)
+	// An apply receipt settles the intent either way (#856).
+	for _, receipt := range []domain.Receipt{domain.ReceiptAccepted, domain.ReceiptRefused} {
+		settled, err := dispatched.RecordReceipt(1, receipt)
 		if err != nil {
 			t.Fatal(err)
 		}

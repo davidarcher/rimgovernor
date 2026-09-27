@@ -71,7 +71,7 @@ func workerPending(t *testing.T, w *Worker, id string, unresolved bool) domain.P
 	}
 	snapshot := domain.GenerationSnapshot{Colony: q.World.Colony, Load: q.World.Load, Map: q.World.Map, Plan: submission.Plan, Revision: 1, Native: 1}
 	if unresolved {
-		_, err = w.player.journal.ReserveAndPrepare(context.Background(), submission.Plan, submission.Action, store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{q.Building.Cell()}})
+		_, err = w.player.journal.Prepare(context.Background(), submission.Plan, submission.Action, snapshot, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,9 +161,6 @@ func TestWorkerRotationResumesPastADepartedCursor(t *testing.T) {
 	if _, err := db.RecordReceipt(context.Background(), second.Plan, second.Action, 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Observe(context.Background(), second.Plan, domain.Observation{Action: second.Action, Attempt: 1, Snapshot: second.Snapshot, Tick: 2, Effect: domain.EffectCompleted}, second.Snapshot); err != nil {
-		t.Fatal(err)
-	}
 	if err := w.step(context.Background(), now); err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +208,7 @@ func TestWorkerStalePreparedIsReDriven(t *testing.T) {
 	t.Parallel()
 	w, _, db := workerFixture(t)
 	v := workerPending(t, w, "orphan", false)
-	prepared, err := db.ReserveAndPrepare(context.Background(), v.Plan, v.Action, store.Admission{Snapshot: v.Snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{playerSubmission().Building.Cell()}})
+	prepared, err := db.Prepare(context.Background(), v.Plan, v.Action, v.Snapshot, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,8 +227,8 @@ func TestWorkerStalePreparedIsReDriven(t *testing.T) {
 	if !workerEligible(plan, prepared.View(), scope, playerWorld(v.Snapshot)) {
 		t.Fatal("prepared action orphaned by a moved native generation")
 	}
-	moved := store.Admission{Snapshot: scope.Snapshot, Tick: 2, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{playerSubmission().Building.Cell()}}
-	again, err := db.ReserveAndPrepare(context.Background(), v.Plan, v.Action, moved)
+	moved := store.Admission{Snapshot: scope.Snapshot, Tick: 2, Footprint: []domain.Cell{playerSubmission().Building.Cell()}}
+	again, err := db.Prepare(context.Background(), v.Plan, v.Action, moved.Snapshot, moved.Tick)
 	if err != nil || again.View().Snapshot != scope.Snapshot {
 		t.Fatal("re-preparation under current authority refused", err)
 	}
@@ -239,9 +236,10 @@ func TestWorkerStalePreparedIsReDriven(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
+func TestWorkerRefusedIntentIsTerminalAndUnknownWaitsForNewDirection(t *testing.T) {
 	t.Parallel()
 	w, _, db := workerFixture(t)
+	// A refused intent is settled Unsuccessful (#856): no direction retries it.
 	v := workerPending(t, w, "refusal", true)
 	progress, err := db.RecordReceipt(context.Background(), v.Plan, v.Action, v.Attempt, domain.ReceiptRefused)
 	if err != nil {
@@ -251,17 +249,38 @@ func TestWorkerRefusalRequiresNewExplicitDirection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if progress.View().Stage != domain.Unsuccessful {
+		t.Fatal(progress.View())
+	}
 	scope := ControlState{Snapshot: v.Snapshot, ObservationKnown: true, Enabled: true}
+	for range 2 {
+		if workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
+			t.Fatal("refused intent retried")
+		}
+		scope.Snapshot.Native++
+	}
+	// An unknown receipt goes back to Pending; only a newer native
+	// generation (a resume) resends it.
+	v = workerPending(t, w, "unknown", true)
+	if progress, err = db.RecordReceipt(context.Background(), v.Plan, v.Action, v.Attempt, domain.ReceiptUnknown); err != nil {
+		t.Fatal(err)
+	}
+	if plan, err = db.LoadPlan(context.Background(), v.Plan); err != nil {
+		t.Fatal(err)
+	}
+	if progress.View().Stage != domain.Pending {
+		t.Fatal(progress.View())
+	}
+	scope = ControlState{Snapshot: v.Snapshot, ObservationKnown: true, Enabled: true}
 	if workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
-		t.Fatal("same activation retried refusal")
+		t.Fatal("same activation resent an unknown receipt")
 	}
 	scope.Snapshot.Native++
 	if !workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
-		t.Fatal("new explicit intent could not retry no-effect refusal")
+		t.Fatal("new explicit direction could not resend an unknown receipt")
 	}
-	scope.Snapshot.Native++
-	if !workerEligible(plan, progress.View(), scope, playerWorld(v.Snapshot)) {
-		t.Fatal("fresh native generation rejected")
+	if workerEligible(plan, progress.View(), scope, store.World{Colony: "other", Load: "load", Map: 0}) {
+		t.Fatal("wrong world resent")
 	}
 }
 func TestWorkerUnsentWriteRetriesUnderSameDirection(t *testing.T) {
@@ -358,7 +377,7 @@ func TestWorkerCloseTimeoutRetainsSessionAndCanRetry(t *testing.T) {
 	}
 }
 
-func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
+func TestWorkerRealSessionResendsAFailedApplyCall(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -414,14 +433,19 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
 	w := &Worker{player: player, session: session, config: WorkerConfig{StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: 5 * time.Second}, waits: make(map[domain.ActionID]workerWait)}
 	fixture.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
-	if err = w.step(ctx, time.Now()); err != nil {
-		t.Fatal(err)
+	// A failed Actions/Apply call leaves the receipt unknown, so the intent
+	// goes back to Pending; the same activation does not resend it, a new
+	// explicit direction does (#856).
+	if err = w.step(ctx, time.Now()); err == nil {
+		t.Fatal("a failed apply call reported no error")
 	}
-	if err = w.step(ctx, time.Now().Add(time.Second)); err != nil {
-		t.Fatal(err)
+	plan, err = db.LoadPlan(ctx, current.Plan)
+	if err != nil || plan.Progress[0].View().Stage != domain.Pending || fixture.Places != 1 {
+		t.Fatal(plan.Progress[0].View(), fixture.Places, err)
 	}
-	if fixture.Places != 1 {
-		t.Fatal("same activation retried known refusal", fixture.Places)
+	fixture.PlaceErr = nil
+	if err = w.step(ctx, time.Now().Add(time.Hour)); err != nil || fixture.Places != 1 {
+		t.Fatal("same activation resent an unknown receipt", fixture.Places, err)
 	}
 	request.RequestID = "acquire-again"
 	if _, err = player.Resume(ctx, request); err != nil {
@@ -433,44 +457,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.Preview.Stock.Snapshot = current
 	fixture.Bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.Emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.Receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
-	fixture.Receipt.Attempt.AttemptId = proto.Uint64(2)
-	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
-	fixture.PlaceErr = nil
-	if err = w.step(ctx, time.Now().Add(2*time.Second)); err != nil {
-		t.Fatal(err)
-	}
-	if fixture.Places != 2 {
-		t.Fatal("new explicit direction did not permit one retry", fixture.Places)
-	}
-	if err = player.Close(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.Close(); err != nil {
-		t.Fatal(err)
-	}
-	db, err = store.Open(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	session, err = NewSession(ctx, config, db, native, authority, native, boundary.FixedClock{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	player, err = NewPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db, session, worlds)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer player.Close(ctx)
-	// Replaying a historical grant cannot reenable this fresh session.
-	record, err := player.Resume(ctx, request)
-	if err != nil || record.Phase != store.RunningControl || player.State().Enabled {
-		t.Fatal(record, err)
-	}
-	fixture.Progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native) + 1)
-	fixture.Progress.Context.Tick = proto.Int64(12)
-	w.player, w.session = player, session
-	if err = w.step(ctx, time.Now().Add(time.Second)); err != nil {
+	if err = w.step(ctx, time.Now().Add(2*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	plan, err = db.LoadPlan(ctx, current.Plan)
@@ -631,9 +618,9 @@ func (f *workerFake) CleanupDraft(ctx context.Context, p domain.PlanID, a domain
 
 func TestWorkerBackoffIgnoresTickAndStretchesForUnknownEffects(t *testing.T) {
 	t.Parallel()
-	before := domain.ProgressView{Action: "a", Attempt: 1, Stage: domain.AwaitingObservation, Tick: 100, Effect: domain.Known(domain.EffectUnknown), ConstructionObserved: domain.Known(domain.Tick(90))}
+	before := domain.ProgressView{Action: "a", Attempt: 1, Stage: domain.AwaitingObservation, Tick: 100, Effect: domain.Known(domain.EffectUnknown)}
 	after := before
-	after.Tick, after.ConstructionObserved = 700, domain.Unknown[domain.Tick]()
+	after.Tick = 700
 	if !workerSameView(before, after) {
 		t.Fatal("a re-read at a later tick is not a changed view")
 	}
@@ -718,7 +705,7 @@ func TestWorkerRotationAlternatesPlans(t *testing.T) {
 	snapshot := short.Snapshot
 	snapshot.Plan = long.ID()
 	for _, action := range actions {
-		if _, err = db.ReserveAndPrepare(context.Background(), long.ID(), action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{workerActionCell(action)}}); err != nil {
+		if _, err = db.Prepare(context.Background(), long.ID(), action.ID(), snapshot, 1); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = db.Dispatch(context.Background(), long.ID(), action.ID(), snapshot, 1); err != nil {
@@ -795,99 +782,5 @@ func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
 	}
 	if len(order) != 4 || order[2] != views[2].Action || order[3] != views[0].Action {
 		t.Fatal("rotation past the budget cursor", order)
-	}
-}
-
-func workerActionCell(action domain.Action) domain.Cell {
-	b, _ := action.Building()
-	return b.Cell()
-}
-
-type workerPreviewFake struct {
-	calls [][]domain.Action
-	err   error
-}
-
-func (f *workerPreviewFake) PreviewBuildings(_ context.Context, actions []domain.Action, snapshot domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error) {
-	f.calls = append(f.calls, actions)
-	if f.err != nil {
-		return nil, bridge.Result{}, f.err
-	}
-	out := make([]bridge.BuildingPreview, 0, len(actions))
-	for _, action := range actions {
-		out = append(out, bridge.BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: 5}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: 5}})
-	}
-	return out, bridge.Result{}, nil
-}
-
-// The building candidates a step dispatches are previewed in one native
-// batch before the loop, and each dispatch finds its row on the step
-// context (#593); a step whose candidates are all on backoff previews
-// nothing, and a batch that fails leaves the dispatches to read their own.
-func TestWorkerPreviewsTheStepsBuildingCandidatesInOneBatch(t *testing.T) {
-	t.Parallel()
-	w, f, db := workerFixture(t)
-	var actions []domain.Action
-	for i := 0; i < 3; i++ {
-		b, err := domain.NewBuilding("Wall", domain.Cell{X: int32(10 + i), Z: 2}, domain.North, "WoodLog")
-		if err != nil {
-			t.Fatal(err)
-		}
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("wall-%d", i)), b)
-		if err != nil {
-			t.Fatal(err)
-		}
-		actions = append(actions, action)
-	}
-	plan, err := domain.NewPlan("walls", 1, actions)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreatePlan(context.Background(), plan); err != nil {
-		t.Fatal(err)
-	}
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: plan.ID(), Revision: 1, Native: 1}
-	f.mu.Lock()
-	f.state = ControlState{Snapshot: snapshot, ObservationKnown: true, Enabled: true}
-	f.mu.Unlock()
-	previews := &workerPreviewFake{}
-	w.config.Previews = previews
-	var served, runs int
-	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
-		runs++
-		if preview, ok := boundary.PreviewMemoFrom(ctx).Take(a, snapshot); ok && preview.Preview.Action.ID() == a {
-			served++
-		}
-		state, err := db.LoadPlan(ctx, p)
-		for _, progress := range state.Progress {
-			if progress.View().Action == a {
-				return executor.Result{Progress: progress}, err
-			}
-		}
-		return executor.Result{}, err
-	}
-	now := time.Now()
-	if err := w.step(context.Background(), now); err != nil {
-		t.Fatal(err)
-	}
-	if runs != 3 || served != 3 || len(previews.calls) != 1 || len(previews.calls[0]) != 3 {
-		t.Fatalf("runs=%d served=%d batches=%v", runs, served, previews.calls)
-	}
-	// Every candidate is on its backoff: nothing to preview.
-	if err := w.step(context.Background(), now); err != nil {
-		t.Fatal(err)
-	}
-	if len(previews.calls) != 1 {
-		t.Fatal("previewed backed-off candidates", previews.calls)
-	}
-	// A failed batch is not a failed step.
-	w.waits = map[domain.ActionID]workerWait{}
-	previews.err = errors.New("native unavailable")
-	served = 0
-	if err := w.step(context.Background(), now); err != nil {
-		t.Fatal(err)
-	}
-	if runs != 6 || served != 0 || len(previews.calls) != 2 {
-		t.Fatalf("runs=%d served=%d batches=%d", runs, served, len(previews.calls))
 	}
 }

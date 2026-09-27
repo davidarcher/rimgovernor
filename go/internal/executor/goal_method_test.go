@@ -62,24 +62,17 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if err != nil || !result.NativeCalled {
 		t.Fatal("upfront reservation could not enter Hands", result, err)
 	}
-	result, err = f.executor.Run(ctx, plan.ID(), "finish")
-	if err == nil || result.NativeCalled {
-		t.Fatal("receipt satisfied dependency", result, err)
-	}
-	f.env.onObserve = func(p Placement, g domain.GenerationSnapshot, _ int) Evidence {
-		return f.env.evidence(p, g, domain.EffectCompleted, true)
-	}
-	result, err = f.executor.Run(ctx, plan.ID(), "foundation")
-	if err != nil || result.Progress.View().Stage != domain.Completed {
-		t.Fatal(result, err)
+	// The applied receipt is terminal (#856): the placed blueprint completes
+	// the dependency and releases its successor.
+	if result.Progress.View().Stage != domain.Completed {
+		t.Fatal("applied intent did not complete", result)
 	}
 	f.env.tick = 102
-	f.env.stock = 11
 	result, err = f.executor.Run(ctx, plan.ID(), "finish")
 	if err != nil || !result.NativeCalled {
-		t.Fatal("observed dependency did not release successor", result, err)
+		t.Fatal("completed dependency did not release successor", result, err)
 	}
-	if _, calls, _ := f.env.counts(); calls != 2 {
+	if _, calls := f.env.counts(); calls != 2 {
 		t.Fatal("unexpected native call count", calls)
 	}
 }

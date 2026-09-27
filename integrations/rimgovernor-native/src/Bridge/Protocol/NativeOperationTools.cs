@@ -21,7 +21,6 @@ namespace HomeBridge.BridgeTools
         private readonly string load;
         internal readonly NativeAttemptLedger Ledger;
         internal readonly Dictionary<Common.AttemptKey, Operations.SetApparelPolicy> ApparelPolicies = new Dictionary<Common.AttemptKey, Operations.SetApparelPolicy>();
-        internal readonly Dictionary<Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<Common.AttemptKey, NativeConstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeProductionRecord> Bills = new Dictionary<Common.AttemptKey, NativeProductionRecord>();
@@ -89,9 +88,9 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeProductionTracking.Install(); NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
+        public NativeOperationTools() { NativeProductionTracking.Install(); NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, exact supply Allow, work-only PatchPawn, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Combat requires an existing owned draft. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit exact supply Allow, work-only PatchPawn, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Combat requires an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object? request = null)
@@ -230,53 +229,10 @@ namespace HomeBridge.BridgeTools
                 return NativeStockpilePatch.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
                 return NativeHomeCoverageOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget.");
-            if (!NativeConstructionTracking.Ready)
-                return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
-            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                return Refuse(Common.FailureCode.AuthorityRequired, "Native authority has not been acquired.");
-            var guard = authority.Check(precondition.ExpectedGeneration);
-            context.NativeGeneration = guard.Snapshot.Generation;
-            if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-            NativeConstructionPlan? plan;
-            try
-            {
-                if (!NativeConstructionPlan.Prepare(ProtoBoundary.LoadedMap(context), request.Operation.PlaceBuilding.Placement, context, out plan, out _, out var invalid))
-                    return new Operations.ExecuteReply { Failure = invalid };
-            }
-            catch (Exception error) { return Refuse(Common.FailureCode.NativeFailure, "Construction validation failed: " + error.GetType().Name); }
-            guard = authority.Check(precondition.ExpectedGeneration);
-            context.NativeGeneration = guard.Snapshot.Generation;
-            if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-            if (!NativeConstructionTracking.Ready)
-                return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
-            var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-            if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
-            var observed = plan.Proposed();
-            try
-            {
-                using (authority.Owned())
-                {
-                    var placed = plan.Place(observed);
-                    if (placed == null) throw new InvalidOperationException("Native placement returned no object.");
-                    var record = NativeConstructionTracking.Register(plan, placed, observed);
-                    state.Construction.Add(precondition.Attempt.Clone(), record);
-                    if (!record.Matches(placed)) throw new InvalidOperationException("Placed object did not match admitted construction.");
-                    return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(admission.AdmittedHandle, new Receipts.EffectEvidence { Construction = record.Effect }) };
-                }
-            }
-            catch (Exception error)
-            {
-                var lastObserved = state.Construction.TryGetValue(precondition.Attempt, out var record)
-                    ? new Receipts.EffectEvidence { Construction = record.Effect.Clone() }
-                    : observed.CancelledFrameIds.Count > 0 || observed.WipedThingIds.Count > 0
-                        ? new Receipts.EffectEvidence { Construction = observed } : null;
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(admission.AdmittedHandle, lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
-            }
+            return Refuse(Common.FailureCode.Unsupported, "This native adapter does not implement the " + request.Operation.CommandCase + " operation; buildings are placed through Actions/Apply.");
         }
 
-        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read ordinary construction, exact supply Allow, work priorities, drafting, movement or melee, direct-bullet or supported injury-only explosive attack eligibility without acquiring authority or applying effects.")]
+        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read exact supply Allow, work priorities, drafting, movement or melee, direct-bullet or supported injury-only explosive attack eligibility without acquiring authority or applying effects.")]
         [ToolResponse("payload", "string", "Official ProtoJSON PreviewReply.", Always = true)]
         public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations PreviewRequest ProtoJSON string.")] object? request = null)
@@ -386,14 +342,7 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeStockpilePatch.Preview(parsed.Operation.PatchStockpile, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
                     return ProtoBoundary.Encode(NativeHomeCoverageOperations.Preview(parsed.Operation.ExtendHome, context));
-                if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget.") });
-                var accepted = NativeConstructionPlan.Prepare(ProtoBoundary.LoadedMap(context), parsed.Operation.PlaceBuilding.Placement, context, out _, out var preview, out var rejected);
-                if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = rejected });
-                return ProtoBoundary.Encode(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
-                {
-                    Context = context, Accepted = accepted, Reason = rejected?.Detail ?? "", Placement = preview
-                } });
+                return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview does not implement this operation; building placement previews through rimgovernor/placement_preview.") });
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -415,7 +364,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted operation", Description = "Read causally tracked construction, supply Allow, work priorities, draft, movement or melee, direct-bullet or supported injury-only explosive outcomes; absence of an attempt never proves completion.")]
+        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted operation", Description = "Read causally tracked supply Allow, work priorities, draft, movement or melee, direct-bullet or supported injury-only explosive outcomes; absence of an attempt never proves completion.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ProgressReply.", Always = true)]
         public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official receipts ProgressRequest ProtoJSON string.")] object? request = null)
@@ -427,7 +376,6 @@ namespace HomeBridge.BridgeTools
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = invalid });
-                NativeConstructionRecord record;
                 if (NativeOperationState.TryGet(context.Identity, out var state))
                 {
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
@@ -566,10 +514,8 @@ namespace HomeBridge.BridgeTools
                     if (state.HomeCoverage.TryGetValue(parsed.Attempt, out homeCoverage))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = homeCoverage.Observe(parsed.Attempt, context) });
                 }
-                var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
-                    ? record.Observe(parsed.Attempt, context)
-                    : new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
-                        Unknown = new Receipts.UnknownEffect { Reason = "No tracked construction effect is available for this attempt." } };
+                var progress = new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
+                    Unknown = new Receipts.UnknownEffect { Reason = "No tracked effect is available for this attempt." } };
                 return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = progress });
             }, cancellationToken).ConfigureAwait(false);
         }

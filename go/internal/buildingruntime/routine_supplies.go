@@ -115,7 +115,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 				}
 			}
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineSupplyResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

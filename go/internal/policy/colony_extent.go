@@ -80,12 +80,12 @@ func DeriveColonyExtent(r ColonyExtentRequest) (domain.Fact[ColonyExtent], error
 	}
 	// Ambiguous optional history cannot select provenance by input order.
 	history, _ := r.Claims.Value()
-	claimIDs := map[string]bool{}
+	claimIDs := map[domain.ActionID]bool{}
 	for _, claim := range history {
-		if claimIDs[claim.Identity.Current] {
+		if claimIDs[claim.Action] {
 			return unknown, errors.New("ambiguous colony extent construction provenance")
 		}
-		claimIDs[claim.Identity.Current] = true
+		claimIDs[claim.Action] = true
 	}
 	owned, err := OwnedConstructions(r.Claims, r.Construction)
 	if err != nil {

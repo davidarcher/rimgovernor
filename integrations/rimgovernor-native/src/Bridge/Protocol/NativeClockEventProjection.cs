@@ -97,7 +97,6 @@ namespace HomeBridge.BridgeTools
                 case "hunting_route_unsafe": return Clock.StopReason.HuntingRouteUnsafe;
                 case "colonist_health": return Clock.StopReason.ColonistHealth;
                 case "colonist_injury": return Clock.StopReason.ColonistInjury;
-                case "watch_latched": return Clock.StopReason.WatchLatched;
                 case "combat_event": return Clock.StopReason.CombatEvent;
                 default: throw new InvalidOperationException("Unknown native clock stop kind: " + kind);
             }
@@ -112,7 +111,6 @@ namespace HomeBridge.BridgeTools
             else if (kind != "authority_changed") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
-                case "operation_outcome": result.OperationOutcome = Outcome(P()); break;
                 case "authority_changed":
                     result.AuthorityChanged = new Clock.AuthorityChanged { Generation = checked((ulong)Number(P(), "generation")), Active = Bool(P(), "active") };
                     object? previous, reason;
@@ -161,7 +159,6 @@ namespace HomeBridge.BridgeTools
                         stop.Notifications = new Clock.NotificationBatch { Completeness = new Common.PageInfo { Complete = true } };
                         stop.Notifications.Letters.Add(Rows(P(), "letters").Select(Letter)); stop.Notifications.Messages.Add(Rows(P(), "messages").Select(Message));
                     }
-                    else if (kind == "watch_latched") stop.Watch = new Clock.WatchLatched { Outcome = Outcome(P()), TickDeadline = Number(P(), "tickDeadline") };
                     else if (kind == "combat_event")
                     {
                         stop.Combat = new Clock.CombatEventStop { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };
@@ -203,10 +200,6 @@ namespace HomeBridge.BridgeTools
             if (families.Count == 0) throw new InvalidOperationException("Observation invalidation names no family");
             return families;
         }
-        // The outcome is retained as the ProtoJSON the watch produced, so the
-        // receipts evidence inside it round-trips exactly.
-        private static Clock.OperationOutcome Outcome(Dictionary<string, object?> row)
-            => Clock.OperationOutcome.Parser.ParseJson((string)Required(row, "outcome"));
         private static Clock.Speed ParseSpeed(string value) => value == "Normal" ? Clock.Speed.Normal : value == "Fast" ? Clock.Speed.Fast : value == "Superfast" ? Clock.Speed.Superfast : value == "Ultrafast" ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary clock speed");
     }
 }

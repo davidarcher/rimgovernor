@@ -92,7 +92,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			open = append(open, plan)
 		}
 	}
@@ -242,7 +242,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if plan, err = p.journal.LoadPlan(call, plan.Spec.ID()); err != nil {
 			return RoutineWorkResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

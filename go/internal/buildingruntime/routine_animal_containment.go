@@ -221,7 +221,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 		kind, room := animalContainmentPlanKindOf(plan.Spec)
 		switch kind {
 		case animalContainmentPlanShell:
-			if domain.GoalWorkOpen(plan.Progress) {
+			if store.PlanOpen(plan) {
 				shellStage = policy.ContainmentShellPending
 			} else if animalContainmentPlanComplete(plan) {
 				shellStage = policy.ContainmentShellComplete
@@ -402,9 +402,6 @@ func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, s
 			return nil, nil, policy.StockObservation{}, "", err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return nil, nil, policy.StockObservation{}, "", ErrControl
-		}
 		made, madeKnown := v.MadeFromStuff.Value()
 		if !madeKnown || made != (stuff != "") {
 			return nil, nil, policy.StockObservation{}, BuildingMethodUnknown, nil
@@ -476,9 +473,6 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 			return RoutineAnimalContainmentResult{}, err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return RoutineAnimalContainmentResult{}, ErrControl
-		}
 		made, mk := v.MadeFromStuff.Value()
 		if !mk || made != (stuff != "") {
 			continue

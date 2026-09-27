@@ -89,7 +89,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 		if err != nil {
 			return RoutinePrisonerInteractionResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutinePrisonerInteractionResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

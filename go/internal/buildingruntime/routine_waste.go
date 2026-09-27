@@ -103,7 +103,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil {
 			return RoutineWasteResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineWasteResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

@@ -159,6 +159,7 @@ func TestColonyExtentStableProvenanceAndIsolation(t *testing.T) {
 	h, _ := r.Home.Value()
 	h.Targets[0].ExtentGeometry = domain.Known(HomeExtentGeometry{Corridor: []domain.Cell{{X: 3, Z: 2}, {X: 4, Z: 2}, {X: 5, Z: 2}}})
 	r.Home = domain.Known(h)
+	c.Buildings[0].IntentKey = "action/1" // the census binds the claim (#856)
 	b := c.Buildings[0]
 	r.Claims = domain.Known([]ConstructionClaim{{Plan: "plan", Action: "action", Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: b.ID}, Building: b.Building, Cells: b.Cells}})
 	// A census stockpile no journal claim created is territory too (#719).

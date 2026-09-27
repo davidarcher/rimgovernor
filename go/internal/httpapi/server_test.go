@@ -183,10 +183,7 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 	if _, err := database.Dispatch(ctx, spec.ID(), action.ID(), scope, 10); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.Cancel(ctx, spec.ID(), action.ID()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := database.Observe(ctx, spec.ID(), domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: scope, Tick: 10, Effect: domain.EffectUnsuccessful, Causality: domain.AfterDispatch, UnsuccessfulReason: domain.OutcomeNotAchieved}, scope); err != nil {
+	if _, err := database.RecordReceipt(ctx, spec.ID(), action.ID(), 1, domain.ReceiptRefused); err != nil {
 		t.Fatal(err)
 	}
 	status, body = get(t, server.URL+"/api/plan?id=plan")
@@ -194,7 +191,7 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	progress := plan.Actions[0].Progress
-	if status != 200 || progress.Stage != domain.Cancelled || progress.UnsuccessfulReason == nil || *progress.UnsuccessfulReason != domain.OutcomeNotAchieved || progress.Effect == nil || *progress.Effect != domain.EffectUnsuccessful || progress.Unresolved {
+	if status != 200 || progress.Stage != domain.Unsuccessful || progress.Effect == nil || *progress.Effect != domain.EffectAbsent || progress.Unresolved {
 		t.Fatalf("unsuccessful observation lost: %s", body)
 	}
 	if !strings.Contains(string(body), `"revision":"1152921504606846976"`) || !strings.Contains(string(body), `"attempt":"1"`) {

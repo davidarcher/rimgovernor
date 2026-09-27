@@ -9,7 +9,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -102,7 +101,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 		t.Fatal(g, n.previews)
 	}
 	p, err := db.LoadPlan(context.Background(), g.Methods[0].Plan)
-	if err != nil || len(p.Progress) != 2 || len(p.Admissions) != 2 {
+	if err != nil || len(p.Progress) != 2 {
 		t.Fatal(p, err)
 	}
 	for _, progress := range p.Progress {
@@ -133,7 +132,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 
 func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"space", "unsafe", "direction", "age", "prerequisite", "unknown-room"} {
+	for _, change := range []string{"space", "unsafe", "direction", "prerequisite", "unknown-room"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, session, _, n := sleepingFixture(t)
 			switch change {
@@ -156,8 +155,6 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 						session.mu.Lock()
 						session.state.Snapshot.Native++
 						session.mu.Unlock()
-					case "age":
-						r.reviewer.clock.(*testkit.ManualClock).Advance(time.Second)
 					}
 				}
 			}
@@ -206,61 +203,6 @@ func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T)
 	next, err := r.Step(context.Background())
 	if err != nil || next.Reason != BuildingMethodAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch+1 || next.Decision.Goal.Methods[0].Plan == p.Spec.ID() {
 		t.Fatal(next, err)
-	}
-}
-
-func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
-	t.Parallel()
-	r, db, session, _, _ := sleepingFixture(t)
-	ctx := context.Background()
-	snapshot := session.State().Snapshot
-	g, err := domain.NewGoal("player-room", domain.PlayerGoal, 3, snapshot, 7)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateGoal(ctx, g); err != nil {
-		t.Fatal(err)
-	}
-	goal, err := db.ReviewGoal(ctx, g.ID, 0, snapshot, 7, domain.NeedDeficit, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := domain.NewBuilding("SleepingSpot", domain.Cell{X: 2, Z: 2}, domain.North, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := domain.NewBuildingAction("player-room-a", b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := domain.NewPlan("player-room-plan", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	snapshot.Plan = p.ID()
-	snapshot.Revision = 1
-	footprint := []domain.Cell{{X: 2, Z: 2}, {X: 2, Z: 3}}
-	preview := policy.Preview{Action: a, Snapshot: snapshot, Tick: 7, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), Footprint: domain.Known(footprint), Costs: domain.Known([]policy.Amount{})}
-	admitted, err := db.AdmitBuildingMethod(ctx, store.BuildingMethodRequest{Goal: g.ID, Revision: goal.Revision, Method: "player-sleep", Plan: p, Current: snapshot, Tick: 7, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Stock: policy.StockObservation{Snapshot: snapshot, Tick: 7}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	if err != nil || !admitted.Admitted {
-		t.Fatal(admitted, err)
-	}
-	result, err := r.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
-		t.Fatal(result, err)
-	}
-	compiled, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, record := range compiled.Admissions {
-		for _, cell := range record.Admission.Footprint {
-			for _, protected := range footprint {
-				if cell == protected {
-					t.Fatal("claimed player footprint", cell)
-				}
-			}
-		}
 	}
 }
 
@@ -361,8 +303,10 @@ func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
 		t.Fatal(err)
 	}
 	aisle := map[domain.Cell]bool{{X: 2, Z: 1}: true, {X: 1, Z: 0}: true, {X: 3, Z: 0}: true, {X: 2, Z: 0}: true}
-	for _, record := range compiled.Admissions {
-		for _, cell := range record.Admission.Footprint {
+	// Building admissions are no longer recorded (#856); the placed cells are.
+	for _, action := range compiled.Spec.Actions() {
+		b, _ := action.Building()
+		for _, cell := range []domain.Cell{b.Cell()} {
 			if aisle[cell] {
 				t.Fatal("furniture blocks the doorway aisle", cell)
 			}

@@ -72,6 +72,9 @@ func completedProgress(t *testing.T, spec domain.PlanSpec, action domain.ActionI
 	if err != nil {
 		t.Fatal(err)
 	}
+	if p.View().Stage == domain.Completed {
+		return p // an intent's receipt settles it (#856)
+	}
 	p, err = p.Observe(domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
 	if err != nil {
 		t.Fatal(err)

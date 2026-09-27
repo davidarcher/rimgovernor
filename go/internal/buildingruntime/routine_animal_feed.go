@@ -82,7 +82,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

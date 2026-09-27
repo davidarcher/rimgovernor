@@ -214,20 +214,17 @@ func (v ConstructionIdentity) Validate() error {
 type Observation struct {
 	// BillConsumption is derived from observed completed iterations and native
 	// recipe quantities. Nil quantities mean unknown, including old history.
-	BillConsumption      *BillConsumption      `json:",omitempty"`
-	Construction         *ConstructionIdentity `json:",omitempty"`
-	Zone                 string                `json:",omitempty"`
-	Action               ActionID
-	Attempt              AttemptID
-	Snapshot             GenerationSnapshot
-	Tick                 Tick
-	Effect               Effect
-	Causality            ObservationCausality `json:",omitempty"`
-	UnsuccessfulReason   UnsuccessfulReason   `json:",omitempty"`
-	ConstructionObserved bool                 `json:",omitempty"`
+	BillConsumption    *BillConsumption `json:",omitempty"`
+	Zone               string           `json:",omitempty"`
+	Action             ActionID
+	Attempt            AttemptID
+	Snapshot           GenerationSnapshot
+	Tick               Tick
+	Effect             Effect
+	Causality          ObservationCausality `json:",omitempty"`
+	UnsuccessfulReason UnsuccessfulReason   `json:",omitempty"`
 }
 type ProgressView struct {
-	Construction       Fact[ConstructionIdentity]
 	Zone               Fact[string]
 	Action             ActionID
 	Attempt            AttemptID
@@ -242,9 +239,6 @@ type ProgressView struct {
 	UnsuccessfulReason Fact[UnsuccessfulReason]
 	HeldReason         Fact[HoldEvidence]
 	DraftCleanup       Fact[DraftCleanup]
-	// Earliest complete correlated inspection in the current run of known pending
-	// evidence. A later game tick can safely replace historic cost with net stock.
-	ConstructionObserved Fact[Tick]
 }
 
 // Progress transitions return a new value; failed transitions preserve the original.
@@ -365,9 +359,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
 	p.view.HeldReason = Unknown[HoldEvidence]()
-	p.view.Construction = Unknown[ConstructionIdentity]()
 	p.view.Zone = Unknown[string]()
-	p.view.ConstructionObserved = Unknown[Tick]()
 	if p.action.kind == OwnedDraftAction {
 		p.view.DraftCleanup = Known(DraftCleanup{Stage: DraftAwaitingClaim})
 	}
@@ -501,9 +493,6 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 			return p, errors.New("invalid bill consumption evidence")
 		}
 	}
-	if observation.Construction != nil && (p.action.Kind() != BuildingAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || observation.Construction.Validate() != nil) {
-		return p, errors.New("construction identity requires correlated completed building evidence")
-	}
 	if observation.Zone != "" && (p.action.Kind() != ZoneCreateAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || !validID(observation.Zone)) {
 		return p, errors.New("zone identity requires correlated completed zone evidence")
 	}
@@ -530,19 +519,6 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 		}
 	} else if observation.UnsuccessfulReason != "" {
 		return p, errors.New("unsuccessful reason requires unsuccessful effect")
-	}
-	if observation.ConstructionObserved && (p.action.Kind() != BuildingAction || observation.Effect != EffectPending || observation.Causality != AfterDispatch) {
-		return p, errors.New("construction accounting requires correlated pending building evidence")
-	}
-	if observation.ConstructionObserved {
-		if _, known := p.view.ConstructionObserved.Value(); !known {
-			p.view.ConstructionObserved = Known(observation.Tick)
-		}
-	} else {
-		p.view.ConstructionObserved = Unknown[Tick]()
-	}
-	if observation.Construction != nil {
-		p.view.Construction = Known(*observation.Construction)
 	}
 	if observation.Zone != "" {
 		p.view.Zone = Known(observation.Zone)

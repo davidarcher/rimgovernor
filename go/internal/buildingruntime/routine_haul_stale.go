@@ -23,7 +23,7 @@ func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal stor
 		if err != nil {
 			return false, err
 		}
-		if !domain.GoalWorkOpen(plan.Progress) {
+		if !store.PlanOpen(plan) {
 			continue
 		}
 		hauls := map[domain.ActionID]domain.Haul{}
@@ -49,7 +49,7 @@ func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal stor
 				return false, err
 			}
 		}
-		open = open || domain.GoalWorkOpen(plan.Progress)
+		open = open || store.PlanOpen(plan)
 	}
 	return open, nil
 }

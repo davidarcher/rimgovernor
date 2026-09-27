@@ -155,9 +155,7 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
   `suite`) and verified against a real headless RimWorld instance; see
   [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
   them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
-  for coverage gaps. `internal/buildingruntime/cmd/buildingsmoke` is the
-  native fixture host `construction/guarded` spawns across a restart. The
-  `service/restart` case is the kill-and-restart
+  for coverage gaps. The `service/restart` case is the kill-and-restart
   acceptance: `serve --resume` plays with no HTTP write, is killed, and a
   restart on the same state resumes autonomous play for the same world.
 

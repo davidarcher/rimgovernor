@@ -75,14 +75,18 @@ func powerSites(ctx context.Context, s cases.Session) error {
 				}
 				for i, site := range sites {
 					placement := map[string]any{"defName": def, "x": site.Cell.X, "z": site.Cell.Z, "rotation": "ROTATION_" + rotationName(site.Rotation)}
-					reply, err := h.Wire(ctx, fmt.Sprintf("preview-%s-%d", def, i), "operations_preview", map[string]any{
-						"identity": identity, "operation": map[string]any{"placeBuilding": map[string]any{"placement": placement}},
+					reply, err := h.Wire(ctx, fmt.Sprintf("preview-%s-%d", def, i), "placement_preview", map[string]any{
+						"identity": identity, "placements": []any{placement},
 					})
 					if err != nil {
 						return err
 					}
-					evaluated, _ := na.AsMap(reply["evaluated"])
-					evaluation, _ := na.AsMap(evaluated["placement"])
+					batch, _ := na.AsMap(reply["batch"])
+					var evaluation map[string]any
+					if results := na.AsSlice(batch["results"]); len(results) == 1 {
+						result, _ := na.AsMap(results[0])
+						evaluation, _ = na.AsMap(result["evaluated"])
+					}
 					rotations := na.AsSlice(evaluation["rotations"])
 					if len(rotations) != 1 {
 						return fmt.Errorf("%s site %d: expected one evaluated rotation, got %#v", def, i, reply)

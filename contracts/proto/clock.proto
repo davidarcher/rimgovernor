@@ -132,12 +132,10 @@ message WatchPolicy {
   optional uint32 injury_stop_cooldown_ms = 8;
   repeated string surgical_recovery_ids = 9;
   repeated string medical_rest_ids = 10;
-  // Attempts whose terminal progress stops the epoch at the next tick boundary
-  // (STOP_REASON_WATCH_LATCHED). At most 16, distinct, complete keys, each an
-  // attempt the native ledger admitted for this identity. An attempt that is
-  // already terminal at Start is reported once as OperationOutcome and is not
-  // armed; it never burns the window.
-  repeated rimgovernor.common.v1.AttemptKey watched_attempts = 11;
+  // Watched attempts only ever named construction operations, which moved
+  // to Actions/Apply (#856).
+  reserved 11;
+  reserved "watched_attempts";
   // Stored-resource levels the controller's planners act on (#670). When a
   // definition's colony stock crosses its level in either direction under a
   // running epoch the journal gets an observation_invalidated row for the

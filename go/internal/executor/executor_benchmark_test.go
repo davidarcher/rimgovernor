@@ -38,35 +38,17 @@ func (j *schedulingJournal) LoadPlan(ctx context.Context, plan domain.PlanID) (s
 	}
 	return store.PlanState{Spec: j.plan, Progress: []domain.Progress{j.progress}, Admissions: append([]store.ActionAdmission(nil), j.admission...)}, nil
 }
-func (j *schedulingJournal) ReserveAndPrepare(ctx context.Context, plan domain.PlanID, action domain.ActionID, a store.Admission) (domain.Progress, error) {
+func (j *schedulingJournal) Prepare(ctx context.Context, plan domain.PlanID, action domain.ActionID, g domain.GenerationSnapshot, tick domain.Tick) (domain.Progress, error) {
 	if err := j.check(ctx, plan, action); err != nil {
 		return domain.Progress{}, err
 	}
-	building, _ := j.action.Building()
-	if a.Snapshot != j.scope || a.Tick != 100 || len(a.Costs) != 1 || a.Costs[0] != (store.MaterialCost{Definition: "WoodLog", Count: 10}) || len(a.Footprint) != 1 || a.Footprint[0] != building.Cell() {
-		return domain.Progress{}, ErrEvidence
-	}
-	v := j.progress.View()
-	if v.Unresolved || a.Tick < v.Tick {
-		return domain.Progress{}, ErrEvidence
-	}
-	switch v.Stage {
-	case domain.Pending:
-		p, err := j.progress.Prepare(a.Snapshot, a.Tick)
+	if j.progress.View().Stage == domain.Pending {
+		p, err := j.progress.Prepare(g, tick)
 		if err != nil {
 			return domain.Progress{}, err
 		}
 		j.progress = p
-	case domain.Prepared:
-		if v.Snapshot != a.Snapshot {
-			return domain.Progress{}, ErrAuthority
-		}
-	default:
-		return domain.Progress{}, ErrEvidence
 	}
-	a.Costs = append([]store.MaterialCost(nil), a.Costs...)
-	a.Footprint = append([]domain.Cell(nil), a.Footprint...)
-	j.admission = []store.ActionAdmission{{Action: action, Admission: a}}
 	return j.progress, nil
 }
 func (j *schedulingJournal) Dispatch(ctx context.Context, plan domain.PlanID, action domain.ActionID, g domain.GenerationSnapshot, tick domain.Tick) (domain.Progress, error) {
@@ -124,7 +106,7 @@ func (j *schedulingJournal) Hold(ctx context.Context, plan domain.PlanID, action
 }
 
 func BenchmarkExecutorScheduling(b *testing.B) {
-	for _, scenario := range []string{"DispatchAccepted", "ReconcilePending", "ReconcileCompleted"} {
+	for _, scenario := range []string{"DispatchApplied"} {
 		b.Run(scenario, func(b *testing.B) {
 			b.StopTimer()
 			ctx := context.Background()
@@ -161,48 +143,22 @@ func BenchmarkExecutorScheduling(b *testing.B) {
 				b.Fatal(err)
 			}
 			initial := pending
-			var admissions []store.ActionAdmission
-			expectedStage := domain.AwaitingObservation
-			inspections, placements, observations := 2, 1, 0
-			switch scenario {
-			case "ReconcilePending", "ReconcileCompleted":
-				// Prepare the observation checkpoint through the same real guarded dispatch
-				// path, outside timing. Every iteration starts from this unresolved attempt.
-				result, err := executor.Run(ctx, plan.ID(), action.ID())
-				if err != nil || !result.NativeCalled || !result.Progress.View().Unresolved {
-					b.Fatal(result, err)
-				}
-				initial = journal.progress
-				admissions = journal.admission
-				inspections, placements, observations = 0, 0, 1
-				if scenario == "ReconcileCompleted" {
-					expectedStage = domain.Completed
-					env.onObserve = func(p Placement, g domain.GenerationSnapshot, _ int) Evidence {
-						return env.evidence(p, g, domain.EffectCompleted, true)
-					}
-				}
-			}
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				journal.progress = initial
-				journal.admission = admissions
-				env.inspections, env.placements, env.observations = 0, 0, 0
+				env.inspections, env.placements = 0, 0
 				b.StartTimer()
 				result, err := executor.Run(ctx, plan.ID(), action.ID())
 				b.StopTimer()
 				if err != nil {
 					b.Fatal(err)
 				}
-				if result.Progress.View().Stage != expectedStage || result.NativeCalled != (placements == 1) {
+				if result.Progress.View().Stage != domain.Completed || !result.NativeCalled || result.Progress.View().Unresolved {
 					b.Fatal("unexpected path", result)
 				}
-				unresolved := scenario == "DispatchAccepted" || scenario == "ReconcilePending"
-				if result.Progress.View().Unresolved != unresolved {
-					b.Fatal("unexpected uncertainty", result)
-				}
-				if x, y, z := env.counts(); x != inspections || y != placements || z != observations {
-					b.Fatalf("calls = %d/%d/%d", x, y, z)
+				if x, y := env.counts(); x != 1 || y != 1 {
+					b.Fatalf("calls = %d/%d", x, y)
 				}
 			}
 		})

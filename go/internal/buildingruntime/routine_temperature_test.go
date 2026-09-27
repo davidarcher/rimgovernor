@@ -63,7 +63,7 @@ func TestTemperatureReadIsOptInAndBracketRejectsLateResults(t *testing.T) {
 	}
 }
 
-func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing.T) {
+func TestTemperatureNativeWorkBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	t.Parallel()
 	for _, definition := range []string{"Campfire", "PassiveCooler", "Wall"} {
 		building, _ := domain.NewBuilding(definition, domain.Cell{X: 1, Z: 1}, domain.North, "")
@@ -76,11 +76,11 @@ func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing
 			t.Fatal("pending construction granted time")
 		}
 		var err error
-		progress, err = progress.Prepare(snapshot, 1)
+		progress, err = progress.Prepare(snapshot, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
-		progress, err = progress.MarkDispatched(snapshot, 1)
+		progress, err = progress.MarkDispatched(snapshot, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -88,14 +88,8 @@ func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing
 		if err != nil {
 			t.Fatal(err)
 		}
-		state.Progress[0] = progress
-		if temperatureNativeWorkTicks(state, snapshot, 100) != 0 {
-			t.Fatal("receipt granted time")
-		}
-		progress, err = progress.Observe(domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
-		if err != nil {
-			t.Fatal(err)
-		}
+		// The apply receipt settles the building (#856): the budget runs
+		// from its tick.
 		state.Progress[0] = progress
 		for _, row := range []struct {
 			tick domain.Tick
@@ -177,7 +171,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 				t.Fatal(result, err)
 			}
 			plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
-			if err != nil || len(plan.Progress) != 1 || len(plan.Admissions) != 1 {
+			if err != nil || len(plan.Progress) != 1 {
 				t.Fatal(plan, err)
 			}
 			b, _ := plan.Progress[0].Action().Building()

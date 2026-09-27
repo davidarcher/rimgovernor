@@ -69,7 +69,7 @@ func TestCancelSettledRepairMethodsSettlesRepairsMadeByColonists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !domain.GoalWorkOpen(plan.Progress) {
+	if !store.PlanOpen(plan) {
 		t.Fatal("a repair waiting for a repairer must stay open")
 	}
 	if _, err = journal.Hold(ctx, "repair-plan", "repair-plan-0", []domain.HeldReason{domain.HeldStructureIneligible}, 200); err != nil {
@@ -81,7 +81,7 @@ func TestCancelSettledRepairMethodsSettlesRepairsMadeByColonists(t *testing.T) {
 	if plan, err = journal.LoadPlan(ctx, "repair-plan"); err != nil {
 		t.Fatal(err)
 	}
-	if v := plan.Progress[0].View(); v.Stage != domain.Cancelled || domain.GoalWorkOpen(plan.Progress) {
+	if v := plan.Progress[0].View(); v.Stage != domain.Cancelled || store.PlanOpen(plan) {
 		t.Fatalf("stage = %s, want cancelled with no open work", v.Stage)
 	}
 }
@@ -114,7 +114,7 @@ func TestCancelSettledRepairMethodsCancelsPendingWorkOfARecoveredGoal(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v := plan.Progress[0].View(); v.Stage != domain.Cancelled || domain.GoalWorkOpen(plan.Progress) {
+	if v := plan.Progress[0].View(); v.Stage != domain.Cancelled || store.PlanOpen(plan) {
 		t.Fatalf("stage = %s, want cancelled with no open work", v.Stage)
 	}
 }

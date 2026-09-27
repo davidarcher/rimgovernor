@@ -103,7 +103,7 @@ func TestLandNeverTitlesASquashWip(t *testing.T) {
 	mustGit(t, wt, "commit", "--amend", "-qm", "Milestone b (#1)")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false); err != nil {
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	body := mustGit(t, root, "log", "-1", "--format=%B", "main")

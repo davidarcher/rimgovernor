@@ -656,12 +656,6 @@ type WatchPolicy struct {
 	InjuryStopCooldownMs           *uint32                `protobuf:"varint,8,opt,name=injury_stop_cooldown_ms,json=injuryStopCooldownMs,proto3,oneof" json:"injury_stop_cooldown_ms,omitempty"`
 	SurgicalRecoveryIds            []string               `protobuf:"bytes,9,rep,name=surgical_recovery_ids,json=surgicalRecoveryIds,proto3" json:"surgical_recovery_ids,omitempty"`
 	MedicalRestIds                 []string               `protobuf:"bytes,10,rep,name=medical_rest_ids,json=medicalRestIds,proto3" json:"medical_rest_ids,omitempty"`
-	// Attempts whose terminal progress stops the epoch at the next tick boundary
-	// (STOP_REASON_WATCH_LATCHED). At most 16, distinct, complete keys, each an
-	// attempt the native ledger admitted for this identity. An attempt that is
-	// already terminal at Start is reported once as OperationOutcome and is not
-	// armed; it never burns the window.
-	WatchedAttempts []*commonpb.AttemptKey `protobuf:"bytes,11,rep,name=watched_attempts,json=watchedAttempts,proto3" json:"watched_attempts,omitempty"`
 	// Stored-resource levels the controller's planners act on (#670). When a
 	// definition's colony stock crosses its level in either direction under a
 	// running epoch the journal gets an observation_invalidated row for the
@@ -772,13 +766,6 @@ func (x *WatchPolicy) GetSurgicalRecoveryIds() []string {
 func (x *WatchPolicy) GetMedicalRestIds() []string {
 	if x != nil {
 		return x.MedicalRestIds
-	}
-	return nil
-}
-
-func (x *WatchPolicy) GetWatchedAttempts() []*commonpb.AttemptKey {
-	if x != nil {
-		return x.WatchedAttempts
 	}
 	return nil
 }
@@ -5193,7 +5180,7 @@ var File_clock_proto protoreflect.FileDescriptor
 
 const file_clock_proto_rawDesc = "" +
 	"\n" +
-	"\vclock.proto\x12\x14rimgovernor.clock.v1\x1a\fcommon.proto\x1a\x0fauthority.proto\x1a\x0ereceipts.proto\"\xa9\a\n" +
+	"\vclock.proto\x12\x14rimgovernor.clock.v1\x1a\fcommon.proto\x1a\x0fauthority.proto\x1a\x0ereceipts.proto\"\xf3\x06\n" +
 	"\vWatchPolicy\x128\n" +
 	"\x04mode\x18\x01 \x01(\x0e2\x1f.rimgovernor.clock.v1.WatchModeH\x00R\x04mode\x88\x01\x01\x125\n" +
 	"\x14health_drop_fraction\x18\x02 \x01(\x02H\x01R\x12healthDropFraction\x88\x01\x01\x123\n" +
@@ -5205,15 +5192,14 @@ const file_clock_proto_rawDesc = "" +
 	"\x17injury_stop_cooldown_ms\x18\b \x01(\rH\x04R\x14injuryStopCooldownMs\x88\x01\x01\x122\n" +
 	"\x15surgical_recovery_ids\x18\t \x03(\tR\x13surgicalRecoveryIds\x12(\n" +
 	"\x10medical_rest_ids\x18\n" +
-	" \x03(\tR\x0emedicalRestIds\x12L\n" +
-	"\x10watched_attempts\x18\v \x03(\v2!.rimgovernor.common.v1.AttemptKeyR\x0fwatchedAttempts\x12X\n" +
+	" \x03(\tR\x0emedicalRestIds\x12X\n" +
 	"\x13resource_thresholds\x18\f \x03(\v2'.rimgovernor.clock.v1.ResourceThresholdR\x12resourceThresholds\x12O\n" +
 	"\x12combat_stop_events\x18\r \x03(\x0e2!.rimgovernor.clock.v1.CombatEventR\x10combatStopEventsB\a\n" +
 	"\x05_modeB\x17\n" +
 	"\x15_health_drop_fractionB\x16\n" +
 	"\x14_min_health_fractionB\x11\n" +
 	"\x0f_hostile_withinB\x1a\n" +
-	"\x18_injury_stop_cooldown_ms\"e\n" +
+	"\x18_injury_stop_cooldown_msJ\x04\b\v\x10\fR\x10watched_attempts\"e\n" +
 	"\x11ResourceThreshold\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x03H\x01R\x05level\x88\x01\x01B\v\n" +
@@ -5868,13 +5854,13 @@ var file_clock_proto_goTypes = []any{
 	(*EventsRequest)(nil),                 // 59: rimgovernor.clock.v1.EventsRequest
 	(*EventsPage)(nil),                    // 60: rimgovernor.clock.v1.EventsPage
 	(*EventsReply)(nil),                   // 61: rimgovernor.clock.v1.EventsReply
-	(*commonpb.AttemptKey)(nil),           // 62: rimgovernor.common.v1.AttemptKey
-	(*authoritypb.WritePrecondition)(nil), // 63: rimgovernor.authority.v1.WritePrecondition
-	(*commonpb.Identity)(nil),             // 64: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),   // 65: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),          // 66: rimgovernor.common.v1.Unavailable
-	(*commonpb.PageInfo)(nil),             // 67: rimgovernor.common.v1.PageInfo
-	(*commonpb.Failure)(nil),              // 68: rimgovernor.common.v1.Failure
+	(*authoritypb.WritePrecondition)(nil), // 62: rimgovernor.authority.v1.WritePrecondition
+	(*commonpb.Identity)(nil),             // 63: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),   // 64: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),          // 65: rimgovernor.common.v1.Unavailable
+	(*commonpb.PageInfo)(nil),             // 66: rimgovernor.common.v1.PageInfo
+	(*commonpb.Failure)(nil),              // 67: rimgovernor.common.v1.Failure
+	(*commonpb.AttemptKey)(nil),           // 68: rimgovernor.common.v1.AttemptKey
 	(*commonpb.Cell)(nil),                 // 69: rimgovernor.common.v1.Cell
 	(*receiptspb.CompletedEffect)(nil),    // 70: rimgovernor.receipts.v1.CompletedEffect
 	(*receiptspb.UnsuccessfulEffect)(nil), // 71: rimgovernor.receipts.v1.UnsuccessfulEffect
@@ -5883,143 +5869,142 @@ var file_clock_proto_goTypes = []any{
 }
 var file_clock_proto_depIdxs = []int32{
 	4,   // 0: rimgovernor.clock.v1.WatchPolicy.mode:type_name -> rimgovernor.clock.v1.WatchMode
-	62,  // 1: rimgovernor.clock.v1.WatchPolicy.watched_attempts:type_name -> rimgovernor.common.v1.AttemptKey
-	10,  // 2: rimgovernor.clock.v1.WatchPolicy.resource_thresholds:type_name -> rimgovernor.clock.v1.ResourceThreshold
-	6,   // 3: rimgovernor.clock.v1.WatchPolicy.combat_stop_events:type_name -> rimgovernor.clock.v1.CombatEvent
-	63,  // 4: rimgovernor.clock.v1.StartRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
-	0,   // 5: rimgovernor.clock.v1.StartRequest.speed:type_name -> rimgovernor.clock.v1.Speed
-	9,   // 6: rimgovernor.clock.v1.StartRequest.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
-	2,   // 7: rimgovernor.clock.v1.StartRequest.pacing:type_name -> rimgovernor.clock.v1.Pacing
-	64,  // 8: rimgovernor.clock.v1.OwnedRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	11,  // 9: rimgovernor.clock.v1.OwnedRequest.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	13,  // 10: rimgovernor.clock.v1.RenewRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
-	63,  // 11: rimgovernor.clock.v1.RenewRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
-	13,  // 12: rimgovernor.clock.v1.SpeedRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
-	63,  // 13: rimgovernor.clock.v1.SpeedRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
-	0,   // 14: rimgovernor.clock.v1.SpeedRequest.speed:type_name -> rimgovernor.clock.v1.Speed
-	64,  // 15: rimgovernor.clock.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	11,  // 16: rimgovernor.clock.v1.Epoch.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	65,  // 17: rimgovernor.clock.v1.Epoch.origin:type_name -> rimgovernor.common.v1.ObservationContext
-	0,   // 18: rimgovernor.clock.v1.Epoch.requested_speed:type_name -> rimgovernor.clock.v1.Speed
-	9,   // 19: rimgovernor.clock.v1.Epoch.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
-	2,   // 20: rimgovernor.clock.v1.Epoch.pacing:type_name -> rimgovernor.clock.v1.Pacing
-	3,   // 21: rimgovernor.clock.v1.Epoch.pacing_reason:type_name -> rimgovernor.clock.v1.PacingReason
-	17,  // 22: rimgovernor.clock.v1.Running.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	17,  // 23: rimgovernor.clock.v1.Stopping.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	5,   // 24: rimgovernor.clock.v1.Stopping.pending_reason:type_name -> rimgovernor.clock.v1.StopReason
-	17,  // 25: rimgovernor.clock.v1.Stopped.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	5,   // 26: rimgovernor.clock.v1.Stopped.reason:type_name -> rimgovernor.clock.v1.StopReason
-	6,   // 27: rimgovernor.clock.v1.Stopped.combat_event:type_name -> rimgovernor.clock.v1.CombatEvent
-	65,  // 28: rimgovernor.clock.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
-	18,  // 29: rimgovernor.clock.v1.Status.running:type_name -> rimgovernor.clock.v1.Running
-	19,  // 30: rimgovernor.clock.v1.Status.stopping:type_name -> rimgovernor.clock.v1.Stopping
-	20,  // 31: rimgovernor.clock.v1.Status.stopped:type_name -> rimgovernor.clock.v1.Stopped
-	21,  // 32: rimgovernor.clock.v1.Status.never_started:type_name -> rimgovernor.clock.v1.NeverStarted
-	66,  // 33: rimgovernor.clock.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	37,  // 34: rimgovernor.clock.v1.Status.baseline_alerts:type_name -> rimgovernor.clock.v1.Alert
-	40,  // 35: rimgovernor.clock.v1.Status.suppressed_injuries:type_name -> rimgovernor.clock.v1.Injury
-	67,  // 36: rimgovernor.clock.v1.Status.evidence_completeness:type_name -> rimgovernor.common.v1.PageInfo
-	1,   // 37: rimgovernor.clock.v1.Status.observed_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
-	23,  // 38: rimgovernor.clock.v1.Status.hazard_gaps:type_name -> rimgovernor.clock.v1.HazardGap
-	0,   // 39: rimgovernor.clock.v1.Status.player_speed:type_name -> rimgovernor.clock.v1.Speed
-	22,  // 40: rimgovernor.clock.v1.StatusReply.status:type_name -> rimgovernor.clock.v1.Status
-	68,  // 41: rimgovernor.clock.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	22,  // 42: rimgovernor.clock.v1.AppliedControl.status:type_name -> rimgovernor.clock.v1.Status
-	22,  // 43: rimgovernor.clock.v1.UncertainControl.last_observed:type_name -> rimgovernor.clock.v1.Status
-	62,  // 44: rimgovernor.clock.v1.ControlReceipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	65,  // 45: rimgovernor.clock.v1.ControlReceipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
-	26,  // 46: rimgovernor.clock.v1.ControlReceipt.applied:type_name -> rimgovernor.clock.v1.AppliedControl
-	27,  // 47: rimgovernor.clock.v1.ControlReceipt.uncertain:type_name -> rimgovernor.clock.v1.UncertainControl
-	28,  // 48: rimgovernor.clock.v1.ControlReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
-	68,  // 49: rimgovernor.clock.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
-	25,  // 50: rimgovernor.clock.v1.ControlReply.long_event_pending:type_name -> rimgovernor.clock.v1.LongEventPending
-	64,  // 51: rimgovernor.clock.v1.AttemptRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	62,  // 52: rimgovernor.clock.v1.AttemptRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	28,  // 53: rimgovernor.clock.v1.AttemptReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
-	31,  // 54: rimgovernor.clock.v1.AttemptReply.unknown:type_name -> rimgovernor.clock.v1.AttemptUnknown
-	68,  // 55: rimgovernor.clock.v1.AttemptReply.failure:type_name -> rimgovernor.common.v1.Failure
-	33,  // 56: rimgovernor.clock.v1.Notification.letter:type_name -> rimgovernor.clock.v1.Letter
-	34,  // 57: rimgovernor.clock.v1.Notification.message:type_name -> rimgovernor.clock.v1.TransientMessage
-	33,  // 58: rimgovernor.clock.v1.NotificationBatch.letters:type_name -> rimgovernor.clock.v1.Letter
-	34,  // 59: rimgovernor.clock.v1.NotificationBatch.messages:type_name -> rimgovernor.clock.v1.TransientMessage
-	67,  // 60: rimgovernor.clock.v1.NotificationBatch.completeness:type_name -> rimgovernor.common.v1.PageInfo
-	69,  // 61: rimgovernor.clock.v1.PawnEvent.position:type_name -> rimgovernor.common.v1.Cell
-	38,  // 62: rimgovernor.clock.v1.Injury.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
-	39,  // 63: rimgovernor.clock.v1.Injury.before:type_name -> rimgovernor.clock.v1.Health
-	39,  // 64: rimgovernor.clock.v1.Injury.after:type_name -> rimgovernor.clock.v1.Health
-	7,   // 65: rimgovernor.clock.v1.Injury.suppression:type_name -> rimgovernor.clock.v1.InjurySuppression
-	38,  // 66: rimgovernor.clock.v1.HealthThreshold.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
-	38,  // 67: rimgovernor.clock.v1.HostilesCleared.downed_hostiles:type_name -> rimgovernor.clock.v1.PawnEvent
-	38,  // 68: rimgovernor.clock.v1.HostilesCleared.drafted_colonists:type_name -> rimgovernor.clock.v1.PawnEvent
-	67,  // 69: rimgovernor.clock.v1.HostilesCleared.completeness:type_name -> rimgovernor.common.v1.PageInfo
-	33,  // 70: rimgovernor.clock.v1.PauseEvidence.letter:type_name -> rimgovernor.clock.v1.Letter
-	0,   // 71: rimgovernor.clock.v1.PauseEvidence.requested_speed:type_name -> rimgovernor.clock.v1.Speed
-	1,   // 72: rimgovernor.clock.v1.PauseEvidence.actual_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
-	45,  // 73: rimgovernor.clock.v1.PauseEvidence.dialog:type_name -> rimgovernor.clock.v1.DialogPause
-	62,  // 74: rimgovernor.clock.v1.OperationOutcome.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	70,  // 75: rimgovernor.clock.v1.OperationOutcome.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
-	71,  // 76: rimgovernor.clock.v1.OperationOutcome.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
-	72,  // 77: rimgovernor.clock.v1.OperationOutcome.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
-	73,  // 78: rimgovernor.clock.v1.OperationOutcome.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
-	46,  // 79: rimgovernor.clock.v1.WatchLatched.outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
-	5,   // 80: rimgovernor.clock.v1.StopEvent.reason:type_name -> rimgovernor.clock.v1.StopReason
-	36,  // 81: rimgovernor.clock.v1.StopEvent.notifications:type_name -> rimgovernor.clock.v1.NotificationBatch
-	38,  // 82: rimgovernor.clock.v1.StopEvent.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
-	40,  // 83: rimgovernor.clock.v1.StopEvent.injury:type_name -> rimgovernor.clock.v1.Injury
-	41,  // 84: rimgovernor.clock.v1.StopEvent.health:type_name -> rimgovernor.clock.v1.HealthThreshold
-	43,  // 85: rimgovernor.clock.v1.StopEvent.budget:type_name -> rimgovernor.clock.v1.BudgetReached
-	44,  // 86: rimgovernor.clock.v1.StopEvent.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
-	66,  // 87: rimgovernor.clock.v1.StopEvent.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	48,  // 88: rimgovernor.clock.v1.StopEvent.watch:type_name -> rimgovernor.clock.v1.WatchLatched
-	50,  // 89: rimgovernor.clock.v1.StopEvent.combat:type_name -> rimgovernor.clock.v1.CombatEventStop
-	6,   // 90: rimgovernor.clock.v1.CombatEventStop.event:type_name -> rimgovernor.clock.v1.CombatEvent
-	17,  // 91: rimgovernor.clock.v1.EpochStarted.epoch:type_name -> rimgovernor.clock.v1.Epoch
-	8,   // 92: rimgovernor.clock.v1.ObservationInvalidated.families:type_name -> rimgovernor.clock.v1.FactFamily
-	53,  // 93: rimgovernor.clock.v1.ObservationInvalidated.cells:type_name -> rimgovernor.clock.v1.Rectangle
-	69,  // 94: rimgovernor.clock.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
-	69,  // 95: rimgovernor.clock.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
-	0,   // 96: rimgovernor.clock.v1.SpeedChanged.speed:type_name -> rimgovernor.clock.v1.Speed
-	49,  // 97: rimgovernor.clock.v1.PauseFailed.pending:type_name -> rimgovernor.clock.v1.StopEvent
-	44,  // 98: rimgovernor.clock.v1.ForcePauseWaiting.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
-	11,  // 99: rimgovernor.clock.v1.Event.owner:type_name -> rimgovernor.clock.v1.EpochOwner
-	65,  // 100: rimgovernor.clock.v1.Event.context:type_name -> rimgovernor.common.v1.ObservationContext
-	51,  // 101: rimgovernor.clock.v1.Event.started:type_name -> rimgovernor.clock.v1.EpochStarted
-	54,  // 102: rimgovernor.clock.v1.Event.speed_changed:type_name -> rimgovernor.clock.v1.SpeedChanged
-	49,  // 103: rimgovernor.clock.v1.Event.stopped:type_name -> rimgovernor.clock.v1.StopEvent
-	35,  // 104: rimgovernor.clock.v1.Event.notification:type_name -> rimgovernor.clock.v1.Notification
-	37,  // 105: rimgovernor.clock.v1.Event.alert:type_name -> rimgovernor.clock.v1.Alert
-	40,  // 106: rimgovernor.clock.v1.Event.injury_observed:type_name -> rimgovernor.clock.v1.Injury
-	42,  // 107: rimgovernor.clock.v1.Event.hostiles_cleared:type_name -> rimgovernor.clock.v1.HostilesCleared
-	55,  // 108: rimgovernor.clock.v1.Event.pause_failed:type_name -> rimgovernor.clock.v1.PauseFailed
-	56,  // 109: rimgovernor.clock.v1.Event.force_pause_waiting:type_name -> rimgovernor.clock.v1.ForcePauseWaiting
-	57,  // 110: rimgovernor.clock.v1.Event.force_pause_cleared:type_name -> rimgovernor.clock.v1.ForcePauseCleared
-	46,  // 111: rimgovernor.clock.v1.Event.operation_outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
-	47,  // 112: rimgovernor.clock.v1.Event.authority_changed:type_name -> rimgovernor.clock.v1.AuthorityChanged
-	52,  // 113: rimgovernor.clock.v1.Event.observation_invalidated:type_name -> rimgovernor.clock.v1.ObservationInvalidated
-	64,  // 114: rimgovernor.clock.v1.EventsRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	65,  // 115: rimgovernor.clock.v1.EventsPage.context:type_name -> rimgovernor.common.v1.ObservationContext
-	58,  // 116: rimgovernor.clock.v1.EventsPage.events:type_name -> rimgovernor.clock.v1.Event
-	60,  // 117: rimgovernor.clock.v1.EventsReply.page:type_name -> rimgovernor.clock.v1.EventsPage
-	68,  // 118: rimgovernor.clock.v1.EventsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	16,  // 119: rimgovernor.clock.v1.Clock.ReadStatus:input_type -> rimgovernor.clock.v1.StatusRequest
-	59,  // 120: rimgovernor.clock.v1.Clock.ReadEvents:input_type -> rimgovernor.clock.v1.EventsRequest
-	30,  // 121: rimgovernor.clock.v1.Clock.ReadAttempt:input_type -> rimgovernor.clock.v1.AttemptRequest
-	12,  // 122: rimgovernor.clock.v1.Clock.Start:input_type -> rimgovernor.clock.v1.StartRequest
-	13,  // 123: rimgovernor.clock.v1.Clock.Pause:input_type -> rimgovernor.clock.v1.OwnedRequest
-	14,  // 124: rimgovernor.clock.v1.Clock.Renew:input_type -> rimgovernor.clock.v1.RenewRequest
-	15,  // 125: rimgovernor.clock.v1.Clock.ChangeSpeed:input_type -> rimgovernor.clock.v1.SpeedRequest
-	24,  // 126: rimgovernor.clock.v1.Clock.ReadStatus:output_type -> rimgovernor.clock.v1.StatusReply
-	61,  // 127: rimgovernor.clock.v1.Clock.ReadEvents:output_type -> rimgovernor.clock.v1.EventsReply
-	32,  // 128: rimgovernor.clock.v1.Clock.ReadAttempt:output_type -> rimgovernor.clock.v1.AttemptReply
-	29,  // 129: rimgovernor.clock.v1.Clock.Start:output_type -> rimgovernor.clock.v1.ControlReply
-	24,  // 130: rimgovernor.clock.v1.Clock.Pause:output_type -> rimgovernor.clock.v1.StatusReply
-	29,  // 131: rimgovernor.clock.v1.Clock.Renew:output_type -> rimgovernor.clock.v1.ControlReply
-	29,  // 132: rimgovernor.clock.v1.Clock.ChangeSpeed:output_type -> rimgovernor.clock.v1.ControlReply
-	126, // [126:133] is the sub-list for method output_type
-	119, // [119:126] is the sub-list for method input_type
-	119, // [119:119] is the sub-list for extension type_name
-	119, // [119:119] is the sub-list for extension extendee
-	0,   // [0:119] is the sub-list for field type_name
+	10,  // 1: rimgovernor.clock.v1.WatchPolicy.resource_thresholds:type_name -> rimgovernor.clock.v1.ResourceThreshold
+	6,   // 2: rimgovernor.clock.v1.WatchPolicy.combat_stop_events:type_name -> rimgovernor.clock.v1.CombatEvent
+	62,  // 3: rimgovernor.clock.v1.StartRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	0,   // 4: rimgovernor.clock.v1.StartRequest.speed:type_name -> rimgovernor.clock.v1.Speed
+	9,   // 5: rimgovernor.clock.v1.StartRequest.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
+	2,   // 6: rimgovernor.clock.v1.StartRequest.pacing:type_name -> rimgovernor.clock.v1.Pacing
+	63,  // 7: rimgovernor.clock.v1.OwnedRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	11,  // 8: rimgovernor.clock.v1.OwnedRequest.owner:type_name -> rimgovernor.clock.v1.EpochOwner
+	13,  // 9: rimgovernor.clock.v1.RenewRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
+	62,  // 10: rimgovernor.clock.v1.RenewRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	13,  // 11: rimgovernor.clock.v1.SpeedRequest.epoch:type_name -> rimgovernor.clock.v1.OwnedRequest
+	62,  // 12: rimgovernor.clock.v1.SpeedRequest.authority:type_name -> rimgovernor.authority.v1.WritePrecondition
+	0,   // 13: rimgovernor.clock.v1.SpeedRequest.speed:type_name -> rimgovernor.clock.v1.Speed
+	63,  // 14: rimgovernor.clock.v1.StatusRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	11,  // 15: rimgovernor.clock.v1.Epoch.owner:type_name -> rimgovernor.clock.v1.EpochOwner
+	64,  // 16: rimgovernor.clock.v1.Epoch.origin:type_name -> rimgovernor.common.v1.ObservationContext
+	0,   // 17: rimgovernor.clock.v1.Epoch.requested_speed:type_name -> rimgovernor.clock.v1.Speed
+	9,   // 18: rimgovernor.clock.v1.Epoch.policy:type_name -> rimgovernor.clock.v1.WatchPolicy
+	2,   // 19: rimgovernor.clock.v1.Epoch.pacing:type_name -> rimgovernor.clock.v1.Pacing
+	3,   // 20: rimgovernor.clock.v1.Epoch.pacing_reason:type_name -> rimgovernor.clock.v1.PacingReason
+	17,  // 21: rimgovernor.clock.v1.Running.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	17,  // 22: rimgovernor.clock.v1.Stopping.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	5,   // 23: rimgovernor.clock.v1.Stopping.pending_reason:type_name -> rimgovernor.clock.v1.StopReason
+	17,  // 24: rimgovernor.clock.v1.Stopped.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	5,   // 25: rimgovernor.clock.v1.Stopped.reason:type_name -> rimgovernor.clock.v1.StopReason
+	6,   // 26: rimgovernor.clock.v1.Stopped.combat_event:type_name -> rimgovernor.clock.v1.CombatEvent
+	64,  // 27: rimgovernor.clock.v1.Status.context:type_name -> rimgovernor.common.v1.ObservationContext
+	18,  // 28: rimgovernor.clock.v1.Status.running:type_name -> rimgovernor.clock.v1.Running
+	19,  // 29: rimgovernor.clock.v1.Status.stopping:type_name -> rimgovernor.clock.v1.Stopping
+	20,  // 30: rimgovernor.clock.v1.Status.stopped:type_name -> rimgovernor.clock.v1.Stopped
+	21,  // 31: rimgovernor.clock.v1.Status.never_started:type_name -> rimgovernor.clock.v1.NeverStarted
+	65,  // 32: rimgovernor.clock.v1.Status.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	37,  // 33: rimgovernor.clock.v1.Status.baseline_alerts:type_name -> rimgovernor.clock.v1.Alert
+	40,  // 34: rimgovernor.clock.v1.Status.suppressed_injuries:type_name -> rimgovernor.clock.v1.Injury
+	66,  // 35: rimgovernor.clock.v1.Status.evidence_completeness:type_name -> rimgovernor.common.v1.PageInfo
+	1,   // 36: rimgovernor.clock.v1.Status.observed_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
+	23,  // 37: rimgovernor.clock.v1.Status.hazard_gaps:type_name -> rimgovernor.clock.v1.HazardGap
+	0,   // 38: rimgovernor.clock.v1.Status.player_speed:type_name -> rimgovernor.clock.v1.Speed
+	22,  // 39: rimgovernor.clock.v1.StatusReply.status:type_name -> rimgovernor.clock.v1.Status
+	67,  // 40: rimgovernor.clock.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	22,  // 41: rimgovernor.clock.v1.AppliedControl.status:type_name -> rimgovernor.clock.v1.Status
+	22,  // 42: rimgovernor.clock.v1.UncertainControl.last_observed:type_name -> rimgovernor.clock.v1.Status
+	68,  // 43: rimgovernor.clock.v1.ControlReceipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	64,  // 44: rimgovernor.clock.v1.ControlReceipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	26,  // 45: rimgovernor.clock.v1.ControlReceipt.applied:type_name -> rimgovernor.clock.v1.AppliedControl
+	27,  // 46: rimgovernor.clock.v1.ControlReceipt.uncertain:type_name -> rimgovernor.clock.v1.UncertainControl
+	28,  // 47: rimgovernor.clock.v1.ControlReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
+	67,  // 48: rimgovernor.clock.v1.ControlReply.failure:type_name -> rimgovernor.common.v1.Failure
+	25,  // 49: rimgovernor.clock.v1.ControlReply.long_event_pending:type_name -> rimgovernor.clock.v1.LongEventPending
+	63,  // 50: rimgovernor.clock.v1.AttemptRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	68,  // 51: rimgovernor.clock.v1.AttemptRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	28,  // 52: rimgovernor.clock.v1.AttemptReply.receipt:type_name -> rimgovernor.clock.v1.ControlReceipt
+	31,  // 53: rimgovernor.clock.v1.AttemptReply.unknown:type_name -> rimgovernor.clock.v1.AttemptUnknown
+	67,  // 54: rimgovernor.clock.v1.AttemptReply.failure:type_name -> rimgovernor.common.v1.Failure
+	33,  // 55: rimgovernor.clock.v1.Notification.letter:type_name -> rimgovernor.clock.v1.Letter
+	34,  // 56: rimgovernor.clock.v1.Notification.message:type_name -> rimgovernor.clock.v1.TransientMessage
+	33,  // 57: rimgovernor.clock.v1.NotificationBatch.letters:type_name -> rimgovernor.clock.v1.Letter
+	34,  // 58: rimgovernor.clock.v1.NotificationBatch.messages:type_name -> rimgovernor.clock.v1.TransientMessage
+	66,  // 59: rimgovernor.clock.v1.NotificationBatch.completeness:type_name -> rimgovernor.common.v1.PageInfo
+	69,  // 60: rimgovernor.clock.v1.PawnEvent.position:type_name -> rimgovernor.common.v1.Cell
+	38,  // 61: rimgovernor.clock.v1.Injury.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
+	39,  // 62: rimgovernor.clock.v1.Injury.before:type_name -> rimgovernor.clock.v1.Health
+	39,  // 63: rimgovernor.clock.v1.Injury.after:type_name -> rimgovernor.clock.v1.Health
+	7,   // 64: rimgovernor.clock.v1.Injury.suppression:type_name -> rimgovernor.clock.v1.InjurySuppression
+	38,  // 65: rimgovernor.clock.v1.HealthThreshold.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
+	38,  // 66: rimgovernor.clock.v1.HostilesCleared.downed_hostiles:type_name -> rimgovernor.clock.v1.PawnEvent
+	38,  // 67: rimgovernor.clock.v1.HostilesCleared.drafted_colonists:type_name -> rimgovernor.clock.v1.PawnEvent
+	66,  // 68: rimgovernor.clock.v1.HostilesCleared.completeness:type_name -> rimgovernor.common.v1.PageInfo
+	33,  // 69: rimgovernor.clock.v1.PauseEvidence.letter:type_name -> rimgovernor.clock.v1.Letter
+	0,   // 70: rimgovernor.clock.v1.PauseEvidence.requested_speed:type_name -> rimgovernor.clock.v1.Speed
+	1,   // 71: rimgovernor.clock.v1.PauseEvidence.actual_speed:type_name -> rimgovernor.clock.v1.ObservedSpeed
+	45,  // 72: rimgovernor.clock.v1.PauseEvidence.dialog:type_name -> rimgovernor.clock.v1.DialogPause
+	68,  // 73: rimgovernor.clock.v1.OperationOutcome.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	70,  // 74: rimgovernor.clock.v1.OperationOutcome.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
+	71,  // 75: rimgovernor.clock.v1.OperationOutcome.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
+	72,  // 76: rimgovernor.clock.v1.OperationOutcome.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
+	73,  // 77: rimgovernor.clock.v1.OperationOutcome.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
+	46,  // 78: rimgovernor.clock.v1.WatchLatched.outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
+	5,   // 79: rimgovernor.clock.v1.StopEvent.reason:type_name -> rimgovernor.clock.v1.StopReason
+	36,  // 80: rimgovernor.clock.v1.StopEvent.notifications:type_name -> rimgovernor.clock.v1.NotificationBatch
+	38,  // 81: rimgovernor.clock.v1.StopEvent.pawn:type_name -> rimgovernor.clock.v1.PawnEvent
+	40,  // 82: rimgovernor.clock.v1.StopEvent.injury:type_name -> rimgovernor.clock.v1.Injury
+	41,  // 83: rimgovernor.clock.v1.StopEvent.health:type_name -> rimgovernor.clock.v1.HealthThreshold
+	43,  // 84: rimgovernor.clock.v1.StopEvent.budget:type_name -> rimgovernor.clock.v1.BudgetReached
+	44,  // 85: rimgovernor.clock.v1.StopEvent.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
+	65,  // 86: rimgovernor.clock.v1.StopEvent.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	48,  // 87: rimgovernor.clock.v1.StopEvent.watch:type_name -> rimgovernor.clock.v1.WatchLatched
+	50,  // 88: rimgovernor.clock.v1.StopEvent.combat:type_name -> rimgovernor.clock.v1.CombatEventStop
+	6,   // 89: rimgovernor.clock.v1.CombatEventStop.event:type_name -> rimgovernor.clock.v1.CombatEvent
+	17,  // 90: rimgovernor.clock.v1.EpochStarted.epoch:type_name -> rimgovernor.clock.v1.Epoch
+	8,   // 91: rimgovernor.clock.v1.ObservationInvalidated.families:type_name -> rimgovernor.clock.v1.FactFamily
+	53,  // 92: rimgovernor.clock.v1.ObservationInvalidated.cells:type_name -> rimgovernor.clock.v1.Rectangle
+	69,  // 93: rimgovernor.clock.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
+	69,  // 94: rimgovernor.clock.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
+	0,   // 95: rimgovernor.clock.v1.SpeedChanged.speed:type_name -> rimgovernor.clock.v1.Speed
+	49,  // 96: rimgovernor.clock.v1.PauseFailed.pending:type_name -> rimgovernor.clock.v1.StopEvent
+	44,  // 97: rimgovernor.clock.v1.ForcePauseWaiting.pause:type_name -> rimgovernor.clock.v1.PauseEvidence
+	11,  // 98: rimgovernor.clock.v1.Event.owner:type_name -> rimgovernor.clock.v1.EpochOwner
+	64,  // 99: rimgovernor.clock.v1.Event.context:type_name -> rimgovernor.common.v1.ObservationContext
+	51,  // 100: rimgovernor.clock.v1.Event.started:type_name -> rimgovernor.clock.v1.EpochStarted
+	54,  // 101: rimgovernor.clock.v1.Event.speed_changed:type_name -> rimgovernor.clock.v1.SpeedChanged
+	49,  // 102: rimgovernor.clock.v1.Event.stopped:type_name -> rimgovernor.clock.v1.StopEvent
+	35,  // 103: rimgovernor.clock.v1.Event.notification:type_name -> rimgovernor.clock.v1.Notification
+	37,  // 104: rimgovernor.clock.v1.Event.alert:type_name -> rimgovernor.clock.v1.Alert
+	40,  // 105: rimgovernor.clock.v1.Event.injury_observed:type_name -> rimgovernor.clock.v1.Injury
+	42,  // 106: rimgovernor.clock.v1.Event.hostiles_cleared:type_name -> rimgovernor.clock.v1.HostilesCleared
+	55,  // 107: rimgovernor.clock.v1.Event.pause_failed:type_name -> rimgovernor.clock.v1.PauseFailed
+	56,  // 108: rimgovernor.clock.v1.Event.force_pause_waiting:type_name -> rimgovernor.clock.v1.ForcePauseWaiting
+	57,  // 109: rimgovernor.clock.v1.Event.force_pause_cleared:type_name -> rimgovernor.clock.v1.ForcePauseCleared
+	46,  // 110: rimgovernor.clock.v1.Event.operation_outcome:type_name -> rimgovernor.clock.v1.OperationOutcome
+	47,  // 111: rimgovernor.clock.v1.Event.authority_changed:type_name -> rimgovernor.clock.v1.AuthorityChanged
+	52,  // 112: rimgovernor.clock.v1.Event.observation_invalidated:type_name -> rimgovernor.clock.v1.ObservationInvalidated
+	63,  // 113: rimgovernor.clock.v1.EventsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	64,  // 114: rimgovernor.clock.v1.EventsPage.context:type_name -> rimgovernor.common.v1.ObservationContext
+	58,  // 115: rimgovernor.clock.v1.EventsPage.events:type_name -> rimgovernor.clock.v1.Event
+	60,  // 116: rimgovernor.clock.v1.EventsReply.page:type_name -> rimgovernor.clock.v1.EventsPage
+	67,  // 117: rimgovernor.clock.v1.EventsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	16,  // 118: rimgovernor.clock.v1.Clock.ReadStatus:input_type -> rimgovernor.clock.v1.StatusRequest
+	59,  // 119: rimgovernor.clock.v1.Clock.ReadEvents:input_type -> rimgovernor.clock.v1.EventsRequest
+	30,  // 120: rimgovernor.clock.v1.Clock.ReadAttempt:input_type -> rimgovernor.clock.v1.AttemptRequest
+	12,  // 121: rimgovernor.clock.v1.Clock.Start:input_type -> rimgovernor.clock.v1.StartRequest
+	13,  // 122: rimgovernor.clock.v1.Clock.Pause:input_type -> rimgovernor.clock.v1.OwnedRequest
+	14,  // 123: rimgovernor.clock.v1.Clock.Renew:input_type -> rimgovernor.clock.v1.RenewRequest
+	15,  // 124: rimgovernor.clock.v1.Clock.ChangeSpeed:input_type -> rimgovernor.clock.v1.SpeedRequest
+	24,  // 125: rimgovernor.clock.v1.Clock.ReadStatus:output_type -> rimgovernor.clock.v1.StatusReply
+	61,  // 126: rimgovernor.clock.v1.Clock.ReadEvents:output_type -> rimgovernor.clock.v1.EventsReply
+	32,  // 127: rimgovernor.clock.v1.Clock.ReadAttempt:output_type -> rimgovernor.clock.v1.AttemptReply
+	29,  // 128: rimgovernor.clock.v1.Clock.Start:output_type -> rimgovernor.clock.v1.ControlReply
+	24,  // 129: rimgovernor.clock.v1.Clock.Pause:output_type -> rimgovernor.clock.v1.StatusReply
+	29,  // 130: rimgovernor.clock.v1.Clock.Renew:output_type -> rimgovernor.clock.v1.ControlReply
+	29,  // 131: rimgovernor.clock.v1.Clock.ChangeSpeed:output_type -> rimgovernor.clock.v1.ControlReply
+	125, // [125:132] is the sub-list for method output_type
+	118, // [118:125] is the sub-list for method input_type
+	118, // [118:118] is the sub-list for extension type_name
+	118, // [118:118] is the sub-list for extension extendee
+	0,   // [0:118] is the sub-list for field type_name
 }
 
 func init() { file_clock_proto_init() }

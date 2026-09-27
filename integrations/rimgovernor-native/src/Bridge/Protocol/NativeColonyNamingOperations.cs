@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // Tracks an admitted ConfirmColonyNames attempt so a later ObserveProgress
     // poll can re-verify it purely from live native state, exactly like every
     // other Native*Record. Settlement is held directly, the same way other
-    // records hold live Thing references (e.g. NativeConstructionTracking).
+    // records hold live Thing references (e.g. NativeCombatRecord).
     internal sealed class NativeNamingRecord
     {
         internal readonly Settlement Settlement;

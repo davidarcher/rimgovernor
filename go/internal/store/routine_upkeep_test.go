@@ -109,9 +109,11 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 			t.Fatal("replacement binding lost unresolved work", g)
 		}
 	}
-	if _, err := db.Observe(ctx, "p2", domain.Observation{Action: "a2", Attempt: 1, Snapshot: scope2, Tick: r.Tick, Effect: domain.EffectCompleted}, scope2); err != nil {
+	if _, err := db.RecordReceipt(ctx, "p2", "a2", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
+	// An applied building closes once the census shows it built (#856).
+	r.Facts.CurrentConstruction = builtCensus(t, "wall", "a2/1")
 	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}

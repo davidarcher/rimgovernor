@@ -9,6 +9,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// evidence is a prepare scope at tick; building intents carry no cost (#856).
+func evidence(tick domain.Tick, _ int64) Admission {
+	return Admission{Snapshot: scope(), Tick: tick}
+}
+
 func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -29,7 +34,7 @@ func TestCatalogEmptyBoundsCancellationAndOrderedRecords(t *testing.T) {
 		}
 		admission := evidence(10, 20)
 		admission.Snapshot.Plan = id
-		if _, err = s.ReserveAndPrepare(ctx, id, action, admission); err != nil {
+		if _, err = s.Prepare(ctx, id, action, admission.Snapshot, admission.Tick); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -61,7 +66,7 @@ func TestCatalogDoesNotObserveConcurrentUncommittedAdmission(t *testing.T) {
 	ctx := context.Background()
 	s, path := fixture(t)
 	reader := open(t, path)
-	if _, err := s.ReserveAndPrepare(ctx, "p", "a", evidence(10, 40)); err != nil {
+	if _, err := s.Prepare(ctx, "p", "a", evidence(10, 40).Snapshot, evidence(10, 40).Tick); err != nil {
 		t.Fatal(err)
 	}
 	// Hold an actual writer transaction with an invalid intermediate record. A
@@ -83,7 +88,7 @@ func TestCatalogDoesNotObserveConcurrentUncommittedAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	states, err := reader.LoadPlans(ctx, 1)
-	if err != nil || len(states) != 1 || states[0].Admissions[0].Admission.Costs[0].Count != 40 {
+	if err != nil || len(states) != 1 {
 		t.Fatal("catalog observed intermediate accounting", err)
 	}
 }
@@ -95,10 +100,11 @@ func TestCatalogCorruptionNeverReturnsEarlierPlans(t *testing.T) {
 	if err := s.CreatePlan(ctx, plan(t, "a-first", "new-action")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.ReserveAndPrepare(ctx, "p", "a", evidence(10, 40)); err != nil {
+	if _, err := s.Prepare(ctx, "p", "a", evidence(10, 40).Snapshot, evidence(10, 40).Tick); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec("UPDATE admissions SET payload='{}' WHERE action_id='a'"); err != nil {
+	// A building intent records no admission row (#856): corrupt its transition.
+	if _, err := s.db.Exec("UPDATE transitions SET payload='{}' WHERE action_id='a'"); err != nil {
 		t.Fatal(err)
 	}
 	if states, err := s.LoadPlans(ctx, 2); err == nil || states != nil {

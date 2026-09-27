@@ -259,9 +259,6 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			return RoutineResourceResult{}, true, err
 		}
 		p := preview.Preview
-		if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return RoutineResourceResult{}, true, ErrControl
-		}
 		footprint, fk := p.Footprint.Value()
 		legal, lk := p.CanPlace.Value()
 		safe, sk := p.SafeToPlace.Value()

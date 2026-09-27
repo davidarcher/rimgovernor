@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"strconv"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -292,20 +291,6 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 	if len(p.MedicalRestIds) > 0 && budget > 600 {
 		return contract("medical rest clock budget exceeds 600 ticks")
 	}
-	if len(p.WatchedAttempts) > ClockWatchedAttemptsMax {
-		return contract("clock policy watched attempt bound")
-	}
-	watched := map[string]bool{}
-	for _, attempt := range p.WatchedAttempts {
-		if err := clockAttemptKey(attempt); err != nil {
-			return err
-		}
-		key := attempt.GetControllerSessionId() + "/" + attempt.GetActionId() + "/" + strconv.FormatUint(attempt.GetAttemptId(), 10)
-		if watched[key] {
-			return contract("duplicate clock watched attempt")
-		}
-		watched[key] = true
-	}
 	if len(p.ResourceThresholds) > ClockResourceThresholdsMax {
 		return contract("clock policy resource threshold bound")
 	}
@@ -331,9 +316,6 @@ func clockPolicy(p *k.WatchPolicy, budget int64) error {
 	}
 	return nil
 }
-
-// ClockWatchedAttemptsMax bounds the attempts one epoch watches natively.
-const ClockWatchedAttemptsMax = 16
 
 // ClockResourceThresholdsMax bounds the stock levels one epoch digests (#670).
 const ClockResourceThresholdsMax = 32

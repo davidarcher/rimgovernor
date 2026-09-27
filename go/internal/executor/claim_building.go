@@ -81,7 +81,7 @@ func (e *Executor) runClaimBuilding(ctx context.Context, action domain.Action, p
 			return result, ErrAuthority
 		}
 		o := evidence.Observation
-		if !o.Snapshot.Matches(current) || o.Action != action.ID() || o.Attempt != v.Attempt || !e.fresh(evidence.StartedAt, evidence.ObservedAt) || o.Construction != nil || o.ConstructionObserved {
+		if !o.Snapshot.Matches(current) || o.Action != action.ID() || o.Attempt != v.Attempt || !e.fresh(evidence.StartedAt, evidence.ObservedAt) {
 			return result, ErrEvidence
 		}
 		switch o.Effect {

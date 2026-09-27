@@ -44,8 +44,8 @@ func TestStopJoinsUnknownReceiptBeforeOwnershipRelease(t *testing.T) {
 	}
 	view := f.progress(t)
 	receipt, known := view.Receipt.Value()
-	if !view.Unresolved || !known || receipt != domain.ReceiptUnknown {
-		t.Fatal("stop returned without durable unknown receipt")
+	if view.Stage != domain.Pending || !known || receipt != domain.ReceiptUnknown {
+		t.Fatalf("stop returned without durable unknown receipt: %+v", view)
 	}
 	if err := f.executor.Stop(context.Background()); err != nil {
 		t.Fatal("stop not idempotent", err)

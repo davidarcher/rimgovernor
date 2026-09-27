@@ -10,25 +10,19 @@ import (
 func TestCausalTerminalOutcomesReplayAfterRestart(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
-		t.Run(string(effect), func(t *testing.T) {
+	// A building intent's receipt is its terminal outcome (#856).
+	for _, receipt := range []domain.Receipt{domain.ReceiptAccepted, domain.ReceiptRefused} {
+		t.Run(string(receipt), func(t *testing.T) {
 			s, path := fixture(t)
 			prepare(t, s, "a")
 			if _, err := s.Dispatch(ctx, "p", "a", scope(), 10); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptUnknown); err != nil {
-				t.Fatal(err)
-			}
-			observation := domain.Observation{Action: "a", Attempt: 1, Snapshot: scope(), Tick: 10, Effect: effect, Causality: domain.AfterDispatch}
-			if effect == domain.EffectUnsuccessful {
-				observation.UnsuccessfulReason = domain.OutcomeNotAchieved
-			}
 			if err := s.Close(); err != nil {
 				t.Fatal(err)
 			}
 			s = open(t, path)
-			got, err := s.Observe(ctx, "p", observation, scope())
+			got, err := s.RecordReceipt(ctx, "p", "a", 1, receipt)
 			if err != nil {
 				t.Fatal(err)
 			}

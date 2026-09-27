@@ -487,7 +487,7 @@ func cancelStalledExcavation(ctx context.Context, journal *store.Store, goal sto
 		if err != nil {
 			return err
 		}
-		if !domain.GoalWorkOpen(plan.Progress) {
+		if !store.PlanOpen(plan) {
 			continue
 		}
 		for _, progress := range plan.Progress {
@@ -532,13 +532,7 @@ func (r *RoutineBuildingPlanner) admitExcavationDoor(call, epoch context.Context
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if err := check(); err != nil {
-		return RoutineBuildingResult{}, err
-	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return RoutineBuildingResult{}, ErrControl
-	}
 	stuff, known := v.MadeFromStuff.Value()
 	if !known || !stuff {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil

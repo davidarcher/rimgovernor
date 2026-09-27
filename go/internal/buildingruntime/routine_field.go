@@ -322,9 +322,6 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 				return RoutineFieldResult{}, false, err
 			}
 			v := preview.Preview
-			if v.Action != action || !v.Snapshot.Matches(snapshot) {
-				return RoutineFieldResult{}, false, ErrControl
-			}
 			legal, lk := v.CanPlace.Value()
 			safe, sk := v.SafeToPlace.Value()
 			if !lk || !sk {
@@ -523,7 +520,7 @@ func fieldBlockingWork(progress []domain.Progress) bool {
 		if isBuilding && (building.Definition() == "ButcherSpot" || isFirebreakFloor(building.Definition())) {
 			continue
 		}
-		if (zone || isBuilding) && domain.GoalWorkOpen([]domain.Progress{p}) {
+		if (zone || isBuilding) && pendingWork(p) {
 			return true
 		}
 	}

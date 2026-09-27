@@ -44,7 +44,7 @@ func run(ctx context.Context, s cases.Session) error {
 	h := s.Harness()
 	identity := s.Identity()
 	prepared := s.Prepared()
-	for _, required := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "test/apply_refusal_move"} {
+	for _, required := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_apply", "rimgovernor/placement_preview", "rimgovernor/observations_list_pawns", "test/apply_refusal_move"} {
 		if !na.Contains(s.Names(), required) {
 			return fmt.Errorf("missing %s in discovery", required)
 		}
@@ -147,46 +147,61 @@ func run(ctx context.Context, s cases.Session) error {
 		report[strings.ReplaceAll(label, "-", "_")] = got
 		return nil
 	}
-	// preview evaluates operation and returns whether it was accepted and,
-	// when not, the reason the evaluation carries.
-	preview := func(label string, operation map[string]any) (bool, string, error) {
-		reply, err := h.Wire(ctx, "preview-"+label, "operations_preview", map[string]any{"identity": identity, "operation": operation})
-		if err != nil {
-			return false, "", err
-		}
-		evaluated, ok := na.AsMap(reply["evaluated"])
-		if !ok {
-			return false, "", fmt.Errorf("%s: expected an evaluated preview, got %#v", label, reply)
-		}
-		accepted, _ := na.AsBool(evaluated["accepted"])
-		return accepted, na.AsString(evaluated["reason"]), nil
-	}
 	at := func(cell map[string]any) string { return fmt.Sprintf("(%v, %v)", cell["x"], cell["z"]) }
 	zone := map[string]any{"entityId": tokens["zoneId"], "expectedSnapshotToken": tokens["zoneToken"]}
 
-	// Build: the open build cell is walled over after the preview accepted
-	// it; the execute refusal is the re-planned preview's own reason.
-	placement := map[string]any{"placeBuilding": map[string]any{"placement": map[string]any{
-		"defName": "Wall", "stuff": "WoodLog", "x": buildCell["x"], "z": buildCell["z"], "rotation": "ROTATION_NORTH",
-	}}}
-	if accepted, reason, err := preview("build-open", placement); err != nil {
+	// Build: the open build cell is walled over after the placement preview
+	// accepted it; the Actions/Apply building intent (#856) is refused with
+	// the re-planned placement's own reason. A Campfire, not a wall: the
+	// fixture's player wall would otherwise be applied as it stands.
+	placement := map[string]any{"defName": "Campfire", "x": buildCell["x"], "z": buildCell["z"], "rotation": "ROTATION_NORTH"}
+	canPlace := func(label string) (bool, error) {
+		reply, err := h.Wire(ctx, "placement-"+label, "placement_preview", map[string]any{"identity": identity, "placements": []any{placement}})
+		if err != nil {
+			return false, err
+		}
+		batch, _ := na.AsMap(reply["batch"])
+		results := na.AsSlice(batch["results"])
+		if len(results) != 1 {
+			return false, fmt.Errorf("%s: expected one placement result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		evaluated, ok := na.AsMap(result["evaluated"])
+		if !ok {
+			return false, fmt.Errorf("%s: expected an evaluated placement, got %#v", label, result)
+		}
+		ok, _ = na.AsBool(evaluated["canPlace"])
+		return ok, nil
+	}
+	if open, err := canPlace("build-open"); err != nil {
 		return err
-	} else if !accepted {
-		return fmt.Errorf("build-open: expected the open build cell to be accepted, got %q", reason)
+	} else if !open {
+		return fmt.Errorf("build-open: expected the open build cell to be placeable")
 	}
 	if err := move("fill-build-cell", map[string]any{"action": "fill_cell", "x": buildCell["x"], "z": buildCell["z"]}); err != nil {
 		return err
 	}
-	accepted, reason, err := preview("build-blocked", placement)
+	if blocked, err := canPlace("build-blocked"); err != nil {
+		return err
+	} else if blocked {
+		return fmt.Errorf("build-blocked: expected the walled build cell to be unplaceable")
+	}
+	applied, err := h.Wire(ctx, "apply-build", "operations_apply", map[string]any{"identity": identity, "actions": []any{
+		map[string]any{"key": "apply-refusal-build", "building": map[string]any{"placement": placement}},
+	}})
 	if err != nil {
 		return err
 	}
-	if accepted || reason == "" {
-		return fmt.Errorf("build-blocked: expected a refused preview with a reason, got accepted=%v %q", accepted, reason)
+	results := na.AsSlice(applied["results"])
+	var buildRefusal map[string]any
+	if len(results) == 1 {
+		result, _ := na.AsMap(results[0])
+		buildRefusal, _ = na.AsMap(result["refused"])
 	}
-	if err := refused("build", placement, "FAILURE_CODE_INVALID_REQUEST", reason); err != nil {
-		return err
+	if buildRefusal == nil || na.AsString(buildRefusal["code"]) != "FAILURE_CODE_INVALID_REQUEST" || na.AsString(buildRefusal["reason"]) == "" {
+		return fmt.Errorf("build: expected one INVALID_REQUEST refusal with a reason, got %#v", applied)
 	}
+	report["build"] = na.AsString(buildRefusal["reason"])
 
 	// Zone cell edit: the free roofed cell is walled over after the read.
 	if err := move("fill-free-cell", map[string]any{"action": "fill_cell", "x": freeCells[0]["x"], "z": freeCells[0]["z"]}); err != nil {

@@ -78,7 +78,7 @@ func pendingBuildingDefinitions(held []policy.Reservation) []string {
 	var out []string
 	for _, h := range held {
 		b, ok := h.Progress.Action().Building()
-		if !ok || !domain.GoalWorkOpen([]domain.Progress{h.Progress}) || slices.Contains(policy.PowerFamilyDefinitions(), b.Definition()) {
+		if !ok || !pendingWork(h.Progress) || slices.Contains(policy.PowerFamilyDefinitions(), b.Definition()) {
 			continue
 		}
 		if len(out) == 64 {
@@ -210,13 +210,7 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 		if err != nil {
 			return nil, stock, "", err
 		}
-		if err := check(); err != nil {
-			return nil, stock, "", err
-		}
 		v := p.Preview
-		if v.Action != a || !v.Snapshot.Matches(snapshot) || !p.Stock.Snapshot.Matches(snapshot) {
-			return nil, stock, "", ErrControl
-		}
 		footprint, fk := v.Footprint.Value()
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
@@ -292,13 +286,7 @@ func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot 
 	if err != nil {
 		return nil, stock, "", err
 	}
-	if err = check(); err != nil {
-		return nil, stock, "", err
-	}
 	p := preview.Preview
-	if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return nil, stock, "", ErrControl
-	}
 	footprint, fk := p.Footprint.Value()
 	made, mk := p.MadeFromStuff.Value()
 	legal, lk := p.CanPlace.Value()
@@ -395,13 +383,7 @@ func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapsh
 		if err != nil {
 			return policy.Preview{}, false, err
 		}
-		if err = check(); err != nil {
-			return policy.Preview{}, false, err
-		}
 		v := p.Preview
-		if v.Action != a || !v.Snapshot.Matches(snapshot) || !p.Stock.Snapshot.Matches(snapshot) {
-			return policy.Preview{}, false, ErrControl
-		}
 		footprint, fk := v.Footprint.Value()
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
@@ -510,13 +492,7 @@ func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot
 		if err != nil {
 			return nil, stock, "", err
 		}
-		if err = check(); err != nil {
-			return nil, stock, "", err
-		}
 		p := preview.Preview
-		if p.Action != action || !p.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return nil, stock, "", ErrControl
-		}
 		footprint, fk := p.Footprint.Value()
 		made, mk := p.MadeFromStuff.Value()
 		legal, lk := p.CanPlace.Value()

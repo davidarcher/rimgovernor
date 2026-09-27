@@ -67,9 +67,9 @@ func TestActionsApplyRefusesDuplicateKeys(t *testing.T) {
 	}
 }
 
-func TestTradeRegistersAsIntentKind(t *testing.T) {
-	if !domain.TradeAction.IntentMode() || domain.BuildingAction.IntentMode() {
-		t.Fatal("trade alone registers as an intent kind")
+func TestTradeAndBuildingRegisterAsIntentKinds(t *testing.T) {
+	if !domain.TradeAction.IntentMode() || !domain.BuildingAction.IntentMode() {
+		t.Fatal("trade and building register as intent kinds")
 	}
 	value, err := domain.NewTradeEnd("trader-1", "pawn-1", domain.TradeEndCancel, false)
 	if err != nil {

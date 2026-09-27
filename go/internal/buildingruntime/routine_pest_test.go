@@ -115,7 +115,7 @@ func TestPestHuntWithdrawalReleasesTargetForReplanning(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	plan, err = db.LoadPlan(ctx, first.Plan)
-	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled || !domain.GoalWorkOpen(plan.Progress) {
+	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled || !store.PlanOpen(plan) {
 		t.Fatal("cancelled hunt must retain uncertainty until native withdrawal", plan, err)
 	}
 	// Reconciliation observes the still-designated hunt, withdraws it, then

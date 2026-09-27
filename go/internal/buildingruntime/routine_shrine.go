@@ -145,7 +145,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineShrineResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

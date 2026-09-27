@@ -14,7 +14,7 @@ func TestWriteMeleeSendsTheIntent(t *testing.T) {
 		t.Fatal(receipt, err)
 	}
 	m := f.Last.GetMelee()
-	if f.Last.GetKey() != "plan/1" || m.GetPawnId() != "pawn" || m.GetTargetId() != "target" || !m.GetSubdue() {
+	if f.Last.GetKey() != "attack/1" || m.GetPawnId() != "pawn" || m.GetTargetId() != "target" || !m.GetSubdue() {
 		t.Fatal(f.Last)
 	}
 	f.Refuse = true

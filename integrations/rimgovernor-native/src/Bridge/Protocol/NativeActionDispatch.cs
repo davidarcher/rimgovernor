@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
+using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Operations = RimGovernor.Protocol.Operations;
@@ -31,6 +32,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<Operations.Action.IntentOneofCase, IActionHandler> Handlers = new Dictionary<Operations.Action.IntentOneofCase, IActionHandler>
         {
             [Operations.Action.IntentOneofCase.Trade] = new TradeActionHandler(),
+            [Operations.Action.IntentOneofCase.Building] = new BuildingActionHandler(),
             [Operations.Action.IntentOneofCase.Move] = new MoveActionHandler(),
             [Operations.Action.IntentOneofCase.Haul] = new HaulActionHandler(),
             [Operations.Action.IntentOneofCase.Melee] = new MeleeActionHandler(),
@@ -109,6 +111,91 @@ namespace HomeBridge.BridgeTools
             NativeTradeOperations.Apply(NativeTradeOperations.Normalized(action.Trade), context);
         public Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context) =>
             NativeTradeOperations.Preview(NativeTradeOperations.Normalized(action.Trade), context.Identity);
+    }
+
+    // BuildingIntent: place one ordinary blueprint (or an instant building)
+    // through NativeConstructionPlan, validated against the live map. A
+    // matching blueprint, frame or building already on the cell is applied
+    // as it stands. Whatever the intent places or finds is stamped with its
+    // key in ConstructionLineage, which follows it blueprint -> frame ->
+    // building and is saved with the game.
+    internal sealed class BuildingActionHandler : IActionHandler
+    {
+        internal BuildingActionHandler() { ConstructionLineage.Install(); }
+
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        {
+            var map = ProtoBoundary.LoadedMap(context);
+            if (Existing(map, action.Building.Placement) != null) return null;
+            return NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out _, out _, out var failure) ? null : failure;
+        }
+
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        {
+            var map = ProtoBoundary.LoadedMap(context);
+            var candidate = action.Building.Placement;
+            var existing = Existing(map, candidate);
+            if (existing != null)
+            {
+                ConstructionLineage.Claim(existing.Value.Thing, existing.Value.Definition, action.Key);
+                return new Receipts.EffectEvidence { Construction = Effect(existing.Value.Thing, candidate) };
+            }
+            if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
+                throw new InvalidOperationException("Placement became invalid: " + failure.Detail);
+            var observed = plan.Proposed();
+            var placed = plan.Place(observed) ?? throw new InvalidOperationException("Native placement returned no object.");
+            ConstructionLineage.Register(placed, plan.Definition, action.Key);
+            observed.OriginThingId = observed.CurrentThingId = placed.GetUniqueLoadID();
+            observed.Stage = Stage(placed);
+            observed.Present = true; observed.Started = true; observed.Failed = false;
+            return new Receipts.EffectEvidence { Construction = observed };
+        }
+
+        public Receipts.EffectEvidence Preview(Operations.Action action, Common.ObservationContext context)
+        {
+            var map = ProtoBoundary.LoadedMap(context);
+            var existing = Existing(map, action.Building.Placement);
+            if (existing != null) return new Receipts.EffectEvidence { Construction = Effect(existing.Value.Thing, action.Building.Placement) };
+            if (!NativeConstructionPlan.Prepare(map, action.Building.Placement, context, out var plan, out _, out var failure))
+                throw new InvalidOperationException(failure.Detail);
+            return new Receipts.EffectEvidence { Construction = plan.Proposed() };
+        }
+
+        // Existing is the player's blueprint, frame or building of the
+        // candidate's definition, stuff and rotation anchored on its cell.
+        private static (Thing Thing, BuildableDef Definition)? Existing(Map map, RimGovernor.Protocol.Placement.PlacementCandidate? candidate)
+        {
+            if (candidate == null || !candidate.HasX || !candidate.HasZ || !candidate.HasDefName) return null;
+            if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || !(definition is ThingDef thingDef)) return null;
+            var cell = new IntVec3(candidate.X, 0, candidate.Z);
+            var player = Faction.OfPlayerSilentFail;
+            if (player == null || !cell.InBounds(map)) return null;
+            var stuff = thingDef.MadeFromStuff
+                ? (candidate.HasStuff && candidate.Stuff.Length > 0 ? PlacementPreviewOperation.ResolveThingDef(candidate.Stuff) : GenStuff.DefaultStuffFor(thingDef))
+                : null;
+            var rotation = candidate.HasRotation && candidate.Rotation != RimGovernor.Protocol.Placement.Rotation.All && candidate.Rotation != RimGovernor.Protocol.Placement.Rotation.Unspecified
+                ? new Rot4((int)candidate.Rotation - 1) : Rot4.North;
+            foreach (var thing in map.thingGrid.ThingsListAt(cell))
+            {
+                if (thing.Destroyed || thing.Position != cell || thing.Faction != player) continue;
+                var built = thing is Blueprint || thing is Frame ? thing.def.entityDefToBuild : thing.def;
+                if (built != thingDef) continue;
+                var madeOf = thing is Blueprint_Build blueprint ? blueprint.EntityToBuildStuff() : thing.Stuff;
+                if (madeOf != stuff || thingDef.rotatable && thing.Rotation != rotation) continue;
+                return (thing, definition);
+            }
+            return null;
+        }
+
+        private static Receipts.ConstructionStage Stage(Thing thing) => thing is Frame ? Receipts.ConstructionStage.Frame
+            : thing is Blueprint ? Receipts.ConstructionStage.Blueprint : Receipts.ConstructionStage.Building;
+
+        private static Receipts.ConstructionEffect Effect(Thing thing, RimGovernor.Protocol.Placement.PlacementCandidate candidate) => new Receipts.ConstructionEffect
+        {
+            DefName = candidate.DefName, Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X, Z = candidate.Z },
+            Rotation = candidate.Rotation, OriginThingId = thing.GetUniqueLoadID(), CurrentThingId = thing.GetUniqueLoadID(),
+            Stage = Stage(thing), Present = true, Started = true, Failed = false,
+        };
     }
 
     public sealed class NativeActionTools

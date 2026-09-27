@@ -37,11 +37,6 @@ type WorkerConfig struct {
 	// dependent action still waits for its prerequisite's outcome, which
 	// Hands enforces.
 	MaxDispatches int
-	// Previews, when set, reads the step's building candidates' placement
-	// previews in one native batch ahead of their dispatches (#593); each
-	// candidate's first inspection takes its row instead of reading one
-	// (boundary.PreviewMemo). Nil leaves every inspection reading its own.
-	Previews BuildingPreviewSource
 	// Wake names attempts whose outcome the native clock latched; the next
 	// step reconciles them first and ignores their backoff. Nil keeps the
 	// ticker cadence.
@@ -92,12 +87,6 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 	default:
 		return false
 	}
-}
-
-// BuildingPreviewSource is the batched placement preview a native client
-// offers (bridge.Client.PreviewBuildings).
-type BuildingPreviewSource interface {
-	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
 }
 
 type workerSession interface {
@@ -496,12 +485,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// the step yields instead and the next one starts it whole (#410).
 	var longest time.Duration
 	deadline, bounded := call.Deadline()
-	// The building candidates this step dispatches are previewed in one
-	// batch first, so each costs the dispatch one preview hop (the live
-	// re-read after preparation), not two (#593).
-	if scope.Enabled && scope.ObservationKnown {
-		call = boundary.WithPreviewMemo(call, w.previewCandidates(call, ordered, scope, now))
-	}
 	for _, candidate := range ordered {
 		if dispatched >= w.dispatchBudget() {
 			break
@@ -657,54 +640,6 @@ func (w *Worker) backedOff(candidate workerCandidate, scope ControlState, now ti
 	return !w.focusNamed(v.Action) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until)
 }
 
-// previewCandidates reads, in one native batch per authority snapshot,
-// the placement previews of the building candidates the dispatch loop is
-// about to run (in its order, within its budget), for their first
-// inspections to take (#593). A batch that fails leaves those inspections
-// reading their own previews, as they did before; nil when there is no
-// source or nothing to preview.
-func (w *Worker) previewCandidates(ctx context.Context, ordered []workerCandidate, scope ControlState, now time.Time) *boundary.PreviewMemo {
-	if w.config.Previews == nil {
-		return nil
-	}
-	var snapshots []domain.GenerationSnapshot
-	groups := map[domain.GenerationSnapshot][]domain.Action{}
-	budget := 0
-	for _, candidate := range ordered {
-		if budget >= w.dispatchBudget() {
-			break
-		}
-		if w.backedOff(candidate, scope, now) {
-			continue
-		}
-		budget++
-		v := candidate.view
-		if candidate.cleanup || candidate.kind != domain.BuildingAction || v.Unresolved || v.Stage != domain.Pending && v.Stage != domain.Prepared {
-			continue
-		}
-		if _, seen := groups[candidate.snapshot]; !seen {
-			snapshots = append(snapshots, candidate.snapshot)
-		}
-		groups[candidate.snapshot] = append(groups[candidate.snapshot], candidate.action)
-	}
-	if len(snapshots) == 0 {
-		return nil
-	}
-	var previews []bridge.BuildingPreview
-	for _, snapshot := range snapshots {
-		batch, _, err := w.config.Previews.PreviewBuildings(ctx, groups[snapshot], snapshot)
-		if err != nil {
-			clockSchedulerLog("worker: batch preview of %d placements under %+v: %v", len(groups[snapshot]), snapshot, err)
-			continue
-		}
-		previews = append(previews, batch...)
-	}
-	if len(previews) == 0 {
-		return nil
-	}
-	return boundary.NewPreviewMemo(previews)
-}
-
 // workerDispatchRow publishes one "worker_dispatch" flight row for a run
 // that reached native: the action's kind and attempt, the receipt the run
 // left (accepted, refused, unknown; "-" when the write was not a dispatch),
@@ -757,7 +692,6 @@ func workerRepeats(n int) string {
 // rotation and starve the plans that could progress.
 func workerSameView(a, b domain.ProgressView) bool {
 	a.Tick, b.Tick = 0, 0
-	a.ConstructionObserved, b.ConstructionObserved = domain.Unknown[domain.Tick](), domain.Unknown[domain.Tick]()
 	return a == b
 }
 
@@ -871,6 +805,13 @@ func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlSt
 	// stays reconciliation. A write the transport never issued refused
 	// nothing, so the same generation may retry it.
 	receipt, known := v.Receipt.Value()
+	// An intent whose Apply receipt came back unknown is back at Pending
+	// for a resend (#856). Like a refusal, only a later resume (a newer
+	// native generation) resends it; native answers applied if the first
+	// write landed, so the resend cannot duplicate the building.
+	if known && receipt == domain.ReceiptUnknown && v.Stage == domain.Pending {
+		return playerWorld(v.Snapshot) == world && scope.Snapshot.Native > v.Snapshot.Native
+	}
 	effect, effectKnown := v.Effect.Value()
 	if !known || !effectKnown || effect != domain.EffectAbsent || playerWorld(v.Snapshot) != world {
 		return false

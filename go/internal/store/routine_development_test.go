@@ -297,14 +297,14 @@ func TestRoutineDevelopmentIdleAgeSurvivesRestartAndKeepsClaims(t *testing.T) {
 	woodScope.Plan = woodPlan
 	claim := evidence(r.Tick, 40)
 	claim.Snapshot = woodScope
-	if _, err := s.ReserveAndPrepare(ctx, woodPlan, "wood-action", claim); err != nil {
+	if _, err := s.Prepare(ctx, woodPlan, "wood-action", claim.Snapshot, claim.Tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Dispatch(ctx, woodPlan, "wood-action", woodScope, r.Tick); err != nil {
 		t.Fatal(err)
 	}
 	before, err := s.LoadPlan(ctx, woodPlan)
-	if err != nil || len(before.Admissions) != 1 {
+	if err != nil { // a building intent records no admission row (#856)
 		t.Fatal(before, err)
 	}
 	r.Facts.Colonists = domain.Known(int64(3))

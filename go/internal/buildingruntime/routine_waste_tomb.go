@@ -128,9 +128,6 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 		return RoutineBuildingResult{}, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return RoutineBuildingResult{}, ErrControl
-	}
 	can, ck := v.CanPlace.Value()
 	safe, sk := v.SafeToPlace.Value()
 	if !ck || !can || !sk || !safe {
@@ -141,5 +138,5 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter, check: check})
+	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter})
 }

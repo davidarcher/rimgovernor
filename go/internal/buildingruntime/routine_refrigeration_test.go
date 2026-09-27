@@ -266,12 +266,9 @@ func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 10, Plan: spec.ID(), Revision: 1}
 	var err error
 	for _, step := range []func() (domain.Progress, error){
-		func() (domain.Progress, error) { return progress.Prepare(snapshot, 1) },
-		func() (domain.Progress, error) { return progress.MarkDispatched(snapshot, 1) },
+		func() (domain.Progress, error) { return progress.Prepare(snapshot, 100) },
+		func() (domain.Progress, error) { return progress.MarkDispatched(snapshot, 100) },
 		func() (domain.Progress, error) { return progress.RecordReceipt(1, domain.ReceiptAccepted) },
-		func() (domain.Progress, error) {
-			return progress.Observe(domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
-		},
 	} {
 		if progress, err = step(); err != nil {
 			t.Fatal(err)

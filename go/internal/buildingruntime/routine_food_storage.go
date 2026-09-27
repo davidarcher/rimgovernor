@@ -88,7 +88,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		if err != nil {
 			return RoutineFoodStorageResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if store.PlanOpen(plan) {
 			return RoutineFoodStorageResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}

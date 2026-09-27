@@ -98,7 +98,7 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	}
 
 	// The shared reservation cannot bypass typed map preparation.
-	if _, err := db.ReserveAndPrepare(ctx, result.Plan, a.ID(), plan.Admissions[0].Admission); err == nil {
+	if _, err := db.Prepare(ctx, result.Plan, a.ID(), plan.Admissions[0].Admission.Snapshot, plan.Admissions[0].Admission.Tick); err == nil {
 		t.Fatal("generic zone preparation bypass")
 	}
 	dispatched, err := db.Dispatch(ctx, result.Plan, a.ID(), snapshot, tick)

@@ -48,12 +48,20 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	if len(actions) == 0 || len(actions) > 256 {
 		return BuildingMethodDecision{}, errors.New("bounded method actions required")
 	}
+	// A building intent is validated natively when it is applied (#856):
+	// admission neither prices nor sites it, so a planner's siting preview
+	// of one is not admission evidence. Zones keep their footprint check.
 	previews := map[domain.ActionID]policy.Preview{}
+	zonePreviews := 0
 	for _, p := range r.Previews {
+		if p.Action.Kind() == domain.BuildingAction {
+			continue
+		}
 		if _, exists := previews[p.Action.ID()]; exists {
 			return BuildingMethodDecision{}, errors.New("duplicate method preview")
 		}
 		previews[p.Action.ID()] = p
+		zonePreviews++
 	}
 	tx, err := s.begin(ctx)
 	if err != nil {
@@ -78,7 +86,8 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 	var candidates []policy.Candidate
 	for _, a := range actions {
 		switch a.Kind() {
-		case domain.BuildingAction, domain.ZoneCreateAction:
+		case domain.BuildingAction:
+		case domain.ZoneCreateAction:
 			preview, exists := previews[a.ID()]
 			if !exists || preview.Action != a {
 				return BuildingMethodDecision{}, errors.New("method preview does not match action")
@@ -102,20 +111,23 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 			return BuildingMethodDecision{}, errors.New("unsupported method action family")
 		}
 	}
-	if len(candidates) != len(r.Previews) {
+	if len(candidates) != zonePreviews {
 		return BuildingMethodDecision{}, errors.New("complete bounded method previews required")
 	}
-	held, err := buildingMethodHolds(ctx, tx, r.Current)
-	if err != nil {
-		return BuildingMethodDecision{}, err
-	}
-	input, err := policy.NewInput(policy.Request{Current: r.Current, CurrentTick: r.Tick, Bounds: r.Bounds, Candidates: candidates, Stock: r.Stock, Held: held})
-	if err != nil {
-		return BuildingMethodDecision{}, err
-	}
-	decision := policy.Admit(input)
-	if len(decision.Refused) != 0 || len(decision.Admitted) != len(candidates) {
-		return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
+	var decision policy.Decision
+	if len(candidates) != 0 {
+		held, err := buildingMethodHolds(ctx, tx, r.Current)
+		if err != nil {
+			return BuildingMethodDecision{}, err
+		}
+		input, err := policy.NewInput(policy.Request{Current: r.Current, CurrentTick: r.Tick, Bounds: r.Bounds, Candidates: candidates, Stock: r.Stock, Held: held})
+		if err != nil {
+			return BuildingMethodDecision{}, err
+		}
+		decision = policy.Admit(input)
+		if len(decision.Refused) != 0 || len(decision.Admitted) != len(candidates) {
+			return BuildingMethodDecision{Goal: goal, Refused: decision.Refused}, nil
+		}
 	}
 	goal, err = commitGoalMethod(ctx, tx, r.Goal, r.Revision, r.Method, r.Reason, r.Plan)
 	if errors.Is(err, ErrNotAdmitted) {
@@ -128,11 +140,7 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, err
 	}
 	for _, h := range decision.Admitted {
-		costs := make([]MaterialCost, len(h.Costs))
-		for i, c := range h.Costs {
-			costs[i] = MaterialCost{Definition: string(c.Resource), Count: c.Count}
-		}
-		admission := Admission{Snapshot: h.Snapshot, Tick: r.Tick, Costs: costs, Footprint: h.Footprint, Purpose: r.Purpose}
+		admission := Admission{Snapshot: h.Snapshot, Tick: r.Tick, Footprint: h.Footprint}
 		if err = validateAdmission(h.Action, h.Progress, admission); err != nil {
 			return BuildingMethodDecision{}, err
 		}
@@ -184,7 +192,7 @@ func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.Generat
 			records[a.Action] = a.Admission
 		}
 		for _, progress := range p.Progress {
-			if progress.Action().Kind() != domain.BuildingAction && progress.Action().Kind() != domain.ZoneCreateAction {
+			if progress.Action().Kind() != domain.ZoneCreateAction {
 				continue
 			}
 			v := progress.View()
@@ -197,17 +205,13 @@ func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.Generat
 				if v.Stage == domain.Pending && v.Attempt == 0 && !v.Unresolved {
 					continue
 				}
-				return nil, errors.New("existing building work lacks accounting evidence")
+				return nil, errors.New("existing zone work lacks footprint evidence")
 			}
 			scope := admission.Snapshot
 			if scope.Colony != current.Colony || scope.Load != current.Load || scope.Map != current.Map {
 				continue
 			}
-			costs := make([]policy.Amount, len(admission.Costs))
-			for i, c := range admission.Costs {
-				costs[i] = policy.Amount{Resource: policy.Resource(c.Definition), Count: c.Count}
-			}
-			held = append(held, policy.Reservation{Action: progress.Action(), Progress: progress, Snapshot: scope, Costs: costs, Footprint: admission.Footprint})
+			held = append(held, policy.Reservation{Action: progress.Action(), Progress: progress, Snapshot: scope, Costs: []policy.Amount{}, Footprint: admission.Footprint})
 		}
 	}
 	return held, nil

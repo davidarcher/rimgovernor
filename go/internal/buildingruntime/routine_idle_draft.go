@@ -18,7 +18,7 @@ import (
 // Otherwise a second review would recover it because its own pending draft
 // correctly excludes the pawn from fresh adoption candidates.
 func idleDraftWorkOpen(plan store.PlanState) bool {
-	return strings.HasPrefix(string(plan.Spec.ID()), "routine-idle-draft-") && domain.GoalWorkOpen(plan.Progress)
+	return strings.HasPrefix(string(plan.Spec.ID()), "routine-idle-draft-") && store.PlanOpen(plan)
 }
 
 // idleDrafts observes only candidates for adoption. Hands still previews and
@@ -141,7 +141,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	}
 	for _, method := range goal.Methods {
 		for _, plan := range plans {
-			if plan.Spec.ID() == method.Plan && domain.GoalWorkOpen(plan.Progress) {
+			if plan.Spec.ID() == method.Plan && store.PlanOpen(plan) {
 				return nil
 			}
 		}

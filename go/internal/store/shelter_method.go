@@ -36,7 +36,7 @@ func shelterOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan
 		if err != nil {
 			return false, err
 		}
-		if !domain.GoalWorkOpen(p.Progress) {
+		if !PlanOpen(p) {
 			continue
 		}
 		if !strings.HasPrefix(string(p.Spec.ID()), shelterBunkPlanPrefix) {

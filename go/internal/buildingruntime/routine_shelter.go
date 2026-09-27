@@ -341,18 +341,12 @@ func (r *RoutineBuildingPlanner) previewShellCells(ctx context.Context, snapshot
 			previews = append(previews, preview)
 		}
 	}
-	if err := check(); err != nil {
-		return nil, nil, "", err
-	}
 	if len(previews) != len(actions) {
 		return nil, nil, "", ErrControl
 	}
 	placeable := make([]bool, len(previews))
 	for i, preview := range previews {
 		v := preview.Preview
-		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-			return nil, nil, "", ErrControl
-		}
 		stuff, known := v.MadeFromStuff.Value()
 		if !known || !stuff {
 			return nil, nil, BuildingMethodUnknown, nil
@@ -686,7 +680,7 @@ func (r *RoutineBuildingPlanner) shellRepairMethod(call context.Context, goal st
 		if err != nil {
 			return "", nil, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) || !shellSettledWithGap(plan) || repair >= shellRepairLimit {
+		if store.PlanOpen(plan) || !shellSettledWithGap(plan) || repair >= shellRepairLimit {
 			return method, &plan, nil
 		}
 		method = domain.MethodID(fmt.Sprintf("%s-repair-%d", base, repair+1))
