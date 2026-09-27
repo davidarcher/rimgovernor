@@ -1927,7 +1927,11 @@ type Operation struct {
 	//	*Operation_SetApparelPolicy
 	//	*Operation_SetDrugPolicy
 	//	*Operation_ClearCover
-	Command       isOperation_Command `protobuf_oneof:"command"`
+	Command isOperation_Command `protobuf_oneof:"command"`
+	// Why the controller issues this operation, one short ASCII line such as
+	// "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
+	// operation orders and shows it over the pawn; it never changes the order.
+	Intent        *string `protobuf:"bytes,100,opt,name=intent,proto3,oneof" json:"intent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2507,6 +2511,13 @@ func (x *Operation) GetClearCover() *ClearCover {
 		}
 	}
 	return nil
+}
+
+func (x *Operation) GetIntent() string {
+	if x != nil && x.Intent != nil {
+		return *x.Intent
+	}
+	return ""
 }
 
 type isOperation_Command interface {
@@ -8724,7 +8735,7 @@ const file_operations_proto_rawDesc = "" +
 	"\r_resource_defB\x11\n" +
 	"\x0f_required_countB\x12\n" +
 	"\x10_available_countB\x10\n" +
-	"\x0e_settlement_id\"\xe0&\n" +
+	"\x0e_settlement_id\"\x88'\n" +
 	"\tOperation\x12Q\n" +
 	"\x0eplace_building\x18\x01 \x01(\v2(.rimgovernor.operations.v1.PlaceBuildingH\x00R\rplaceBuilding\x12`\n" +
 	"\x13cancel_construction\x18\x02 \x01(\v2-.rimgovernor.operations.v1.CancelConstructionH\x00R\x12cancelConstruction\x12W\n" +
@@ -8799,8 +8810,10 @@ const file_operations_proto_rawDesc = "" +
 	"\x12set_apparel_policy\x18: \x01(\v2+.rimgovernor.operations.v1.SetApparelPolicyH\x00R\x10setApparelPolicy\x12R\n" +
 	"\x0fset_drug_policy\x18; \x01(\v2(.rimgovernor.operations.v1.SetDrugPolicyH\x00R\rsetDrugPolicy\x12H\n" +
 	"\vclear_cover\x18< \x01(\v2%.rimgovernor.operations.v1.ClearCoverH\x00R\n" +
-	"clearCoverB\t\n" +
-	"\acommand\"\x9d\x01\n" +
+	"clearCover\x12\x1b\n" +
+	"\x06intent\x18d \x01(\tH\x01R\x06intent\x88\x01\x01B\t\n" +
+	"\acommandB\t\n" +
+	"\a_intent\"\x9d\x01\n" +
 	"\x12EntityPrecondition\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12;\n" +
 	"\x17expected_snapshot_token\x18\x02 \x01(\tH\x01R\x15expectedSnapshotToken\x88\x01\x01B\f\n" +

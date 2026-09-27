@@ -370,6 +370,7 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/observations_read_excavation_site":    true,
 	"rimgovernor/lifecycle_save":                       true,
 	"rimgovernor/presentation_overlay":                 true,
+	"rimgovernor/presentation_status_strip":            true,
 	"rimgovernor/lifecycle_read_save":                  true,
 	"rimgovernor/lifecycle_load":                       true,
 	"rimgovernor/lifecycle_read_load":                  true,
@@ -390,6 +391,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		cache.Invalidate()
 		defer cache.Invalidate()
 	}
+	request = stampOperationIntent(ctx, name, request)
 	inner, err := protojson.Marshal(request)
 	if err != nil {
 		return Result{}, contract("request encoding: %v", err)

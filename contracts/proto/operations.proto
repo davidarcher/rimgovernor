@@ -109,6 +109,10 @@ message Operation {
     SetDrugPolicy set_drug_policy = 59;
     ClearCover clear_cover = 60;
   }
+  // Why the controller issues this operation, one short ASCII line such as
+  // "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
+  // operation orders and shows it over the pawn; it never changes the order.
+  optional string intent = 100;
 }
 
 // Tokens are opaque native snapshots scoped to request identity and exact entity.

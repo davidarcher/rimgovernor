@@ -46,6 +46,16 @@ namespace HomeBridge.BridgeTools
 
         public int Count => layers.Count;
 
+        // Code-drawn groups (#822 "activity"): drawn every frame on the
+        // current map and toggled like request-fed layers.
+        private static readonly List<(string Group, Action<Map> Draw)> drawers = new List<(string, Action<Map>)>();
+
+        public static void RegisterDrawer(string group, Action<Map> draw)
+        {
+            drawers.Add((group, draw));
+            OverlayVisibility.Known(group);
+        }
+
         public void Replace(string id, List<OverlayGroup> groups, List<(string, IntVec3)> labels)
         {
             Remove(id);
@@ -68,8 +78,14 @@ namespace HomeBridge.BridgeTools
 
         public override void MapComponentUpdate()
         {
-            if (layers.Count == 0 || !OverlayVisibility.Master || Application.isBatchMode
+            if (!OverlayVisibility.Master || Application.isBatchMode
                 || Find.CurrentMap != map || WorldRendererUtility.WorldSelected) return;
+            foreach (var (group, draw) in drawers)
+            {
+                if (!OverlayVisibility.Shown(group)) continue;
+                try { draw(map); }
+                catch (Exception ex) { Log.ErrorOnce("[RimGovernor] Overlay drawer " + group + " failed: " + ex, group.GetHashCode()); }
+            }
             foreach (var entry in layers)
             {
                 if (!OverlayVisibility.Shown(entry.Key)) continue;

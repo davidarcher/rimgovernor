@@ -103,7 +103,15 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(ExecuteNative(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
+        // Jobs, blueprints and designations made inside the op carry its
+        // intent to the activity overlay (#822).
         internal static Operations.ExecuteReply ExecuteNative(Operations.ExecuteRequest request)
+        {
+            using (OperationIntent.Scope(request.Operation?.HasIntent == true ? request.Operation.Intent : null))
+                return ExecuteNativeCore(request);
+        }
+
+        private static Operations.ExecuteReply ExecuteNativeCore(Operations.ExecuteRequest request)
         {
             var precondition = request.Precondition;
             if (precondition == null || !precondition.HasExpectedGeneration || precondition.ExpectedGeneration == 0

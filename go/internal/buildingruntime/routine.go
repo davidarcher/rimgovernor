@@ -68,6 +68,8 @@ type RoutineReviewer struct {
 	overlayCleared bool
 	heatDrawn      domain.Tick
 	heatCleared    bool
+	// strip is the last status strip sent (#823); see drawStatusStrip.
+	strip statusStripState
 }
 
 // staged is the configured policy with its goal budgets set by the colony
@@ -509,6 +511,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency), "as_of", routineAsOf(asOf), "as_of_min", asOfMin, "as_of_spread", asOfSpread}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
+		r.drawStatusStrip(ctx, state.Snapshot, &reading.Projection, result)
 	}
 	return result, err
 }

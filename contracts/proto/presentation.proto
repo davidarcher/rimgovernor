@@ -528,3 +528,28 @@ message OverlayApplied {
   optional uint32 layers = 3; // Layers held after the call.
 }
 message OverlayReply { oneof outcome { OverlayApplied applied = 1; rimgovernor.common.v1.Failure failure = 2; } }
+
+// In-game status strip (#823): rows the controller pushes on change and a
+// native strip draws at the top of the map view. Output only, never saved;
+// each call replaces every row. Rows are generic so a new readout needs no
+// contract change.
+enum StatusSeverity {
+  STATUS_SEVERITY_UNSPECIFIED = 0;
+  STATUS_SEVERITY_INFO = 1;
+  STATUS_SEVERITY_WARNING = 2;
+  STATUS_SEVERITY_CRITICAL = 3;
+}
+message StatusRow {
+  optional string key = 1;  // Stable id, e.g. "goal", "food", "pause".
+  optional string text = 2; // One short ASCII line.
+  StatusSeverity severity = 3;
+  rimgovernor.common.v1.Cell target = 4; // Clicking the row jumps the camera here.
+  optional bool detail = 5; // Shown only when the strip is expanded.
+}
+message StatusStripRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional bool enabled = 2; // false hides the strip.
+  repeated StatusRow rows = 3;
+}
+message StatusStripApplied { rimgovernor.common.v1.ObservationContext context = 1; optional uint32 rows = 2; }
+message StatusStripReply { oneof outcome { StatusStripApplied applied = 1; rimgovernor.common.v1.Failure failure = 2; } }
