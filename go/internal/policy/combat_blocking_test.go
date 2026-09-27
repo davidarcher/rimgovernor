@@ -43,7 +43,7 @@ func decideChoke(t *testing.T, view CombatView, stop StopEvent, memory CombatMem
 		return orders, next
 	}
 	layout, _ := view.Layout.Value()
-	want := &GeometryRequest{Propose: RoleAdjacentToChoke, Line: layout.Firing, Choke: domain.Cell{X: 9, Z: 17}, OurSide: domain.Cell{X: 9, Z: 20}, Hostiles: []domain.PawnID{"r1", "r2"}}
+	want := &GeometryRequest{Propose: RoleAdjacentToChoke, Line: layout.Firing, Choke: domain.Cell{X: 9, Z: 17}, OurSide: domain.Cell{X: 9, Z: 20}, Hostiles: []domain.PawnID{"r1", "r2"}, Cells: shooterCells(view.sorted())}
 	if !reflect.DeepEqual(ask, want) {
 		t.Fatalf("ask %+v, want %+v", ask, want)
 	}

@@ -86,7 +86,8 @@ func TestDecideCombatFormationTakesProposedCover(t *testing.T) {
 		t.Fatalf("%+v", ask)
 	}
 	orders, _, memory := DecideCombat(view, GeometryReply{Answered: true, Proposals: []domain.Cell{{X: 9, Z: 23}, {X: 11, Z: 24}}}, StopEvent{}, CombatMemory{})
-	if memory.Tactic != TacticHold || len(orders) != 3 || orders[2].Cell != (domain.Cell{X: 11, Z: 24}) {
+	// Spaced first (#861): the proposal a tile from (9,23) comes before (8,23).
+	if memory.Tactic != TacticHold || len(orders) != 3 || orders[1].Cell != (domain.Cell{X: 11, Z: 24}) {
 		t.Fatalf("%+v %+v", orders, memory)
 	}
 }

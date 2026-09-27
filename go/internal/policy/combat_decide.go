@@ -61,7 +61,18 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			continue
 		}
 		orders = append(orders, want)
-		next.issue(want, view.Tick)
+	}
+	orders = holdFire(view, next.Roles, orders, memory)
+	if !geometry.Answered {
+		// The attacks' lines of fire (#861) take the stop's geometry round
+		// trip when Formation did not.
+		if ask := lineAsk(view, orders); ask != nil {
+			return nil, ask, memory
+		}
+	}
+	orders, next.Roles = clearLines(view, orders, geometry.Lines, next.Roles)
+	for _, o := range orders {
+		next.issue(o, view.Tick)
 	}
 	return orders, nil, next
 }
@@ -87,6 +98,8 @@ type CombatPawnState struct {
 	Downed, Dead bool
 	Target       domain.PawnID
 	Stance       CombatStance
+	// FireMode is FireAtWill or HoldFire for a drafted colonist, else "".
+	FireMode string
 	// Threat facts (#863): the equipped weapon def and its range (0
 	// unknown), the pawn kind def, and a sapper or breacher at work.
 	Weapon      string
@@ -154,7 +167,10 @@ const (
 // hostiles (bridge.CombatGeometryMaxHostiles at most). Line is the
 // cover_behind_line role's anchor.
 type GeometryRequest struct {
-	Propose  FormationRole
+	Propose FormationRole
+	// Cells are named cells to score (#861: the shooters' cells), their
+	// lines of fire answered in GeometryReply.Lines.
+	Cells    []domain.Cell
 	Line     []domain.Cell
 	Hostiles []domain.PawnID
 	// Choke and OurSide anchor the adjacent_to_choke role (#864).
@@ -168,6 +184,9 @@ type GeometryRequest struct {
 type GeometryReply struct {
 	Answered  bool
 	Proposals []domain.Cell
+	// Lines are the named and proposed cells' sight lines to the ask's
+	// hostiles.
+	Lines []SightLine
 	// Scored is the game's cover for the line and proposed cells (#862);
 	// Formation ranks its candidate cells by it.
 	Scored []ScoredCell `json:",omitempty"`
@@ -199,8 +218,10 @@ type CombatRole struct {
 type CombatOrderKind string
 
 const (
-	OrderMove   CombatOrderKind = "move"
-	OrderAttack CombatOrderKind = "attack"
+	OrderMove     CombatOrderKind = "move"
+	OrderAttack   CombatOrderKind = "attack"
+	OrderFireMode CombatOrderKind = "fire_mode"
+	OrderStop     CombatOrderKind = "stop"
 )
 
 // CombatOrderReason says why an order was given; retreat and rescue pass
@@ -211,6 +232,9 @@ const (
 	ReasonFormation CombatOrderReason = "formation"
 	ReasonRetreat   CombatOrderReason = "retreat"
 	ReasonRescue    CombatOrderReason = "rescue"
+	// ReasonHoldFire is a fire-mode toggle (and its stop) for a hostile in
+	// melee with our blockers (#861).
+	ReasonHoldFire CombatOrderReason = "hold_fire"
 )
 
 // CombatOrder is one changed order.
@@ -219,7 +243,9 @@ type CombatOrder struct {
 	Kind   CombatOrderKind
 	Cell   domain.Cell   `json:",omitempty"`
 	Target domain.PawnID `json:",omitempty"`
-	Reason CombatOrderReason
+	// FireMode is a fire_mode order's FireAtWill or HoldFire.
+	FireMode string `json:",omitempty"`
+	Reason   CombatOrderReason
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.
@@ -349,7 +375,11 @@ func formationAsk(view CombatView) *GeometryRequest {
 	if !ok || len(layout.Firing) == 0 {
 		return nil
 	}
-	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing)}
+	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing), Cells: shooterCells(view)}
+	// Named cells share the cells cap with the proposals: half each at most.
+	if len(ask.Cells) > maxGeometryCells/2 {
+		ask.Cells = ask.Cells[:maxGeometryCells/2]
+	}
 	if choke, ourSide, ok := blockingChoke(view); ok {
 		// A blocking formation spends the stop's one proposal on blocker
 		// cells; the named line is still scored.
@@ -383,7 +413,7 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 			}
 		}
 		var positions []DefensivePosition
-		cells = RankByCover(cells, geometry.Scored)
+		cells = spaceCells(RankByCover(cells, geometry.Scored))
 		positions, refusal = ExplainDefensivePositions(cells, layout.Toward, view.Positional, view.Defenders)
 		if refusal == "" {
 			roles := make([]CombatRole, 0, len(positions))
