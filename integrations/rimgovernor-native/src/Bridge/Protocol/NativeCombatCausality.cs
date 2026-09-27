@@ -109,19 +109,35 @@ namespace HomeBridge.BridgeTools
         }
         private static HarmonyMethod? Missing(IEnumerable<Patch>? hooks,MethodInfo method)
             => hooks!=null && hooks.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,method)) ? null : new HarmonyMethod(method);
+        // The hook audit walks Harmony's patch registry and is read on every
+        // melee and damage call. As in NativePawnControlState (#858), on the
+        // game thread a passing audit holds for AuditMillis; a failed audit is
+        // never cached.
+        private const long AuditMillis=1000;
+        private static long readyAt;
+        private static bool ready;
         internal static bool IsReady
         {
             get {
-                try {
-                    var hooks=Target==null?null:Harmony.GetPatchInfo(Target);
-                    var melee=MeleeTarget==null?null:Harmony.GetPatchInfo(MeleeTarget);
-                    return hooks!=null && melee!=null && hooks.Prefixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Prefix))==1
-                        && hooks.Postfixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Postfix))==1
-                        && hooks.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,DamageFinalizer))==1
-                        && melee.Prefixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleePrefix))==1
-                        && melee.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleeFinalizer))==1;
-                } catch { return false; }
+                if (!UnityData.IsInMainThread) return Audit();
+                var now=System.Diagnostics.Stopwatch.GetTimestamp();
+                if (ready && now-readyAt<AuditMillis*System.Diagnostics.Stopwatch.Frequency/1000) return true;
+                readyAt=now;
+                ready=Audit();
+                return ready;
             }
+        }
+        private static bool Audit()
+        {
+            try {
+                var hooks=Target==null?null:Harmony.GetPatchInfo(Target);
+                var melee=MeleeTarget==null?null:Harmony.GetPatchInfo(MeleeTarget);
+                return hooks!=null && melee!=null && hooks.Prefixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Prefix))==1
+                    && hooks.Postfixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Postfix))==1
+                    && hooks.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,DamageFinalizer))==1
+                    && melee.Prefixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleePrefix))==1
+                    && melee.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleeFinalizer))==1;
+            } catch { return false; }
         }
         internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Thing target,Job job,Func<bool> guard)
         {
