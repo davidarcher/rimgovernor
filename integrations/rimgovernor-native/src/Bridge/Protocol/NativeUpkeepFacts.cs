@@ -203,10 +203,11 @@ namespace HomeBridge.BridgeTools
                 // cells against the same table, so their terrains are named too.
                 var traffic = map.GetComponent<TrafficState>();
                 if (traffic != null)
-                    foreach (var pair in traffic.Samples.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key.z).ThenBy(kv => kv.Key.x).Take(64)) {
-                        var terrain = pair.Key.GetTerrain(map);
-                        terrains[terrain.defName] = terrain;
-                    }
+                    for (int layer = 0; layer < TrafficCounts.Layers; layer++)
+                        foreach (var index in traffic.Counts.Top(layer, TrafficTop)) {
+                            var terrain = map.cellIndices.IndexToCell(index).GetTerrain(map);
+                            terrains[terrain.defName] = terrain;
+                        }
                 foreach (var terrain in terrains.Values)
                     facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName), Natural = terrain.natural, PathCost = terrain.pathCost,
                         Cleanliness = Number(terrain.GetStatValueAbstract(StatDefOf.Cleanliness)), Beauty = Number(terrain.GetStatValueAbstract(StatDefOf.Beauty)),
@@ -337,15 +338,19 @@ namespace HomeBridge.BridgeTools
                 var traffic = map.GetComponent<TrafficState>();
                 if (traffic != null)
                 {
-                    facts.TrafficSamples = traffic.Total;
+                    // The busiest TrafficTop cells of each layer (#817);
+                    // traffic_samples is the colonist layer's decayed total.
+                    facts.TrafficSamples = traffic.Counts.Total(TrafficCounts.Colonist);
                     if (traffic.SinceTick >= 0) facts.TrafficSinceTick = traffic.SinceTick;
-                    foreach (var pair in traffic.Samples.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key.z).ThenBy(kv => kv.Key.x).Take(64))
-                    {
-                        var cell = new Obs.TrafficCell { Cell = Cell(pair.Key), Samples = pair.Value, Terrain = Id(pair.Key.GetTerrain(map).defName), Home = map.areaManager.Home[pair.Key] };
-                        var pending = pair.Key.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
-                        if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
-                        facts.Traffic.Add(cell);
-                    }
+                    for (int layer = 0; layer < TrafficCounts.Layers; layer++)
+                        foreach (var index in traffic.Counts.Top(layer, TrafficTop))
+                        {
+                            var at = map.cellIndices.IndexToCell(index);
+                            var cell = new Obs.TrafficCell { Cell = Cell(at), Samples = traffic.Counts[layer, index], Terrain = Id(at.GetTerrain(map).defName), Home = map.areaManager.Home[at], Layer = (Obs.TrafficLayer)(layer + 1) };
+                            var pending = at.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
+                            if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
+                            facts.Traffic.Add(cell);
+                        }
                 }
                 facts.Completeness = Complete(facts.Facilities.Count);
                 result.Routes = new Obs.RoutesSection { Observed = facts };
@@ -510,6 +515,9 @@ namespace HomeBridge.BridgeTools
                 }));
             });
         }
+
+        // TrafficTop bounds the cells reported per traffic layer (#817).
+        private const int TrafficTop = 128;
 
         // FeedStorageCandidates floods outward from the animal over the free
         // cells of its allowed area (roofed and not marked to collapse, as the

@@ -994,13 +994,22 @@ message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgoverno
 // per-colonist native reachability from where that colonist stands and the
 // cost of the path the game itself would walk; a facility no colonist reaches
 // lists breach candidates: player wall cells of its room whose outer
-// neighbour a colonist can stand on. Traffic is sampled from actual colonist
-// movement (a cell each moving colonist occupies, every 30 ticks) and reports
-// the most-travelled cells with their terrain.
+// neighbour a colonist can stand on.
+// Traffic (#817) counts cell changes of moving pawns per layer, each layer
+// decaying on its own half-life, rebuilt from zero after a load; the
+// busiest cells are reported per layer with their terrain.
+enum TrafficLayer {
+  TRAFFIC_LAYER_UNSPECIFIED = 0;
+  TRAFFIC_LAYER_COLONIST = 1;
+  TRAFFIC_LAYER_CROSSING = 2; // Any pawn stepping from soil or sand onto a built floor.
+  TRAFFIC_LAYER_ANIMAL = 3;   // Colony animals.
+  TRAFFIC_LAYER_VISITOR = 4;  // Visitors and traders.
+  TRAFFIC_LAYER_HOSTILE = 5;  // Hostile pawns; slow decay.
+}
 message RouteTravel { optional string pawn_id = 1; optional bool reachable = 2; optional int32 path_cost = 3; optional int32 path_cells = 4; }
 message RouteBreach { rimgovernor.common.v1.Cell cell = 1; optional string edifice = 2; optional string pending = 3; optional int32 distance = 4; }
 message RouteFacility { EntityRef facility = 1; optional string kind = 2; rimgovernor.common.v1.Cell cell = 3; optional string room_id = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
-message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 samples = 2; optional string terrain = 3; optional bool home = 4; optional string pending = 5; }
+message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 samples = 2; optional string terrain = 3; optional bool home = 4; optional string pending = 5; TrafficLayer layer = 6; }
 message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; Completeness completeness = 6; }
 message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {

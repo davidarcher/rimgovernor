@@ -31,7 +31,7 @@ func routesCensus() RoutesObservation {
 	return RoutesObservation{
 		Pawns:      []string{"a", "b"},
 		Facilities: []RouteFacility{bed, routesFacility("bench-1", "bench", true, false), sealed},
-		Traffic:    []TrafficCell{{Cell: domain.Cell{X: 5, Z: 5}, Samples: 30, Terrain: "Soil", Home: true}},
+		Traffic:    []TrafficCell{{Cell: domain.Cell{X: 5, Z: 5}, Layer: TrafficColonist, Samples: 30, Terrain: "Soil", Home: true}},
 	}
 }
 
@@ -162,12 +162,12 @@ func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 	p := flooringPolicy()
 	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100}
 	v.Traffic = []TrafficCell{
-		{Cell: domain.Cell{X: 1, Z: 1}, Samples: 40, Terrain: "Soil", Home: true},
-		{Cell: domain.Cell{X: 2, Z: 1}, Samples: 20, Terrain: "Soil", Home: true, Pending: "WoodPlankFloor"},
-		{Cell: domain.Cell{X: 3, Z: 1}, Samples: 30, Terrain: "Soil", Home: false},
-		{Cell: domain.Cell{X: 4, Z: 1}, Samples: 5, Terrain: "Soil", Home: true},
-		{Cell: domain.Cell{X: 5, Z: 1}, Samples: 50, Terrain: "WoodPlankFloor", Home: true},
-		{Cell: domain.Cell{X: 40, Z: 40}, Samples: 60, Terrain: "Soil", Home: true},
+		{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Soil", Home: true},
+		{Cell: domain.Cell{X: 2, Z: 1}, Layer: TrafficColonist, Samples: 20, Terrain: "Soil", Home: true, Pending: "WoodPlankFloor"},
+		{Cell: domain.Cell{X: 3, Z: 1}, Layer: TrafficColonist, Samples: 30, Terrain: "Soil", Home: false},
+		{Cell: domain.Cell{X: 4, Z: 1}, Layer: TrafficColonist, Samples: 5, Terrain: "Soil", Home: true},
+		{Cell: domain.Cell{X: 5, Z: 1}, Layer: TrafficColonist, Samples: 50, Terrain: "WoodPlankFloor", Home: true},
+		{Cell: domain.Cell{X: 40, Z: 40}, Layer: TrafficColonist, Samples: 60, Terrain: "Soil", Home: true},
 	}
 	r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
 	if err != nil || !r.Active || len(r.Deficits) != 1 {
@@ -205,7 +205,7 @@ func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 func TestDetectRoutineRanksTrafficFlooringLast(t *testing.T) {
 	f := stableRoutine()
 	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100}
-	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Samples: 40, Terrain: "Soil", Home: true}}
+	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Soil", Home: true}}
 	f.Upkeep.Flooring = domain.Known(v)
 	r := needs(t, f, RoutineLatches{})
 	found := false

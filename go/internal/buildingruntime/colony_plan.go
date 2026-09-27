@@ -76,13 +76,16 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 }
 
 // overlayRedrawEvery is how often an unchanged plan's overlay is redrawn
-// (one game day), so rooms built since take their colors and labels.
+// (one game day).
 const overlayRedrawEvery domain.Tick = 60000
 
-// LayoutOverlayNative draws the layout plan as native plan designations
-// (#726, bridge.Client.DrawLayoutPlan).
+// overlayLayer is the native overlay layer the layout plan draws on.
+const overlayLayer = "layout"
+
+// LayoutOverlayNative draws the layout plan as a native overlay layer
+// (#817, bridge.Client.DrawOverlay).
 type LayoutOverlayNative interface {
-	DrawLayoutPlan(context.Context, *c.Identity, policy.LayoutOverlay, bool) (*p.LayoutPlanApplied, bridge.Result, error)
+	DrawOverlay(context.Context, *c.Identity, string, policy.LayoutOverlay, bool) (*p.OverlayApplied, bridge.Result, error)
 }
 
 // drawLayoutOverlay rewrites the overlay when the plan changed or a day
@@ -93,10 +96,11 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 	if !ok {
 		return
 	}
+	r.drawHeatOverlay(ctx, native, snapshot, projection)
 	tick := projection.Identity.Tick
 	if !r.layoutOverlay || !haveLayout {
 		if !r.overlayCleared {
-			if _, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), policy.LayoutOverlay{}, false); err != nil {
+			if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, policy.LayoutOverlay{}, false); err != nil {
 				clockSchedulerLog("layout overlay not cleared: %v", err)
 				return
 			}
@@ -108,13 +112,13 @@ func (r *RoutineReviewer) drawLayoutOverlay(ctx context.Context, snapshot domain
 	if key == r.overlayKey && tick >= r.overlayDrawn && tick-r.overlayDrawn < overlayRedrawEvery {
 		return
 	}
-	applied, _, err := native.DrawLayoutPlan(ctx, controlIdentity(snapshot), layout.Plan.Overlay(projection.Bounds), true)
+	applied, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), overlayLayer, layout.Plan.Overlay(projection.Bounds), true)
 	if err != nil {
 		clockSchedulerLog("layout overlay not drawn: %v", err)
 		return
 	}
 	r.overlayKey, r.overlayDrawn, r.overlayCleared = key, tick, false
-	clockSchedulerLog("layout overlay drawn plans=%d cells=%d rooms=%d skipped=%d removed=%d", applied.GetPlans(), applied.GetCells(), applied.GetRooms(), applied.GetSkipped(), applied.GetRemoved())
+	clockSchedulerLog("layout overlay drawn layers=%d cells=%d", applied.GetLayers(), applied.GetCells())
 }
 
 // layoutPlan reads the v2 layout plan (#783). A saved plan that no longer
@@ -155,4 +159,34 @@ func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.Gene
 	}
 	clockEvent(ctx, "layout", "layout_replan", fmt.Sprintf("layout plan replanned for %d colonists outgrown=%t %s", pawns, outgrown, next.Summary()), "colonists", pawns, "outgrown", outgrown)
 	return nil
+}
+
+// heatRedrawEvery is how often the traffic heat layers are redrawn (one
+// game hour).
+const heatRedrawEvery domain.Tick = 2500
+
+// drawHeatOverlay redraws a "heat.<layer>" overlay layer per traffic layer
+// (#817) from the census's busiest cells, on its own hourly cadence; with
+// the overlay off it removes them once. Output only, like the layout.
+func (r *RoutineReviewer) drawHeatOverlay(ctx context.Context, native LayoutOverlayNative, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) {
+	census, known := projection.Facts.Upkeep.Flooring.Value()
+	on := r.layoutOverlay && known
+	if !on && r.heatCleared {
+		return
+	}
+	tick := projection.Identity.Tick
+	if on && r.heatDrawn != 0 && tick >= r.heatDrawn && tick-r.heatDrawn < heatRedrawEvery {
+		return
+	}
+	for _, layer := range policy.TrafficLayers {
+		var heat policy.LayoutOverlay
+		if on {
+			heat = policy.TrafficOverlay(census.Traffic, layer, projection.Bounds)
+		}
+		if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), "heat."+string(layer), heat, on && len(heat.Layers) > 0); err != nil {
+			clockSchedulerLog("heat overlay %s not drawn: %v", layer, err)
+			return
+		}
+	}
+	r.heatDrawn, r.heatCleared = tick, !on
 }

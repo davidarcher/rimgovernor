@@ -4,12 +4,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Overlay v2 (#784, B2) draws the layout plan over the whole map: zones as
-// row runs, the spine, each room's wall ring with its role label, the
-// labelled reservations and a traffic layer for the busiest spine cells
-// (recomputed by CheckRoutes at draw time, never persisted).
+// Overlay v2 (#784, B2; shapes #817) draws the layout plan over the whole
+// map: zones as filled row runs, the spine, each room's outline with its
+// role label, the labelled reservations (the perimeter and killbox as
+// outlines) and a traffic layer for the busiest spine cells (recomputed by
+// CheckRoutes at draw time, never persisted).
 
-var zoneOverlay = map[ZoneKind][2]string{
+var zoneOverlay = map[ZoneKind]overlayStyle{
 	ZoneField:   {planGreen, "field"},
 	ZonePasture: {planTan, "pasture"},
 	ZoneMining:  {planBrown, "mining"},
@@ -17,7 +18,7 @@ var zoneOverlay = map[ZoneKind][2]string{
 	ZoneNoGo:    {planDarkPurple, "no-go"},
 }
 
-var roomOverlay = map[ModuleRole][2]string{
+var roomOverlay = map[ModuleRole]overlayStyle{
 	ModuleBedroom:  {planBlue, "bedroom"},
 	ModuleBarracks: {planLightBlue, "barracks"},
 	ModuleDining:   {planAmber, "dining"},
@@ -33,7 +34,7 @@ var roomOverlay = map[ModuleRole][2]string{
 	ModuleReserve:  {planGray, "reserve"},
 }
 
-var reservationOverlay = map[ReservationKind][2]string{
+var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveBatteryRoom: {planCyan, "battery room"},
 	ReserveTurbine:     {planCyan, "turbine"},
 	ReserveTurbineLane: {planGreen, "turbine lane"},
@@ -49,56 +50,64 @@ var reservationOverlay = map[ReservationKind][2]string{
 // Overlay draws p inside bounds. Layer order is zones, reservations,
 // spine, traffic, rooms, so the smaller shapes draw last.
 func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
-	out := LayoutOverlay{Rooms: append([]OverlayRoomColor(nil), overlayRooms...)}
-	add := func(style [2]string, rects []Rectangle, label bool, at domain.Cell) {
-		var kept []Rectangle
+	var out LayoutOverlay
+	label := func(text string, at domain.Cell) {
+		if at.X >= 0 && at.Z >= 0 && at.X < bounds.Width && at.Z < bounds.Height {
+			out.Labels = append(out.Labels, OverlayLabel{Text: text, Cell: at})
+		}
+	}
+	add := func(style overlayStyle, shape OverlayStyle, rects []Rectangle, runs []RowRun) bool {
+		layer := OverlayLayer{Style: shape, Label: style.label, Color: style.hue.fill()}
+		if shape == OverlayOutline {
+			layer.Color = style.hue.outline()
+		}
 		for _, r := range rects {
 			if c, ok := clip(r, bounds); ok {
-				kept = append(kept, c)
+				layer.Rects = append(layer.Rects, c)
 			}
 		}
-		if len(kept) == 0 {
-			return
+		for _, r := range runs {
+			if c, ok := clipRun(r, bounds); ok {
+				layer.Runs = append(layer.Runs, c)
+			}
 		}
-		out.Layers = append(out.Layers, OverlayLayer{Color: style[0], Label: style[1], Rects: kept})
-		if label && at.X >= 0 && at.Z >= 0 && at.X < bounds.Width && at.Z < bounds.Height {
-			out.Labels = append(out.Labels, OverlayLabel{Text: style[1], Cell: at})
+		if len(layer.Rects)+len(layer.Runs) == 0 {
+			return false
 		}
+		out.Layers = append(out.Layers, layer)
+		return true
 	}
 	centre := func(r Rectangle) domain.Cell { return domain.Cell{X: r.X + r.Width/2, Z: r.Z + r.Height/2} }
 	for _, z := range p.Zones {
-		style, ok := zoneOverlay[z.Kind]
-		if !ok {
-			continue
+		if style, ok := zoneOverlay[z.Kind]; ok {
+			add(style, OverlayFill, nil, z.Runs)
 		}
-		rects := make([]Rectangle, 0, len(z.Runs))
-		for _, run := range z.Runs {
-			rects = append(rects, Rectangle{X: run.X, Z: run.Z, Width: run.Length, Height: 1})
-		}
-		add(style, rects, false, domain.Cell{})
 	}
 	for _, r := range p.Reservations {
 		style, ok := reservationOverlay[r.Kind]
 		if !ok {
 			continue
 		}
-		add(style, []Rectangle{r.Area}, r.Kind != ReservePerimeter && r.Kind != ReserveCoverClear, centre(r.Area))
+		shape := OverlayFill
+		if r.Kind == ReservePerimeter || r.Kind == ReserveKillbox {
+			shape = OverlayOutline
+		}
+		if add(style, shape, []Rectangle{r.Area}, nil) && r.Kind != ReservePerimeter && r.Kind != ReserveCoverClear {
+			label(style.label, centre(r.Area))
+		}
 	}
 	spine := spineRects(p.Spine)
-	add([2]string{planGray, "hallway"}, spine, false, domain.Cell{})
-	add([2]string{planYellow, "traffic"}, rowRuns(busiestSpineCells(p, spine)), false, domain.Cell{})
+	add(overlayStyle{planGray, "hallway"}, OverlayFill, spine, nil)
+	add(overlayStyle{planYellow, "traffic"}, OverlayFill, nil, cellRuns(busiestSpineCells(p, spine)))
 	for _, r := range p.Rooms {
 		style, ok := roomOverlay[r.Role]
 		if !ok {
 			continue
 		}
-		w := Rectangle{X: r.Interior.X - 1, Z: r.Interior.Z - 1, Width: r.Interior.Width + 2, Height: r.Interior.Height + 2}
-		add(style, []Rectangle{
-			{X: w.X, Z: w.Z, Width: w.Width, Height: 1},
-			{X: w.X, Z: w.Z + w.Height - 1, Width: w.Width, Height: 1},
-			{X: w.X, Z: w.Z + 1, Width: 1, Height: w.Height - 2},
-			{X: w.X + w.Width - 1, Z: w.Z + 1, Width: 1, Height: w.Height - 2},
-		}, true, centre(r.Interior))
+		walls := Rectangle{X: r.Interior.X - 1, Z: r.Interior.Z - 1, Width: r.Interior.Width + 2, Height: r.Interior.Height + 2}
+		if add(style, OverlayOutline, []Rectangle{walls}, nil) {
+			label(style.label, centre(r.Interior))
+		}
 	}
 	return out
 }

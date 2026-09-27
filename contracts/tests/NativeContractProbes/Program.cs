@@ -25,6 +25,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-production-bill-settings": NativeProductionBillSettingsProbe.Invoke(); return 0;
                 case "native-roof-support": NativeRoofSupportProbe.Invoke(); return 0;
                 case "native-home-coverage": NativeHomeCoverageProbe.Invoke(); return 0;
+                case "native-traffic-counts": NativeTrafficCountsProbe.Invoke(); return 0;
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;
 #if !HAVE_HARMONY
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;

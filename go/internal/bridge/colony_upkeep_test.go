@@ -161,7 +161,7 @@ func routesWire() *o.RoutesSection {
 				Travel: []*o.RouteTravel{{PawnId: proto.String("a"), Reachable: proto.Bool(true), PathCost: proto.Int32(120), PathCells: proto.Int32(9)}},
 			},
 		},
-		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true)}},
+		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true), Layer: o.TrafficLayer_TRAFFIC_LAYER_COLONIST}},
 		TrafficSamples:   proto.Uint32(200),
 		TrafficSinceTick: proto.Int32(400),
 		Completeness:     &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},

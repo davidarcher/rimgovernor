@@ -1,0 +1,256 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using HarmonyLib;
+using RimWorld;
+using RimWorld.Planet;
+using UnityEngine;
+using UnityEngine.Rendering;
+using Verse;
+
+namespace HomeBridge.BridgeTools
+{
+    /// <summary>
+    /// One colored region of an overlay layer: filled quads, or the outline
+    /// of the cell set.
+    /// </summary>
+    public sealed class OverlayGroup
+    {
+        public Color Color;
+        public bool Outline;
+        public readonly List<CellRect> Fills = new List<CellRect>();
+        public readonly HashSet<IntVec3> Cells = new HashSet<IntVec3>();
+    }
+
+    /// <summary>
+    /// The controller's map overlay (#817): named layers drawn as flat
+    /// transparent meshes plus text labels. A request replaces one layer by
+    /// id; nothing reads it back and nothing is saved, so a reload starts
+    /// blank until the controller redraws.
+    /// </summary>
+    public sealed class GovernorOverlay : MapComponent
+    {
+        private const float EdgeWidth = 0.1f;
+
+        private sealed class Layer
+        {
+            public List<OverlayGroup> Groups = new List<OverlayGroup>();
+            public List<(string Text, IntVec3 Cell)> Labels = new List<(string, IntVec3)>();
+            public List<(Mesh Mesh, Material Material)>? Meshes;
+        }
+
+        private readonly Dictionary<string, Layer> layers = new Dictionary<string, Layer>(StringComparer.Ordinal);
+
+        public GovernorOverlay(Map map) : base(map) { }
+
+        public int Count => layers.Count;
+
+        public void Replace(string id, List<OverlayGroup> groups, List<(string, IntVec3)> labels)
+        {
+            Remove(id);
+            layers[id] = new Layer { Groups = groups, Labels = labels };
+            OverlayVisibility.Known(id);
+        }
+
+        public void Remove(string id)
+        {
+            if (!layers.TryGetValue(id, out var layer)) return;
+            Release(layer);
+            layers.Remove(id);
+        }
+
+        public override void FinalizeInit()
+        {
+            base.FinalizeInit();
+            ClearLegacyPlans();
+        }
+
+        public override void MapComponentUpdate()
+        {
+            if (layers.Count == 0 || !OverlayVisibility.Master || Application.isBatchMode
+                || Find.CurrentMap != map || WorldRendererUtility.WorldSelected) return;
+            foreach (var entry in layers)
+            {
+                if (!OverlayVisibility.Shown(entry.Key)) continue;
+                var layer = entry.Value;
+                layer.Meshes ??= Build(layer.Groups);
+                foreach (var (mesh, material) in layer.Meshes)
+                    Graphics.DrawMesh(mesh, Vector3.zero, Quaternion.identity, material, 0);
+            }
+        }
+
+        public override void MapComponentOnGUI()
+        {
+            if (layers.Count == 0 || !OverlayVisibility.Master || Find.CurrentMap != map || WorldRendererUtility.WorldSelected) return;
+            var view = Find.CameraDriver.CurrentViewRect.ExpandedBy(2);
+            foreach (var entry in layers)
+            {
+                if (!OverlayVisibility.Shown(entry.Key)) continue;
+                foreach (var (text, cell) in entry.Value.Labels)
+                    if (view.Contains(cell))
+                        GenMapUI.DrawThingLabel(GenMapUI.LabelDrawPosFor(cell), text, Color.white);
+            }
+        }
+
+        public override void MapRemoved()
+        {
+            foreach (var layer in layers.Values) Release(layer);
+            layers.Clear();
+        }
+
+        private static void Release(Layer layer)
+        {
+            if (layer.Meshes == null) return;
+            foreach (var (mesh, _) in layer.Meshes) UnityEngine.Object.Destroy(mesh);
+            layer.Meshes = null;
+        }
+
+        // One mesh per (color, style); game thread with a GPU only.
+        private static List<(Mesh, Material)> Build(List<OverlayGroup> groups)
+        {
+            var y = AltitudeLayer.MetaOverlays.AltitudeFor();
+            var result = new List<(Mesh, Material)>();
+            foreach (var bucket in groups.GroupBy(g => (g.Color, g.Outline)))
+            {
+                var quads = new List<Rect>();
+                if (bucket.Key.Outline) Edges(bucket.SelectMany(g => g.Cells).ToHashSet(), quads);
+                else foreach (var g in bucket) foreach (var r in g.Fills) quads.Add(new Rect(r.minX, r.minZ, r.Width, r.Height));
+                if (quads.Count == 0) continue;
+                var verts = new Vector3[quads.Count * 4];
+                var tris = new int[quads.Count * 6];
+                for (var i = 0; i < quads.Count; i++)
+                {
+                    var q = quads[i];
+                    verts[i * 4] = new Vector3(q.xMin, y, q.yMin);
+                    verts[i * 4 + 1] = new Vector3(q.xMin, y, q.yMax);
+                    verts[i * 4 + 2] = new Vector3(q.xMax, y, q.yMax);
+                    verts[i * 4 + 3] = new Vector3(q.xMax, y, q.yMin);
+                    tris[i * 6] = i * 4; tris[i * 6 + 1] = i * 4 + 1; tris[i * 6 + 2] = i * 4 + 2;
+                    tris[i * 6 + 3] = i * 4; tris[i * 6 + 4] = i * 4 + 2; tris[i * 6 + 5] = i * 4 + 3;
+                }
+                var mesh = new Mesh { name = "RimGovernorOverlay", indexFormat = IndexFormat.UInt32, vertices = verts, triangles = tris };
+                mesh.RecalculateBounds();
+                result.Add((mesh, MaterialPool.MatFrom(BaseContent.WhiteTex, ShaderDatabase.MetaOverlay, bucket.Key.Color)));
+            }
+            return result;
+        }
+
+        // Boundary edges of the cell set as thin quads inside the cells,
+        // collinear neighbours merged into one quad.
+        private static void Edges(HashSet<IntVec3> cells, List<Rect> quads)
+        {
+            var sorted = cells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
+            // South (dz=-1) and north (dz=+1) edges run along x.
+            foreach (var dz in new[] { -1, 1 })
+            {
+                IntVec3? start = null, last = null;
+                void Flush()
+                {
+                    if (start is IntVec3 s && last is IntVec3 l)
+                        quads.Add(new Rect(s.x, dz < 0 ? s.z : s.z + 1 - EdgeWidth, l.x + 1 - s.x, EdgeWidth));
+                    start = last = null;
+                }
+                foreach (var c in sorted)
+                {
+                    if (cells.Contains(new IntVec3(c.x, 0, c.z + dz))) { Flush(); continue; }
+                    if (last is IntVec3 l && (l.z != c.z || l.x + 1 != c.x)) Flush();
+                    start ??= c;
+                    last = c;
+                }
+                Flush();
+            }
+            sorted = cells.OrderBy(c => c.x).ThenBy(c => c.z).ToList();
+            foreach (var dx in new[] { -1, 1 })
+            {
+                IntVec3? start = null, last = null;
+                void Flush()
+                {
+                    if (start is IntVec3 s && last is IntVec3 l)
+                        quads.Add(new Rect(dx < 0 ? s.x : s.x + 1 - EdgeWidth, s.z, EdgeWidth, l.z + 1 - s.z));
+                    start = last = null;
+                }
+                foreach (var c in sorted)
+                {
+                    if (cells.Contains(new IntVec3(c.x + dx, 0, c.z))) { Flush(); continue; }
+                    if (last is IntVec3 l && (l.x != c.x || l.z + 1 != c.z)) Flush();
+                    start ??= c;
+                    last = c;
+                }
+                Flush();
+            }
+        }
+
+        // The #726 overlay drew native plans labelled "RimGovernor ...";
+        // delete any a save still carries. Removed at Layout v2 D1.
+        // Cell by cell from the end: Plan.Delete plays a sound and touches
+        // the selector, which headless lacks.
+        private void ClearLegacyPlans()
+        {
+            try
+            {
+                foreach (var plan in map.planManager.AllPlans.ToList())
+                {
+                    if (plan.label == null || !plan.label.StartsWith("RimGovernor", StringComparison.Ordinal)) continue;
+                    var owned = plan.Cells;
+                    for (var i = owned.Count - 1; i >= 0; i--) plan.RemoveCell(owned[i]);
+                    if (map.planManager.AllPlans.Contains(plan)) plan.Deregister();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[RimGovernor] Legacy overlay plan cleanup failed: " + ex.Message);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Player-side overlay visibility: a master switch and one switch per
+    /// layer group (the layer id up to its first '.', ':' or '/'), both on
+    /// the play-settings bar. Session only.
+    /// </summary>
+    [StaticConstructorOnStartup]
+    public static class OverlayVisibility
+    {
+        public static bool Master = true;
+        private static readonly SortedSet<string> groups = new SortedSet<string>(StringComparer.Ordinal);
+        private static readonly HashSet<string> hidden = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly Texture2D MasterIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowZones", false) ?? BaseContent.BadTex;
+        private static readonly Texture2D GroupsIcon = ContentFinder<Texture2D>.Get("UI/Buttons/ShowRoomStats", false) ?? BaseContent.BadTex;
+
+        static OverlayVisibility()
+        {
+            try
+            {
+                new Harmony("rimgovernor.overlay.toggle").Patch(
+                    AccessTools.Method(typeof(PlaySettings), nameof(PlaySettings.DoPlaySettingsGlobalControls))
+                        ?? throw new MissingMethodException("PlaySettings.DoPlaySettingsGlobalControls"),
+                    postfix: new HarmonyMethod(typeof(OverlayVisibility), nameof(Controls)));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("[RimGovernor] Overlay toggle installation failed: " + ex);
+            }
+        }
+
+        public static string Group(string id)
+        {
+            var cut = id.IndexOfAny(new[] { '.', ':', '/' });
+            return cut < 0 ? id : id.Substring(0, cut);
+        }
+
+        public static void Known(string id) => groups.Add(Group(id));
+        public static bool Shown(string id) => !hidden.Contains(Group(id));
+
+        private static void Controls(WidgetRow row, bool worldView)
+        {
+            if (worldView || row == null) return;
+            row.ToggleableIcon(ref Master, MasterIcon, "Show the RimGovernor overlay.", SoundDefOf.Mouseover_ButtonToggle);
+            if (!Master || groups.Count == 0) return;
+            if (row.ButtonIcon(GroupsIcon, "Choose which RimGovernor overlay layers are shown."))
+                Find.WindowStack.Add(new FloatMenu(groups.Select(g => new FloatMenuOption(
+                    (hidden.Contains(g) ? "Show " : "Hide ") + g,
+                    () => { if (!hidden.Remove(g)) hidden.Add(g); })).ToList()));
+        }
+    }
+}

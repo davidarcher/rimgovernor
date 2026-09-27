@@ -296,6 +296,55 @@ func (PawnView) EnumDescriptor() ([]byte, []int) {
 	return file_presentation_proto_rawDescGZIP(), []int{4}
 }
 
+type OverlayStyle int32
+
+const (
+	OverlayStyle_OVERLAY_STYLE_UNSPECIFIED OverlayStyle = 0
+	OverlayStyle_OVERLAY_STYLE_FILL        OverlayStyle = 1 // Every cell filled.
+	OverlayStyle_OVERLAY_STYLE_OUTLINE     OverlayStyle = 2 // Only the boundary edges of the shape's cells.
+)
+
+// Enum value maps for OverlayStyle.
+var (
+	OverlayStyle_name = map[int32]string{
+		0: "OVERLAY_STYLE_UNSPECIFIED",
+		1: "OVERLAY_STYLE_FILL",
+		2: "OVERLAY_STYLE_OUTLINE",
+	}
+	OverlayStyle_value = map[string]int32{
+		"OVERLAY_STYLE_UNSPECIFIED": 0,
+		"OVERLAY_STYLE_FILL":        1,
+		"OVERLAY_STYLE_OUTLINE":     2,
+	}
+)
+
+func (x OverlayStyle) Enum() *OverlayStyle {
+	p := new(OverlayStyle)
+	*p = x
+	return p
+}
+
+func (x OverlayStyle) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OverlayStyle) Descriptor() protoreflect.EnumDescriptor {
+	return file_presentation_proto_enumTypes[5].Descriptor()
+}
+
+func (OverlayStyle) Type() protoreflect.EnumType {
+	return &file_presentation_proto_enumTypes[5]
+}
+
+func (x OverlayStyle) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OverlayStyle.Descriptor instead.
+func (OverlayStyle) EnumDescriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{5}
+}
+
 // Contract-only: capabilities must deny all player-control RPCs to automation.
 // Every optional fact requires Has* checks. Bounds/admission live in normal code.
 type ReadRequest struct {
@@ -9837,33 +9886,34 @@ func (*ScreenshotReply_Screenshot) isScreenshotReply_Outcome() {}
 
 func (*ScreenshotReply_Failure) isScreenshotReply_Outcome() {}
 
-// Layout plan overlay (#726): the colony layout drawn as native 1.6 plans
-// plus text labels. Output only: every call deletes the plans this tool
-// made (label prefix "RimGovernor") and redraws; nothing reads them back.
-// Cells come as inclusive rectangles, usually single-row runs.
-type LayoutPlanLayer struct {
+// RimGovernor map overlay (#817): a native MapComponent draws named layers
+// as meshes and labels. Output only and never saved: each call replaces
+// the one layer it names and leaves the others; the Go side resends after
+// a load. Layer ids group producers: "layout", "heat.colonist", ...
+type OverlayColor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ColorDef      *string                `protobuf:"bytes,1,opt,name=color_def,json=colorDef,proto3,oneof" json:"color_def,omitempty"` // A ColorDef of colorType Planning.
-	Label         *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`                       // Plan label, prefixed natively.
-	Rects         []*MapRect             `protobuf:"bytes,3,rep,name=rects,proto3" json:"rects,omitempty"`
+	R             *float32               `protobuf:"fixed32,1,opt,name=r,proto3,oneof" json:"r,omitempty"`
+	G             *float32               `protobuf:"fixed32,2,opt,name=g,proto3,oneof" json:"g,omitempty"`
+	B             *float32               `protobuf:"fixed32,3,opt,name=b,proto3,oneof" json:"b,omitempty"`
+	A             *float32               `protobuf:"fixed32,4,opt,name=a,proto3,oneof" json:"a,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LayoutPlanLayer) Reset() {
-	*x = LayoutPlanLayer{}
+func (x *OverlayColor) Reset() {
+	*x = OverlayColor{}
 	mi := &file_presentation_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LayoutPlanLayer) String() string {
+func (x *OverlayColor) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LayoutPlanLayer) ProtoMessage() {}
+func (*OverlayColor) ProtoMessage() {}
 
-func (x *LayoutPlanLayer) ProtoReflect() protoreflect.Message {
+func (x *OverlayColor) ProtoReflect() protoreflect.Message {
 	mi := &file_presentation_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -9875,34 +9925,170 @@ func (x *LayoutPlanLayer) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LayoutPlanLayer.ProtoReflect.Descriptor instead.
-func (*LayoutPlanLayer) Descriptor() ([]byte, []int) {
+// Deprecated: Use OverlayColor.ProtoReflect.Descriptor instead.
+func (*OverlayColor) Descriptor() ([]byte, []int) {
 	return file_presentation_proto_rawDescGZIP(), []int{120}
 }
 
-func (x *LayoutPlanLayer) GetColorDef() string {
-	if x != nil && x.ColorDef != nil {
-		return *x.ColorDef
+func (x *OverlayColor) GetR() float32 {
+	if x != nil && x.R != nil {
+		return *x.R
 	}
-	return ""
+	return 0
 }
 
-func (x *LayoutPlanLayer) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
+func (x *OverlayColor) GetG() float32 {
+	if x != nil && x.G != nil {
+		return *x.G
 	}
-	return ""
+	return 0
 }
 
-func (x *LayoutPlanLayer) GetRects() []*MapRect {
+func (x *OverlayColor) GetB() float32 {
+	if x != nil && x.B != nil {
+		return *x.B
+	}
+	return 0
+}
+
+func (x *OverlayColor) GetA() float32 {
+	if x != nil && x.A != nil {
+		return *x.A
+	}
+	return 0
+}
+
+// A row run: cells (x .. x+length-1, z).
+type OverlayRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             *int32                 `protobuf:"varint,1,opt,name=x,proto3,oneof" json:"x,omitempty"`
+	Z             *int32                 `protobuf:"varint,2,opt,name=z,proto3,oneof" json:"z,omitempty"`
+	Length        *int32                 `protobuf:"varint,3,opt,name=length,proto3,oneof" json:"length,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OverlayRun) Reset() {
+	*x = OverlayRun{}
+	mi := &file_presentation_proto_msgTypes[121]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OverlayRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OverlayRun) ProtoMessage() {}
+
+func (x *OverlayRun) ProtoReflect() protoreflect.Message {
+	mi := &file_presentation_proto_msgTypes[121]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OverlayRun.ProtoReflect.Descriptor instead.
+func (*OverlayRun) Descriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{121}
+}
+
+func (x *OverlayRun) GetX() int32 {
+	if x != nil && x.X != nil {
+		return *x.X
+	}
+	return 0
+}
+
+func (x *OverlayRun) GetZ() int32 {
+	if x != nil && x.Z != nil {
+		return *x.Z
+	}
+	return 0
+}
+
+func (x *OverlayRun) GetLength() int32 {
+	if x != nil && x.Length != nil {
+		return *x.Length
+	}
+	return 0
+}
+
+type OverlayShape struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Color         *OverlayColor          `protobuf:"bytes,1,opt,name=color,proto3" json:"color,omitempty"`
+	Style         OverlayStyle           `protobuf:"varint,2,opt,name=style,proto3,enum=rimgovernor.presentation.v1.OverlayStyle" json:"style,omitempty"`
+	Rects         []*MapRect             `protobuf:"bytes,3,rep,name=rects,proto3" json:"rects,omitempty"` // Inclusive.
+	Runs          []*OverlayRun          `protobuf:"bytes,4,rep,name=runs,proto3" json:"runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OverlayShape) Reset() {
+	*x = OverlayShape{}
+	mi := &file_presentation_proto_msgTypes[122]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OverlayShape) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OverlayShape) ProtoMessage() {}
+
+func (x *OverlayShape) ProtoReflect() protoreflect.Message {
+	mi := &file_presentation_proto_msgTypes[122]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OverlayShape.ProtoReflect.Descriptor instead.
+func (*OverlayShape) Descriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{122}
+}
+
+func (x *OverlayShape) GetColor() *OverlayColor {
+	if x != nil {
+		return x.Color
+	}
+	return nil
+}
+
+func (x *OverlayShape) GetStyle() OverlayStyle {
+	if x != nil {
+		return x.Style
+	}
+	return OverlayStyle_OVERLAY_STYLE_UNSPECIFIED
+}
+
+func (x *OverlayShape) GetRects() []*MapRect {
 	if x != nil {
 		return x.Rects
 	}
 	return nil
 }
 
-// A text label drawn at a map cell while the overlay is on.
-type LayoutPlanLabel struct {
+func (x *OverlayShape) GetRuns() []*OverlayRun {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+// Text drawn at a map cell while the layer is visible.
+type OverlayLabel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Text          *string                `protobuf:"bytes,1,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	Cell          *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
@@ -9910,21 +10096,21 @@ type LayoutPlanLabel struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LayoutPlanLabel) Reset() {
-	*x = LayoutPlanLabel{}
-	mi := &file_presentation_proto_msgTypes[121]
+func (x *OverlayLabel) Reset() {
+	*x = OverlayLabel{}
+	mi := &file_presentation_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LayoutPlanLabel) String() string {
+func (x *OverlayLabel) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LayoutPlanLabel) ProtoMessage() {}
+func (*OverlayLabel) ProtoMessage() {}
 
-func (x *LayoutPlanLabel) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[121]
+func (x *OverlayLabel) ProtoReflect() protoreflect.Message {
+	mi := &file_presentation_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9935,112 +10121,51 @@ func (x *LayoutPlanLabel) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LayoutPlanLabel.ProtoReflect.Descriptor instead.
-func (*LayoutPlanLabel) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{121}
+// Deprecated: Use OverlayLabel.ProtoReflect.Descriptor instead.
+func (*OverlayLabel) Descriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{123}
 }
 
-func (x *LayoutPlanLabel) GetText() string {
+func (x *OverlayLabel) GetText() string {
 	if x != nil && x.Text != nil {
 		return *x.Text
 	}
 	return ""
 }
 
-func (x *LayoutPlanLabel) GetCell() *commonpb.Cell {
+func (x *OverlayLabel) GetCell() *commonpb.Cell {
 	if x != nil {
 		return x.Cell
 	}
 	return nil
 }
 
-// Colors existing player rooms by their native RoomRoleDef.
-type LayoutPlanRoomColor struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleDef       *string                `protobuf:"bytes,1,opt,name=role_def,json=roleDef,proto3,oneof" json:"role_def,omitempty"`
-	ColorDef      *string                `protobuf:"bytes,2,opt,name=color_def,json=colorDef,proto3,oneof" json:"color_def,omitempty"`
-	Label         *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *LayoutPlanRoomColor) Reset() {
-	*x = LayoutPlanRoomColor{}
-	mi := &file_presentation_proto_msgTypes[122]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LayoutPlanRoomColor) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LayoutPlanRoomColor) ProtoMessage() {}
-
-func (x *LayoutPlanRoomColor) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[122]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LayoutPlanRoomColor.ProtoReflect.Descriptor instead.
-func (*LayoutPlanRoomColor) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{122}
-}
-
-func (x *LayoutPlanRoomColor) GetRoleDef() string {
-	if x != nil && x.RoleDef != nil {
-		return *x.RoleDef
-	}
-	return ""
-}
-
-func (x *LayoutPlanRoomColor) GetColorDef() string {
-	if x != nil && x.ColorDef != nil {
-		return *x.ColorDef
-	}
-	return ""
-}
-
-func (x *LayoutPlanRoomColor) GetLabel() string {
-	if x != nil && x.Label != nil {
-		return *x.Label
-	}
-	return ""
-}
-
-type LayoutPlanRequest struct {
+type OverlayRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Identity      *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	Enabled       *bool                  `protobuf:"varint,2,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"` // false removes every owned plan and label.
-	Layers        []*LayoutPlanLayer     `protobuf:"bytes,3,rep,name=layers,proto3" json:"layers,omitempty"`
-	Labels        []*LayoutPlanLabel     `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty"`
-	RoomColors    []*LayoutPlanRoomColor `protobuf:"bytes,5,rep,name=room_colors,json=roomColors,proto3" json:"room_colors,omitempty"`
+	LayerId       *string                `protobuf:"bytes,2,opt,name=layer_id,json=layerId,proto3,oneof" json:"layer_id,omitempty"`
+	Enabled       *bool                  `protobuf:"varint,3,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"` // false removes the layer.
+	Shapes        []*OverlayShape        `protobuf:"bytes,4,rep,name=shapes,proto3" json:"shapes,omitempty"`
+	Labels        []*OverlayLabel        `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LayoutPlanRequest) Reset() {
-	*x = LayoutPlanRequest{}
-	mi := &file_presentation_proto_msgTypes[123]
+func (x *OverlayRequest) Reset() {
+	*x = OverlayRequest{}
+	mi := &file_presentation_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LayoutPlanRequest) String() string {
+func (x *OverlayRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LayoutPlanRequest) ProtoMessage() {}
+func (*OverlayRequest) ProtoMessage() {}
 
-func (x *LayoutPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[123]
+func (x *OverlayRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_presentation_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10051,73 +10176,70 @@ func (x *LayoutPlanRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LayoutPlanRequest.ProtoReflect.Descriptor instead.
-func (*LayoutPlanRequest) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{123}
+// Deprecated: Use OverlayRequest.ProtoReflect.Descriptor instead.
+func (*OverlayRequest) Descriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{124}
 }
 
-func (x *LayoutPlanRequest) GetIdentity() *commonpb.Identity {
+func (x *OverlayRequest) GetIdentity() *commonpb.Identity {
 	if x != nil {
 		return x.Identity
 	}
 	return nil
 }
 
-func (x *LayoutPlanRequest) GetEnabled() bool {
+func (x *OverlayRequest) GetLayerId() string {
+	if x != nil && x.LayerId != nil {
+		return *x.LayerId
+	}
+	return ""
+}
+
+func (x *OverlayRequest) GetEnabled() bool {
 	if x != nil && x.Enabled != nil {
 		return *x.Enabled
 	}
 	return false
 }
 
-func (x *LayoutPlanRequest) GetLayers() []*LayoutPlanLayer {
+func (x *OverlayRequest) GetShapes() []*OverlayShape {
 	if x != nil {
-		return x.Layers
+		return x.Shapes
 	}
 	return nil
 }
 
-func (x *LayoutPlanRequest) GetLabels() []*LayoutPlanLabel {
+func (x *OverlayRequest) GetLabels() []*OverlayLabel {
 	if x != nil {
 		return x.Labels
 	}
 	return nil
 }
 
-func (x *LayoutPlanRequest) GetRoomColors() []*LayoutPlanRoomColor {
-	if x != nil {
-		return x.RoomColors
-	}
-	return nil
-}
-
-type LayoutPlanApplied struct {
+type OverlayApplied struct {
 	state         protoimpl.MessageState       `protogen:"open.v1"`
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	Plans         *uint32                      `protobuf:"varint,2,opt,name=plans,proto3,oneof" json:"plans,omitempty"`     // Owned plans after the call.
-	Cells         *uint32                      `protobuf:"varint,3,opt,name=cells,proto3,oneof" json:"cells,omitempty"`     // Cells those plans hold.
-	Removed       *uint32                      `protobuf:"varint,4,opt,name=removed,proto3,oneof" json:"removed,omitempty"` // Owned plans deleted first.
-	Skipped       *uint32                      `protobuf:"varint,5,opt,name=skipped,proto3,oneof" json:"skipped,omitempty"` // Cells left to a player plan or off the map.
-	Rooms         *uint32                      `protobuf:"varint,6,opt,name=rooms,proto3,oneof" json:"rooms,omitempty"`     // Existing rooms colored.
+	Cells         *uint32                      `protobuf:"varint,2,opt,name=cells,proto3,oneof" json:"cells,omitempty"`   // Cells the layer covers.
+	Layers        *uint32                      `protobuf:"varint,3,opt,name=layers,proto3,oneof" json:"layers,omitempty"` // Layers held after the call.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LayoutPlanApplied) Reset() {
-	*x = LayoutPlanApplied{}
-	mi := &file_presentation_proto_msgTypes[124]
+func (x *OverlayApplied) Reset() {
+	*x = OverlayApplied{}
+	mi := &file_presentation_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LayoutPlanApplied) String() string {
+func (x *OverlayApplied) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LayoutPlanApplied) ProtoMessage() {}
+func (*OverlayApplied) ProtoMessage() {}
 
-func (x *LayoutPlanApplied) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[124]
+func (x *OverlayApplied) ProtoReflect() protoreflect.Message {
+	mi := &file_presentation_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10128,79 +10250,58 @@ func (x *LayoutPlanApplied) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LayoutPlanApplied.ProtoReflect.Descriptor instead.
-func (*LayoutPlanApplied) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{124}
+// Deprecated: Use OverlayApplied.ProtoReflect.Descriptor instead.
+func (*OverlayApplied) Descriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{125}
 }
 
-func (x *LayoutPlanApplied) GetContext() *commonpb.ObservationContext {
+func (x *OverlayApplied) GetContext() *commonpb.ObservationContext {
 	if x != nil {
 		return x.Context
 	}
 	return nil
 }
 
-func (x *LayoutPlanApplied) GetPlans() uint32 {
-	if x != nil && x.Plans != nil {
-		return *x.Plans
-	}
-	return 0
-}
-
-func (x *LayoutPlanApplied) GetCells() uint32 {
+func (x *OverlayApplied) GetCells() uint32 {
 	if x != nil && x.Cells != nil {
 		return *x.Cells
 	}
 	return 0
 }
 
-func (x *LayoutPlanApplied) GetRemoved() uint32 {
-	if x != nil && x.Removed != nil {
-		return *x.Removed
+func (x *OverlayApplied) GetLayers() uint32 {
+	if x != nil && x.Layers != nil {
+		return *x.Layers
 	}
 	return 0
 }
 
-func (x *LayoutPlanApplied) GetSkipped() uint32 {
-	if x != nil && x.Skipped != nil {
-		return *x.Skipped
-	}
-	return 0
-}
-
-func (x *LayoutPlanApplied) GetRooms() uint32 {
-	if x != nil && x.Rooms != nil {
-		return *x.Rooms
-	}
-	return 0
-}
-
-type LayoutPlanReply struct {
+type OverlayReply struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Outcome:
 	//
-	//	*LayoutPlanReply_Applied
-	//	*LayoutPlanReply_Failure
-	Outcome       isLayoutPlanReply_Outcome `protobuf_oneof:"outcome"`
+	//	*OverlayReply_Applied
+	//	*OverlayReply_Failure
+	Outcome       isOverlayReply_Outcome `protobuf_oneof:"outcome"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LayoutPlanReply) Reset() {
-	*x = LayoutPlanReply{}
-	mi := &file_presentation_proto_msgTypes[125]
+func (x *OverlayReply) Reset() {
+	*x = OverlayReply{}
+	mi := &file_presentation_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LayoutPlanReply) String() string {
+func (x *OverlayReply) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LayoutPlanReply) ProtoMessage() {}
+func (*OverlayReply) ProtoMessage() {}
 
-func (x *LayoutPlanReply) ProtoReflect() protoreflect.Message {
-	mi := &file_presentation_proto_msgTypes[125]
+func (x *OverlayReply) ProtoReflect() protoreflect.Message {
+	mi := &file_presentation_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10211,51 +10312,51 @@ func (x *LayoutPlanReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LayoutPlanReply.ProtoReflect.Descriptor instead.
-func (*LayoutPlanReply) Descriptor() ([]byte, []int) {
-	return file_presentation_proto_rawDescGZIP(), []int{125}
+// Deprecated: Use OverlayReply.ProtoReflect.Descriptor instead.
+func (*OverlayReply) Descriptor() ([]byte, []int) {
+	return file_presentation_proto_rawDescGZIP(), []int{126}
 }
 
-func (x *LayoutPlanReply) GetOutcome() isLayoutPlanReply_Outcome {
+func (x *OverlayReply) GetOutcome() isOverlayReply_Outcome {
 	if x != nil {
 		return x.Outcome
 	}
 	return nil
 }
 
-func (x *LayoutPlanReply) GetApplied() *LayoutPlanApplied {
+func (x *OverlayReply) GetApplied() *OverlayApplied {
 	if x != nil {
-		if x, ok := x.Outcome.(*LayoutPlanReply_Applied); ok {
+		if x, ok := x.Outcome.(*OverlayReply_Applied); ok {
 			return x.Applied
 		}
 	}
 	return nil
 }
 
-func (x *LayoutPlanReply) GetFailure() *commonpb.Failure {
+func (x *OverlayReply) GetFailure() *commonpb.Failure {
 	if x != nil {
-		if x, ok := x.Outcome.(*LayoutPlanReply_Failure); ok {
+		if x, ok := x.Outcome.(*OverlayReply_Failure); ok {
 			return x.Failure
 		}
 	}
 	return nil
 }
 
-type isLayoutPlanReply_Outcome interface {
-	isLayoutPlanReply_Outcome()
+type isOverlayReply_Outcome interface {
+	isOverlayReply_Outcome()
 }
 
-type LayoutPlanReply_Applied struct {
-	Applied *LayoutPlanApplied `protobuf:"bytes,1,opt,name=applied,proto3,oneof"`
+type OverlayReply_Applied struct {
+	Applied *OverlayApplied `protobuf:"bytes,1,opt,name=applied,proto3,oneof"`
 }
 
-type LayoutPlanReply_Failure struct {
+type OverlayReply_Failure struct {
 	Failure *commonpb.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
 }
 
-func (*LayoutPlanReply_Applied) isLayoutPlanReply_Outcome() {}
+func (*OverlayReply_Applied) isOverlayReply_Outcome() {}
 
-func (*LayoutPlanReply_Failure) isLayoutPlanReply_Outcome() {}
+func (*OverlayReply_Failure) isOverlayReply_Outcome() {}
 
 var File_presentation_proto protoreflect.FileDescriptor
 
@@ -11368,51 +11469,50 @@ const file_presentation_proto_rawDesc = "" +
 	"screenshot\x18\x01 \x01(\v2'.rimgovernor.presentation.v1.ScreenshotH\x00R\n" +
 	"screenshot\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xa2\x01\n" +
-	"\x0fLayoutPlanLayer\x12 \n" +
-	"\tcolor_def\x18\x01 \x01(\tH\x00R\bcolorDef\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12:\n" +
-	"\x05rects\x18\x03 \x03(\v2$.rimgovernor.presentation.v1.MapRectR\x05rectsB\f\n" +
+	"\aoutcome\"r\n" +
+	"\fOverlayColor\x12\x11\n" +
+	"\x01r\x18\x01 \x01(\x02H\x00R\x01r\x88\x01\x01\x12\x11\n" +
+	"\x01g\x18\x02 \x01(\x02H\x01R\x01g\x88\x01\x01\x12\x11\n" +
+	"\x01b\x18\x03 \x01(\x02H\x02R\x01b\x88\x01\x01\x12\x11\n" +
+	"\x01a\x18\x04 \x01(\x02H\x03R\x01a\x88\x01\x01B\x04\n" +
+	"\x02_rB\x04\n" +
+	"\x02_gB\x04\n" +
+	"\x02_bB\x04\n" +
+	"\x02_a\"f\n" +
 	"\n" +
-	"_color_defB\b\n" +
-	"\x06_label\"d\n" +
-	"\x0fLayoutPlanLabel\x12\x17\n" +
+	"OverlayRun\x12\x11\n" +
+	"\x01x\x18\x01 \x01(\x05H\x00R\x01x\x88\x01\x01\x12\x11\n" +
+	"\x01z\x18\x02 \x01(\x05H\x01R\x01z\x88\x01\x01\x12\x1b\n" +
+	"\x06length\x18\x03 \x01(\x05H\x02R\x06length\x88\x01\x01B\x04\n" +
+	"\x02_xB\x04\n" +
+	"\x02_zB\t\n" +
+	"\a_length\"\x89\x02\n" +
+	"\fOverlayShape\x12?\n" +
+	"\x05color\x18\x01 \x01(\v2).rimgovernor.presentation.v1.OverlayColorR\x05color\x12?\n" +
+	"\x05style\x18\x02 \x01(\x0e2).rimgovernor.presentation.v1.OverlayStyleR\x05style\x12:\n" +
+	"\x05rects\x18\x03 \x03(\v2$.rimgovernor.presentation.v1.MapRectR\x05rects\x12;\n" +
+	"\x04runs\x18\x04 \x03(\v2'.rimgovernor.presentation.v1.OverlayRunR\x04runs\"a\n" +
+	"\fOverlayLabel\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cellB\a\n" +
-	"\x05_text\"\x97\x01\n" +
-	"\x13LayoutPlanRoomColor\x12\x1e\n" +
-	"\brole_def\x18\x01 \x01(\tH\x00R\aroleDef\x88\x01\x01\x12 \n" +
-	"\tcolor_def\x18\x02 \x01(\tH\x01R\bcolorDef\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\x03 \x01(\tH\x02R\x05label\x88\x01\x01B\v\n" +
-	"\t_role_defB\f\n" +
+	"\x05_text\"\xab\x02\n" +
+	"\x0eOverlayRequest\x12;\n" +
+	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12\x1e\n" +
+	"\blayer_id\x18\x02 \x01(\tH\x00R\alayerId\x88\x01\x01\x12\x1d\n" +
+	"\aenabled\x18\x03 \x01(\bH\x01R\aenabled\x88\x01\x01\x12A\n" +
+	"\x06shapes\x18\x04 \x03(\v2).rimgovernor.presentation.v1.OverlayShapeR\x06shapes\x12A\n" +
+	"\x06labels\x18\x05 \x03(\v2).rimgovernor.presentation.v1.OverlayLabelR\x06labelsB\v\n" +
+	"\t_layer_idB\n" +
 	"\n" +
-	"_color_defB\b\n" +
-	"\x06_label\"\xda\x02\n" +
-	"\x11LayoutPlanRequest\x12;\n" +
-	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12\x1d\n" +
-	"\aenabled\x18\x02 \x01(\bH\x00R\aenabled\x88\x01\x01\x12D\n" +
-	"\x06layers\x18\x03 \x03(\v2,.rimgovernor.presentation.v1.LayoutPlanLayerR\x06layers\x12D\n" +
-	"\x06labels\x18\x04 \x03(\v2,.rimgovernor.presentation.v1.LayoutPlanLabelR\x06labels\x12Q\n" +
-	"\vroom_colors\x18\x05 \x03(\v20.rimgovernor.presentation.v1.LayoutPlanRoomColorR\n" +
-	"roomColorsB\n" +
-	"\n" +
-	"\b_enabled\"\x9d\x02\n" +
-	"\x11LayoutPlanApplied\x12C\n" +
+	"\b_enabled\"\xa2\x01\n" +
+	"\x0eOverlayApplied\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x19\n" +
-	"\x05plans\x18\x02 \x01(\rH\x00R\x05plans\x88\x01\x01\x12\x19\n" +
-	"\x05cells\x18\x03 \x01(\rH\x01R\x05cells\x88\x01\x01\x12\x1d\n" +
-	"\aremoved\x18\x04 \x01(\rH\x02R\aremoved\x88\x01\x01\x12\x1d\n" +
-	"\askipped\x18\x05 \x01(\rH\x03R\askipped\x88\x01\x01\x12\x19\n" +
-	"\x05rooms\x18\x06 \x01(\rH\x04R\x05rooms\x88\x01\x01B\b\n" +
-	"\x06_plansB\b\n" +
-	"\x06_cellsB\n" +
-	"\n" +
-	"\b_removedB\n" +
-	"\n" +
-	"\b_skippedB\b\n" +
-	"\x06_rooms\"\xa4\x01\n" +
-	"\x0fLayoutPlanReply\x12J\n" +
-	"\aapplied\x18\x01 \x01(\v2..rimgovernor.presentation.v1.LayoutPlanAppliedH\x00R\aapplied\x12:\n" +
+	"\x05cells\x18\x02 \x01(\rH\x00R\x05cells\x88\x01\x01\x12\x1b\n" +
+	"\x06layers\x18\x03 \x01(\rH\x01R\x06layers\x88\x01\x01B\b\n" +
+	"\x06_cellsB\t\n" +
+	"\a_layers\"\x9e\x01\n" +
+	"\fOverlayReply\x12G\n" +
+	"\aapplied\x18\x01 \x01(\v2+.rimgovernor.presentation.v1.OverlayAppliedH\x00R\aapplied\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
 	"\aoutcome*}\n" +
 	"\rPointerButton\x12\x1e\n" +
@@ -11442,7 +11542,11 @@ const file_presentation_proto_rawDesc = "" +
 	"\bPawnView\x12\x19\n" +
 	"\x15PAWN_VIEW_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12PAWN_VIEW_PORTRAIT\x10\x01\x12\x14\n" +
-	"\x10PAWN_VIEW_FOLLOW\x10\x022\xd0\v\n" +
+	"\x10PAWN_VIEW_FOLLOW\x10\x02*`\n" +
+	"\fOverlayStyle\x12\x1d\n" +
+	"\x19OVERLAY_STYLE_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12OVERLAY_STYLE_FILL\x10\x01\x12\x19\n" +
+	"\x15OVERLAY_STYLE_OUTLINE\x10\x022\xd0\v\n" +
 	"\x11PresentationReads\x12\\\n" +
 	"\x06Camera\x12(.rimgovernor.presentation.v1.ReadRequest\x1a(.rimgovernor.presentation.v1.CameraReply\x12b\n" +
 	"\tSelection\x12(.rimgovernor.presentation.v1.ReadRequest\x1a+.rimgovernor.presentation.v1.SelectionReply\x12q\n" +
@@ -11484,441 +11588,445 @@ func file_presentation_proto_rawDescGZIP() []byte {
 	return file_presentation_proto_rawDescData
 }
 
-var file_presentation_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_presentation_proto_msgTypes = make([]protoimpl.MessageInfo, 126)
+var file_presentation_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_presentation_proto_msgTypes = make([]protoimpl.MessageInfo, 127)
 var file_presentation_proto_goTypes = []any{
 	(PointerButton)(0),                  // 0: rimgovernor.presentation.v1.PointerButton
 	(MediaEncoding)(0),                  // 1: rimgovernor.presentation.v1.MediaEncoding
 	(CaptureMethod)(0),                  // 2: rimgovernor.presentation.v1.CaptureMethod
 	(VideoSourceKind)(0),                // 3: rimgovernor.presentation.v1.VideoSourceKind
 	(PawnView)(0),                       // 4: rimgovernor.presentation.v1.PawnView
-	(*ReadRequest)(nil),                 // 5: rimgovernor.presentation.v1.ReadRequest
-	(*Listing)(nil),                     // 6: rimgovernor.presentation.v1.Listing
-	(*ScreenPoint)(nil),                 // 7: rimgovernor.presentation.v1.ScreenPoint
-	(*ScreenRect)(nil),                  // 8: rimgovernor.presentation.v1.ScreenRect
-	(*MapPoint)(nil),                    // 9: rimgovernor.presentation.v1.MapPoint
-	(*MapRect)(nil),                     // 10: rimgovernor.presentation.v1.MapRect
-	(*CameraState)(nil),                 // 11: rimgovernor.presentation.v1.CameraState
-	(*CameraReply)(nil),                 // 12: rimgovernor.presentation.v1.CameraReply
-	(*SelectedObject)(nil),              // 13: rimgovernor.presentation.v1.SelectedObject
-	(*SelectionSnapshot)(nil),           // 14: rimgovernor.presentation.v1.SelectionSnapshot
-	(*SelectionReply)(nil),              // 15: rimgovernor.presentation.v1.SelectionReply
-	(*ColonistRosterRequest)(nil),       // 16: rimgovernor.presentation.v1.ColonistRosterRequest
-	(*ColonistReference)(nil),           // 17: rimgovernor.presentation.v1.ColonistReference
-	(*ColonistRoster)(nil),              // 18: rimgovernor.presentation.v1.ColonistRoster
-	(*ColonistRosterReply)(nil),         // 19: rimgovernor.presentation.v1.ColonistRosterReply
-	(*CaptureIdentity)(nil),             // 20: rimgovernor.presentation.v1.CaptureIdentity
-	(*WindowIdentity)(nil),              // 21: rimgovernor.presentation.v1.WindowIdentity
-	(*UiWindow)(nil),                    // 22: rimgovernor.presentation.v1.UiWindow
-	(*UiState)(nil),                     // 23: rimgovernor.presentation.v1.UiState
-	(*UiScroll)(nil),                    // 24: rimgovernor.presentation.v1.UiScroll
-	(*UiElement)(nil),                   // 25: rimgovernor.presentation.v1.UiElement
-	(*UiSurface)(nil),                   // 26: rimgovernor.presentation.v1.UiSurface
-	(*UiSnapshot)(nil),                  // 27: rimgovernor.presentation.v1.UiSnapshot
-	(*UiReadRequest)(nil),               // 28: rimgovernor.presentation.v1.UiReadRequest
-	(*UiReply)(nil),                     // 29: rimgovernor.presentation.v1.UiReply
-	(*ScreenTarget)(nil),                // 30: rimgovernor.presentation.v1.ScreenTarget
-	(*ScreenTargets)(nil),               // 31: rimgovernor.presentation.v1.ScreenTargets
-	(*ScreenTargetsReply)(nil),          // 32: rimgovernor.presentation.v1.ScreenTargetsReply
-	(*TabsRequest)(nil),                 // 33: rimgovernor.presentation.v1.TabsRequest
-	(*Tab)(nil),                         // 34: rimgovernor.presentation.v1.Tab
-	(*TabsSnapshot)(nil),                // 35: rimgovernor.presentation.v1.TabsSnapshot
-	(*TabsReply)(nil),                   // 36: rimgovernor.presentation.v1.TabsReply
-	(*Gizmo)(nil),                       // 37: rimgovernor.presentation.v1.Gizmo
-	(*GizmosSnapshot)(nil),              // 38: rimgovernor.presentation.v1.GizmosSnapshot
-	(*GizmosReply)(nil),                 // 39: rimgovernor.presentation.v1.GizmosReply
-	(*DialogField)(nil),                 // 40: rimgovernor.presentation.v1.DialogField
-	(*DialogSnapshot)(nil),              // 41: rimgovernor.presentation.v1.DialogSnapshot
-	(*DialogReply)(nil),                 // 42: rimgovernor.presentation.v1.DialogReply
-	(*LookTarget)(nil),                  // 43: rimgovernor.presentation.v1.LookTarget
-	(*LookTargets)(nil),                 // 44: rimgovernor.presentation.v1.LookTargets
-	(*LetterChoice)(nil),                // 45: rimgovernor.presentation.v1.LetterChoice
-	(*Letter)(nil),                      // 46: rimgovernor.presentation.v1.Letter
-	(*TransientMessage)(nil),            // 47: rimgovernor.presentation.v1.TransientMessage
-	(*Alert)(nil),                       // 48: rimgovernor.presentation.v1.Alert
-	(*Letters)(nil),                     // 49: rimgovernor.presentation.v1.Letters
-	(*Messages)(nil),                    // 50: rimgovernor.presentation.v1.Messages
-	(*Alerts)(nil),                      // 51: rimgovernor.presentation.v1.Alerts
-	(*LetterSection)(nil),               // 52: rimgovernor.presentation.v1.LetterSection
-	(*MessageSection)(nil),              // 53: rimgovernor.presentation.v1.MessageSection
-	(*AlertSection)(nil),                // 54: rimgovernor.presentation.v1.AlertSection
-	(*NotificationsSnapshot)(nil),       // 55: rimgovernor.presentation.v1.NotificationsSnapshot
-	(*NotificationsRequest)(nil),        // 56: rimgovernor.presentation.v1.NotificationsRequest
-	(*NotificationsReply)(nil),          // 57: rimgovernor.presentation.v1.NotificationsReply
-	(*PlayerIdentity)(nil),              // 58: rimgovernor.presentation.v1.PlayerIdentity
-	(*InputLeaseReference)(nil),         // 59: rimgovernor.presentation.v1.InputLeaseReference
-	(*InputTake)(nil),                   // 60: rimgovernor.presentation.v1.InputTake
-	(*InputRenew)(nil),                  // 61: rimgovernor.presentation.v1.InputRenew
-	(*InputRelease)(nil),                // 62: rimgovernor.presentation.v1.InputRelease
-	(*InputLeaseRequest)(nil),           // 63: rimgovernor.presentation.v1.InputLeaseRequest
-	(*InputState)(nil),                  // 64: rimgovernor.presentation.v1.InputState
-	(*InputLeaseGranted)(nil),           // 65: rimgovernor.presentation.v1.InputLeaseGranted
-	(*InputLeaseUncertain)(nil),         // 66: rimgovernor.presentation.v1.InputLeaseUncertain
-	(*InputLeaseReply)(nil),             // 67: rimgovernor.presentation.v1.InputLeaseReply
-	(*InputStateReply)(nil),             // 68: rimgovernor.presentation.v1.InputStateReply
-	(*FrameReference)(nil),              // 69: rimgovernor.presentation.v1.FrameReference
-	(*PointerMove)(nil),                 // 70: rimgovernor.presentation.v1.PointerMove
-	(*PointerButtonEvent)(nil),          // 71: rimgovernor.presentation.v1.PointerButtonEvent
-	(*PointerWheel)(nil),                // 72: rimgovernor.presentation.v1.PointerWheel
-	(*KeyEvent)(nil),                    // 73: rimgovernor.presentation.v1.KeyEvent
-	(*InputEvent)(nil),                  // 74: rimgovernor.presentation.v1.InputEvent
-	(*InputEventUncertain)(nil),         // 75: rimgovernor.presentation.v1.InputEventUncertain
-	(*InputEventReply)(nil),             // 76: rimgovernor.presentation.v1.InputEventReply
-	(*PlayerPrecondition)(nil),          // 77: rimgovernor.presentation.v1.PlayerPrecondition
-	(*MoveCamera)(nil),                  // 78: rimgovernor.presentation.v1.MoveCamera
-	(*SetCameraZoom)(nil),               // 79: rimgovernor.presentation.v1.SetCameraZoom
-	(*SelectPawn)(nil),                  // 80: rimgovernor.presentation.v1.SelectPawn
-	(*ClearSelection)(nil),              // 81: rimgovernor.presentation.v1.ClearSelection
-	(*CapturedTarget)(nil),              // 82: rimgovernor.presentation.v1.CapturedTarget
-	(*ScrollAxis)(nil),                  // 83: rimgovernor.presentation.v1.ScrollAxis
-	(*ScrollTarget)(nil),                // 84: rimgovernor.presentation.v1.ScrollTarget
-	(*MainTab)(nil),                     // 85: rimgovernor.presentation.v1.MainTab
-	(*CloseMainTab)(nil),                // 86: rimgovernor.presentation.v1.CloseMainTab
-	(*LetterTarget)(nil),                // 87: rimgovernor.presentation.v1.LetterTarget
-	(*SetDialogText)(nil),               // 88: rimgovernor.presentation.v1.SetDialogText
-	(*ConfirmColonyNames)(nil),          // 89: rimgovernor.presentation.v1.ConfirmColonyNames
-	(*NamingSnapshot)(nil),              // 90: rimgovernor.presentation.v1.NamingSnapshot
-	(*NamingPreviewRequest)(nil),        // 91: rimgovernor.presentation.v1.NamingPreviewRequest
-	(*NamingPreview)(nil),               // 92: rimgovernor.presentation.v1.NamingPreview
-	(*NamingPreviewReply)(nil),          // 93: rimgovernor.presentation.v1.NamingPreviewReply
-	(*DialogTextChange)(nil),            // 94: rimgovernor.presentation.v1.DialogTextChange
-	(*DialogTextPreviewRequest)(nil),    // 95: rimgovernor.presentation.v1.DialogTextPreviewRequest
-	(*DialogTextPreviewReply)(nil),      // 96: rimgovernor.presentation.v1.DialogTextPreviewReply
-	(*ShowWorld)(nil),                   // 97: rimgovernor.presentation.v1.ShowWorld
-	(*WorldViewResult)(nil),             // 98: rimgovernor.presentation.v1.WorldViewResult
-	(*PlayerCommand)(nil),               // 99: rimgovernor.presentation.v1.PlayerCommand
-	(*PlayerApplied)(nil),               // 100: rimgovernor.presentation.v1.PlayerApplied
-	(*PlayerObserved)(nil),              // 101: rimgovernor.presentation.v1.PlayerObserved
-	(*PlayerCommandUncertain)(nil),      // 102: rimgovernor.presentation.v1.PlayerCommandUncertain
-	(*PlayerCommandReply)(nil),          // 103: rimgovernor.presentation.v1.PlayerCommandReply
-	(*RenderStatus)(nil),                // 104: rimgovernor.presentation.v1.RenderStatus
-	(*RenderDemand)(nil),                // 105: rimgovernor.presentation.v1.RenderDemand
-	(*RenderReply)(nil),                 // 106: rimgovernor.presentation.v1.RenderReply
-	(*MediaFrame)(nil),                  // 107: rimgovernor.presentation.v1.MediaFrame
-	(*VideoState)(nil),                  // 108: rimgovernor.presentation.v1.VideoState
-	(*VideoSource)(nil),                 // 109: rimgovernor.presentation.v1.VideoSource
-	(*VideoStart)(nil),                  // 110: rimgovernor.presentation.v1.VideoStart
-	(*VideoStop)(nil),                   // 111: rimgovernor.presentation.v1.VideoStop
-	(*VideoLeaseRequest)(nil),           // 112: rimgovernor.presentation.v1.VideoLeaseRequest
-	(*VideoReply)(nil),                  // 113: rimgovernor.presentation.v1.VideoReply
-	(*FrameRequest)(nil),                // 114: rimgovernor.presentation.v1.FrameRequest
-	(*FrameReply)(nil),                  // 115: rimgovernor.presentation.v1.FrameReply
-	(*FrameAcknowledgement)(nil),        // 116: rimgovernor.presentation.v1.FrameAcknowledgement
-	(*FrameAcknowledged)(nil),           // 117: rimgovernor.presentation.v1.FrameAcknowledged
-	(*FrameAcknowledgementReply)(nil),   // 118: rimgovernor.presentation.v1.FrameAcknowledgementReply
-	(*PawnImageRequest)(nil),            // 119: rimgovernor.presentation.v1.PawnImageRequest
-	(*PawnImage)(nil),                   // 120: rimgovernor.presentation.v1.PawnImage
-	(*PawnImageReply)(nil),              // 121: rimgovernor.presentation.v1.PawnImageReply
-	(*ScreenshotRequest)(nil),           // 122: rimgovernor.presentation.v1.ScreenshotRequest
-	(*Screenshot)(nil),                  // 123: rimgovernor.presentation.v1.Screenshot
-	(*ScreenshotReply)(nil),             // 124: rimgovernor.presentation.v1.ScreenshotReply
-	(*LayoutPlanLayer)(nil),             // 125: rimgovernor.presentation.v1.LayoutPlanLayer
-	(*LayoutPlanLabel)(nil),             // 126: rimgovernor.presentation.v1.LayoutPlanLabel
-	(*LayoutPlanRoomColor)(nil),         // 127: rimgovernor.presentation.v1.LayoutPlanRoomColor
-	(*LayoutPlanRequest)(nil),           // 128: rimgovernor.presentation.v1.LayoutPlanRequest
-	(*LayoutPlanApplied)(nil),           // 129: rimgovernor.presentation.v1.LayoutPlanApplied
-	(*LayoutPlanReply)(nil),             // 130: rimgovernor.presentation.v1.LayoutPlanReply
-	(*commonpb.Identity)(nil),           // 131: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil), // 132: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),            // 133: rimgovernor.common.v1.Failure
-	(*commonpb.Cell)(nil),               // 134: rimgovernor.common.v1.Cell
-	(*observationspb.PawnState)(nil),    // 135: rimgovernor.observations.v1.PawnState
-	(*commonpb.Unavailable)(nil),        // 136: rimgovernor.common.v1.Unavailable
+	(OverlayStyle)(0),                   // 5: rimgovernor.presentation.v1.OverlayStyle
+	(*ReadRequest)(nil),                 // 6: rimgovernor.presentation.v1.ReadRequest
+	(*Listing)(nil),                     // 7: rimgovernor.presentation.v1.Listing
+	(*ScreenPoint)(nil),                 // 8: rimgovernor.presentation.v1.ScreenPoint
+	(*ScreenRect)(nil),                  // 9: rimgovernor.presentation.v1.ScreenRect
+	(*MapPoint)(nil),                    // 10: rimgovernor.presentation.v1.MapPoint
+	(*MapRect)(nil),                     // 11: rimgovernor.presentation.v1.MapRect
+	(*CameraState)(nil),                 // 12: rimgovernor.presentation.v1.CameraState
+	(*CameraReply)(nil),                 // 13: rimgovernor.presentation.v1.CameraReply
+	(*SelectedObject)(nil),              // 14: rimgovernor.presentation.v1.SelectedObject
+	(*SelectionSnapshot)(nil),           // 15: rimgovernor.presentation.v1.SelectionSnapshot
+	(*SelectionReply)(nil),              // 16: rimgovernor.presentation.v1.SelectionReply
+	(*ColonistRosterRequest)(nil),       // 17: rimgovernor.presentation.v1.ColonistRosterRequest
+	(*ColonistReference)(nil),           // 18: rimgovernor.presentation.v1.ColonistReference
+	(*ColonistRoster)(nil),              // 19: rimgovernor.presentation.v1.ColonistRoster
+	(*ColonistRosterReply)(nil),         // 20: rimgovernor.presentation.v1.ColonistRosterReply
+	(*CaptureIdentity)(nil),             // 21: rimgovernor.presentation.v1.CaptureIdentity
+	(*WindowIdentity)(nil),              // 22: rimgovernor.presentation.v1.WindowIdentity
+	(*UiWindow)(nil),                    // 23: rimgovernor.presentation.v1.UiWindow
+	(*UiState)(nil),                     // 24: rimgovernor.presentation.v1.UiState
+	(*UiScroll)(nil),                    // 25: rimgovernor.presentation.v1.UiScroll
+	(*UiElement)(nil),                   // 26: rimgovernor.presentation.v1.UiElement
+	(*UiSurface)(nil),                   // 27: rimgovernor.presentation.v1.UiSurface
+	(*UiSnapshot)(nil),                  // 28: rimgovernor.presentation.v1.UiSnapshot
+	(*UiReadRequest)(nil),               // 29: rimgovernor.presentation.v1.UiReadRequest
+	(*UiReply)(nil),                     // 30: rimgovernor.presentation.v1.UiReply
+	(*ScreenTarget)(nil),                // 31: rimgovernor.presentation.v1.ScreenTarget
+	(*ScreenTargets)(nil),               // 32: rimgovernor.presentation.v1.ScreenTargets
+	(*ScreenTargetsReply)(nil),          // 33: rimgovernor.presentation.v1.ScreenTargetsReply
+	(*TabsRequest)(nil),                 // 34: rimgovernor.presentation.v1.TabsRequest
+	(*Tab)(nil),                         // 35: rimgovernor.presentation.v1.Tab
+	(*TabsSnapshot)(nil),                // 36: rimgovernor.presentation.v1.TabsSnapshot
+	(*TabsReply)(nil),                   // 37: rimgovernor.presentation.v1.TabsReply
+	(*Gizmo)(nil),                       // 38: rimgovernor.presentation.v1.Gizmo
+	(*GizmosSnapshot)(nil),              // 39: rimgovernor.presentation.v1.GizmosSnapshot
+	(*GizmosReply)(nil),                 // 40: rimgovernor.presentation.v1.GizmosReply
+	(*DialogField)(nil),                 // 41: rimgovernor.presentation.v1.DialogField
+	(*DialogSnapshot)(nil),              // 42: rimgovernor.presentation.v1.DialogSnapshot
+	(*DialogReply)(nil),                 // 43: rimgovernor.presentation.v1.DialogReply
+	(*LookTarget)(nil),                  // 44: rimgovernor.presentation.v1.LookTarget
+	(*LookTargets)(nil),                 // 45: rimgovernor.presentation.v1.LookTargets
+	(*LetterChoice)(nil),                // 46: rimgovernor.presentation.v1.LetterChoice
+	(*Letter)(nil),                      // 47: rimgovernor.presentation.v1.Letter
+	(*TransientMessage)(nil),            // 48: rimgovernor.presentation.v1.TransientMessage
+	(*Alert)(nil),                       // 49: rimgovernor.presentation.v1.Alert
+	(*Letters)(nil),                     // 50: rimgovernor.presentation.v1.Letters
+	(*Messages)(nil),                    // 51: rimgovernor.presentation.v1.Messages
+	(*Alerts)(nil),                      // 52: rimgovernor.presentation.v1.Alerts
+	(*LetterSection)(nil),               // 53: rimgovernor.presentation.v1.LetterSection
+	(*MessageSection)(nil),              // 54: rimgovernor.presentation.v1.MessageSection
+	(*AlertSection)(nil),                // 55: rimgovernor.presentation.v1.AlertSection
+	(*NotificationsSnapshot)(nil),       // 56: rimgovernor.presentation.v1.NotificationsSnapshot
+	(*NotificationsRequest)(nil),        // 57: rimgovernor.presentation.v1.NotificationsRequest
+	(*NotificationsReply)(nil),          // 58: rimgovernor.presentation.v1.NotificationsReply
+	(*PlayerIdentity)(nil),              // 59: rimgovernor.presentation.v1.PlayerIdentity
+	(*InputLeaseReference)(nil),         // 60: rimgovernor.presentation.v1.InputLeaseReference
+	(*InputTake)(nil),                   // 61: rimgovernor.presentation.v1.InputTake
+	(*InputRenew)(nil),                  // 62: rimgovernor.presentation.v1.InputRenew
+	(*InputRelease)(nil),                // 63: rimgovernor.presentation.v1.InputRelease
+	(*InputLeaseRequest)(nil),           // 64: rimgovernor.presentation.v1.InputLeaseRequest
+	(*InputState)(nil),                  // 65: rimgovernor.presentation.v1.InputState
+	(*InputLeaseGranted)(nil),           // 66: rimgovernor.presentation.v1.InputLeaseGranted
+	(*InputLeaseUncertain)(nil),         // 67: rimgovernor.presentation.v1.InputLeaseUncertain
+	(*InputLeaseReply)(nil),             // 68: rimgovernor.presentation.v1.InputLeaseReply
+	(*InputStateReply)(nil),             // 69: rimgovernor.presentation.v1.InputStateReply
+	(*FrameReference)(nil),              // 70: rimgovernor.presentation.v1.FrameReference
+	(*PointerMove)(nil),                 // 71: rimgovernor.presentation.v1.PointerMove
+	(*PointerButtonEvent)(nil),          // 72: rimgovernor.presentation.v1.PointerButtonEvent
+	(*PointerWheel)(nil),                // 73: rimgovernor.presentation.v1.PointerWheel
+	(*KeyEvent)(nil),                    // 74: rimgovernor.presentation.v1.KeyEvent
+	(*InputEvent)(nil),                  // 75: rimgovernor.presentation.v1.InputEvent
+	(*InputEventUncertain)(nil),         // 76: rimgovernor.presentation.v1.InputEventUncertain
+	(*InputEventReply)(nil),             // 77: rimgovernor.presentation.v1.InputEventReply
+	(*PlayerPrecondition)(nil),          // 78: rimgovernor.presentation.v1.PlayerPrecondition
+	(*MoveCamera)(nil),                  // 79: rimgovernor.presentation.v1.MoveCamera
+	(*SetCameraZoom)(nil),               // 80: rimgovernor.presentation.v1.SetCameraZoom
+	(*SelectPawn)(nil),                  // 81: rimgovernor.presentation.v1.SelectPawn
+	(*ClearSelection)(nil),              // 82: rimgovernor.presentation.v1.ClearSelection
+	(*CapturedTarget)(nil),              // 83: rimgovernor.presentation.v1.CapturedTarget
+	(*ScrollAxis)(nil),                  // 84: rimgovernor.presentation.v1.ScrollAxis
+	(*ScrollTarget)(nil),                // 85: rimgovernor.presentation.v1.ScrollTarget
+	(*MainTab)(nil),                     // 86: rimgovernor.presentation.v1.MainTab
+	(*CloseMainTab)(nil),                // 87: rimgovernor.presentation.v1.CloseMainTab
+	(*LetterTarget)(nil),                // 88: rimgovernor.presentation.v1.LetterTarget
+	(*SetDialogText)(nil),               // 89: rimgovernor.presentation.v1.SetDialogText
+	(*ConfirmColonyNames)(nil),          // 90: rimgovernor.presentation.v1.ConfirmColonyNames
+	(*NamingSnapshot)(nil),              // 91: rimgovernor.presentation.v1.NamingSnapshot
+	(*NamingPreviewRequest)(nil),        // 92: rimgovernor.presentation.v1.NamingPreviewRequest
+	(*NamingPreview)(nil),               // 93: rimgovernor.presentation.v1.NamingPreview
+	(*NamingPreviewReply)(nil),          // 94: rimgovernor.presentation.v1.NamingPreviewReply
+	(*DialogTextChange)(nil),            // 95: rimgovernor.presentation.v1.DialogTextChange
+	(*DialogTextPreviewRequest)(nil),    // 96: rimgovernor.presentation.v1.DialogTextPreviewRequest
+	(*DialogTextPreviewReply)(nil),      // 97: rimgovernor.presentation.v1.DialogTextPreviewReply
+	(*ShowWorld)(nil),                   // 98: rimgovernor.presentation.v1.ShowWorld
+	(*WorldViewResult)(nil),             // 99: rimgovernor.presentation.v1.WorldViewResult
+	(*PlayerCommand)(nil),               // 100: rimgovernor.presentation.v1.PlayerCommand
+	(*PlayerApplied)(nil),               // 101: rimgovernor.presentation.v1.PlayerApplied
+	(*PlayerObserved)(nil),              // 102: rimgovernor.presentation.v1.PlayerObserved
+	(*PlayerCommandUncertain)(nil),      // 103: rimgovernor.presentation.v1.PlayerCommandUncertain
+	(*PlayerCommandReply)(nil),          // 104: rimgovernor.presentation.v1.PlayerCommandReply
+	(*RenderStatus)(nil),                // 105: rimgovernor.presentation.v1.RenderStatus
+	(*RenderDemand)(nil),                // 106: rimgovernor.presentation.v1.RenderDemand
+	(*RenderReply)(nil),                 // 107: rimgovernor.presentation.v1.RenderReply
+	(*MediaFrame)(nil),                  // 108: rimgovernor.presentation.v1.MediaFrame
+	(*VideoState)(nil),                  // 109: rimgovernor.presentation.v1.VideoState
+	(*VideoSource)(nil),                 // 110: rimgovernor.presentation.v1.VideoSource
+	(*VideoStart)(nil),                  // 111: rimgovernor.presentation.v1.VideoStart
+	(*VideoStop)(nil),                   // 112: rimgovernor.presentation.v1.VideoStop
+	(*VideoLeaseRequest)(nil),           // 113: rimgovernor.presentation.v1.VideoLeaseRequest
+	(*VideoReply)(nil),                  // 114: rimgovernor.presentation.v1.VideoReply
+	(*FrameRequest)(nil),                // 115: rimgovernor.presentation.v1.FrameRequest
+	(*FrameReply)(nil),                  // 116: rimgovernor.presentation.v1.FrameReply
+	(*FrameAcknowledgement)(nil),        // 117: rimgovernor.presentation.v1.FrameAcknowledgement
+	(*FrameAcknowledged)(nil),           // 118: rimgovernor.presentation.v1.FrameAcknowledged
+	(*FrameAcknowledgementReply)(nil),   // 119: rimgovernor.presentation.v1.FrameAcknowledgementReply
+	(*PawnImageRequest)(nil),            // 120: rimgovernor.presentation.v1.PawnImageRequest
+	(*PawnImage)(nil),                   // 121: rimgovernor.presentation.v1.PawnImage
+	(*PawnImageReply)(nil),              // 122: rimgovernor.presentation.v1.PawnImageReply
+	(*ScreenshotRequest)(nil),           // 123: rimgovernor.presentation.v1.ScreenshotRequest
+	(*Screenshot)(nil),                  // 124: rimgovernor.presentation.v1.Screenshot
+	(*ScreenshotReply)(nil),             // 125: rimgovernor.presentation.v1.ScreenshotReply
+	(*OverlayColor)(nil),                // 126: rimgovernor.presentation.v1.OverlayColor
+	(*OverlayRun)(nil),                  // 127: rimgovernor.presentation.v1.OverlayRun
+	(*OverlayShape)(nil),                // 128: rimgovernor.presentation.v1.OverlayShape
+	(*OverlayLabel)(nil),                // 129: rimgovernor.presentation.v1.OverlayLabel
+	(*OverlayRequest)(nil),              // 130: rimgovernor.presentation.v1.OverlayRequest
+	(*OverlayApplied)(nil),              // 131: rimgovernor.presentation.v1.OverlayApplied
+	(*OverlayReply)(nil),                // 132: rimgovernor.presentation.v1.OverlayReply
+	(*commonpb.Identity)(nil),           // 133: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil), // 134: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),            // 135: rimgovernor.common.v1.Failure
+	(*commonpb.Cell)(nil),               // 136: rimgovernor.common.v1.Cell
+	(*observationspb.PawnState)(nil),    // 137: rimgovernor.observations.v1.PawnState
+	(*commonpb.Unavailable)(nil),        // 138: rimgovernor.common.v1.Unavailable
 }
 var file_presentation_proto_depIdxs = []int32{
-	131, // 0: rimgovernor.presentation.v1.ReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	132, // 1: rimgovernor.presentation.v1.CameraState.context:type_name -> rimgovernor.common.v1.ObservationContext
-	9,   // 2: rimgovernor.presentation.v1.CameraState.map_position:type_name -> rimgovernor.presentation.v1.MapPoint
-	10,  // 3: rimgovernor.presentation.v1.CameraState.view_rect:type_name -> rimgovernor.presentation.v1.MapRect
-	11,  // 4: rimgovernor.presentation.v1.CameraReply.camera:type_name -> rimgovernor.presentation.v1.CameraState
-	133, // 5: rimgovernor.presentation.v1.CameraReply.failure:type_name -> rimgovernor.common.v1.Failure
-	134, // 6: rimgovernor.presentation.v1.SelectedObject.position:type_name -> rimgovernor.common.v1.Cell
-	132, // 7: rimgovernor.presentation.v1.SelectionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	13,  // 8: rimgovernor.presentation.v1.SelectionSnapshot.selected_objects:type_name -> rimgovernor.presentation.v1.SelectedObject
-	6,   // 9: rimgovernor.presentation.v1.SelectionSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
-	14,  // 10: rimgovernor.presentation.v1.SelectionReply.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
-	133, // 11: rimgovernor.presentation.v1.SelectionReply.failure:type_name -> rimgovernor.common.v1.Failure
-	131, // 12: rimgovernor.presentation.v1.ColonistRosterRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	134, // 13: rimgovernor.presentation.v1.ColonistReference.position:type_name -> rimgovernor.common.v1.Cell
-	135, // 14: rimgovernor.presentation.v1.ColonistReference.dossier:type_name -> rimgovernor.observations.v1.PawnState
-	132, // 15: rimgovernor.presentation.v1.ColonistRoster.context:type_name -> rimgovernor.common.v1.ObservationContext
-	17,  // 16: rimgovernor.presentation.v1.ColonistRoster.colonists:type_name -> rimgovernor.presentation.v1.ColonistReference
-	6,   // 17: rimgovernor.presentation.v1.ColonistRoster.listing:type_name -> rimgovernor.presentation.v1.Listing
-	18,  // 18: rimgovernor.presentation.v1.ColonistRosterReply.roster:type_name -> rimgovernor.presentation.v1.ColonistRoster
-	133, // 19: rimgovernor.presentation.v1.ColonistRosterReply.failure:type_name -> rimgovernor.common.v1.Failure
-	132, // 20: rimgovernor.presentation.v1.CaptureIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
-	13,  // 21: rimgovernor.presentation.v1.CaptureIdentity.selected_objects:type_name -> rimgovernor.presentation.v1.SelectedObject
-	21,  // 22: rimgovernor.presentation.v1.CaptureIdentity.windows:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	21,  // 23: rimgovernor.presentation.v1.UiWindow.identity:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	8,   // 24: rimgovernor.presentation.v1.UiWindow.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	22,  // 25: rimgovernor.presentation.v1.UiState.windows:type_name -> rimgovernor.presentation.v1.UiWindow
-	6,   // 26: rimgovernor.presentation.v1.UiState.listing:type_name -> rimgovernor.presentation.v1.Listing
-	8,   // 27: rimgovernor.presentation.v1.UiScroll.viewport_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	8,   // 28: rimgovernor.presentation.v1.UiScroll.viewport_screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	8,   // 29: rimgovernor.presentation.v1.UiScroll.content_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	8,   // 30: rimgovernor.presentation.v1.UiElement.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	8,   // 31: rimgovernor.presentation.v1.UiElement.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	24,  // 32: rimgovernor.presentation.v1.UiElement.scroll:type_name -> rimgovernor.presentation.v1.UiScroll
-	8,   // 33: rimgovernor.presentation.v1.UiSurface.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	8,   // 34: rimgovernor.presentation.v1.UiSurface.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	25,  // 35: rimgovernor.presentation.v1.UiSurface.elements:type_name -> rimgovernor.presentation.v1.UiElement
-	6,   // 36: rimgovernor.presentation.v1.UiSurface.listing:type_name -> rimgovernor.presentation.v1.Listing
-	136, // 37: rimgovernor.presentation.v1.UiSurface.semantic_details_unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	20,  // 38: rimgovernor.presentation.v1.UiSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	23,  // 39: rimgovernor.presentation.v1.UiSnapshot.state:type_name -> rimgovernor.presentation.v1.UiState
-	26,  // 40: rimgovernor.presentation.v1.UiSnapshot.surfaces:type_name -> rimgovernor.presentation.v1.UiSurface
-	6,   // 41: rimgovernor.presentation.v1.UiSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
-	131, // 42: rimgovernor.presentation.v1.UiReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	27,  // 43: rimgovernor.presentation.v1.UiReply.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
-	133, // 44: rimgovernor.presentation.v1.UiReply.failure:type_name -> rimgovernor.common.v1.Failure
-	8,   // 45: rimgovernor.presentation.v1.ScreenTarget.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	21,  // 46: rimgovernor.presentation.v1.ScreenTarget.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	20,  // 47: rimgovernor.presentation.v1.ScreenTargets.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	30,  // 48: rimgovernor.presentation.v1.ScreenTargets.targets:type_name -> rimgovernor.presentation.v1.ScreenTarget
-	6,   // 49: rimgovernor.presentation.v1.ScreenTargets.listing:type_name -> rimgovernor.presentation.v1.Listing
-	31,  // 50: rimgovernor.presentation.v1.ScreenTargetsReply.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
-	133, // 51: rimgovernor.presentation.v1.ScreenTargetsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	131, // 52: rimgovernor.presentation.v1.TabsRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	8,   // 53: rimgovernor.presentation.v1.Tab.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	20,  // 54: rimgovernor.presentation.v1.TabsSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	34,  // 55: rimgovernor.presentation.v1.TabsSnapshot.tabs:type_name -> rimgovernor.presentation.v1.Tab
-	6,   // 56: rimgovernor.presentation.v1.TabsSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
-	35,  // 57: rimgovernor.presentation.v1.TabsReply.tabs:type_name -> rimgovernor.presentation.v1.TabsSnapshot
-	133, // 58: rimgovernor.presentation.v1.TabsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	13,  // 59: rimgovernor.presentation.v1.Gizmo.owners:type_name -> rimgovernor.presentation.v1.SelectedObject
-	6,   // 60: rimgovernor.presentation.v1.Gizmo.owner_listing:type_name -> rimgovernor.presentation.v1.Listing
-	20,  // 61: rimgovernor.presentation.v1.GizmosSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	37,  // 62: rimgovernor.presentation.v1.GizmosSnapshot.gizmos:type_name -> rimgovernor.presentation.v1.Gizmo
-	6,   // 63: rimgovernor.presentation.v1.GizmosSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
-	38,  // 64: rimgovernor.presentation.v1.GizmosReply.gizmos:type_name -> rimgovernor.presentation.v1.GizmosSnapshot
-	133, // 65: rimgovernor.presentation.v1.GizmosReply.failure:type_name -> rimgovernor.common.v1.Failure
-	20,  // 66: rimgovernor.presentation.v1.DialogSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	21,  // 67: rimgovernor.presentation.v1.DialogSnapshot.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	40,  // 68: rimgovernor.presentation.v1.DialogSnapshot.fields:type_name -> rimgovernor.presentation.v1.DialogField
-	41,  // 69: rimgovernor.presentation.v1.DialogReply.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
-	133, // 70: rimgovernor.presentation.v1.DialogReply.failure:type_name -> rimgovernor.common.v1.Failure
-	134, // 71: rimgovernor.presentation.v1.LookTarget.position:type_name -> rimgovernor.common.v1.Cell
-	43,  // 72: rimgovernor.presentation.v1.LookTargets.primary:type_name -> rimgovernor.presentation.v1.LookTarget
-	43,  // 73: rimgovernor.presentation.v1.LookTargets.targets:type_name -> rimgovernor.presentation.v1.LookTarget
-	6,   // 74: rimgovernor.presentation.v1.LookTargets.listing:type_name -> rimgovernor.presentation.v1.Listing
-	44,  // 75: rimgovernor.presentation.v1.Letter.look_targets:type_name -> rimgovernor.presentation.v1.LookTargets
-	45,  // 76: rimgovernor.presentation.v1.Letter.choices:type_name -> rimgovernor.presentation.v1.LetterChoice
-	6,   // 77: rimgovernor.presentation.v1.Letter.choices_listing:type_name -> rimgovernor.presentation.v1.Listing
-	44,  // 78: rimgovernor.presentation.v1.TransientMessage.look_targets:type_name -> rimgovernor.presentation.v1.LookTargets
-	43,  // 79: rimgovernor.presentation.v1.Alert.targets:type_name -> rimgovernor.presentation.v1.LookTarget
-	6,   // 80: rimgovernor.presentation.v1.Alert.listing:type_name -> rimgovernor.presentation.v1.Listing
-	136, // 81: rimgovernor.presentation.v1.Alert.read_issue:type_name -> rimgovernor.common.v1.Unavailable
-	46,  // 82: rimgovernor.presentation.v1.Letters.letters:type_name -> rimgovernor.presentation.v1.Letter
-	6,   // 83: rimgovernor.presentation.v1.Letters.listing:type_name -> rimgovernor.presentation.v1.Listing
-	47,  // 84: rimgovernor.presentation.v1.Messages.messages:type_name -> rimgovernor.presentation.v1.TransientMessage
-	6,   // 85: rimgovernor.presentation.v1.Messages.listing:type_name -> rimgovernor.presentation.v1.Listing
-	48,  // 86: rimgovernor.presentation.v1.Alerts.alerts:type_name -> rimgovernor.presentation.v1.Alert
-	6,   // 87: rimgovernor.presentation.v1.Alerts.listing:type_name -> rimgovernor.presentation.v1.Listing
-	49,  // 88: rimgovernor.presentation.v1.LetterSection.observed:type_name -> rimgovernor.presentation.v1.Letters
-	136, // 89: rimgovernor.presentation.v1.LetterSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	50,  // 90: rimgovernor.presentation.v1.MessageSection.observed:type_name -> rimgovernor.presentation.v1.Messages
-	136, // 91: rimgovernor.presentation.v1.MessageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	51,  // 92: rimgovernor.presentation.v1.AlertSection.observed:type_name -> rimgovernor.presentation.v1.Alerts
-	136, // 93: rimgovernor.presentation.v1.AlertSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	132, // 94: rimgovernor.presentation.v1.NotificationsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	52,  // 95: rimgovernor.presentation.v1.NotificationsSnapshot.letters:type_name -> rimgovernor.presentation.v1.LetterSection
-	53,  // 96: rimgovernor.presentation.v1.NotificationsSnapshot.messages:type_name -> rimgovernor.presentation.v1.MessageSection
-	54,  // 97: rimgovernor.presentation.v1.NotificationsSnapshot.alerts:type_name -> rimgovernor.presentation.v1.AlertSection
-	131, // 98: rimgovernor.presentation.v1.NotificationsRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	55,  // 99: rimgovernor.presentation.v1.NotificationsReply.notifications:type_name -> rimgovernor.presentation.v1.NotificationsSnapshot
-	133, // 100: rimgovernor.presentation.v1.NotificationsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	131, // 101: rimgovernor.presentation.v1.PlayerIdentity.identity:type_name -> rimgovernor.common.v1.Identity
-	58,  // 102: rimgovernor.presentation.v1.InputLeaseReference.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	58,  // 103: rimgovernor.presentation.v1.InputTake.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	59,  // 104: rimgovernor.presentation.v1.InputRenew.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
-	59,  // 105: rimgovernor.presentation.v1.InputRelease.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
-	60,  // 106: rimgovernor.presentation.v1.InputLeaseRequest.take:type_name -> rimgovernor.presentation.v1.InputTake
-	61,  // 107: rimgovernor.presentation.v1.InputLeaseRequest.renew:type_name -> rimgovernor.presentation.v1.InputRenew
-	62,  // 108: rimgovernor.presentation.v1.InputLeaseRequest.release:type_name -> rimgovernor.presentation.v1.InputRelease
-	58,  // 109: rimgovernor.presentation.v1.InputState.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	59,  // 110: rimgovernor.presentation.v1.InputLeaseGranted.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
-	64,  // 111: rimgovernor.presentation.v1.InputLeaseGranted.state:type_name -> rimgovernor.presentation.v1.InputState
-	63,  // 112: rimgovernor.presentation.v1.InputLeaseUncertain.request:type_name -> rimgovernor.presentation.v1.InputLeaseRequest
-	64,  // 113: rimgovernor.presentation.v1.InputLeaseUncertain.last_observed:type_name -> rimgovernor.presentation.v1.InputState
-	59,  // 114: rimgovernor.presentation.v1.InputLeaseUncertain.acquired_lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
-	65,  // 115: rimgovernor.presentation.v1.InputLeaseReply.granted:type_name -> rimgovernor.presentation.v1.InputLeaseGranted
-	64,  // 116: rimgovernor.presentation.v1.InputLeaseReply.released:type_name -> rimgovernor.presentation.v1.InputState
-	133, // 117: rimgovernor.presentation.v1.InputLeaseReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	66,  // 118: rimgovernor.presentation.v1.InputLeaseReply.uncertain:type_name -> rimgovernor.presentation.v1.InputLeaseUncertain
-	64,  // 119: rimgovernor.presentation.v1.InputStateReply.state:type_name -> rimgovernor.presentation.v1.InputState
-	133, // 120: rimgovernor.presentation.v1.InputStateReply.failure:type_name -> rimgovernor.common.v1.Failure
-	7,   // 121: rimgovernor.presentation.v1.PointerMove.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
-	7,   // 122: rimgovernor.presentation.v1.PointerButtonEvent.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
+	133, // 0: rimgovernor.presentation.v1.ReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	134, // 1: rimgovernor.presentation.v1.CameraState.context:type_name -> rimgovernor.common.v1.ObservationContext
+	10,  // 2: rimgovernor.presentation.v1.CameraState.map_position:type_name -> rimgovernor.presentation.v1.MapPoint
+	11,  // 3: rimgovernor.presentation.v1.CameraState.view_rect:type_name -> rimgovernor.presentation.v1.MapRect
+	12,  // 4: rimgovernor.presentation.v1.CameraReply.camera:type_name -> rimgovernor.presentation.v1.CameraState
+	135, // 5: rimgovernor.presentation.v1.CameraReply.failure:type_name -> rimgovernor.common.v1.Failure
+	136, // 6: rimgovernor.presentation.v1.SelectedObject.position:type_name -> rimgovernor.common.v1.Cell
+	134, // 7: rimgovernor.presentation.v1.SelectionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	14,  // 8: rimgovernor.presentation.v1.SelectionSnapshot.selected_objects:type_name -> rimgovernor.presentation.v1.SelectedObject
+	7,   // 9: rimgovernor.presentation.v1.SelectionSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
+	15,  // 10: rimgovernor.presentation.v1.SelectionReply.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
+	135, // 11: rimgovernor.presentation.v1.SelectionReply.failure:type_name -> rimgovernor.common.v1.Failure
+	133, // 12: rimgovernor.presentation.v1.ColonistRosterRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	136, // 13: rimgovernor.presentation.v1.ColonistReference.position:type_name -> rimgovernor.common.v1.Cell
+	137, // 14: rimgovernor.presentation.v1.ColonistReference.dossier:type_name -> rimgovernor.observations.v1.PawnState
+	134, // 15: rimgovernor.presentation.v1.ColonistRoster.context:type_name -> rimgovernor.common.v1.ObservationContext
+	18,  // 16: rimgovernor.presentation.v1.ColonistRoster.colonists:type_name -> rimgovernor.presentation.v1.ColonistReference
+	7,   // 17: rimgovernor.presentation.v1.ColonistRoster.listing:type_name -> rimgovernor.presentation.v1.Listing
+	19,  // 18: rimgovernor.presentation.v1.ColonistRosterReply.roster:type_name -> rimgovernor.presentation.v1.ColonistRoster
+	135, // 19: rimgovernor.presentation.v1.ColonistRosterReply.failure:type_name -> rimgovernor.common.v1.Failure
+	134, // 20: rimgovernor.presentation.v1.CaptureIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
+	14,  // 21: rimgovernor.presentation.v1.CaptureIdentity.selected_objects:type_name -> rimgovernor.presentation.v1.SelectedObject
+	22,  // 22: rimgovernor.presentation.v1.CaptureIdentity.windows:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	22,  // 23: rimgovernor.presentation.v1.UiWindow.identity:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	9,   // 24: rimgovernor.presentation.v1.UiWindow.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	23,  // 25: rimgovernor.presentation.v1.UiState.windows:type_name -> rimgovernor.presentation.v1.UiWindow
+	7,   // 26: rimgovernor.presentation.v1.UiState.listing:type_name -> rimgovernor.presentation.v1.Listing
+	9,   // 27: rimgovernor.presentation.v1.UiScroll.viewport_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	9,   // 28: rimgovernor.presentation.v1.UiScroll.viewport_screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	9,   // 29: rimgovernor.presentation.v1.UiScroll.content_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	9,   // 30: rimgovernor.presentation.v1.UiElement.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	9,   // 31: rimgovernor.presentation.v1.UiElement.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	25,  // 32: rimgovernor.presentation.v1.UiElement.scroll:type_name -> rimgovernor.presentation.v1.UiScroll
+	9,   // 33: rimgovernor.presentation.v1.UiSurface.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	9,   // 34: rimgovernor.presentation.v1.UiSurface.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	26,  // 35: rimgovernor.presentation.v1.UiSurface.elements:type_name -> rimgovernor.presentation.v1.UiElement
+	7,   // 36: rimgovernor.presentation.v1.UiSurface.listing:type_name -> rimgovernor.presentation.v1.Listing
+	138, // 37: rimgovernor.presentation.v1.UiSurface.semantic_details_unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	21,  // 38: rimgovernor.presentation.v1.UiSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	24,  // 39: rimgovernor.presentation.v1.UiSnapshot.state:type_name -> rimgovernor.presentation.v1.UiState
+	27,  // 40: rimgovernor.presentation.v1.UiSnapshot.surfaces:type_name -> rimgovernor.presentation.v1.UiSurface
+	7,   // 41: rimgovernor.presentation.v1.UiSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
+	133, // 42: rimgovernor.presentation.v1.UiReadRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	28,  // 43: rimgovernor.presentation.v1.UiReply.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
+	135, // 44: rimgovernor.presentation.v1.UiReply.failure:type_name -> rimgovernor.common.v1.Failure
+	9,   // 45: rimgovernor.presentation.v1.ScreenTarget.screen_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	22,  // 46: rimgovernor.presentation.v1.ScreenTarget.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	21,  // 47: rimgovernor.presentation.v1.ScreenTargets.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	31,  // 48: rimgovernor.presentation.v1.ScreenTargets.targets:type_name -> rimgovernor.presentation.v1.ScreenTarget
+	7,   // 49: rimgovernor.presentation.v1.ScreenTargets.listing:type_name -> rimgovernor.presentation.v1.Listing
+	32,  // 50: rimgovernor.presentation.v1.ScreenTargetsReply.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
+	135, // 51: rimgovernor.presentation.v1.ScreenTargetsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	133, // 52: rimgovernor.presentation.v1.TabsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	9,   // 53: rimgovernor.presentation.v1.Tab.rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	21,  // 54: rimgovernor.presentation.v1.TabsSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	35,  // 55: rimgovernor.presentation.v1.TabsSnapshot.tabs:type_name -> rimgovernor.presentation.v1.Tab
+	7,   // 56: rimgovernor.presentation.v1.TabsSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
+	36,  // 57: rimgovernor.presentation.v1.TabsReply.tabs:type_name -> rimgovernor.presentation.v1.TabsSnapshot
+	135, // 58: rimgovernor.presentation.v1.TabsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	14,  // 59: rimgovernor.presentation.v1.Gizmo.owners:type_name -> rimgovernor.presentation.v1.SelectedObject
+	7,   // 60: rimgovernor.presentation.v1.Gizmo.owner_listing:type_name -> rimgovernor.presentation.v1.Listing
+	21,  // 61: rimgovernor.presentation.v1.GizmosSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	38,  // 62: rimgovernor.presentation.v1.GizmosSnapshot.gizmos:type_name -> rimgovernor.presentation.v1.Gizmo
+	7,   // 63: rimgovernor.presentation.v1.GizmosSnapshot.listing:type_name -> rimgovernor.presentation.v1.Listing
+	39,  // 64: rimgovernor.presentation.v1.GizmosReply.gizmos:type_name -> rimgovernor.presentation.v1.GizmosSnapshot
+	135, // 65: rimgovernor.presentation.v1.GizmosReply.failure:type_name -> rimgovernor.common.v1.Failure
+	21,  // 66: rimgovernor.presentation.v1.DialogSnapshot.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	22,  // 67: rimgovernor.presentation.v1.DialogSnapshot.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	41,  // 68: rimgovernor.presentation.v1.DialogSnapshot.fields:type_name -> rimgovernor.presentation.v1.DialogField
+	42,  // 69: rimgovernor.presentation.v1.DialogReply.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
+	135, // 70: rimgovernor.presentation.v1.DialogReply.failure:type_name -> rimgovernor.common.v1.Failure
+	136, // 71: rimgovernor.presentation.v1.LookTarget.position:type_name -> rimgovernor.common.v1.Cell
+	44,  // 72: rimgovernor.presentation.v1.LookTargets.primary:type_name -> rimgovernor.presentation.v1.LookTarget
+	44,  // 73: rimgovernor.presentation.v1.LookTargets.targets:type_name -> rimgovernor.presentation.v1.LookTarget
+	7,   // 74: rimgovernor.presentation.v1.LookTargets.listing:type_name -> rimgovernor.presentation.v1.Listing
+	45,  // 75: rimgovernor.presentation.v1.Letter.look_targets:type_name -> rimgovernor.presentation.v1.LookTargets
+	46,  // 76: rimgovernor.presentation.v1.Letter.choices:type_name -> rimgovernor.presentation.v1.LetterChoice
+	7,   // 77: rimgovernor.presentation.v1.Letter.choices_listing:type_name -> rimgovernor.presentation.v1.Listing
+	45,  // 78: rimgovernor.presentation.v1.TransientMessage.look_targets:type_name -> rimgovernor.presentation.v1.LookTargets
+	44,  // 79: rimgovernor.presentation.v1.Alert.targets:type_name -> rimgovernor.presentation.v1.LookTarget
+	7,   // 80: rimgovernor.presentation.v1.Alert.listing:type_name -> rimgovernor.presentation.v1.Listing
+	138, // 81: rimgovernor.presentation.v1.Alert.read_issue:type_name -> rimgovernor.common.v1.Unavailable
+	47,  // 82: rimgovernor.presentation.v1.Letters.letters:type_name -> rimgovernor.presentation.v1.Letter
+	7,   // 83: rimgovernor.presentation.v1.Letters.listing:type_name -> rimgovernor.presentation.v1.Listing
+	48,  // 84: rimgovernor.presentation.v1.Messages.messages:type_name -> rimgovernor.presentation.v1.TransientMessage
+	7,   // 85: rimgovernor.presentation.v1.Messages.listing:type_name -> rimgovernor.presentation.v1.Listing
+	49,  // 86: rimgovernor.presentation.v1.Alerts.alerts:type_name -> rimgovernor.presentation.v1.Alert
+	7,   // 87: rimgovernor.presentation.v1.Alerts.listing:type_name -> rimgovernor.presentation.v1.Listing
+	50,  // 88: rimgovernor.presentation.v1.LetterSection.observed:type_name -> rimgovernor.presentation.v1.Letters
+	138, // 89: rimgovernor.presentation.v1.LetterSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	51,  // 90: rimgovernor.presentation.v1.MessageSection.observed:type_name -> rimgovernor.presentation.v1.Messages
+	138, // 91: rimgovernor.presentation.v1.MessageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	52,  // 92: rimgovernor.presentation.v1.AlertSection.observed:type_name -> rimgovernor.presentation.v1.Alerts
+	138, // 93: rimgovernor.presentation.v1.AlertSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	134, // 94: rimgovernor.presentation.v1.NotificationsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	53,  // 95: rimgovernor.presentation.v1.NotificationsSnapshot.letters:type_name -> rimgovernor.presentation.v1.LetterSection
+	54,  // 96: rimgovernor.presentation.v1.NotificationsSnapshot.messages:type_name -> rimgovernor.presentation.v1.MessageSection
+	55,  // 97: rimgovernor.presentation.v1.NotificationsSnapshot.alerts:type_name -> rimgovernor.presentation.v1.AlertSection
+	133, // 98: rimgovernor.presentation.v1.NotificationsRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	56,  // 99: rimgovernor.presentation.v1.NotificationsReply.notifications:type_name -> rimgovernor.presentation.v1.NotificationsSnapshot
+	135, // 100: rimgovernor.presentation.v1.NotificationsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	133, // 101: rimgovernor.presentation.v1.PlayerIdentity.identity:type_name -> rimgovernor.common.v1.Identity
+	59,  // 102: rimgovernor.presentation.v1.InputLeaseReference.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	59,  // 103: rimgovernor.presentation.v1.InputTake.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	60,  // 104: rimgovernor.presentation.v1.InputRenew.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
+	60,  // 105: rimgovernor.presentation.v1.InputRelease.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
+	61,  // 106: rimgovernor.presentation.v1.InputLeaseRequest.take:type_name -> rimgovernor.presentation.v1.InputTake
+	62,  // 107: rimgovernor.presentation.v1.InputLeaseRequest.renew:type_name -> rimgovernor.presentation.v1.InputRenew
+	63,  // 108: rimgovernor.presentation.v1.InputLeaseRequest.release:type_name -> rimgovernor.presentation.v1.InputRelease
+	59,  // 109: rimgovernor.presentation.v1.InputState.player:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	60,  // 110: rimgovernor.presentation.v1.InputLeaseGranted.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
+	65,  // 111: rimgovernor.presentation.v1.InputLeaseGranted.state:type_name -> rimgovernor.presentation.v1.InputState
+	64,  // 112: rimgovernor.presentation.v1.InputLeaseUncertain.request:type_name -> rimgovernor.presentation.v1.InputLeaseRequest
+	65,  // 113: rimgovernor.presentation.v1.InputLeaseUncertain.last_observed:type_name -> rimgovernor.presentation.v1.InputState
+	60,  // 114: rimgovernor.presentation.v1.InputLeaseUncertain.acquired_lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
+	66,  // 115: rimgovernor.presentation.v1.InputLeaseReply.granted:type_name -> rimgovernor.presentation.v1.InputLeaseGranted
+	65,  // 116: rimgovernor.presentation.v1.InputLeaseReply.released:type_name -> rimgovernor.presentation.v1.InputState
+	135, // 117: rimgovernor.presentation.v1.InputLeaseReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	67,  // 118: rimgovernor.presentation.v1.InputLeaseReply.uncertain:type_name -> rimgovernor.presentation.v1.InputLeaseUncertain
+	65,  // 119: rimgovernor.presentation.v1.InputStateReply.state:type_name -> rimgovernor.presentation.v1.InputState
+	135, // 120: rimgovernor.presentation.v1.InputStateReply.failure:type_name -> rimgovernor.common.v1.Failure
+	8,   // 121: rimgovernor.presentation.v1.PointerMove.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
+	8,   // 122: rimgovernor.presentation.v1.PointerButtonEvent.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
 	0,   // 123: rimgovernor.presentation.v1.PointerButtonEvent.button:type_name -> rimgovernor.presentation.v1.PointerButton
-	7,   // 124: rimgovernor.presentation.v1.PointerWheel.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
-	7,   // 125: rimgovernor.presentation.v1.KeyEvent.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
-	59,  // 126: rimgovernor.presentation.v1.InputEvent.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
-	69,  // 127: rimgovernor.presentation.v1.InputEvent.frame:type_name -> rimgovernor.presentation.v1.FrameReference
-	70,  // 128: rimgovernor.presentation.v1.InputEvent.move:type_name -> rimgovernor.presentation.v1.PointerMove
-	71,  // 129: rimgovernor.presentation.v1.InputEvent.down:type_name -> rimgovernor.presentation.v1.PointerButtonEvent
-	71,  // 130: rimgovernor.presentation.v1.InputEvent.up:type_name -> rimgovernor.presentation.v1.PointerButtonEvent
-	72,  // 131: rimgovernor.presentation.v1.InputEvent.wheel:type_name -> rimgovernor.presentation.v1.PointerWheel
-	73,  // 132: rimgovernor.presentation.v1.InputEvent.key_down:type_name -> rimgovernor.presentation.v1.KeyEvent
-	73,  // 133: rimgovernor.presentation.v1.InputEvent.key_up:type_name -> rimgovernor.presentation.v1.KeyEvent
-	74,  // 134: rimgovernor.presentation.v1.InputEventUncertain.request:type_name -> rimgovernor.presentation.v1.InputEvent
-	64,  // 135: rimgovernor.presentation.v1.InputEventUncertain.last_observed:type_name -> rimgovernor.presentation.v1.InputState
-	64,  // 136: rimgovernor.presentation.v1.InputEventReply.acknowledged:type_name -> rimgovernor.presentation.v1.InputState
-	133, // 137: rimgovernor.presentation.v1.InputEventReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	75,  // 138: rimgovernor.presentation.v1.InputEventReply.uncertain:type_name -> rimgovernor.presentation.v1.InputEventUncertain
-	59,  // 139: rimgovernor.presentation.v1.PlayerPrecondition.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
-	20,  // 140: rimgovernor.presentation.v1.PlayerPrecondition.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	83,  // 141: rimgovernor.presentation.v1.ScrollTarget.horizontal:type_name -> rimgovernor.presentation.v1.ScrollAxis
-	83,  // 142: rimgovernor.presentation.v1.ScrollTarget.vertical:type_name -> rimgovernor.presentation.v1.ScrollAxis
-	21,  // 143: rimgovernor.presentation.v1.SetDialogText.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	21,  // 144: rimgovernor.presentation.v1.ConfirmColonyNames.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	21,  // 145: rimgovernor.presentation.v1.NamingSnapshot.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	20,  // 146: rimgovernor.presentation.v1.NamingPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	89,  // 147: rimgovernor.presentation.v1.NamingPreviewRequest.names:type_name -> rimgovernor.presentation.v1.ConfirmColonyNames
-	90,  // 148: rimgovernor.presentation.v1.NamingPreview.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
-	92,  // 149: rimgovernor.presentation.v1.NamingPreviewReply.preview:type_name -> rimgovernor.presentation.v1.NamingPreview
-	133, // 150: rimgovernor.presentation.v1.NamingPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	21,  // 151: rimgovernor.presentation.v1.DialogTextChange.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
-	20,  // 152: rimgovernor.presentation.v1.DialogTextPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	88,  // 153: rimgovernor.presentation.v1.DialogTextPreviewRequest.edit:type_name -> rimgovernor.presentation.v1.SetDialogText
-	94,  // 154: rimgovernor.presentation.v1.DialogTextPreviewReply.preview:type_name -> rimgovernor.presentation.v1.DialogTextChange
-	133, // 155: rimgovernor.presentation.v1.DialogTextPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	77,  // 156: rimgovernor.presentation.v1.PlayerCommand.precondition:type_name -> rimgovernor.presentation.v1.PlayerPrecondition
-	78,  // 157: rimgovernor.presentation.v1.PlayerCommand.move_camera:type_name -> rimgovernor.presentation.v1.MoveCamera
-	79,  // 158: rimgovernor.presentation.v1.PlayerCommand.set_camera_zoom:type_name -> rimgovernor.presentation.v1.SetCameraZoom
-	80,  // 159: rimgovernor.presentation.v1.PlayerCommand.select_pawn:type_name -> rimgovernor.presentation.v1.SelectPawn
-	81,  // 160: rimgovernor.presentation.v1.PlayerCommand.clear_selection:type_name -> rimgovernor.presentation.v1.ClearSelection
-	82,  // 161: rimgovernor.presentation.v1.PlayerCommand.click_screen_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
-	82,  // 162: rimgovernor.presentation.v1.PlayerCommand.click_ui_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
-	84,  // 163: rimgovernor.presentation.v1.PlayerCommand.scroll_ui_target:type_name -> rimgovernor.presentation.v1.ScrollTarget
-	85,  // 164: rimgovernor.presentation.v1.PlayerCommand.open_main_tab:type_name -> rimgovernor.presentation.v1.MainTab
-	86,  // 165: rimgovernor.presentation.v1.PlayerCommand.close_main_tab:type_name -> rimgovernor.presentation.v1.CloseMainTab
-	87,  // 166: rimgovernor.presentation.v1.PlayerCommand.open_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
-	87,  // 167: rimgovernor.presentation.v1.PlayerCommand.dismiss_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
-	88,  // 168: rimgovernor.presentation.v1.PlayerCommand.set_dialog_text:type_name -> rimgovernor.presentation.v1.SetDialogText
-	89,  // 169: rimgovernor.presentation.v1.PlayerCommand.confirm_colony_names:type_name -> rimgovernor.presentation.v1.ConfirmColonyNames
-	97,  // 170: rimgovernor.presentation.v1.PlayerCommand.show_world:type_name -> rimgovernor.presentation.v1.ShowWorld
-	20,  // 171: rimgovernor.presentation.v1.PlayerApplied.after:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	11,  // 172: rimgovernor.presentation.v1.PlayerApplied.camera:type_name -> rimgovernor.presentation.v1.CameraState
-	14,  // 173: rimgovernor.presentation.v1.PlayerApplied.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
-	27,  // 174: rimgovernor.presentation.v1.PlayerApplied.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
-	41,  // 175: rimgovernor.presentation.v1.PlayerApplied.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
-	90,  // 176: rimgovernor.presentation.v1.PlayerApplied.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
-	94,  // 177: rimgovernor.presentation.v1.PlayerApplied.text_change:type_name -> rimgovernor.presentation.v1.DialogTextChange
-	98,  // 178: rimgovernor.presentation.v1.PlayerApplied.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
-	20,  // 179: rimgovernor.presentation.v1.PlayerObserved.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	11,  // 180: rimgovernor.presentation.v1.PlayerObserved.camera:type_name -> rimgovernor.presentation.v1.CameraState
-	14,  // 181: rimgovernor.presentation.v1.PlayerObserved.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
-	27,  // 182: rimgovernor.presentation.v1.PlayerObserved.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
-	41,  // 183: rimgovernor.presentation.v1.PlayerObserved.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
-	90,  // 184: rimgovernor.presentation.v1.PlayerObserved.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
-	98,  // 185: rimgovernor.presentation.v1.PlayerObserved.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
-	99,  // 186: rimgovernor.presentation.v1.PlayerCommandUncertain.request:type_name -> rimgovernor.presentation.v1.PlayerCommand
-	101, // 187: rimgovernor.presentation.v1.PlayerCommandUncertain.last_observed:type_name -> rimgovernor.presentation.v1.PlayerObserved
-	100, // 188: rimgovernor.presentation.v1.PlayerCommandReply.applied:type_name -> rimgovernor.presentation.v1.PlayerApplied
-	133, // 189: rimgovernor.presentation.v1.PlayerCommandReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	102, // 190: rimgovernor.presentation.v1.PlayerCommandReply.uncertain:type_name -> rimgovernor.presentation.v1.PlayerCommandUncertain
-	132, // 191: rimgovernor.presentation.v1.RenderStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
-	136, // 192: rimgovernor.presentation.v1.RenderStatus.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	58,  // 193: rimgovernor.presentation.v1.RenderDemand.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	104, // 194: rimgovernor.presentation.v1.RenderReply.status:type_name -> rimgovernor.presentation.v1.RenderStatus
-	133, // 195: rimgovernor.presentation.v1.RenderReply.failure:type_name -> rimgovernor.common.v1.Failure
-	69,  // 196: rimgovernor.presentation.v1.MediaFrame.frame:type_name -> rimgovernor.presentation.v1.FrameReference
-	20,  // 197: rimgovernor.presentation.v1.MediaFrame.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	8,   // 124: rimgovernor.presentation.v1.PointerWheel.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
+	8,   // 125: rimgovernor.presentation.v1.KeyEvent.position:type_name -> rimgovernor.presentation.v1.ScreenPoint
+	60,  // 126: rimgovernor.presentation.v1.InputEvent.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
+	70,  // 127: rimgovernor.presentation.v1.InputEvent.frame:type_name -> rimgovernor.presentation.v1.FrameReference
+	71,  // 128: rimgovernor.presentation.v1.InputEvent.move:type_name -> rimgovernor.presentation.v1.PointerMove
+	72,  // 129: rimgovernor.presentation.v1.InputEvent.down:type_name -> rimgovernor.presentation.v1.PointerButtonEvent
+	72,  // 130: rimgovernor.presentation.v1.InputEvent.up:type_name -> rimgovernor.presentation.v1.PointerButtonEvent
+	73,  // 131: rimgovernor.presentation.v1.InputEvent.wheel:type_name -> rimgovernor.presentation.v1.PointerWheel
+	74,  // 132: rimgovernor.presentation.v1.InputEvent.key_down:type_name -> rimgovernor.presentation.v1.KeyEvent
+	74,  // 133: rimgovernor.presentation.v1.InputEvent.key_up:type_name -> rimgovernor.presentation.v1.KeyEvent
+	75,  // 134: rimgovernor.presentation.v1.InputEventUncertain.request:type_name -> rimgovernor.presentation.v1.InputEvent
+	65,  // 135: rimgovernor.presentation.v1.InputEventUncertain.last_observed:type_name -> rimgovernor.presentation.v1.InputState
+	65,  // 136: rimgovernor.presentation.v1.InputEventReply.acknowledged:type_name -> rimgovernor.presentation.v1.InputState
+	135, // 137: rimgovernor.presentation.v1.InputEventReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	76,  // 138: rimgovernor.presentation.v1.InputEventReply.uncertain:type_name -> rimgovernor.presentation.v1.InputEventUncertain
+	60,  // 139: rimgovernor.presentation.v1.PlayerPrecondition.lease:type_name -> rimgovernor.presentation.v1.InputLeaseReference
+	21,  // 140: rimgovernor.presentation.v1.PlayerPrecondition.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	84,  // 141: rimgovernor.presentation.v1.ScrollTarget.horizontal:type_name -> rimgovernor.presentation.v1.ScrollAxis
+	84,  // 142: rimgovernor.presentation.v1.ScrollTarget.vertical:type_name -> rimgovernor.presentation.v1.ScrollAxis
+	22,  // 143: rimgovernor.presentation.v1.SetDialogText.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	22,  // 144: rimgovernor.presentation.v1.ConfirmColonyNames.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	22,  // 145: rimgovernor.presentation.v1.NamingSnapshot.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	21,  // 146: rimgovernor.presentation.v1.NamingPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	90,  // 147: rimgovernor.presentation.v1.NamingPreviewRequest.names:type_name -> rimgovernor.presentation.v1.ConfirmColonyNames
+	91,  // 148: rimgovernor.presentation.v1.NamingPreview.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
+	93,  // 149: rimgovernor.presentation.v1.NamingPreviewReply.preview:type_name -> rimgovernor.presentation.v1.NamingPreview
+	135, // 150: rimgovernor.presentation.v1.NamingPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	22,  // 151: rimgovernor.presentation.v1.DialogTextChange.window:type_name -> rimgovernor.presentation.v1.WindowIdentity
+	21,  // 152: rimgovernor.presentation.v1.DialogTextPreviewRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	89,  // 153: rimgovernor.presentation.v1.DialogTextPreviewRequest.edit:type_name -> rimgovernor.presentation.v1.SetDialogText
+	95,  // 154: rimgovernor.presentation.v1.DialogTextPreviewReply.preview:type_name -> rimgovernor.presentation.v1.DialogTextChange
+	135, // 155: rimgovernor.presentation.v1.DialogTextPreviewReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	78,  // 156: rimgovernor.presentation.v1.PlayerCommand.precondition:type_name -> rimgovernor.presentation.v1.PlayerPrecondition
+	79,  // 157: rimgovernor.presentation.v1.PlayerCommand.move_camera:type_name -> rimgovernor.presentation.v1.MoveCamera
+	80,  // 158: rimgovernor.presentation.v1.PlayerCommand.set_camera_zoom:type_name -> rimgovernor.presentation.v1.SetCameraZoom
+	81,  // 159: rimgovernor.presentation.v1.PlayerCommand.select_pawn:type_name -> rimgovernor.presentation.v1.SelectPawn
+	82,  // 160: rimgovernor.presentation.v1.PlayerCommand.clear_selection:type_name -> rimgovernor.presentation.v1.ClearSelection
+	83,  // 161: rimgovernor.presentation.v1.PlayerCommand.click_screen_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
+	83,  // 162: rimgovernor.presentation.v1.PlayerCommand.click_ui_target:type_name -> rimgovernor.presentation.v1.CapturedTarget
+	85,  // 163: rimgovernor.presentation.v1.PlayerCommand.scroll_ui_target:type_name -> rimgovernor.presentation.v1.ScrollTarget
+	86,  // 164: rimgovernor.presentation.v1.PlayerCommand.open_main_tab:type_name -> rimgovernor.presentation.v1.MainTab
+	87,  // 165: rimgovernor.presentation.v1.PlayerCommand.close_main_tab:type_name -> rimgovernor.presentation.v1.CloseMainTab
+	88,  // 166: rimgovernor.presentation.v1.PlayerCommand.open_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
+	88,  // 167: rimgovernor.presentation.v1.PlayerCommand.dismiss_letter:type_name -> rimgovernor.presentation.v1.LetterTarget
+	89,  // 168: rimgovernor.presentation.v1.PlayerCommand.set_dialog_text:type_name -> rimgovernor.presentation.v1.SetDialogText
+	90,  // 169: rimgovernor.presentation.v1.PlayerCommand.confirm_colony_names:type_name -> rimgovernor.presentation.v1.ConfirmColonyNames
+	98,  // 170: rimgovernor.presentation.v1.PlayerCommand.show_world:type_name -> rimgovernor.presentation.v1.ShowWorld
+	21,  // 171: rimgovernor.presentation.v1.PlayerApplied.after:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	12,  // 172: rimgovernor.presentation.v1.PlayerApplied.camera:type_name -> rimgovernor.presentation.v1.CameraState
+	15,  // 173: rimgovernor.presentation.v1.PlayerApplied.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
+	28,  // 174: rimgovernor.presentation.v1.PlayerApplied.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
+	42,  // 175: rimgovernor.presentation.v1.PlayerApplied.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
+	91,  // 176: rimgovernor.presentation.v1.PlayerApplied.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
+	95,  // 177: rimgovernor.presentation.v1.PlayerApplied.text_change:type_name -> rimgovernor.presentation.v1.DialogTextChange
+	99,  // 178: rimgovernor.presentation.v1.PlayerApplied.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
+	21,  // 179: rimgovernor.presentation.v1.PlayerObserved.capture:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	12,  // 180: rimgovernor.presentation.v1.PlayerObserved.camera:type_name -> rimgovernor.presentation.v1.CameraState
+	15,  // 181: rimgovernor.presentation.v1.PlayerObserved.selection:type_name -> rimgovernor.presentation.v1.SelectionSnapshot
+	28,  // 182: rimgovernor.presentation.v1.PlayerObserved.ui:type_name -> rimgovernor.presentation.v1.UiSnapshot
+	42,  // 183: rimgovernor.presentation.v1.PlayerObserved.dialog:type_name -> rimgovernor.presentation.v1.DialogSnapshot
+	91,  // 184: rimgovernor.presentation.v1.PlayerObserved.names:type_name -> rimgovernor.presentation.v1.NamingSnapshot
+	99,  // 185: rimgovernor.presentation.v1.PlayerObserved.world_view:type_name -> rimgovernor.presentation.v1.WorldViewResult
+	100, // 186: rimgovernor.presentation.v1.PlayerCommandUncertain.request:type_name -> rimgovernor.presentation.v1.PlayerCommand
+	102, // 187: rimgovernor.presentation.v1.PlayerCommandUncertain.last_observed:type_name -> rimgovernor.presentation.v1.PlayerObserved
+	101, // 188: rimgovernor.presentation.v1.PlayerCommandReply.applied:type_name -> rimgovernor.presentation.v1.PlayerApplied
+	135, // 189: rimgovernor.presentation.v1.PlayerCommandReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	103, // 190: rimgovernor.presentation.v1.PlayerCommandReply.uncertain:type_name -> rimgovernor.presentation.v1.PlayerCommandUncertain
+	134, // 191: rimgovernor.presentation.v1.RenderStatus.context:type_name -> rimgovernor.common.v1.ObservationContext
+	138, // 192: rimgovernor.presentation.v1.RenderStatus.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	59,  // 193: rimgovernor.presentation.v1.RenderDemand.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	105, // 194: rimgovernor.presentation.v1.RenderReply.status:type_name -> rimgovernor.presentation.v1.RenderStatus
+	135, // 195: rimgovernor.presentation.v1.RenderReply.failure:type_name -> rimgovernor.common.v1.Failure
+	70,  // 196: rimgovernor.presentation.v1.MediaFrame.frame:type_name -> rimgovernor.presentation.v1.FrameReference
+	21,  // 197: rimgovernor.presentation.v1.MediaFrame.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
 	1,   // 198: rimgovernor.presentation.v1.MediaFrame.encoding:type_name -> rimgovernor.presentation.v1.MediaEncoding
 	2,   // 199: rimgovernor.presentation.v1.MediaFrame.capture_method:type_name -> rimgovernor.presentation.v1.CaptureMethod
-	132, // 200: rimgovernor.presentation.v1.VideoState.context:type_name -> rimgovernor.common.v1.ObservationContext
+	134, // 200: rimgovernor.presentation.v1.VideoState.context:type_name -> rimgovernor.common.v1.ObservationContext
 	1,   // 201: rimgovernor.presentation.v1.VideoState.pixel_format:type_name -> rimgovernor.presentation.v1.MediaEncoding
 	2,   // 202: rimgovernor.presentation.v1.VideoState.capture_method:type_name -> rimgovernor.presentation.v1.CaptureMethod
-	136, // 203: rimgovernor.presentation.v1.VideoState.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	109, // 204: rimgovernor.presentation.v1.VideoState.source:type_name -> rimgovernor.presentation.v1.VideoSource
+	138, // 203: rimgovernor.presentation.v1.VideoState.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	110, // 204: rimgovernor.presentation.v1.VideoState.source:type_name -> rimgovernor.presentation.v1.VideoSource
 	3,   // 205: rimgovernor.presentation.v1.VideoSource.kind:type_name -> rimgovernor.presentation.v1.VideoSourceKind
-	58,  // 206: rimgovernor.presentation.v1.VideoStart.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	109, // 207: rimgovernor.presentation.v1.VideoStart.source:type_name -> rimgovernor.presentation.v1.VideoSource
-	58,  // 208: rimgovernor.presentation.v1.VideoStop.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	110, // 209: rimgovernor.presentation.v1.VideoLeaseRequest.start:type_name -> rimgovernor.presentation.v1.VideoStart
-	111, // 210: rimgovernor.presentation.v1.VideoLeaseRequest.stop:type_name -> rimgovernor.presentation.v1.VideoStop
-	108, // 211: rimgovernor.presentation.v1.VideoReply.state:type_name -> rimgovernor.presentation.v1.VideoState
-	133, // 212: rimgovernor.presentation.v1.VideoReply.failure:type_name -> rimgovernor.common.v1.Failure
-	58,  // 213: rimgovernor.presentation.v1.FrameRequest.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	107, // 214: rimgovernor.presentation.v1.FrameReply.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
-	133, // 215: rimgovernor.presentation.v1.FrameReply.failure:type_name -> rimgovernor.common.v1.Failure
-	58,  // 216: rimgovernor.presentation.v1.FrameAcknowledgement.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
-	69,  // 217: rimgovernor.presentation.v1.FrameAcknowledgement.frame:type_name -> rimgovernor.presentation.v1.FrameReference
-	69,  // 218: rimgovernor.presentation.v1.FrameAcknowledged.frame:type_name -> rimgovernor.presentation.v1.FrameReference
-	117, // 219: rimgovernor.presentation.v1.FrameAcknowledgementReply.acknowledged:type_name -> rimgovernor.presentation.v1.FrameAcknowledged
-	133, // 220: rimgovernor.presentation.v1.FrameAcknowledgementReply.refusal:type_name -> rimgovernor.common.v1.Failure
-	131, // 221: rimgovernor.presentation.v1.PawnImageRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	59,  // 206: rimgovernor.presentation.v1.VideoStart.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	110, // 207: rimgovernor.presentation.v1.VideoStart.source:type_name -> rimgovernor.presentation.v1.VideoSource
+	59,  // 208: rimgovernor.presentation.v1.VideoStop.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	111, // 209: rimgovernor.presentation.v1.VideoLeaseRequest.start:type_name -> rimgovernor.presentation.v1.VideoStart
+	112, // 210: rimgovernor.presentation.v1.VideoLeaseRequest.stop:type_name -> rimgovernor.presentation.v1.VideoStop
+	109, // 211: rimgovernor.presentation.v1.VideoReply.state:type_name -> rimgovernor.presentation.v1.VideoState
+	135, // 212: rimgovernor.presentation.v1.VideoReply.failure:type_name -> rimgovernor.common.v1.Failure
+	59,  // 213: rimgovernor.presentation.v1.FrameRequest.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	108, // 214: rimgovernor.presentation.v1.FrameReply.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
+	135, // 215: rimgovernor.presentation.v1.FrameReply.failure:type_name -> rimgovernor.common.v1.Failure
+	59,  // 216: rimgovernor.presentation.v1.FrameAcknowledgement.viewer:type_name -> rimgovernor.presentation.v1.PlayerIdentity
+	70,  // 217: rimgovernor.presentation.v1.FrameAcknowledgement.frame:type_name -> rimgovernor.presentation.v1.FrameReference
+	70,  // 218: rimgovernor.presentation.v1.FrameAcknowledged.frame:type_name -> rimgovernor.presentation.v1.FrameReference
+	118, // 219: rimgovernor.presentation.v1.FrameAcknowledgementReply.acknowledged:type_name -> rimgovernor.presentation.v1.FrameAcknowledged
+	135, // 220: rimgovernor.presentation.v1.FrameAcknowledgementReply.refusal:type_name -> rimgovernor.common.v1.Failure
+	133, // 221: rimgovernor.presentation.v1.PawnImageRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	4,   // 222: rimgovernor.presentation.v1.PawnImageRequest.view:type_name -> rimgovernor.presentation.v1.PawnView
 	4,   // 223: rimgovernor.presentation.v1.PawnImage.view:type_name -> rimgovernor.presentation.v1.PawnView
-	107, // 224: rimgovernor.presentation.v1.PawnImage.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
-	120, // 225: rimgovernor.presentation.v1.PawnImageReply.image:type_name -> rimgovernor.presentation.v1.PawnImage
-	133, // 226: rimgovernor.presentation.v1.PawnImageReply.failure:type_name -> rimgovernor.common.v1.Failure
-	20,  // 227: rimgovernor.presentation.v1.ScreenshotRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
-	107, // 228: rimgovernor.presentation.v1.Screenshot.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
-	31,  // 229: rimgovernor.presentation.v1.Screenshot.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
-	8,   // 230: rimgovernor.presentation.v1.Screenshot.clip_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
-	123, // 231: rimgovernor.presentation.v1.ScreenshotReply.screenshot:type_name -> rimgovernor.presentation.v1.Screenshot
-	133, // 232: rimgovernor.presentation.v1.ScreenshotReply.failure:type_name -> rimgovernor.common.v1.Failure
-	10,  // 233: rimgovernor.presentation.v1.LayoutPlanLayer.rects:type_name -> rimgovernor.presentation.v1.MapRect
-	134, // 234: rimgovernor.presentation.v1.LayoutPlanLabel.cell:type_name -> rimgovernor.common.v1.Cell
-	131, // 235: rimgovernor.presentation.v1.LayoutPlanRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	125, // 236: rimgovernor.presentation.v1.LayoutPlanRequest.layers:type_name -> rimgovernor.presentation.v1.LayoutPlanLayer
-	126, // 237: rimgovernor.presentation.v1.LayoutPlanRequest.labels:type_name -> rimgovernor.presentation.v1.LayoutPlanLabel
-	127, // 238: rimgovernor.presentation.v1.LayoutPlanRequest.room_colors:type_name -> rimgovernor.presentation.v1.LayoutPlanRoomColor
-	132, // 239: rimgovernor.presentation.v1.LayoutPlanApplied.context:type_name -> rimgovernor.common.v1.ObservationContext
-	129, // 240: rimgovernor.presentation.v1.LayoutPlanReply.applied:type_name -> rimgovernor.presentation.v1.LayoutPlanApplied
-	133, // 241: rimgovernor.presentation.v1.LayoutPlanReply.failure:type_name -> rimgovernor.common.v1.Failure
-	5,   // 242: rimgovernor.presentation.v1.PresentationReads.Camera:input_type -> rimgovernor.presentation.v1.ReadRequest
-	5,   // 243: rimgovernor.presentation.v1.PresentationReads.Selection:input_type -> rimgovernor.presentation.v1.ReadRequest
-	16,  // 244: rimgovernor.presentation.v1.PresentationReads.Colonists:input_type -> rimgovernor.presentation.v1.ColonistRosterRequest
-	28,  // 245: rimgovernor.presentation.v1.PresentationReads.CaptureUi:input_type -> rimgovernor.presentation.v1.UiReadRequest
-	5,   // 246: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:input_type -> rimgovernor.presentation.v1.ReadRequest
-	33,  // 247: rimgovernor.presentation.v1.PresentationReads.MainTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
-	33,  // 248: rimgovernor.presentation.v1.PresentationReads.InspectTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
-	5,   // 249: rimgovernor.presentation.v1.PresentationReads.Gizmos:input_type -> rimgovernor.presentation.v1.ReadRequest
-	5,   // 250: rimgovernor.presentation.v1.PresentationReads.DialogFields:input_type -> rimgovernor.presentation.v1.ReadRequest
-	95,  // 251: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:input_type -> rimgovernor.presentation.v1.DialogTextPreviewRequest
-	91,  // 252: rimgovernor.presentation.v1.PresentationReads.PreviewNaming:input_type -> rimgovernor.presentation.v1.NamingPreviewRequest
-	56,  // 253: rimgovernor.presentation.v1.PresentationReads.Notifications:input_type -> rimgovernor.presentation.v1.NotificationsRequest
-	5,   // 254: rimgovernor.presentation.v1.PresentationReads.RenderState:input_type -> rimgovernor.presentation.v1.ReadRequest
-	5,   // 255: rimgovernor.presentation.v1.PresentationReads.InputStateRead:input_type -> rimgovernor.presentation.v1.ReadRequest
-	63,  // 256: rimgovernor.presentation.v1.PlayerPresentation.LeaseInput:input_type -> rimgovernor.presentation.v1.InputLeaseRequest
-	74,  // 257: rimgovernor.presentation.v1.PlayerPresentation.SendInput:input_type -> rimgovernor.presentation.v1.InputEvent
-	99,  // 258: rimgovernor.presentation.v1.PlayerPresentation.Apply:input_type -> rimgovernor.presentation.v1.PlayerCommand
-	105, // 259: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:input_type -> rimgovernor.presentation.v1.RenderDemand
-	112, // 260: rimgovernor.presentation.v1.PresentationMedia.LeaseVideo:input_type -> rimgovernor.presentation.v1.VideoLeaseRequest
-	114, // 261: rimgovernor.presentation.v1.PresentationMedia.ReadFrame:input_type -> rimgovernor.presentation.v1.FrameRequest
-	116, // 262: rimgovernor.presentation.v1.PresentationMedia.AcknowledgeFrame:input_type -> rimgovernor.presentation.v1.FrameAcknowledgement
-	119, // 263: rimgovernor.presentation.v1.PresentationMedia.CapturePawn:input_type -> rimgovernor.presentation.v1.PawnImageRequest
-	122, // 264: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:input_type -> rimgovernor.presentation.v1.ScreenshotRequest
-	12,  // 265: rimgovernor.presentation.v1.PresentationReads.Camera:output_type -> rimgovernor.presentation.v1.CameraReply
-	15,  // 266: rimgovernor.presentation.v1.PresentationReads.Selection:output_type -> rimgovernor.presentation.v1.SelectionReply
-	19,  // 267: rimgovernor.presentation.v1.PresentationReads.Colonists:output_type -> rimgovernor.presentation.v1.ColonistRosterReply
-	29,  // 268: rimgovernor.presentation.v1.PresentationReads.CaptureUi:output_type -> rimgovernor.presentation.v1.UiReply
-	32,  // 269: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:output_type -> rimgovernor.presentation.v1.ScreenTargetsReply
-	36,  // 270: rimgovernor.presentation.v1.PresentationReads.MainTabs:output_type -> rimgovernor.presentation.v1.TabsReply
-	36,  // 271: rimgovernor.presentation.v1.PresentationReads.InspectTabs:output_type -> rimgovernor.presentation.v1.TabsReply
-	39,  // 272: rimgovernor.presentation.v1.PresentationReads.Gizmos:output_type -> rimgovernor.presentation.v1.GizmosReply
-	42,  // 273: rimgovernor.presentation.v1.PresentationReads.DialogFields:output_type -> rimgovernor.presentation.v1.DialogReply
-	96,  // 274: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:output_type -> rimgovernor.presentation.v1.DialogTextPreviewReply
-	93,  // 275: rimgovernor.presentation.v1.PresentationReads.PreviewNaming:output_type -> rimgovernor.presentation.v1.NamingPreviewReply
-	57,  // 276: rimgovernor.presentation.v1.PresentationReads.Notifications:output_type -> rimgovernor.presentation.v1.NotificationsReply
-	106, // 277: rimgovernor.presentation.v1.PresentationReads.RenderState:output_type -> rimgovernor.presentation.v1.RenderReply
-	68,  // 278: rimgovernor.presentation.v1.PresentationReads.InputStateRead:output_type -> rimgovernor.presentation.v1.InputStateReply
-	67,  // 279: rimgovernor.presentation.v1.PlayerPresentation.LeaseInput:output_type -> rimgovernor.presentation.v1.InputLeaseReply
-	76,  // 280: rimgovernor.presentation.v1.PlayerPresentation.SendInput:output_type -> rimgovernor.presentation.v1.InputEventReply
-	103, // 281: rimgovernor.presentation.v1.PlayerPresentation.Apply:output_type -> rimgovernor.presentation.v1.PlayerCommandReply
-	106, // 282: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:output_type -> rimgovernor.presentation.v1.RenderReply
-	113, // 283: rimgovernor.presentation.v1.PresentationMedia.LeaseVideo:output_type -> rimgovernor.presentation.v1.VideoReply
-	115, // 284: rimgovernor.presentation.v1.PresentationMedia.ReadFrame:output_type -> rimgovernor.presentation.v1.FrameReply
-	118, // 285: rimgovernor.presentation.v1.PresentationMedia.AcknowledgeFrame:output_type -> rimgovernor.presentation.v1.FrameAcknowledgementReply
-	121, // 286: rimgovernor.presentation.v1.PresentationMedia.CapturePawn:output_type -> rimgovernor.presentation.v1.PawnImageReply
-	124, // 287: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:output_type -> rimgovernor.presentation.v1.ScreenshotReply
-	265, // [265:288] is the sub-list for method output_type
-	242, // [242:265] is the sub-list for method input_type
-	242, // [242:242] is the sub-list for extension type_name
-	242, // [242:242] is the sub-list for extension extendee
-	0,   // [0:242] is the sub-list for field type_name
+	108, // 224: rimgovernor.presentation.v1.PawnImage.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
+	121, // 225: rimgovernor.presentation.v1.PawnImageReply.image:type_name -> rimgovernor.presentation.v1.PawnImage
+	135, // 226: rimgovernor.presentation.v1.PawnImageReply.failure:type_name -> rimgovernor.common.v1.Failure
+	21,  // 227: rimgovernor.presentation.v1.ScreenshotRequest.captured:type_name -> rimgovernor.presentation.v1.CaptureIdentity
+	108, // 228: rimgovernor.presentation.v1.Screenshot.frame:type_name -> rimgovernor.presentation.v1.MediaFrame
+	32,  // 229: rimgovernor.presentation.v1.Screenshot.targets:type_name -> rimgovernor.presentation.v1.ScreenTargets
+	9,   // 230: rimgovernor.presentation.v1.Screenshot.clip_rect:type_name -> rimgovernor.presentation.v1.ScreenRect
+	124, // 231: rimgovernor.presentation.v1.ScreenshotReply.screenshot:type_name -> rimgovernor.presentation.v1.Screenshot
+	135, // 232: rimgovernor.presentation.v1.ScreenshotReply.failure:type_name -> rimgovernor.common.v1.Failure
+	126, // 233: rimgovernor.presentation.v1.OverlayShape.color:type_name -> rimgovernor.presentation.v1.OverlayColor
+	5,   // 234: rimgovernor.presentation.v1.OverlayShape.style:type_name -> rimgovernor.presentation.v1.OverlayStyle
+	11,  // 235: rimgovernor.presentation.v1.OverlayShape.rects:type_name -> rimgovernor.presentation.v1.MapRect
+	127, // 236: rimgovernor.presentation.v1.OverlayShape.runs:type_name -> rimgovernor.presentation.v1.OverlayRun
+	136, // 237: rimgovernor.presentation.v1.OverlayLabel.cell:type_name -> rimgovernor.common.v1.Cell
+	133, // 238: rimgovernor.presentation.v1.OverlayRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	128, // 239: rimgovernor.presentation.v1.OverlayRequest.shapes:type_name -> rimgovernor.presentation.v1.OverlayShape
+	129, // 240: rimgovernor.presentation.v1.OverlayRequest.labels:type_name -> rimgovernor.presentation.v1.OverlayLabel
+	134, // 241: rimgovernor.presentation.v1.OverlayApplied.context:type_name -> rimgovernor.common.v1.ObservationContext
+	131, // 242: rimgovernor.presentation.v1.OverlayReply.applied:type_name -> rimgovernor.presentation.v1.OverlayApplied
+	135, // 243: rimgovernor.presentation.v1.OverlayReply.failure:type_name -> rimgovernor.common.v1.Failure
+	6,   // 244: rimgovernor.presentation.v1.PresentationReads.Camera:input_type -> rimgovernor.presentation.v1.ReadRequest
+	6,   // 245: rimgovernor.presentation.v1.PresentationReads.Selection:input_type -> rimgovernor.presentation.v1.ReadRequest
+	17,  // 246: rimgovernor.presentation.v1.PresentationReads.Colonists:input_type -> rimgovernor.presentation.v1.ColonistRosterRequest
+	29,  // 247: rimgovernor.presentation.v1.PresentationReads.CaptureUi:input_type -> rimgovernor.presentation.v1.UiReadRequest
+	6,   // 248: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:input_type -> rimgovernor.presentation.v1.ReadRequest
+	34,  // 249: rimgovernor.presentation.v1.PresentationReads.MainTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
+	34,  // 250: rimgovernor.presentation.v1.PresentationReads.InspectTabs:input_type -> rimgovernor.presentation.v1.TabsRequest
+	6,   // 251: rimgovernor.presentation.v1.PresentationReads.Gizmos:input_type -> rimgovernor.presentation.v1.ReadRequest
+	6,   // 252: rimgovernor.presentation.v1.PresentationReads.DialogFields:input_type -> rimgovernor.presentation.v1.ReadRequest
+	96,  // 253: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:input_type -> rimgovernor.presentation.v1.DialogTextPreviewRequest
+	92,  // 254: rimgovernor.presentation.v1.PresentationReads.PreviewNaming:input_type -> rimgovernor.presentation.v1.NamingPreviewRequest
+	57,  // 255: rimgovernor.presentation.v1.PresentationReads.Notifications:input_type -> rimgovernor.presentation.v1.NotificationsRequest
+	6,   // 256: rimgovernor.presentation.v1.PresentationReads.RenderState:input_type -> rimgovernor.presentation.v1.ReadRequest
+	6,   // 257: rimgovernor.presentation.v1.PresentationReads.InputStateRead:input_type -> rimgovernor.presentation.v1.ReadRequest
+	64,  // 258: rimgovernor.presentation.v1.PlayerPresentation.LeaseInput:input_type -> rimgovernor.presentation.v1.InputLeaseRequest
+	75,  // 259: rimgovernor.presentation.v1.PlayerPresentation.SendInput:input_type -> rimgovernor.presentation.v1.InputEvent
+	100, // 260: rimgovernor.presentation.v1.PlayerPresentation.Apply:input_type -> rimgovernor.presentation.v1.PlayerCommand
+	106, // 261: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:input_type -> rimgovernor.presentation.v1.RenderDemand
+	113, // 262: rimgovernor.presentation.v1.PresentationMedia.LeaseVideo:input_type -> rimgovernor.presentation.v1.VideoLeaseRequest
+	115, // 263: rimgovernor.presentation.v1.PresentationMedia.ReadFrame:input_type -> rimgovernor.presentation.v1.FrameRequest
+	117, // 264: rimgovernor.presentation.v1.PresentationMedia.AcknowledgeFrame:input_type -> rimgovernor.presentation.v1.FrameAcknowledgement
+	120, // 265: rimgovernor.presentation.v1.PresentationMedia.CapturePawn:input_type -> rimgovernor.presentation.v1.PawnImageRequest
+	123, // 266: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:input_type -> rimgovernor.presentation.v1.ScreenshotRequest
+	13,  // 267: rimgovernor.presentation.v1.PresentationReads.Camera:output_type -> rimgovernor.presentation.v1.CameraReply
+	16,  // 268: rimgovernor.presentation.v1.PresentationReads.Selection:output_type -> rimgovernor.presentation.v1.SelectionReply
+	20,  // 269: rimgovernor.presentation.v1.PresentationReads.Colonists:output_type -> rimgovernor.presentation.v1.ColonistRosterReply
+	30,  // 270: rimgovernor.presentation.v1.PresentationReads.CaptureUi:output_type -> rimgovernor.presentation.v1.UiReply
+	33,  // 271: rimgovernor.presentation.v1.PresentationReads.ScreenTargetsRead:output_type -> rimgovernor.presentation.v1.ScreenTargetsReply
+	37,  // 272: rimgovernor.presentation.v1.PresentationReads.MainTabs:output_type -> rimgovernor.presentation.v1.TabsReply
+	37,  // 273: rimgovernor.presentation.v1.PresentationReads.InspectTabs:output_type -> rimgovernor.presentation.v1.TabsReply
+	40,  // 274: rimgovernor.presentation.v1.PresentationReads.Gizmos:output_type -> rimgovernor.presentation.v1.GizmosReply
+	43,  // 275: rimgovernor.presentation.v1.PresentationReads.DialogFields:output_type -> rimgovernor.presentation.v1.DialogReply
+	97,  // 276: rimgovernor.presentation.v1.PresentationReads.PreviewDialogText:output_type -> rimgovernor.presentation.v1.DialogTextPreviewReply
+	94,  // 277: rimgovernor.presentation.v1.PresentationReads.PreviewNaming:output_type -> rimgovernor.presentation.v1.NamingPreviewReply
+	58,  // 278: rimgovernor.presentation.v1.PresentationReads.Notifications:output_type -> rimgovernor.presentation.v1.NotificationsReply
+	107, // 279: rimgovernor.presentation.v1.PresentationReads.RenderState:output_type -> rimgovernor.presentation.v1.RenderReply
+	69,  // 280: rimgovernor.presentation.v1.PresentationReads.InputStateRead:output_type -> rimgovernor.presentation.v1.InputStateReply
+	68,  // 281: rimgovernor.presentation.v1.PlayerPresentation.LeaseInput:output_type -> rimgovernor.presentation.v1.InputLeaseReply
+	77,  // 282: rimgovernor.presentation.v1.PlayerPresentation.SendInput:output_type -> rimgovernor.presentation.v1.InputEventReply
+	104, // 283: rimgovernor.presentation.v1.PlayerPresentation.Apply:output_type -> rimgovernor.presentation.v1.PlayerCommandReply
+	107, // 284: rimgovernor.presentation.v1.PresentationMedia.DemandRendering:output_type -> rimgovernor.presentation.v1.RenderReply
+	114, // 285: rimgovernor.presentation.v1.PresentationMedia.LeaseVideo:output_type -> rimgovernor.presentation.v1.VideoReply
+	116, // 286: rimgovernor.presentation.v1.PresentationMedia.ReadFrame:output_type -> rimgovernor.presentation.v1.FrameReply
+	119, // 287: rimgovernor.presentation.v1.PresentationMedia.AcknowledgeFrame:output_type -> rimgovernor.presentation.v1.FrameAcknowledgementReply
+	122, // 288: rimgovernor.presentation.v1.PresentationMedia.CapturePawn:output_type -> rimgovernor.presentation.v1.PawnImageReply
+	125, // 289: rimgovernor.presentation.v1.PresentationMedia.CaptureScreenshot:output_type -> rimgovernor.presentation.v1.ScreenshotReply
+	267, // [267:290] is the sub-list for method output_type
+	244, // [244:267] is the sub-list for method input_type
+	244, // [244:244] is the sub-list for extension type_name
+	244, // [244:244] is the sub-list for extension extendee
+	0,   // [0:244] is the sub-list for field type_name
 }
 
 func init() { file_presentation_proto_init() }
@@ -12135,20 +12243,20 @@ func file_presentation_proto_init() {
 	}
 	file_presentation_proto_msgTypes[120].OneofWrappers = []any{}
 	file_presentation_proto_msgTypes[121].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[122].OneofWrappers = []any{}
 	file_presentation_proto_msgTypes[123].OneofWrappers = []any{}
 	file_presentation_proto_msgTypes[124].OneofWrappers = []any{}
-	file_presentation_proto_msgTypes[125].OneofWrappers = []any{
-		(*LayoutPlanReply_Applied)(nil),
-		(*LayoutPlanReply_Failure)(nil),
+	file_presentation_proto_msgTypes[125].OneofWrappers = []any{}
+	file_presentation_proto_msgTypes[126].OneofWrappers = []any{
+		(*OverlayReply_Applied)(nil),
+		(*OverlayReply_Failure)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_presentation_proto_rawDesc), len(file_presentation_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   126,
+			NumEnums:      6,
+			NumMessages:   127,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

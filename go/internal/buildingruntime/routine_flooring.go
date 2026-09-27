@@ -3,10 +3,15 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"slices"
+	"strings"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // NewRoutineFlooringPlanner composes MaintainFlooring's building method: lay
@@ -25,9 +30,16 @@ func NewRoutineFlooringPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 }
 
 // flooringDefinitions lists every floor the policy may choose so the census
-// read carries each one's availability, stats and cost list.
+// read carries each one's availability, stats and cost list, the entry floors included.
 func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
-	return append([]string(nil), r.reviewer.policy.Flooring.Floors...)
+	p := r.reviewer.policy.Flooring
+	names := append([]string(nil), p.Floors...)
+	for _, name := range p.EntryFloors {
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // selectFlooring re-reviews the fresh census under the review's latch and
@@ -35,6 +47,7 @@ func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
 // definition and its cells, everything else is a reason.
 func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	p := r.reviewer.policy.Flooring
+	logTrafficFindings(facts.Facts.Upkeep.Flooring)
 	review, err := policy.ReviewFlooring(facts.Facts.Upkeep.Flooring, facts.Rooms, latches.Flooring, p)
 	if err != nil {
 		return nil, "", err
@@ -138,4 +151,33 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 		return nil, stock, BuildingMethodUnknown, nil
 	}
 	return nil, stock, BuildingMethodNoSpace, nil
+}
+
+// trafficFindingsLogged is the last finding set logged, so the service log
+// names a flagged room when it changes rather than on every review.
+var trafficFindingsLogged struct {
+	sync.Mutex
+	last string
+}
+
+// logTrafficFindings flags thoroughfares and animals in clean rooms from
+// the traffic layers (#817) in the service log; no planner acts on them yet.
+func logTrafficFindings(fact domain.Fact[policy.FlooringObservation]) {
+	v, known := fact.Value()
+	if !known {
+		return
+	}
+	var lines []string
+	for _, f := range policy.TrafficFindings(v) {
+		lines = append(lines, f.String())
+	}
+	joined := strings.Join(lines, "; ")
+	trafficFindingsLogged.Lock()
+	changed := joined != trafficFindingsLogged.last
+	trafficFindingsLogged.last = joined
+	trafficFindingsLogged.Unlock()
+	if !changed || joined == "" {
+		return
+	}
+	slog.Default().Info("traffic findings: "+joined, telemetry.ComponentKey, "routine-flooring", telemetry.KindKey, "traffic_finding")
 }

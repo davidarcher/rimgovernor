@@ -176,12 +176,21 @@ func colonyRoutes(section *o.RoutesSection) domain.Fact[policy.RoutesObservation
 		r.Facilities = append(r.Facilities, out)
 	}
 	for _, t := range f.Traffic {
-		if t.Samples == nil || t.Terrain == nil || t.Home == nil {
+		layer, ok := trafficLayers[t.Layer]
+		if t.Samples == nil || t.Terrain == nil || t.Home == nil || !ok {
 			return domain.Fact[policy.RoutesObservation]{}
 		}
-		r.Traffic = append(r.Traffic, policy.TrafficCell{Cell: domain.Cell{X: t.Cell.GetX(), Z: t.Cell.GetZ()}, Samples: t.GetSamples(), Terrain: t.GetTerrain(), Home: t.GetHome(), Pending: t.GetPending()})
+		r.Traffic = append(r.Traffic, policy.TrafficCell{Cell: domain.Cell{X: t.Cell.GetX(), Z: t.Cell.GetZ()}, Layer: layer, Samples: t.GetSamples(), Terrain: t.GetTerrain(), Home: t.GetHome(), Pending: t.GetPending()})
 	}
 	return domain.Known(r)
+}
+
+var trafficLayers = map[o.TrafficLayer]policy.TrafficLayer{
+	o.TrafficLayer_TRAFFIC_LAYER_COLONIST: policy.TrafficColonist,
+	o.TrafficLayer_TRAFFIC_LAYER_CROSSING: policy.TrafficCrossing,
+	o.TrafficLayer_TRAFFIC_LAYER_ANIMAL:   policy.TrafficAnimal,
+	o.TrafficLayer_TRAFFIC_LAYER_VISITOR:  policy.TrafficVisitor,
+	o.TrafficLayer_TRAFFIC_LAYER_HOSTILE:  policy.TrafficHostile,
 }
 
 // colonyLighting decodes the lighting section; any row missing a measured

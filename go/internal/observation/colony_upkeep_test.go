@@ -174,7 +174,7 @@ func routesWireFacts() *o.RoutesFacts {
 			},
 			Breaches: []*o.RouteBreach{{Cell: cell(9, 10), Edifice: proto.String("Wall"), Distance: proto.Int32(4), Pending: proto.String("Door")}},
 		}},
-		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true)}, {Cell: cell(6, 5), Samples: proto.Uint32(3), Terrain: proto.String("Lava"), Home: proto.Bool(false)}},
+		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true), Layer: o.TrafficLayer_TRAFFIC_LAYER_COLONIST}, {Cell: cell(6, 5), Samples: proto.Uint32(3), Terrain: proto.String("Lava"), Home: proto.Bool(false), Layer: o.TrafficLayer_TRAFFIC_LAYER_COLONIST}},
 		TrafficSamples:   proto.Uint32(200),
 		TrafficSinceTick: proto.Int32(400),
 	}
@@ -198,7 +198,7 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 	if f.Breaches[0] != (policy.RouteBreach{Cell: domain.Cell{X: 9, Z: 10}, Edifice: "Wall", Pending: "Door", Distance: 4}) {
 		t.Fatal(f.Breaches)
 	}
-	if r.Traffic[0] != (policy.TrafficCell{Cell: domain.Cell{X: 5, Z: 5}, Samples: 30, Terrain: "Soil", Home: true}) {
+	if r.Traffic[0] != (policy.TrafficCell{Cell: domain.Cell{X: 5, Z: 5}, Samples: 30, Terrain: "Soil", Home: true, Layer: policy.TrafficColonist}) {
 		t.Fatal(r.Traffic)
 	}
 	routes.Facilities[0].Travel[0].Reachable = nil

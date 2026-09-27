@@ -293,7 +293,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Facilities), 256) != nil || len(f.PawnIds) > 32 || len(f.Traffic) > 256 {
+	if colonyCounts(f.Completeness, len(f.Facilities), 256) != nil || len(f.PawnIds) > 32 || len(f.Traffic) > 5*128 { // the busiest 128 cells per traffic layer (#817)
 		return contract("invalid routes census")
 	}
 	if !proto.Equal(f, &o.RoutesFacts{Facilities: f.Facilities, PawnIds: f.PawnIds, Traffic: f.Traffic, TrafficSamples: f.TrafficSamples, TrafficSinceTick: f.TrafficSinceTick, Completeness: f.Completeness}) || f.TrafficSinceTick != nil && f.GetTrafficSinceTick() < 0 {
@@ -330,12 +330,13 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 			cells[key] = true
 		}
 	}
-	cells := map[[2]int32]bool{}
+	// A cell appears once per traffic layer (#817).
+	cells := map[[3]int32]bool{}
 	for _, t := range f.Traffic {
-		if t == nil || !colonyCell(t.Cell, size) || t.Terrain != nil && validID(t.GetTerrain()) != nil || t.Pending != nil && validID(t.GetPending()) != nil || !proto.Equal(t, &o.TrafficCell{Cell: t.Cell, Samples: t.Samples, Terrain: t.Terrain, Home: t.Home, Pending: t.Pending}) {
+		if t == nil || !colonyCell(t.Cell, size) || t.Layer < o.TrafficLayer_TRAFFIC_LAYER_COLONIST || t.Layer > o.TrafficLayer_TRAFFIC_LAYER_HOSTILE || t.Terrain != nil && validID(t.GetTerrain()) != nil || t.Pending != nil && validID(t.GetPending()) != nil || !proto.Equal(t, &o.TrafficCell{Cell: t.Cell, Samples: t.Samples, Terrain: t.Terrain, Home: t.Home, Pending: t.Pending, Layer: t.Layer}) {
 			return contract("invalid traffic cell")
 		}
-		key := [2]int32{t.Cell.GetX(), t.Cell.GetZ()}
+		key := [3]int32{int32(t.Layer), t.Cell.GetX(), t.Cell.GetZ()}
 		if cells[key] {
 			return contract("traffic cells overlap")
 		}

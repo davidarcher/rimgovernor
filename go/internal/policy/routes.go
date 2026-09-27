@@ -72,7 +72,9 @@ type RouteBreach struct {
 	Distance int32
 }
 type TrafficCell struct {
-	Cell    domain.Cell
+	Cell domain.Cell
+	// Layer is the pawn class the count belongs to (#817).
+	Layer   TrafficLayer
 	Samples uint32
 	Terrain string
 	Home    bool
@@ -80,8 +82,42 @@ type TrafficCell struct {
 	Pending string
 }
 
+// TrafficLayer names a traffic counter layer (#817): each counts cell
+// changes of one pawn class and decays on its own half-life.
+type TrafficLayer string
+
+const (
+	TrafficColonist TrafficLayer = "colonist"
+	// TrafficCrossing counts any pawn stepping from soil or sand onto a
+	// built floor: the dirt entry points.
+	TrafficCrossing TrafficLayer = "crossing"
+	TrafficAnimal   TrafficLayer = "animal"
+	TrafficVisitor  TrafficLayer = "visitor"
+	TrafficHostile  TrafficLayer = "hostile"
+)
+
+// TrafficCellBound is the most traffic cells a census carries: the native
+// reports the busiest 128 per layer.
+const TrafficCellBound = 5 * 128
+
+// trafficCellKey identifies a traffic row: a cell appears once per layer.
+type trafficCellKey struct {
+	Layer TrafficLayer
+	Cell  domain.Cell
+}
+
+// The empty layer is a census recorded before #817 (snapshot replays):
+// the old sampler counted colonists only.
+func (l TrafficLayer) valid() bool {
+	switch l {
+	case "", TrafficColonist, TrafficCrossing, TrafficAnimal, TrafficVisitor, TrafficHostile:
+		return true
+	}
+	return false
+}
+
 func (v RoutesObservation) Validate() error {
-	if len(v.Pawns) > 32 || len(v.Facilities) > 256 || len(v.Traffic) > 256 {
+	if len(v.Pawns) > 32 || len(v.Facilities) > 256 || len(v.Traffic) > TrafficCellBound {
 		return errors.New("routes census exceeds bound")
 	}
 	pawns := map[string]bool{}
@@ -121,12 +157,13 @@ func (v RoutesObservation) Validate() error {
 			cells[b.Cell] = true
 		}
 	}
-	cells := map[domain.Cell]bool{}
+	cells := map[trafficCellKey]bool{}
 	for _, t := range v.Traffic {
-		if !foodID(t.Terrain) || cells[t.Cell] || t.Pending != "" && !foodID(t.Pending) {
+		key := trafficCellKey{t.Layer, t.Cell}
+		if !t.Layer.valid() || !foodID(t.Terrain) || cells[key] || t.Pending != "" && !foodID(t.Pending) {
 			return errors.New("invalid traffic cell")
 		}
-		cells[t.Cell] = true
+		cells[key] = true
 	}
 	return nil
 }
@@ -303,3 +340,6 @@ func SelectRoutesMethod(review RoutesReview, facts RoutesFacts, p RoutesPolicy) 
 	}
 	return RoutesProposal{Method: deferred}, nil
 }
+
+// colonist reports a colonist-layer row, the pre-#817 unlayered ones too.
+func (l TrafficLayer) colonist() bool { return l == TrafficColonist || l == "" }

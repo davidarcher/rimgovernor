@@ -495,32 +495,36 @@ service PresentationMedia {
   rpc CaptureScreenshot(ScreenshotRequest) returns (ScreenshotReply);
 }
 
-// Layout plan overlay (#726): the colony layout drawn as native 1.6 plans
-// plus text labels. Output only: every call deletes the plans this tool
-// made (label prefix "RimGovernor") and redraws; nothing reads them back.
-// Cells come as inclusive rectangles, usually single-row runs.
-message LayoutPlanLayer {
-  optional string color_def = 1; // A ColorDef of colorType Planning.
-  optional string label = 2;     // Plan label, prefixed natively.
-  repeated MapRect rects = 3;
+// RimGovernor map overlay (#817): a native MapComponent draws named layers
+// as meshes and labels. Output only and never saved: each call replaces
+// the one layer it names and leaves the others; the Go side resends after
+// a load. Layer ids group producers: "layout", "heat.colonist", ...
+message OverlayColor { optional float r = 1; optional float g = 2; optional float b = 3; optional float a = 4; }
+// A row run: cells (x .. x+length-1, z).
+message OverlayRun { optional int32 x = 1; optional int32 z = 2; optional int32 length = 3; }
+enum OverlayStyle {
+  OVERLAY_STYLE_UNSPECIFIED = 0;
+  OVERLAY_STYLE_FILL = 1;    // Every cell filled.
+  OVERLAY_STYLE_OUTLINE = 2; // Only the boundary edges of the shape's cells.
 }
-// A text label drawn at a map cell while the overlay is on.
-message LayoutPlanLabel { optional string text = 1; rimgovernor.common.v1.Cell cell = 2; }
-// Colors existing player rooms by their native RoomRoleDef.
-message LayoutPlanRoomColor { optional string role_def = 1; optional string color_def = 2; optional string label = 3; }
-message LayoutPlanRequest {
+message OverlayShape {
+  OverlayColor color = 1;
+  OverlayStyle style = 2;
+  repeated MapRect rects = 3; // Inclusive.
+  repeated OverlayRun runs = 4;
+}
+// Text drawn at a map cell while the layer is visible.
+message OverlayLabel { optional string text = 1; rimgovernor.common.v1.Cell cell = 2; }
+message OverlayRequest {
   rimgovernor.common.v1.Identity identity = 1;
-  optional bool enabled = 2; // false removes every owned plan and label.
-  repeated LayoutPlanLayer layers = 3;
-  repeated LayoutPlanLabel labels = 4;
-  repeated LayoutPlanRoomColor room_colors = 5;
+  optional string layer_id = 2;
+  optional bool enabled = 3; // false removes the layer.
+  repeated OverlayShape shapes = 4;
+  repeated OverlayLabel labels = 5;
 }
-message LayoutPlanApplied {
+message OverlayApplied {
   rimgovernor.common.v1.ObservationContext context = 1;
-  optional uint32 plans = 2;   // Owned plans after the call.
-  optional uint32 cells = 3;   // Cells those plans hold.
-  optional uint32 removed = 4; // Owned plans deleted first.
-  optional uint32 skipped = 5; // Cells left to a player plan or off the map.
-  optional uint32 rooms = 6;   // Existing rooms colored.
+  optional uint32 cells = 2;  // Cells the layer covers.
+  optional uint32 layers = 3; // Layers held after the call.
 }
-message LayoutPlanReply { oneof outcome { LayoutPlanApplied applied = 1; rimgovernor.common.v1.Failure failure = 2; } }
+message OverlayReply { oneof outcome { OverlayApplied applied = 1; rimgovernor.common.v1.Failure failure = 2; } }

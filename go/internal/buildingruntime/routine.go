@@ -60,12 +60,14 @@ type RoutineReviewer struct {
 	planSurveyed bool
 	// layoutInvalidLogged: an invalid saved layout plan is logged once.
 	layoutInvalidLogged bool
-	// layoutOverlay draws the layout plan as native plans (#726); the
+	// layoutOverlay draws the layout plan as a native overlay (#817); the
 	// overlay fields record the last draw. See drawLayoutOverlay.
 	layoutOverlay  bool
 	overlayKey     string
 	overlayDrawn   domain.Tick
 	overlayCleared bool
+	heatDrawn      domain.Tick
+	heatCleared    bool
 }
 
 // staged is the configured policy with its goal budgets set by the colony
@@ -169,7 +171,7 @@ func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool, expected o
 type RoutineCapabilities struct {
 	Methods   []policy.GoalID
 	Longitude domain.Fact[float64]
-	// LayoutOverlay draws the layout plan as native plan designations
+	// LayoutOverlay draws the layout plan as a native overlay layer
 	// (#726, serve --layout-overlay).
 	LayoutOverlay bool
 }
