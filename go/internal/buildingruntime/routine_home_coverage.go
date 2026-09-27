@@ -32,7 +32,7 @@ type RoutineHomeCoverageResult struct {
 
 func NewRoutineHomeCoveragePlanner(reviewer *RoutineReviewer, native RoutineHomeCoverageSource) (*RoutineHomeCoveragePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineHomeCoveragePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineHomeCoveragePlanner{reviewer, native}, nil
 }
@@ -77,7 +77,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 		return RoutineHomeCoverageResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineHomeCoverageResult{}, ErrControl
+		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -118,10 +118,10 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineHomeCoverageResult{}, ErrControl
+		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineHomeCoverageResult{}, ErrControl
+		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	census, ok := homeCoverageObservationFacts(observed)
 	if !ok {
@@ -160,7 +160,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineHomeCoverageResult{}, ErrControl
+		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineHomeCoverageResult{}, err

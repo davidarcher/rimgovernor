@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"time"
@@ -177,13 +178,13 @@ type RoutineCapabilities struct {
 
 func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration, capabilities ...RoutineCapabilities) (*RoutineReviewer, error) {
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineReviewer: player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > t", ErrControl)
 	}
 	methods := domain.Unknown[[]policy.GoalID]()
 	longitude := domain.Unknown[float64]()
 	reviewerOverlay := false
 	if len(capabilities) > 1 {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineReviewer: len(capabilities) > 1", ErrControl)
 	}
 	if len(capabilities) == 1 {
 		reviewerOverlay = capabilities[0].LayoutOverlay
@@ -193,7 +194,7 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 		}
 		if lon, known := capabilities[0].Longitude.Value(); known {
 			if math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180 {
-				return nil, ErrControl
+				return nil, fmt.Errorf("%w: NewRoutineReviewer: math.IsNaN(lon) || math.IsInf(lon, 0) || lon < -180 || lon > 180", ErrControl)
 			}
 			longitude = capabilities[0].Longitude
 		}
@@ -222,7 +223,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		clockSchedulerLog("routine.step: ErrControl observationKnown=%v snapshotValidate=%v native=%d", state.ObservationKnown, state.Snapshot.Validate(), state.Snapshot.Native)
-		return store.RoutineReviewResult{}, ErrControl
+		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	previous, err := p.journal.LoadRoutineReview(ctx)
 	if err != nil {
@@ -242,7 +243,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !known || native != state.Snapshot.Native {
 		clockSchedulerLog("routine.step: ErrControl identity mismatch expectedColony=%v stateColony=%v expectedLoad=%v stateLoad=%v expectedMap=%v stateMap=%v known=%v native=%d stateNative=%d",
 			expected.Colony, state.Snapshot.Colony, expected.Load, state.Snapshot.Load, expected.Map, state.Snapshot.Map, known, native, state.Snapshot.Native)
-		return store.RoutineReviewResult{}, ErrControl
+		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.S", ErrControl)
 	}
 	plans, err := p.journal.LoadPlans(ctx, 256)
 	if err != nil {
@@ -281,7 +282,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	if preferences.World != (store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}) {
-		return store.RoutineReviewResult{}, ErrControl
+		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: preferences.World != (store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snap", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -469,14 +470,14 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	if p.session.State() != state {
 		clockSchedulerLog("routine.step: ErrControl state changed under us")
-		return store.RoutineReviewResult{}, ErrControl
+		return store.RoutineReviewResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
 	if r.methodEnabled(policy.ClearHomeObstructions) {
 		source, ok := r.native.(observation.ClearanceSource)
 		if !ok {
-			return store.RoutineReviewResult{}, ErrControl
+			return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		clearance, err := observation.ObserveClearanceCensus(ctx, source, expected)
 		if err != nil {
@@ -490,7 +491,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.ClearAncientShrine) {
 		source, ok := r.native.(observation.ShrineSource)
 		if !ok {
-			return store.RoutineReviewResult{}, ErrControl
+			return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		if reading.Projection.Facts.Upkeep.Shrines, err = observation.ObserveShrines(ctx, source, expected); err != nil {
 			return store.RoutineReviewResult{}, err

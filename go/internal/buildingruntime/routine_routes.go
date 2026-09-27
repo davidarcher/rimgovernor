@@ -16,10 +16,10 @@ import (
 // facility reachable by some colonist.
 func NewRoutineRoutesPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRoutes) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineRoutesPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRoutes)", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineRoutesPlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainRoutes, definition: reviewer.policy.Routes.Door}, nil
 }
@@ -92,7 +92,7 @@ func deliberateBreach(p policy.Preview) bool {
 func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.routes == nil || r.routes.Method != policy.RoutesBuild {
-		return nil, stock, "", ErrControl
+		return nil, stock, "", fmt.Errorf("%w: previewRoutes: r.routes == nil || r.routes.Method != policy.RoutesBuild", ErrControl)
 	}
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {

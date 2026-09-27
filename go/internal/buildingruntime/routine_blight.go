@@ -35,7 +35,7 @@ type RoutineBlightResult struct {
 
 func NewRoutineBlightPlanner(reviewer *RoutineReviewer, native RoutineBlightSource) (*RoutineBlightPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineBlightPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineBlightPlanner{reviewer, native}, nil
 }
@@ -46,7 +46,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineBlightResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineBlightResult{}, ErrControl
+		return RoutineBlightResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -103,7 +103,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineBlightResult{}, err
 	}
 	if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
-		return RoutineBlightResult{}, ErrControl
+		return RoutineBlightResult{}, fmt.Errorf("%w: step: err != nil || read.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	var census []policy.BlightedPlant
 	byID := map[string]domain.CutPlant{}
@@ -138,7 +138,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineBlightResult{}, ErrControl
+		return RoutineBlightResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBlightResult{}, err

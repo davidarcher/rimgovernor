@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -80,21 +81,21 @@ func (s *sessionSink) drain(ctx context.Context, retainHeld bool) error {
 // authority and the original complete snapshot remain mandatory at dispatch.
 func (s *Session) CommandClock(ctx context.Context, intent store.ClockIntent) (store.ClockAttempt, error) {
 	if s.clock == nil {
-		return store.ClockAttempt{}, ErrControl
+		return store.ClockAttempt{}, fmt.Errorf("%w: CommandClock: s.clock == nil", ErrControl)
 	}
 	return s.clock.Command(ctx, intent)
 }
 
 func (s *Session) CommandClockWindow(ctx context.Context, request ClockWindowRequest) (store.ClockAttempt, error) {
 	if s.clock == nil {
-		return store.ClockAttempt{}, ErrControl
+		return store.ClockAttempt{}, fmt.Errorf("%w: CommandClockWindow: s.clock == nil", ErrControl)
 	}
 	return s.clock.CommandWindow(ctx, request)
 }
 
 func (s *Session) ReconcileClock(ctx context.Context, requestID string) (store.ClockAttempt, error) {
 	if s.clock == nil {
-		return store.ClockAttempt{}, ErrControl
+		return store.ClockAttempt{}, fmt.Errorf("%w: ReconcileClock: s.clock == nil", ErrControl)
 	}
 	return s.clock.Reconcile(ctx, requestID)
 }
@@ -116,7 +117,7 @@ func (s *Session) CleanupClockObserved(ctx context.Context, observed *k.Status) 
 // runs under a stopped owned epoch before the next window is admitted.
 func (s *Session) RepauseClock(ctx context.Context, observed *k.Status) (*k.Status, error) {
 	if s.clock == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: RepauseClock: s.clock == nil", ErrControl)
 	}
 	return s.clock.RepauseObserved(ctx, observed)
 }

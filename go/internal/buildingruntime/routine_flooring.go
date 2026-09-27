@@ -21,10 +21,10 @@ import (
 // cell of it reads deficient.
 func NewRoutineFlooringPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainFlooring) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineFlooringPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainFlooring)", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineFlooringPlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainFlooring, definition: "WoodPlankFloor"}, nil
 }
@@ -92,7 +92,7 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.flooring == nil || r.flooring.Method != policy.FlooringBuild {
-		return nil, stock, "", ErrControl
+		return nil, stock, "", fmt.Errorf("%w: previewFlooring: r.flooring == nil || r.flooring.Method != policy.FlooringBuild", ErrControl)
 	}
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {

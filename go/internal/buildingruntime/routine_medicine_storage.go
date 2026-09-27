@@ -222,7 +222,7 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != facts.Identity.Tick {
-			return "", ErrControl
+			return "", fmt.Errorf("%w: medicineStorage: err != nil || domain.Tick(v.Context.GetTick()) != facts.Identity.Tick", ErrControl)
 		}
 		action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
@@ -238,7 +238,7 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", ErrControl
+			return "", fmt.Errorf("%w: medicineStorage: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 		if err != nil {

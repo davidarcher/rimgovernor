@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -42,7 +43,7 @@ type WorldEvaluation struct {
 // must be non-nil.
 func NewWorldEvaluation(player *Player, native WorldEvaluationNative, p policy.WorldEvaluationPolicy) (*WorldEvaluation, error) {
 	if player == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewWorldEvaluation: player == nil || native == nil", ErrControl)
 	}
 	return &WorldEvaluation{player: player, native: native, policy: p}, nil
 }
@@ -80,10 +81,10 @@ func (w *WorldEvaluation) Read(ctx context.Context) (policy.WorldEvaluationRepor
 	// once the outcome switch there picked the Observed branch without error.
 	observed := colony.GetObserved()
 	if observed == nil {
-		return policy.WorldEvaluationReport{}, ErrControl
+		return policy.WorldEvaluationReport{}, fmt.Errorf("%w: Read: observed == nil", ErrControl)
 	}
 	if observed.Context.GetTick() != world.Context.GetTick() {
-		return policy.WorldEvaluationReport{}, ErrControl
+		return policy.WorldEvaluationReport{}, fmt.Errorf("%w: Read: observed.Context.GetTick() != world.Context.GetTick()", ErrControl)
 	}
 	resources := make(map[string]int64, len(observed.Resources))
 	for _, row := range observed.Resources {

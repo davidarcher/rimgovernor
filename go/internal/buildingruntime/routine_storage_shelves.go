@@ -43,10 +43,10 @@ const maxShelvesPerZone = 8
 
 func NewRoutineStorageShelvesPlanner(reviewer *RoutineReviewer, native RoutineStorageShelvesSource) (*RoutineStorageShelvesPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineStorageShelvesPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineStorageShelvesPlanner: !ok", ErrControl)
 	}
 	return &RoutineStorageShelvesPlanner{reviewer: reviewer, native: native}, nil
 }
@@ -64,7 +64,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		return RoutineStorageShelvesResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineStorageShelvesResult{}, ErrControl
+		return RoutineStorageShelvesResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -114,7 +114,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		return RoutineStorageShelvesResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineStorageShelvesResult{}, ErrControl
+		return RoutineStorageShelvesResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), policy.ShelfDefinition)
 	if err != nil {
@@ -231,7 +231,7 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 			return err
 		}
 		if p.session.State() != state {
-			return ErrControl
+			return fmt.Errorf("%w: build: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}

@@ -33,7 +33,7 @@ type RoutineTendResult struct {
 
 func NewRoutineTendPlanner(reviewer *RoutineReviewer, native RoutineTendSource) (*RoutineTendPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineTendPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineTendPlanner{reviewer, native}, nil
 }
@@ -44,7 +44,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTendResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineTendResult{}, ErrControl
+		return RoutineTendResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTendResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineTendResult{}, ErrControl
+		return RoutineTendResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -100,20 +100,20 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineTendResult{}, ErrControl
+		return RoutineTendResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineTendResult{}, ErrControl
+		return RoutineTendResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return RoutineTendResult{}, ErrControl
+		return RoutineTendResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	var doctors []policy.TendDoctorFacts
 	var patients []policy.TendPatientFacts
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineTendResult{}, ErrControl
+			return RoutineTendResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -159,7 +159,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineTendResult{}, ErrControl
+		return RoutineTendResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineTendResult{}, err

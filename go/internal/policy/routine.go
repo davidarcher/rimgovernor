@@ -248,8 +248,11 @@ type RoutineFacts struct {
 	StoneStructures      domain.Fact[[]StoneStructure]
 	ConstructionClaims   domain.Fact[[]ConstructionClaim]
 	CurrentConstruction  domain.Fact[CurrentConstruction]
-	Sleeping             domain.Fact[SleepingObservation]
-	SleepingRecovered    domain.Fact[bool]
+	// ConstructionDeficit is the material standing blueprints and frames
+	// are still owed, per resource.
+	ConstructionDeficit domain.Fact[map[Resource]int64]
+	Sleeping            domain.Fact[SleepingObservation]
+	SleepingRecovered   domain.Fact[bool]
 	// BedroomsOwed: a planned individual bedroom step is due (#786); it
 	// keeps MaintainSleeping open once everyone owns a barracks bed.
 	BedroomsOwed domain.Fact[bool]

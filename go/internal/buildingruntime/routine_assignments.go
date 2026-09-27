@@ -33,7 +33,7 @@ type RoutineWorkResult struct {
 
 func NewRoutineWorkPlanner(reviewer *RoutineReviewer) (*RoutineWorkPlanner, error) {
 	if reviewer == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineWorkPlanner: reviewer == nil", ErrControl)
 	}
 	benches, _ := reviewer.native.(RoutineWorkBenchSource)
 	return &RoutineWorkPlanner{reviewer: reviewer, benches: benches}, nil
@@ -45,7 +45,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineWorkResult{}, ErrControl
+		return RoutineWorkResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -104,7 +104,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	if preferences.World != playerWorld(state.Snapshot) || preferences.Revision != review.WorkPreferenceRevision {
-		return RoutineWorkResult{}, ErrControl
+		return RoutineWorkResult{}, fmt.Errorf("%w: step: preferences.World != playerWorld(state.Snapshot) || preferences.Revision != review.WorkPreferenceRevision", ErrControl)
 	}
 	plans, err := p.journal.LoadPlans(call, 256)
 	if err != nil {
@@ -120,7 +120,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineWorkResult{}, ErrControl
+		return RoutineWorkResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -210,7 +210,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			continue
 		}
 		if !ok {
-			return RoutineWorkResult{}, ErrControl
+			return RoutineWorkResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		schedule := schedules[assignment.Pawn]
 		if len(changed) == 0 && len(schedule) == 0 {
@@ -282,7 +282,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineWorkResult{}, ErrControl
+		return RoutineWorkResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWorkResult{}, err

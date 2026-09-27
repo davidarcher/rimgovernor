@@ -53,7 +53,7 @@ type RoutineMedicalResult struct {
 
 func NewRoutineMedicalPlanner(reviewer *RoutineReviewer, native RoutineMedicalSource) (*RoutineMedicalPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineMedicalPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineMedicalPlanner{reviewer, native}, nil
 }
@@ -136,7 +136,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -196,13 +196,13 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if err = bridge.ValidateColonyFacts(observed, identity); err != nil {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	facts := medicalReserveObservationFacts(observed)
 	medicalReview, err := policy.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
@@ -246,7 +246,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	token, ok := tokens[choice.Bench]
 	if !ok {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
@@ -254,7 +254,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	id := domain.MintPlanID("routine-medical")
 	target := int32(choice.Target)
 	if int64(target) != choice.Target {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: int64(target) != choice.Target", ErrControl)
 	}
 	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, target)
 	if err != nil {
@@ -273,7 +273,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineMedicalResult{}, err
@@ -361,7 +361,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: harvestMedicine: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineMedicalResult{}, err

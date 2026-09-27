@@ -110,7 +110,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			}
 			actual, err := routineScope(call, r.reviewer.native)
 			if err != nil || !routineBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || r.reviewer.player.session.State() != state {
-				return RoutineFieldResult{}, false, ErrControl
+				return RoutineFieldResult{}, false, fmt.Errorf("%w: fishing: err != nil || !routineBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || r.reviewer.player.sessio", ErrControl)
 			}
 			now := r.reviewer.clock.Now()
 			if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {

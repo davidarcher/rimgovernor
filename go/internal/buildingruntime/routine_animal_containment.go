@@ -29,7 +29,7 @@ type RoutineAnimalContainmentResult struct {
 
 func NewRoutineAnimalContainmentPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineAnimalContainmentPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineAnimalContainmentPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineAnimalContainmentPlanner{reviewer: reviewer, native: native}, nil
 }
@@ -167,7 +167,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineAnimalContainmentResult{}, ErrControl
+		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -227,7 +227,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineAnimalContainmentResult{}, ErrControl
+		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -261,10 +261,10 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	case policy.ContainmentBuildShell:
 	case policy.ContainmentPlaceMarker:
 		if !haveShellRoom {
-			return RoutineAnimalContainmentResult{}, ErrControl
+			return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: step: !haveShellRoom", ErrControl)
 		}
 	default:
-		return RoutineAnimalContainmentResult{}, ErrControl
+		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: step: case policy.ContainmentPlaceMarker", ErrControl)
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
@@ -331,14 +331,14 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 			return RoutineAnimalContainmentResult{}, err
 		}
 		if p.session.State() != state {
-			return RoutineAnimalContainmentResult{}, ErrControl
+			return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: buildShell: p.session.State() != state", ErrControl)
 		}
 		actual, err := stepScope(call, r.reviewer.native)
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}
 		if !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
-			return RoutineAnimalContainmentResult{}, ErrControl
+			return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: buildShell: !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)", ErrControl)
 		}
 		now := r.reviewer.clock.Now()
 		if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
@@ -491,14 +491,14 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineAnimalContainmentResult{}, ErrControl
+		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: placeMarker: p.session.State() != state", ErrControl)
 	}
 	actual, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
-		return RoutineAnimalContainmentResult{}, ErrControl
+		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: placeMarker: !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {

@@ -16,7 +16,7 @@ func (s *sessionSink) Lease(snapshot domain.GenerationSnapshot) (string, error) 
 	control := s.control
 	s.mu.Unlock()
 	if control == nil {
-		return "", ErrControl
+		return "", fmt.Errorf("%w: Lease: control == nil", ErrControl)
 	}
 	return control.Lease(snapshot)
 }

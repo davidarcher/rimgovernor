@@ -39,10 +39,10 @@ type RoutineStoneShellResult struct {
 
 func NewRoutineStoneShellPlanner(reviewer *RoutineReviewer, native RoutineStoneShellSource) (*RoutineStoneShellPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineStoneShellPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if reviewer.native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineStoneShellPlanner: reviewer.native == nil", ErrControl)
 	}
 	return &RoutineStoneShellPlanner{reviewer, native}, nil
 }
@@ -59,7 +59,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineStoneShellResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineStoneShellResult{}, ErrControl
+		return RoutineStoneShellResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -97,7 +97,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineStoneShellResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineStoneShellResult{}, ErrControl
+		return RoutineStoneShellResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -173,7 +173,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	}
 	current, err := boundary.Context(sites.Context, state.Snapshot)
 	if err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineStoneShellResult{}, false, ErrControl
+		return RoutineStoneShellResult{}, false, fmt.Errorf("%w: propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) != projection", ErrControl)
 	}
 	if len(sites.Sites) == 0 {
 		return RoutineStoneShellResult{}, false, nil
@@ -293,11 +293,11 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		return RoutineStoneShellResult{}, false, err
 	}
 	if p.session.State() != state {
-		return RoutineStoneShellResult{}, false, ErrControl
+		return RoutineStoneShellResult{}, false, fmt.Errorf("%w: propose: p.session.State() != state", ErrControl)
 	}
 	actual, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
-		return RoutineStoneShellResult{}, false, ErrControl
+		return RoutineStoneShellResult{}, false, fmt.Errorf("%w: propose: err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {

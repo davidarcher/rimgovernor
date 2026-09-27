@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -76,13 +77,13 @@ func (r *RoutineBuildingPlanner) stepWorkshops(call, epoch context.Context, arbi
 // Bills on the staged bench belong to the resource or gear planner.
 func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineWorkshopPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineWorkshopPlanner: !ok", ErrControl)
 	}
 	if _, ok := native.(RoutineWorkshopSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineWorkshopPlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainResource, definition: "Wall", shelter: true}, nil
 }
@@ -103,7 +104,7 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	}
 	source, ok := r.native.(RoutineWorkshopSource)
 	if !ok {
-		return nil, "", ErrControl
+		return nil, "", fmt.Errorf("%w: prepareWorkshop: !ok", ErrControl)
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := source.ReadColonyFacts(call, identity, r.goal == policy.MaintainEquipment)
@@ -112,10 +113,10 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	}
 	observed := reply.GetObserved()
 	if observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil {
-		return nil, "", ErrControl
+		return nil, "", fmt.Errorf("%w: prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return nil, "", ErrControl
+		return nil, "", fmt.Errorf("%w: prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	var resource policy.Resource
 	var products []policy.Resource

@@ -38,10 +38,10 @@ type RoutineSleepingUpkeepPlanner struct {
 
 func NewRoutineSleepingUpkeepPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineSleepingUpkeepPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineSleepingUpkeepPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineSleepingUpkeepPlanner: !ok", ErrControl)
 	}
 	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainSleeping, definition: "Wall", shelter: true}
 	return &RoutineSleepingUpkeepPlanner{reviewer: reviewer, native: native, building: building}, nil
@@ -160,7 +160,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		return RoutineBuildingResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -257,7 +257,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		return RoutineBuildingResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append([]string{"Wall", "Door", policy.SleepingCoupleBedDefinition}, policy.SleepingBedDefinitions...), policy.RoomUpgradeDefinitions...)...)
 	if err != nil {
@@ -376,14 +376,14 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	latest, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if latest.Revision != review.Revision || !latest.Enabled {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err

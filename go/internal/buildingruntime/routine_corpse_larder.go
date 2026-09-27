@@ -58,7 +58,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 	case "zone":
 		return r.admitCorpseZone(ctx, epoch, goal, observed, choice.Cell, method, id, actionID)
 	default:
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseLarder: case \"zone\"", ErrControl)
 	}
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
@@ -72,7 +72,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseLarder: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
 	return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodAdmitted, Plan: id}, err
@@ -112,7 +112,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
 	}
 	if _, err = boundary.Context(v.Context, state.Snapshot); err != nil || v.Context.GetTick() < observed.Context.GetTick() {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseZone: err != nil || v.Context.GetTick() < observed.Context.GetTick()", ErrControl)
 	}
 	zonesNative, _ := r.native.(observation.ZonesNative)
 	zones, err := observation.ReadZoneSection(ctx, zonesNative, boundary.Identity(state.Snapshot))
@@ -151,7 +151,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseZone: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	decision, err := p.journal.AdmitBuildingMethod(ctx, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	reason := BuildingMethodRefused

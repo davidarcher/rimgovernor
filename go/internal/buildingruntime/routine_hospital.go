@@ -46,14 +46,14 @@ type RoutineHospitalPlanner struct {
 
 func NewRoutineHospitalPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineHospitalPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineHospitalPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	source, ok := native.(RoutineHospitalSource)
 	if !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineHospitalPlanner: !ok", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineHospitalPlanner: !ok", ErrControl)
 	}
 	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainMedicalCare, definition: "Wall", shelter: true}
 	return &RoutineHospitalPlanner{reviewer: reviewer, native: source, building: building}, nil
@@ -112,7 +112,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -155,7 +155,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), policy.HospitalBedDefinitions...)
 	if err != nil {
@@ -201,7 +201,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	if _, err = boundary.Context(target.Context, state.Snapshot); err != nil || target.Context.GetTick() < int64(facts.Identity.Tick) {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: err != nil || target.Context.GetTick() < int64(facts.Identity.Tick)", ErrControl)
 	}
 	if target.Medical {
 		return RoutineBuildingResult{Reason: BuildingExistingFacility}, nil
@@ -219,7 +219,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
 	}
 	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
@@ -238,14 +238,14 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	latest, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if latest.Revision != review.Revision || !latest.Enabled {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err

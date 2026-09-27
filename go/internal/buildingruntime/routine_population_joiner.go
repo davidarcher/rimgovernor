@@ -29,7 +29,7 @@ type RoutinePopulationJoinerResult struct {
 
 func NewRoutinePopulationJoinerPlanner(reviewer *RoutineReviewer) (*RoutinePopulationJoinerPlanner, error) {
 	if reviewer == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutinePopulationJoinerPlanner: reviewer == nil", ErrControl)
 	}
 	return &RoutinePopulationJoinerPlanner{reviewer}, nil
 }
@@ -41,7 +41,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutinePopulationJoinerResult{}, ErrControl
+		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		return RoutinePopulationJoinerResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutinePopulationJoinerResult{}, ErrControl
+		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
@@ -134,7 +134,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutinePopulationJoinerResult{}, ErrControl
+		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
@@ -168,7 +168,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutinePopulationJoinerResult{}, ErrControl
+		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: admitLetter: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err

@@ -46,3 +46,30 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 	}
 	return domain.Known(r), nil
 }
+
+// ConstructionDeficit sums, per material, what the player's standing
+// blueprints and frames are still owed (ConstructionState.resources[]
+// still_needed). Unknown without the read or when any row's need is.
+func ConstructionDeficit(v *o.BuildingsSnapshot) domain.Fact[map[policy.Resource]int64] {
+	unknown := domain.Unknown[map[policy.Resource]int64]()
+	if v == nil {
+		return unknown
+	}
+	out := map[policy.Resource]int64{}
+	for _, row := range v.Buildings {
+		switch row.GetStatus() {
+		case "blueprint", "frame":
+		default:
+			continue
+		}
+		for _, need := range row.GetConstruction().GetResources() {
+			if need == nil || need.GetDefName() == "" || need.StillNeeded == nil || need.GetStillNeeded() < 0 {
+				return unknown
+			}
+			if need.GetStillNeeded() > 0 {
+				out[policy.Resource(need.GetDefName())] += need.GetStillNeeded()
+			}
+		}
+	}
+	return domain.Known(out)
+}

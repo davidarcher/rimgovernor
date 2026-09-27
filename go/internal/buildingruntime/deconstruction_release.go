@@ -20,7 +20,7 @@ func releaseDeconstructions(writer DeconstructionWriter, session string) func(co
 			return err
 		}
 		if reply.GetReceipt().GetApplied().GetObserved().GetReleaseDeconstructions() == nil {
-			return ErrControl
+			return fmt.Errorf("%w: releaseDeconstructions: reply.GetReceipt().GetApplied().GetObserved().GetReleaseDeconstructions() == nil", ErrControl)
 		}
 		return nil
 	}

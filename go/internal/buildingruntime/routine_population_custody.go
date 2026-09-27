@@ -35,7 +35,7 @@ type RoutinePopulationCustodyResult struct {
 
 func NewRoutinePopulationCustodyPlanner(reviewer *RoutineReviewer, native RoutineRescueSource) (*RoutinePopulationCustodyPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutinePopulationCustodyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutinePopulationCustodyPlanner{reviewer, native}, nil
 }
@@ -46,7 +46,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return RoutinePopulationCustodyResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
@@ -108,7 +108,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return RoutinePopulationCustodyResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -128,13 +128,13 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	var squad []policy.ShrineDefenderFacts
 	var performers []policy.RescuerFacts
@@ -143,7 +143,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutinePopulationCustodyResult{}, ErrControl
+			return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -156,7 +156,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
 	}
 	if patient == nil {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: patient == nil", ErrControl)
 	}
 	if arrestTarget != "" {
 		return r.commitArrest(call, epoch, p, state, started, goal, read.Projection.Facts, squad, arrestTarget, arbiter)
@@ -218,7 +218,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		}
 		return r.commit(call, epoch, p, state, started, goal, method, id, action)
 	default:
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: check failed", ErrControl)
 	}
 }
 
@@ -232,7 +232,7 @@ func (r *RoutinePopulationCustodyPlanner) commit(call, epoch context.Context, p 
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: commit: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationCustodyResult{}, err

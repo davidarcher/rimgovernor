@@ -26,7 +26,7 @@ type RoutineFoodStorageResult struct {
 
 func NewRoutineFoodStoragePlanner(reviewer *RoutineReviewer, native FieldNative) (*RoutineFoodStoragePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineFoodStoragePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineFoodStoragePlanner{reviewer: reviewer, native: native}, nil
 }
@@ -42,7 +42,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineFoodStorageResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineFoodStorageResult{}, ErrControl
+		return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -89,7 +89,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineFoodStorageResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineFoodStorageResult{}, ErrControl
+		return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -162,13 +162,13 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		}
 		v := reply.GetEvaluated()
 		if v == nil {
-			return RoutineFoodStorageResult{}, ErrControl
+			return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: v == nil", ErrControl)
 		}
 		if !v.GetAccepted() {
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-			return RoutineFoodStorageResult{}, ErrControl
+			return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
 		}
 		cells = candidate
 		preview = policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
@@ -185,11 +185,11 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineFoodStorageResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineFoodStorageResult{}, ErrControl
+		return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	actual, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
-		return RoutineFoodStorageResult{}, ErrControl
+		return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
@@ -266,7 +266,43 @@ func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectang
 			}
 		}
 	}
+	// A layout-plan room builder (#787) raises the planned rectangle at
+	// whatever size the plan chose (the 11x11 starter shelter), which no
+	// starter template reproduces: any plan whose Wall/Door claims are
+	// exactly a door-bearing rectangle's ring is a room too.
+	for _, id := range plans {
+		if b, ok := rectangleRing(byPlan[id].cells, len(byPlan[id].doors) > 0); ok {
+			return b, true
+		}
+	}
 	return policy.Rectangle{}, false
+}
+
+// rectangleRing is the bounds of cells when they are exactly the full ring
+// of a rectangle at least 5x5 (a 3x3 interior) and door is set.
+func rectangleRing(cells map[domain.Cell]bool, door bool) (policy.Rectangle, bool) {
+	if !door || len(cells) == 0 {
+		return policy.Rectangle{}, false
+	}
+	first := true
+	var minX, minZ, maxX, maxZ int32
+	for c := range cells {
+		if first {
+			minX, minZ, maxX, maxZ, first = c.X, c.Z, c.X, c.Z, false
+			continue
+		}
+		minX, minZ, maxX, maxZ = min(minX, c.X), min(minZ, c.Z), max(maxX, c.X), max(maxZ, c.Z)
+	}
+	w, h := maxX-minX+1, maxZ-minZ+1
+	if w < 5 || h < 5 || len(cells) != int(2*(w+h)-4) {
+		return policy.Rectangle{}, false
+	}
+	for c := range cells {
+		if c.X != minX && c.X != maxX && c.Z != minZ && c.Z != maxZ {
+			return policy.Rectangle{}, false
+		}
+	}
+	return policy.Rectangle{X: minX, Z: minZ, Width: w, Height: h}, true
 }
 
 const maxFoodStorageSites = 8

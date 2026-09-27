@@ -31,7 +31,7 @@ type BillPlannerNative interface{}
 // cook-ahead bill MaintainRefrigeration under a solar flare (#408).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
 	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
 	switch purpose {
@@ -51,7 +51,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineBillResult{}, ErrControl
+		return RoutineBillResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineBillResult{}, ErrControl
+		return RoutineBillResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -292,7 +292,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineBillResult{}, ErrControl
+		return RoutineBillResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {

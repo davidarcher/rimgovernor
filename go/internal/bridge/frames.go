@@ -345,7 +345,10 @@ type RoutineFrame struct {
 	Traders      *TradersRead
 	Quests       *WorldProgressionRead
 	Construction *o.BuildingsSnapshot
-	Zones        *ZonesRead
+	// Sites is the frame's all-status player building read, whose
+	// blueprint and frame rows carry their undelivered material.
+	Sites *o.BuildingsSnapshot
+	Zones *ZonesRead
 	// Definitions are the rows of the planning definitions the read
 	// asked for (#944), sorted by name.
 	Definitions []*o.PlanningDefinition
@@ -393,7 +396,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: v.BuiltBuildings, Definitions: v.ProjectDefinitions, Rooms: v.Rooms}
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Pawns: v.ColonistPawns, Construction: v.BuiltBuildings, Sites: v.Buildings, Definitions: v.ProjectDefinitions, Rooms: v.Rooms}
 	var err error
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {

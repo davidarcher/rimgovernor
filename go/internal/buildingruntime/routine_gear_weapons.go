@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -24,10 +25,10 @@ func (r *RoutineGearPlanner) weaponDemand(ctx context.Context, state ControlStat
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: weaponDemand: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < gear.Context.GetTick() {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: weaponDemand: err != nil || observed.Context.GetTick() < gear.Context.GetTick()", ErrControl)
 	}
 	// An exact-ID census counts every other pawn on the map as filtered, so
 	// only the requested rows establish completeness: matched, returned and
@@ -38,7 +39,7 @@ func (r *RoutineGearPlanner) weaponDemand(ctx context.Context, state ControlStat
 	// MaintainEquipment never planned a wear or bill method past its apparel
 	// policies and never recovered (#660).
 	if len(observed.Pawns) != len(ids) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	pawns := []policy.EquipCandidatePawn{}
 	for _, p := range observed.Pawns {
@@ -49,14 +50,14 @@ func (r *RoutineGearPlanner) weaponDemand(ctx context.Context, state ControlStat
 		return nil, err
 	}
 	if _, err = boundary.Context(bounds.Context, state.Snapshot); err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0", ErrControl)
 	}
 	weapons, _, err := source.ReadEquipWeapons(ctx, identity, domain.Cell{}, domain.Cell{X: bounds.Bounds.Width - 1, Z: bounds.Bounds.Height - 1})
 	if err != nil {
 		return nil, err
 	}
 	if _, err = boundary.Context(weapons.Context, state.Snapshot); err != nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: weaponDemand: err != nil", ErrControl)
 	}
 	candidates := []policy.EquipCandidateWeapon{}
 	for _, w := range weapons.Targets {
@@ -66,7 +67,7 @@ func (r *RoutineGearPlanner) weaponDemand(ctx context.Context, state ControlStat
 	for _, b := range benches {
 		rows, known := b.Recipes.Value()
 		if !known {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: weaponDemand: !known", ErrControl)
 		}
 		recipes = append(recipes, rows...)
 	}

@@ -370,199 +370,199 @@ type ClockScheduler struct {
 
 func NewClockScheduler(player *Player, session *Session, native ClockWindowNative, config ClockSchedulerConfig, clock executor.Clock) (*ClockScheduler, error) {
 	if player == nil || session == nil || player.session != session || player.journal != session.journal || session.clock == nil || native == nil || clock == nil || config.MaxAge <= 0 || config.MaxAge > time.Minute {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: player == nil || session == nil || player.session != session || player.journal != session.journal || sessio", ErrControl)
 	}
 	if config.Start.Policy == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Start.Policy == nil", ErrControl)
 	}
 	if config.Routine != nil && config.Routine.player != player {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Routine != nil && config.Routine.player != player", ErrControl)
 	}
 	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Routine == nil || planner.reviewer != config.Routine)", ErrControl)
 		}
 	}
 	if config.Butcher != nil && (config.Routine == nil || config.Butcher.reviewer != config.Routine || config.Butcher.goal != policy.EnsureFoodSupply) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Butcher != nil && (config.Routine == nil || config.Butcher.reviewer != config.Routine || config.Butc", ErrControl)
 	}
 	if config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine)", ErrControl)
 	}
 	if config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine)", ErrControl)
 	}
 	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.PestAcquisition, config.ResourceAcquisition} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: NewClockScheduler: planner != nil && (config.Routine == nil || planner.reviewer != config.Routine)", ErrControl)
 		}
 	}
 	if config.Work != nil && (config.Routine == nil || config.Work.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Work != nil && (config.Routine == nil || config.Work.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Supplies != nil && (config.Routine == nil || config.Supplies.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Supplies != nil && (config.Routine == nil || config.Supplies.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Clearance != nil && (config.Routine == nil || config.Clearance.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Clearance != nil && (config.Routine == nil || config.Clearance.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Shrine != nil && (config.Routine == nil || config.Shrine.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Shrine != nil && (config.Routine == nil || config.Shrine.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.EnsureInitialShelter) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sl", ErrControl)
 	}
 	if config.Cooking != nil && (config.Routine == nil || config.Cooking.reviewer != config.Routine || config.Cooking.goal != policy.EnsureCooking) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Cooking != nil && (config.Routine == nil || config.Cooking.reviewer != config.Routine || config.Cook", ErrControl)
 	}
 	if config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comfort.goal != policy.EnsureComfort) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comf", ErrControl)
 	}
 	if config.BasicComfort != nil && (config.Routine == nil || config.BasicComfort.reviewer != config.Routine || config.BasicComfort.goal != policy.EnsureBasicComfort) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.BasicComfort != nil && (config.Routine == nil || config.BasicComfort.reviewer != config.Routine || c", ErrControl)
 	}
 	if config.Workshop != nil && (config.Routine == nil || config.Workshop.reviewer != config.Routine || config.Workshop.goal != policy.MaintainResource) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Workshop != nil && (config.Routine == nil || config.Workshop.reviewer != config.Routine || config.Wo", ErrControl)
 	}
 	if config.Hospital != nil && (config.Routine == nil || config.Hospital.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Hospital != nil && (config.Routine == nil || config.Hospital.reviewer != config.Routine)", ErrControl)
 	}
 	if config.SleepingUpkeep != nil && (config.Routine == nil || config.SleepingUpkeep.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.SleepingUpkeep != nil && (config.Routine == nil || config.SleepingUpkeep.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config.Expansion.goal != policy.EnsureExpansion) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config", ErrControl)
 	}
 	if config.Power != nil && (config.Routine == nil || config.Power.reviewer != config.Routine || config.Power.goal != policy.EnsureBasicPower) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Power != nil && (config.Routine == nil || config.Power.reviewer != config.Routine || config.Power.go", ErrControl)
 	}
 	if config.Temperature != nil && (config.Routine == nil || config.Temperature.reviewer != config.Routine || config.Temperature.goal != policy.EnsureTemperatureSafety) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Temperature != nil && (config.Routine == nil || config.Temperature.reviewer != config.Routine || con", ErrControl)
 	}
 	if config.Refrigeration != nil && (config.Routine == nil || config.Refrigeration.reviewer != config.Routine || config.Refrigeration.goal != policy.MaintainRefrigeration) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Refrigeration != nil && (config.Routine == nil || config.Refrigeration.reviewer != config.Routine ||", ErrControl)
 	}
 	if config.Lighting != nil && (config.Routine == nil || config.Lighting.reviewer != config.Routine || config.Lighting.goal != policy.MaintainLighting) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Lighting != nil && (config.Routine == nil || config.Lighting.reviewer != config.Routine || config.Li", ErrControl)
 	}
 	if config.Flooring != nil && (config.Routine == nil || config.Flooring.reviewer != config.Routine || config.Flooring.goal != policy.MaintainFlooring) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Flooring != nil && (config.Routine == nil || config.Flooring.reviewer != config.Routine || config.Fl", ErrControl)
 	}
 	if config.Routes != nil && (config.Routine == nil || config.Routes.reviewer != config.Routine || config.Routes.goal != policy.MaintainRoutes) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Routes != nil && (config.Routine == nil || config.Routes.reviewer != config.Routine || config.Routes", ErrControl)
 	}
 	if config.Defense != nil && (config.Routine == nil || config.Defense.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Defense != nil && (config.Routine == nil || config.Defense.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Tend != nil && (config.Routine == nil || config.Tend.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Tend != nil && (config.Routine == nil || config.Tend.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Rescue != nil && (config.Routine == nil || config.Rescue.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Rescue != nil && (config.Routine == nil || config.Rescue.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Equip != nil && (config.Routine == nil || config.Equip.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Equip != nil && (config.Routine == nil || config.Equip.reviewer != config.Routine)", ErrControl)
 	}
 	if config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Repair != nil && (config.Routine == nil || config.Repair.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Repair != nil && (config.Routine == nil || config.Repair.reviewer != config.Routine)", ErrControl)
 	}
 	if config.FireSafety != nil && (config.Routine == nil || config.FireSafety.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.FireSafety != nil && (config.Routine == nil || config.FireSafety.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Clean != nil && (config.Routine == nil || config.Clean.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Clean != nil && (config.Routine == nil || config.Clean.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Waste != nil && (config.Routine == nil || config.Waste.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Waste != nil && (config.Routine == nil || config.Waste.reviewer != config.Routine)", ErrControl)
 	}
 	if config.MoodRelief != nil && (config.Routine == nil || config.MoodRelief.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.MoodRelief != nil && (config.Routine == nil || config.MoodRelief.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Haul != nil && (config.Routine == nil || config.Haul.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Haul != nil && (config.Routine == nil || config.Haul.reviewer != config.Routine)", ErrControl)
 	}
 	if config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Ro", ErrControl)
 	}
 	if config.Gear != nil && (config.Routine == nil || config.Gear.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Gear != nil && (config.Routine == nil || config.Gear.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Medical != nil && (config.Routine == nil || config.Medical.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Medical != nil && (config.Routine == nil || config.Medical.reviewer != config.Routine)", ErrControl)
 	}
 	if config.FoodStorageUpkeep != nil && (config.Routine == nil || config.FoodStorageUpkeep.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.FoodStorageUpkeep != nil && (config.Routine == nil || config.FoodStorageUpkeep.reviewer != config.Ro", ErrControl)
 	}
 	if config.Recovery != nil && (config.Routine == nil || config.Recovery.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Recovery != nil && (config.Routine == nil || config.Recovery.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Husbandry != nil && (config.Routine == nil || config.Husbandry.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Husbandry != nil && (config.Routine == nil || config.Husbandry.reviewer != config.Routine)", ErrControl)
 	}
 	if config.PrisonerInteraction != nil && (config.Routine == nil || config.PrisonerInteraction.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.PrisonerInteraction != nil && (config.Routine == nil || config.PrisonerInteraction.reviewer != confi", ErrControl)
 	}
 	if config.PopulationCustody != nil && (config.Routine == nil || config.PopulationCustody.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.PopulationCustody != nil && (config.Routine == nil || config.PopulationCustody.reviewer != config.Ro", ErrControl)
 	}
 	if config.PopulationJoiner != nil && (config.Routine == nil || config.PopulationJoiner.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.PopulationJoiner != nil && (config.Routine == nil || config.PopulationJoiner.reviewer != config.Rout", ErrControl)
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine)", ErrControl)
 	}
 	if config.IngredientStorage != nil && (config.Routine == nil || config.IngredientStorage.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.IngredientStorage != nil && (config.Routine == nil || config.IngredientStorage.reviewer != config.Ro", ErrControl)
 	}
 	if config.StorageShelves != nil && (config.Routine == nil || config.StorageShelves.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.StorageShelves != nil && (config.Routine == nil || config.StorageShelves.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Naming != nil && (config.Routine == nil || config.Naming.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Naming != nil && (config.Routine == nil || config.Naming.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Dialog != nil && (config.Routine == nil || config.Dialog.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Dialog != nil && (config.Routine == nil || config.Dialog.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Trade != nil && (config.Routine == nil || config.Trade.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Trade != nil && (config.Routine == nil || config.Trade.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine)", ErrControl)
 	}
 	if config.AnimalFeed != nil && (config.Routine == nil || config.AnimalFeed.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.AnimalFeed != nil && (config.Routine == nil || config.AnimalFeed.reviewer != config.Routine)", ErrControl)
 	}
 	if config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine)", ErrControl)
 	}
 	if config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.StoneShell != nil && (config.Routine == nil || config.StoneShell.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Tidy != nil && (config.Routine == nil || config.Tidy.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Tidy != nil && (config.Routine == nil || config.Tidy.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Stockpiles != nil && (config.Routine == nil || config.Stockpiles.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Stockpiles != nil && (config.Routine == nil || config.Stockpiles.reviewer != config.Routine)", ErrControl)
 	}
 	if config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.DefenseLayout != nil && (config.Routine == nil || config.DefenseLayout.reviewer != config.Routine)", ErrControl)
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.RoutineMethods && (config.Routine == nil || !session.routineMethods)", ErrControl)
 	}
 	config.Start.Policy = proto.Clone(config.Start.Policy).(*k.WatchPolicy)
 	p := config.Start.Policy
 	if p.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(p.AcknowledgedHostileIds)+len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: p.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(p.AcknowledgedHostileIds)+len(p.AcknowledgedDownedColon", ErrControl)
 	}
 	if config.CombatMaxTicks > config.Start.MaxTicks {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.CombatMaxTicks > config.Start.MaxTicks", ErrControl)
 	}
 	// Validate command arguments through the canonical bridge validator; these
 	// fixed validation identities carry no runtime permission.
@@ -579,7 +579,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	if !profile.IsDir() || !ownedProfile.IsDir() || !os.SameFile(profile, ownedProfile) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockScheduler: !profile.IsDir() || !ownedProfile.IsDir() || !os.SameFile(profile, ownedProfile)", ErrControl)
 	}
 	ctx, cancel := context.WithTimeout(player.lifetime, player.config.JournalTimeout)
 	defer cancel()

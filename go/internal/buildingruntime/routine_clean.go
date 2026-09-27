@@ -38,7 +38,7 @@ type RoutineCleanResult struct {
 
 func NewRoutineCleanPlanner(reviewer *RoutineReviewer, native RoutineCleanSource) (*RoutineCleanPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineCleanPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineCleanPlanner{reviewer, native}, nil
 }
@@ -49,7 +49,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineCleanResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -101,7 +101,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineCleanResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim]())
@@ -150,7 +150,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineCleanResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -166,20 +166,20 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineCleanResult{}, loadErr
 	}
 	if preferences.Revision != review.WorkPreferenceRevision {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
 	}
 	overridden := map[domain.PawnID]bool{}
 	for _, o := range preferences.Overrides {
@@ -191,7 +191,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineCleanResult{}, ErrControl
+			return RoutineCleanResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -234,7 +234,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineCleanResult{}, ErrControl
+		return RoutineCleanResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineCleanResult{}, err

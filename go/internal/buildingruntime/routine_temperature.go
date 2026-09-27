@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -11,10 +12,10 @@ import (
 
 func NewRoutineTemperaturePlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.temperatureEnabled() {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineTemperaturePlanner: reviewer == nil || native == nil || !reviewer.temperatureEnabled()", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineTemperaturePlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureTemperatureSafety}, nil
 }

@@ -34,7 +34,7 @@ type RoutineMoodReliefResult struct {
 
 func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer, native RoutineMoodReliefSource) (*RoutineMoodReliefPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineMoodReliefPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineMoodReliefPlanner{reviewer, native}, nil
 }
@@ -98,7 +98,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineMoodReliefResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !sessionState.ObservationKnown || sessionState.Snapshot.Validate() != nil || sessionState.Snapshot.Native == 0 {
-		return RoutineMoodReliefResult{}, ErrControl
+		return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: !sessionState.ObservationKnown || sessionState.Snapshot.Validate() != nil || sessionState.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -186,7 +186,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		need, ok := domainMoodReliefNeed(proposal.Need)
 		if !ok {
-			return RoutineMoodReliefResult{}, ErrControl
+			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		prefix := fmt.Sprintf("mood-%s-%s-", proposal.Need, moodState.Pawn.ID)
 		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
@@ -199,17 +199,17 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		observed := reply.GetObserved()
 		if observed == nil {
-			return RoutineMoodReliefResult{}, ErrControl
+			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 		}
 		if _, err = boundary.Context(observed.Context, sessionState.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-			return RoutineMoodReliefResult{}, ErrControl
+			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 		}
 		if len(observed.Pawns) != 1 {
-			return RoutineMoodReliefResult{}, ErrControl
+			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != 1", ErrControl)
 		}
 		row := observed.Pawns[0]
 		if row == nil || row.Pawn == nil || row.Pawn.GetId() != string(moodState.Pawn.ID) {
-			return RoutineMoodReliefResult{}, ErrControl
+			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || row.Pawn.GetId() != string(moodState.Pawn.ID)", ErrControl)
 		}
 		job, def, ok := moodReliefDispatchFacts(row, observed.Context.GetTick(), longitude)
 		if !ok {
@@ -242,7 +242,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != sessionState || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return RoutineMoodReliefResult{}, ErrControl
+			return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: p.session.State() != sessionState || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineMoodReliefResult{}, err

@@ -76,7 +76,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineDefenseResult{}, ErrControl
+		return RoutineDefenseResult{}, fmt.Errorf("%w: admitFight: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	if _, err = p.journal.CommitCombatFight(call, goal.Goal.ID, goal.Revision, method, plan, memory, world, pawns); err != nil {
@@ -203,7 +203,7 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 		return nil, nil, err
 	}
 	if len(drafts) > bridge.MaxCombatOrders {
-		return nil, nil, ErrControl
+		return nil, nil, fmt.Errorf("%w: sendCombatBatch: len(drafts) > bridge.MaxCombatOrders", ErrControl)
 	}
 	if room := bridge.MaxCombatOrders - len(drafts); len(orders) > room {
 		orders = orders[:room]
@@ -244,7 +244,7 @@ func (r *RoutineDefensePlanner) sendCombatBatch(call context.Context, state Cont
 			}
 			wire.Order = &op.CombatOrder_FireMode{FireMode: mode}
 		default:
-			return nil, nil, ErrControl
+			return nil, nil, fmt.Errorf("%w: sendCombatBatch: case policy.OrderFireMode", ErrControl)
 		}
 		command.Orders = append(command.Orders, wire)
 	}

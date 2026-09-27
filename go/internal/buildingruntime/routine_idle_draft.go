@@ -52,7 +52,7 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 	for _, pawn := range emergency.Colonists {
 		id := string(pawn.ID)
 		if id == "" || wanted[id] {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: idleDrafts: id == \"\" || wanted[id]", ErrControl)
 		}
 		wanted[id] = true
 		ids = append(ids, id)
@@ -61,7 +61,7 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 		return nil, nil
 	}
 	if _, err := boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: idleDrafts: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
 		return nil, nil
@@ -69,7 +69,7 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 	var candidates []domain.PawnID
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || !wanted[row.Pawn.GetId()] {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: idleDrafts: row == nil || row.Pawn == nil || !wanted[row.Pawn.GetId()]", ErrControl)
 		}
 		delete(wanted, row.Pawn.GetId())
 		id := domain.PawnID(row.Pawn.GetId())
@@ -107,7 +107,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 		return nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return ErrControl
+		return fmt.Errorf("%w: restoreIdleDrafts: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(ctx)
 	if err != nil {
@@ -146,7 +146,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 		return err
 	}
 	if _, err = boundary.Context(frame.Context, state.Snapshot); err != nil {
-		return ErrControl
+		return fmt.Errorf("%w: restoreIdleDrafts: err != nil", ErrControl)
 	}
 	pawns, err := r.idleDrafts(ctx, state, domain.Tick(frame.Context.GetTick()), frame.Emergency.Facts, frame.Pawns, plans)
 	if err != nil || len(pawns) == 0 {
@@ -179,7 +179,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	}
 	elapsed := r.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.maxAge {
-		return ErrControl
+		return fmt.Errorf("%w: restoreIdleDrafts: p.session.State() != state || elapsed < 0 || elapsed > r.maxAge", ErrControl)
 	}
 	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
 	return err

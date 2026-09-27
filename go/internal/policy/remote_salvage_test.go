@@ -20,6 +20,7 @@ func TestRemoteSalvageSafetyAndDemand(t *testing.T) {
 		{"sealed shrine", func(r *ClearanceTarget) { r.AncientDanger = true }, steelDemand(), false, "ancient_danger"},
 		{"casket", func(r *ClearanceTarget) { r.Class = "ancient_casket" }, steelDemand(), false, "casket"},
 		{"hazard", func(r *ClearanceTarget) { r.Salvage.Safe = domain.Known(false) }, steelDemand(), false, "route_unsafe"},
+		{"no storage", func(r *ClearanceTarget) { r.Salvage.Candidate.Yields[0].Headroom = domain.Known(int64(0)) }, steelDemand(), false, "missing_storage"},
 		{"satisfied", func(*ClearanceTarget) {}, domain.Known([]ResourceDemand{}), false, ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -37,5 +38,27 @@ func TestRemoteSalvageSafetyAndDemand(t *testing.T) {
 				t.Fatal("salvage changed Home")
 			}
 		})
+	}
+}
+
+// A shortage alone raises salvage demand: the default steel floor (#875)
+// with no steel in stock is demand LootDemand hands the salvage ranking,
+// so ship chunks and steel-yielding ruins score without an operator target.
+func TestLootDemandFromDefaultSteelShortage(t *testing.T) {
+	p := RoutinePolicy{ResourceTargets: DefaultResourceTargets()}
+	f := RoutineFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 0}})}
+	demand, err := LootDemand(p, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, known := demand.Value()
+	steel := int64(0)
+	for _, row := range rows {
+		if row.Key.Def == "Steel" {
+			steel = row.Count
+		}
+	}
+	if !known || steel != DefaultResourceTargets()["Steel"] {
+		t.Fatal(rows, known)
 	}
 }

@@ -122,7 +122,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return RoutineResourceResult{}, true, ErrControl
+			return RoutineResourceResult{}, true, fmt.Errorf("%w: removeExhaustedDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if _, err = player.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineResourceResult{}, true, err
@@ -168,7 +168,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	}
 	expected, err := observation.DecodeIdentity(id)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineResourceResult{}, true, ErrControl
+		return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeColony(call, native, expected, []string{"DeepDrill"})
 	if err != nil {
@@ -180,7 +180,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		return RoutineResourceResult{}, true, err
 	}
 	if _, err := boundary.Context(research.Context, state.Snapshot); err != nil || !routineCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity.Tick) {
-		return RoutineResourceResult{}, true, ErrControl
+		return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: err != nil || !routineCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity", ErrControl)
 	}
 	finished := policy.ResearchFacts{}
 	for _, name := range research.Finished {
@@ -199,7 +199,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		return RoutineResourceResult{}, true, err
 	}
 	if _, err := boundary.Context(buildings.Context, state.Snapshot); err != nil || !routineCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick) {
-		return RoutineResourceResult{}, true, ErrControl
+		return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: err != nil || !routineCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick)", ErrControl)
 	}
 	// Any remaining drill or drill blueprint holds placement: a working drill
 	// is not multiplied, and an exhausted drill already designated for removal
@@ -278,7 +278,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 				return RoutineResourceResult{}, true, err
 			}
 			if !held.Complete {
-				return RoutineResourceResult{}, true, ErrControl
+				return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: !held.Complete", ErrControl)
 			}
 			cells = held.Value.Cells
 		}
@@ -295,7 +295,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return RoutineResourceResult{}, true, ErrControl
+			return RoutineResourceResult{}, true, fmt.Errorf("%w: deepDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		decision, err := player.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: f.Identity.Tick, Bounds: domain.Known(f.Bounds), Stock: preview.Stock, Previews: []policy.Preview{p}, Purpose: policy.Routine})
 		if err != nil {

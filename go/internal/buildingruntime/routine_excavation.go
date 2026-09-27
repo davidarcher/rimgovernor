@@ -120,7 +120,7 @@ func (r *RoutineBuildingPlanner) excavationProject(call context.Context, goal st
 	}
 	target, err := excavationPlanTarget(latest.Plan)
 	if err != nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: excavationProject: err != nil", ErrControl)
 	}
 	return &target, nil
 }
@@ -141,7 +141,7 @@ func (r *RoutineBuildingPlanner) readExcavationSite(call context.Context, snapsh
 	}
 	current, err := boundary.Context(site.Context, snapshot)
 	if err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) != tick {
-		return bridge.ExcavationSite{}, ErrControl
+		return bridge.ExcavationSite{}, fmt.Errorf("%w: readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) != tick", ErrControl)
 	}
 	snap.NoteSite(call, purpose, target, cells, site)
 	return site, nil
@@ -203,7 +203,7 @@ func (r *RoutineBuildingPlanner) previousExcavation(call context.Context) (*poli
 	}
 	target, err := excavationPlanTarget(plan)
 	if err != nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: previousExcavation: err != nil", ErrControl)
 	}
 	if strings.HasSuffix(string(plan), "-door") {
 		state, err := journal.LoadPlan(call, plan)
@@ -382,7 +382,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 			return err
 		}
 		if p.session.State() != s.state {
-			return ErrControl
+			return fmt.Errorf("%w: stepExcavation: p.session.State() != s.state", ErrControl)
 		}
 		return nil
 	}
@@ -562,7 +562,7 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 	}
 	actual, err := observation.DecodeIdentity(last)
 	if err != nil || !routineBuildingBoundary(actual, s.state.Snapshot, s.facts.Identity.Tick) {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: admitExcavation: err != nil || !routineBuildingBoundary(actual, s.state.Snapshot, s.facts.Identity.Tick)", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(s.read.StartedAt) || now.Sub(s.read.StartedAt) > r.reviewer.maxAge {
@@ -576,7 +576,7 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 		return RoutineBuildingResult{}, err
 	}
 	if latest.Revision != s.review.Revision || !latest.Enabled {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: admitExcavation: latest.Revision != s.review.Revision || !latest.Enabled", ErrControl)
 	}
 	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: s.goal.Goal.ID, Revision: s.goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: s.facts.Identity.Tick, Bounds: domain.Known(s.facts.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
 	if err != nil {

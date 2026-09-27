@@ -86,7 +86,7 @@ type RoutineResourceResult struct {
 
 func NewRoutineResourcePlanner(reviewer *RoutineReviewer, native RoutineResourceSource) (*RoutineResourcePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineResourcePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineResourcePlanner{reviewer, native}, nil
 }
@@ -115,7 +115,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	// The stone-block floor only names its block once the census is read
 	// below; a configured floor keeps the step alive until then.
@@ -167,13 +167,13 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if err = bridge.ValidateColonyFacts(observed, identity); err != nil {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	stock := resourceStockFacts(observed)
 	if result, handled, err := r.deepDrill(call, epoch, state, goal, review, started); err != nil || handled {
@@ -312,6 +312,9 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 				return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 			}
 			pre = &sourceSelection{selected, sourceStorage}
+			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, target-resourceCount(stock, resource), started); err != nil || handled {
+				return result, err
+			}
 			ranked, err := policy.RankResourceCandidates(policy.ResourceDeficitDemand(resource, target-resourceCount(stock, resource)), policy.MineCandidates(resource, selected, domain.Known(sourceStorage.Capacity)), policy.AcquisitionCompetition{})
 			if err != nil {
 				return RoutineResourceResult{}, err
@@ -334,6 +337,11 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		}
 		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 		deficit := target - resourceCount(stock, resource)
+		if ok {
+			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, deficit, started); err != nil || handled && result.Reason == BuildingMethodAdmitted {
+				return result, err
+			}
+		}
 		candidates := policy.MineCandidates(resource, selected, domain.Known(sourceStorage.Capacity))
 		if produce, found := policy.ProduceCandidate(choice, deficit); found {
 			candidates = append(candidates, produce)
@@ -355,12 +363,12 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	}
 	token, ok := tokens[choice.Bench]
 	if !ok {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: !ok", ErrControl)
 	}
 	id := domain.MintPlanID("routine-resource")
 	targetCount := int32(choice.Target)
 	if int64(targetCount) != choice.Target {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: int64(targetCount) != choice.Target", ErrControl)
 	}
 	mode := domain.StockTarget
 	if beer {
@@ -389,7 +397,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineResourceResult{}, err
@@ -517,7 +525,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 		return policy.RemoteWorkRequest{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, tick) {
-		return policy.RemoteWorkRequest{}, ErrControl
+		return policy.RemoteWorkRequest{}, fmt.Errorf("%w: miningReach: !routineBuildingBoundary(expected, state.Snapshot, tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeOwned(ctx, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
@@ -584,6 +592,26 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 			return RoutineResourceResult{}, false, err
 		}
 	}
+	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage", "routine-resource-zone")
+	return result, true, err
+}
+
+// storageFloor runs the full-storage floor (#796, policy.SelectFullStorageZone)
+// ahead of every acquisition bid: a deficit whose accepting storage is full
+// leaves bills, salvage, loot and trade nowhere to land, so remote salvage
+// holds missing_storage forever, and a rival trade or deep-drill bid used to
+// outrank this planner's zero-score mining bid before the storage branch was
+// reached. Native's candidate cells already admit unroofed ground for a
+// definition that does not deteriorate outdoors (DeteriorationRate 0: steel,
+// plasteel, precious metals, uranium, jade, stone chunks and blocks), so this
+// is the outdoor stockpile for those; a deteriorating resource gets roofed
+// cells only. handled is true when a zone was admitted or refused.
+func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, storage policy.ResourceStorage, deficit int64, started time.Time) (RoutineResourceResult, bool, error) {
+	zone, needed, err := policy.SelectFullStorageZone(deficit, storage)
+	if err != nil || !needed {
+		return RoutineResourceResult{}, false, err
+	}
+	clockSchedulerLog("%s: %s storage full under a %d deficit; stockpile on %d cells", goal.Goal.ID, resource, deficit, len(zone.Cells))
 	result, err := r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "material-storage", "routine-resource-zone")
 	return result, true, err
 }
@@ -655,7 +683,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 		return RoutineResourceResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, reviewTick) {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: !routineBuildingBoundary(expected, state.Snapshot, reviewTick)", ErrControl)
 	}
 	reading, err := reviewer.observeColony(call, native, expected, nil)
 	if err != nil {
@@ -682,7 +710,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
@@ -694,7 +722,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	}
 	elapsed := reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > reviewer.maxAge {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: p.session.State() != state || elapsed < 0 || elapsed > reviewer.maxAge", ErrControl)
 	}
 	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	if err != nil {
@@ -749,7 +777,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
 	}
 	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineResourceResult{}, false, ErrControl
+		return RoutineResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: err != nil", ErrControl)
 	}
 	action, err := domain.NewMineAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), acquisitionValue)
 	if err != nil {
@@ -764,7 +792,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineResourceResult{}, false, ErrControl
+		return RoutineResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, methodID, plan); err != nil {
 		return RoutineResourceResult{}, false, err

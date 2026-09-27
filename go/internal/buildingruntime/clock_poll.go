@@ -54,7 +54,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return out, errors.Join(cause, disabled, s.session.CleanupClock(cleanup))
 	}
 	if native == nil || limit < 1 || limit > 128 || wait < 0 || wait > bridge.ClockEventsMaxWaitMs*time.Millisecond {
-		return fail(ErrControl)
+		return fail(fmt.Errorf("%w: PollEvents: native == nil || limit < 1 || limit > 128 || wait < 0 || wait > bridge.ClockEventsMaxWaitMs*time.Millisecond", ErrControl))
 	}
 	select {
 	case s.pollGate <- struct{}{}:

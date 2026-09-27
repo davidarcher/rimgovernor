@@ -80,7 +80,7 @@ const tradeWalkTicks = 250
 
 func NewRoutineTradePlanner(reviewer *RoutineReviewer, native RoutineTradeSource) (*RoutineTradePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineTradePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineTradePlanner{reviewer, native}, nil
 }
@@ -135,7 +135,7 @@ func (r *RoutineTradePlanner) phase(ctx context.Context, goal store.GoalState, k
 			}
 		}
 		if !found {
-			return tradePhase{}, ErrControl
+			return tradePhase{}, fmt.Errorf("%w: phase: !found", ErrControl)
 		}
 	}
 	return out, nil
@@ -180,7 +180,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineTradeResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineTradeResult{}, ErrControl
+		return RoutineTradeResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -220,14 +220,14 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineTradeResult{}, err
 	}
 	if _, err = boundary.Context(census.Context, state.Snapshot); err != nil || census.Context.GetTick() < int64(review.Tick) {
-		return RoutineTradeResult{}, ErrControl
+		return RoutineTradeResult{}, fmt.Errorf("%w: step: err != nil || census.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	session, _, err := r.native.ReadTradeSession(call, identity)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
 	if _, err = boundary.Context(session.Context, state.Snapshot); err != nil || session.Context.GetTick() < int64(review.Tick) {
-		return RoutineTradeResult{}, ErrControl
+		return RoutineTradeResult{}, fmt.Errorf("%w: step: err != nil || session.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	// A caravan native holds a session or walk with is driven first,
 	// tradeable or not: a session native still holds must be settled, never
@@ -322,7 +322,7 @@ func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlStat
 		return bridge.NegotiatorRead{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return bridge.NegotiatorRead{}, ErrControl
+		return bridge.NegotiatorRead{}, fmt.Errorf("%w: negotiator: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
@@ -392,7 +392,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		return RoutineTradeResult{}, err
 	}
 	if _, err = boundary.Context(sheet.Context, state.Snapshot); err != nil {
-		return RoutineTradeResult{}, ErrControl
+		return RoutineTradeResult{}, fmt.Errorf("%w: drive: err != nil", ErrControl)
 	}
 	if sheet.Trader != trader || sheet.Negotiator != string(negotiator) || sheet.GiftMode || !sheet.CanTradeNow {
 		return r.cancel(call, epoch, state, goal, trader, negotiator, started)
@@ -444,13 +444,13 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: observed == nil", ErrControl)
 	}
 	if err = bridge.ValidateColonyFacts(observed, identity); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
 	medicalFacts := medicalReserveObservationFacts(observed)
 	medical, err := policy.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
@@ -474,7 +474,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
 	}
 	if _, err = boundary.Context(construction.Context, state.Snapshot); err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
 	floors := policy.RoutineTradeFloors(seasonal, construction.StillNeed)
 	// MaintainResource's floors (the wood floor, shortfall edges) are the
@@ -486,7 +486,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
 	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
 	if !known {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
 	rows := tradeSheetRowFacts(sheet.Rows)
 	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
@@ -524,7 +524,7 @@ func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlS
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineTradeResult{}, ErrControl
+		return RoutineTradeResult{}, fmt.Errorf("%w: commit: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineTradeResult{}, err

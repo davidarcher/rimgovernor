@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -46,7 +47,7 @@ type RoutineFireSafetyResult struct {
 
 func NewRoutineFireSafetyPlanner(reviewer *RoutineReviewer, native RoutineFireSafetySource) (*RoutineFireSafetyPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineFireSafetyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineFireSafetyPlanner{reviewer, native}, nil
 }
@@ -58,7 +59,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		return RoutineFireSafetyResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -91,7 +92,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		return RoutineFireSafetyResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
@@ -117,7 +118,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		return RoutineFireSafetyResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, completeKnown := emergency.Facts.ColonistsComplete.Value()
 	if !completeKnown || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -133,19 +134,19 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	var pawns []policy.FireSafetyPawnFacts
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineFireSafetyResult{}, ErrControl
+			return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawns = append(pawns, fireSafetyPawnFacts(domain.PawnID(row.Pawn.GetId()), row))
@@ -154,7 +155,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		return RoutineFireSafetyResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineFireSafetyResult{}, ErrControl
+		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	outcome := policy.EvaluateFireSafety(active, known, pawns)
 	switch outcome {

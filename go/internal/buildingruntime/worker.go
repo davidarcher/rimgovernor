@@ -198,21 +198,21 @@ func workerOutcome(after domain.ProgressView, result executor.Result, err error)
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
 	if session == nil || player == nil || player.session != session || player.journal != session.journal {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewWorker: session == nil || player == nil || player.session != session || player.journal != session.journal", ErrControl)
 	}
 	if config.RoutineMethods && !session.routineMethods {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewWorker: config.RoutineMethods && !session.routineMethods", ErrControl)
 	}
 	return newWorker(ctx, config, player, session)
 }
 func newWorker(ctx context.Context, config WorkerConfig, player *Player, session workerSession) (*Worker, error) {
 	if player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.StepTimeout <= 0 || config.StepTimeout > player.config.CallTimeout {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: newWorker: player == nil || session == nil || player.session != session || config.StepInterval <= 0 || config.MaxBacko", ErrControl)
 	}
 	player.mu.Lock()
 	defer player.mu.Unlock()
 	if player.workerAttached || player.closing || player.closed || player.lifetime.Err() != nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: newWorker: player.workerAttached || player.closing || player.closed || player.lifetime.Err() != nil", ErrControl)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err

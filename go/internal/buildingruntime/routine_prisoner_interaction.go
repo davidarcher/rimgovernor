@@ -35,7 +35,7 @@ type RoutinePrisonerInteractionResult struct {
 
 func NewRoutinePrisonerInteractionPlanner(reviewer *RoutineReviewer) (*RoutinePrisonerInteractionPlanner, error) {
 	if reviewer == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutinePrisonerInteractionPlanner: reviewer == nil", ErrControl)
 	}
 	r := &RoutinePrisonerInteractionPlanner{reviewer: reviewer}
 	if source, ok := reviewer.native.(RoutineBuildingSource); ok {
@@ -51,7 +51,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutinePrisonerInteractionResult{}, ErrControl
+		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -89,7 +89,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutinePrisonerInteractionResult{}, ErrControl
+		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
@@ -134,7 +134,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutinePrisonerInteractionResult{}, ErrControl
+		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePrisonerInteractionResult{}, err
@@ -207,7 +207,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 		return RoutineBuildingResult{}, err
 	}
 	if _, err = boundary.Context(target.Context, state.Snapshot); err != nil || target.Context.GetTick() < int64(facts.Identity.Tick) {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: markJailBed: err != nil || target.Context.GetTick() < int64(facts.Identity.Tick)", ErrControl)
 	}
 	if target.Prisoners {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
@@ -236,7 +236,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 		return RoutineBuildingResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: markJailBed: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err

@@ -103,7 +103,7 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, goal stor
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineDefenseResult{}, ErrControl
+		return RoutineDefenseResult{}, fmt.Errorf("%w: planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineDefenseResult{}, err

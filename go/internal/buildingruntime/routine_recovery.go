@@ -30,7 +30,7 @@ type RoutineRecoveryResult struct {
 
 func NewRoutineRecoveryPlanner(reviewer *RoutineReviewer) (*RoutineRecoveryPlanner, error) {
 	if reviewer == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineRecoveryPlanner: reviewer == nil", ErrControl)
 	}
 	return &RoutineRecoveryPlanner{reviewer}, nil
 }
@@ -55,7 +55,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineRecoveryResult{}, ErrControl
+		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineRecoveryResult{}, ErrControl
+		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
@@ -108,7 +108,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineRecoveryResult{}, ErrControl
+		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	for _, plan := range open {
 		if err := cancelStaleAreaActions(call, p.journal, plan, changes, workers); err != nil {
@@ -159,7 +159,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	case policy.RecoveryAreaProposal:
 		workers, wk := read.Projection.WorkPawns.Value()
 		if !wk {
-			return RoutineRecoveryResult{}, ErrControl
+			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !wk", ErrControl)
 		}
 		var token string
 		found := false
@@ -167,14 +167,14 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 			if w.ID == chosen.Pawn {
 				t, tk := w.SnapshotToken.Value()
 				if !tk {
-					return RoutineRecoveryResult{}, ErrControl
+					return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !tk", ErrControl)
 				}
 				token, found = t, true
 				break
 			}
 		}
 		if !found {
-			return RoutineRecoveryResult{}, ErrControl
+			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !found", ErrControl)
 		}
 		assignment, err := domain.NewAreaAssignment(domain.PawnID(chosen.Pawn), token, false, chosen.Area)
 		if err != nil {
@@ -187,7 +187,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	default:
 		method, ok := recoveryServiceMethod(chosen.Method)
 		if !ok {
-			return RoutineRecoveryResult{}, ErrControl
+			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		service, err := domain.NewRecoveryService(domain.PawnID(chosen.Pawn), chosen.Building, method)
 		if err != nil {
@@ -207,7 +207,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineRecoveryResult{}, ErrControl
+		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, chosen.ID, plan); err != nil {
 		return RoutineRecoveryResult{}, err

@@ -28,7 +28,7 @@ type RoutineSupplyResult struct {
 
 func NewRoutineSupplyPlanner(reviewer *RoutineReviewer, native RoutineSupplySource) (*RoutineSupplyPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineSupplyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineSupplyPlanner{reviewer, native}, nil
 }
@@ -39,7 +39,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineSupplyResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineSupplyResult{}, ErrControl
+		return RoutineSupplyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -146,7 +146,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 			ReadForbidSupplies(context.Context, *c.Identity, domain.Cell) (bridge.SupplyRead, bridge.Result, error)
 		})
 		if !ok {
-			return RoutineSupplyResult{}, ErrControl
+			return RoutineSupplyResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
 		readSupply = native.ReadForbidSupplies
 	}
@@ -157,11 +157,11 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoutineSupplyResult{}, err
 		}
 		if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
-			return RoutineSupplyResult{}, ErrControl
+			return RoutineSupplyResult{}, fmt.Errorf("%w: step: err != nil || read.Context.GetTick() < int64(review.Tick)", ErrControl)
 		}
 		for _, target := range read.Targets {
 			if target.Supply.Cell() != cell {
-				return RoutineSupplyResult{}, ErrControl
+				return RoutineSupplyResult{}, fmt.Errorf("%w: step: target.Supply.Cell() != cell", ErrControl)
 			}
 			row, listed := pending[target.Supply.Thing()]
 			if listed && row.Forbid == forbidBatch && row.Definition == target.Supply.Definition() && row.Cell == cell && !claims[target.Supply.Thing()] {
@@ -202,7 +202,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineSupplyResult{}, ErrControl
+		return RoutineSupplyResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineSupplyResult{}, err

@@ -14,7 +14,7 @@ import (
 // cache at the tick the step opened on, while the review it plans against
 // anchored on the colony read that followed it: under a running window the
 // row sits behind the anchor, and demanding row >= anchor refused every
-// building planner with ErrControl ("writer authority unavailable") for
+// building planner with ErrControl ("planner read stale or control unavailable") for
 // hundreds of consecutive steps (#662).
 func TestRoutineBuildingBoundaryAcceptsAnIdentityReadBehindTheReviewAnchor(t *testing.T) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 1, Plan: "plan"}

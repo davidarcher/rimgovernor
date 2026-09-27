@@ -45,7 +45,7 @@ const tidyDeleteNotReady RoutineBuildingReason = "new_zone_not_planted"
 
 func NewRoutineTidyPlanner(reviewer *RoutineReviewer, native RoutineTidySource) (*RoutineTidyPlanner, error) {
 	if reviewer == nil || native == nil || reviewer.native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineTidyPlanner: reviewer == nil || native == nil || reviewer.native == nil", ErrControl)
 	}
 	return &RoutineTidyPlanner{reviewer, native}, nil
 }
@@ -62,7 +62,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -91,7 +91,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	tidies, err := p.journal.LayoutTidies(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -152,7 +152,7 @@ func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlSt
 	}
 	now := r.reviewer.clock.Now()
 	if p.session.State() != state || now.Before(started.StartedAt) || now.Sub(started.StartedAt) > r.reviewer.maxAge {
-		return ErrControl
+		return fmt.Errorf("%w: commit: p.session.State() != state || now.Before(started.StartedAt) || now.Sub(started.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
 	_, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan)
 	return err
@@ -213,7 +213,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	}
 	v := reply.GetEvaluated()
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != tick {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) != tick", ErrControl)
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
@@ -225,7 +225,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	}
 	now := r.reviewer.clock.Now()
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: create: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: tick}
 	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
@@ -311,7 +311,7 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{}, err
 	}
 	if _, err = boundary.Context(old.Context, state.Snapshot); err != nil || old.Context.GetTick() < int64(tick) {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: finish: err != nil || old.Context.GetTick() < int64(tick)", ErrControl)
 	}
 	if !old.Present {
 		clockEvent(call, "layout", "tidy", fmt.Sprintf("tidy re-site done: %s %s -> %s", t.Kind, t.Item, newZone), "item", t.Item, "kind", string(t.Kind), "new_zone", newZone)
@@ -330,7 +330,7 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{}, err
 	}
 	if _, err = boundary.Context(fresh.Context, state.Snapshot); err != nil {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: finish: err != nil", ErrControl)
 	}
 	if !fresh.Present {
 		return r.abandon(call, state, tick, proposal)
@@ -360,7 +360,7 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 		return RoutineTidyResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineTidyResult{}, ErrControl
+		return RoutineTidyResult{}, fmt.Errorf("%w: finish: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, deleteMethod, plan); err != nil {
 		return RoutineTidyResult{}, err

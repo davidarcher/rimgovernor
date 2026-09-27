@@ -100,10 +100,10 @@ const defenseNativeWorkTicks = 2500
 
 func NewRoutineDefenseLayoutPlanner(reviewer *RoutineReviewer, native RoutineDefenseLayoutSource) (*RoutineDefenseLayoutPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineDefenseLayoutPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if reviewer.native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineDefenseLayoutPlanner: reviewer.native == nil", ErrControl)
 	}
 	return &RoutineDefenseLayoutPlanner{reviewer, native}, nil
 }

@@ -68,7 +68,7 @@ const researchNativeWorkTicks = 2500
 
 func NewRoutineResearchPlanner(reviewer *RoutineReviewer, native RoutineResearchSource) (*RoutineResearchPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineResearchPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	planner := &RoutineResearchPlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoutineBuildingSource); ok {
@@ -133,7 +133,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineResearchResult{}, ErrControl
+		return RoutineResearchResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -186,7 +186,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, err
 	}
 	if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
-		return RoutineResearchResult{}, ErrControl
+		return RoutineResearchResult{}, fmt.Errorf("%w: step: err != nil || read.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	if read.CurrentProject != "" {
 		// A current project finishes on native ticks alone: a derived or
@@ -241,7 +241,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineResearchResult{}, ErrControl
+		return RoutineResearchResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineResearchResult{}, err

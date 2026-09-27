@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -49,7 +50,7 @@ func (p *Player) ChangeExpansionArea(ctx context.Context, world store.World, id,
 		ReadExtentIdentity(context.Context) (observation.Identity, error)
 	})
 	if !ok {
-		return ErrControl
+		return fmt.Errorf("%w: ChangeExpansionArea: !ok", ErrControl)
 	}
 	identity, err := source.ReadExtentIdentity(call)
 	if err != nil {
@@ -65,7 +66,7 @@ func (p *Player) ChangeExpansionArea(ctx context.Context, world store.World, id,
 	if !remove {
 		held, ok := facts.Get[observation.ColonyProjection](p.extentFacts, facts.Colony)
 		if !ok || !held.Complete || !held.Value.Identity.SameContext(identity) {
-			return ErrControl
+			return fmt.Errorf("%w: ChangeExpansionArea: !ok || !held.Complete || !held.Value.Identity.SameContext(identity)", ErrControl)
 		}
 		for _, cell := range cells {
 			if cell.X < 0 || cell.Z < 0 || cell.X >= held.Value.Bounds.Width || cell.Z >= held.Value.Bounds.Height {

@@ -117,7 +117,7 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 			return err
 		}
 		if p.session.State() != state {
-			return ErrControl
+			return fmt.Errorf("%w: removeOldBed: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}
@@ -165,7 +165,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 			return err
 		}
 		if p.session.State() != state {
-			return ErrControl
+			return fmt.Errorf("%w: upgradeBedroom: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}

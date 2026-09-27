@@ -31,7 +31,7 @@ type RoutineHusbandryResult struct {
 
 func NewRoutineHusbandryPlanner(reviewer *RoutineReviewer) (*RoutineHusbandryPlanner, error) {
 	if reviewer == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineHusbandryPlanner: reviewer == nil", ErrControl)
 	}
 	return &RoutineHusbandryPlanner{reviewer}, nil
 }
@@ -43,7 +43,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineHusbandryResult{}, ErrControl
+		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineHusbandryResult{}, ErrControl
+		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
@@ -151,7 +151,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineHusbandryResult{}, ErrControl
+		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineHusbandryResult{}, err

@@ -34,7 +34,7 @@ type RoutineNamingResult struct {
 
 func NewRoutineNamingPlanner(reviewer *RoutineReviewer, native RoutineNamingSource) (*RoutineNamingPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineNamingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineNamingPlanner{reviewer, native}, nil
 }
@@ -45,7 +45,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineNamingResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineNamingResult{}, ErrControl
+		return RoutineNamingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -85,10 +85,10 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineNamingResult{}, ErrControl
+		return RoutineNamingResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineNamingResult{}, ErrControl
+		return RoutineNamingResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	naming := observed.Naming
 	if naming == nil || naming.WindowId == nil || naming.FactionName == nil || naming.SettlementName == nil {
@@ -119,7 +119,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineNamingResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineNamingResult{}, ErrControl
+		return RoutineNamingResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineNamingResult{}, err

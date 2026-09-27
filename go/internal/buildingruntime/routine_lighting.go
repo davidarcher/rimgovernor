@@ -16,10 +16,10 @@ import (
 // interaction cell reads lit.
 func NewRoutineLightingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainLighting) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineLightingPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainLighting)", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineLightingPlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainLighting, definition: "TorchLamp"}, nil
 }
@@ -84,7 +84,7 @@ func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjecti
 func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.lighting == nil || r.lighting.Method != policy.LightingBuild {
-		return nil, stock, "", ErrControl
+		return nil, stock, "", fmt.Errorf("%w: previewLighting: r.lighting == nil || r.lighting.Method != policy.LightingBuild", ErrControl)
 	}
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {

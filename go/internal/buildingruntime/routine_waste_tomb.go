@@ -106,7 +106,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 			return err
 		}
 		if p.session.State() != state {
-			return ErrControl
+			return fmt.Errorf("%w: placePiece: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}

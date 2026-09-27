@@ -102,7 +102,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 		return RoutineBuildingResult{}, false, err
 	}
 	if p.session.State() != state {
-		return RoutineBuildingResult{}, false, ErrControl
+		return RoutineBuildingResult{}, false, fmt.Errorf("%w: sculptBedroom: p.session.State() != state", ErrControl)
 	}
 	if _, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, false, err

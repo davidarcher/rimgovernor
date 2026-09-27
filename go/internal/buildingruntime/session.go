@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -106,7 +107,7 @@ func (s *sessionSink) UpdateAuthority(value executor.Authority) error {
 	defer s.mu.Unlock()
 	if s.executor == nil {
 		if value.Enabled {
-			return ErrControl
+			return fmt.Errorf("%w: UpdateAuthority: value.Enabled", ErrControl)
 		}
 		return nil
 	}
@@ -158,7 +159,7 @@ func (s sessionBuildingLeases) Lease(target domain.GenerationSnapshot) (string, 
 		return s.control.Lease(target)
 	}
 	if !root.Enabled || !root.ObservationKnown {
-		return "", ErrControl
+		return "", fmt.Errorf("%w: Lease: !root.Enabled || !root.ObservationKnown", ErrControl)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
@@ -186,14 +187,14 @@ func (l lazyRoutineLeases) Lease(target domain.GenerationSnapshot) (string, erro
 	control := l.sink.control
 	l.sink.mu.Unlock()
 	if control == nil {
-		return "", ErrControl
+		return "", fmt.Errorf("%w: Lease: control == nil", ErrControl)
 	}
 	root := control.State()
 	if root.Snapshot == target {
 		return control.Lease(target)
 	}
 	if !root.Enabled || !root.ObservationKnown {
-		return "", ErrControl
+		return "", fmt.Errorf("%w: Lease: !root.Enabled || !root.ObservationKnown", ErrControl)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
 	defer cancel()
@@ -245,7 +246,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Deconstruction != nil {
 		if config.Deconstruction.Native == nil || config.Deconstruction.Writer == nil {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: NewSession: config.Deconstruction.Native == nil || config.Deconstruction.Writer == nil", ErrControl)
 		}
 		config.Control.BeforeRevoke = releaseDeconstructions(config.Deconstruction.Writer, string(namespace))
 	}
@@ -281,7 +282,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	var rangedBoundary *ranged.RangedAttackBoundary
 	if config.Ranged != nil {
 		if config.Ranged.Native == nil || config.Ranged.Writer == nil {
-			return cleanup(ErrControl)
+			return cleanup(fmt.Errorf("%w: NewSession: config.Ranged.Native == nil || config.Ranged.Writer == nil", ErrControl))
 		}
 		rangedBoundary, err = ranged.NewRangedBoundary(config.Ranged.Native, config.Ranged.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
@@ -294,74 +295,74 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	var worker *executor.Executor
 	if config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil)", ErrControl))
 	}
 	if config.CutPlant != nil && (config.CutPlant.Native == nil || config.CutPlant.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.CutPlant != nil && (config.CutPlant.Native == nil || config.CutPlant.Writer == nil)", ErrControl))
 	}
 	if config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil)", ErrControl))
 	}
 	if config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil)", ErrControl))
 	}
 	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil)", ErrControl))
 	}
 	if config.Tend != nil && (config.Tend.Native == nil || config.Tend.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Tend != nil && (config.Tend.Native == nil || config.Tend.Writer == nil)", ErrControl))
 	}
 	if config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil)", ErrControl))
 	}
 	if config.Equip != nil && (config.Equip.Native == nil || config.Equip.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Equip != nil && (config.Equip.Native == nil || config.Equip.Writer == nil)", ErrControl))
 	}
 	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil)", ErrControl))
 	}
 	if config.Repair != nil && (config.Repair.Native == nil || config.Repair.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Repair != nil && (config.Repair.Native == nil || config.Repair.Writer == nil)", ErrControl))
 	}
 	if config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil)", ErrControl))
 	}
 	if config.Waste != nil && (config.Waste.Native == nil || config.Waste.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Waste != nil && (config.Waste.Native == nil || config.Waste.Writer == nil)", ErrControl))
 	}
 	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil)", ErrControl))
 	}
 	if config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.RecoveryService != nil && (config.RecoveryService.Native == nil || config.RecoveryService.Writer ==", ErrControl))
 	}
 	if config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperature.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperatur", ErrControl))
 	}
 	if config.BedUse != nil && (config.BedUse.Native == nil || config.BedUse.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.BedUse != nil && (config.BedUse.Native == nil || config.BedUse.Writer == nil)", ErrControl))
 	}
 	if config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil)", ErrControl))
 	}
 	if config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil)", ErrControl))
 	}
 	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil)", ErrControl))
 	}
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
 	}
 
 	if config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil)", ErrControl))
 	}
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer ==", ErrControl))
 	}
 	if config.Excavation != nil && (config.Excavation.Native == nil || config.Excavation.Writer == nil) {
-		return cleanup(ErrControl)
+		return cleanup(fmt.Errorf("%w: NewSession: config.Excavation != nil && (config.Excavation.Native == nil || config.Excavation.Writer == nil)", ErrControl))
 	}
 	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
 	switch {

@@ -54,7 +54,7 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutinePopulationCustodyResult{}, ErrControl
+		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: commitArrest: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationCustodyResult{}, err

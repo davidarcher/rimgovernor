@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -57,7 +58,7 @@ func (control *Control) disableObserved(expected ControlState) error {
 		return store.ErrConflict
 	}
 	if control.closing || control.closed {
-		return ErrControl
+		return fmt.Errorf("%w: disableObserved: control.closing || control.closed", ErrControl)
 	}
 	return control.invalidateLocked()
 }
@@ -67,12 +68,12 @@ func (control *Control) disableObserved(expected ControlState) error {
 // read context. Native cleanup remains the responsibility of Manual and Close.
 func (control *Control) Disable() error {
 	if control == nil {
-		return ErrControl
+		return fmt.Errorf("%w: Disable: control == nil", ErrControl)
 	}
 	control.mu.Lock()
 	defer control.mu.Unlock()
 	if control.closing || control.closed {
-		return ErrControl
+		return fmt.Errorf("%w: Disable: control.closing || control.closed", ErrControl)
 	}
 	return control.invalidateLocked()
 }

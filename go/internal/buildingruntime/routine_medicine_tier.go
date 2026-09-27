@@ -28,7 +28,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineMedicalResult{}, ErrControl
+		return RoutineMedicalResult{}, fmt.Errorf("%w: planMedicineTier: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -90,7 +90,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 			return RoutineMedicalResult{}, err
 		}
 		if p.session.State() != state {
-			return RoutineMedicalResult{}, ErrControl
+			return RoutineMedicalResult{}, fmt.Errorf("%w: planMedicineTier: p.session.State() != state", ErrControl)
 		}
 		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineMedicalResult{}, err

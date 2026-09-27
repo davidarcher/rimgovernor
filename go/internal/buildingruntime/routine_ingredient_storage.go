@@ -44,10 +44,10 @@ const maxIngredientStorageAttempts = 3
 
 func NewRoutineIngredientStoragePlanner(reviewer *RoutineReviewer, native RoutineIngredientStorageSource) (*RoutineIngredientStoragePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineIngredientStoragePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineIngredientStoragePlanner: !ok", ErrControl)
 	}
 	return &RoutineIngredientStoragePlanner{reviewer: reviewer, native: native}, nil
 }
@@ -59,7 +59,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineIngredientStorageResult{}, ErrControl
+		return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -100,10 +100,10 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	}
 	observed := reply.GetObserved()
 	if observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil {
-		return RoutineIngredientStorageResult{}, ErrControl
+		return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineIngredientStorageResult{}, ErrControl
+		return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	stock := resourceStockFacts(observed)
 	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, stock)
@@ -176,7 +176,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineIngredientStorageResult{}, ErrControl
+		return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	read, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
@@ -244,13 +244,13 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		}
 		v := preview.GetEvaluated()
 		if v == nil {
-			return RoutineIngredientStorageResult{}, ErrControl
+			return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: v == nil", ErrControl)
 		}
 		if !v.GetAccepted() {
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-			return RoutineIngredientStorageResult{}, ErrControl
+			return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
 		}
 		cells = candidate
 		evaluated = policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
@@ -268,7 +268,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineIngredientStorageResult{}, ErrControl
+		return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {

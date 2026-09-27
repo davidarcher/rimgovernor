@@ -123,7 +123,7 @@ type RoutineBuildingPlanner struct {
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineSleepingPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureInitialShelter, definition: "SleepingSpot"}, nil
 }
@@ -150,7 +150,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -264,7 +264,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// ErrControl alone reads as a lost writer gate in the diagnosis
 		// (#662); name the boundary that actually failed.
 		clockSchedulerLog("%s: ErrControl identity boundary observed=%+v tick=%d review tick=%d snapshot=%+v", r.goal, expected, expected.Tick, review.Tick, state.Snapshot)
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
 		var recorded func()
@@ -457,7 +457,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 					return RoutineBuildingResult{}, err
 				}
 				if p.session.State() != state {
-					return RoutineBuildingResult{}, ErrControl
+					return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 				}
 				last, _, err := r.native.Identity(call)
 				if err != nil {
@@ -465,7 +465,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				}
 				actual, err := observation.DecodeIdentity(last)
 				if err != nil || !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
-					return RoutineBuildingResult{}, ErrControl
+					return RoutineBuildingResult{}, fmt.Errorf("%w: step: err != nil || !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)", ErrControl)
 				}
 				now := r.reviewer.clock.Now()
 				if now.Before(reading.StartedAt) || now.Sub(reading.StartedAt) > r.reviewer.maxAge {
@@ -483,7 +483,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				return err
 			}
 			if p.session.State() != state {
-				return ErrControl
+				return fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 			}
 			return nil
 		})
@@ -555,7 +555,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, loadErr
 		}
 		if preferences.Revision != review.WorkPreferenceRevision {
-			return RoutineBuildingResult{}, ErrControl
+			return RoutineBuildingResult{}, fmt.Errorf("%w: step: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
 		}
 		available = comfortBuilderAvailable(facts, r.definition, preferences.Overrides)
 		if r.power != nil && r.power.Method == policy.PowerGenerate {
@@ -597,7 +597,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				return RoutineBuildingResult{}, err
 			}
 			if p.session.State() != state {
-				return RoutineBuildingResult{}, ErrControl
+				return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 			}
 			return RoutineBuildingResult{Reason: BuildingMethodUsed, NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
 		}
@@ -732,7 +732,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return err
 		}
 		if p.session.State() != state {
-			return ErrControl
+			return fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}

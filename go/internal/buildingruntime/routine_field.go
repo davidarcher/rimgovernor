@@ -32,7 +32,7 @@ type FieldNative interface {
 
 func NewRoutineFieldPlanner(reviewer *RoutineReviewer, native FieldNative) (*RoutineFieldPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineFieldPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineFieldPlanner{reviewer: reviewer, native: native}, nil
 }
@@ -43,7 +43,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineFieldResult{}, ErrControl
+		return RoutineFieldResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineFieldResult{}, ErrControl
+		return RoutineFieldResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -366,7 +366,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			}
 			v := reply.GetEvaluated()
 			if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-				return RoutineFieldResult{}, false, ErrControl
+				return RoutineFieldResult{}, false, fmt.Errorf("%w: enact: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
 			}
 			actions = append(actions, action)
 			previews = append(previews, policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})})
@@ -380,11 +380,11 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 		return RoutineFieldResult{}, false, err
 	}
 	if p.session.State() != state {
-		return RoutineFieldResult{}, false, ErrControl
+		return RoutineFieldResult{}, false, fmt.Errorf("%w: enact: p.session.State() != state", ErrControl)
 	}
 	actual, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
-		return RoutineFieldResult{}, false, ErrControl
+		return RoutineFieldResult{}, false, fmt.Errorf("%w: enact: err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)", ErrControl)
 	}
 	now := r.reviewer.clock.Now()
 	if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
@@ -429,7 +429,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 		return RoutineFieldResult{}, false, err
 	}
 	if _, err = boundary.Context(target.Context, state.Snapshot); err != nil || target.Context.GetTick() < int64(projection.Identity.Tick) {
-		return RoutineFieldResult{}, false, ErrControl
+		return RoutineFieldResult{}, false, fmt.Errorf("%w: recrop: err != nil || target.Context.GetTick() < int64(projection.Identity.Tick)", ErrControl)
 	}
 	if target.Crop != choice.Current {
 		clockSchedulerLog("Fields: grower %s crop moved (%s -> %s) since the census", choice.Grower, choice.Current, target.Crop)
@@ -449,7 +449,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
 	}
 	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineFieldResult{}, false, ErrControl
+		return RoutineFieldResult{}, false, fmt.Errorf("%w: recrop: err != nil", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
 		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
@@ -468,7 +468,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	}
 	now := r.reviewer.clock.Now()
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-		return RoutineFieldResult{}, false, ErrControl
+		return RoutineFieldResult{}, false, fmt.Errorf("%w: recrop: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
 	clockSchedulerLog("Fields recrop: grower=%s %s -> %s | %s", choice.Grower, choice.Current, choice.Crop.Name, choice.Reason)
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {

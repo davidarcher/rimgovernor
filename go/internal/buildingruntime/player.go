@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -73,13 +74,13 @@ func (p *Player) replanned() {
 
 func NewPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, session *Session, worlds WorldSource) (*Player, error) {
 	if session == nil || session.journal != journal {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewPlayer: session == nil || session.journal != journal", ErrControl)
 	}
 	return newPlayer(ctx, config, journal, session, worlds)
 }
 func newPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, session playerSession, worlds WorldSource) (*Player, error) {
 	if journal == nil || session == nil || worlds == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute || config.JournalTimeout <= 0 || config.JournalTimeout > time.Minute {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: newPlayer: journal == nil || session == nil || worlds == nil || config.CallTimeout <= 0 || config.CallTimeout > time.M", ErrControl)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -106,7 +107,7 @@ func (p *Player) enter(ctx context.Context, manual bool) (context.Context, conte
 	p.mu.Lock()
 	if p.closing || p.closed || p.lifetime.Err() != nil {
 		p.mu.Unlock()
-		return nil, nil, nil, ErrControl
+		return nil, nil, nil, fmt.Errorf("%w: enter: p.closing || p.closed || p.lifetime.Err() != nil", ErrControl)
 	}
 	if manual {
 		p.cancelEpoch()
@@ -155,7 +156,7 @@ func (p *Player) current(ctx, epoch context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.closing || p.closed || p.epoch != epoch || epoch.Err() != nil {
-		return ErrControl
+		return fmt.Errorf("%w: current: p.closing || p.closed || p.epoch != epoch || epoch.Err() != nil", ErrControl)
 	}
 	return nil
 }
@@ -300,7 +301,7 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	expected.Native = granted.Native
 	actual := p.session.State()
 	if granted.Native == 0 || granted != expected || !actual.Enabled || !actual.ObservationKnown || actual.Snapshot != granted {
-		return p.uncertain(record, ErrControl)
+		return p.uncertain(record, fmt.Errorf("%w: Resume: granted.Native == 0 || granted != expected || !actual.Enabled || !actual.ObservationKnown || actual.Snapsho", ErrControl))
 	}
 	return p.finish(record, store.RunningControl, granted.Native, nil)
 }

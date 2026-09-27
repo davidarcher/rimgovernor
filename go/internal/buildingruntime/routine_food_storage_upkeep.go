@@ -55,7 +55,7 @@ type RoutineFoodStorageUpkeepResult struct {
 
 func NewRoutineFoodStorageUpkeepPlanner(reviewer *RoutineReviewer, native RoutineFoodStorageUpkeepSource) (*RoutineFoodStorageUpkeepPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineFoodStorageUpkeepPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineFoodStorageUpkeepPlanner{reviewer, native}, nil
 }
@@ -114,7 +114,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -161,13 +161,13 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if err = bridge.ValidateColonyFacts(observed, identity); err != nil {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	facts := foodStorageObservationFacts(observed)
 	expected := observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map,
@@ -278,7 +278,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	}
 	token, ok := tokens[medChoice.Bench]
 	if !ok {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bench:"+medChoice.Bench) {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
@@ -286,7 +286,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	id := domain.MintPlanID("routine-food-storage-upkeep")
 	target := int32(medChoice.Target)
 	if int64(target) != medChoice.Target {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: int64(target) != medChoice.Target", ErrControl)
 	}
 	bill, err := domain.NewProductionBill(medChoice.Bench, medChoice.Recipe, token, domain.StockTarget, target)
 	if err != nil {
@@ -305,7 +305,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, medChoice.ID, plan); err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err

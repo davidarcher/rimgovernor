@@ -154,7 +154,7 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 			return err
 		}
 		if p.session.State() != state {
-			return ErrControl
+			return fmt.Errorf("%w: shellRoom: p.session.State() != state", ErrControl)
 		}
 		return nil
 	}

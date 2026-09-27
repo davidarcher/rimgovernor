@@ -63,7 +63,7 @@ const BuildingMethodHeld RoutineBuildingReason = "breach_held"
 
 func NewRoutineShrinePlanner(reviewer *RoutineReviewer, native RoutineShrineSource) (*RoutineShrinePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineShrinePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineShrinePlanner{reviewer, native}, nil
 }
@@ -74,7 +74,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineShrineResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineShrineResult{}, ErrControl
+		return RoutineShrineResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -157,7 +157,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineShrineResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineShrineResult{}, ErrControl
+		return RoutineShrineResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	colony, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
@@ -288,7 +288,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineShrineResult{}, ErrControl
+		return RoutineShrineResult{}, fmt.Errorf("%w: claim: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineShrineResult{}, err
@@ -375,7 +375,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineShrineResult{}, ErrControl
+		return RoutineShrineResult{}, fmt.Errorf("%w: breach: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineShrineResult{}, err
@@ -433,7 +433,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		actions = append(actions, draftAction, moveAction)
 	}
 	if target.EntityID == "" {
-		return RoutineShrineResult{}, ErrControl
+		return RoutineShrineResult{}, fmt.Errorf("%w: open: target.EntityID == \"\"", ErrControl)
 	}
 	value, err := domain.NewOpenCasket(lock.Opener, target.EntityID, target.Cell)
 	if err != nil {
@@ -459,7 +459,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineShrineResult{}, ErrControl
+		return RoutineShrineResult{}, fmt.Errorf("%w: open: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineShrineResult{}, err

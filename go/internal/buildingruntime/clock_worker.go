@@ -62,7 +62,7 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, err
 	}
 	if scheduler == nil || nativeEvents == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockWorker: scheduler == nil || nativeEvents == nil", ErrControl)
 	}
 	// The authority Mode has no time-based expiry, so the poll and renew
 	// cadence is bounded only by the clock's own requested lease duration.
@@ -72,14 +72,14 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 	lease := time.Duration(scheduler.config.Start.LeaseMS) * time.Millisecond
 	playerTimeout := scheduler.player.config.CallTimeout
 	if config.PollInterval <= 0 || config.RenewInterval <= 0 || config.StepInterval <= 0 || config.PollInterval > lease/4 || config.RenewInterval > lease/4 || config.MaxBackoff < config.StepInterval || config.MaxBackoff > time.Minute || config.PageLimit < 1 || config.PageLimit > 128 {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockWorker: config.PollInterval <= 0 || config.RenewInterval <= 0 || config.StepInterval <= 0 || config.PollInterval >", ErrControl)
 	}
 	if config.PollTimeout <= 0 || config.PollTimeout > lease/4 || config.PollTimeout > playerTimeout || config.RenewTimeout <= 0 || config.RenewTimeout > lease/4 || config.RenewTimeout > playerTimeout || config.StepTimeout <= 0 || config.StepTimeout > playerTimeout {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockWorker: config.PollTimeout <= 0 || config.PollTimeout > lease/4 || config.PollTimeout > playerTimeout || config.Ren", ErrControl)
 	}
 	// A long poll must still leave the read itself a second under its timeout.
 	if config.PollWait < 0 || config.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond || (config.PollWait > 0 && config.PollWait+time.Second > config.PollTimeout) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewClockWorker: config.PollWait < 0 || config.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond || (config.PollWait >", ErrControl)
 	}
 	lifetime, cancel := context.WithCancel(ctx)
 	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, validity: scheduler.Validity, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}

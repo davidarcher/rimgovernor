@@ -7,6 +7,24 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// A research bench blueprint short of 25 steel names the steel; a site the
+// stock already covers (waiting on a hauler) adds nothing.
+func TestConstructionResourceNeedsNamesBlockedSiteCost(t *testing.T) {
+	deficit := domain.Known(map[Resource]int64{"Steel": 25, "WoodLog": 10})
+	stock := domain.Known([]Amount{{Resource: "Steel", Count: 4}, {Resource: "WoodLog", Count: 40}})
+	got := ConstructionResourceNeeds(nil, deficit, stock)
+	if !reflect.DeepEqual(got, map[Resource]int64{"Steel": 25}) {
+		t.Fatalf("needs = %v", got)
+	}
+	got = ConstructionResourceNeeds(map[Resource]int64{"Steel": 60}, deficit, stock)
+	if got["Steel"] != 60 {
+		t.Fatalf("a larger dependency need must stand: %v", got)
+	}
+	if got := ConstructionResourceNeeds(nil, domain.Unknown[map[Resource]int64](), stock); got != nil {
+		t.Fatalf("unknown deficit = %v", got)
+	}
+}
+
 // woodShortage: initial shelter (priority 2, served by an admitted shell)
 // waits on wood, one worker can cut, cook or haul, and the feed and supply
 // upkeep outrank MaintainResource on deficit.

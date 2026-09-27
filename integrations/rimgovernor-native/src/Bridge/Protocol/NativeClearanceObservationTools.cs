@@ -110,7 +110,9 @@ namespace HomeBridge.BridgeTools
                 var item = ThingMaker.MakeThing(cost.thingDef);
                 var headroom = EventLootFacts.StorageHeadroom(map, item);
                 // A yield nothing stores stays on the ground; only a yield
-                // haulers will carry home needs a safe return route.
+                // haulers will carry home needs a safe return route. A source
+                // no hauler reaches reports false (Safe=false, a route hold);
+                // only a reached source with no store cell zeroes headroom.
                 if (headroom > 0) {
                     var route = safety.SalvageReturn(building, item);
                     if (route == null) headroom = 0;

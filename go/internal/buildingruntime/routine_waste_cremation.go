@@ -100,7 +100,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		return RoutineWasteResult{}, true, err
 	}
 	if p.session.State() != state {
-		return RoutineWasteResult{}, true, ErrControl
+		return RoutineWasteResult{}, true, fmt.Errorf("%w: cremationBill: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWasteResult{}, true, err

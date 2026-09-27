@@ -97,6 +97,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 			return RoutineReading{}, err
 		}
 	}
+	p.Facts.ConstructionDeficit = ConstructionDeficit(frame.Sites)
 	pawns, err := routinePawns(frame, id)
 	if err != nil {
 		return RoutineReading{}, err

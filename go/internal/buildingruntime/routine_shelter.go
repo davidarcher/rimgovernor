@@ -24,7 +24,7 @@ import (
 // prefers; a nil source keeps the open-site shell only.
 func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource, excavation RoutineExcavationSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineShelterPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureInitialShelter, definition: "Wall", shelter: true}, nil
 }
@@ -33,7 +33,7 @@ func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 // one spare indoor sleeping place beyond the observed population.
 func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource, excavation RoutineExcavationSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineExpansionPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
 }
@@ -223,7 +223,7 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 	for candidate, layout := range layouts {
 		perimeter := layout.Shell.StyledPlacements(style)
 		if len(perimeter) == 0 {
-			return nil, policy.StockObservation{}, "", ErrControl
+			return nil, policy.StockObservation{}, "", fmt.Errorf("%w: previewFreshShell: len(perimeter) == 0", ErrControl)
 		}
 		perimeter = unreused(perimeter, append(append(append([]domain.Cell(nil), layout.Reused...), layout.Claimed...), layout.Cleared...))
 		ids := make([]domain.ActionID, len(perimeter))
@@ -313,7 +313,7 @@ type shellBatchPreviewer interface {
 // the sweep, since the ring is only ever admitted whole.
 func (r *RoutineBuildingPlanner) previewShellCells(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, ids []domain.ActionID, buildings []domain.Building, check func() error) ([]bridge.BuildingPreview, []bool, RoutineBuildingReason, error) {
 	if len(ids) != len(buildings) || len(buildings) == 0 {
-		return nil, nil, "", ErrControl
+		return nil, nil, "", fmt.Errorf("%w: previewShellCells: len(ids) != len(buildings) || len(buildings) == 0", ErrControl)
 	}
 	if err := check(); err != nil {
 		return nil, nil, "", err
@@ -342,7 +342,7 @@ func (r *RoutineBuildingPlanner) previewShellCells(ctx context.Context, snapshot
 		}
 	}
 	if len(previews) != len(actions) {
-		return nil, nil, "", ErrControl
+		return nil, nil, "", fmt.Errorf("%w: previewShellCells: len(previews) != len(actions)", ErrControl)
 	}
 	placeable := make([]bool, len(previews))
 	for i, preview := range previews {
@@ -435,7 +435,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		return nil, policy.StockObservation{}, "", false, err
 	}
 	if !routineCachedFresh(bridge.FactColony, census.Tick, facts.Identity.Tick) || census.Generation != uint64(snapshot.Native) {
-		return nil, policy.StockObservation{}, "", false, ErrControl
+		return nil, policy.StockObservation{}, "", false, fmt.Errorf("%w: adoptShell: !routineCachedFresh(bridge.FactColony, census.Tick, facts.Identity.Tick) || census.Generation != uint64(sna", ErrControl)
 	}
 	standing := make(map[domain.Cell]string, len(census.Structures))
 	seen := map[domain.Cell]bool{}
@@ -640,12 +640,12 @@ func mergeRoutineStock(stock *policy.StockObservation, next policy.StockObservat
 	seen := map[policy.Resource]bool{}
 	for _, v := range next.Values {
 		if seen[v.Resource] {
-			return ErrControl
+			return fmt.Errorf("%w: mergeRoutineStock: seen[v.Resource]", ErrControl)
 		}
 		seen[v.Resource] = true
 		if old, exists := values[v.Resource]; exists {
 			if old != v.Available {
-				return ErrControl
+				return fmt.Errorf("%w: mergeRoutineStock: old != v.Available", ErrControl)
 			}
 		} else {
 			stock.Values = append(stock.Values, v)

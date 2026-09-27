@@ -29,7 +29,7 @@ type RoutineAcquisitionResult struct {
 // catalog (#728), beside RoutineResourcePlanner's bills and mines.
 func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID) (*RoutineAcquisitionPlanner, error) {
 	if reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.MaintainResource) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.Maintain", ErrControl)
 	}
 	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need}, nil
 }
@@ -40,7 +40,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineAcquisitionResult{}, ErrControl
+		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineAcquisitionResult{}, ErrControl
+		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -341,7 +341,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineAcquisitionResult{}, ErrControl
+		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
 		return RoutineAcquisitionResult{}, err

@@ -44,7 +44,7 @@ type RoutineGearResult struct {
 
 func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) (*RoutineGearPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineGearPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineGearPlanner{reviewer, native}, nil
 }
@@ -168,7 +168,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		return RoutineGearResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineGearResult{}, ErrControl
+		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -222,10 +222,10 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineGearResult{}, ErrControl
+		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineGearResult{}, ErrControl
+		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	gear := observed.GetPlanning().GetObserved().GetGear()
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
@@ -286,7 +286,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return RoutineGearResult{}, ErrControl
+			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if goal, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineGearResult{}, err
@@ -366,7 +366,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	case policy.GearReplace:
 		definition, ok := gearCandidateDefinition(observation, choice.Pawn, choice.Target)
 		if !ok {
-			return RoutineGearResult{}, ErrControl
+			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !ok", ErrControl)
 		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
 			return RoutineGearResult{Reason: BuildingMethodUsed}, nil
@@ -381,7 +381,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	case policy.GearProduce:
 		token, ok := tokens[choice.Bench]
 		if !ok {
-			return RoutineGearResult{}, ErrControl
+			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !ok", ErrControl)
 		}
 		// A finite batch covers the colony gap, using only funded ingredients.
 		ingredients := make([]string, len(choice.Filter))
@@ -410,7 +410,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineGearResult{}, ErrControl
+		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineGearResult{}, err

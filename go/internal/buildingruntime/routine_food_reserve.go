@@ -81,7 +81,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 			return RoutineFoodStorageUpkeepResult{}, err
 		}
 		if _, err := boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < observed.Context.GetTick() {
-			return RoutineFoodStorageUpkeepResult{}, ErrControl
+			return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitReserve: err != nil || read.Context.GetTick() < observed.Context.GetTick()", ErrControl)
 		}
 		for _, target := range read.Targets {
 			if hold, selected := wanted[target.Supply.Thing()]; !selected || hold != forbid || target.Supply.Forbidden() != forbid {
@@ -112,7 +112,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
+		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitReserve: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
 	return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodAdmitted, Plan: id}, err

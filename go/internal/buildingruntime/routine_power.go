@@ -13,10 +13,10 @@ import (
 
 func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutinePowerPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutinePowerPlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureBasicPower}, nil
 }
@@ -269,7 +269,7 @@ func powerNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapsho
 func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.power == nil || !r.power.FixedSite() {
-		return nil, stock, "", ErrControl
+		return nil, stock, "", fmt.Errorf("%w: previewPowerSite: r.power == nil || !r.power.FixedSite()", ErrControl)
 	}
 	if err := check(); err != nil {
 		return nil, stock, "", err
@@ -466,7 +466,7 @@ func sameCells(a, b []domain.Cell) bool {
 func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8 {
-		return nil, stock, "", ErrControl
+		return nil, stock, "", fmt.Errorf("%w: previewPowerRoute: r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8", ErrControl)
 	}
 	blocked := map[domain.Cell]bool{}
 	for _, c := range protected {

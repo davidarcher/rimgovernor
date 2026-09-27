@@ -60,7 +60,7 @@ func haulWait(items []policy.UpkeepItem, pawns []policy.SecureSuppliesHaulerFact
 
 func NewRoutineHaulPlanner(reviewer *RoutineReviewer, native RoutineHaulSource) (*RoutineHaulPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineHaulPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineHaulPlanner{reviewer, native}, nil
 }
@@ -75,7 +75,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{Kind: PlanUnsupported, Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -125,7 +125,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
@@ -171,7 +171,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -187,20 +187,20 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 		return PlanResult{}, loadErr
 	}
 	if preferences.Revision != review.WorkPreferenceRevision {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
 	}
 	overridden := map[domain.PawnID]bool{}
 	for _, o := range preferences.Overrides {
@@ -212,7 +212,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return PlanResult{}, ErrControl
+			return PlanResult{}, fmt.Errorf("%w: propose: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -259,7 +259,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", "", ErrControl
+			return "", "", fmt.Errorf("%w: propose: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if _, err := p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return "", "", err

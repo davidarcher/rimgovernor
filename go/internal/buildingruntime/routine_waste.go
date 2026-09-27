@@ -40,7 +40,7 @@ type RoutineWasteResult struct {
 
 func NewRoutineWastePlanner(reviewer *RoutineReviewer, native RoutineWasteSource) (*RoutineWastePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineWastePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	r := &RoutineWastePlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoutineBuildingSource); ok {
@@ -55,7 +55,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -107,7 +107,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	if result, handled, err := r.stageTomb(call, epoch, state, review, goal, expected); err != nil || handled {
 		return result, err
@@ -127,7 +127,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -143,19 +143,19 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	var pawns []policy.WastePawn
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineWasteResult{}, ErrControl
+			return RoutineWasteResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -194,7 +194,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineWasteResult{}, ErrControl
+		return RoutineWasteResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWasteResult{}, err

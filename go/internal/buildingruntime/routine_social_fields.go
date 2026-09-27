@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -39,7 +40,7 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineFieldResult{}, ErrControl
+		return RoutineFieldResult{}, fmt.Errorf("%w: socialFields: err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {

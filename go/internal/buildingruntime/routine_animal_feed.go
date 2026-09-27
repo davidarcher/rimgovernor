@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -42,7 +43,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -96,7 +97,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim](), "Plant_Haygrass")
@@ -135,13 +136,13 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if err = bridge.ValidateColonyFacts(observed, identity); err != nil {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineResourceResult{}, ErrControl
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	stock := resourceStockFacts(observed)
 	rows, _ := stock.Value()

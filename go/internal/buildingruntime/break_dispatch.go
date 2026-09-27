@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -95,7 +96,7 @@ func (w *Worker) breakDispatchHolds(ctx context.Context, current domain.Generati
 		return nil, err
 	}
 	if complete, known := census.Facts.ColonistsComplete.Value(); !known || !complete {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: breakDispatchHolds: !known || !complete", ErrControl)
 	}
 	var ids []string
 	broken := map[domain.PawnID]bool{}
@@ -120,10 +121,10 @@ func (w *Worker) breakDispatchHolds(ctx context.Context, current domain.Generati
 		}
 		observed := reply.GetObserved()
 		if observed == nil {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: breakDispatchHolds: observed == nil", ErrControl)
 		}
 		if len(observed.Pawns) != len(ids) {
-			return nil, ErrControl
+			return nil, fmt.Errorf("%w: breakDispatchHolds: len(observed.Pawns) != len(ids)", ErrControl)
 		}
 		if _, err = boundary.Context(observed.Context, current); err != nil {
 			return nil, err

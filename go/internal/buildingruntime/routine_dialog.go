@@ -37,7 +37,7 @@ type RoutineDialogResult struct {
 
 func NewRoutineDialogPlanner(reviewer *RoutineReviewer, native RoutineDialogSource, answer policy.DialogAnswerPolicy) (*RoutineDialogPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineDialogPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineDialogPlanner{reviewer, native, answer}, nil
 }
@@ -48,7 +48,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineDialogResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineDialogResult{}, ErrControl
+		return RoutineDialogResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -88,10 +88,10 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineDialogResult{}, ErrControl
+		return RoutineDialogResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return RoutineDialogResult{}, ErrControl
+		return RoutineDialogResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	dialog := observed.Dialog
 	if dialog == nil || dialog.WindowId == nil {
@@ -140,7 +140,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineDialogResult{}, err
 	}
 	if p.session.State() != state {
-		return RoutineDialogResult{}, ErrControl
+		return RoutineDialogResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineDialogResult{}, err

@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -85,10 +86,10 @@ type ColonyStatusPawn struct {
 // non-nil.
 func NewColonyStatus(player *Player, native ColonyStatusNative, food ...*facts.Store) (*ColonyStatus, error) {
 	if player == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewColonyStatus: player == nil || native == nil", ErrControl)
 	}
 	if len(food) > 1 {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewColonyStatus: len(food) > 1", ErrControl)
 	}
 	s := &ColonyStatus{player: player, native: native}
 	if len(food) == 1 {
@@ -122,7 +123,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 	}
 	observed := colony.GetObserved()
 	if observed == nil {
-		return ColonyStatusReport{}, ErrControl
+		return ColonyStatusReport{}, fmt.Errorf("%w: Read: observed == nil", ErrControl)
 	}
 	roster, _, err := s.native.ReadHomeColonists(call, identity)
 	if err != nil {
@@ -130,7 +131,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 	}
 	pawns := roster.GetObserved()
 	if pawns == nil {
-		return ColonyStatusReport{}, ErrControl
+		return ColonyStatusReport{}, fmt.Errorf("%w: Read: pawns == nil", ErrControl)
 	}
 	report := ColonyStatusReport{
 		Tick:                 domain.Tick(observed.Context.GetTick()),

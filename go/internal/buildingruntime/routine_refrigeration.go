@@ -31,13 +31,13 @@ const (
 // on a vented wall, or by patching an existing cooler's setpoint.
 func NewRoutineRefrigerationPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRefrigeration) {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineRefrigerationPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(policy.MaintainRefrigeration)", ErrControl)
 	}
 	if _, ok := native.(observation.RoutineSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineRefrigerationPlanner: !ok", ErrControl)
 	}
 	if _, ok := native.(observation.RefrigerationSource); !ok {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineRefrigerationPlanner: !ok", ErrControl)
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainRefrigeration, definition: "Cooler"}, nil
 }
@@ -162,7 +162,7 @@ func refrigerationNativeWorkTicks(plan store.PlanState, current domain.Generatio
 // policy chose; unlike the placement search, there is no fallback cell.
 func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
-		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, "", ErrControl
+		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, "", fmt.Errorf("%w: previewRefrigeration: r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild", ErrControl)
 	}
 	return r.previewCoolerWall(ctx, snapshot, facts, protected, check, r.refrigeration.Cell, r.refrigeration.Rotation, false)
 }
@@ -227,7 +227,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	p := r.reviewer.player
 	proposal := r.refrigeration
 	if proposal == nil || proposal.Method != policy.RefrigerationSetTarget {
-		return RoutineBuildingResult{}, ErrControl
+		return RoutineBuildingResult{}, fmt.Errorf("%w: commitRefrigerationTarget: proposal == nil || proposal.Method != policy.RefrigerationSetTarget", ErrControl)
 	}
 	method := proposal.Key
 	if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {

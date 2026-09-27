@@ -256,7 +256,7 @@ func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.Gene
 		return 0, err
 	}
 	if _, err = boundary.Context(read.Context, snapshot); err != nil {
-		return 0, ErrControl
+		return 0, fmt.Errorf("%w: looseWeapons: err != nil", ErrControl)
 	}
 	count := 0
 	for _, w := range read.Targets {
@@ -327,7 +327,7 @@ type RoutineStockpileResult struct {
 
 func NewRoutineStockpilePlanner(reviewer *RoutineReviewer, native RoutineStockpileSource) (*RoutineStockpilePlanner, error) {
 	if reviewer == nil || native == nil || reviewer.native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineStockpilePlanner: reviewer == nil || native == nil || reviewer.native == nil", ErrControl)
 	}
 	return &RoutineStockpilePlanner{reviewer, native}, nil
 }
@@ -339,7 +339,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return RoutineStockpileResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown {
-		return RoutineStockpileResult{}, ErrControl
+		return RoutineStockpileResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -376,7 +376,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return RoutineStockpileResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineStockpileResult{}, ErrControl
+		return RoutineStockpileResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
 	if err != nil {
@@ -450,7 +450,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	}
 	now := r.reviewer.clock.Now()
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-		return RoutineStockpileResult{}, ErrControl
+		return RoutineStockpileResult{}, fmt.Errorf("%w: step: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineStockpileResult{}, err
@@ -509,7 +509,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != tick {
-		return RoutineStockpileResult{}, ErrControl
+		return RoutineStockpileResult{}, fmt.Errorf("%w: create: err != nil || domain.Tick(v.Context.GetTick()) != tick", ErrControl)
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
@@ -525,7 +525,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	}
 	now := r.reviewer.clock.Now()
 	if p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge {
-		return RoutineStockpileResult{}, ErrControl
+		return RoutineStockpileResult{}, fmt.Errorf("%w: create: p.session.State() != state || now.Before(started) || now.Sub(started) > r.reviewer.maxAge", ErrControl)
 	}
 	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	if err != nil {

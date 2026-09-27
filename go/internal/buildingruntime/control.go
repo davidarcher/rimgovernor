@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var ErrControl = errors.New("writer authority unavailable")
+var ErrControl = errors.New("planner read stale or control unavailable")
 
 // liveToken is an opaque non-empty sentinel returned by Lease while the bot
 // holds Auto-mode authority. There is no negotiated lease ID any more (see
@@ -91,7 +92,7 @@ type Control struct {
 
 func NewControl(ctx context.Context, config ControlConfig, identity SessionIdentity, native NativeAuthority, sink AuthoritySink) (*Control, error) {
 	if identity == nil || native == nil || sink == nil || config.StopWrites == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewControl: identity == nil || native == nil || sink == nil || config.StopWrites == nil || config.CallTimeout <= 0 || c", ErrControl)
 	}
 	owner, err := AcquireProfile(ctx, config.ProfileDirectory)
 	if err != nil {
@@ -128,7 +129,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		return domain.GenerationSnapshot{}, err
 	}
 	if requested.Revision == 0 {
-		return domain.GenerationSnapshot{}, ErrControl
+		return domain.GenerationSnapshot{}, fmt.Errorf("%w: Acquire: requested.Revision == 0", ErrControl)
 	}
 	call, epoch, done, everTargeted, status, err := control.observeForAcquire(ctx, requested)
 	if err != nil {
@@ -137,7 +138,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	defer done()
 	generation := status.GetStatus().Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
-		return domain.GenerationSnapshot{}, ErrControl
+		return domain.GenerationSnapshot{}, fmt.Errorf("%w: Acquire: generation == ^uint64(0)", ErrControl)
 	}
 	if status.GetStatus().GetInactive() == nil {
 		// Auto authority observed before this process ever targeted the world
@@ -152,11 +153,11 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		// which only Manual reconciles.
 		active := status.GetStatus().GetActive()
 		if active == nil || active.GetMode() != a.Mode_MODE_AUTO {
-			return domain.GenerationSnapshot{}, ErrControl
+			return domain.GenerationSnapshot{}, fmt.Errorf("%w: Acquire: active == nil || active.GetMode() != a.Mode_MODE_AUTO", ErrControl)
 		}
 		if everTargeted {
 			if !control.holdsGrant(requested, generation) {
-				return domain.GenerationSnapshot{}, ErrControl
+				return domain.GenerationSnapshot{}, fmt.Errorf("%w: Acquire: !control.holdsGrant(requested, generation)", ErrControl)
 			}
 		} else {
 			result, _, err := control.native.Revoke(call, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()})
@@ -165,7 +166,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 			}
 			revoked := result.GetRevoked()
 			if revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, controlIdentity(requested)) || revoked.Context.NativeGeneration == nil || revoked.Context.GetNativeGeneration() != generation+1 || generation+1 == ^uint64(0) {
-				return domain.GenerationSnapshot{}, ErrControl
+				return domain.GenerationSnapshot{}, fmt.Errorf("%w: Acquire: revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity,", ErrControl)
 			}
 			generation = revoked.Context.GetNativeGeneration()
 		}
@@ -174,7 +175,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	control.mu.Lock()
 	if epoch.Err() != nil || control.closing {
 		control.mu.Unlock()
-		return domain.GenerationSnapshot{}, ErrControl
+		return domain.GenerationSnapshot{}, fmt.Errorf("%w: Acquire: epoch.Err() != nil || control.closing", ErrControl)
 	}
 	control.snapshot, control.haveTarget, control.granted = requested, true, false
 	control.mu.Unlock()
@@ -231,7 +232,7 @@ func (control *Control) observeForAcquire(ctx context.Context, requested domain.
 		control.mu.Lock()
 		if control.closing || control.lifetime.Err() != nil {
 			control.mu.Unlock()
-			return nil, nil, nil, false, nil, ErrControl
+			return nil, nil, nil, false, nil, fmt.Errorf("%w: observeForAcquire: control.closing || control.lifetime.Err() != nil", ErrControl)
 		}
 		err = control.invalidateLocked()
 		epoch, everTargeted = control.epoch, control.haveTarget
@@ -274,7 +275,7 @@ func (control *Control) Lease(snapshot domain.GenerationSnapshot) (string, error
 	control.mu.Lock()
 	defer control.mu.Unlock()
 	if !control.liveLocked() || !control.snapshot.Matches(snapshot) {
-		return "", ErrControl
+		return "", fmt.Errorf("%w: Lease: !control.liveLocked() || !control.snapshot.Matches(snapshot)", ErrControl)
 	}
 	return liveToken, nil
 }
@@ -300,7 +301,7 @@ func (control *Control) manual(ctx context.Context, resume bool) error {
 	control.mu.Lock()
 	if control.closing {
 		control.mu.Unlock()
-		return ErrControl
+		return fmt.Errorf("%w: manual: control.closing", ErrControl)
 	}
 	err := control.invalidateLocked()
 	control.mu.Unlock()
@@ -442,7 +443,7 @@ func (control *Control) enter(ctx, epoch context.Context) (context.Context, func
 	if epoch.Err() != nil {
 		<-control.gate
 		cleanup()
-		return nil, nil, ErrControl
+		return nil, nil, fmt.Errorf("%w: enter: epoch.Err() != nil", ErrControl)
 	}
 	return call, func() { <-control.gate; cleanup() }, nil
 }
@@ -468,12 +469,12 @@ func (control *Control) enterGate(ctx context.Context) (context.Context, func(),
 func (control *Control) acceptGrant(call, epoch context.Context, reply *a.ControlReply, snapshot domain.GenerationSnapshot) error {
 	grant := reply.GetGranted()
 	if grant == nil || bridge.ValidateContext(grant.Context) != nil || !proto.Equal(grant.Context.Identity, controlIdentity(snapshot)) || grant.Context.NativeGeneration == nil || grant.Context.GetNativeGeneration() != uint64(snapshot.Native) || grant.Authority == nil || grant.Authority.GetMode() != a.Mode_MODE_AUTO {
-		return ErrControl
+		return fmt.Errorf("%w: acceptGrant: grant == nil || bridge.ValidateContext(grant.Context) != nil || !proto.Equal(grant.Context.Identity, contro", ErrControl)
 	}
 	control.mu.Lock()
 	defer control.mu.Unlock()
 	if call.Err() != nil || epoch.Err() != nil || control.closing {
-		return ErrControl
+		return fmt.Errorf("%w: acceptGrant: call.Err() != nil || epoch.Err() != nil || control.closing", ErrControl)
 	}
 	control.snapshot = snapshot
 	control.active = true
@@ -508,11 +509,11 @@ func (control *Control) revoke(ctx context.Context, reason a.RevocationReason) e
 	}
 	active := status.GetActive()
 	if active == nil || active.GetMode() != a.Mode_MODE_AUTO {
-		return ErrControl
+		return fmt.Errorf("%w: revoke: active == nil || active.GetMode() != a.Mode_MODE_AUTO", ErrControl)
 	}
 	generation := status.Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
-		return ErrControl
+		return fmt.Errorf("%w: revoke: generation == ^uint64(0)", ErrControl)
 	}
 	if control.config.BeforeRevoke != nil {
 		if err := control.config.BeforeRevoke(ctx, controlIdentity(snapshot), generation); err != nil {
@@ -525,7 +526,7 @@ func (control *Control) revoke(ctx context.Context, reason a.RevocationReason) e
 	}
 	revoked := result.GetRevoked()
 	if revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, controlIdentity(snapshot)) || revoked.Context.NativeGeneration == nil || revoked.Context.GetNativeGeneration() != generation+1 || revoked.Authority == nil || revoked.Authority.Reason == nil || revoked.Authority.GetReason() != reason {
-		return ErrControl
+		return fmt.Errorf("%w: revoke: revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity,", ErrControl)
 	}
 	return control.publishDisabled(ctx, snapshot, revoked.Context.GetNativeGeneration())
 }
@@ -534,7 +535,7 @@ func (control *Control) publishDisabled(ctx context.Context, expected domain.Gen
 	control.mu.Lock()
 	defer control.mu.Unlock()
 	if ctx.Err() != nil || !control.snapshot.Matches(expected) {
-		return ErrControl
+		return fmt.Errorf("%w: publishDisabled: ctx.Err() != nil || !control.snapshot.Matches(expected)", ErrControl)
 	}
 	control.snapshot.Native = domain.NativeGeneration(generation)
 	control.active = false
@@ -550,12 +551,12 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 		return err
 	}
 	if requested.Revision == 0 {
-		return ErrControl
+		return fmt.Errorf("%w: ObserveTarget: requested.Revision == 0", ErrControl)
 	}
 	control.mu.Lock()
 	if control.closing || control.liveLocked() {
 		control.mu.Unlock()
-		return ErrControl
+		return fmt.Errorf("%w: ObserveTarget: control.closing || control.liveLocked()", ErrControl)
 	}
 	epoch := control.epoch
 	control.mu.Unlock()
@@ -567,7 +568,7 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 	control.mu.Lock()
 	if control.closing || epoch.Err() != nil || control.epoch != epoch || control.liveLocked() {
 		control.mu.Unlock()
-		return ErrControl
+		return fmt.Errorf("%w: ObserveTarget: control.closing || epoch.Err() != nil || control.epoch != epoch || control.liveLocked()", ErrControl)
 	}
 	control.mu.Unlock()
 	reply, _, err := control.native.ReadAuthority(call, controlIdentity(requested))
@@ -602,7 +603,7 @@ func (control *Control) Refresh(ctx context.Context) error {
 	control.mu.Lock()
 	if control.closing || !control.haveTarget {
 		control.mu.Unlock()
-		return ErrControl
+		return fmt.Errorf("%w: Refresh: control.closing || !control.haveTarget", ErrControl)
 	}
 	epoch, snapshot := control.epoch, control.snapshot
 	control.mu.Unlock()
@@ -642,18 +643,18 @@ func (control *Control) Refresh(ctx context.Context) error {
 func controlStatus(reply *a.StatusReply, snapshot domain.GenerationSnapshot) error {
 	status := reply.GetStatus()
 	if status == nil || bridge.ValidateContext(status.Context) != nil || !proto.Equal(status.Context.Identity, controlIdentity(snapshot)) || status.Context.NativeGeneration == nil {
-		return ErrControl
+		return fmt.Errorf("%w: controlStatus: status == nil || bridge.ValidateContext(status.Context) != nil || !proto.Equal(status.Context.Identity, con", ErrControl)
 	}
 	if inactive := status.GetInactive(); inactive != nil {
 		if inactive.Reason == nil || *inactive.Reason <= 0 || *inactive.Reason > a.RevocationReason_REVOCATION_REASON_UNAVAILABLE {
-			return ErrControl
+			return fmt.Errorf("%w: controlStatus: inactive.Reason == nil || *inactive.Reason <= 0 || *inactive.Reason > a.RevocationReason_REVOCATION_REASON_", ErrControl)
 		}
 		return nil
 	}
 	if active := status.GetActive(); active != nil && active.GetMode() == a.Mode_MODE_AUTO {
 		return nil
 	}
-	return ErrControl
+	return fmt.Errorf("%w: controlStatus: check failed", ErrControl)
 }
 func controlIdentity(s domain.GenerationSnapshot) *c.Identity {
 	return &c.Identity{ColonyId: proto.String(string(s.Colony)), LoadToken: proto.String(string(s.Load)), MapId: proto.Int32(int32(s.Map))}

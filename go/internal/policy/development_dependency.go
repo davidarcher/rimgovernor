@@ -287,6 +287,31 @@ func DependencyResourceNeeds(deps []DevelopmentDependency) map[Resource]int64 {
 	return out
 }
 
+// ConstructionResourceNeeds raises needs to the material a standing
+// blueprint or frame is still owed wherever the known stock falls short of
+// it, so a site blocked on materials names its cost to MaintainResource.
+func ConstructionResourceNeeds(needs map[Resource]int64, deficit domain.Fact[map[Resource]int64], resources domain.Fact[[]Amount]) map[Resource]int64 {
+	owed, ok := deficit.Value()
+	rows, known := resources.Value()
+	if !ok || !known {
+		return needs
+	}
+	stock := map[Resource]int64{}
+	for _, row := range rows {
+		stock[row.Resource] += row.Count
+	}
+	for resource, n := range owed {
+		if n <= stock[resource] || n <= needs[resource] {
+			continue
+		}
+		if needs == nil {
+			needs = map[Resource]int64{}
+		}
+		needs[resource] = n
+	}
+	return needs
+}
+
 type dependencyDemand struct{ need, available int64 }
 
 // dependencyDemands is ResolveDonations' shared demand for one

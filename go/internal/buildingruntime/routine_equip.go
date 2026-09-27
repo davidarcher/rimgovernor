@@ -34,7 +34,7 @@ type RoutineEquipResult struct {
 
 func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource) (*RoutineEquipPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineEquipPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineEquipPlanner{reviewer, native}, nil
 }
@@ -45,7 +45,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineEquipResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -97,7 +97,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineEquipResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -113,19 +113,19 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	var pawns []policy.EquipCandidatePawn
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineEquipResult{}, ErrControl
+			return RoutineEquipResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		facts := equipCandidatePawnFacts(row)
@@ -144,14 +144,14 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineEquipResult{}, err
 	}
 	if _, err = boundary.Context(bounds.Context, state.Snapshot); err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0", ErrControl)
 	}
 	weapons, _, err := r.native.ReadEquipWeapons(call, identity, domain.Cell{X: 0, Z: 0}, domain.Cell{X: bounds.Bounds.Width - 1, Z: bounds.Bounds.Height - 1})
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
 	if _, err = boundary.Context(weapons.Context, state.Snapshot); err != nil {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	var candidates []policy.EquipCandidateWeapon
 	for _, w := range weapons.Targets {
@@ -215,7 +215,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineEquipResult{}, ErrControl
+		return RoutineEquipResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineEquipResult{}, err

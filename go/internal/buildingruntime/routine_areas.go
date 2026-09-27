@@ -70,7 +70,7 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 	state := p.session.State()
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if !state.Enabled || state.Snapshot != snapshot || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineRecoveryResult{}, ErrControl
+		return RoutineRecoveryResult{}, fmt.Errorf("%w: commitAreaChange: !state.Enabled || state.Snapshot != snapshot || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineRecoveryResult{}, err

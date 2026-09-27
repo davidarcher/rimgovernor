@@ -36,7 +36,7 @@ type RoutineClearanceResult struct {
 
 func NewRoutineClearancePlanner(reviewer *RoutineReviewer, native RoutineClearanceSource) (*RoutineClearancePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineClearancePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineClearancePlanner{reviewer, native}, nil
 }
@@ -47,7 +47,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineClearanceResult{}, ErrControl
+		return RoutineClearanceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineClearanceResult{}, ErrControl
+		return RoutineClearanceResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	colony, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
@@ -155,7 +155,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineClearanceResult{}, ErrControl
+		return RoutineClearanceResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineClearanceResult{}, err
@@ -251,7 +251,7 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	}
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineClearanceResult{}, ErrControl
+		return RoutineClearanceResult{}, fmt.Errorf("%w: haulChunks: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineClearanceResult{}, err

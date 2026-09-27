@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
@@ -15,19 +16,19 @@ type clockWorkerSlot struct {
 
 func (s *Session) attachClockWorker(worker clockWorkerStopper) error {
 	if s == nil || s.control == nil || s.clock == nil || s.clockWorkers == nil || worker == nil {
-		return ErrControl
+		return fmt.Errorf("%w: attachClockWorker: s == nil || s.control == nil || s.clock == nil || s.clockWorkers == nil || worker == nil", ErrControl)
 	}
 	// Control invalidation uses this same lock before closing can reach StopWrites.
 	s.control.mu.Lock()
 	defer s.control.mu.Unlock()
 	if s.control.closing || s.control.closed {
-		return ErrControl
+		return fmt.Errorf("%w: attachClockWorker: s.control.closing || s.control.closed", ErrControl)
 	}
 	slot := s.clockWorkers
 	slot.mu.Lock()
 	defer slot.mu.Unlock()
 	if slot.closing || slot.worker != nil {
-		return ErrControl
+		return fmt.Errorf("%w: attachClockWorker: slot.closing || slot.worker != nil", ErrControl)
 	}
 	slot.worker = worker
 	return nil

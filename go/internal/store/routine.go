@@ -570,7 +570,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.MedicalCare = medical
 	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
-	r.DependencyNeeds = policy.DependencyResourceNeeds(request.Facts.Dependencies)
+	r.DependencyNeeds = policy.ConstructionResourceNeeds(policy.DependencyResourceNeeds(request.Facts.Dependencies), request.Facts.ConstructionDeficit, request.Facts.Resources)
 	r.WoodFloor = needs.WoodFloor
 	r.StartingSupplies = supplies
 	r.EventLoot = loot

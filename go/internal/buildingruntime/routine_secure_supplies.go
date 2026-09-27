@@ -69,7 +69,7 @@ type RoutineSecureSuppliesResult struct {
 
 func NewRoutineSecureSuppliesPlanner(reviewer *RoutineReviewer, native RoutineSecureSuppliesSource) (*RoutineSecureSuppliesPlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineSecureSuppliesPlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineSecureSuppliesPlanner{reviewer, native}, nil
 }
@@ -92,7 +92,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{Kind: PlanUnsupported, Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -137,7 +137,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
@@ -183,7 +183,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
@@ -199,20 +199,20 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: observed == nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: err != nil", ErrControl)
 	}
 	if len(observed.Pawns) != len(ids) {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 		return PlanResult{}, loadErr
 	}
 	if preferences.Revision != review.WorkPreferenceRevision {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: propose: preferences.Revision != review.WorkPreferenceRevision", ErrControl)
 	}
 	overridden := map[domain.PawnID]bool{}
 	for _, o := range preferences.Overrides {
@@ -224,7 +224,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return PlanResult{}, ErrControl
+			return PlanResult{}, fmt.Errorf("%w: propose: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -290,7 +290,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", "", ErrControl
+			return "", "", fmt.Errorf("%w: propose: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if _, err := p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return "", "", err
@@ -338,11 +338,11 @@ func (r *RoutineSecureSuppliesPlanner) admitBuilding(epoch context.Context, stat
 			return "", "", err
 		}
 		if p.session.State() != state {
-			return "", "", ErrControl
+			return "", "", fmt.Errorf("%w: admitBuilding: p.session.State() != state", ErrControl)
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", "", ErrControl
+			return "", "", fmt.Errorf("%w: admitBuilding: elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		decision, err := p.journal.AdmitBuildingMethod(ctx, request)
 		if err != nil {
@@ -459,7 +459,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 		return PlanResult{}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: coveredStorageFallback: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
@@ -539,7 +539,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 		return PlanResult{}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return PlanResult{}, ErrControl
+		return PlanResult{}, fmt.Errorf("%w: generalStore: err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick", ErrControl)
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {

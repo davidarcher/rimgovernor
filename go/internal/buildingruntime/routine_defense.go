@@ -43,7 +43,7 @@ type RoutineDefenseResult struct {
 
 func NewRoutineDefensePlanner(reviewer *RoutineReviewer, native RoutineDefenseSource) (*RoutineDefensePlanner, error) {
 	if reviewer == nil || native == nil {
-		return nil, ErrControl
+		return nil, fmt.Errorf("%w: NewRoutineDefensePlanner: reviewer == nil || native == nil", ErrControl)
 	}
 	return &RoutineDefensePlanner{reviewer, native}, nil
 }
@@ -54,7 +54,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
-		return RoutineDefenseResult{}, ErrControl
+		return RoutineDefenseResult{}, fmt.Errorf("%w: decide: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -137,7 +137,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{}, err
 	}
 	if _, err = boundary.Context(combat.Context, state.Snapshot); err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick) {
-		return RoutineDefenseResult{}, ErrControl
+		return RoutineDefenseResult{}, fmt.Errorf("%w: decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	in, reason, err := combatFrameInputs(combat)
 	if err != nil || reason != "" {
@@ -322,7 +322,7 @@ func combatFrameInputs(combat bridge.Combat) (combatInputs, RoutineBuildingReaso
 	for _, row := range in.rows {
 		if row == nil {
 			// The frame's detail misses a pawn its census lists.
-			return combatInputs{}, "", ErrControl
+			return combatInputs{}, "", fmt.Errorf("%w: combatFrameInputs: row == nil", ErrControl)
 		}
 	}
 	return in, "", nil

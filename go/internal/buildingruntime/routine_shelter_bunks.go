@@ -490,7 +490,7 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		}
 	}
 	if len(previews) != len(actions) {
-		return RoutineBuildingResult{}, false, ErrControl
+		return RoutineBuildingResult{}, false, fmt.Errorf("%w: admitBunks: len(previews) != len(actions)", ErrControl)
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
 	var selected []policy.Preview
