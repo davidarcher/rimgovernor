@@ -14,7 +14,6 @@ var unpinnedStartExempt = map[string]string{
 	"shelter/excavation":     "real terrain: digs into a mountain fixture",
 	"speedmatrix/plain":      "hand-run diagnostic outside every tier (#739)",
 	"medical/stable-patient": "hand-run diagnostic outside every tier (#739)",
-	"custody/population":     "#733 pending: moving to the lab",
 	"mining/remote_ore":      "#733 pending: moving to the lab",
 }
 

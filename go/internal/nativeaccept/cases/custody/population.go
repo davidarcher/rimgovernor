@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -54,8 +53,8 @@ func init() {
 			"real roster/status change observed via native ticks, and replay idempotency. The captured prisoner then " +
 			"takes ReduceResistance and AttemptRecruit interaction writes whose progress reads report the actual " +
 			"recruited custody outcome after a native recruit.",
-		Start:  cases.Fixture{Op: "test/population_setup", Args: map[string]any{"candidateKind": "Villager"}},
-		Budget: 5 * time.Minute,
+		Start:  cases.Fixture{Op: "test/population_setup", Args: map[string]any{"candidateKind": "Villager"}, On: cases.LabStart()},
+		Budget: cases.LabBudget,
 		Run:    run,
 	})
 }

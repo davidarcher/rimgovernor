@@ -25,16 +25,12 @@ namespace HomeBridge.BridgeTools
                 var workers = map.mapPawns.FreeColonistsSpawned.ToList();
                 if (candidateKind != "Villager" && candidateKind != "SpaceRefugee_Clothed")
                     throw new ArgumentException("Unsupported fixture candidate kind");
-                var anchor = workers.First().Position;
-                var origins = map.AllCells.OrderBy(c => c.DistanceToSquared(anchor)).Where(c =>
-                    CellRect.FromLimits(c, c + new IntVec3(15, 0, 9)).Cells.All(p => p.InBounds(map)
-                        && !p.Fogged(map) && p.GetEdifice(map) == null
-                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
-                    && workers.Any(p => p.CanReach(c + new IntVec3(7, 0, 3), PathEndMode.OnCell, Danger.Deadly))).Take(1).ToList();
-                if (origins.Count == 0) throw new InvalidOperationException("Fixture requires an unfogged 16x10 heavy-terrain area without edifices");
-                var origin = origins[0];
-                foreach (var cell in CellRect.FromLimits(origin, origin + new IntVec3(15, 0, 9)).Cells)
-                    cell.GetPlant(map)?.Destroy();
+                // The case starts on the blank lab (#733): its colonists stand
+                // on the centre row, so the 16x10 site sits a few rows north
+                // of it on bare Soil, with no site search.
+                var origin = map.Center + new IntVec3(-8, 0, 4);
+                if (!CellRect.FromLimits(origin, origin + new IntVec3(15, 0, 9)).Cells.All(p => p.InBounds(map) && p.Standable(map) && p.GetEdifice(map) == null))
+                    throw new InvalidOperationException($"The fixture site at {origin} is not clear: this fixture needs the blank lab start");
                 Func<string, int, int, Thing> spawn = (name, x, z) => {
                     var def = ThingDef.Named(name);
                     var thing = ThingMaker.MakeThing(def, def.MadeFromStuff ? ThingDefOf.WoodLog : null);
