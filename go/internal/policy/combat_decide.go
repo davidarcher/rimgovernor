@@ -39,6 +39,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		next.Formed = view.Tick
 	}
 	peel(view, stop, &next)
+	pullBackTank(view, stop, &next)
 	next.Roles = focusFire(view, next.Roles, memory.Roles)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
@@ -106,6 +107,9 @@ type CombatPawnState struct {
 	WeaponRange float64
 	Kind        string
 	Sapper      bool
+	// Shield is the worn shield's charge, a fraction of max (#866);
+	// unknown without a shield.
+	Shield domain.Fact[float64]
 }
 
 // CombatLayout is the stored, complete defense layout's line.
@@ -414,14 +418,16 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 		}
 		var positions []DefensivePosition
 		cells = spaceCells(RankByCover(cells, geometry.Scored))
-		positions, refusal = ExplainDefensivePositions(cells, layout.Toward, view.Positional, view.Defenders)
+		defenders, tanks := splitTanks(view)
+		positions, refusal = ExplainDefensivePositions(cells, layout.Toward, view.Positional, defenders)
 		if refusal == "" {
 			roles := make([]CombatRole, 0, len(positions))
 			for _, p := range positions {
 				cell := p.Cell
 				roles = append(roles, CombatRole{Pawn: p.Defender, Cell: &cell, Target: domain.PawnID(p.Target), Ranged: true})
 			}
-			roles = append(roles, brawlerRoles(view, blocking, geometry.Proposals)...)
+			roles = append(roles, brawlerRoles(view, defenders, blocking, geometry.Proposals)...)
+			roles = append(roles, tankRoles(tanks, positions, layout.Toward)...)
 			return TacticHold, sortRoles(roles), ""
 		}
 	}

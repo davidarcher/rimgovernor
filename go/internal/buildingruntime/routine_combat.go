@@ -224,6 +224,9 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []poli
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 			}
+			if row.ShieldEnergy != nil {
+				s.Shield = domain.Known(row.GetShieldEnergy())
+			}
 			out = append(out, threatFacts(s, rows[row.GetId()]))
 		}
 		return out
