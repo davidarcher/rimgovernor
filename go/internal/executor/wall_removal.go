@@ -63,11 +63,11 @@ func (e *Executor) runWallRemoval(ctx context.Context, action domain.Action, p d
 				}
 				found = true
 				view := state.Progress[i].View()
-				// The backup wall is an applied building intent (#856): the
-				// receipt proves only its blueprint, so the wall at the site is
-				// the backup once the census reports it built under its key.
+				// The backup wall is a declared building dependency: store
+				// admission holds this removal until the census reports it
+				// built (#937), so a completed backup names the site's wall.
 				effect, ek := view.Effect.Value()
-				if built, _ := facts.BackupBuilt.Value(); built && view.Stage == domain.Completed && ek && effect == domain.EffectCompleted {
+				if view.Stage == domain.Completed && ek && effect == domain.EffectCompleted {
 					backupIdentity, _ = facts.TargetIdentity.Value()
 				}
 				break
@@ -84,7 +84,7 @@ func (e *Executor) runWallRemoval(ctx context.Context, action domain.Action, p d
 		}
 		identity, _ := facts.TargetIdentity.Value()
 		eligible, _ := facts.SiteEligible.Value()
-		admission := store.WallRemovalAdmission{Snapshot: expected, Tick: facts.ObservationTick, Original: removal.Original(), BackupOf: removal.BackupOf(), TargetIdentity: identity, SiteEligible: eligible, BackupBuilt: backupBuilt(removal, inspection.Facts)}
+		admission := store.WallRemovalAdmission{Snapshot: expected, Tick: facts.ObservationTick, Original: removal.Original(), BackupOf: removal.BackupOf(), TargetIdentity: identity, SiteEligible: eligible}
 		next, err := e.wallRemovalJournal.PrepareWallRemoval(ctx, v.Plan, v.Action, admission)
 		if err != nil {
 			return result, err
@@ -105,7 +105,7 @@ func (e *Executor) runWallRemoval(ctx context.Context, action domain.Action, p d
 	attempt := Placement{action, next.View().Attempt, expected, inspection.Facts.ObservationTick}
 	identity, _ := inspection.Facts.TargetIdentity.Value()
 	eligible, _ := inspection.Facts.SiteEligible.Value()
-	admission := store.WallRemovalAdmission{Snapshot: expected, Tick: inspection.Facts.ObservationTick, Original: removal.Original(), BackupOf: removal.BackupOf(), TargetIdentity: identity, SiteEligible: eligible, BackupBuilt: backupBuilt(removal, inspection.Facts)}
+	admission := store.WallRemovalAdmission{Snapshot: expected, Tick: inspection.Facts.ObservationTick, Original: removal.Original(), BackupOf: removal.BackupOf(), TargetIdentity: identity, SiteEligible: eligible}
 	if err = e.guard(ctx, expected, generation); err != nil {
 		return e.record(result, v.Plan, attempt, domain.ReceiptUnknown, err)
 	}
@@ -216,11 +216,4 @@ func (e *Executor) cascadeWallRemovalRetirement(ctx context.Context, state store
 		}
 	}
 	return nil
-}
-
-// backupBuilt is a backup removal's census proof that its backup wall stands
-// built; the original demolition carries none.
-func backupBuilt(removal domain.WallRemoval, facts policy.WallRemovalFacts) bool {
-	built, _ := facts.BackupBuilt.Value()
-	return removal.BackupOf() != "" && built
 }

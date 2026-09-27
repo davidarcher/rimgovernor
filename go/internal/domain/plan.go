@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 )
 
@@ -343,6 +344,9 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 		return PlanSpec{}, err
 	}
 	for _, a := range actions {
+		if removal, ok := a.WallRemoval(); ok && removal.BackupOf() != "" && !slices.Contains(deps, ActionDependency{Action: a.ID(), Requires: removal.BackupOf()}) {
+			return PlanSpec{}, errors.New("backup wall removal must declare its backup wall as a dependency")
+		}
 		if capture, ok := a.Capture(); ok && capture.Arrest() {
 			owned := false
 			for _, dep := range deps {
@@ -399,9 +403,6 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 		}
 		if movement, k := a.Movement(); k {
 			graph[id] = append(graph[id], movement.DraftAction())
-		}
-		if removal, k := a.WallRemoval(); k && removal.BackupOf() != "" {
-			graph[id] = append(graph[id], removal.BackupOf())
 		}
 	}
 	visiting, done := map[ActionID]bool{}, map[ActionID]bool{}

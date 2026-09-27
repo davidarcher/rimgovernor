@@ -278,7 +278,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 			return RoutineStoneShellResult{}, false, err
 		}
 		actions = append(actions, backupRemoveAction)
-		dependencies = append(dependencies, domain.ActionDependency{Action: backupRemoveID, Requires: permanentID})
+		dependencies = append(dependencies, domain.ActionDependency{Action: backupRemoveID, Requires: permanentID}, domain.ActionDependency{Action: backupRemoveID, Requires: backupID})
 	}
 	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
 	if err != nil {

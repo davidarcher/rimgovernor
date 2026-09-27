@@ -31,7 +31,7 @@ func backupWallRemovalRequest(t *testing.T) WallRemovalRequest {
 	a, _ := domain.NewWallRemovalAction("backup-removal", removal)
 	backup, _ := domain.NewBuilding("Wall", domain.Cell{X: 2, Z: 1}, domain.North, "BlocksGranite")
 	backupAction, _ := domain.NewBuildingAction("backup", backup)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{backupAction, a})
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{backupAction, a}, domain.ActionDependency{Action: a.ID(), Requires: backupAction.ID()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -68,7 +68,7 @@ func backupWallBundle(t *testing.T, deps ...ActionDependency) (PlanSpec, []Actio
 		t.Fatal(e)
 	}
 	actions := []Action{backupAction, demolitionAction, permanentAction, backupRemovalAction}
-	p, e := NewPlan("wall-upgrade", 1, actions, deps...)
+	p, e := NewPlan("wall-upgrade", 1, actions, append(deps, ActionDependency{Action: "backup-removal", Requires: "backup"})...)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -111,8 +111,15 @@ func TestBackupWallRemovalRequiresPrecedingBackupWall(t *testing.T) {
 func TestWallRemovalBackupPrerequisiteParticipatesInCycleDetection(t *testing.T) {
 	_, actions := backupWallBundle(t)
 	// A dependency forcing the backup wall to wait on its own removal, combined
-	// with the automatic backup-removal-requires-backup-wall edge, is a cycle.
-	if _, e := NewPlan("wall-upgrade", 1, actions, ActionDependency{Action: "backup", Requires: "backup-removal"}); e == nil {
+	// with the declared backup-removal-requires-backup-wall edge, is a cycle.
+	if _, e := NewPlan("wall-upgrade", 1, actions, ActionDependency{Action: "backup-removal", Requires: "backup"}, ActionDependency{Action: "backup", Requires: "backup-removal"}); e == nil {
 		t.Fatal("accepted cyclic backup wall dependency")
+	}
+}
+
+func TestBackupWallRemovalMustDeclareBackupDependency(t *testing.T) {
+	_, actions := backupWallBundle(t)
+	if _, e := NewPlan("wall-upgrade", 1, actions); e == nil {
+		t.Fatal("accepted backup removal without its backup wall dependency")
 	}
 }

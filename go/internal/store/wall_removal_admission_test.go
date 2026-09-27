@@ -111,7 +111,6 @@ func TestBackupWallRemovalAdmissionRequiresCompletedBackup(t *testing.T) {
 	if _, err := s.PrepareWallRemoval(ctx, "plan", "backup-removal", v); err == nil {
 		t.Fatal("admission accepted before the census reported the backup wall built")
 	}
-	v.BackupBuilt = true
 	reviewCensus(t, s, scope, 14, []domain.ActionID{"backup"})
 	if _, err := s.PrepareWallRemoval(ctx, "plan", "backup-removal", v); err != nil {
 		t.Fatal(err)

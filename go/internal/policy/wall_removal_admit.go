@@ -17,9 +17,6 @@ type WallRemovalFacts struct {
 	ObservationTick domain.Tick
 	TargetIdentity  domain.Fact[string]
 	SiteEligible    domain.Fact[bool]
-	// BackupBuilt, for a backup removal, is the census reporting the site's
-	// wall built under the backup action's intent key (#856).
-	BackupBuilt domain.Fact[bool]
 }
 
 type WallRemovalRequest struct {
