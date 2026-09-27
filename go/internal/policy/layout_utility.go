@@ -245,6 +245,15 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: r.Area.X + 1, Z: r.Area.Z + 1}, Rotation: domain.North, Area: r.Area})
 			}
 		}
+	case GeothermalDefinition:
+		// The 6x6 generator inside the shell, on the geyser's position: a
+		// 6-wide footprint spans its centre -2..+3.
+		for _, r := range plan.Reservations {
+			if r.Kind == ReserveGeothermal {
+				gen := pad(r.Area, -geothermalShell)
+				out = append(out, PlannedPowerSite{Cell: domain.Cell{X: gen.X + 2, Z: gen.Z + 2}, Rotation: domain.North, Area: gen})
+			}
+		}
 	}
 	return out
 }

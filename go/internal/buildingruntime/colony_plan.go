@@ -63,7 +63,8 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		} else {
 			r.planChecked, r.planSurveyed = tick, true
 			if !haveLayout {
-				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns))
+				topology, _ := projection.PowerPlanning.Value()
+				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), topology.Geysers)
 			} else {
 				err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, outgrown)
 			}
@@ -140,9 +141,10 @@ func (r *RoutineReviewer) layoutPlan(ctx context.Context, snapshot domain.Genera
 	return record, ok, err
 }
 
-// deriveLayoutPlan lays a fresh v2 plan over survey and records it.
-func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int) error {
-	plan, known := policy.DeriveLayoutPlan(survey, pawns).Value()
+// deriveLayoutPlan lays a fresh v2 plan over survey and the reported
+// geysers and records it.
+func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, survey policy.MapSurvey, pawns int, geysers []policy.PowerGeyser) error {
+	plan, known := policy.DeriveLayoutPlan(survey, pawns, geysers).Value()
 	if !known {
 		clockSchedulerLog("map survey holds no core for the layout plan")
 		return nil

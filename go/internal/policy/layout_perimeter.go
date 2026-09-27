@@ -87,6 +87,17 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
+	// A geothermal enclosure near the core stands inside the wall (#834);
+	// one the ring would not reach lies wholly outside it, never across it.
+	for grew := true; grew; {
+		grew = false
+		for _, r := range plan.Reservations {
+			if r.Kind == ReserveGeothermal && clipRect(r.Area, pad(core, perimeterGap+perimeterThick)).Width > 0 && unionRect(core, r.Area) != core {
+				grow(r.Area)
+				grew = true
+			}
+		}
+	}
 	e := LayoutEdgeMargin
 	outer := clipRect(pad(core, perimeterGap+perimeterThick), Rectangle{X: e, Z: e, Width: w - 2*e, Height: h - 2*e})
 	inner := pad(outer, -perimeterThick)

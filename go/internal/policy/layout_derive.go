@@ -17,13 +17,25 @@ import (
 var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 
 // DeriveLayoutPlan lays a fresh v2 plan over the survey for pawns
-// colonists. Unknown when the survey holds no room for a core.
-func DeriveLayoutPlan(s MapSurvey, pawns int) domain.Fact[LayoutPlan] {
+// colonists, with a geothermal enclosure on each reported steam geyser
+// (#834). Unknown when the survey holds no room for a core.
+func DeriveLayoutPlan(s MapSurvey, pawns int, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
 	plan := PlanCore(Zone(s), pawns)
 	if len(plan.Rooms) == 0 {
 		return domain.Unknown[LayoutPlan]()
 	}
-	plan = PlanPerimeter(PlanUtilities(plan, layoutUtilities), s)
+	want := layoutUtilities
+	for _, g := range geysers {
+		if len(g.Cells) == 0 {
+			continue
+		}
+		var r Rectangle
+		for _, c := range g.Cells {
+			r = unionRect(r, Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1})
+		}
+		want.Geysers = append(want.Geysers, r)
+	}
+	plan = PlanPerimeter(PlanUtilities(plan, want), s)
 	return domain.Known(withoutCore(plan))
 }
 

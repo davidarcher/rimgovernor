@@ -8,7 +8,7 @@ import (
 func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
 	s := zoningSurvey(200, open)
-	plan, ok := DeriveLayoutPlan(s, 3).Value()
+	plan, ok := DeriveLayoutPlan(s, 3, nil).Value()
 	if !ok || !plan.Valid() || plan.LayoutOutgrown(3) {
 		t.Fatal(ok, plan.Valid())
 	}
