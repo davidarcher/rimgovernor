@@ -10578,7 +10578,8 @@
     "Flammability": 1,
     "PathCost": 5
    },
-   "TrafficMinSamples": 12
+   "MaterialTicksPerUnit": 30,
+   "PaybackDays": 15
   },
   "FoodMinDays": 3,
   "FoodReserveDays": 5,

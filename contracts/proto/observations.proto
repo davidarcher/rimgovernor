@@ -870,6 +870,7 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
   optional bool raw_preferred = 29; // Edible raw without the native bad-taste thought.
   optional bool diet_allowed = 30; // No colonist ideology penalises this crop product.
   optional bool requires_pollution = 31; optional bool requires_clean_soil = 32;
+  optional double work_to_build = 33; // Native WorkToBuild stat (work ticks) for the row's stuff.
 }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their

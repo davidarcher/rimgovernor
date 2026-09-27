@@ -71,19 +71,19 @@ func TestFlooringEntryTierMatsKitchenDoorCrossing(t *testing.T) {
 	}
 }
 
-func TestFlooringTrafficTierRanksColonistStepsBySpeedGain(t *testing.T) {
+func TestFlooringTrafficTierRanksColonistStepsByPayback(t *testing.T) {
 	p := flooringPolicy()
 	terrains := flooringTerrains()
 	terrains["Sand"] = FloorTerrain{PathCost: 4, Natural: true}
-	v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000}
+	v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Floors: trafficFloors()}
 	v.Traffic = []TrafficCell{
 		{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 60, Terrain: "Soil", Home: true},
 		{Cell: domain.Cell{X: 2, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Sand", Home: true},
 		{Cell: domain.Cell{X: 3, Z: 1}, Layer: TrafficVisitor, Samples: 900, Terrain: "Sand", Home: true},
 	}
 	r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
-	// 40 steps at 4 path cost win back more than 60 at 2; visitor steps
-	// never pave.
+	// 40 steps at 4 path cost repay a wood floor sooner than 60 at 2;
+	// visitor steps never pave.
 	if err != nil || len(r.Deficits) != 1 || len(r.Deficits[0].Cells) != 2 || r.Deficits[0].Cells[0] != (domain.Cell{X: 2, Z: 1}) {
 		t.Fatal(r, err)
 	}

@@ -253,6 +253,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		readDefinitions = append(append([]string(nil), readDefinitions...), policy.RoomUpgradeDefinitions...)
 	}
+	if r.methodEnabled(policy.MaintainFlooring) {
+		// The traffic tier prices its floor in the review (#950).
+		readDefinitions = append(append([]string(nil), readDefinitions...), r.policy.Flooring.Floors...)
+	}
 	if r.methodEnabled(policy.MaintainWaste) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}
@@ -318,6 +322,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	r.reviewMeals(&reading.Projection)
 	r.reviewReserve(&reading.Projection)
+	if r.methodEnabled(policy.MaintainFlooring) {
+		reading.Projection.Facts.Upkeep.Flooring = trafficFlooringFacts(reading.Projection, r.policy.Flooring)
+		reading.Sections.Colony.Value.Facts.Upkeep.Flooring = reading.Projection.Facts.Upkeep.Flooring
+	}
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
 	}

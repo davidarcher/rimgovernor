@@ -392,6 +392,7 @@ namespace HomeBridge.BridgeTools
                     if (stuff != null) row.Stuff = stuff.defName;
                     var costs = def.CostListAdjusted(stuff, false); 
                     foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
+                    row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
                     if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
                 }
                 var powerProps = def.GetCompProperties<CompProperties_Power>();
@@ -449,6 +450,7 @@ namespace HomeBridge.BridgeTools
             foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
             row.Cleanliness = Finite(def.GetStatValueAbstract(StatDefOf.Cleanliness));
             row.PathCost = def.pathCost;
+            row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild));
             row.Beauty = Finite(def.GetStatValueAbstract(StatDefOf.Beauty));
             row.Flammability = Finite(def.GetStatValueAbstract(StatDefOf.Flammability));
             return true;
@@ -529,6 +531,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
+        private static double Nonnegative(double v) => Finite(v) >= 0 ? v : throw new InvalidOperationException("Negative fact.");
         private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
         {
             var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),

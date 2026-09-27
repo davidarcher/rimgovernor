@@ -254,3 +254,110 @@ func TestSelectFlooringRefusesUglyFloorsForLivingRooms(t *testing.T) {
 		t.Fatal("concrete is not a living-room floor", proposal, err)
 	}
 }
+
+// trafficFloors is the policy floors' planning rows with their native
+// WorkToBuild, as the traffic tier prices them (#950).
+func trafficFloors() map[string]FloorDefinition {
+	floors := flooringDefinitions().Definitions
+	for name, work := range map[string]float64{"WoodPlankFloor": 85, "Concrete": 50, "SterileTile": 800} {
+		d := floors[name]
+		d.WorkToBuild = domain.Known(work)
+		floors[name] = d
+	}
+	return floors
+}
+
+// The traffic tier keeps a cell only while the priced floor repays its
+// work and material ticks within PaybackDays (#950). A wood floor costs
+// 85 work + 3 logs x 30 = 175 ticks; a colonist cell of s samples is
+// stepped s*ln2/2 times a day.
+func TestFlooringTrafficTierPaysBack(t *testing.T) {
+	terrains := flooringTerrains()
+	terrains["Sand"] = FloorTerrain{PathCost: 8, Natural: true}
+	cell := func(x int32, samples uint32, terrain string) TrafficCell {
+		return TrafficCell{Cell: domain.Cell{X: x, Z: 1}, Layer: TrafficColonist, Samples: samples, Terrain: terrain, Home: true}
+	}
+	for _, tc := range []struct {
+		name    string
+		traffic []TrafficCell
+		floors  func(map[string]FloorDefinition)
+		want    []int32
+		active  bool
+		unknown bool
+	}{
+		// 12 samples on sand: 4.2 steps x 8 ticks = 33 ticks a day, 5.3 days.
+		{name: "busy sand pays", traffic: []TrafficCell{cell(1, 12, "Sand")}, want: []int32{1}, active: true},
+		// 12 samples on soil: 8.3 ticks a day, 21 days.
+		{name: "lightly walked soil does not", traffic: []TrafficCell{cell(1, 12, "Soil")}},
+		// Sand 12 (5.3 d), soil 60 (4.2 d), soil 30 (8.4 d), soil 12 (21 d),
+		// sand 40 (1.6 d): cheapest payback first, the non-payer cut.
+		{name: "ordered by payback, stops at the first non-payer",
+			traffic: []TrafficCell{cell(1, 12, "Sand"), cell(2, 60, "Soil"), cell(3, 30, "Soil"), cell(4, 12, "Soil"), cell(5, 40, "Sand")},
+			want:    []int32{5, 2, 1, 3}, active: true},
+		{name: "unknown work is unknown", traffic: []TrafficCell{cell(1, 40, "Sand")}, floors: func(f map[string]FloorDefinition) {
+			for name, d := range f {
+				d.WorkToBuild = domain.Unknown[float64]()
+				f[name] = d
+			}
+		}, unknown: true},
+		{name: "no floor rows is unknown", traffic: []TrafficCell{cell(1, 40, "Sand")}, floors: func(f map[string]FloorDefinition) { clear(f) }, unknown: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := flooringPolicy()
+			v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Traffic: tc.traffic, Floors: trafficFloors()}
+			if tc.floors != nil {
+				tc.floors(v.Floors)
+			}
+			r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
+			if err != nil || r.Active != tc.active {
+				t.Fatal(r, err)
+			}
+			if tc.unknown {
+				// A traffic latch held before survives an unpriced review and
+				// the selector waits on it.
+				r, err = ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), []string{trafficKey}, p)
+				if err != nil || !r.Active || len(r.Deficits) != 1 || !r.Deficits[0].Unknown || len(r.Latched) != 1 {
+					t.Fatal(r, err)
+				}
+				if proposal, err := SelectFlooringMethod(r, flooringDefinitions(), p); err != nil || proposal.Method != FlooringUnknown {
+					t.Fatal(proposal, err)
+				}
+				return
+			}
+			if !tc.active {
+				return
+			}
+			d := r.Deficits[0]
+			if d.Floor != "WoodPlankFloor" || len(d.Cells) != len(tc.want) {
+				t.Fatal(d)
+			}
+			for i, x := range tc.want {
+				if d.Cells[i].X != x {
+					t.Fatal(d.Cells)
+				}
+			}
+			proposal, err := SelectFlooringMethod(r, flooringDefinitions(), p)
+			if err != nil || proposal.Method != FlooringBuild || proposal.Definition != d.Floor {
+				t.Fatal(proposal, err)
+			}
+		})
+	}
+}
+
+// A zero PaybackDays disables the traffic tier, and the tier style is the
+// floor priced when it can be laid.
+func TestFlooringTrafficTierStyleAndDisable(t *testing.T) {
+	terrains := flooringTerrains()
+	terrains["Sand"] = FloorTerrain{PathCost: 8, Natural: true}
+	v := FlooringObservation{Terrains: terrains, TrafficSamples: 1000, Floors: trafficFloors(), Stock: domain.Known(map[Resource]int64{"WoodLog": 100, "Steel": 100}), TrafficStyle: "SterileTile"}
+	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 200, Terrain: "Sand", Home: true}}
+	p := flooringPolicy()
+	r, err := ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
+	if err != nil || len(r.Deficits) != 1 || r.Deficits[0].Floor != "SterileTile" {
+		t.Fatal(r, err)
+	}
+	p.PaybackDays = 0
+	if r, err = ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p); err != nil || r.Active {
+		t.Fatal(r, err)
+	}
+}

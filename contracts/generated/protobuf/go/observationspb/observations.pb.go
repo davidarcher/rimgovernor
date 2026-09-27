@@ -24416,6 +24416,7 @@ type PlanningDefinition struct {
 	DietAllowed       *bool    `protobuf:"varint,30,opt,name=diet_allowed,json=dietAllowed,proto3,oneof" json:"diet_allowed,omitempty"`    // No colonist ideology penalises this crop product.
 	RequiresPollution *bool    `protobuf:"varint,31,opt,name=requires_pollution,json=requiresPollution,proto3,oneof" json:"requires_pollution,omitempty"`
 	RequiresCleanSoil *bool    `protobuf:"varint,32,opt,name=requires_clean_soil,json=requiresCleanSoil,proto3,oneof" json:"requires_clean_soil,omitempty"`
+	WorkToBuild       *float64 `protobuf:"fixed64,33,opt,name=work_to_build,json=workToBuild,proto3,oneof" json:"work_to_build,omitempty"` // Native WorkToBuild stat (work ticks) for the row's stuff.
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -24672,6 +24673,13 @@ func (x *PlanningDefinition) GetRequiresCleanSoil() bool {
 		return *x.RequiresCleanSoil
 	}
 	return false
+}
+
+func (x *PlanningDefinition) GetWorkToBuild() float64 {
+	if x != nil && x.WorkToBuild != nil {
+		return *x.WorkToBuild
+	}
+	return 0
 }
 
 // Controlled-environment growing facts within the planning region: sun lamps
@@ -37405,7 +37413,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_edible_cropB\x1b\n" +
 	"\x19_harvest_lower_bound_daysB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\xda\x0e\n" +
+	"\v_sowing_now\"\x95\x0f\n" +
 	"\x12PlanningDefinition\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -37444,7 +37452,8 @@ const file_observations_proto_rawDesc = "" +
 	"\rraw_preferred\x18\x1d \x01(\bH\x16R\frawPreferred\x88\x01\x01\x12&\n" +
 	"\fdiet_allowed\x18\x1e \x01(\bH\x17R\vdietAllowed\x88\x01\x01\x122\n" +
 	"\x12requires_pollution\x18\x1f \x01(\bH\x18R\x11requiresPollution\x88\x01\x01\x123\n" +
-	"\x13requires_clean_soil\x18  \x01(\bH\x19R\x11requiresCleanSoil\x88\x01\x01B\b\n" +
+	"\x13requires_clean_soil\x18  \x01(\bH\x19R\x11requiresCleanSoil\x88\x01\x01\x12'\n" +
+	"\rwork_to_build\x18! \x01(\x01H\x1aR\vworkToBuild\x88\x01\x01B\b\n" +
 	"\x06_stuffB\f\n" +
 	"\n" +
 	"_availableB\x15\n" +
@@ -37476,7 +37485,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_raw_preferredB\x0f\n" +
 	"\r_diet_allowedB\x15\n" +
 	"\x13_requires_pollutionB\x16\n" +
-	"\x14_requires_clean_soil\"\xb0\x03\n" +
+	"\x14_requires_clean_soilB\x10\n" +
+	"\x0e_work_to_build\"\xb0\x03\n" +
 	"\tGrowLight\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1c\n" +
 	"\aroom_id\x18\x02 \x01(\tH\x00R\x06roomId\x88\x01\x01\x12\x1d\n" +

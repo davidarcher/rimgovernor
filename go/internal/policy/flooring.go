@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -20,9 +21,14 @@ import (
 // is scored per tier from the native cleanliness, path cost, beauty,
 // flammability and cost list of every affordable floor definition, and the
 // latch releases only on a measured census with no deficient cell left.
-// The traffic tier floors the home cells colonists are observed to walk
-// most (the routes census samples actual movement) while they are still
-// natural ground; it never projects traffic from layout.
+// The traffic tier floors the natural home cells colonists are observed to
+// walk (the routes census samples actual movement; it never projects
+// traffic from layout) where the floor pays for itself: the walking ticks a
+// cell's observed steps save each day against the work and material ticks
+// of laying it, within PaybackDays (#950). The floor is chosen first (the
+// tier style when it can be laid, else the cheapest zero-path-cost floor),
+// then cells are kept cheapest payback first up to the first that does not
+// pay.
 const MaintainFlooring GoalID = "MaintainFlooring"
 
 // FloorTier is the role-driven requirement a room's floor is measured
@@ -61,10 +67,16 @@ type FlooringPolicy struct {
 	MaxCellsPerPlan int
 	// Weights score a candidate floor for each tier.
 	Clean, Living, Traffic FloorWeights
-	// TrafficMinSamples is how many observed samples a natural home cell
-	// needs before it counts as a bottleneck; the census must hold at least
-	// four times as many samples in all so a short window never judges.
-	TrafficMinSamples uint32
+	// PaybackDays is the longest a traffic floor may take to repay its build
+	// and material ticks in walking ticks saved (#950); zero disables the
+	// traffic tier.
+	PaybackDays float64
+	// MaterialTicksPerUnit prices one unit of a floor's cost list in colony
+	// work ticks (gathering, hauling). The default 30 sits between chopped
+	// wood (a tree's few hundred ticks of cutting for ~25 logs, plus the
+	// haul) and cut stone blocks (1600 ticks of stonecutting for 20 blocks,
+	// ~80 each), so a steel or block floor costs more than wood.
+	MaterialTicksPerUnit float64
 	// EntryFloors are the floors laid on dirt entry points, scored with
 	// the clean weights; empty disables the entry tier. Their
 	// cells never count against a clean room: the mat trades a little
@@ -85,14 +97,15 @@ type FloorWeights struct {
 
 func DefaultFlooringPolicy() FlooringPolicy {
 	return FlooringPolicy{
-		Floors:            []string{"SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble", "FlagstoneSandstone", "FlagstoneGranite", "FlagstoneLimestone", "FlagstoneSlate", "FlagstoneMarble", Carpet, "PavedTile", "Concrete", "WoodPlankFloor"},
-		MaxCellsPerPlan:   24,
-		Clean:             FloorWeights{Cleanliness: 10, Beauty: 1, PathCost: 1, Flammability: 1, Cost: 0.2},
-		Living:            FloorWeights{Cleanliness: 1, Beauty: 3, PathCost: 1, Flammability: 3, Cost: 0.2},
-		Traffic:           FloorWeights{Cleanliness: 1, Beauty: 1, PathCost: 5, Flammability: 1, Cost: 0.5},
-		TrafficMinSamples: 12,
-		EntryFloors:       []string{"StrawMatting"},
-		EntryMinSteps:     30,
+		Floors:               []string{"SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble", "FlagstoneSandstone", "FlagstoneGranite", "FlagstoneLimestone", "FlagstoneSlate", "FlagstoneMarble", Carpet, "PavedTile", "Concrete", "WoodPlankFloor"},
+		MaxCellsPerPlan:      24,
+		Clean:                FloorWeights{Cleanliness: 10, Beauty: 1, PathCost: 1, Flammability: 1, Cost: 0.2},
+		Living:               FloorWeights{Cleanliness: 1, Beauty: 3, PathCost: 1, Flammability: 3, Cost: 0.2},
+		Traffic:              FloorWeights{Cleanliness: 1, Beauty: 1, PathCost: 5, Flammability: 1, Cost: 0.5},
+		PaybackDays:          15,
+		MaterialTicksPerUnit: 30,
+		EntryFloors:          []string{"StrawMatting"},
+		EntryMinSteps:        30,
 	}
 }
 
@@ -106,7 +119,7 @@ func (w FloorWeights) valid() bool {
 }
 
 func (p FlooringPolicy) valid() bool {
-	if len(p.Floors) == 0 || len(p.Floors) > 64 || p.MaxCellsPerPlan < 1 || p.MaxCellsPerPlan > 256 || !p.Clean.valid() || !p.Living.valid() || !p.Traffic.valid() || p.TrafficMinSamples < 1 || len(p.EntryFloors) > 8 {
+	if len(p.Floors) == 0 || len(p.Floors) > 64 || p.MaxCellsPerPlan < 1 || p.MaxCellsPerPlan > 256 || !p.Clean.valid() || !p.Living.valid() || !p.Traffic.valid() || !floorNumber(p.PaybackDays) || p.PaybackDays < 0 || !floorNumber(p.MaterialTicksPerUnit) || p.MaterialTicksPerUnit < 0 || len(p.EntryFloors) > 8 {
 		return false
 	}
 	seen := map[string]bool{}
@@ -135,6 +148,14 @@ type FlooringObservation struct {
 	// a terrain in Terrains.
 	Traffic        []TrafficCell
 	TrafficSamples uint32
+	// Floors is the planning census row of every policy floor the traffic
+	// tier may price (#950), nil when the census was not read: the tier is
+	// then unknown. Stock is the accessible colony stock and TrafficStyle
+	// the tier style's aisle floor (empty when none), as the selector reads
+	// them.
+	Floors       map[string]FloorDefinition
+	Stock        domain.Fact[map[Resource]int64]
+	TrafficStyle string
 }
 type FloorRoom struct {
 	ID    string
@@ -161,7 +182,7 @@ type FloorTerrain struct {
 }
 
 func (v FlooringObservation) Validate() error {
-	if len(v.Rooms) > 256 || len(v.Terrains) > 256 || len(v.Traffic) > TrafficCellBound {
+	if len(v.Rooms) > 256 || len(v.Terrains) > 256 || len(v.Floors) > 128 || len(v.Traffic) > TrafficCellBound {
 		return errors.New("flooring census exceeds bound")
 	}
 	for name, t := range v.Terrains {
@@ -227,6 +248,11 @@ type FloorDeficit struct {
 	// Pending counts the deficient cells with a floor already ordered.
 	Cells   []domain.Cell
 	Pending int
+	// Floor is the floor the traffic tier priced its cells on (#950); the
+	// selector lays exactly it. Unknown marks a traffic latch kept while the
+	// floor could not be priced.
+	Floor   string
+	Unknown bool
 }
 
 // FlooringReview is the per-room latch: Deficits lists every room measured
@@ -277,30 +303,142 @@ func floorDeficient(tier FloorTier, t FloorTerrain) bool {
 	return false
 }
 
+// trafficWarmupSamples is the fewest samples the whole traffic census must
+// hold before the traffic tier judges any cell, so a short window after a
+// load never prices a floor from a handful of steps.
+const trafficWarmupSamples = 48
+
+// colonistTrafficHalfLifeDays is the colonist traffic layer's decay
+// half-life: 120000 ticks (TrafficCounts.cs:18 in rimgovernor-native). A
+// cell stepped r times a day holds r*halfLife/ln2 decayed samples at steady
+// state, so steps per day = samples*ln2/halfLife.
+const colonistTrafficHalfLifeDays = 2.0
+
 // trafficDeficit gathers the natural home cells colonists are observed to
-// walk enough to count as bottlenecks, ranked by steps times the walking
-// speed a laid floor wins back (13/(13+path cost), #817), so sand and marsh
-// come before soil. Cells inside a tiered room are that room's business.
-func trafficDeficit(v FlooringObservation, roomed map[domain.Cell]bool, p FlooringPolicy) (FloorDeficit, bool) {
+// walk where a laid floor pays for itself (#950). The floor is chosen
+// before any cell: the tier style when it can be laid, else the available
+// zero-path-cost floor cheapest to lay. Each cell's payback is the floor's
+// one-time ticks (WorkToBuild plus MaterialTicksPerUnit per cost unit)
+// over the walking ticks it saves a day (steps per day times the terrain's
+// path cost above the floor's); cells are kept cheapest payback first up
+// to the first beyond PaybackDays. Cells inside a tiered room are that
+// room's business. A floor that cannot be priced leaves the tier unknown:
+// a traffic latch held before is kept, none is raised.
+func trafficDeficit(v FlooringObservation, roomed map[domain.Cell]bool, latched bool, p FlooringPolicy) (FloorDeficit, bool) {
 	d := FloorDeficit{Key: trafficKey, Tier: FloorTierTraffic}
-	if v.TrafficSamples < 4*p.TrafficMinSamples {
+	if p.PaybackDays == 0 || v.TrafficSamples < trafficWarmupSamples {
 		return d, false
 	}
-	gain := map[domain.Cell]float64{}
+	var cells []TrafficCell
 	for _, t := range v.Traffic {
-		terrain := v.Terrains[t.Terrain]
-		if !t.Layer.colonist() || !t.Home || t.Samples < p.TrafficMinSamples || roomed[t.Cell] || !floorDeficient(FloorTierTraffic, terrain) {
+		if !t.Layer.colonist() || !t.Home || roomed[t.Cell] || !floorDeficient(FloorTierTraffic, v.Terrains[t.Terrain]) {
 			continue
 		}
 		if t.Pending != "" {
 			d.Pending++
 			continue
 		}
-		d.Cells = append(d.Cells, t.Cell)
-		gain[t.Cell] = float64(t.Samples) * (1 - 13/(13+float64(terrain.PathCost)))
+		cells = append(cells, t)
 	}
-	sort.SliceStable(d.Cells, func(i, j int) bool { return gain[d.Cells[i]] > gain[d.Cells[j]] })
+	if len(cells) == 0 {
+		return d, d.Pending > 0
+	}
+	name, known := trafficFloor(v, min(len(cells), p.MaxCellsPerPlan), p)
+	if !known {
+		d.Unknown = latched
+		return d, latched || d.Pending > 0
+	}
+	if name == "" {
+		return d, d.Pending > 0
+	}
+	floor := v.Floors[name]
+	floorPath, _ := floor.PathCost.Value()
+	cost := floorTicks(floor, p)
+	payback := map[domain.Cell]float64{}
+	for _, t := range cells {
+		saving := float64(t.Samples) * math.Ln2 / colonistTrafficHalfLifeDays * float64(v.Terrains[t.Terrain].PathCost-floorPath)
+		payback[t.Cell] = math.Inf(1)
+		if saving > 0 {
+			payback[t.Cell] = cost / saving
+		}
+	}
+	sort.SliceStable(cells, func(i, j int) bool { return payback[cells[i].Cell] < payback[cells[j].Cell] })
+	for _, t := range cells {
+		if payback[t.Cell] > p.PaybackDays {
+			break
+		}
+		d.Cells = append(d.Cells, t.Cell)
+	}
+	if len(d.Cells) > 0 {
+		d.Floor = name
+	}
 	return d, len(d.Cells) > 0 || d.Pending > 0
+}
+
+// trafficFloor chooses the floor the traffic tier prices: the tier style
+// when styledFloor would lay it for the batch, else the known available
+// zero-path-cost policy floor with the fewest one-time ticks. known is
+// false when the chosen floor, or every candidate, lacks its work or cost
+// list; an empty name with known true means no floor can be laid.
+func trafficFloor(v FlooringObservation, batch int, p FlooringPolicy) (string, bool) {
+	if v.Floors == nil {
+		return "", false
+	}
+	facts := FlooringFacts{Definitions: v.Floors, Stock: v.Stock}
+	if v.TrafficStyle != "" {
+		facts.Style = func(RoomRole) (string, bool) { return v.TrafficStyle, true }
+	}
+	if name, ok := styledFloor(FloorDeficit{Tier: FloorTierTraffic}, facts, batch, p.Traffic); ok {
+		return name, floorPriced(v.Floors[name])
+	}
+	best, bestTicks, unknown := "", 0.0, false
+	for _, name := range p.Floors {
+		def, ok := v.Floors[name]
+		if !ok {
+			unknown = true
+			continue
+		}
+		available, ak := def.Available.Value()
+		terrain, tk := def.Terrain.Value()
+		path, pk := def.PathCost.Value()
+		if !ak || !tk || !pk {
+			unknown = true
+			continue
+		}
+		if !available || !terrain || path > 0 {
+			continue
+		}
+		if !floorPriced(def) {
+			unknown = true
+			continue
+		}
+		if ticks := floorTicks(def, p); best == "" || ticks < bestTicks {
+			best, bestTicks = name, ticks
+		}
+	}
+	if best == "" && unknown {
+		return "", false
+	}
+	return best, true
+}
+
+func floorPriced(d FloorDefinition) bool {
+	_, wk := d.WorkToBuild.Value()
+	_, ck := d.Costs.Value()
+	_, pk := d.PathCost.Value()
+	return wk && ck && pk
+}
+
+// floorTicks is one cell's one-time cost in colony work ticks: the native
+// WorkToBuild plus MaterialTicksPerUnit for every unit of its cost list.
+func floorTicks(d FloorDefinition, p FlooringPolicy) float64 {
+	work, _ := d.WorkToBuild.Value()
+	costs, _ := d.Costs.Value()
+	var units float64
+	for _, a := range costs {
+		units += float64(a.Count)
+	}
+	return work + p.MaterialTicksPerUnit*units
 }
 
 // entryDeficit gathers the home dirt entry points: floor cells the
@@ -402,7 +540,7 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 		r.Deficits = append(r.Deficits, d)
 		r.Latched = append(r.Latched, d.Key)
 	}
-	if d, ok := trafficDeficit(v, roomed, p); ok {
+	if d, ok := trafficDeficit(v, roomed, slices.Contains(previous, trafficKey), p); ok {
 		r.Deficits = append(r.Deficits, d)
 		r.Latched = append(r.Latched, d.Key)
 	}
@@ -454,6 +592,8 @@ type FloorDefinition struct {
 	Cleanliness, Beauty, Flammability domain.Fact[float64]
 	PathCost                          domain.Fact[int32]
 	Costs                             domain.Fact[[]Amount]
+	// WorkToBuild is the native WorkToBuild stat in work ticks (#950).
+	WorkToBuild domain.Fact[float64]
 }
 
 // FlooringFacts is what SelectFlooringMethod needs beyond the review.
@@ -513,7 +653,8 @@ func affordableCells(d FloorDefinition, stock domain.Fact[map[Resource]int64], w
 // pays for the whole batch beats one that pays for part of it, then the
 // tier's score decides. A room whose deficient cells are all ordered
 // already waits for them. Dirt entry points choose among the entry floors
-// only.
+// only. The traffic deficit lays the floor its cells were priced on.
+// A traffic latch the review could not price is unknown.
 func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p FlooringPolicy) (FlooringProposal, error) {
 	if !p.valid() {
 		return FlooringProposal{}, errors.New("invalid flooring policy")
@@ -526,6 +667,10 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 	}
 	var deferred FlooringMethod
 	for _, d := range review.Deficits {
+		if d.Unknown {
+			deferred = firstFlooringReason(deferred, FlooringUnknown)
+			continue
+		}
 		if len(d.Cells) == 0 {
 			deferred = firstFlooringReason(deferred, FlooringPending)
 			continue
@@ -551,6 +696,9 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		scored := p.Floors
 		if d.Tier == FloorTierEntry {
 			scored = p.EntryFloors
+		} else if d.Floor != "" {
+			// The traffic tier lays the floor its payback was priced on.
+			scored = []string{d.Floor}
 		} else if name, ok := styledFloor(d, facts, batch, weights); ok {
 			best, scored = &candidate{name, batch, 0}, nil
 		}

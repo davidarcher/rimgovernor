@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -32,6 +33,15 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 	}
 	// The journal stamps when refrigeration latched after detection.
 	needs.Latches.RefrigerationSince = r.Review.Latches.RefrigerationSince
+	// A recording from before #950 carries no floor rows in its flooring
+	// census: the traffic tier cannot price a floor on replay, so its latch
+	// is left out of the comparison until the recording is re-recorded.
+	if v, known := r.Facts.Upkeep.Flooring.Value(); known && v.Floors == nil {
+		drop := func(keys []string) []string {
+			return slices.DeleteFunc(append([]string{}, keys...), func(k string) bool { return k == "traffic" })
+		}
+		r.Review.Latches.Flooring, needs.Latches.Flooring = drop(r.Review.Latches.Flooring), drop(needs.Latches.Flooring)
+	}
 	if !reflect.DeepEqual(needs.Latches, r.Review.Latches) {
 		t.Fatalf("%s: replayed latches %+v, recorded %+v", name, needs.Latches, r.Review.Latches)
 	}

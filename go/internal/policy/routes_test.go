@@ -160,7 +160,7 @@ func TestSelectRoutesMethodOpensNearestBreach(t *testing.T) {
 
 func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 	p := flooringPolicy()
-	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100}
+	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100, Floors: trafficFloors()}
 	v.Traffic = []TrafficCell{
 		{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Soil", Home: true},
 		{Cell: domain.Cell{X: 2, Z: 1}, Layer: TrafficColonist, Samples: 20, Terrain: "Soil", Home: true, Pending: "WoodPlankFloor"},
@@ -174,17 +174,18 @@ func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 		t.Fatal(r, err)
 	}
 	d := r.Deficits[0]
-	// Only the busy natural home cell outside a tiered room is short; the
-	// ordered one is counted, the quiet, outdoor, floored and roomed cells are not.
+	// Only the busy natural home cell outside a tiered room pays; the
+	// ordered one is counted, the quiet (a 50-day payback), outdoor, floored
+	// and roomed cells are not.
 	if d.Tier != FloorTierTraffic || d.Key != trafficKey || d.Pending != 1 || len(d.Cells) != 1 || d.Cells[0] != (domain.Cell{X: 1, Z: 1}) {
 		t.Fatal(d)
 	}
 	proposal, err := SelectFlooringMethod(r, flooringDefinitions(), p)
-	if err != nil || proposal.Method != FlooringBuild || proposal.Tier != FloorTierTraffic || len(proposal.Cells) != 1 {
+	if err != nil || proposal.Method != FlooringBuild || proposal.Tier != FloorTierTraffic || len(proposal.Cells) != 1 || proposal.Definition != "WoodPlankFloor" {
 		t.Fatal(proposal, err)
 	}
 	// A short sampling window judges nothing.
-	v.TrafficSamples = 4*p.TrafficMinSamples - 1
+	v.TrafficSamples = trafficWarmupSamples - 1
 	r, err = ReviewFlooring(domain.Known(v), domain.Unknown[RoomObservation](), nil, p)
 	if err != nil || r.Active {
 		t.Fatal(r, err)
@@ -204,7 +205,7 @@ func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 
 func TestDetectRoutineRanksTrafficFlooringLast(t *testing.T) {
 	f := stableRoutine()
-	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100}
+	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100, Floors: trafficFloors()}
 	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Layer: TrafficColonist, Samples: 40, Terrain: "Soil", Home: true}}
 	f.Upkeep.Flooring = domain.Known(v)
 	r := needs(t, f, RoutineLatches{})

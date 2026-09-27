@@ -47,8 +47,9 @@ func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
 // definition and its cells, everything else is a reason.
 func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	p := r.reviewer.policy.Flooring
-	logTrafficFindings(facts.Facts.Upkeep.Flooring)
-	review, err := policy.ReviewFlooring(facts.Facts.Upkeep.Flooring, facts.Rooms, latches.Flooring, p)
+	census := trafficFlooringFacts(facts, p)
+	logTrafficFindings(census)
+	review, err := policy.ReviewFlooring(census, facts.Rooms, latches.Flooring, p)
 	if err != nil {
 		return nil, "", err
 	}
@@ -60,7 +61,7 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 	}
 	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
 	for _, d := range facts.Definitions {
-		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs}
+		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
 	}
 	proposal, err := policy.SelectFlooringMethod(review, flooring, p)
 	if err != nil {
@@ -174,4 +175,26 @@ func logTrafficFindings(fact domain.Fact[policy.FlooringObservation]) {
 		return
 	}
 	slog.Default().Info("traffic findings: "+joined, telemetry.ComponentKey, "routine-flooring", telemetry.KindKey, "traffic_finding")
+}
+
+// trafficFlooringFacts adds what the traffic tier prices its floor from
+// (#950) to the flooring census: every policy floor's planning row, the
+// accessible stock and the tier style's aisle floor. An unknown census
+// stays unknown.
+func trafficFlooringFacts(facts observation.ColonyProjection, p policy.FlooringPolicy) domain.Fact[policy.FlooringObservation] {
+	v, known := facts.Facts.Upkeep.Flooring.Value()
+	if !known {
+		return facts.Facts.Upkeep.Flooring
+	}
+	v.Floors = map[string]policy.FloorDefinition{}
+	for _, d := range facts.Definitions {
+		if slices.Contains(p.Floors, d.Name) {
+			v.Floors[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
+		}
+	}
+	v.Stock = facts.Resources
+	if style := floorStyle(facts); style != nil {
+		v.TrafficStyle, _ = style(policy.RoomRoleNone)
+	}
+	return domain.Known(v)
 }
