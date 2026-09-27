@@ -164,46 +164,72 @@ namespace HomeBridge.BridgeTools
         private static bool Budgeted() => running && framed && Clock() - frameAt < Ticks(StaleMs);
 
         // The frame boundary, on the game thread: a fresh allowance, then
-        // queued control, then deferred hops while it lasts. At least one
+        // queued control, then deferred hops while it lasts, then optional
+        // observation jobs (#654) with what is left (#995). At least one
         // deferred hop runs per frame so none starves under a spent allowance.
         internal static void Frame(bool clockRunning)
         {
             if (framed && spent > AllowanceTicks) overrunFrames++;
-            running = clockRunning; framed = true; frameAt = Clock(); spent = 0; frames++;
+            running = clockRunning; framed = true; frameAt = Clock(); spent = 0; frames++; frameIndex++;
             RunControl();
             var floor = true;
             while (floor || !running || spent < AllowanceTicks)
             {
                 var hop = Take();
-                if (hop == null) return;
+                if (hop == null) break;
                 if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
                 deferredHops++; maxDeferTicks = Math.Max(maxDeferTicks, Clock() - hop.QueuedAt);
                 Run(hop);
                 floor = false;
             }
+            ObservationScheduling.Shared.RunFrame();
         }
 
+        // The frame optional work is charged to: the boundary's, or, with no
+        // live boundary (hook missing, game unloading), a fresh one per call
+        // so an inline quantum never inherits a spent allowance.
+        internal static ulong FrameIndex => frameIndex;
+        private static ulong frameIndex;
+
+        internal static void JoinFrame()
+        {
+            if (framed && Clock() - frameAt < Ticks(StaleMs)) return;
+            spent = 0; frameIndex++;
+        }
+
+        // Optional work runs only while allowance remains, paused or not.
+        internal static bool HasRoom => spent < AllowanceTicks;
+
+        // An optional unit's elapsed ticks, charged like a hop's.
+        internal static void Charge(long ticks) => spent += Math.Max(0, ticks);
+
+        internal static double Ms(long ticks) => ticks * 1000.0 / Frequency;
+
         // The allowance's session account, once the frame boundary has run a
-        // hop a spent allowance left queued.
+        // hop a spent allowance left queued or an optional unit ran.
         internal static Dictionary<string, object?>? BudgetReport()
         {
-            if (deferredHops == 0) return null;
-            return new Dictionary<string, object?>
+            var optional = ObservationScheduling.Shared;
+            if (deferredHops == 0 && optional.Units == 0) return null;
+            var report = new Dictionary<string, object?>
             {
-                ["allowanceMs"] = AllowanceTicks * 1000.0 / Frequency,
+                ["allowanceMs"] = Ms(AllowanceTicks),
                 ["frames"] = frames,
                 ["overrunFrames"] = overrunFrames,
                 ["deferredHops"] = deferredHops,
-                ["maxDeferMs"] = maxDeferTicks * 1000.0 / Frequency,
+                ["maxDeferMs"] = Ms(maxDeferTicks),
             };
+            optional.Report(report);
+            return report;
         }
 
-        // Resets the allowance's state; probes only.
+        // Resets the allowance's state and the optional scheduler; probes only.
         internal static void ResetBudget(Func<long> clock, long frequency, double allowanceMs)
         {
             Clock = clock; Frequency = frequency; AllowanceTicks = Ticks(allowanceMs);
             running = framed = false; spent = frameAt = 0;
-            frames = overrunFrames = deferredHops = 0; maxDeferTicks = 0;
+            frames = overrunFrames = deferredHops = 0; maxDeferTicks = 0; frameIndex = 0;
+            ObservationScheduling.Shared = new ObservationScheduler();
         }
 
         // Whether a control hop is queued: an optional quantum yields to it

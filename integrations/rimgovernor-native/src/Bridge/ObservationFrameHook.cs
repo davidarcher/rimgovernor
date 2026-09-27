@@ -84,22 +84,13 @@ namespace HomeBridge.BridgeTools
             {
                 // Never let the account interrupt an update.
             }
-            // The hop allowance opens here and drains hops earlier frames
-            // deferred (#988); paused, nothing is budgeted.
+            // The one per-frame allowance opens here: it drains hops earlier
+            // frames deferred (#988), then queued resumable captures (#654)
+            // spend what is left (#995); paused, hops are not budgeted.
             try
             {
                 var ticks = Find.TickManager;
                 if (Current.Game != null) MainThreadAdmission.Frame(ticks != null && !ticks.Paused);
-            }
-            catch (Exception)
-            {
-                // Never let the account interrupt an update.
-            }
-            // The optional-observation allowance opens here, and queued
-            // resumable captures (#654) spend it before the frame's ticks.
-            try
-            {
-                if (Current.Game != null) ObservationScheduling.Frame();
             }
             catch (Exception)
             {

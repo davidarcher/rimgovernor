@@ -385,10 +385,8 @@ namespace HomeBridge.BridgeTools
             if (observation != null) timing["observation"] = observation;
             var frames = FrameAccounting.Report();
             if (frames != null) timing["frames"] = frames;
-            // The optional-observation allowance's account (#654), once any
-            // resumable capture has run.
-            if (ObservationScheduling.Shared.Budget.Units > 0) timing["observationBudget"] = ObservationScheduling.Shared.Report();
-            // The per-frame hop allowance's account (#988), once it deferred a hop.
+            // The per-frame allowance's account (#988), once it deferred a hop
+            // or ran an optional capture (#654, #995).
             var budget = MainThreadAdmission.BudgetReport();
             if (budget != null) timing["mainThreadBudget"] = budget;
             envelope[TimingField] = timing;
