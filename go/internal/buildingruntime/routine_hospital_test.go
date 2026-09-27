@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,8 +22,6 @@ type hospitalNative struct {
 	rooms       *o.ListRoomsReply
 	target      bridge.BedUseTarget
 	targetReads int
-	bedPreviews int
-	refuse      bool
 }
 
 func (n *hospitalNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -43,14 +40,6 @@ func (n *hospitalNative) ReadBedUseTarget(_ context.Context, _ *c.Identity, thin
 		return bridge.BedUseTarget{}, bridge.Result{}, bridge.ErrContract
 	}
 	return n.target, bridge.Result{}, nil
-}
-
-func (n *hospitalNative) PreviewBedUse(_ context.Context, _ *c.Identity, patch domain.BedUse) (*op.PreviewReply, bridge.Result, error) {
-	n.bedPreviews++
-	if patch.Thing() != n.target.Thing || !patch.Medical() {
-		return nil, bridge.Result{}, bridge.ErrContract
-	}
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(!n.refuse)}}}, bridge.Result{}, nil
 }
 
 func hospitalCount(n uint64) *o.Completeness {
@@ -109,8 +98,8 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if native.targetReads != 1 || native.bedPreviews != 1 || native.previews != 0 {
-		t.Fatal("convert previewed a building", native.targetReads, native.bedPreviews, native.previews)
+	if native.targetReads != 1 || native.previews != 0 {
+		t.Fatal("convert previewed a building", native.targetReads, native.previews)
 	}
 	review, err := db.LoadRoutineReview(ctx)
 	if err != nil {
@@ -148,17 +137,12 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	}
 }
 
-func TestHospitalAcceptsExistingMedicalBedAndRefusedPreview(t *testing.T) {
+func TestHospitalAcceptsExistingMedicalBed(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	planner, _, native := hospitalFixture(t)
-	native.refuse = true
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodRefused {
-		t.Fatal(result, err)
-	}
 	// The bed flips medical by the player's hand between reviews: the CAS
 	// read, not the census, is what the convert path trusts.
-	native.refuse = false
 	native.target.Medical = true
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingExistingFacility {
 		t.Fatal(result, err)
@@ -183,8 +167,8 @@ func TestHospitalBuildsOnlyWhenNoHostedBedCanBeSpared(t *testing.T) {
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || native.bedPreviews != 0 || native.previews == 0 {
-		t.Fatal(result, err, native.bedPreviews, native.previews)
+	if err != nil || result.Reason != BuildingMethodAdmitted || native.previews == 0 {
+		t.Fatal(result, err, native.previews)
 	}
 	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "hospital-SleepingSpot" {
 		t.Fatal(result.Decision.Goal.Methods)

@@ -216,13 +216,6 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	preview, _, err := native.PreviewBedUse(call, boundary.Identity(state.Snapshot), patch)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	if evaluated := preview.GetEvaluated(); evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
-	}
 	id := domain.MintPlanID("routine-jail-mark")
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {

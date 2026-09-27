@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 const (
@@ -24,12 +23,11 @@ const (
 	BuildingHospitalConvert RoutineBuildingReason = "hospital_bed_convert_pending"
 )
 
-// RoutineHospitalSource adds the bed medical CAS read and preview the
-// hospital planner needs on top of the building source.
+// RoutineHospitalSource adds the bed use read the hospital planner needs on
+// top of the building source; Actions/Apply validates the patch itself.
 type RoutineHospitalSource interface {
 	RoutineBuildingSource
 	ReadBedUseTarget(context.Context, *c.Identity, string) (bridge.BedUseTarget, bridge.Result, error)
-	PreviewBedUse(context.Context, *c.Identity, domain.BedUse) (*op.PreviewReply, bridge.Result, error)
 }
 
 // RoutineHospitalPlanner gives MaintainMedicalCare's patients a hosted
@@ -215,17 +213,6 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	patch, err := domain.NewBedMedical(choice.Bed, true)
 	if err != nil {
 		return RoutineBuildingResult{}, err
-	}
-	preview, _, err := r.native.PreviewBedUse(call, boundary.Identity(state.Snapshot), patch)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineBuildingResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
