@@ -56,7 +56,7 @@ func validateFilthTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 		return FilthTarget{}, contract("invalid filth cells context")
 	}
 	completeness := snapshot.Completeness
-	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
+	if completeness.GetFiltered() != 0 {
 		return FilthTarget{}, contract("incomplete filth cells observation")
 	}
 	if !proto.Equal(snapshot.AppliedFields, filthFields()) {

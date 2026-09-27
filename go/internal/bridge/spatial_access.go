@@ -139,7 +139,7 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 	if v.MapCells == nil || v.ObservedWalkableCells == nil || v.GetMapCells() == 0 || v.GetObservedWalkableCells() > v.GetMapCells() {
 		return SpatialAccess{}, contract("spatial access map census missing")
 	}
-	if len(v.Pawns) == 0 || len(v.Pawns) > maxSpatialPawns || !completeCount(v.Completeness, len(v.Pawns)) || len(pawnIDs) != 0 && len(v.Pawns) != len(pawnIDs) {
+	if len(v.Pawns) == 0 || len(v.Pawns) > maxSpatialPawns || len(pawnIDs) != 0 && len(v.Pawns) != len(pawnIDs) {
 		return SpatialAccess{}, contract("incomplete spatial access census")
 	}
 	wanted := map[string]bool{}
@@ -158,7 +158,7 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 		}
 		seen[row.Pawn.GetId()] = true
 		position, pk := protoCell(row.Pawn.Position)
-		if !pk || row.CurrentCells == nil || row.ProjectedCells == nil || row.LostCellCount == nil || row.EgressSteps == nil || !completeCount(row.Completeness, len(targets)) || len(row.Targets) != len(targets) {
+		if !pk || row.CurrentCells == nil || row.ProjectedCells == nil || row.LostCellCount == nil || row.EgressSteps == nil || len(row.Targets) != len(targets) {
 			return SpatialAccess{}, contract("incomplete spatial access row")
 		}
 		p := PawnAccess{ID: row.Pawn.GetId(), Position: position, Current: row.GetCurrentCells(), After: row.GetProjectedCells(), Lost: row.GetLostCellCount(), EgressSteps: row.GetEgressSteps()}

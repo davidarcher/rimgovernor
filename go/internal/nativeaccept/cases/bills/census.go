@@ -78,9 +78,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("bills context drifted mid-run")
 	}
 	benches := na.AsSlice(observed["benches"])
-	if err := na.CheckCompleteness(observed["completeness"], len(legacyBenches)); err != nil {
-		return fmt.Errorf("bills completeness: %w", err)
-	}
 	if len(benches) != len(legacyBenches) {
 		return fmt.Errorf("expected %d bench rows, found %d", len(legacyBenches), len(benches))
 	}
@@ -128,9 +125,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if int(na.AsNumber(source["billCount"])) != len(bills) {
 			return fmt.Errorf("bench %s: legacy lists %v bills, typed census %d", id, source["billCount"], len(bills))
 		}
-		if err := na.CheckCompleteness(row["completeness"], len(bills)); err != nil {
-			return fmt.Errorf("bench %s bill completeness: %w", id, err)
-		}
 		if usable, _ := na.AsBool(row["usable"]); usable {
 			if legacyUsable, _ := na.AsBool(source["usableForBills"]); !legacyUsable {
 				return fmt.Errorf("bench %s: typed usable but legacy not usable for bills", id)
@@ -161,9 +155,6 @@ func run(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("bench %s: recipe catalog snapshot disagrees with the bill census", id)
 		}
 		recipes := na.AsSlice(catalog["recipes"])
-		if err := na.CheckCompleteness(catalog["completeness"], len(recipes)); err != nil {
-			return fmt.Errorf("bench %s recipe completeness: %w", id, err)
-		}
 		if len(recipes) == 0 {
 			return fmt.Errorf("bench %s: empty recipe catalog", id)
 		}

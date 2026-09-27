@@ -48,7 +48,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	n := &stoneShellNative{sleepingNative: shelter}
 	v := n.reply.GetObserved()
 	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	// The player fixture's root plan holds the single-worker capacity slot.
 	submitted := playerPlan(t, db)
@@ -216,7 +216,7 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 	v.Upkeep.GetObserved().HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{
 		Revision:     proto.Int64(1),
 		Targets:      []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}}},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 	stone.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHomeCoverage})
 	if _, err := stone.reviewer.Step(context.Background()); err != nil {

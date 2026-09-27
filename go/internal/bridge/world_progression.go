@@ -213,10 +213,6 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 	if !sameIdentity(v.Context.Identity, identity) {
 		return WorldProgressionRead{}, contract("world progression world mismatch")
 	}
-	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return WorldProgressionRead{}, contract("incomplete world progression page")
-	}
 	maps := make([]WorldMap, len(v.Maps))
 	seenMapPawns := map[string]bool{}
 	for i, row := range v.Maps {

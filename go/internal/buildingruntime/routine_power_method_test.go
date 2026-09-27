@@ -33,7 +33,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 	}
 	v.Issues = issues
 	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	row := func(id, def string, x int32, base float64) *o.DevelopmentPower {
 		cell := &c.Cell{X: proto.Int32(x), Z: proto.Int32(2)}

@@ -80,7 +80,7 @@ func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *ex
 			x.rock[domain.Cell{X: gx, Z: z}] = "Granite"
 		}
 	}
-	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned, planning.Cells.Completeness.Filtered = proto.Uint64(99), proto.Uint64(99), proto.Uint64(501)
+	planning.Cells.Completeness.Filtered = proto.Uint64(501)
 	for gx := int32(11); gx < 30; gx++ {
 		for z := int32(0); z < 20; z++ {
 			x.fogged[domain.Cell{X: gx, Z: z}] = true
@@ -277,7 +277,7 @@ func TestRoutineExcavationPrefersNearerShell(t *testing.T) {
 	x.reply.GetObserved().Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(40)}
 	planning := x.reply.GetObserved().Planning.GetObserved()
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(50)}
-	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned, planning.Cells.Completeness.Filtered = proto.Uint64(180), proto.Uint64(180), proto.Uint64(1350)
+	planning.Cells.Completeness.Filtered = proto.Uint64(1350)
 	for gx := int32(0); gx < 9; gx++ {
 		for z := int32(36); z < 45; z++ {
 			planning.Cells.Cells = append(planning.Cells.Cells, &o.CellState{Cell: &c.Cell{X: proto.Int32(gx), Z: proto.Int32(z)}, Indoors: proto.Bool(false), Fogged: proto.Bool(false), Walkable: proto.Bool(true), Occupied: proto.Bool(false), SupportsLight: proto.Bool(true), Issues: []*o.ReadIssue{
@@ -448,7 +448,7 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 	planning.Cells.Region.Minimum = &c.Cell{X: proto.Int32(40), Z: proto.Int32(40)}
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(60), Z: proto.Int32(59)}
 	planning.Cells.Cells = nil
-	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned, planning.Cells.Completeness.Filtered = proto.Uint64(0), proto.Uint64(0), proto.Uint64(420)
+	planning.Cells.Completeness.Filtered = proto.Uint64(420)
 	observed.Center = &c.Cell{X: proto.Int32(50), Z: proto.Int32(50)}
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)

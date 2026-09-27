@@ -81,8 +81,7 @@ func (b *RepairBoundary) InspectRepair(ctx context.Context, target executor.Targ
 	if err != nil {
 		return out, err
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != 1 || counts.GetReturned() != 1 || len(observed.Pawns) != 1 {
+	if len(observed.Pawns) != 1 {
 		return out, executor.ErrHeld
 	}
 	row := observed.Pawns[0]

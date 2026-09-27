@@ -69,10 +69,6 @@ func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Ident
 	if observed == nil {
 		return HusbandryTarget{}, raw, ErrUnavailable
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return HusbandryTarget{}, raw, ErrUnavailable
-	}
 	var row *o.HusbandryAnimal
 	for _, candidate := range observed.Animals {
 		if candidate == nil || candidate.Pawn.GetPawn().GetId() != animal {

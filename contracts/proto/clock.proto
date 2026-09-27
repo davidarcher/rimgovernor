@@ -269,7 +269,7 @@ message Status {
   optional uint64 probe_count = 14;
   repeated Alert baseline_alerts = 15;
   repeated Injury suppressed_injuries = 16;
-  rimgovernor.common.v1.PageInfo evidence_completeness = 17;
+  reserved 17;
   optional ObservedSpeed observed_speed = 18;
   optional bool actual_paused = 19;
   // The launch admits StartRequest.test_acceleration.
@@ -386,7 +386,7 @@ message Notification {
 message NotificationBatch {
   repeated Letter letters = 1;
   repeated TransientMessage messages = 2;
-  rimgovernor.common.v1.PageInfo completeness = 3;
+  reserved 3;
 }
 message Alert {
   optional string key = 1;
@@ -432,7 +432,7 @@ message HostilesCleared {
   repeated PawnEvent drafted_colonists = 2;
   optional int32 conscious_hostiles_before = 3;
   optional bool across_epoch_restart = 4;
-  rimgovernor.common.v1.PageInfo completeness = 5;
+  reserved 5;
 }
 message BudgetReached {
   optional int64 start_tick = 1;

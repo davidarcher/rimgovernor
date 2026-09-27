@@ -190,7 +190,7 @@ func historyApplied(v store.ClockAttempt) *k.ControlReply {
 	ctx := &c.ObservationContext{Identity: e.Identity, NativeGeneration: proto.Uint64(e.NativeGeneration), Tick: proto.Int64(12)}
 	start := v.Intent.Command.Start
 	epoch := &k.Epoch{Owner: &k.EpochOwner{ControllerSessionId: proto.String(e.Attempt.GetControllerSessionId()), Epoch: proto.Int64(1)}, Origin: ctx, RequestedSpeed: start.Speed.Enum(), Policy: proto.Clone(start.Policy).(*k.WatchPolicy), StartTick: proto.Int64(12), TickDeadline: proto.Int64(112), LastTick: proto.Int64(12), LeaseRemainingMs: proto.Uint32(900)}
-	status := &k.Status{Context: ctx, State: &k.Status_Running{Running: &k.Running{Epoch: epoch}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum(), ActualPaused: proto.Bool(false), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}
+	status := &k.Status{Context: ctx, State: &k.Status_Running{Running: &k.Running{Epoch: epoch}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum(), ActualPaused: proto.Bool(false)}
 	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: &k.ControlReceipt{Attempt: e.Attempt, AdmittedContext: ctx, Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: status}}}}}
 }
 

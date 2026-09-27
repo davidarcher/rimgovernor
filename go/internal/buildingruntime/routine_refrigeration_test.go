@@ -33,7 +33,7 @@ func refrigerationFixture(t *testing.T, cooler bool) (*RoutineBuildingPlanner, *
 	n := &refrigerationNative{temperatureNative: temperature}
 	v := n.reply.GetObserved()
 	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	cells := v.Planning.GetObserved().Cells

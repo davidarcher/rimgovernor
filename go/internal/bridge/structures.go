@@ -81,14 +81,6 @@ func (client *Client) ReadStructures(ctx context.Context, identity *c.Identity, 
 	if err = buildingContext(observed.Context, identity, 0, false); err != nil {
 		return StructureRead{}, raw, err
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || counts.Returned == nil || counts.Unreadable == nil ||
-		counts.GetUnreadable() != 0 || counts.GetReturned() != uint64(len(observed.Buildings)) {
-		return StructureRead{}, raw, contract("incomplete structure census")
-	}
-	if !counts.Page.GetComplete() {
-		return StructureRead{}, raw, contract("incomplete structure census page")
-	}
 	out.Tick = domain.Tick(observed.Context.GetTick())
 	out.Generation = observed.Context.GetNativeGeneration()
 	for _, row := range observed.Buildings {

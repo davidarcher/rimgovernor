@@ -33,8 +33,7 @@ func (n *shrineTestNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, i
 			Issues:    []*o.ReadIssue{missing("mental_state")}}
 		rows = append(rows, row)
 	}
-	count := uint64(len(rows))
-	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(count), Returned: proto.Uint64(count), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
+	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Pawns: rows, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
 }
 func (n *shrineTestNative) ReadDefenseSite(ctx context.Context, _ *c.Identity, region bridge.CellRect) (bridge.DefenseSite, bridge.Result, error) {
 	n.regions = append(n.regions, region)

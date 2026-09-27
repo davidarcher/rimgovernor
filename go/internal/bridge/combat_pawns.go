@@ -114,18 +114,6 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 				}
 			}
 		}
-		if h.HediffCompleteness != nil {
-			v := h.HediffCompleteness
-			if v.Page == nil || v.Page.Complete == nil || v.GetReturned() > uint64(len(h.Hediffs)) || v.Returned != nil && v.GetReturned() != uint64(len(h.Hediffs)) {
-				return contract("invalid hediff completeness")
-			}
-			if v.Page.GetComplete() && (v.Matched != nil && v.GetMatched() != uint64(len(h.Hediffs)) || v.Unreadable != nil && v.GetUnreadable() != 0) {
-				return contract("contradictory hediff completeness")
-			}
-			if v.SnapshotToken != nil && validID(v.GetSnapshotToken()) != nil {
-				return contract("invalid hediff token")
-			}
-		}
 		seen = map[string]bool{}
 		for _, v := range h.SurgeryBills {
 			if v == nil || validID(v.GetId()) != nil || seen[v.GetId()] || v.Recipe != nil && validID(v.GetRecipe()) != nil || v.PartIndex != nil && v.GetPartIndex() < 0 {

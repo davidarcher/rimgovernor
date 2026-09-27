@@ -168,9 +168,6 @@ func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *
 	if v == nil || !proto.Equal(v.Context, ctx) || !proto.Equal(v.MapSize, size) || v.Region == nil || !colonyCell(v.Region.Minimum, size) || !colonyCell(v.Region.Maximum, size) || v.Region.Minimum.GetX() > v.Region.Maximum.GetX() || v.Region.Minimum.GetZ() > v.Region.Maximum.GetZ() {
 		return contract("invalid planning cell scope")
 	}
-	if err := colonyCounts(v.Completeness, len(v.Cells)); err != nil {
-		return err
-	}
 	area := uint64(v.Region.Maximum.GetX()-v.Region.Minimum.GetX()+1) * uint64(v.Region.Maximum.GetZ()-v.Region.Minimum.GetZ()+1)
 	if area > planningWindowPage || uint64(len(v.Cells))+v.Completeness.GetFiltered() != area {
 		return contract("planning region coverage mismatch")

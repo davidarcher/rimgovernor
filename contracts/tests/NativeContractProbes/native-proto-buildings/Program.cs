@@ -62,7 +62,7 @@ internal static class NativeProtoBuildingsProbe
                 new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
             Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
         }
-        var reply = Wire("ListBuildingsReply", "{\"observed\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{\"page\":{\"complete\":true},\"matched\":\"1\",\"returned\":\"1\",\"unreadable\":\"0\"},\"networksCompleteness\":{\"page\":{\"complete\":false}}}}");
+        var reply = Wire("ListBuildingsReply", "{\"observed\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}");
         var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
         var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
@@ -71,8 +71,7 @@ internal static class NativeProtoBuildingsProbe
         var row = ((IList)Get(snapshot, "Buildings"))[0]!;
         Check((bool)Get(row, "HasBurning") && !(bool)Get(row, "Burning"), "Known false burning retained");
         Check(Get(Get(row, "Building"), "Snapshot") == null, "No fabricated CAS snapshot");
-        var networks = Get(snapshot, "NetworksCompleteness");
-        Check(!(bool)Get(Get(networks, "Page"), "Complete") && !(bool)Get(networks, "HasMatched"), "Unimplemented networks remain incomplete and unknown count");
+        Check(Get(snapshot, "NetworksCompleteness") == null, "Unread networks carry no census record");
         Console.WriteLine(checks + " compiled building boundary assertions passed; no gameplay assertions.");
         return 0;
     }

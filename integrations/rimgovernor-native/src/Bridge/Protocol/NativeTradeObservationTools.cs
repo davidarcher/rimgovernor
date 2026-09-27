@@ -31,8 +31,7 @@ namespace HomeBridge.BridgeTools
         private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
         private static string SafeText(Func<string?> f) { try { return f() ?? ""; } catch { return ""; } }
 
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness
-        { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
+        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
 
         private static Obs.EntityRef PawnRef(Pawn pawn, Common.ObservationContext context) => new Obs.EntityRef
         {

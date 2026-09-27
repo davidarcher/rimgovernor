@@ -17,7 +17,7 @@ func TestColonyWasteCorpseOfIsOneOfThreeClasses(t *testing.T) {
 				State:       o.WasteLocation_WASTE_LOCATION_EXPOSED.Enum(),
 				CorpseClass: of.Enum(),
 			}},
-			Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+			Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 		}}}
 	}
 	size := &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)}

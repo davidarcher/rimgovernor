@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"math"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -65,43 +64,14 @@ func emergencyBool(v *bool) domain.Fact[bool] {
 	}
 	return domain.Known(*v)
 }
-func emergencyCompleteness(v *o.Completeness, rows int) (domain.Fact[bool], error) {
-	unknown := domain.Unknown[bool]()
+
+// emergencyCompleteness is unknown without a census record and complete
+// when no row was filtered out.
+func emergencyCompleteness(v *o.Completeness) domain.Fact[bool] {
 	if v == nil {
-		return unknown, nil
+		return domain.Unknown[bool]()
 	}
-	if v.Returned != nil && v.GetReturned() != uint64(rows) {
-		return unknown, contract("emergency returned count mismatch")
-	}
-	if v.Matched != nil && v.GetMatched() < uint64(rows) {
-		return unknown, contract("emergency matched count mismatch")
-	}
-	if !diagnostic(v.SnapshotToken) {
-		return unknown, contract("invalid snapshot token")
-	}
-	countsKnown := v.Matched != nil && v.Returned != nil && v.Filtered != nil && v.Unreadable != nil
-	if countsKnown {
-		if v.GetFiltered() > math.MaxUint64-v.GetReturned() || v.GetUnreadable() > math.MaxUint64-v.GetReturned()-v.GetFiltered() {
-			return unknown, contract("emergency count overflow")
-		}
-		accounted := v.GetReturned() + v.GetFiltered() + v.GetUnreadable()
-		if v.GetMatched() < accounted {
-			return unknown, contract("inconsistent emergency census counts")
-		}
-		if v.Page != nil && v.Page.GetComplete() && v.GetMatched() != accounted {
-			return unknown, contract("complete emergency census count mismatch")
-		}
-	}
-	if v.Page == nil || v.Page.Complete == nil {
-		return unknown, nil
-	}
-	if !v.Page.GetComplete() {
-		return domain.Known(false), nil
-	}
-	if !countsKnown {
-		return unknown, nil
-	}
-	return domain.Known(v.GetFiltered() == 0 && v.GetUnreadable() == 0), nil
+	return domain.Known(v.GetFiltered() == 0)
 }
 func emergencyIssues(issues []*o.ReadIssue, present func(string) bool) error {
 	for _, issue := range issues {
@@ -186,11 +156,7 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 	if !proto.Equal(v.Colonists.Context, v.Context) {
 		return result, contract("colonist context mismatch")
 	}
-	var err error
-	result.Facts.ColonistsComplete, err = emergencyCompleteness(v.Colonists.Completeness, len(v.Colonists.Pawns))
-	if err != nil {
-		return EmergencyObservation{}, err
-	}
+	result.Facts.ColonistsComplete = emergencyCompleteness(v.Colonists.Completeness)
 	type category struct {
 		kind policy.ThreatKind
 		rows []*o.ThreatPawn
@@ -200,10 +166,7 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 	for _, group := range categories {
 		count += len(group.rows)
 	}
-	result.Facts.ThreatsComplete, err = emergencyCompleteness(v.Threats.Completeness, count)
-	if err != nil {
-		return EmergencyObservation{}, err
-	}
+	result.Facts.ThreatsComplete = emergencyCompleteness(v.Threats.Completeness)
 	statuses := map[policy.PawnID]policy.EmergencyPawn{}
 	observe := func(pawn policy.EmergencyPawn) error {
 		if prior, ok := statuses[pawn.ID]; ok {

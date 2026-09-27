@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -15,7 +14,7 @@ import (
 func caravanCatalogFixture() *o.CaravanCatalog {
 	return &o.CaravanCatalog{
 		Snapshot:     &o.SnapshotRef{Context: pbContext(), Token: proto.String("catalog-token")},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 		CargoGroups: []*o.CargoGroup{
 			{GroupId: proto.String("group-1"), DefName: proto.String("Steel"), Count: proto.Int64(50)},
 			{GroupId: proto.String("group-2"), DefName: proto.String("Pemmican"), Count: proto.Int64(20), Nutrition: proto.Float64(0.05), Perishable: proto.Bool(true), RotDays: proto.Float64(60), Reserve: proto.Bool(true), EaterIds: []string{"pawn-1", "pawn-2"}},
@@ -62,7 +61,6 @@ func TestReadCaravanCatalogMalformedEvidence(t *testing.T) {
 	edits := map[string]func(*o.CaravanCatalog){
 		"world":               func(v *o.CaravanCatalog) { v.Snapshot.Context.Identity.LoadToken = proto.String("other") },
 		"missing token":       func(v *o.CaravanCatalog) { v.Snapshot.Token = nil },
-		"partial page":        func(v *o.CaravanCatalog) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"duplicate group id":  func(v *o.CaravanCatalog) { v.CargoGroups = append(v.CargoGroups, v.CargoGroups[0]) },
 		"missing destination": func(v *o.CaravanCatalog) { v.Routes[0].Destination = proto.Int32(1) },
 		"negative estimate":   func(v *o.CaravanCatalog) { v.Routes[0].EstimatedTicks = proto.Int64(-1) },

@@ -73,12 +73,16 @@ func composeStep(ctx context.Context, request bridge.StepRequest, parts bundlePa
 // emergencySnapshot encodes the facts a fake serves as the status snapshot
 // bridge.BundleEmergency decodes them from.
 func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFacts) *o.StatusSnapshot {
-	completeness := func(fact domain.Fact[bool], rows int) *o.Completeness {
+	// An incomplete census is one that filtered a row out.
+	completeness := func(fact domain.Fact[bool]) *o.Completeness {
 		complete, known := fact.Value()
 		if !known {
 			return nil
 		}
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(complete)}, Matched: proto.Uint64(uint64(rows)), Returned: proto.Uint64(uint64(rows)), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		if complete {
+			return &o.Completeness{}
+		}
+		return &o.Completeness{Filtered: proto.Uint64(1)}
 	}
 	known := func(fact domain.Fact[bool]) *bool {
 		if v, ok := fact.Value(); ok {
@@ -86,7 +90,7 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 		}
 		return nil
 	}
-	colonists := &o.PawnSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: completeness(facts.ColonistsComplete, len(facts.Colonists))}
+	colonists := &o.PawnSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Completeness: completeness(facts.ColonistsComplete)}
 	for _, pawn := range facts.Colonists {
 		row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(pawn.ID))}, Dead: known(pawn.Dead), Downed: known(pawn.Downed), Health: &o.PawnHealth{Bleeding: known(pawn.Bleeding), NeedsTend: known(pawn.NeedsTend)}}
 		if mental, ok := pawn.MentalState.Value(); ok {
@@ -94,7 +98,7 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 		}
 		colonists.Pawns = append(colonists.Pawns, row)
 	}
-	threats := &o.ThreatsSnapshot{Completeness: completeness(facts.ThreatsComplete, len(facts.Threats))}
+	threats := &o.ThreatsSnapshot{Completeness: completeness(facts.ThreatsComplete)}
 	for _, threat := range facts.Threats {
 		row := &o.ThreatPawn{Pawn: &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(string(threat.ID))}, Dead: known(threat.Dead), Downed: known(threat.Downed), Animal: known(threat.Animal)}}
 		if distance, ok := threat.Distance.Value(); ok {

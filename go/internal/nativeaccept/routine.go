@@ -275,14 +275,9 @@ func MedicalNeed(reply map[string]any) (string, error) {
 		return "", err
 	}
 	colony, _ := AsMap(observed["colonists"])
-	census, _ := AsMap(colony["completeness"])
+	census, ok := AsMap(colony["completeness"])
 	rows := AsSlice(colony["pawns"])
-	page, _ := AsMap(census["page"])
-	complete, _ := AsBool(page["complete"])
-	if !complete || numberOrDefault(census, "filtered", -1) != 0 || numberOrDefault(census, "unreadable", -1) != 0 {
-		return "unknown", nil
-	}
-	if float64(len(rows)) != AsNumber(census["matched"]) || float64(len(rows)) != AsNumber(census["returned"]) {
+	if !ok || AsNumber(census["filtered"]) != 0 {
 		return "unknown", nil
 	}
 	needed := false
@@ -326,16 +321,8 @@ func AssertConstructionStart(reply map[string]any) error {
 		return err
 	}
 	threats, _ := AsMap(observed["threats"])
-	census, _ := AsMap(threats["completeness"])
-	groups := []string{"hostiles", "huntingPredators", "ignoredHunters", "wildPredatorsNear", "downedNear"}
-	count := 0
-	for _, k := range groups {
-		count += len(AsSlice(threats[k]))
-	}
-	page, _ := AsMap(census["page"])
-	complete, _ := AsBool(page["complete"])
-	if !complete || AsNumber(census["filtered"]) != 0 || AsNumber(census["unreadable"]) != 0 ||
-		AsNumber(census["matched"]) != float64(count) || AsNumber(census["returned"]) != float64(count) {
+	census, ok := AsMap(threats["completeness"])
+	if !ok || AsNumber(census["filtered"]) != 0 {
 		return fmt.Errorf("construction fixture requires a complete threat census")
 	}
 	if len(AsSlice(threats["hostiles"])) > 0 || len(AsSlice(threats["huntingPredators"])) > 0 {

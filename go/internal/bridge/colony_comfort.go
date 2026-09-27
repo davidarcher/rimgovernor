@@ -11,18 +11,12 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v, &o.UpkeepFacts{Comfort: v.Comfort, Completeness: v.Completeness, Issues: v.Issues, Items: v.Items, Structures: v.Structures, Fires: v.Fires, Filth: v.Filth, Animals: v.Animals, People: v.People, Beds: v.Beds, HomeCoverage: v.HomeCoverage, Lighting: v.Lighting, WildAnimals: v.WildAnimals, Flooring: v.Flooring, Routes: v.Routes, Rooms: v.Rooms}) {
 		return contract("unsupported upkeep projection")
 	}
-	if err := colonyCounts(v.Completeness, 1); err != nil {
-		return err
-	}
 	if err := pawnsIssues(v.Issues, v.ProtoReflect()); err != nil {
 		return err
 	}
 	comfort := v.GetComfort().GetObserved()
 	if comfort == nil {
 		return validateUnavailable(v.GetComfort().GetUnavailable())
-	}
-	if err := colonyCounts(comfort.Completeness, len(comfort.People)); err != nil {
-		return err
 	}
 	people := map[string]bool{}
 	for _, id := range comfort.People {

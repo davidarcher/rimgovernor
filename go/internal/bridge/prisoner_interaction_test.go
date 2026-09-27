@@ -16,7 +16,7 @@ func populationReply(persons ...*o.PopulationPerson) *o.PopulationReply {
 	return &o.PopulationReply{Outcome: &o.PopulationReply_Observed{Observed: &o.PopulationSnapshot{
 		Context:      &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(7), NativeGeneration: proto.Uint64(1)},
 		Persons:      persons,
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 }
 

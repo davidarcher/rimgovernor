@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -71,8 +70,7 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 		}
 		requested[id] = true
 	}
-	counts := v.Completeness
-	if (len(ids) > 0 && len(v.Buildings) > len(ids)) || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Buildings)) || counts.GetReturned() != uint64(len(v.Buildings)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
+	if len(ids) > 0 && len(v.Buildings) > len(ids) {
 		return contract("incomplete building query")
 	}
 	seen := map[string]bool{}

@@ -92,8 +92,7 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 	if v == nil || buildingContext(v.Context, identity, 0, false) != nil {
 		return SupplyRead{}, contract("supply census unavailable")
 	}
-	complete, err := emergencyCompleteness(v.Completeness, len(v.Stocks))
-	if yes, known := complete.Value(); err != nil || !known || !yes {
+	if yes, known := emergencyCompleteness(v.Completeness).Value(); !known || !yes {
 		return SupplyRead{}, contract("incomplete supply census")
 	}
 	out := SupplyRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []SupplyTarget{}}
@@ -102,8 +101,7 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() < 0 || stock.GetForbidden() > stock.GetUnits() || !forbid && stock.GetForbidden() != stock.GetUnits() {
 			return SupplyRead{}, contract("invalid forbidden supply stock")
 		}
-		complete, err = emergencyCompleteness(stock.ItemsCompleteness, len(stock.Items))
-		if yes, known := complete.Value(); err != nil || !known || !yes {
+		if yes, known := emergencyCompleteness(stock.ItemsCompleteness).Value(); !known || !yes {
 			return SupplyRead{}, contract("incomplete supply items")
 		}
 		for _, item := range stock.Items {

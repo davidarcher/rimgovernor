@@ -16,7 +16,7 @@ import (
 )
 
 func pawnsTestSnapshot() *o.PawnSnapshot {
-	return &o.PawnSnapshot{Context: authorityTestContext(7), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1"), MapId: proto.Int32(0)}, Drafted: proto.Bool(false), DraftClaim: &o.DraftClaimObservation{State: &o.DraftClaimObservation_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(9), Unreadable: proto.Uint64(0)}}
+	return &o.PawnSnapshot{Context: authorityTestContext(7), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1"), MapId: proto.Int32(0)}, Drafted: proto.Bool(false), DraftClaim: &o.DraftClaimObservation{State: &o.DraftClaimObservation_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}}}, Completeness: &o.Completeness{Filtered: proto.Uint64(9)}}
 }
 func TestPawnsFixedReadPreservesUnknown(t *testing.T) {
 	id := pbIdentity()
@@ -71,16 +71,10 @@ func TestPawnsMalformedEvidence(t *testing.T) {
 		"unrequested":                           func(v *o.PawnSnapshot) { v.Pawns[0].Pawn.Id = proto.String("other") },
 		"duplicate": func(v *o.PawnSnapshot) {
 			v.Pawns = append(v.Pawns, v.Pawns[0])
-			v.Completeness.Matched = proto.Uint64(2)
-			v.Completeness.Returned = proto.Uint64(2)
 		},
-		"partial":       func(v *o.PawnSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"count":         func(v *o.PawnSnapshot) { v.Completeness.Matched = proto.Uint64(10) },
-		"unreadable":    func(v *o.PawnSnapshot) { v.Completeness.Unreadable = proto.Uint64(1) },
-		"unknown count": func(v *o.PawnSnapshot) { v.Completeness.Filtered = nil },
-		"map":           func(v *o.PawnSnapshot) { v.Pawns[0].Pawn.MapId = proto.Int32(1) },
-		"nan":           func(v *o.PawnSnapshot) { v.Pawns[0].NearestColonistDistance = proto.Float64(math.NaN()) },
-		"detail":        func(v *o.PawnSnapshot) { v.Pawns[0].Health = &o.PawnHealth{} },
+		"map":    func(v *o.PawnSnapshot) { v.Pawns[0].Pawn.MapId = proto.Int32(1) },
+		"nan":    func(v *o.PawnSnapshot) { v.Pawns[0].NearestColonistDistance = proto.Float64(math.NaN()) },
+		"detail": func(v *o.PawnSnapshot) { v.Pawns[0].Health = &o.PawnHealth{} },
 		"contradictory issue": func(v *o.PawnSnapshot) {
 			v.Pawns[0].Issues = append(v.Pawns[0].Issues, &o.ReadIssue{Field: proto.String("drafted"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}})
 		},
@@ -151,8 +145,6 @@ func TestPawnsTypedFailuresAndEmptyQuery(t *testing.T) {
 			case "empty":
 				v := pawnsTestSnapshot()
 				v.Pawns = nil
-				v.Completeness.Matched = proto.Uint64(0)
-				v.Completeness.Returned = proto.Uint64(0)
 				reply.Outcome = &o.ListPawnsReply_Observed{Observed: v}
 			}
 			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {

@@ -23,10 +23,9 @@ func pawnRowFixture(drafted bool, owned bool) map[string]any {
 
 func observedReply(row map[string]any) map[string]any {
 	return map[string]any{"observed": map[string]any{
-		"context": rowContext(),
-		"completeness": map[string]any{"page": map[string]any{"complete": true},
-			"matched": "1", "returned": "1", "unreadable": "0"},
-		"pawns": []any{row},
+		"context":      rowContext(),
+		"completeness": map[string]any{},
+		"pawns":        []any{row},
 	}}
 }
 
@@ -131,9 +130,7 @@ func draftReply() map[string]any {
 		"pawn": map[string]any{"id": "Human1", "snapshot": snapshot}, "drafted": true,
 		"draftClaim": map[string]any{"owned": map[string]any{"claimId": "claim", "pawnSnapshot": deepCopyMap(snapshot)}},
 	}
-	return map[string]any{"observed": map[string]any{"context": context, "pawns": []any{row}, "completeness": map[string]any{
-		"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "unreadable": "0",
-	}}}
+	return map[string]any{"observed": map[string]any{"context": context, "pawns": []any{row}, "completeness": map[string]any{}}}
 }
 
 func draftRow(t *testing.T) map[string]any {
@@ -167,7 +164,7 @@ func TestPawnRowExactSnapshotAndClaimValidation(t *testing.T) {
 }
 
 func TestPawnRowRejectsPartialOrFabricatedCorrelation(t *testing.T) {
-	for _, mutation := range []string{"token", "entity", "context", "claim_snapshot", "unavailable", "boolean", "count", "page"} {
+	for _, mutation := range []string{"token", "entity", "context", "claim_snapshot", "unavailable", "boolean"} {
 		t.Run(mutation, func(t *testing.T) {
 			value := draftReply()
 			observed, _ := AsMap(value["observed"])
@@ -177,7 +174,6 @@ func TestPawnRowRejectsPartialOrFabricatedCorrelation(t *testing.T) {
 			row, _ := AsMap(pawns[0])
 			pawn, _ := AsMap(row["pawn"])
 			snapshot, _ := AsMap(pawn["snapshot"])
-			completeness, _ := AsMap(observed["completeness"])
 			switch mutation {
 			case "token":
 				snapshot["token"] = ""
@@ -195,11 +191,6 @@ func TestPawnRowRejectsPartialOrFabricatedCorrelation(t *testing.T) {
 				row["draftClaim"] = map[string]any{"unavailable": map[string]any{}}
 			case "boolean":
 				row["drafted"] = 1.0
-			case "count":
-				completeness["matched"] = "2"
-			case "page":
-				page, _ := AsMap(completeness["page"])
-				page["complete"] = false
 			}
 			if _, err := PawnRow(value, identity, "Human1"); err == nil {
 				t.Fatalf("expected an error for mutation %q", mutation)

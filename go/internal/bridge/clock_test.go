@@ -28,7 +28,7 @@ func clockTestEpoch() *k.Epoch {
 	return &k.Epoch{Owner: &k.EpochOwner{ControllerSessionId: proto.String("controller"), Epoch: proto.Int64(1)}, Origin: authorityTestContext(7), RequestedSpeed: k.Speed_SPEED_NORMAL.Enum(), Policy: clockTestPolicy(), StartTick: proto.Int64(12), TickDeadline: proto.Int64(112), LeaseRemainingMs: proto.Uint32(900), LastTick: proto.Int64(12)}
 }
 func clockTestStatus() *k.Status {
-	return &k.Status{Context: authorityTestContext(7), State: &k.Status_Running{Running: &k.Running{Epoch: clockTestEpoch()}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum(), ActualPaused: proto.Bool(false), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}
+	return &k.Status{Context: authorityTestContext(7), State: &k.Status_Running{Running: &k.Running{Epoch: clockTestEpoch()}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum(), ActualPaused: proto.Bool(false)}
 }
 func clockTestReceipt() *k.ControlReceipt {
 	return &k.ControlReceipt{Attempt: clockTestPre().Attempt, AdmittedContext: authorityTestContext(7), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: clockTestStatus()}}}
@@ -145,14 +145,13 @@ func TestClockStatusPreservesStoppedOriginAndUnknownFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.SuppressedInjuries = []*k.Injury{{Pawn: &k.PawnEvent{PawnId: proto.String("pawn")}, Before: &k.Health{}, After: &k.Health{}, Suppression: k.InjurySuppression_INJURY_SUPPRESSION_ACKNOWLEDGED.Enum(), NewWound: proto.Bool(true)}}
-	s.EvidenceCompleteness.Complete = proto.Bool(false)
 	if err := clockStatus(s, s.Context.Identity); err != nil {
 		t.Fatal(err)
 	}
 	if s.SuppressedInjuries[0].Before.InjuryCount != nil {
 		t.Fatal("unknown health fabricated")
 	}
-	for name, edit := range map[string]func(*k.Status){"missing state": func(s *k.Status) { s.State = nil }, "wrong identity": func(s *k.Status) { s.Context.Identity.LoadToken = proto.String("other") }, "negative cursor": func(s *k.Status) { s.NewestCursor = proto.Int64(-1) }, "missing pause": func(s *k.Status) { s.ActualPaused = nil }, "deadline": func(s *k.Status) { s.GetRunning().Epoch.TickDeadline = proto.Int64(12) }, "missing epoch": func(s *k.Status) { s.GetRunning().Epoch = nil }, "unknown enum": func(s *k.Status) { s.ObservedSpeed = k.ObservedSpeed(99).Enum() }, "unknown complete": func(s *k.Status) { s.EvidenceCompleteness.Complete = nil }} {
+	for name, edit := range map[string]func(*k.Status){"missing state": func(s *k.Status) { s.State = nil }, "wrong identity": func(s *k.Status) { s.Context.Identity.LoadToken = proto.String("other") }, "negative cursor": func(s *k.Status) { s.NewestCursor = proto.Int64(-1) }, "missing pause": func(s *k.Status) { s.ActualPaused = nil }, "deadline": func(s *k.Status) { s.GetRunning().Epoch.TickDeadline = proto.Int64(12) }, "missing epoch": func(s *k.Status) { s.GetRunning().Epoch = nil }, "unknown enum": func(s *k.Status) { s.ObservedSpeed = k.ObservedSpeed(99).Enum() }} {
 		t.Run(name, func(t *testing.T) {
 			s := clockTestStatus()
 			edit(s)

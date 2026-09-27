@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 )
 
 func emergencyCounts(n uint64) *o.Completeness {
-	return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	return &o.Completeness{Filtered: proto.Uint64(0)}
 }
 func emergencyFixture() *o.StatusSnapshot {
 	return &o.StatusSnapshot{Context: pbContext(), Colonists: &o.PawnSnapshot{Context: pbContext(), Completeness: emergencyCounts(0)}, Threats: &o.ThreatsSnapshot{Completeness: emergencyCounts(0)}}
@@ -70,7 +69,7 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 	v.Threats.WildPredatorsNear = []*o.ThreatPawn{{Pawn: emergencyRow("same")}}
 	v.Threats.DownedNear = []*o.ThreatPawn{{Pawn: emergencyRow("same")}}
 	v.Threats.Completeness = emergencyCounts(5)
-	v.Threats.Completeness.Page.Complete = proto.Bool(false)
+	v.Threats.Completeness.Filtered = proto.Uint64(1)
 	got, e := emergencyStatus(v, pbIdentity())
 	if e != nil || len(got.Facts.Threats) != 5 {
 		t.Fatal(got, e)
@@ -95,10 +94,7 @@ func TestEmergencyPartialMedicalAndCategories(t *testing.T) {
 }
 func TestEmergencyContradictoryMalformedFacts(t *testing.T) {
 	for name, edit := range map[string]func(*o.StatusSnapshot){
-		"missing": func(v *o.StatusSnapshot) { v.Threats = nil }, "world": func(v *o.StatusSnapshot) { v.Context.Identity.LoadToken = proto.String("other") }, "generation": func(v *o.StatusSnapshot) { v.Context.NativeGeneration = proto.Uint64(0) }, "count": func(v *o.StatusSnapshot) { v.Threats.Completeness.Returned = proto.Uint64(1) }, "completeCount": func(v *o.StatusSnapshot) { v.Colonists.Completeness.Matched = proto.Uint64(1) }, "overflow": func(v *o.StatusSnapshot) {
-			v.Colonists.Completeness.Filtered = proto.Uint64(math.MaxUint64)
-			v.Colonists.Completeness.Unreadable = proto.Uint64(1)
-		}, "duplicate": func(v *o.StatusSnapshot) {
+		"missing": func(v *o.StatusSnapshot) { v.Threats = nil }, "world": func(v *o.StatusSnapshot) { v.Context.Identity.LoadToken = proto.String("other") }, "generation": func(v *o.StatusSnapshot) { v.Context.NativeGeneration = proto.Uint64(0) }, "duplicate": func(v *o.StatusSnapshot) {
 			v.Colonists.Pawns = []*o.PawnState{emergencyRow("c"), emergencyRow("c")}
 			v.Colonists.Completeness = emergencyCounts(2)
 		}, "categoryduplicate": func(v *o.StatusSnapshot) {

@@ -37,8 +37,7 @@ func (r *RoutineGearPlanner) weaponDemand(ctx context.Context, state ControlStat
 	// visitor is enough) and failed the whole gear step with ErrControl, so
 	// MaintainEquipment never planned a wear or bill method past its apparel
 	// policies and never recovered (#660).
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.GetPage().GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
+	if len(observed.Pawns) != len(ids) {
 		return nil, ErrControl
 	}
 	pawns := []policy.EquipCandidatePawn{}

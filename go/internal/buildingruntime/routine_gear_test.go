@@ -128,7 +128,7 @@ func setGearProductionNeed(v *o.ColonyFactsSnapshot) {
 	v.WorkerCount = proto.Uint32(2)
 	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	complete := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	gear := &o.GearSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: complete(2)}
 	for _, id := range []string{"a", "b"} {
@@ -231,7 +231,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	v.WorkerCount = proto.Uint32(2)
 	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	complete := func(n int) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(n)), Returned: proto.Uint64(uint64(n)), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	observedContext := func() *c.ObservationContext { return proto.Clone(v.Context).(*c.ObservationContext) }
 	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {
@@ -305,7 +305,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	v.WorkerCount = proto.Uint32(2)
 	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	complete := func(n int) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(n)), Returned: proto.Uint64(uint64(n)), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	observedContext := func() *c.ObservationContext { return proto.Clone(v.Context).(*c.ObservationContext) }
 	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {

@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             {
                 foreach (var cell in ordered) row.ListedCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
                 foreach (var cell in gridCells) row.GridCells.Add(new Common.Cell { X = cell.x, Z = cell.z });
-                row.CellsCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)ordered.Length, Returned = (ulong)ordered.Length };
+                row.CellsCompleteness = new Obs.Completeness();
             }
             else row.Issues.Add(Issue("listed_cells", Common.UnavailableReason.NotRequested, "Cell lists are not requested."));
 
@@ -184,6 +184,6 @@ namespace HomeBridge.BridgeTools
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
+        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };
     }
 }

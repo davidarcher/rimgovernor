@@ -18,13 +18,11 @@ message SnapshotRef {
   optional string entity_id = 2;
   optional string token = 3; // Opaque exact entity+settings snapshot CAS token.
 }
+// Rows the query's filters excluded from the scanned set. Replies carry
+// every matching row; there is no paging or per-list cap.
 message Completeness {
-  rimgovernor.common.v1.PageInfo page = 1;
-  optional uint64 matched = 2;
-  optional uint64 returned = 3;
+  reserved 1, 2, 3, 5, 6;
   optional uint64 filtered = 4;
-  optional uint64 unreadable = 5;
-  optional string snapshot_token = 6; // Cursor binds query, identity and snapshot.
 }
 message ReadIssue { optional string field = 1; rimgovernor.common.v1.Unavailable unavailable = 2; }
 message Rectangle { rimgovernor.common.v1.Cell minimum = 1; rimgovernor.common.v1.Cell maximum = 2; }

@@ -17,7 +17,7 @@ func defenseRegion() CellRect {
 	return CellRect{Min: domain.Cell{X: 4, Z: 6}, Max: domain.Cell{X: 5, Z: 6}}
 }
 func defenseComplete(n int) *o.Completeness {
-	return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(n)), Returned: proto.Uint64(uint64(n)), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	return &o.Completeness{Filtered: proto.Uint64(0)}
 }
 func defenseSiteFixture() *o.DefenseSiteSnapshot {
 	open := &o.DefenseCell{Cell: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Fogged: proto.Bool(false), Terrain: proto.String("Soil"), Walkable: proto.Bool(true), Passable: proto.Bool(true),
@@ -99,7 +99,6 @@ func TestDefenseSiteRejectsMalformed(t *testing.T) {
 		"duplicate cell":     func(s *o.DefenseSiteSnapshot) { s.Cells[0].Cell = s.Cells[1].Cell },
 		"outside region":     func(s *o.DefenseSiteSnapshot) { s.Cells[0].Cell.X = proto.Int32(9) },
 		"region changed":     func(s *o.DefenseSiteSnapshot) { s.Region.Maximum.X = proto.Int32(6) },
-		"incomplete":         func(s *o.DefenseSiteSnapshot) { s.Completeness.Unreadable = proto.Uint64(1) },
 		"cover nan":          func(s *o.DefenseSiteSnapshot) { s.Cells[1].CoverFill = proto.Float64(math.NaN()) },
 		"cover over one":     func(s *o.DefenseSiteSnapshot) { s.Cells[1].CoverFill = proto.Float64(1.5) },
 		"terrain missing":    func(s *o.DefenseSiteSnapshot) { s.Cells[0].Terrain = nil },
@@ -214,7 +213,6 @@ func TestLinesOfFireRejectsMalformed(t *testing.T) {
 		"cover nan":      func(s *o.LinesOfFireSnapshot) { s.Lines[0].TargetCover = proto.Float64(math.NaN()) },
 		"cover over one": func(s *o.LinesOfFireSnapshot) { s.Lines[0].ShooterCover = proto.Float64(2) },
 		"distance":       func(s *o.LinesOfFireSnapshot) { s.Lines[0].Distance = proto.Float64(-1) },
-		"incomplete":     func(s *o.LinesOfFireSnapshot) { s.Completeness.Page.Complete = proto.Bool(false) },
 		"identity":       func(s *o.LinesOfFireSnapshot) { s.Context.Identity.MapId = proto.Int32(3) },
 	}
 	for name, edit := range edits {

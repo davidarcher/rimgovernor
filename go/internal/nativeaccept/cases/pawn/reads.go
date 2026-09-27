@@ -64,9 +64,6 @@ func run(ctx context.Context, s cases.Session) error {
 			return nil, nil, fmt.Errorf("%s: context drifted mid-run", label)
 		}
 		rows := nativeaccept.AsSlice(observed["pawns"])
-		if err := nativeaccept.CheckCompleteness(observed["completeness"], len(rows)); err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", label, err)
-		}
 		for _, raw := range rows {
 			row, _ := nativeaccept.AsMap(raw)
 			if err := draftControl(row, observed["context"]); err != nil {
@@ -230,32 +227,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if drafted || downed {
 			return fmt.Errorf("known-false filter returned a drafted or downed pawn")
 		}
-	}
-	// A page limit smaller than the matched pawn collection is ordinary pagination,
-	// not a bounded-read refusal: ListPawns (NativePawnObservationTools.cs) truncates
-	// and hands back a cursor (completeness.page.complete=false, populated
-	// nextCursor) the same way observations_read_research does; its Require(page.Count,256)
-	// call can never fire for a valid request (Validate already bounds page.limit to
-	// 1..256, so page.Count never exceeds it). Assert the real truncation behavior
-	// instead of an untested unavailable-refusal assumption.
-	overflow, err := h.Wire(ctx, "whole-query-limit", "observations_list_pawns", nativeaccept.Merge(scope, map[string]any{"page": map[string]any{"limit": 1}}))
-	if err != nil {
-		return err
-	}
-	_, overflowObserved, err := nativeaccept.Outcome(overflow, "observed")
-	if err != nil {
-		return fmt.Errorf("whole-query-limit: %w", err)
-	}
-	overflowCompleteness, _ := nativeaccept.AsMap(overflowObserved["completeness"])
-	overflowPage, _ := nativeaccept.AsMap(overflowCompleteness["page"])
-	if complete, _ := nativeaccept.AsBool(overflowPage["complete"]); complete {
-		return fmt.Errorf("whole-query-limit: expected a truncated page for a limit smaller than the matched collection")
-	}
-	if nativeaccept.AsString(overflowPage["nextCursor"]) == "" {
-		return fmt.Errorf("whole-query-limit: truncated page missing a nextCursor")
-	}
-	if len(nativeaccept.AsSlice(overflowObserved["pawns"])) != 1 {
-		return fmt.Errorf("whole-query-limit: expected exactly one pawn row for page limit 1")
 	}
 	invalidCases := []struct {
 		label  string

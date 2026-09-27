@@ -66,7 +66,7 @@ func windowSnapshot(request *o.GetCellsRequest, fogged func(x, z int32) bool) *o
 			s.Cells = append(s.Cells, row)
 		}
 	}
-	s.Completeness = &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(s.Cells))), Returned: proto.Uint64(uint64(len(s.Cells))), Filtered: proto.Uint64(filtered), Unreadable: proto.Uint64(0)}
+	s.Completeness = &o.Completeness{Filtered: proto.Uint64(filtered)}
 	return s
 }
 
@@ -168,7 +168,6 @@ func TestReadPlanningWindowRefusalsAndContractFaults(t *testing.T) {
 			s := windowSnapshot(r, nil)
 			s.Region.Maximum.X = proto.Int32(12)
 			s.Cells = s.Cells[:9]
-			s.Completeness.Matched, s.Completeness.Returned = proto.Uint64(9), proto.Uint64(9)
 			return &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}
 		}, ErrContract},
 		"applied fields differ": {func(r *o.GetCellsRequest) *o.GetCellsReply {
@@ -179,7 +178,6 @@ func TestReadPlanningWindowRefusalsAndContractFaults(t *testing.T) {
 		"coverage short": {func(r *o.GetCellsRequest) *o.GetCellsReply {
 			s := windowSnapshot(r, nil)
 			s.Cells = s.Cells[:11]
-			s.Completeness.Matched, s.Completeness.Returned = proto.Uint64(11), proto.Uint64(11)
 			return &o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}
 		}, ErrContract},
 		"unrequested detail": {func(r *o.GetCellsRequest) *o.GetCellsReply {

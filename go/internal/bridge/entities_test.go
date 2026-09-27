@@ -35,7 +35,7 @@ func zoneRow(id string) *o.ZoneState {
 }
 
 func zonesPageReply(rows []*o.ZoneState, complete bool) *o.ListZonesReply {
-	s := &o.ZonesSnapshot{Context: pbContext(), Zones: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(complete)}, Matched: proto.Uint64(uint64(len(rows))), Returned: proto.Uint64(uint64(len(rows))), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+	s := &o.ZonesSnapshot{Context: pbContext(), Zones: rows, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 	return &o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: s}}
 }
 
@@ -74,9 +74,6 @@ func TestReadZonesRefusalsAndContractFaults(t *testing.T) {
 		}, []error{ErrRefused}},
 		"duplicate": {func() *o.ListZonesReply {
 			return zonesPageReply([]*o.ZoneState{zoneRow("Zone_1"), zoneRow("Zone_1")}, true)
-		}, []error{ErrContract}},
-		"incomplete": {func() *o.ListZonesReply {
-			return zonesPageReply([]*o.ZoneState{zoneRow("Zone_1")}, false)
 		}, []error{ErrContract}},
 		"other identity": {func() *o.ListZonesReply {
 			r := zonesPageReply(nil, true)

@@ -144,8 +144,7 @@ namespace HomeBridge.BridgeTools
                 }
             if (items.Count > 256)
                 return new Obs.WasteReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "Waste census exceeds 256 rows." } };
-            var snapshot = new Obs.WasteSnapshot { Context = context.Clone(), Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
-                Matched = (ulong)items.Count, Returned = (ulong)items.Count, Filtered = 0, Unreadable = 0 } };
+            var snapshot = new Obs.WasteSnapshot { Context = context.Clone(), Completeness = new Obs.Completeness() };
             snapshot.Items.AddRange(items);
             return new Obs.WasteReply { Observed = snapshot };
         }

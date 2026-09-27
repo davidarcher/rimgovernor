@@ -100,8 +100,7 @@ func (b *TendBoundary) InspectTend(ctx context.Context, target executor.Target) 
 	if err != nil {
 		return out, err
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != 2 || counts.GetReturned() != 2 || len(observed.Pawns) != 2 {
+	if len(observed.Pawns) != 2 {
 		return out, executor.ErrHeld
 	}
 	var doctorRow, patientRow *n.PawnState

@@ -25,16 +25,7 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 	if !DeepEqual(observedContext["identity"], identity) {
 		return nil, fmt.Errorf("pawn read context identity mismatch")
 	}
-	completeness, _ := AsMap(observed["completeness"])
-	page, _ := AsMap(completeness["page"])
-	if complete, _ := AsBool(page["complete"]); !complete || len(page) != 1 {
-		return nil, fmt.Errorf("expected a single complete page, found %#v", page)
-	}
 	rows := AsSlice(observed["pawns"])
-	matched, returned, unreadable := AsNumber(completeness["matched"]), AsNumber(completeness["returned"]), AsNumber(completeness["unreadable"])
-	if matched != returned || int(returned) != len(rows) || unreadable != 0 {
-		return nil, fmt.Errorf("completeness does not exactly account for the returned rows: %#v", completeness)
-	}
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("expected at least one pawn row")
 	}

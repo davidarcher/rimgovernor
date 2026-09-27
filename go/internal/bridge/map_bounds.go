@@ -76,13 +76,8 @@ func validateMapBounds(snapshot *o.CellsSnapshot, identity *c.Identity, anchor *
 		}
 	}
 	completeness := snapshot.Completeness
-	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
+	if completeness.GetFiltered() != 0 {
 		return MapBounds{}, contract("incomplete map bounds observation")
-	}
-	if completeness.SnapshotToken != nil {
-		if err := validID(completeness.GetSnapshotToken()); err != nil {
-			return MapBounds{}, err
-		}
 	}
 	if !proto.Equal(snapshot.AppliedFields, mapBoundsFields()) {
 		return MapBounds{}, contract("map bounds applied fields differ")

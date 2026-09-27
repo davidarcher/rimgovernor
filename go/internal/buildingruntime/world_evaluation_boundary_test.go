@@ -56,7 +56,7 @@ func worldEvaluationColonyFixture(context *c.ObservationContext, resources []*o.
 		Context:      proto.Clone(context).(*c.ObservationContext),
 		MapSize:      &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)},
 		Center:       &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 		Resources:    resources,
 	}}}
 }

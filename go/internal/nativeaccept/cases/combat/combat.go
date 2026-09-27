@@ -688,15 +688,6 @@ func observedRows(reply, identity map[string]any) ([]map[string]any, error) {
 		return nil, fmt.Errorf("observed rows: context identity mismatch")
 	}
 	rowsRaw := na.AsSlice(observed["pawns"])
-	completeness, _ := na.AsMap(observed["completeness"])
-	page, _ := na.AsMap(completeness["page"])
-	if complete, _ := na.AsBool(page["complete"]); !complete || na.AsNumber(completeness["unreadable"]) != 0 {
-		return nil, fmt.Errorf("observed rows: incomplete or unreadable page: %#v", completeness)
-	}
-	matched, returned := na.AsNumber(completeness["matched"]), na.AsNumber(completeness["returned"])
-	if matched != returned || int(returned) != len(rowsRaw) {
-		return nil, fmt.Errorf("observed rows: completeness count mismatch: %#v", completeness)
-	}
 	rows := make([]map[string]any, 0, len(rowsRaw))
 	seen := map[string]bool{}
 	for _, raw := range rowsRaw {

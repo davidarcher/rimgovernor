@@ -77,8 +77,7 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        internal static Obs.Completeness Complete(int count) => new Obs.Completeness
-        { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
+        internal static Obs.Completeness Complete(int count) => new Obs.Completeness();
     }
 
     public sealed class NativeWorldObservationTools

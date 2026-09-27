@@ -25,9 +25,6 @@ func validateColonyWaste(v *o.WasteReply, size *o.MapSize, mapID int32) error {
 		if snapshot == nil {
 			return contract("missing waste census")
 		}
-		if err := colonyCounts(snapshot.Completeness, len(snapshot.Items)); err != nil {
-			return err
-		}
 		entity := func(e *o.EntityRef, seen map[string]bool) bool {
 			if e == nil || validID(e.GetId()) != nil || validID(e.GetDefName()) != nil || e.MapId == nil || e.GetMapId() != mapID || !colonyCell(e.Position, size) || e.Label != nil || e.Snapshot != nil || seen[e.GetId()] {
 				return false

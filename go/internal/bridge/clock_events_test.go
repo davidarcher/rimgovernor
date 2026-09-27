@@ -113,7 +113,6 @@ func TestClockEventsRejectMalformedPage(t *testing.T) {
 }
 func TestClockEventVariantsAndPartialFacts(t *testing.T) {
 	pawn := &k.PawnEvent{PawnId: proto.String("pawn")}
-	complete := &c.PageInfo{Complete: proto.Bool(false)}
 	stop := &k.StopEvent{Reason: k.StopReason_STOP_REASON_REQUESTED_PAUSE.Enum(), Evidence: &k.StopEvent_Pause{Pause: &k.PauseEvidence{}}}
 	rows := []*k.Event{
 		{Event: &k.Event_Started{Started: &k.EpochStarted{Epoch: clockTestEpoch()}}},
@@ -123,7 +122,7 @@ func TestClockEventVariantsAndPartialFacts(t *testing.T) {
 		{Event: &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Message{Message: &k.TransientMessage{Id: proto.String("message")}}}}},
 		{Event: &k.Event_Alert{Alert: &k.Alert{Key: proto.String("alert")}}},
 		{Event: &k.Event_InjuryObserved{InjuryObserved: &k.Injury{Pawn: pawn, Before: &k.Health{}, After: &k.Health{InjuryCount: proto.Int32(0)}}}},
-		{Event: &k.Event_HostilesCleared{HostilesCleared: &k.HostilesCleared{Completeness: complete}}},
+		{Event: &k.Event_HostilesCleared{HostilesCleared: &k.HostilesCleared{}}},
 		{Event: &k.Event_PauseFailed{PauseFailed: &k.PauseFailed{Pending: stop}}},
 		{Event: &k.Event_ForcePauseWaiting{ForcePauseWaiting: &k.ForcePauseWaiting{Pause: &k.PauseEvidence{}}}},
 		{Event: &k.Event_ForcePauseCleared{ForcePauseCleared: &k.ForcePauseCleared{}}},
@@ -146,7 +145,7 @@ func TestClockEventVariantsAndPartialFacts(t *testing.T) {
 		t.Fatal("unknown and zero conflated")
 	}
 	for _, e := range []*k.StopEvent{
-		{Reason: k.StopReason_STOP_REASON_NOTIFICATION_BATCH.Enum(), Evidence: &k.StopEvent_Notifications{Notifications: &k.NotificationBatch{Completeness: complete}}},
+		{Reason: k.StopReason_STOP_REASON_NOTIFICATION_BATCH.Enum(), Evidence: &k.StopEvent_Notifications{Notifications: &k.NotificationBatch{}}},
 		{Reason: k.StopReason_STOP_REASON_HOSTILE.Enum(), Evidence: &k.StopEvent_Pawn{Pawn: pawn}},
 		{Reason: k.StopReason_STOP_REASON_COLONIST_INJURY.Enum(), Evidence: &k.StopEvent_Injury{Injury: injury}},
 		{Reason: k.StopReason_STOP_REASON_COLONIST_HEALTH.Enum(), Evidence: &k.StopEvent_Health{Health: &k.HealthThreshold{Pawn: pawn}}},

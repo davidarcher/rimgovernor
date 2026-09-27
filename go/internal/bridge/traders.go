@@ -98,10 +98,7 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 		return TradersRead{}, contract("traders world mismatch")
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Returned == nil || counts.GetReturned() != uint64(len(snapshot.Traders)+len(snapshot.Negotiators)) {
-		return TradersRead{}, contract("traders completeness missing")
-	}
-	if counts.Filtered == nil || counts.GetFiltered() != 0 || counts.Unreadable == nil || counts.GetUnreadable() != 0 {
+	if counts.GetFiltered() != 0 {
 		return TradersRead{}, contract("traders census omitted rows")
 	}
 	if len(snapshot.Traders)+len(snapshot.Negotiators) > tradersMaximumRows {

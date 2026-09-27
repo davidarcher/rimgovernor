@@ -82,7 +82,7 @@ func finishedProjectsFixture() (map[string]any, map[string]any) {
 		"projects": []any{map[string]any{
 			"project": map[string]any{"defName": "Finished"}, "finished": true, "canStart": false, "available": false,
 		}},
-		"completeness": map[string]any{"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "unreadable": "0"},
+		"completeness": map[string]any{},
 		"slots":        []any{map[string]any{}}, "anomalyActive": false,
 	}
 	legacy := map[string]any{"available": []any{}, "locked": []any{}, "finished": []any{"Finished"}, "current": nil, "currentByCategory": map[string]any{}, "anomalyActive": false}

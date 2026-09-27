@@ -94,11 +94,6 @@ func census(ctx context.Context, s cases.Session, label string) (map[string]any,
 	if err != nil {
 		return nil, err
 	}
-	complete, _ := na.AsMap(observed["completeness"])
-	page, _ := na.AsMap(complete["page"])
-	if !boolean(page["complete"]) {
-		return nil, fmt.Errorf("incomplete clearance census: %v", observed)
-	}
 	return observed, nil
 }
 

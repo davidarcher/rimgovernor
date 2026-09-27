@@ -15,7 +15,7 @@ import (
 func combatPawnsFixture() *o.PawnSnapshot {
 	s := pawnsTestSnapshot()
 	p := s.Pawns[0]
-	p.Health = &o.PawnHealth{SummaryFraction: proto.Float64(.9), Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false), Capacities: []*o.Capacity{{DefName: proto.String("Moving"), Level: proto.Float64(1)}}, Hediffs: []*o.Hediff{{Definition: &o.DefinitionRef{DefName: proto.String("Bruise")}, Severity: proto.Float64(.1)}}, HediffCompleteness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+	p.Health = &o.PawnHealth{SummaryFraction: proto.Float64(.9), Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false), Capacities: []*o.Capacity{{DefName: proto.String("Moving"), Level: proto.Float64(1)}}, Hediffs: []*o.Hediff{{Definition: &o.DefinitionRef{DefName: proto.String("Bruise")}, Severity: proto.Float64(.1)}}, HediffCompleteness: &o.Completeness{Filtered: proto.Uint64(0)}}
 	p.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("club"), Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: proto.String("club")}, Weapon: proto.Bool(true), Melee: proto.Bool(true), Ranged: proto.Bool(false), HitPoints: proto.Int32(100), MaxHitPoints: proto.Int32(100), ConditionFraction: proto.Float64(1)}}}
 	p.Biography = &o.PawnBiography{BiologicalAgeYears: proto.Float64(25), Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Melee")}, Level: proto.Int32(10), StoredLevel: proto.Float64(10), Disabled: proto.Bool(false)}}, Traits: []*o.Trait{{DefName: proto.String("Beauty"), Degree: proto.Int32(-1)}}}
 	return s
@@ -84,7 +84,6 @@ func TestCombatPawnsMalformedDetails(t *testing.T) {
 		},
 		"duplicate capacity": func(s *o.PawnSnapshot) { h := s.Pawns[0].Health; h.Capacities = append(h.Capacities, h.Capacities[0]) },
 		"duplicate gear":     func(s *o.PawnSnapshot) { e := s.Pawns[0].Equipment; e.Equipped = append(e.Equipped, e.Equipped[0]) },
-		"hediff count":       func(s *o.PawnSnapshot) { s.Pawns[0].Health.HediffCompleteness.Returned = proto.Uint64(2) },
 		"unrequested needs":  func(s *o.PawnSnapshot) { s.Pawns[0].Needs = &o.PawnNeeds{} },
 		"unrequested row":    func(s *o.PawnSnapshot) { s.Pawns[0].Pawn.Id = proto.String("other") },
 	}

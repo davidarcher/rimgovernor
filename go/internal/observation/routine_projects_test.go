@@ -51,8 +51,6 @@ func (s *projectSource) ReadColonyFacts(ctx context.Context, id *c.Identity, pla
 		}
 	}
 	section.Definitions = kept
-	section.Completeness.Matched = proto.Uint64(uint64(len(kept)))
-	section.Completeness.Returned = proto.Uint64(uint64(len(kept)))
 	return reply, bridge.Result{}, nil
 }
 

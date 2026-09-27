@@ -267,7 +267,7 @@ namespace HomeBridge.BridgeTools
                 NoteControllerRead(_state);
                 var result = new Clock.Status { Context = context.Clone(), ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
-                    EvidenceCompleteness = new Common.PageInfo { Complete = true }, TestAccelerationAvailable = TestAccelerationAvailable,
+                    TestAccelerationAvailable = TestAccelerationAvailable,
                     DurableEvents = Journal != null && _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error" };
                 var chosen = PlayerSpeedHook.Chosen();
                 if (chosen.HasValue) result.PlayerSpeed = WireSpeed(chosen.Value);
@@ -290,7 +290,6 @@ namespace HomeBridge.BridgeTools
                     if (s.ForcePauseSinceMs != 0) { result.ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)); result.ForcePauseKind = Text(s.ForcePauseKind); }
                     foreach (var row in s.BaselineAlerts) result.BaselineAlerts.Add(NativeClockEventProjection.Alert(row));
                     // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
-                    result.EvidenceCompleteness = new Common.PageInfo { Complete = s.SuppressedInjuries.Count == 0 };
                 }
                 result.PausedMs = ClockPauseAccounting.PausedMs(Current.Game); result.RunningMs = ClockPauseAccounting.RunningMs(Current.Game);
                 result.ProbeElapsedMs = ClockProbeAccounting.ProbeMs(Current.Game); result.DigestElapsedMs = ClockProbeAccounting.DigestMs(Current.Game);

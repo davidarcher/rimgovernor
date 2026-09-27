@@ -44,8 +44,7 @@ namespace HomeBridge.BridgeTools
                     return new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
                 var source = Source(map, parsed.HasCategory && parsed.Category == "all");
                 var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
-                var snapshot = new Obs.BuildingsSnapshot { Context = context,
-                    NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
+                var snapshot = new Obs.BuildingsSnapshot { Context = context };
                 snapshot.Completeness = Complete(matched.Count, source.Count - matched.Count);
                 var keys = ConstructionLineage.Keys(map);
                 foreach (var thing in matched)
@@ -269,6 +268,6 @@ namespace HomeBridge.BridgeTools
         private static double Fraction(double value) => Nonnegative(value) <= 1 ? value : throw new InvalidOperationException("Invalid native fraction.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
+        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };
     }
 }

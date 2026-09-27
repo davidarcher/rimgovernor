@@ -22,8 +22,6 @@ func TestReadGearReplacementSkipsWeaponCandidates(t *testing.T) {
 	log := &o.GearCandidate{Gain: proto.Float64(.9), Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog"), Position: &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)},
 		Snapshot: &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String("log"), Token: proto.String("allow-log")}}, Apparel: proto.Bool(false), Weapon: proto.Bool(true), Melee: proto.Bool(true)}}
 	pawn.Candidates = append(pawn.Candidates, log)
-	pawn.Completeness.Matched = proto.Uint64(2)
-	pawn.Completeness.Returned = proto.Uint64(2)
 	reply := &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) { return pbResult(reply), nil }}, time.Second)
 	id := proto.Clone(v.Context.Identity).(*c.Identity)

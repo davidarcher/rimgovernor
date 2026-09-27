@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.GetCellsReply ReadCells(Map map, Obs.GetCellsRequest parsed, Common.ObservationContext context)
         {
             try {
-                var cells = Selection(parsed);
+                var cells = Selection(parsed, map);
                 if (cells.Any(cell => !cell.InBounds(map))) return new Obs.GetCellsReply {
                     Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
                 var fields = Fields(parsed.Fields);
@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
                         if (fertility > 0f) row.Fertility = Finite(fertility);
                     }
                     if (fields.Things) {
-                        var here = cell.GetThingList(map);
+                        var here = cell.GetThingList(map);
                         foreach (var thing in here) row.Things.Add(CellThingRow(thing, context));
                     }
                     snapshot.Cells.Add(row);
@@ -168,10 +168,10 @@ namespace HomeBridge.BridgeTools
             if (fields != null && (fields.Areas || fields.Designations)) {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility, traversal, zone, room, growth and things cell fields are implemented."); return false;
             }
-            try { Selection(request); return true; } catch (Exception) { return false; }
+            try { Selection(request, null); return true; } catch (Exception) { return false; }
         }
         private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
-        internal static List<IntVec3> Selection(Obs.GetCellsRequest request)
+        internal static List<IntVec3> Selection(Obs.GetCellsRequest request, Map? map)
         {
             var result = new List<IntVec3>();
             if (request.SelectionCase == Obs.GetCellsRequest.SelectionOneofCase.ExactCells) {
@@ -184,8 +184,11 @@ namespace HomeBridge.BridgeTools
             } else if (request.SelectionCase == Obs.GetCellsRequest.SelectionOneofCase.Rectangle) {
                 var min = request.Rectangle.Minimum; var max = request.Rectangle.Maximum;
                 if (!HasCell(min) || !HasCell(max) || max.X < min.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
-                var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;
-                if (width > 1000 || height > 1000) throw new ArgumentException("Rectangle sides exceed any map size.");
+                // Both corners on the live map bound the rectangle; a null map
+                // checks shape only. ReadCells rejects the corner cell.
+                if (map == null) return result;
+                if (!new IntVec3(min.X, 0, min.Z).InBounds(map)) { result.Add(new IntVec3(min.X, 0, min.Z)); return result; }
+                if (!new IntVec3(max.X, 0, max.Z).InBounds(map)) { result.Add(new IntVec3(max.X, 0, max.Z)); return result; }
                 for (long z = min.Z; z <= max.Z; z++) for (long x = min.X; x <= max.X; x++) result.Add(new IntVec3((int)x, 0, (int)z));
             } else throw new ArgumentException("Cell selection required.");
             return result;
@@ -223,7 +226,7 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Obs.StatusSnapshot { Context = context };
             var wantColonists = !request.HasColonists || request.Colonists;
-            var wantThreats = !request.HasThreats || request.Threats;
+            var wantThreats = !request.HasThreats || request.Threats;
             if (!wantColonists && !wantThreats) {
                 result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
                 result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result;
@@ -285,7 +288,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs)
         {
-            if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
+            if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
             var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
             if (job != null) {
                 row.DefName = Identifier(job.def.defName);
@@ -391,6 +394,6 @@ namespace HomeBridge.BridgeTools
         private static double Finite(double value)=>double.IsNaN(value)||double.IsInfinity(value)?throw new InvalidOperationException("Nonfinite native fact."):value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable { Reason=reason,Detail=detail };
         private static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue { Field=field,Unavailable=Unavailable(reason,detail) };
-        private static Obs.Completeness Complete(int count)=>new Obs.Completeness { Page=new Common.PageInfo { Complete=true },Matched=(ulong)count,Returned=(ulong)count,Filtered=0,Unreadable=0 };
+        private static Obs.Completeness Complete(int count)=>new Obs.Completeness();
     }
 }

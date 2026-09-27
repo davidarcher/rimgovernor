@@ -12,7 +12,7 @@ func compactFixture() *o.CellsSnapshot {
 	return &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)},
 		Region:        &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(7), Z: proto.Int32(8)}, Maximum: &c.Cell{X: proto.Int32(9), Z: proto.Int32(8)}},
 		AppliedFields: planningWindowFields(),
-		Completeness:  &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(3), Returned: proto.Uint64(3), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness:  &o.Completeness{Filtered: proto.Uint64(0)},
 		Compact:       &o.CompactCells{Rows: [][]byte{{0xfc, 0x7f, 0, 1, 2, 0, 2, 0, 2, 0}}, Strings: []string{"RoofConstructed", "7", "9"}, Glow: []float64{.123456789}, Fertility: []float64{1.23456789}}}
 }
 

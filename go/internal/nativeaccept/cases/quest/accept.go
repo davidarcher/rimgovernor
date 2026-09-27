@@ -76,11 +76,6 @@ func runAccept(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return nil, err
 		}
-		completeness, _ := na.AsMap(observed["completeness"])
-		page, _ := na.AsMap(completeness["page"])
-		if complete, _ := na.AsBool(page["complete"]); !complete || na.AsNumber(completeness["unreadable"]) != 0 {
-			return nil, fmt.Errorf("%s: incomplete or unreadable world progression page: %#v", label, completeness)
-		}
 		var questRow map[string]any
 		for _, raw := range na.AsSlice(observed["quests"]) {
 			row, _ := na.AsMap(raw)

@@ -49,17 +49,14 @@ func TestTemperatureRoomsTypedRead(t *testing.T) {
 
 func TestTemperatureRoomsRejectMalformedEvidence(t *testing.T) {
 	for name, mutate := range map[string]func(*o.RoomsSnapshot){
-		"world":               func(v *o.RoomsSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
-		"unknown-fields":      func(v *o.RoomsSnapshot) { v.ProtoReflect().SetUnknown([]byte{0x98, 0x06, 0x01}) },
-		"page":                func(v *o.RoomsSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"cells-incomplete":    func(v *o.RoomsSnapshot) { v.Rooms[0].CellsCompleteness.Unreadable = proto.Uint64(1) },
-		"contents-incomplete": func(v *o.RoomsSnapshot) { v.Rooms[0].ContentsCompleteness.Matched = proto.Uint64(2) },
-		"unknown-quantity":    func(v *o.RoomsSnapshot) { v.Rooms[0].Contents[0].Units = nil },
-		"nan":                 func(v *o.RoomsSnapshot) { v.Rooms[0].TemperatureC = proto.Float64(math.NaN()) },
-		"negative":            func(v *o.RoomsSnapshot) { v.Rooms[0].Contents[0].Units = proto.Int64(-1) },
-		"roof":                func(v *o.RoomsSnapshot) { v.Rooms[0].OpenRoofCount = proto.Uint32(2) },
-		"outdoors":            func(v *o.RoomsSnapshot) { v.Rooms[0].PsychologicallyOutdoors = proto.Bool(true) },
-		"extents":             func(v *o.RoomsSnapshot) { v.Rooms[0].Extents.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)} },
+		"world":            func(v *o.RoomsSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
+		"unknown-fields":   func(v *o.RoomsSnapshot) { v.ProtoReflect().SetUnknown([]byte{0x98, 0x06, 0x01}) },
+		"unknown-quantity": func(v *o.RoomsSnapshot) { v.Rooms[0].Contents[0].Units = nil },
+		"nan":              func(v *o.RoomsSnapshot) { v.Rooms[0].TemperatureC = proto.Float64(math.NaN()) },
+		"negative":         func(v *o.RoomsSnapshot) { v.Rooms[0].Contents[0].Units = proto.Int64(-1) },
+		"roof":             func(v *o.RoomsSnapshot) { v.Rooms[0].OpenRoofCount = proto.Uint32(2) },
+		"outdoors":         func(v *o.RoomsSnapshot) { v.Rooms[0].PsychologicallyOutdoors = proto.Bool(true) },
+		"extents":          func(v *o.RoomsSnapshot) { v.Rooms[0].Extents.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)} },
 		"bed-outside": func(v *o.RoomsSnapshot) {
 			v.Rooms[0].Beds[0].Building.Position = &c.Cell{X: proto.Int32(8), Z: proto.Int32(7)}
 		},

@@ -34,7 +34,7 @@ func fireSafetyFixture(t *testing.T, size float64, firefighting bool) (*RoutineF
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Fires:        []*o.FireState{{Fire: &o.EntityRef{Id: proto.String("fire-1"), DefName: proto.String("Fire"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(3)}}, Size: proto.Float64(size), Home: proto.Bool(true)}},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	missing := func(field string) *o.ReadIssue {
@@ -46,7 +46,7 @@ func fireSafetyFixture(t *testing.T, size float64, firefighting bool) (*RoutineF
 		Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{},
 		Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), Work: []*o.WorkSetting{{DefName: proto.String("Firefighter"), Priority: proto.Int32(1), Disabled: proto.Bool(!firefighting)}}},
 		Issues:   []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
-	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	source := &routineFireNative{native}
 	reviewer.native = source
 	if _, err := reviewer.Step(context.Background()); err != nil {

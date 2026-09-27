@@ -114,8 +114,8 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if err := na.CheckCompleteness(filtered["completeness"], len(na.AsSlice(filtered["projects"]))); err != nil {
-		return fmt.Errorf("filtered completeness: %w", err)
+	if len(na.AsSlice(filtered["projects"])) == 0 {
+		return fmt.Errorf("filtered read for %q returned no projects", needle)
 	}
 
 	// Bounded search for a project row with a populated unlocks collection;
@@ -201,34 +201,6 @@ func run(ctx context.Context, s cases.Session) error {
 	if reason, ok := na.UnavailableReason(staleCursorReply); !ok || reason != "UNAVAILABLE_REASON_LIMIT_EXCEEDED" {
 		return fmt.Errorf("cursor: expected UNAVAILABLE_REASON_LIMIT_EXCEEDED, got %q", reason)
 	}
-	// A page limit smaller than the matched project collection is ordinary
-	// pagination, not a bounded-read refusal: ListResearch (NativeResearchObservationTools.cs)
-	// truncates and hands back a cursor (completeness.page.complete=false,
-	// populated nextCursor) the same way it does for observations_list_pawns/rooms
-	// truncation elsewhere; only a single row's own child collections (Bound(),
-	// line 236) trigger LIMIT_EXCEEDED.
-	// An earlier version expected an unavailable refusal that this case
-	// has never actually produced for a small page limit; fixed forward to assert
-	// the real truncation behavior instead of preserving the untested assumption.
-	overflowReply, err := h.Wire(ctx, "overflow", "observations_read_research", na.Merge(full, map[string]any{"page": map[string]any{"limit": 1}}))
-	if err != nil {
-		return err
-	}
-	_, overflowObserved, err := na.Outcome(overflowReply, "observed")
-	if err != nil {
-		return fmt.Errorf("overflow: %w", err)
-	}
-	overflowCompleteness, _ := na.AsMap(overflowObserved["completeness"])
-	overflowPage, _ := na.AsMap(overflowCompleteness["page"])
-	if complete, _ := na.AsBool(overflowPage["complete"]); complete {
-		return fmt.Errorf("overflow: expected a truncated page for a limit smaller than the matched collection")
-	}
-	if na.AsString(overflowPage["nextCursor"]) == "" {
-		return fmt.Errorf("overflow: truncated page missing a nextCursor")
-	}
-	if len(na.AsSlice(overflowObserved["projects"])) != 1 {
-		return fmt.Errorf("overflow: expected exactly one project row for page limit 1")
-	}
 
 	fingerprintAfter, err := h.Call(ctx, "fingerprint-after", "test/research_observation_fingerprint", nil)
 	if err != nil {
@@ -311,9 +283,6 @@ func fingerprintState(v map[string]any) (map[string]any, error) {
 
 func compareProjects(observed map[string]any, legacy map[string]any) error {
 	rows := na.AsSlice(observed["projects"])
-	if err := na.CheckCompleteness(observed["completeness"], len(rows)); err != nil {
-		return fmt.Errorf("projects completeness: %w", err)
-	}
 	native := map[string]map[string]any{}
 	for _, key := range []string{"available", "locked"} {
 		for _, raw := range na.AsSlice(legacy[key]) {

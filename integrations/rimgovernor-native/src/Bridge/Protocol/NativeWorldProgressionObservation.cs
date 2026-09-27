@@ -30,8 +30,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_world_progression";
 
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness
-        { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
+        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
 
         private static Obs.EntityRef PawnEntity(Pawn pawn, int? mapId) => new Obs.EntityRef
         { Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, Label = pawn.LabelShort, MapId = mapId ?? -1 };

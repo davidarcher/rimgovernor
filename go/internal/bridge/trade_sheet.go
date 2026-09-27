@@ -127,16 +127,10 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 		return TradeSheetRead{}, contract("trade sheet deal signature invalid")
 	}
 	counts := v.Completeness
-	if counts == nil || counts.Page == nil || counts.Returned == nil || counts.GetReturned() != uint64(len(v.Lines)) {
-		return TradeSheetRead{}, contract("trade sheet completeness missing")
-	}
 	// Python treats any filtered-away or unreadable row as making the whole
 	// sheet unusable for an economic decision; so does this.
-	if counts.Filtered == nil || counts.GetFiltered() != 0 || counts.Unreadable == nil || counts.GetUnreadable() != 0 {
+	if counts.GetFiltered() != 0 {
 		return TradeSheetRead{}, contract("trade sheet omitted rows")
-	}
-	if !counts.Page.GetComplete() {
-		return TradeSheetRead{}, contract("incomplete trade sheet")
 	}
 	header := TradeSheetRead{
 		Context: v.Snapshot.Context, SessionID: v.GetSessionId(),

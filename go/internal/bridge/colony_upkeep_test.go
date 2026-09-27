@@ -46,7 +46,7 @@ func lightingWire() *o.LightingSection {
 	return &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: &o.LightingFacts{
 		WorkCells:    []*o.WorkLightCell{{Bench: entity("stove", 10, 10), Cell: cell(10, 11), Glow: proto.Float64(0.2), Roofed: proto.Bool(true), RoomId: proto.String("7")}},
 		Lamps:        []*o.LampState{{Building: &o.BuildingState{Building: entity("lamp", 12, 12), Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false), Fuel: proto.Float64(1), TargetFuel: proto.Float64(2), OutOfFuel: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}}, GlowRadius: proto.Float64(10), Lit: proto.Bool(true), RoomId: proto.String("7")}},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 }
 
@@ -61,7 +61,7 @@ func flooringWire() *o.FlooringSection {
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}},
 		Terrains:     []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 }
 
@@ -86,7 +86,6 @@ func TestDirectUpkeepFlooringBoundary(t *testing.T) {
 		func(f *o.FlooringFacts) { f.Terrains[0].Beauty = proto.Float64(math.Inf(1)) },
 		func(f *o.FlooringFacts) { f.Terrains[0].PathCost = proto.Int32(-1) },
 		func(f *o.FlooringFacts) { f.Terrains[0].DefName = nil },
-		func(f *o.FlooringFacts) { f.Completeness = nil },
 	} {
 		v := upkeepWire()
 		v.Flooring = flooringWire()
@@ -124,7 +123,6 @@ func TestDirectUpkeepLightingBoundary(t *testing.T) {
 		func(l *o.LightingFacts) { l.Lamps[0].Building.HitPoints = proto.Int32(1) },
 		func(l *o.LightingFacts) { l.Lamps[0].Building.Service.Fuel = proto.Float64(-1) },
 		func(l *o.LightingFacts) { l.Lamps[0].Building.Service.AllowedFuelDefs = []string{""} },
-		func(l *o.LightingFacts) { l.Completeness = nil },
 	} {
 		v := upkeepWire()
 		v.Lighting = lightingWire()
@@ -164,7 +162,7 @@ func routesWire() *o.RoutesSection {
 		Traffic:          []*o.TrafficCell{{Cell: cell(5, 5), Samples: proto.Uint32(30), Terrain: proto.String("Soil"), Home: proto.Bool(true), Layer: o.TrafficLayer_TRAFFIC_LAYER_COLONIST}},
 		TrafficSamples:   proto.Uint32(200),
 		TrafficSinceTick: proto.Int32(400),
-		Completeness:     &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness:     &o.Completeness{Filtered: proto.Uint64(0)},
 	}}}
 }
 
@@ -197,7 +195,6 @@ func TestDirectUpkeepRoutesBoundary(t *testing.T) {
 		func(f *o.RoutesFacts) { f.Traffic[0].Terrain = proto.String("") },
 		func(f *o.RoutesFacts) { f.Traffic = append(f.Traffic, f.Traffic[0]) },
 		func(f *o.RoutesFacts) { f.TrafficSinceTick = proto.Int32(-1) },
-		func(f *o.RoutesFacts) { f.Completeness = nil },
 	} {
 		v := upkeepWire()
 		v.Routes = routesWire()

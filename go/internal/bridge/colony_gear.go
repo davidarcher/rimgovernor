@@ -13,9 +13,6 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		return contract("gear census context mismatch")
 	}
 	if stored := v.StoredApparel; stored != nil {
-		if err := colonyCounts(stored.Completeness, len(stored.Rows)); err != nil {
-			return err
-		}
 		if stored.Completeness.GetFiltered() != 0 {
 			return contract("filtered apparel storage")
 		}
@@ -45,9 +42,6 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 				return contract("invalid gear weather condition")
 			}
 		}
-	}
-	if err := colonyCounts(v.Completeness, len(v.Pawns)); err != nil {
-		return err
 	}
 	if v.Completeness.GetFiltered() != 0 {
 		return contract("filtered gear census")
@@ -81,9 +75,6 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 			return contract("invalid gear temperature range")
 		}
 		if err := combatDetails(&o.PawnState{Equipment: p.Equipment}, ctx); err != nil {
-			return err
-		}
-		if err := colonyCounts(p.Completeness, len(p.Candidates)); err != nil {
 			return err
 		}
 		if p.Completeness.GetFiltered() != 0 {

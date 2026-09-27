@@ -86,10 +86,6 @@ func worldSelected(v *o.WorldSnapshot, identity *c.Identity) (WorldRead, error) 
 	if !sameIdentity(v.Context.Identity, identity) {
 		return WorldRead{}, contract("world identity mismatch")
 	}
-	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return WorldRead{}, contract("incomplete world page")
-	}
 	seen := map[string]bool{}
 	rows := make([]SettlementFact, len(v.Settlements))
 	for i, row := range v.Settlements {

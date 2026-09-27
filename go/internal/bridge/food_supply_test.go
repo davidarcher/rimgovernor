@@ -29,7 +29,6 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 		func(v *o.FoodSupplyFacts) {
 			v.Larder = &o.FoodLarderFacts{Corpses: []*o.CorpseHandling{{StockId: "missing"}}}
 		},
-		func(v *o.FoodSupplyFacts) { v.Completeness.Returned = proto.Uint64(3) },
 		func(v *o.FoodSupplyFacts) { v.Completeness.Filtered = proto.Uint64(1) },
 		func(v *o.FoodSupplyFacts) { v.Consumers[1].PawnId = v.Consumers[0].PawnId },
 		func(v *o.FoodSupplyFacts) { v.Stocks[1].Item.Id = v.Stocks[0].Item.Id },

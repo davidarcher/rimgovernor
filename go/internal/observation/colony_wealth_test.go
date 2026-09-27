@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -23,7 +22,7 @@ func TestColonyWealthReachesRoutineFacts(t *testing.T) {
 	}
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	wealth := &o.ThreatFacts{WealthItems: proto.Float64(30000), WealthBuildings: proto.Float64(10000), WealthPawns: proto.Float64(8000), WealthTotal: proto.Float64(48000)}
-	wealth.Completeness = &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	wealth.Completeness = &o.Completeness{Filtered: proto.Uint64(0)}
 	reply.GetObserved().Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: wealth}}
 	projection, err := DecodeColony(reply, expected)
 	if err != nil {

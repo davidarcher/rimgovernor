@@ -122,8 +122,7 @@ func (w *Worker) breakDispatchHolds(ctx context.Context, current domain.Generati
 		if observed == nil {
 			return nil, ErrControl
 		}
-		counts := observed.Completeness
-		if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.Matched == nil || counts.Returned == nil || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(observed.Pawns)) || len(observed.Pawns) != len(ids) {
+		if len(observed.Pawns) != len(ids) {
 			return nil, ErrControl
 		}
 		if _, err = boundary.Context(observed.Context, current); err != nil {

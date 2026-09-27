@@ -72,7 +72,7 @@ func deepDrillDispatchFixture(t *testing.T, existing bool, drills []*o.DeepDrill
 	for _, id := range []string{"crafter", "builder"} {
 		pawns = append(pawns, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}})
 	}
-	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: v.Context, Pawns: pawns, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: v.Context, Pawns: pawns, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	native := &drillNative{resourceNative: &resourceNative{workshopNative: &workshopNative{sleepingNative: sleeping}}, existing: existing}
 	base.reviewer.native = native
 	review, err := base.reviewer.Step(context.Background())

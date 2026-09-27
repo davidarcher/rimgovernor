@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -19,7 +18,7 @@ func homeColonistsFixture() *o.PawnSnapshot {
 			Pawn:     &o.EntityRef{Id: proto.String("pawn-1"), MapId: proto.Int32(0)},
 			Settings: &o.PawnSettings{Work: []*o.WorkSetting{{DefName: proto.String("Doctor"), Disabled: proto.Bool(false), Priority: proto.Int32(1)}}},
 		}},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 	}
 }
 func TestReadHomeColonistsAcceptsValidObservation(t *testing.T) {
@@ -59,9 +58,7 @@ func TestReadHomeColonistsAcceptsValidObservation(t *testing.T) {
 func TestReadHomeColonistsMalformedEvidence(t *testing.T) {
 	edits := map[string]func(*o.PawnSnapshot){
 		"world":     func(v *o.PawnSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
-		"partial":   func(v *o.PawnSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"duplicate": func(v *o.PawnSnapshot) { v.Pawns = append(v.Pawns, v.Pawns[0]) },
-		"count":     func(v *o.PawnSnapshot) { v.Completeness.Matched = proto.Uint64(2) },
 	}
 	for name, edit := range edits {
 		t.Run(name, func(t *testing.T) {

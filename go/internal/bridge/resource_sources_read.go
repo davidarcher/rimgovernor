@@ -76,10 +76,6 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 	if snapshot.GetResource() != resource {
 		return nil, policy.ResourceStorage{}, raw, contract("resource sources definition mismatch")
 	}
-	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return nil, policy.ResourceStorage{}, raw, contract("incomplete resource sources census")
-	}
 	storage, err := decodeResourceStorage(snapshot.Storage, resource)
 	if err != nil {
 		return nil, policy.ResourceStorage{}, raw, err

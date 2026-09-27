@@ -149,7 +149,7 @@ func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ [
 	if n.pawnReply != nil {
 		return n.pawnReply, bridge.Result{}, ctx.Err()
 	}
-	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(0), Returned: proto.Uint64(0), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
+	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
 }
 
 func (n *routineNative) ReadRoutinePopulation(ctx context.Context, _ *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
@@ -187,8 +187,6 @@ func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, plan
 			}
 			p.Definitions = append(p.Definitions, row)
 		}
-		p.Completeness.Matched = proto.Uint64(uint64(len(definitions)))
-		p.Completeness.Returned = proto.Uint64(uint64(len(definitions)))
 		return reply, bridge.Result{}, nil
 	}
 	return n.reply, bridge.Result{}, nil // A late transport may ignore cancellation.

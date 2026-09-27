@@ -21,7 +21,7 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 			n.reply.GetObserved().ColonistCount = proto.Uint32(1)
 			n.reply.GetObserved().WorkerCount = proto.Uint32(1)
 			row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(n.reply.GetObserved().Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}}
-			snapshot := &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			snapshot := &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}
 			want := domain.NeedUnknown
 			switch change {
@@ -34,8 +34,6 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 				row.Equipment = nil
 			case "missing-pawn":
 				snapshot.Pawns = nil
-				snapshot.Completeness.Matched = proto.Uint64(0)
-				snapshot.Completeness.Returned = proto.Uint64(0)
 			case "colony-count":
 				n.reply.GetObserved().ColonistCount = proto.Uint32(2)
 			case "conflicting-downed":

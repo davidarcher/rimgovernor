@@ -149,25 +149,6 @@ func UnavailableReason(reply map[string]any) (string, bool) {
 	return AsString(unavailable["reason"]), true
 }
 
-// CheckCompleteness asserts a Completeness message describes one complete page whose
-// matched/returned counters agree with the number of rows actually returned.
-func CheckCompleteness(v any, expected int) error {
-	completeness, ok := AsMap(v)
-	if !ok {
-		return fmt.Errorf("completeness missing")
-	}
-	page, _ := AsMap(completeness["page"])
-	if complete, _ := AsBool(page["complete"]); !complete {
-		return fmt.Errorf("expected a complete page")
-	}
-	matched := AsNumber(completeness["matched"])
-	returned := AsNumber(completeness["returned"])
-	if matched != returned || int(returned) != expected {
-		return fmt.Errorf("completeness counters disagree: matched=%v returned=%v expected=%d", matched, returned, expected)
-	}
-	return nil
-}
-
 func Contains(values []string, want string) bool {
 	for _, v := range values {
 		if v == want {

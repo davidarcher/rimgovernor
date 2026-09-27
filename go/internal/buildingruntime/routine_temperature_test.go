@@ -130,7 +130,7 @@ func temperatureFixture(t *testing.T, hot bool) (*RoutineBuildingPlanner, *store
 	n := &temperatureNative{powerNative: power}
 	v := n.reply.GetObserved()
 	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	bed := &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: cell(0, 0)}
@@ -241,8 +241,6 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 				n.roomErr = bridge.ErrUnavailable
 			case "existing":
 				room.Contents = append(room.Contents, &o.Quantity{DefName: proto.String("Campfire"), Units: proto.Int64(1)})
-				room.ContentsCompleteness.Matched = proto.Uint64(2)
-				room.ContentsCompleteness.Returned = proto.Uint64(2)
 			case "recovered":
 				room.TemperatureC = proto.Float64(18)
 			case "skill":

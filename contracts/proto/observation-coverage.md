@@ -87,9 +87,8 @@ a depleted drill through Hands.
   Stock/count quantities are nonnegative; trade transfer/minimum/maximum counts
   are signed (negative sells). Ratios and all measurements are finite. Units are named
   on facts; a percentage/fraction conversion is an adapter responsibility.
-- Completeness is scoped to the exact query. `matched`, `returned`, `filtered`, and
-  `unreadable` have distinct meanings. `complete=true` requires every matched row,
-  and no unreadable required facts.
+- Replies carry every matching row; there is no paging or per-list cap.
+  `Completeness.filtered` counts the rows the query's filters excluded.
 - `SnapshotRef` binds context, exact entity ID, and an opaque token for settings
   CAS. Tokens never mean permission or completed effects. Bill-stack tokens bind
   the bench and ordered stack, not only a bill index; trade tokens bind the session

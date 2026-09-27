@@ -76,10 +76,6 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
 	if !sameIdentity(v.Context.Identity, identity) {
 		return contract("zone identity mismatch")
 	}
-	counts := v.Completeness
-	if counts == nil || counts.Page == nil || counts.Page.Complete == nil || counts.GetUnreadable() != 0 || counts.Returned == nil || counts.GetReturned() != uint64(len(v.Zones)) || counts.GetMatched() != uint64(len(v.Zones)) || !counts.Page.GetComplete() {
-		return contract("incomplete zone census")
-	}
 	if snapshot := v.MapSnapshot; snapshot != nil && (!proto.Equal(snapshot.Context, v.Context) || snapshot.GetEntityId() == "" || validID(snapshot.GetToken()) != nil) {
 		return contract("invalid zone map snapshot")
 	}

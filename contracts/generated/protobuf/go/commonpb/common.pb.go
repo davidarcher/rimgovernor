@@ -580,51 +580,6 @@ func (x *Unavailable) GetDetail() string {
 	return ""
 }
 
-// Observation lists are complete in one reply; there is no paging.
-type PageInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Complete      *bool                  `protobuf:"varint,1,opt,name=complete,proto3,oneof" json:"complete,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PageInfo) Reset() {
-	*x = PageInfo{}
-	mi := &file_common_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PageInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PageInfo) ProtoMessage() {}
-
-func (x *PageInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PageInfo.ProtoReflect.Descriptor instead.
-func (*PageInfo) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *PageInfo) GetComplete() bool {
-	if x != nil && x.Complete != nil {
-		return *x.Complete
-	}
-	return false
-}
-
 var File_common_proto protoreflect.FileDescriptor
 
 const file_common_proto_rawDesc = "" +
@@ -670,10 +625,7 @@ const file_common_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\x0e2(.rimgovernor.common.v1.UnavailableReasonH\x00R\x06reason\x88\x01\x01\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x01R\x06detail\x88\x01\x01B\t\n" +
 	"\a_reasonB\t\n" +
-	"\a_detail\">\n" +
-	"\bPageInfo\x12\x1f\n" +
-	"\bcomplete\x18\x01 \x01(\bH\x00R\bcomplete\x88\x01\x01B\v\n" +
-	"\t_completeJ\x04\b\x02\x10\x03*z\n" +
+	"\a_detail*z\n" +
 	"\vCorpseClass\x12\x1c\n" +
 	"\x18CORPSE_CLASS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CORPSE_CLASS_COLONIST\x10\x01\x12\x19\n" +
@@ -723,7 +675,7 @@ func file_common_proto_rawDescGZIP() []byte {
 }
 
 var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_common_proto_goTypes = []any{
 	(CorpseClass)(0),           // 0: rimgovernor.common.v1.CorpseClass
 	(FailureCode)(0),           // 1: rimgovernor.common.v1.FailureCode
@@ -734,7 +686,6 @@ var file_common_proto_goTypes = []any{
 	(*Cell)(nil),               // 6: rimgovernor.common.v1.Cell
 	(*Failure)(nil),            // 7: rimgovernor.common.v1.Failure
 	(*Unavailable)(nil),        // 8: rimgovernor.common.v1.Unavailable
-	(*PageInfo)(nil),           // 9: rimgovernor.common.v1.PageInfo
 }
 var file_common_proto_depIdxs = []int32{
 	3, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
@@ -759,14 +710,13 @@ func file_common_proto_init() {
 	file_common_proto_msgTypes[3].OneofWrappers = []any{}
 	file_common_proto_msgTypes[4].OneofWrappers = []any{}
 	file_common_proto_msgTypes[5].OneofWrappers = []any{}
-	file_common_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

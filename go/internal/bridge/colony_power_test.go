@@ -10,20 +10,16 @@ import (
 )
 
 func TestColonyPowerRejectsPartialOrAmbiguousCensus(t *testing.T) {
-	for _, phase := range []string{"valid", "unknown", "duplicate", "partial", "foreign-map", "infinite", "extra-detail", "disconnected-network"} {
+	for _, phase := range []string{"valid", "unknown", "duplicate", "foreign-map", "infinite", "extra-detail", "disconnected-network"} {
 		t.Run(phase, func(t *testing.T) {
 			row := &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("building"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(-200), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net")}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
-			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			switch phase {
 			case "unknown":
 				row.BaseW = nil
 				row.Building.Service = &o.BuildingServiceState{}
 			case "duplicate":
 				v.Power = append(v.Power, proto.Clone(row).(*o.DevelopmentPower))
-				v.Completeness.Matched = proto.Uint64(2)
-				v.Completeness.Returned = proto.Uint64(2)
-			case "partial":
-				v.Completeness.Page.Complete = proto.Bool(false)
 			case "foreign-map":
 				row.Building.Building.MapId = proto.Int32(1)
 			case "infinite":
@@ -42,19 +38,17 @@ func TestColonyPowerRejectsPartialOrAmbiguousCensus(t *testing.T) {
 }
 
 func TestColonyPowerGeometryAndConduitCensus(t *testing.T) {
-	for _, phase := range []string{"valid", "hidden", "waterproof", "partial", "foreign", "footprint", "duplicate-cell", "wrong-definition", "unknown-field"} {
+	for _, phase := range []string{"valid", "hidden", "waterproof", "foreign", "footprint", "duplicate-cell", "wrong-definition", "unknown-field"} {
 		t.Run(phase, func(t *testing.T) {
 			cell := &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
 			row := &o.DevelopmentFurniture{Building: &o.EntityRef{Id: proto.String("conduit"), DefName: proto.String("PowerConduit"), MapId: proto.Int32(0), Position: cell}}
 			b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), MapId: proto.Int32(0), Position: cell}, OccupiedCells: []*c.Cell{cell}, Service: &o.BuildingServiceState{}, Settings: &o.BuildingSettings{}}
-			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{{Building: b}}, Furniture: []*o.DevelopmentFurniture{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{{Building: b}}, Furniture: []*o.DevelopmentFurniture{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			switch phase {
 			case "hidden":
 				row.Building.DefName = proto.String("HiddenConduit")
 			case "waterproof":
 				row.Building.DefName = proto.String("WaterproofConduit")
-			case "partial":
-				v.Completeness.Matched = proto.Uint64(1)
 			case "foreign":
 				row.Building.MapId = proto.Int32(1)
 			case "footprint":
@@ -62,8 +56,6 @@ func TestColonyPowerGeometryAndConduitCensus(t *testing.T) {
 			case "duplicate-cell":
 				v.Furniture = append(v.Furniture, proto.Clone(row).(*o.DevelopmentFurniture))
 				v.Furniture[1].Building.Id = proto.String("other")
-				v.Completeness.Matched = proto.Uint64(3)
-				v.Completeness.Returned = proto.Uint64(3)
 			case "wrong-definition":
 				row.Building.DefName = proto.String("Bed")
 			case "unknown-field":
@@ -119,12 +111,12 @@ func TestColonyEnvironmentRejectsUnavailablePopulatedAndDuplicateConditions(t *t
 // routine planner never observes the colony at all (seen as
 // "unsupported development facts" holding the clock at tick 0).
 func TestColonyPowerAcceptsFuelBatteryAndNetworkFacts(t *testing.T) {
-	for _, phase := range []string{"valid", "negative-fuel", "bad-fuel-def", "stored-over-capacity", "duplicate-network", "network-unknown-field", "network-nan", "network-partial"} {
+	for _, phase := range []string{"valid", "negative-fuel", "bad-fuel-def", "stored-over-capacity", "duplicate-network", "network-unknown-field", "network-nan"} {
 		t.Run(phase, func(t *testing.T) {
 			generator := &o.DevelopmentPower{BaseW: proto.Float64(1000), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("generator"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), Fuel: proto.Float64(0), TargetFuel: proto.Float64(30), OutOfFuel: proto.Bool(true), BrokenDown: proto.Bool(false), AllowedFuelDefs: []string{"WoodLog"}}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
 			battery := &o.DevelopmentPower{BaseW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("battery"), MapId: proto.Int32(0)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(true), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true), PowerNetId: proto.String("net"), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}}
-			net := &o.PowerNetwork{Id: proto.String("net"), Producers: proto.Uint32(1), Consumers: proto.Uint32(0), Batteries: proto.Uint32(1), Transmitters: proto.Uint32(3), Connectors: proto.Uint32(0), GenerationW: proto.Float64(0), ConsumptionW: proto.Float64(0), NetW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), HasSource: proto.Bool(true), HasActiveSource: proto.Bool(false), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
-			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{generator, battery}, Networks: []*o.PowerNetwork{net}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			net := &o.PowerNetwork{Id: proto.String("net"), Producers: proto.Uint32(1), Consumers: proto.Uint32(0), Batteries: proto.Uint32(1), Transmitters: proto.Uint32(3), Connectors: proto.Uint32(0), GenerationW: proto.Float64(0), ConsumptionW: proto.Float64(0), NetW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), HasSource: proto.Bool(true), HasActiveSource: proto.Bool(false), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
+			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{generator, battery}, Networks: []*o.PowerNetwork{net}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			switch phase {
 			case "negative-fuel":
 				generator.Building.Service.Fuel = proto.Float64(-1)
@@ -138,8 +130,6 @@ func TestColonyPowerAcceptsFuelBatteryAndNetworkFacts(t *testing.T) {
 				net.MemberIds = []string{"generator"}
 			case "network-nan":
 				net.NetW = proto.Float64(math.NaN())
-			case "network-partial":
-				net.Completeness.Page.Complete = proto.Bool(false)
 			}
 			err := validateColonyPower(v, &c.Identity{MapId: proto.Int32(0)}, &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)})
 			if (err == nil) != (phase == "valid") {

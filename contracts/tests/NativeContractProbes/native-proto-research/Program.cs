@@ -157,7 +157,7 @@ internal static class NativeProtoResearchProbe
             "Project finished change invalidates research CAS token");
         Check(baselineToken != TokenOf(Snapshot(baseline.Replace("\"current\":true", "\"current\":false"))),
             "Project current-selection change invalidates research CAS token");
-        var withCompleteness = baseline.TrimEnd('}') + ",\"completeness\":{\"matched\":\"9\",\"returned\":\"9\"}}";
+        var withCompleteness = baseline.TrimEnd('}') + ",\"completeness\":{\"filtered\":\"9\"}}";
         Check(baselineToken == TokenOf(Snapshot(withCompleteness)), "Token is scoped to documented fields only, not the whole reply");
         var tokenRef = Call("Token", context, Snapshot(baseline));
         Check((string)Get(tokenRef, "EntityId") == "research-manager", "Research CAS token is scoped to the research manager entity");

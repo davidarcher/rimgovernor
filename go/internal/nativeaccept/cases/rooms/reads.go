@@ -66,9 +66,6 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if err := na.CheckCompleteness(defaultObserved["completeness"], len(nativeByID)); err != nil {
-		return fmt.Errorf("default rooms completeness: %w", err)
-	}
 	rooms := na.AsSlice(defaultObserved["rooms"])
 	if len(rooms) != len(nativeByID) {
 		return fmt.Errorf("typed room count %d does not match legacy count %d", len(rooms), len(nativeByID))
@@ -112,9 +109,6 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if err := na.CheckCompleteness(selected["completeness"], 1); err != nil {
-		return fmt.Errorf("exact selection completeness: %w", err)
-	}
 	selectedRows := na.AsSlice(selected["rooms"])
 	if len(selectedRows) != 1 {
 		return fmt.Errorf("exact room selection did not return exactly one room")
@@ -154,9 +148,6 @@ func run(ctx context.Context, s cases.Session) error {
 	_, absentObserved, err := na.Outcome(absentReply, "observed")
 	if err != nil {
 		return err
-	}
-	if err := na.CheckCompleteness(absentObserved["completeness"], 0); err != nil {
-		return fmt.Errorf("unknown-id completeness: %w", err)
 	}
 	if len(na.AsSlice(absentObserved["rooms"])) != 0 {
 		return fmt.Errorf("unknown room id unexpectedly matched a room")
@@ -330,17 +321,9 @@ func compareRoom(row, native map[string]any, cells bool) error {
 		if na.AsNumber(minimum["x"]) != minX || na.AsNumber(minimum["z"]) != minZ || na.AsNumber(maximum["x"]) != maxX || na.AsNumber(maximum["z"]) != maxZ {
 			return fmt.Errorf("room %v extents do not match the room's own cells", row["id"])
 		}
-		if err := na.CheckCompleteness(row["cellsCompleteness"], len(actual)); err != nil {
-			return fmt.Errorf("room %v cells completeness: %w", row["id"], err)
-		}
 	} else {
 		if len(na.AsSlice(row["cells"])) != 0 {
 			return fmt.Errorf("room %v cells populated without includeCells", row["id"])
-		}
-		completeness, _ := na.AsMap(row["cellsCompleteness"])
-		page, _ := na.AsMap(completeness["page"])
-		if complete, _ := na.AsBool(page["complete"]); complete {
-			return fmt.Errorf("room %v cellsCompleteness unexpectedly reports complete without includeCells", row["id"])
 		}
 		if !na.RequireIssueReason(na.AsSlice(row["issues"]), "cells", "UNAVAILABLE_REASON_NOT_REQUESTED") {
 			return fmt.Errorf("room %v missing a NOT_REQUESTED issue for unrequested cells", row["id"])

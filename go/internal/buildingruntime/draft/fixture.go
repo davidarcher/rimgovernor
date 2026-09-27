@@ -71,7 +71,7 @@ func (f *Fixture) ReadPawns(_ context.Context, id *c.Identity, ids []string) (*n
 	if f.Row != nil {
 		rows = []*n.PawnState{proto.Clone(f.Row).(*n.PawnState)}
 	}
-	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: rows, Completeness: &n.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(rows))), Returned: proto.Uint64(uint64(len(rows))), Filtered: proto.Uint64(10), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, f.ReadErr
+	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: rows, Completeness: &n.Completeness{Filtered: proto.Uint64(10)}}}}, bridge.Result{}, f.ReadErr
 }
 func (f *Fixture) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	ctx := proto.Clone(f.Ctx).(*c.ObservationContext)

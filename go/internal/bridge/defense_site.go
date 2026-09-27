@@ -208,10 +208,6 @@ func validateLineCells(cells []domain.Cell) error {
 	}
 	return nil
 }
-func completeCount(counts *o.Completeness, n int) bool {
-	return counts != nil && counts.Page != nil && counts.Page.Complete != nil && counts.Page.GetComplete() && counts.Matched != nil && counts.Returned != nil && counts.Unreadable != nil &&
-		counts.GetUnreadable() == 0 && counts.GetReturned() == uint64(n) && counts.GetMatched() == uint64(n)
-}
 func protoCell(v *c.Cell) (domain.Cell, bool) {
 	if v == nil || v.X == nil || v.Z == nil {
 		return domain.Cell{}, false
@@ -235,7 +231,7 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		return DefenseSite{}, contract("defense site region changed")
 	}
 	want := int(region.Max.X-region.Min.X+1) * int(region.Max.Z-region.Min.Z+1)
-	if len(v.Cells) != want || !completeCount(v.Completeness, want) {
+	if len(v.Cells) != want {
 		return DefenseSite{}, contract("incomplete defense site census")
 	}
 	site := DefenseSite{Context: v.Context, Width: v.MapSize.GetWidth(), Height: v.MapSize.GetHeight(), Region: region, Cells: make([]DefenseCell, 0, want)}
@@ -320,7 +316,7 @@ func validateLinesOfFire(v *o.LinesOfFireSnapshot, identity *c.Identity, firing,
 		return nil, contract("invalid lines of fire context")
 	}
 	want := len(firing) * len(approach)
-	if len(v.Lines) != want || !completeCount(v.Completeness, want) {
+	if len(v.Lines) != want {
 		return nil, contract("incomplete lines of fire")
 	}
 	wantFrom := make(map[domain.Cell]bool, len(firing))

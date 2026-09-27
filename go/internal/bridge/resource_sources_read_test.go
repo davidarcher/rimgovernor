@@ -35,7 +35,7 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok1")}}, Method: proto.String("mine"), Yield: proto.Float64(15),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		if arg.Tool != "rimgovernor/observations_list_resource_sources" {
@@ -76,28 +76,13 @@ func TestReadResourceSourcesRejectsMineSourceMissingSnapshot(t *testing.T) {
 			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
 	}}, time.Second)
 	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
 		t.Fatal("expected missing mine snapshot rejection")
-	}
-}
-
-func TestReadResourceSourcesRejectsIncompleteCensus(t *testing.T) {
-	reply := &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: &o.ResourceSourcesSnapshot{
-		Context:      resourceSourcesContext(),
-		Resource:     proto.String("Steel"),
-		Storage:      validResourceStorage(),
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(false)}},
-	}}}
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		return pbResult(reply), nil
-	}}, time.Second)
-	if _, _, _, err := client.ReadResourceSources(context.Background(), pbIdentity(), "Steel"); err == nil {
-		t.Fatal("expected incomplete census rejection")
 	}
 }
 
@@ -110,7 +95,7 @@ func TestReadResourceSourcesRejectsFractionalYield(t *testing.T) {
 			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15.5),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
@@ -124,7 +109,7 @@ func TestReadResourceSourcesRejectsMissingStorage(t *testing.T) {
 	reply := &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: &o.ResourceSourcesSnapshot{
 		Context:      resourceSourcesContext(),
 		Resource:     proto.String("Steel"),
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil
@@ -141,7 +126,7 @@ func TestReadResourceSourcesRejectsInvalidStorageCandidateCell(t *testing.T) {
 		Context:      resourceSourcesContext(),
 		Resource:     proto.String("Steel"),
 		Storage:      storage,
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 		return pbResult(reply), nil

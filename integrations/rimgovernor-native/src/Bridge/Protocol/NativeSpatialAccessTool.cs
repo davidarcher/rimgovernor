@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
+        private static Obs.Completeness Complete(int count) => new Obs.Completeness();
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

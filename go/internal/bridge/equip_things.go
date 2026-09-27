@@ -53,8 +53,7 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 	if v == nil || buildingContext(v.Context, identity, 0, false) != nil {
 		return EquipRead{}, contract("equip census unavailable")
 	}
-	complete, err := emergencyCompleteness(v.Completeness, len(v.Stocks))
-	if yes, known := complete.Value(); err != nil || !known || !yes {
+	if yes, known := emergencyCompleteness(v.Completeness).Value(); !known || !yes {
 		return EquipRead{}, contract("incomplete equip census")
 	}
 	out := EquipRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []EquipCandidate{}}
@@ -66,8 +65,7 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 		if stock.WeaponByTrade == nil || stock.Ranged == nil || stock.Melee == nil || (stock.GetRanged() && stock.GetMelee()) {
 			return EquipRead{}, contract("equip stock lacks weapon class")
 		}
-		complete, err = emergencyCompleteness(stock.ItemsCompleteness, len(stock.Items))
-		if yes, known := complete.Value(); err != nil || !known || !yes {
+		if yes, known := emergencyCompleteness(stock.ItemsCompleteness).Value(); !known || !yes {
 			return EquipRead{}, contract("incomplete equip items")
 		}
 		owners := map[string]*o.GearItem{}

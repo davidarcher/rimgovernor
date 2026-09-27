@@ -61,9 +61,8 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 		}
 		sites[[2]int32{cell.GetX(), cell.GetZ()}] = true
 	}
-	n := uint64(len(v.Targets))
 	p := v.Completeness
-	if p == nil || p.Page == nil || !p.Page.GetComplete() || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
+	if p.GetFiltered() != 0 {
 		return contract("incomplete clearance census")
 	}
 	seen := map[string]bool{}

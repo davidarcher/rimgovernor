@@ -14,7 +14,7 @@ func threatFacts() *o.ThreatFacts {
 		WealthItems: proto.Float64(1200), WealthBuildings: proto.Float64(800), WealthPawns: proto.Float64(5400), WealthTotal: proto.Float64(7400),
 		StorytellerWealth: proto.Float64(6200), RaidPoints: proto.Float64(120.5), AdaptationFactor: proto.Float64(1), DifficultyThreatScale: proto.Float64(1),
 		ColonistCount: proto.Uint32(3),
-		Completeness:  &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness:  &o.Completeness{Filtered: proto.Uint64(0)},
 	}
 }
 
@@ -63,7 +63,6 @@ func TestColonyThreatSectionValidatesAndProjects(t *testing.T) {
 		"nan":         func(f *o.ThreatFacts) { f.RaidPoints = proto.Float64(math.NaN()) },
 		"infinite":    func(f *o.ThreatFacts) { f.WealthTotal = proto.Float64(math.Inf(1)) },
 		"negative":    func(f *o.ThreatFacts) { f.WealthItems = proto.Float64(-1) },
-		"partial":     func(f *o.ThreatFacts) { f.Completeness.Page.Complete = proto.Bool(false) },
 		"unavailable": func(f *o.ThreatFacts) { f.Issues = []*o.ReadIssue{{Field: proto.String("raid_points")}} },
 	} {
 		t.Run(name, func(t *testing.T) {

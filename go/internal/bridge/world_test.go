@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -16,7 +15,7 @@ import (
 func worldFixture() *o.WorldSnapshot {
 	return &o.WorldSnapshot{
 		Context:      pbContext(),
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 		Settlements: []*o.Settlement{{
 			Id: proto.String("settlement-1"), Label: proto.String("Outpost"), Tile: proto.Int32(42), Player: proto.Bool(false),
 			FactionId: proto.String("faction-1"), FactionDefName: proto.String("Tribe"), Relation: proto.String("Neutral"), Goodwill: proto.Int32(10),
@@ -121,7 +120,6 @@ func TestReadWorldRejectsInvalidInputs(t *testing.T) {
 func TestReadWorldMalformedEvidence(t *testing.T) {
 	edits := map[string]func(*o.WorldSnapshot){
 		"world":                    func(v *o.WorldSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
-		"partial page":             func(v *o.WorldSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"missing settlement id":    func(v *o.WorldSnapshot) { v.Settlements[0].Id = nil },
 		"duplicate settlement":     func(v *o.WorldSnapshot) { v.Settlements = append(v.Settlements, v.Settlements[0]) },
 		"missing settlement token": func(v *o.WorldSnapshot) { v.Settlements[0].Snapshot = nil },

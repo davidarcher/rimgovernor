@@ -81,11 +81,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return nil, err
 		}
-		completeness, _ := na.AsMap(observed["completeness"])
-		page, _ := na.AsMap(completeness["page"])
-		if complete, _ := na.AsBool(page["complete"]); !complete || na.AsNumber(completeness["unreadable"]) != 0 {
-			return nil, fmt.Errorf("%s: incomplete or unreadable world progression page: %#v", label, completeness)
-		}
 		var caravanRow map[string]any
 		for _, raw := range na.AsSlice(observed["caravans"]) {
 			row, _ := na.AsMap(raw)
@@ -113,11 +108,6 @@ func run(ctx context.Context, s cases.Session) error {
 		_, observed, err := na.Outcome(reply, "observed")
 		if err != nil {
 			return nil, err
-		}
-		completeness, _ := na.AsMap(observed["completeness"])
-		page, _ := na.AsMap(completeness["page"])
-		if complete, _ := na.AsBool(page["complete"]); !complete {
-			return nil, fmt.Errorf("%s: incomplete world page: %#v", label, completeness)
 		}
 		var settlementRow map[string]any
 		for _, raw := range na.AsSlice(observed["settlements"]) {

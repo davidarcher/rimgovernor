@@ -81,7 +81,6 @@ func TestSpatialAccessRejectsMalformed(t *testing.T) {
 		"missing pawn":             func(s *o.SpatialAccessSnapshot) { s.Pawns = s.Pawns[:1] },
 		"unrequested pawn":         func(s *o.SpatialAccessSnapshot) { s.Pawns[1].Pawn.Id = proto.String("Human9") },
 		"duplicate pawn":           func(s *o.SpatialAccessSnapshot) { s.Pawns[1].Pawn.Id = proto.String("Human1") },
-		"incomplete":               func(s *o.SpatialAccessSnapshot) { s.Completeness.Unreadable = proto.Uint64(1) },
 		"target missing":           func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets = s.Pawns[0].Targets[:1] },
 		"target reordered":         func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].Cell = pbCell(9, 0) },
 		"steps without reach":      func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].ProjectedReachable = proto.Bool(false) },

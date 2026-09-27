@@ -8,7 +8,7 @@ func gearFixture() (map[string]any, map[string]any) {
 		"pawn":         map[string]any{"id": "pawn"},
 		"snapshot":     map[string]any{"context": context, "entityId": "pawn", "token": "loadout"},
 		"deficit":      false,
-		"completeness": map[string]any{"page": map[string]any{"complete": true}, "returned": "1"},
+		"completeness": map[string]any{"returned": "1"},
 		"candidates": []any{map[string]any{
 			"item": map[string]any{"thing": map[string]any{"id": "item", "defName": "Shirt"}, "apparel": true, "weapon": false},
 			"gain": 1.2,
@@ -17,7 +17,7 @@ func gearFixture() (map[string]any, map[string]any) {
 	colony := map[string]any{
 		"context": context, "colonistCount": 1,
 		"planning": map[string]any{"observed": map[string]any{"gear": map[string]any{
-			"context": context, "pawns": []any{row}, "completeness": map[string]any{"page": map[string]any{"complete": true}, "returned": "1"},
+			"context": context, "pawns": []any{row}, "completeness": map[string]any{"returned": "1"},
 		}}},
 	}
 	legacy := map[string]any{

@@ -31,14 +31,9 @@ func AuditGear(colony, legacy map[string]any) (map[string]any, error) {
 	if !DeepEqual(legacy["mapId"], identity["mapId"]) {
 		return nil, fmt.Errorf("legacy mapId does not match colony identity")
 	}
-	gearCompleteness, _ := AsMap(gear["completeness"])
-	gearPage, _ := AsMap(gearCompleteness["page"])
-	if complete, ok := AsBool(gearPage["complete"]); !ok || !complete {
-		return nil, fmt.Errorf("gear completeness page is not complete")
-	}
 	gearPawns := AsSlice(gear["pawns"])
-	if int(AsNumber(gearCompleteness["returned"])) != len(gearPawns) || len(gearPawns) != int(AsNumber(colony["colonistCount"])) {
-		return nil, fmt.Errorf("gear completeness returned count does not match pawns or colonistCount")
+	if len(gearPawns) != int(AsNumber(colony["colonistCount"])) {
+		return nil, fmt.Errorf("gear pawns do not match colonistCount")
 	}
 	legacyPawns := AsSlice(legacy["pawns"])
 	native := map[string]map[string]any{}
@@ -85,11 +80,6 @@ func AuditGear(colony, legacy map[string]any) (map[string]any, error) {
 		if !DeepEqual(row["blocker"], ref["blocker"]) {
 			return nil, fmt.Errorf("pawn %s blocker does not match native fact", pawnID)
 		}
-		rowCompleteness, _ := AsMap(row["completeness"])
-		rowPage, _ := AsMap(rowCompleteness["page"])
-		if complete, ok := AsBool(rowPage["complete"]); !ok || !complete {
-			return nil, fmt.Errorf("pawn %s completeness page is not complete", pawnID)
-		}
 		rowCandidates := AsSlice(row["candidates"])
 		refCandidates := AsSlice(ref["candidates"])
 		actual := map[string]map[string]any{}
@@ -110,7 +100,7 @@ func AuditGear(colony, legacy map[string]any) (map[string]any, error) {
 			}
 			expected[AsString(candidate["target"])] = candidate
 		}
-		if len(actual) != len(rowCandidates) || len(actual) != int(AsNumber(rowCompleteness["returned"])) {
+		if len(actual) != len(rowCandidates) {
 			return nil, fmt.Errorf("pawn %s candidate count does not match completeness", pawnID)
 		}
 		if !sameKeySet(actual, expected) {

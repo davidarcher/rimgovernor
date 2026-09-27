@@ -173,22 +173,9 @@ func RequireHealthyColonists(reply map[string]any) error {
 	if err != nil {
 		return err
 	}
-	completeness, _ := AsMap(observed["completeness"])
-	page, _ := AsMap(completeness["page"])
-	if complete, ok := AsBool(page["complete"]); !ok || !complete {
-		return fmt.Errorf("colonists page is not complete")
-	}
-	if numberOrDefault(completeness, "unreadable", -1) != 0 {
-		return fmt.Errorf("colonists completeness unreadable is not zero")
-	}
 	pawns := AsSlice(observed["pawns"])
 	if len(pawns) == 0 {
 		return fmt.Errorf("no colonists returned")
-	}
-	returned := AsNumber(completeness["returned"])
-	matched := AsNumber(completeness["matched"])
-	if float64(len(pawns)) != returned || returned != matched {
-		return fmt.Errorf("colonist count does not match completeness returned/matched")
 	}
 	for _, raw := range pawns {
 		pawn, _ := AsMap(raw)
@@ -211,13 +198,6 @@ func RequireHealthyColonists(reply map[string]any) error {
 		}
 	}
 	return nil
-}
-
-func numberOrDefault(m map[string]any, key string, def float64) float64 {
-	if v, present := m[key]; present {
-		return AsNumber(v)
-	}
-	return def
 }
 
 var routineNeeds = []string{

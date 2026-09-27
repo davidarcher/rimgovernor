@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -33,8 +32,7 @@ func tradeSheetFixture(lines []*o.TradeLine) *o.TradeSheet {
 		DealSignature: proto.String("deal-1"),
 		Lines:         lines,
 		Completeness: &o.Completeness{
-			Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(lines))), Returned: proto.Uint64(uint64(len(lines))),
-			Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0),
+			Filtered: proto.Uint64(0),
 		},
 	}
 }
@@ -115,13 +113,6 @@ func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 func TestReadTradeSheetRefusesIncompleteSheets(t *testing.T) {
 	for name, edit := range map[string]func(*o.TradeSheet){
 		"filtered rows":         func(v *o.TradeSheet) { v.Completeness.Filtered = proto.Uint64(3) },
-		"filtered unknown":      func(v *o.TradeSheet) { v.Completeness.Filtered = nil },
-		"unreadable rows":       func(v *o.TradeSheet) { v.Completeness.Unreadable = proto.Uint64(1) },
-		"unreadable unknown":    func(v *o.TradeSheet) { v.Completeness.Unreadable = nil },
-		"returned disagrees":    func(v *o.TradeSheet) { v.Completeness.Returned = proto.Uint64(9) },
-		"completeness missing":  func(v *o.TradeSheet) { v.Completeness = nil },
-		"page missing":          func(v *o.TradeSheet) { v.Completeness.Page = nil },
-		"not complete":          func(v *o.TradeSheet) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"other world":           func(v *o.TradeSheet) { v.Snapshot.Context.Identity.LoadToken = proto.String("other") },
 		"duplicate line id":     func(v *o.TradeSheet) { v.Lines = append(v.Lines, v.Lines[0]) },
 		"negative colony count": func(v *o.TradeSheet) { v.Lines[0].ColonyCount = proto.Int64(-1) },

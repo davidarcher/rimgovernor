@@ -1,12 +1,12 @@
 package observation
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestRoutineMedicalRequiresCompleteMatchingHealth(t *testing.T) {
@@ -55,7 +55,7 @@ func TestRoutineMedicalRequiresCompleteMatchingHealth(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1)}
 			e := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "p", Dead: domain.Known(false), Downed: domain.Known(false)}}}
-			p := &o.PawnSnapshot{Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("p")}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Health: &o.PawnHealth{ShouldSeekMedicalRest: proto.Bool(false), NeedsTend: proto.Bool(false), HiddenHediffs: proto.Uint32(0), Hediffs: []*o.Hediff{{Bad: proto.Bool(false)}}, HediffCompleteness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}}
+			p := &o.PawnSnapshot{Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("p")}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Health: &o.PawnHealth{ShouldSeekMedicalRest: proto.Bool(false), NeedsTend: proto.Bool(false), HiddenHediffs: proto.Uint32(0), Hediffs: []*o.Hediff{{Bad: proto.Bool(false)}}, HediffCompleteness: &o.Completeness{Filtered: proto.Uint64(0)}}}}}
 			if test.change != nil {
 				test.change(v, &e, p)
 			}
@@ -84,7 +84,7 @@ func TestRoutineMedicalConditionFacts(t *testing.T) {
 			h.TendQuality = proto.Float64(0)
 		}
 		health := &o.PawnHealth{Hediffs: []*o.Hediff{h}, HiddenHediffs: proto.Uint32(0),
-			HediffCompleteness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			HediffCompleteness: &o.Completeness{Filtered: proto.Uint64(0)}}
 		colony := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1)}
 		emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "p", Dead: domain.Known(false), Downed: domain.Known(false)}}}
 		snapshot := &o.PawnSnapshot{Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("p")}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Health: health}}}

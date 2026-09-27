@@ -97,10 +97,6 @@ func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity) ([
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return nil, contract("invalid wall upgrade sites context")
 	}
-	counts := v.Completeness
-	if counts == nil || counts.Page == nil || counts.Page.Complete == nil || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetReturned() != uint64(len(v.Sites)) {
-		return nil, contract("incomplete wall upgrade sites query")
-	}
 	rows := make([]WallUpgradeSite, 0, len(v.Sites))
 	for _, row := range v.Sites {
 		if row == nil || row.Normal == nil {

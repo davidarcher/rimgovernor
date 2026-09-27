@@ -107,11 +107,6 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return nil, err
 		}
-		completeness, _ := na.AsMap(observed["completeness"])
-		page, _ := na.AsMap(completeness["page"])
-		if complete, _ := na.AsBool(page["complete"]); !complete || na.AsString(page["nextCursor"]) != "" {
-			return nil, fmt.Errorf("%s: expected a single complete husbandry page: %#v", label, observed)
-		}
 		for _, raw := range na.AsSlice(observed["animals"]) {
 			row, _ := na.AsMap(raw)
 			pawnState, _ := na.AsMap(row["pawn"])

@@ -23,9 +23,6 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 	if v == nil || !proto.Equal(v.Context, colony.Context) || !proto.Equal(v, &o.RecoverySnapshot{Context: v.Context, RoofHazard: v.RoofHazard, Areas: v.Areas, Restrictions: v.Restrictions, Buildings: v.Buildings, Completeness: v.Completeness}) {
 		return contract("invalid recovery context or outcome")
 	}
-	if err := colonyCounts(v.Completeness, len(v.Buildings)+len(v.Areas)+len(v.Restrictions)); err != nil {
-		return err
-	}
 	seen := map[string]bool{}
 	for _, b := range v.Buildings {
 		if b == nil || !powerEntity(b.Building, colony.Context.Identity, colony.MapSize) || seen[b.Building.GetId()] {
@@ -70,9 +67,6 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 			return contract("invalid recovery area")
 		}
 		seen[a.GetId()] = true
-		if err := colonyCounts(a.Completeness, len(a.Cells)); err != nil {
-			return err
-		}
 		cells := map[[2]int32]bool{}
 		for _, cell := range a.Cells {
 			key := [2]int32{cell.GetX(), cell.GetZ()}

@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
                     }
                     salvageSafety.Dispose();
                     var count = (ulong)snapshot.Targets.Count;
-                    snapshot.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = count, Returned = count, Filtered = 0, Unreadable = 0 };
+                    snapshot.Completeness = new Obs.Completeness();
                     var reply = new Obs.ClearanceTargetsReply { Observed = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }

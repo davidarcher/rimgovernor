@@ -16,7 +16,7 @@ import (
 )
 
 func boundsSnapshot() *o.CellsSnapshot {
-	return &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(20), Height: proto.Uint32(30)}, Cells: []*o.CellState{{Cell: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}}, AppliedFields: mapBoundsFields(), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+	return &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(20), Height: proto.Uint32(30)}, Cells: []*o.CellState{{Cell: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}}, AppliedFields: mapBoundsFields(), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 }
 func TestReadMapBoundsFixedSDKQuery(t *testing.T) {
 	calls := 0
@@ -51,8 +51,7 @@ func TestMapBoundsRequiresExactCompleteKnownFacts(t *testing.T) {
 		"map absent": func(s *o.CellsSnapshot) { s.MapSize = nil }, "width absent": func(s *o.CellsSnapshot) { s.MapSize.Width = nil }, "zero": func(s *o.CellsSnapshot) { s.MapSize.Width = proto.Uint32(0) }, "overflow": func(s *o.CellsSnapshot) { s.MapSize.Height = proto.Uint32(math.MaxInt32 + 1) },
 		"anchor outside": func(s *o.CellsSnapshot) { s.MapSize.Width = proto.Uint32(2) }, "stale": func(s *o.CellsSnapshot) { s.Context.Identity.LoadToken = proto.String("other") }, "missing context": func(s *o.CellsSnapshot) { s.Context = nil },
 		"cell omitted": func(s *o.CellsSnapshot) { s.Cells = nil }, "wrong cell": func(s *o.CellsSnapshot) { s.Cells[0].Cell.X = proto.Int32(4) }, "missing coordinate": func(s *o.CellsSnapshot) { s.Cells[0].Cell.Z = nil }, "duplicate row": func(s *o.CellsSnapshot) { s.Cells = append(s.Cells, s.Cells[0]) }, "unrequested fact": func(s *o.CellsSnapshot) { s.Cells[0].Fogged = proto.Bool(false) },
-		"missing applied": func(s *o.CellsSnapshot) { s.AppliedFields = nil }, "unspecified applied": func(s *o.CellsSnapshot) { s.AppliedFields.Roof = nil }, "different applied": func(s *o.CellsSnapshot) { s.AppliedFields.Roof = proto.Bool(true) },
-		"incomplete": func(s *o.CellsSnapshot) { s.Completeness.Page.Complete = proto.Bool(false) }, "unknown complete": func(s *o.CellsSnapshot) { s.Completeness.Page.Complete = nil }, "unreadable": func(s *o.CellsSnapshot) { s.Completeness.Unreadable = proto.Uint64(1) }, "filtered": func(s *o.CellsSnapshot) { s.Completeness.Filtered = proto.Uint64(1) }, "wrong count": func(s *o.CellsSnapshot) { s.Completeness.Matched = proto.Uint64(2) }, "unknown count": func(s *o.CellsSnapshot) { s.Completeness.Returned = nil },
+		"missing applied": func(s *o.CellsSnapshot) { s.AppliedFields = nil }, "unspecified applied": func(s *o.CellsSnapshot) { s.AppliedFields.Roof = nil }, "different applied": func(s *o.CellsSnapshot) { s.AppliedFields.Roof = proto.Bool(true) }, "filtered": func(s *o.CellsSnapshot) { s.Completeness.Filtered = proto.Uint64(1) },
 		"region": func(s *o.CellsSnapshot) {
 			s.Region = &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(0)}, Maximum: &c.Cell{X: proto.Int32(19), Z: proto.Int32(29)}}
 		},

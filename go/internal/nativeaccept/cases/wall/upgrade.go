@@ -20,34 +20,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// upgradeColonistWalls pages the typed building census for every player Wall id.
+// upgradeColonistWalls reads the typed building census for every player Wall id.
 func upgradeColonistWalls(ctx context.Context, h *na.Harness, scope map[string]any) ([]string, error) {
+	request := map[string]any{"scope": scope, "defNames": []any{"Wall"}, "statuses": []any{"built"}, "playerOnly": true}
+	reply, err := h.Wire(ctx, "walls", "observations_list_buildings", request)
+	if err != nil {
+		return nil, err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", "walls", err)
+	}
 	var ids []string
-	cursor := ""
-	for page := 0; page < 32; page++ {
-		request := map[string]any{"scope": scope, "defNames": []any{"Wall"}, "statuses": []any{"built"}, "playerOnly": true, "page": map[string]any{"limit": 256}}
-		if cursor != "" {
-			request["page"] = map[string]any{"limit": 256, "cursor": cursor}
-		}
-		reply, err := h.Wire(ctx, fmt.Sprintf("walls-%d", page), "observations_list_buildings", request)
-		if err != nil {
-			return nil, err
-		}
-		_, observed, err := na.Outcome(reply, "observed")
-		if err != nil {
-			return nil, fmt.Errorf("walls page %d: %w", page, err)
-		}
-		for _, raw := range na.AsSlice(observed["buildings"]) {
-			row, _ := na.AsMap(raw)
-			building, _ := na.AsMap(row["building"])
-			ids = append(ids, na.AsString(building["id"]))
-		}
-		completeness, _ := na.AsMap(observed["completeness"])
-		pageInfo, _ := na.AsMap(completeness["page"])
-		cursor = na.AsString(pageInfo["nextCursor"])
-		if complete, _ := na.AsBool(pageInfo["complete"]); complete || cursor == "" {
-			break
-		}
+	for _, raw := range na.AsSlice(observed["buildings"]) {
+		row, _ := na.AsMap(raw)
+		building, _ := na.AsMap(row["building"])
+		ids = append(ids, na.AsString(building["id"]))
 	}
 	sort.Strings(ids)
 	return ids, nil
@@ -184,9 +172,6 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("cleanup census context drifted mid-run")
 	}
 	cleanupRows := na.AsSlice(cleanup["sites"])
-	if err := na.CheckCompleteness(cleanup["completeness"], len(cleanupRows)); err != nil {
-		return fmt.Errorf("cleanup completeness: %w", err)
-	}
 	for _, raw := range cleanupRows {
 		row, _ := na.AsMap(raw)
 		if _, ok := row["replacement"]; !ok || len(na.AsSlice(row["completedBackups"])) == 0 {
@@ -216,9 +201,6 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("%s: %w", wall, err)
 		}
 		rows := na.AsSlice(observed["sites"])
-		if err := na.CheckCompleteness(observed["completeness"], len(rows)); err != nil {
-			return fmt.Errorf("%s completeness: %w", wall, err)
-		}
 		if err := compareSites(wall, rows, legacy); err != nil {
 			return err
 		}

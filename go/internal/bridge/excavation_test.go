@@ -104,7 +104,7 @@ func excavationSiteReply(rows ...*o.ExcavationCell) *o.ExcavationSiteReply {
 		Context: excavationSiteContext(), Cells: rows,
 		SupportAfterRemoval: o.ExcavationSupport_EXCAVATION_SUPPORT_SUPPORTED, RoofCellsChecked: proto.Uint32(12),
 		CollapsePending: proto.Bool(false), WorkerAvailable: proto.Bool(true), WorkerIds: []string{"Human1"}, AccessReachable: proto.Bool(true),
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 	}}}
 }
 func readExcavationSite(t *testing.T, reply *o.ExcavationSiteReply, cells []domain.Cell) (ExcavationSite, error) {
@@ -159,7 +159,6 @@ func TestReadExcavationSiteRejectsInconsistentReplies(t *testing.T) {
 			v.AccessReachable = proto.Bool(false)
 		},
 		"worker flag without ids": func(v *o.ExcavationSiteSnapshot) { v.WorkerIds = nil },
-		"incomplete":              func(v *o.ExcavationSiteSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"foreign identity": func(v *o.ExcavationSiteSnapshot) {
 			v.Context.Identity.ColonyId = proto.String("other")
 		},

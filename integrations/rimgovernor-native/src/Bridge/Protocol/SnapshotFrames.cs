@@ -168,7 +168,7 @@ namespace HomeBridge.BridgeTools
                 if (read) { observed.Research = research; }
             }
             if (request.HasColonistPawns && request.ColonistPawns && observed.Emergency?.Colonists != null
-                && observed.Emergency.Colonists.Completeness?.Page?.Complete == true && observed.Emergency.Colonists.Pawns.Count > 0)
+                && observed.Emergency.Colonists.Pawns.Count > 0)
             {
                 var pawns = new Obs.ListPawnsRequest {
                     Scope = Scope(),

@@ -88,8 +88,7 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return ExcavationSite{}, raw, contract("invalid excavation site context")
 	}
-	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || len(snapshot.Cells) != len(cells) {
+	if len(snapshot.Cells) != len(cells) {
 		return ExcavationSite{}, raw, contract("incomplete excavation site")
 	}
 	out := ExcavationSite{Context: proto.Clone(snapshot.Context).(*c.ObservationContext), Cells: make([]ExcavationSiteCell, 0, len(cells))}

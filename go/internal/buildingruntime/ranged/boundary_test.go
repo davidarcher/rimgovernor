@@ -79,7 +79,7 @@ func (f *rangedFixture) ReadCombatPawns(ctx context.Context, id *c.Identity, ids
 	if !f.buildingTarget {
 		rows = append(rows, proto.Clone(f.opponent).(*n.PawnState))
 	}
-	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: rows, Completeness: &n.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(rows))), Returned: proto.Uint64(uint64(len(rows))), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
+	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: rows, Completeness: &n.Completeness{}}}}, bridge.Result{}, ctx.Err()
 }
 func (f *rangedFixture) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	f.emergencyReads++

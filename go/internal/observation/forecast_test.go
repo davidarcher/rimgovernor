@@ -1,13 +1,13 @@
 package observation
 
 import (
+	"os"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"os"
-	"testing"
 )
 
 func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity) {
@@ -33,10 +33,8 @@ func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity) {
 	combined := proto.Clone(human).(*o.FoodSupplyFacts)
 	combined.Consumers = append(combined.Consumers, &o.FoodConsumer{PawnId: proto.String("animal"), NutritionPerDay: proto.Float64(1)})
 	combined.Stocks[0].EaterIds = append(combined.Stocks[0].EaterIds, "animal")
-	combined.Completeness.Matched = proto.Uint64(5)
-	combined.Completeness.Returned = proto.Uint64(5)
 	r.GetObserved().FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: human}}
-	r.GetObserved().Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: combined, AnimalIds: []string{"animal"}, Patients: []*o.PatientForecast{{PawnId: proto.String("a")}, {PawnId: proto.String("b")}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(4), Returned: proto.Uint64(4), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	r.GetObserved().Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: combined, AnimalIds: []string{"animal"}, Patients: []*o.PatientForecast{{PawnId: proto.String("a")}, {PawnId: proto.String("b")}}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	return r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 }
 func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {

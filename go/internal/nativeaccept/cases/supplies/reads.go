@@ -107,9 +107,6 @@ func run(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("%s: context drifted mid-run", label)
 		}
 		rows := na.AsSlice(observed["stocks"])
-		if err := na.CheckCompleteness(observed["completeness"], len(selected)); err != nil {
-			return fmt.Errorf("%s completeness: %w", label, err)
-		}
 		if len(rows) != len(selected) {
 			return fmt.Errorf("%s: expected %d stock rows, found %d", label, len(selected), len(rows))
 		}
@@ -140,9 +137,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defaultRows := na.AsSlice(defaultObserved["stocks"])
-	if err := na.CheckCompleteness(defaultObserved["completeness"], 2); err != nil {
-		return fmt.Errorf("default completeness: %w", err)
-	}
 	for _, raw := range defaultRows {
 		row, _ := na.AsMap(raw)
 		if na.AsNumber(row["ours"]) <= 0 {
@@ -294,14 +288,8 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 			return fmt.Errorf("stock item %s missing a populated CAS snapshot: %w", id, err)
 		}
 	}
-	if err := na.CheckCompleteness(row["itemsCompleteness"], len(items)); err != nil {
-		return fmt.Errorf("items completeness for %v: %w", row["definition"], err)
-	}
 	holders := na.AsSlice(row["holders"])
 	if includeHeld {
-		if err := na.CheckCompleteness(row["holdersCompleteness"], len(holders)); err != nil {
-			return fmt.Errorf("holders completeness for %v: %w", row["definition"], err)
-		}
 		total := int64(0)
 		for _, raw := range holders {
 			holder, _ := na.AsMap(raw)
@@ -325,11 +313,6 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 		if len(holders) != 0 {
 			return fmt.Errorf("holders populated without includeHeld for %v", row["definition"])
 		}
-		completeness, _ := na.AsMap(row["holdersCompleteness"])
-		page, _ := na.AsMap(completeness["page"])
-		if complete, _ := na.AsBool(page["complete"]); complete {
-			return fmt.Errorf("holdersCompleteness unexpectedly complete without includeHeld for %v", row["definition"])
-		}
 		for _, field := range []string{"carried", "inContainer", "traderStock"} {
 			if _, present := row[field]; present {
 				return fmt.Errorf("%s unexpectedly present without includeHeld for %v", field, row["definition"])
@@ -341,7 +324,7 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 			}
 		}
 	}
-	return na.CheckCompleteness(row["corpsesCompleteness"], len(na.AsSlice(row["corpses"])))
+	return nil
 }
 
 // checkWeaponClasses proves the "weapons" census carries each definition's

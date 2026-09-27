@@ -225,8 +225,7 @@ func (b *CaravanDepartureBoundary) InspectCaravanDeparture(ctx context.Context, 
 	if err != nil {
 		return out, err
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(crew)) || counts.GetReturned() != uint64(len(crew)) || len(observed.Pawns) != len(crew) {
+	if len(observed.Pawns) != len(crew) {
 		return out, executor.ErrHeld
 	}
 	crewSet := make(map[domain.PawnID]bool, len(crew))
@@ -269,7 +268,7 @@ func (b *CaravanDepartureBoundary) InspectCaravanDeparture(ctx context.Context, 
 	// Every colonist's fed demand, crew and home alike: the crew's sum sizes
 	// the journey food and the rest the home runway the floor is kept on.
 	demand := map[domain.PawnID]float64{}
-	if food := colonyObserved.GetFoodSupply().GetObserved(); food != nil && food.GetCompleteness().GetPage().GetComplete() {
+	if food := colonyObserved.GetFoodSupply().GetObserved(); food != nil {
 		for _, consumer := range food.Consumers {
 			if consumer.NutritionPerDay != nil && boundary.ValidID(consumer.GetPawnId()) {
 				demand[domain.PawnID(consumer.GetPawnId())] = consumer.GetNutritionPerDay()

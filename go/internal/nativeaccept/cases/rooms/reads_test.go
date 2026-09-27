@@ -6,7 +6,7 @@ import "testing"
 // with known-zero/false facts throughout, to prove those legitimate falsy values are
 // never confused with an absent field.
 func roomSample() (map[string]any, map[string]any) {
-	complete := map[string]any{"page": map[string]any{"complete": true}, "matched": "0", "returned": "0", "unreadable": "0"}
+	complete := map[string]any{}
 	row := map[string]any{
 		"role": "None", "properRoom": true, "outdoors": false, "psychologicallyOutdoors": false,
 		"touchesMapEdge": false, "fogged": false, "openRoofCount": 0.0, "cellCount": 1.0,
@@ -15,7 +15,7 @@ func roomSample() (map[string]any, map[string]any) {
 		"beds":                 []any{}, "pawns": []any{}, "stockpileZoneIds": []any{}, "stats": []any{},
 		"cells": []any{map[string]any{"x": 1.0, "z": 1.0}}, "center": map[string]any{"x": 1.0, "z": 1.0},
 		"extents":           map[string]any{"minimum": map[string]any{"x": 1.0, "z": 1.0}, "maximum": map[string]any{"x": 1.0, "z": 1.0}},
-		"cellsCompleteness": map[string]any{"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "unreadable": "0"},
+		"cellsCompleteness": map[string]any{},
 		"snapshot":          map[string]any{"context": map[string]any{}, "entityId": "Room_0", "token": "tok"},
 		"issues":            []any{},
 	}
@@ -70,7 +70,7 @@ func TestCompareRoomMissingFactsDoNotBecomeDefaults(t *testing.T) {
 }
 
 func TestCompareRoomIncompleteGeometryAndCensusCannotPass(t *testing.T) {
-	for _, fault := range []string{"duplicate", "missing", "center", "partial", "contents"} {
+	for _, fault := range []string{"duplicate", "missing", "center", "contents"} {
 		t.Run(fault, func(t *testing.T) {
 			row, native := roomSample()
 			switch fault {
@@ -82,10 +82,6 @@ func TestCompareRoomIncompleteGeometryAndCensusCannotPass(t *testing.T) {
 				row["cells"] = []any{}
 			case "center":
 				row["center"] = map[string]any{"x": 99.0, "z": 99.0}
-			case "partial":
-				completeness := row["cellsCompleteness"].(map[string]any)
-				page := completeness["page"].(map[string]any)
-				page["complete"] = false
 			default:
 				native["contentsNotListed"] = 1.0
 			}

@@ -147,8 +147,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return RoutineFireSafetyResult{}, ErrControl
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
+	if len(observed.Pawns) != len(ids) {
 		return RoutineFireSafetyResult{}, ErrControl
 	}
 	var pawns []policy.FireSafetyPawnFacts

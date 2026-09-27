@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
                 case "alert_new": result.Alert = Alert(P()); break;
                 case "injury_observed": result.InjuryObserved = Injury(P(), resolvePawn); break;
                 case "hostiles_cleared":
-                    result.HostilesCleared = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossEpochRestart = Bool(P(), "acrossRestart"), Completeness = new Common.PageInfo { Complete = true } };
+                    result.HostilesCleared = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossEpochRestart = Bool(P(), "acrossRestart") };
                     result.HostilesCleared.DownedHostiles.Add(Rows(P(), "downedHostiles").Select(row => Pawn(row, resolvePawn, true)));
                     result.HostilesCleared.DraftedColonists.Add(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true))); break;
                 case "long_event": case "transient_force_pause":
@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
                     var stop = new Clock.StopEvent { Reason = StopReason(kind) };
                     if (kind == "notification_batch")
                     {
-                        stop.Notifications = new Clock.NotificationBatch { Completeness = new Common.PageInfo { Complete = true } };
+                        stop.Notifications = new Clock.NotificationBatch();
                         stop.Notifications.Letters.Add(Rows(P(), "letters").Select(Letter)); stop.Notifications.Messages.Add(Rows(P(), "messages").Select(Message));
                     }
                     else if (kind == "combat_event")

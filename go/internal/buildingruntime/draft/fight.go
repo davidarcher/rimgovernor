@@ -38,8 +38,7 @@ func (b *DraftBoundary) ReleaseFightClaim(ctx context.Context, world store.World
 	if v == nil || bridge.ValidateContext(v.Context) != nil || !proto.Equal(v.Context.Identity, identity) {
 		return false, fmt.Errorf("%w: pawn %s not observed", executor.ErrHeld, pawn)
 	}
-	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || len(v.Pawns) > 1 {
+	if len(v.Pawns) > 1 {
 		return false, fmt.Errorf("%w: pawn %s read incomplete", executor.ErrHeld, pawn)
 	}
 	if len(v.Pawns) == 0 {

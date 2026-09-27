@@ -111,23 +111,15 @@ func clockHealthyPawnFixture(field string) map[string]any {
 	return map[string]any{"observed": map[string]any{
 		"pawns": []any{pawn},
 		"completeness": map[string]any{
-			"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "filtered": "1", "unreadable": "0",
+			"filtered": "1",
 		},
 	}}
 }
 
 func TestClockFixtureReportsMedicalPrerequisiteBeforeRunning(t *testing.T) {
-	for _, field := range []string{"", "dead", "downed", "bleeding", "needsTend", "unknown", "unreadable", "incomplete"} {
+	for _, field := range []string{"", "dead", "downed", "bleeding", "needsTend", "unknown"} {
 		t.Run(field, func(t *testing.T) {
 			reply := clockHealthyPawnFixture(field)
-			observed, _ := AsMap(reply["observed"])
-			completeness, _ := AsMap(observed["completeness"])
-			switch field {
-			case "unreadable":
-				completeness["unreadable"] = "1"
-			case "incomplete":
-				completeness["page"] = map[string]any{"complete": false}
-			}
 			err := RequireHealthyColonists(reply)
 			if field == "" {
 				if err != nil {

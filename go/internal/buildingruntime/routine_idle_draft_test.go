@@ -41,7 +41,7 @@ func TestIdleDraftObservationGuards(t *testing.T) {
 				DraftClaim: &n.DraftClaimObservation{State: &n.DraftClaimObservation_Unowned{Unowned: &n.NoOwnedDraftClaim{}}},
 				Job:        &n.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)},
 				Issues:     []*n.ReadIssue{{Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
-			native.pawnReply = &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: context, Pawns: []*n.PawnState{row}, Completeness: &n.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Unreadable: proto.Uint64(0)}}}}
+			native.pawnReply = &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: context, Pawns: []*n.PawnState{row}, Completeness: &n.Completeness{}}}}
 			emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn"}}}
 			var plans []store.PlanState
 			wantErr := false

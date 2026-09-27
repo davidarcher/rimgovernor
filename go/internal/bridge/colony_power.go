@@ -14,9 +14,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 	if v.ShortCircuitTick != nil && v.GetShortCircuitTick() < 0 {
 		return contract("invalid short circuit tick")
 	}
-	if err := colonyCounts(v.Completeness, len(v.Power)+len(v.Furniture)); err != nil {
-		return err
-	}
 	seen := map[string]bool{}
 	for _, row := range v.Power {
 		if row == nil || row.Building == nil {
@@ -84,9 +81,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		}
 		if net.GenerationW != nil && net.GetGenerationW() < 0 || net.ConsumptionW != nil && net.GetConsumptionW() < 0 || net.StoredWattDays != nil && net.GetStoredWattDays() < 0 || net.CapacityWattDays != nil && net.GetCapacityWattDays() < 0 {
 			return contract("negative power network quantity")
-		}
-		if c := net.Completeness; c != nil && (c.Page == nil || !c.Page.GetComplete() || c.GetUnreadable() != 0 || c.GetMatched() != c.GetReturned()) {
-			return contract("incomplete power network census")
 		}
 	}
 	geysers := map[string]bool{}

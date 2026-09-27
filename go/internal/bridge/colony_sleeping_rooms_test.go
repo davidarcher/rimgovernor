@@ -4,13 +4,12 @@ import (
 	"math"
 	"testing"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 func roomComplete(n uint64) *o.Completeness {
-	return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	return &o.Completeness{Filtered: proto.Uint64(0)}
 }
 
 func roomQualityWire() *o.UpkeepFacts {
@@ -52,7 +51,6 @@ func TestRoomQualityBoundary(t *testing.T) {
 		"NaN stat":           func(v *o.UpkeepFacts) { room(v).Beauty = proto.Float64(math.NaN()) },
 		"negative wealth":    func(v *o.UpkeepFacts) { room(v).Wealth = proto.Float64(-1) },
 		"duplicate bed":      func(v *o.UpkeepFacts) { room(v).BedIds = []string{"bed", "bed"} },
-		"incomplete census":  func(v *o.UpkeepFacts) { v.Rooms.GetObserved().Completeness = roomComplete(2) },
 		"rows with an issue": func(v *o.UpkeepFacts) { v.Issues = []*o.ReadIssue{{Field: proto.String("rooms")}} },
 	} {
 		v := roomQualityWire()

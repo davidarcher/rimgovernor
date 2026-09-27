@@ -106,16 +106,10 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 	if !sameIdentity(v.Context.Identity, id) {
 		return contract("pawn world mismatch")
 	}
-	counts := v.Completeness
 	// ListPawns counts matched query rows; filtered counts excluded source rows.
 	// Those excluded rows are not unreadable members of the exact-ID result.
-	if len(v.Pawns) > len(requested) || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
+	if len(v.Pawns) > len(requested) {
 		return contract("incomplete pawn query")
-	}
-	if counts.SnapshotToken != nil {
-		if err := validID(counts.GetSnapshotToken()); err != nil {
-			return err
-		}
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Pawns {

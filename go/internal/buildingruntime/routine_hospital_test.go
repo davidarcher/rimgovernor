@@ -54,7 +54,7 @@ func (n *hospitalNative) PreviewBedUse(_ context.Context, _ *c.Identity, patch d
 }
 
 func hospitalCount(n uint64) *o.Completeness {
-	return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	return &o.Completeness{Filtered: proto.Uint64(0)}
 }
 
 // hospitalFixture stages one barracks holding one unowned, non-medical

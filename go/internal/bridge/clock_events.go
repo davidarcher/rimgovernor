@@ -133,9 +133,6 @@ func clockEvent(event *k.Event) error {
 		if h.ConsciousHostilesBefore != nil && h.GetConsciousHostilesBefore() < 0 {
 			return contract("clock hostile count")
 		}
-		if err := clockEventCompleteness(h.Completeness); err != nil {
-			return err
-		}
 		for _, rows := range [][]*k.PawnEvent{h.DownedHostiles, h.DraftedColonists} {
 			seen := map[string]bool{}
 			for _, pawn := range rows {
@@ -259,12 +256,6 @@ func clockOperationOutcome(v *k.OperationOutcome) error {
 	}
 	return nil
 }
-func clockEventCompleteness(page *c.PageInfo) error {
-	if page == nil || page.Complete == nil {
-		return contract("clock collection completeness required")
-	}
-	return nil
-}
 func clockPawn(pawn *k.PawnEvent) error {
 	if pawn == nil || validID(pawn.GetPawnId()) != nil || !diagnostic(pawn.Name) || !diagnostic(pawn.Reason) {
 		return contract("clock pawn evidence")
@@ -344,9 +335,6 @@ func clockStopEvent(v *k.StopEvent) error {
 	case *k.StopEvent_Notifications:
 		if e.Notifications == nil {
 			return contract("clock notifications required")
-		}
-		if err := clockEventCompleteness(e.Notifications.Completeness); err != nil {
-			return err
 		}
 		for _, letter := range e.Notifications.Letters {
 			if err := clockLetter(letter); err != nil {

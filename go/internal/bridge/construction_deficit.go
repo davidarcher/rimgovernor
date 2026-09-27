@@ -61,14 +61,6 @@ func (client *Client) ReadConstructionDeficits(ctx context.Context, identity *c.
 	if err = buildingContext(observed.Context, identity, 0, false); err != nil {
 		return ConstructionDeficitRead{}, raw, err
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || counts.Returned == nil || counts.Unreadable == nil ||
-		counts.GetUnreadable() != 0 || counts.GetReturned() != uint64(len(observed.Buildings)) {
-		return ConstructionDeficitRead{}, raw, contract("incomplete construction deficit observation")
-	}
-	if !counts.Page.GetComplete() {
-		return ConstructionDeficitRead{}, raw, contract("incomplete construction deficit observation")
-	}
 	out.Context = observed.Context
 	for _, row := range observed.Buildings {
 		if row == nil || row.Building == nil || validID(row.Building.GetId()) != nil {

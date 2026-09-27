@@ -91,10 +91,6 @@ func caravanCatalogSelected(v *o.CaravanCatalog, identity *c.Identity, destinati
 	if !sameIdentity(v.Snapshot.Context.Identity, identity) || validID(v.Snapshot.GetToken()) != nil {
 		return CaravanCatalogRead{}, contract("caravan catalog world or token mismatch")
 	}
-	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return CaravanCatalogRead{}, contract("incomplete caravan catalog page")
-	}
 	// Group ids are unique; definitions are not: RimWorld splits one def
 	// into several transferables when stacks differ by quality, stuff,
 	// ingredients, rot stage or ten hit points.

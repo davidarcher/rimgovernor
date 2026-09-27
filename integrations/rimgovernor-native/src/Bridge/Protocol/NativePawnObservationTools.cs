@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
         internal static double Number(double value)=>IsFinite(value)?value:throw new InvalidOperationException("Nonfinite native fact.");
         internal static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable {Reason=reason,Detail=detail};
         internal static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue {Field=field,Unavailable=Unavailable(reason,detail)};
-        internal static Obs.Completeness Complete(int count,int filtered=0)=>new Obs.Completeness {Page=new Common.PageInfo {Complete=true},Matched=(ulong)count,Returned=(ulong)count,Filtered=(ulong)filtered,Unreadable=0};
+        internal static Obs.Completeness Complete(int count,int filtered=0)=>new Obs.Completeness { Filtered = (ulong)filtered };
         internal sealed class ReadLimit:Exception { internal ReadLimit(string message):base(message) {} }
     }
 }

@@ -70,12 +70,6 @@ func colonyFactsRequest(identity *c.Identity, planning bool, definitions []strin
 	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), RequestedDefinitionNames: append([]string(nil), definitions...)}
 }
 
-func colonyCounts(v *o.Completeness, count int) error {
-	if v == nil || v.Page == nil || v.Page.Complete == nil || !v.Page.GetComplete() || v.Matched == nil || v.Returned == nil || v.Filtered == nil || v.Unreadable == nil || v.GetMatched() != uint64(count) || v.GetReturned() != uint64(count) || v.GetUnreadable() != 0 || v.GetFiltered() > math.MaxUint64-uint64(count) {
-		return contract("incomplete colony census")
-	}
-	return nil
-}
 func colonyQuantities(rows []*o.Quantity) error {
 	seen := map[string]bool{}
 	for _, row := range rows {
@@ -100,9 +94,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		return contract("invalid colony context/geometry")
 	}
 	if err := buildingUnknown(v); err != nil {
-		return err
-	}
-	if err := colonyCounts(v.Completeness, 1); err != nil {
 		return err
 	}
 	if v.Completeness.GetFiltered() != 0 {
@@ -277,9 +268,6 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 			return err
 		}
 	}
-	if err := colonyCounts(p.Completeness, len(p.Definitions)); err != nil {
-		return err
-	}
 	seen := map[string]bool{}
 	for _, d := range p.Definitions {
 		if d == nil || d.Definition == nil || validID(d.Definition.GetDefName()) != nil || seen[d.Definition.GetDefName()] {
@@ -347,9 +335,6 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 	}
 	if !combatNumber(e.OutdoorTemperatureC, false) {
 		return contract("invalid environment temperature")
-	}
-	if err := colonyCounts(e.Completeness, len(e.Lights)+len(e.Growers)+len(e.Rooms)+len(e.Networks)); err != nil {
-		return err
 	}
 	optionalID := func(v *string) bool { return v == nil || validID(*v) == nil }
 	entity := func(ref *o.EntityRef) bool {
@@ -429,9 +414,6 @@ func validateColonyThreat(v *o.ThreatSection) error {
 		facts := t.Observed
 		if facts == nil {
 			return contract("missing threat facts")
-		}
-		if err := colonyCounts(facts.Completeness, 1); err != nil {
-			return err
 		}
 		if err := pawnsIssues(facts.Issues, facts.ProtoReflect()); err != nil {
 			return err

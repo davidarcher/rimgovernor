@@ -126,7 +126,6 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                row.CellsCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false }, Matched = (ulong)cells.Count, Returned = 0, Unreadable = 0 };
                 row.Issues.Add(Issue("cells", Common.UnavailableReason.NotRequested, "Exact cell list not requested; geometry/count are complete."));
             }
             var stockpiles = new List<Zone_Stockpile>();
@@ -195,6 +194,6 @@ namespace HomeBridge.BridgeTools
         private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(reason, detail) };
-        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
+        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };
     }
 }

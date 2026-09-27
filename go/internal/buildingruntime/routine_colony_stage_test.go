@@ -86,7 +86,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 	v.IndoorSleepingCapacity = indoor
 	v.Resources = []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(400)}, {DefName: proto.String("MedicineHerbal"), Units: proto.Int64(10)}}
 	count := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("builder"), NutritionPerDay: proto.Float64(1)}},
 		Stocks: []*o.FoodStock{{Item: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, Count: proto.Int64(60), Nutrition: proto.Float64(30), Perishable: proto.Bool(false), EaterIds: []string{"builder"}}}, Completeness: count(2)}

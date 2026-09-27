@@ -23,8 +23,7 @@ func (n *routineNative) ReadConstructionBuildings(ctx context.Context, _ *c.Iden
 		return &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}, bridge.Result{}, ctx.Err()
 	}
 	v := n.reply.GetObserved()
-	count := uint64(len(n.built))
-	snapshot := &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(count), Returned: proto.Uint64(count), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+	snapshot := &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 	for _, row := range n.built {
 		snapshot.Buildings = append(snapshot.Buildings, proto.Clone(row).(*o.BuildingState))
 	}

@@ -209,7 +209,7 @@ namespace HomeBridge.BridgeTools
             var rotten = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowRotten");
             if (fresh != null) row.AllowFresh = filter.Allows(fresh);
             if (rotten != null) row.AllowRotten = filter.Allows(rotten);
-            row.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)allowed.Count, Returned = (ulong)allowed.Count };
+            row.Completeness = new Obs.Completeness();
             return row;
         }
     }

@@ -14,7 +14,6 @@ func TestFoodChannelsRejectsMalformedCensus(t *testing.T) {
 		name   string
 		change func(*o.FoodChannelsFacts)
 	}{
-		{"missing completeness", func(f *o.FoodChannelsFacts) { f.Completeness = nil }},
 		{"filtered", func(f *o.FoodChannelsFacts) { f.Completeness.Filtered = proto.Uint64(1) }},
 		{"negative fullness", func(f *o.FoodChannelsFacts) { f.Gatherable[0].Fullness = proto.Float64(-0.1) }},
 		{"negative production", func(f *o.FoodChannelsFacts) { f.Gatherable[0].NutritionPerDay = proto.Float64(-1) }},
@@ -42,7 +41,7 @@ func TestFoodChannelsRejectsMalformedCensus(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v := colonyFixture(t).GetObserved()
-			f := &o.FoodChannelsFacts{Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}, Gatherable: []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow")}}}
+			f := &o.FoodChannelsFacts{Completeness: &o.Completeness{Filtered: proto.Uint64(0)}, Gatherable: []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow")}}}
 			v.FoodChannels = &o.FoodChannelsSection{Outcome: &o.FoodChannelsSection_Observed{Observed: f}}
 			if err := ValidateColonyFacts(v, v.Context.Identity); err != nil {
 				t.Fatal(err)

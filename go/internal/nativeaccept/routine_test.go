@@ -218,7 +218,7 @@ func TestRoutineMedicalEvidencePreservesCareAndUnknowns(t *testing.T) {
 	reply := map[string]any{"observed": map[string]any{"colonists": map[string]any{
 		"pawns": []any{pawn},
 		"completeness": map[string]any{
-			"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "filtered": "0", "unreadable": "0",
+			"filtered": "0",
 		},
 	}}}
 	assertNeed := func(want string) {
@@ -247,7 +247,7 @@ func TestRoutineMedicalEvidencePreservesCareAndUnknowns(t *testing.T) {
 }
 
 func constructionCensus() map[string]any {
-	return map[string]any{"page": map[string]any{"complete": true}, "matched": "0", "returned": "0", "filtered": "0", "unreadable": "0"}
+	return map[string]any{"filtered": "0"}
 }
 
 func TestConstructionStartAcceptsOmittedEmptyProtobufHostiles(t *testing.T) {
@@ -258,7 +258,7 @@ func TestConstructionStartAcceptsOmittedEmptyProtobufHostiles(t *testing.T) {
 	if err := AssertConstructionStart(reply); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	for _, field := range []string{"matched", "returned", "filtered", "unreadable"} {
+	for _, field := range []string{"filtered"} {
 		changed := deepCopyRoutineAny(reply).(map[string]any)
 		observed, _ := AsMap(changed["observed"])
 		threats, _ := AsMap(observed["threats"])
@@ -279,8 +279,6 @@ func TestConstructionStartAcceptsOmittedEmptyProtobufHostiles(t *testing.T) {
 func TestConstructionStartDistinguishesNonhostileWildlifeFromHunters(t *testing.T) {
 	census := constructionCensus()
 	countedCensus := deepCopyRoutineAny(census).(map[string]any)
-	countedCensus["matched"] = "1"
-	countedCensus["returned"] = "1"
 	reply := map[string]any{"observed": map[string]any{
 		"colonists": map[string]any{"pawns": []any{}, "completeness": census},
 		"threats": map[string]any{

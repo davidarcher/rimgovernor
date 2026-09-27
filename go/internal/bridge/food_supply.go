@@ -11,9 +11,6 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if err := colonyCounts(v.Completeness, len(v.Consumers)+len(v.Stocks)); err != nil {
-		return err
-	}
 	if v.Completeness.GetFiltered() != 0 {
 		return contract("filtered food census")
 	}

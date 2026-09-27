@@ -44,8 +44,6 @@ func (n *raidTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, id
 		raider.LordToilClass = proto.String(n.toil)
 	}
 	observed.Pawns = append(observed.Pawns, raider)
-	count := uint64(len(observed.Pawns))
-	observed.Completeness.Matched, observed.Completeness.Returned = proto.Uint64(count), proto.Uint64(count)
 	return reply, r, err
 }
 

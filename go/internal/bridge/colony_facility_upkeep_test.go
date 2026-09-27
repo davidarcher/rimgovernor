@@ -13,14 +13,14 @@ func TestFacilityUpkeepWirePresenceGeometryAndCompleteness(t *testing.T) {
 	makeFacts := func() *o.UpkeepFacts {
 		v := upkeepWire()
 		v.Structures[0].Flammability = proto.Float64(1)
-		v.HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{Revision: proto.Int64(2), Targets: []*o.HomeCoverageTarget{{Id: proto.String("wall"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(1), Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+		v.HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{Revision: proto.Int64(2), Targets: []*o.HomeCoverageTarget{{Id: proto.String("wall"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(1), Cells: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 		return v
 	}
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
 	if err := validateDirectUpkeep(makeFacts(), size, 3); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"flammability", "revision", "shape", "count", "duplicate", "bounds", "page", "issue", "extent-bounds", "extent-duplicate", "extent-missing-coordinate", "extent-zone-bounds"} {
+	for _, field := range []string{"flammability", "revision", "shape", "count", "duplicate", "bounds", "issue", "extent-bounds", "extent-duplicate", "extent-missing-coordinate", "extent-zone-bounds"} {
 		t.Run(field, func(t *testing.T) {
 			v := makeFacts()
 			h := v.HomeCoverage.GetObserved()
@@ -46,8 +46,6 @@ func TestFacilityUpkeepWirePresenceGeometryAndCompleteness(t *testing.T) {
 				h.Targets[0].Cells = append(h.Targets[0].Cells, h.Targets[0].Cells[0])
 			case "bounds":
 				h.Targets[0].Cells[0].X = proto.Int32(50)
-			case "page":
-				h.Completeness.Unreadable = proto.Uint64(1)
 			case "issue":
 				v.Issues = []*o.ReadIssue{{Field: proto.String("home_coverage"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
 			}

@@ -26,7 +26,7 @@ func (n *moodRoutineNative) ReadEmergency(ctx context.Context, id *c.Identity) (
 	return r, receipt, err
 }
 func (n *moodRoutineNative) ReadRoutinePawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
-	s := &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(ids))), Returned: proto.Uint64(uint64(len(ids))), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+	s := &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 	for i, key := range ids {
 		p := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(key), DefName: proto.String("Human"), MapId: proto.Int32(id.GetMapId()), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Needs: &o.PawnNeeds{Mood: proto.Float64(.9), BreakThresholdMinor: proto.Float64(.3), Food: proto.Float64(.9), Rest: proto.Float64(.9), Joy: proto.Float64(.9)}, Issues: []*o.ReadIssue{{Field: proto.String("mental_state"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}}
 		if i == 0 && n.mode != "clear" {

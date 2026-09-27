@@ -45,7 +45,7 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	census := s.Colonists.Completeness
-	if census == nil || !census.Page.GetComplete() || census.GetReturned() != uint64(len(s.Colonists.Pawns)) || census.GetMatched() != census.GetReturned() || census.GetFiltered() != 0 || census.GetUnreadable() != 0 {
+	if census.GetFiltered() != 0 {
 		t.Fatal("incomplete native status")
 	}
 	e := policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}

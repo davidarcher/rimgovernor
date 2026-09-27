@@ -14,7 +14,7 @@ import (
 )
 
 func constructionTestSnapshot() *o.BuildingsSnapshot {
-	return &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(20), Unreadable: proto.Uint64(0)}}
+	return &o.BuildingsSnapshot{Context: authorityTestContext(7), Buildings: []*o.BuildingState{{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}, Completeness: &o.Completeness{Filtered: proto.Uint64(20)}}
 }
 
 func TestConstructionBuildingsExactQueryAndPartialMissingResult(t *testing.T) {
@@ -54,19 +54,14 @@ func TestConstructionBuildingsRejectMalformedEvidence(t *testing.T) {
 		"unrequested": func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.Id = proto.String("other") },
 		"duplicate": func(v *o.BuildingsSnapshot) {
 			v.Buildings = append(v.Buildings, v.Buildings[0])
-			v.Completeness.Matched = proto.Uint64(2)
-			v.Completeness.Returned = proto.Uint64(2)
 		},
-		"blueprint":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Status = proto.String("blueprint") },
-		"map":        func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.MapId = proto.Int32(8) },
-		"def":        func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.DefName = nil },
-		"position":   func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.Position = nil },
-		"rotation":   func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("up") },
-		"lowercase":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("north") },
-		"stuff":      func(v *o.BuildingsSnapshot) { v.Buildings[0].Stuff = proto.String("") },
-		"unreadable": func(v *o.BuildingsSnapshot) { v.Completeness.Unreadable = proto.Uint64(1) },
-		"page":       func(v *o.BuildingsSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"count":      func(v *o.BuildingsSnapshot) { v.Completeness.Matched = proto.Uint64(2) },
+		"blueprint": func(v *o.BuildingsSnapshot) { v.Buildings[0].Status = proto.String("blueprint") },
+		"map":       func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.MapId = proto.Int32(8) },
+		"def":       func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.DefName = nil },
+		"position":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Building.Position = nil },
+		"rotation":  func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("up") },
+		"lowercase": func(v *o.BuildingsSnapshot) { v.Buildings[0].Rotation = proto.String("north") },
+		"stuff":     func(v *o.BuildingsSnapshot) { v.Buildings[0].Stuff = proto.String("") },
 	}
 	for name, change := range changes {
 		t.Run(name, func(t *testing.T) {
@@ -110,10 +105,5 @@ func TestConstructionBuildingsColonyQueryFiltersPlayerBuilt(t *testing.T) {
 	}}, time.Second)
 	if _, _, err := client.ReadConstructionBuildings(context.Background(), pbIdentity(), nil); err != nil {
 		t.Fatal(err)
-	}
-	snapshot := constructionTestSnapshot()
-	snapshot.Completeness.Page.Complete = proto.Bool(false)
-	if err := ValidateConstructionBuildings(snapshot, pbIdentity(), nil); err == nil {
-		t.Fatal("incomplete colony accepted")
 	}
 }

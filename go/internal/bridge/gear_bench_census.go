@@ -55,10 +55,6 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return nil, raw, contract("invalid bills context")
 	}
-	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return nil, raw, contract("incomplete bills census")
-	}
 	seen := map[string]bool{}
 	out := make([]GearBenchRead, 0, len(snapshot.Benches))
 	for _, stack := range snapshot.Benches {
@@ -113,10 +109,6 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 	}
 	if snapshot.Snapshot == nil || snapshot.Snapshot.GetEntityId() != bench {
 		return nil, contract("recipe snapshot bench mismatch")
-	}
-	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return nil, contract("incomplete recipe census")
 	}
 	names := map[string]bool{}
 	out := make([]policy.GearRecipe, 0, len(snapshot.Recipes))
@@ -178,10 +170,6 @@ func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identit
 	}
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return nil, raw, contract("invalid recipes context")
-	}
-	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return nil, raw, contract("incomplete recipe catalog")
 	}
 	names := map[string]bool{}
 	out := make([]policy.RecipeHost, 0, len(snapshot.Recipes))
@@ -329,8 +317,7 @@ func (client *Client) ReadSupplyStock(ctx context.Context, identity *c.Identity,
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return nil, raw, contract("invalid supplies context")
 	}
-	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || len(snapshot.Stocks) > len(defNames) {
+	if len(snapshot.Stocks) > len(defNames) {
 		return nil, raw, contract("incomplete supplies census")
 	}
 	seenOut := map[string]bool{}

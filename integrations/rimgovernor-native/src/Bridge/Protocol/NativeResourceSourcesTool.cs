@@ -62,8 +62,7 @@ namespace HomeBridge.BridgeTools
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
                     Storage = Storage(map, definition),
-                    Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
-                        Matched = (ulong)ordered.Count, Returned = (ulong)ordered.Count, Filtered = (ulong)(deposits.Count - eligible.Count) } };
+                    Completeness = new Obs.Completeness { Filtered = (ulong)(deposits.Count - eligible.Count) } };
                 foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
                 return new Obs.ResourceSourcesReply { Observed = snapshot };
             }

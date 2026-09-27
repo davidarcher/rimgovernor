@@ -140,7 +140,7 @@ internal static class NativeProtoSuppliesProbe
                 new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
             Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
         }
-        var reply = Wire("ListSuppliesReply", "{\"observed\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":\"2147483648\",\"ours\":\"0\",\"holdersCompleteness\":{\"page\":{\"complete\":false}},\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}");
+        var reply = Wire("ListSuppliesReply", "{\"observed\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":\"2147483648\",\"ours\":\"0\",\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}");
         var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
         var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
@@ -302,7 +302,7 @@ internal static class NativeProtoSuppliesProbe
             && (string)Get(Get(nestedHolders[1]!, "Holder"), "DefName") == "Modded_InnerCrate" && (string)Get(nestedHolders[1]!, "HolderKind") == "container",
             "Container-in-container multi-level nesting walked and each level's holder identity preserved");
 
-        // ---- Item 4: past the 256-items-per-definition bound the counts stay complete; the listed items are a prefix (#231) ----
+        // ---- Item 4: every stack of one definition is listed; there is no per-list cap ----
         var overflowEntries = new List<object>();
         for (var i = 0; i < 300; i++)
         {
@@ -315,9 +315,8 @@ internal static class NativeProtoSuppliesProbe
         var overflowCompleteness = Get(overflowRow, "ItemsCompleteness");
         Check((long)Get(overflowRow, "Units") == 600 && (long)Get(overflowRow, "Stacks") == 300 && (long)Get(overflowRow, "OursUnforbidden") == 600,
             "300 stacks of one definition: units and ownership counts cover every entry");
-        Check(overflowItems.Count == 256 && !(bool)Get(Get(overflowCompleteness, "Page"), "Complete")
-            && (ulong)Get(overflowCompleteness, "Matched") == 300 && (ulong)Get(overflowCompleteness, "Returned") == 256,
-            "300 stacks of one definition: items list a 256-entry prefix and items_completeness reports matched=300 returned=256 incomplete");
+        Check(overflowItems.Count == 300 && (ulong)Get(overflowCompleteness, "Filtered") == 0,
+            "300 stacks of one definition: items list every entry");
 
         Console.WriteLine(checks + " compiled supplies boundary assertions passed + fixtures; no gameplay assertions.");
         return 0;

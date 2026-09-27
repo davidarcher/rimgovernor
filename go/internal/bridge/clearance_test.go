@@ -12,7 +12,7 @@ import (
 )
 
 func clearanceSnapshot() *o.ClearanceTargetsSnapshot {
-	return &o.ClearanceTargetsSnapshot{Context: pbContext(), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}, Targets: []*o.ClearanceTarget{{EntityId: proto.String("Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Maximum: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(false), AncientDanger: proto.Bool(true), RoofBlocker: proto.String("Unsupported roof"), Designated: proto.Bool(true)}}}
+	return &o.ClearanceTargetsSnapshot{Context: pbContext(), Completeness: &o.Completeness{Filtered: proto.Uint64(0)}, Targets: []*o.ClearanceTarget{{EntityId: proto.String("Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Maximum: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(false), AncientDanger: proto.Bool(true), RoofBlocker: proto.String("Unsupported roof"), Designated: proto.Bool(true)}}}
 }
 
 func TestClearanceReadAndUnavailableStub(t *testing.T) {
@@ -43,14 +43,9 @@ func TestClearanceReadAndUnavailableStub(t *testing.T) {
 
 func TestClearanceRejectsIncompleteAndUnsafeDefaults(t *testing.T) {
 	for name, edit := range map[string]func(*o.ClearanceTargetsSnapshot){
-		"wrong load":    func(v *o.ClearanceTargetsSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
-		"partial":       func(v *o.ClearanceTargetsSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"counts absent": func(v *o.ClearanceTargetsSnapshot) { v.Completeness.Matched = nil },
-		"unreadable":    func(v *o.ClearanceTargetsSnapshot) { v.Completeness.Unreadable = proto.Uint64(1) },
+		"wrong load": func(v *o.ClearanceTargetsSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
 		"duplicate": func(v *o.ClearanceTargetsSnapshot) {
 			v.Targets = append(v.Targets, v.Targets[0])
-			v.Completeness.Returned = proto.Uint64(2)
-			v.Completeness.Matched = proto.Uint64(2)
 		},
 		"danger absent":          func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].AncientDanger = nil },
 		"home absent":            func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].InHome = nil },
@@ -70,8 +65,6 @@ func TestClearanceRejectsIncompleteAndUnsafeDefaults(t *testing.T) {
 	}
 	v := clearanceSnapshot()
 	v.Targets = nil
-	v.Completeness.Matched = proto.Uint64(0)
-	v.Completeness.Returned = proto.Uint64(0)
 	if err := ValidateClearanceTargets(v, pbIdentity()); err != nil {
 		t.Fatal("complete empty census", err)
 	}

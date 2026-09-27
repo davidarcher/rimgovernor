@@ -36,7 +36,7 @@ func TestConstructionReadsTheFramesBuiltBuildings(t *testing.T) {
 				t.Fatal(err)
 			}
 			row := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(base.GetObserved().Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, OccupiedCells: []*c.Cell{{X: proto.Int32(3), Z: proto.Int32(7)}}, Rotation: proto.String("North"), Status: proto.String("built"), Stuff: proto.String("WoodLog")}
-			snapshot := &o.BuildingsSnapshot{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Buildings: []*o.BuildingState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+			snapshot := &o.BuildingsSnapshot{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Buildings: []*o.BuildingState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			s := &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoutineFrame{Construction: snapshot}}
 			b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 			claims := domain.Known([]policy.ConstructionClaim{{Plan: "method", Action: "placed", Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}, Building: b}})

@@ -27,9 +27,7 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 		planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
 	planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
-	planning.Completeness.Matched, planning.Completeness.Returned = proto.Uint64(4), proto.Uint64(4)
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
-	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned = proto.Uint64(81), proto.Uint64(81)
 	planning.Cells.Cells = nil
 	for x := int32(0); x < 9; x++ {
 		for z := int32(0); z < 9; z++ {
@@ -483,7 +481,6 @@ func hutCells(n *sleepingNative, side int32, lit func(x, z int32) bool) {
 	}
 	planning := n.reply.GetObserved().Planning.GetObserved()
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(side - 1), Z: proto.Int32(side - 1)}
-	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned = proto.Uint64(uint64(side*side)), proto.Uint64(uint64(side*side))
 	planning.Cells.Cells = nil
 	for x := int32(0); x < side; x++ {
 		for z := int32(0); z < side; z++ {

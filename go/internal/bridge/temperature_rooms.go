@@ -46,9 +46,6 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, identity *c.Identity) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if err := colonyCounts(v.Completeness, len(v.Rooms)); err != nil {
-		return err
-	}
 	size := &o.MapSize{Width: proto.Uint32(4096), Height: proto.Uint32(4096)}
 	rooms, beds, cells := map[string]bool{}, map[string]bool{}, map[[2]int32]bool{}
 	for _, room := range v.Rooms {
@@ -60,12 +57,6 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, identity *c.Identity) error {
 			return contract("invalid room temperature")
 		}
 		if err := pawnsIssues(room.Issues, room.ProtoReflect()); err != nil {
-			return err
-		}
-		if err := colonyCounts(room.CellsCompleteness, len(room.Cells)); err != nil {
-			return err
-		}
-		if err := colonyCounts(room.ContentsCompleteness, len(room.Contents)); err != nil {
 			return err
 		}
 		if err := colonyQuantities(room.Contents); err != nil {

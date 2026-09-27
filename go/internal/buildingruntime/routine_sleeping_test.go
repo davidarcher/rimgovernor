@@ -78,8 +78,6 @@ func sleepingFacts(n *routineNative) {
 	planning.Definitions = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("SleepingSpot")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
 	cells := planning.Cells
 	cells.Region.Maximum = &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
-	cells.Completeness.Matched = proto.Uint64(25)
-	cells.Completeness.Returned = proto.Uint64(25)
 	cells.Cells = nil
 	for x := int32(0); x < 5; x++ {
 		for z := int32(0); z < 5; z++ {

@@ -146,7 +146,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 				return err
 			}
 		} else {
-			if h.Revision == nil || h.GetRevision() < 0 || colonyCounts(h.Completeness, len(h.Targets)) != nil {
+			if h.Revision == nil || h.GetRevision() < 0 {
 				return contract("invalid Home coverage census")
 			}
 			seen := map[string]bool{}
@@ -243,7 +243,7 @@ func validateUpkeepRooms(section *o.UpkeepRoomsSection) error {
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Rooms)) != nil || !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms, Completeness: f.Completeness}) {
+	if !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms, Completeness: f.Completeness}) {
 		return contract("invalid room quality census")
 	}
 	rooms := map[string]bool{}
@@ -281,7 +281,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Facilities)) != nil || len(f.PawnIds) > 32 || len(f.Traffic) > 5*128 { // the busiest 128 cells per traffic layer (#817)
+	if len(f.PawnIds) > 32 || len(f.Traffic) > 5*128 { // the busiest 128 cells per traffic layer (#817)
 		return contract("invalid routes census")
 	}
 	if !proto.Equal(f, &o.RoutesFacts{Facilities: f.Facilities, PawnIds: f.PawnIds, Traffic: f.Traffic, TrafficSamples: f.TrafficSamples, TrafficSinceTick: f.TrafficSinceTick, Completeness: f.Completeness}) || f.TrafficSinceTick != nil && f.GetTrafficSinceTick() < 0 {
@@ -341,9 +341,6 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Rooms)) != nil {
-		return contract("invalid flooring census")
-	}
 	terrains := map[string]bool{}
 	for _, row := range f.Terrains {
 		if row == nil || validID(row.GetDefName()) != nil || terrains[row.GetDefName()] || !proto.Equal(row, &o.FloorTerrain{DefName: row.DefName, Cleanliness: row.Cleanliness, PathCost: row.PathCost, Beauty: row.Beauty, Flammability: row.Flammability, Natural: row.Natural}) {
@@ -387,9 +384,6 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	l := section.GetObserved()
 	if l == nil {
 		return validateUnavailable(section.GetUnavailable())
-	}
-	if colonyCounts(l.Completeness, len(l.WorkCells)+len(l.Lamps)) != nil {
-		return contract("invalid lighting census")
 	}
 	benches := map[string]bool{}
 	for _, row := range l.WorkCells {

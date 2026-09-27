@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -15,7 +14,7 @@ import (
 func worldProgressionFixture() *o.WorldProgressionSnapshot {
 	return &o.WorldProgressionSnapshot{
 		Context:      pbContext(),
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+		Completeness: &o.Completeness{},
 		Maps: []*o.WorldMap{
 			{Id: proto.Int32(1), Tile: proto.Int32(7), Home: proto.Bool(true), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}}}},
 			{Id: proto.Int32(2), Tile: proto.Int32(9), Home: proto.Bool(false), Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}}}},
@@ -111,7 +110,6 @@ func TestReadWorldProgressionRejectsInvalidInputs(t *testing.T) {
 func TestReadWorldProgressionMalformedEvidence(t *testing.T) {
 	edits := map[string]func(*o.WorldProgressionSnapshot){
 		"world":               func(v *o.WorldProgressionSnapshot) { v.Context.Identity.LoadToken = proto.String("other") },
-		"partial page":        func(v *o.WorldProgressionSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"missing map id":      func(v *o.WorldProgressionSnapshot) { v.Maps[0].Id = nil },
 		"missing map tile":    func(v *o.WorldProgressionSnapshot) { v.Maps[0].Tile = nil },
 		"negative map tile":   func(v *o.WorldProgressionSnapshot) { v.Maps[0].Tile = proto.Int32(-1) },

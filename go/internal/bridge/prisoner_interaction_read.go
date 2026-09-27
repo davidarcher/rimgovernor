@@ -76,10 +76,6 @@ func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identit
 	if observed == nil {
 		return PrisonerTarget{}, raw, ErrUnavailable
 	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
-		return PrisonerTarget{}, raw, ErrUnavailable
-	}
 	var row *o.PopulationPerson
 	for _, candidate := range observed.Persons {
 		if candidate == nil || candidate.Pawn.GetPawn().GetId() != pawn {
@@ -161,10 +157,6 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 // decodePopulation is a population snapshot's prisoner and custody census.
 func decodePopulation(observed *o.PopulationSnapshot) (PrisonerCensus, error) {
 	if observed == nil {
-		return PrisonerCensus{}, ErrUnavailable
-	}
-	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return PrisonerCensus{}, ErrUnavailable
 	}
 	seen := map[string]bool{}

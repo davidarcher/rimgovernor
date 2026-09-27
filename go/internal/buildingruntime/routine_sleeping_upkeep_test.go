@@ -40,7 +40,6 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
 	planning := v.Planning.GetObserved()
 	planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
-	planning.Completeness.Matched, planning.Completeness.Returned = proto.Uint64(uint64(len(planning.Definitions))), proto.Uint64(uint64(len(planning.Definitions)))
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}

@@ -156,16 +156,7 @@ func run(ctx context.Context, s cases.Session) error {
 // candidates filters and orders an observations_get_cells reply's cells to the exact
 // set of nearby, walkable, passable, unfogged candidates.
 func candidates(snapshot, origin map[string]any) ([]map[string]any, error) {
-	completeness, _ := na.AsMap(snapshot["completeness"])
-	page, _ := na.AsMap(completeness["page"])
-	if complete, _ := na.AsBool(page["complete"]); !complete || na.AsNumber(completeness["unreadable"]) != 0 {
-		return nil, fmt.Errorf("candidate cells: incomplete or unreadable page: %#v", completeness)
-	}
 	rows := na.AsSlice(snapshot["cells"])
-	matched, returned := na.AsNumber(completeness["matched"]), na.AsNumber(completeness["returned"])
-	if matched != returned || int(returned) != len(rows) {
-		return nil, fmt.Errorf("candidate cells: completeness count mismatch: %#v", completeness)
-	}
 	originX, originZ := na.AsNumber(origin["x"]), na.AsNumber(origin["z"])
 	var result []map[string]any
 	for _, raw := range rows {

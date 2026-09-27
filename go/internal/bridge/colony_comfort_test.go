@@ -43,7 +43,7 @@ func TestRecreationCensusBoundary(t *testing.T) {
 
 func comfortWire() *o.UpkeepFacts {
 	complete := func(n uint64) *o.Completeness {
-		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
 	return &o.UpkeepFacts{Completeness: complete(1), Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Observed{Observed: &o.ComfortFacts{
 		Completeness: complete(1), People: []string{"p"}, Surfaces: []*o.ComfortSurface{{Id: proto.String("table"), Adjacent: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}},
@@ -58,7 +58,6 @@ func TestColonyComfortStrictCensusAndAdjacency(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutate := range []func(*o.UpkeepFacts){
-		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Completeness.Page.Complete = proto.Bool(false) },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().People = []string{"p", "p"} },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].Users = []string{"outsider"} },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].AccessibleTo = []string{"p", "p"} },

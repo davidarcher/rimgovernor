@@ -187,7 +187,7 @@ namespace HomeBridge.BridgeTools
                     }
                     result.FishableWater = water;
                 }
-                result.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = 1, Returned = 1, Filtered = 0, Unreadable = 0 };
+                result.Completeness = new Obs.Completeness();
                 return new Obs.FoodChannelsSection { Observed = result };
             }
             catch (Exception)

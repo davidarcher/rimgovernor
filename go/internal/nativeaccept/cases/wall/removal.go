@@ -65,34 +65,22 @@ func contains(ids []string, id string) bool {
 	return false
 }
 
-// colonistWalls pages the typed building census for every player Wall id.
+// colonistWalls reads the typed building census for every player Wall id.
 func colonistWalls(ctx context.Context, h *na.Harness, scope map[string]any, label string) ([]string, error) {
+	request := map[string]any{"scope": scope, "defNames": []any{"Wall"}, "statuses": []any{"built"}, "playerOnly": true}
+	reply, err := h.Wire(ctx, label, "observations_list_buildings", request)
+	if err != nil {
+		return nil, err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", label, err)
+	}
 	var ids []string
-	cursor := ""
-	for page := 0; page < 32; page++ {
-		request := map[string]any{"scope": scope, "defNames": []any{"Wall"}, "statuses": []any{"built"}, "playerOnly": true, "page": map[string]any{"limit": 256}}
-		if cursor != "" {
-			request["page"] = map[string]any{"limit": 256, "cursor": cursor}
-		}
-		reply, err := h.Wire(ctx, fmt.Sprintf("%s-%d", label, page), "observations_list_buildings", request)
-		if err != nil {
-			return nil, err
-		}
-		_, observed, err := na.Outcome(reply, "observed")
-		if err != nil {
-			return nil, fmt.Errorf("%s page %d: %w", label, page, err)
-		}
-		for _, raw := range na.AsSlice(observed["buildings"]) {
-			row, _ := na.AsMap(raw)
-			building, _ := na.AsMap(row["building"])
-			ids = append(ids, na.AsString(building["id"]))
-		}
-		completeness, _ := na.AsMap(observed["completeness"])
-		pageInfo, _ := na.AsMap(completeness["page"])
-		cursor = na.AsString(pageInfo["nextCursor"])
-		if complete, _ := na.AsBool(pageInfo["complete"]); complete || cursor == "" {
-			break
-		}
+	for _, raw := range na.AsSlice(observed["buildings"]) {
+		row, _ := na.AsMap(raw)
+		building, _ := na.AsMap(row["building"])
+		ids = append(ids, na.AsString(building["id"]))
 	}
 	sort.Strings(ids)
 	return ids, nil

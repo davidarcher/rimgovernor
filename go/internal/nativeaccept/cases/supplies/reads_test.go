@@ -2,23 +2,6 @@ package supplies
 
 import "testing"
 
-// suppliesComplete is a complete supplies census page numbered number.
-func suppliesComplete(number int) map[string]any {
-	return map[string]any{"page": map[string]any{"complete": true}, "matched": itoaSupplies(number), "returned": itoaSupplies(number), "unreadable": "0"}
-}
-
-func itoaSupplies(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	digits := ""
-	for n > 0 {
-		digits = string(rune('0'+n%10)) + digits
-		n /= 10
-	}
-	return digits
-}
-
 // suppliesSamples returns the complete and truncated sample pages.
 func suppliesSamples() (map[string]any, map[string]any) {
 	legacy := map[string]any{
@@ -36,9 +19,9 @@ func suppliesSamples() (map[string]any, map[string]any) {
 			map[string]any{"id": "wood2", "mapId": 0.0, "snapshot": map[string]any{"context": map[string]any{}, "entityId": "wood2", "token": "tok2"}},
 		},
 		"holders":             []any{map[string]any{"holder": map[string]any{"id": "muffalo1"}, "units": "3"}},
-		"itemsCompleteness":   suppliesComplete(2),
-		"holdersCompleteness": suppliesComplete(1),
-		"corpsesCompleteness": suppliesComplete(0),
+		"itemsCompleteness":   map[string]any{},
+		"holdersCompleteness": map[string]any{},
+		"corpsesCompleteness": map[string]any{},
 		"issues":              []any{},
 	}
 	return row, legacy
@@ -62,7 +45,7 @@ func TestCheckStockRequiresActualQuantitiesAndCompleteInstances(t *testing.T) {
 		value any
 	}{
 		{"units", "0"}, {"carried", "0"}, {"ours", "5"}, {"items", []any{}},
-		{"holders", []any{}}, {"itemsCompleteness", suppliesComplete(0)},
+		{"holders", []any{}},
 	}
 	for _, c := range cases {
 		t.Run(c.field, func(t *testing.T) {
@@ -97,8 +80,8 @@ func TestCheckStockExcludedHeldScopeCannotClaimKnownEmpty(t *testing.T) {
 	items := row["items"].([]any)
 	row["items"] = items[:1]
 	row["holders"] = []any{}
-	row["itemsCompleteness"] = suppliesComplete(1)
-	row["holdersCompleteness"] = map[string]any{"page": map[string]any{"complete": false}}
+	row["itemsCompleteness"] = map[string]any{}
+	row["holdersCompleteness"] = map[string]any{}
 	issues := []any{}
 	for _, field := range []string{"carried", "in_container", "trader_stock"} {
 		issues = append(issues, map[string]any{"field": field, "unavailable": map[string]any{"reason": "UNAVAILABLE_REASON_NOT_REQUESTED"}})

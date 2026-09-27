@@ -165,10 +165,6 @@ func readEntities[T proto.Message](ctx context.Context, client *Client, identity
 		return EntityRows[T]{}, raw, contract("entity list identity mismatch")
 	}
 	out.Context = page.context
-	counts := page.completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Returned != nil && counts.GetReturned() != uint64(len(page.rows)) {
-		return EntityRows[T]{}, raw, contract("incomplete entity list")
-	}
 	for i, row := range page.rows {
 		id := page.ids[i]
 		if validID(id) != nil {

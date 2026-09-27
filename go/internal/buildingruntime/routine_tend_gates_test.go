@@ -49,7 +49,7 @@ func tendGatePlanner(t *testing.T, rows []*o.PawnState) RoutineTendResult {
 		}
 		return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{
 			Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: page,
-			Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(page))), Returned: proto.Uint64(uint64(len(page))), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+			Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	}
 	native.pawnReply = snapshot(false)
 	source := &tendGateNative{&routineTendNative{native}, snapshot(true)}

@@ -76,8 +76,3 @@ message Unavailable {
   optional string detail = 2;
 }
 
-// Observation lists are complete in one reply; there is no paging.
-message PageInfo {
-  optional bool complete = 1;
-  reserved 2;
-}

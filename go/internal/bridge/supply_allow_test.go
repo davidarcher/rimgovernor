@@ -60,9 +60,7 @@ func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
 }
 func TestSupplyCensusRequiresCompleteExactScopedItems(t *testing.T) {
 	for name, edit := range map[string]func(*o.SuppliesSnapshot){
-		"page":       func(v *o.SuppliesSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"unreadable": func(v *o.SuppliesSnapshot) { v.Stocks[0].ItemsCompleteness.Unreadable = proto.Uint64(1) },
-		"allowed":    func(v *o.SuppliesSnapshot) { v.Stocks[0].Forbidden = proto.Int64(19) },
+		"allowed": func(v *o.SuppliesSnapshot) { v.Stocks[0].Forbidden = proto.Int64(19) },
 		"duplicate": func(v *o.SuppliesSnapshot) {
 			v.Stocks[0].Items = append(v.Stocks[0].Items, proto.Clone(v.Stocks[0].Items[0]).(*o.EntityRef))
 			v.Stocks[0].ItemsCompleteness = emergencyCounts(2)

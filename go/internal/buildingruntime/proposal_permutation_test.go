@@ -67,7 +67,7 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 	}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Items:        []*o.UpkeepItem{item("supply-1", "MealSimple", 2), item("stack-1", "Steel", 0)},
-		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+		Completeness: &o.Completeness{Filtered: proto.Uint64(0)},
 		Comfort:      &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	missing := func(field string) *o.ReadIssue {
@@ -82,7 +82,7 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 			Issues:   []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	}
 	rows := []*o.PawnState{row("hauler", true), row("hauler2", true), row("hauler3", true)}
-	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(3), Returned: proto.Uint64(3), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	reviewer.native = &haulPairNative{routineNative: native}
 	got, err := reviewer.Step(context.Background())
 	if err != nil {
