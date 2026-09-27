@@ -87,6 +87,43 @@ func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 	}
 }
 
+// A wip commit under a merge renamed to the milestone subject never titles
+// the squash (28f2a7184 landed as "wip").
+func TestLandNeverTitlesASquashWip(t *testing.T) {
+	root, wt := newRepo(t)
+	write(t, filepath.Join(wt, "b.txt"), "b\n")
+	mustGit(t, wt, "add", ".")
+	mustGit(t, wt, "commit", "-qm", "Add b (#1)")
+	write(t, filepath.Join(root, "c.txt"), "c\n")
+	mustGit(t, root, "add", ".")
+	mustGit(t, root, "commit", "-qm", "peer: add c")
+	write(t, filepath.Join(wt, "b.txt"), "bb\n")
+	mustGit(t, wt, "commit", "-qam", "wip")
+	mustGit(t, wt, "merge", "-q", "--no-edit", "main")
+	mustGit(t, wt, "commit", "--amend", "-qm", "Milestone b (#1)")
+
+	t.Chdir(wt)
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	body := mustGit(t, root, "log", "-1", "--format=%B", "main")
+	if !strings.HasPrefix(body, "Milestone b (#1)\n") || strings.Contains(body, "wip") {
+		t.Errorf("squash message:\n%s", body)
+	}
+}
+
+func TestUntitled(t *testing.T) {
+	for subject, want := range map[string]bool{
+		"wip": true, "WIP: stash": true, "wip.": true, "checkpoint": true, "fixup! Add b": true,
+		"Merge branch 'main' into task": true, "": true,
+		"Add b (#1)": false, "Wipe stale saves": false, "Merge policy for zones": false,
+	} {
+		if got := untitled(subject); got != want {
+			t.Errorf("untitled(%q) = %v, want %v", subject, got, want)
+		}
+	}
+}
+
 func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "a.txt"), "branch\n")

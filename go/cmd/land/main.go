@@ -297,16 +297,19 @@ func lock(repo, branch string, timeout time.Duration) (func(), error) {
 }
 
 // squashMessage builds the squash commit message: the given message, or
-// the branch's single non-merge commit message, or the newest subject with
-// the others listed; then the branch's Co-Authored-By trailers.
+// the branch's one titled commit message, or the newest title with the
+// others listed; then the branch's Co-Authored-By trailers. A title is a
+// commit subject, merges included (a merge renamed to the milestone
+// subject titles the squash), that is neither git's default merge subject
+// nor a placeholder such as "wip"; a branch with none needs -m.
 func squashMessage(worktree, branch, message string) (string, error) {
-	messages, err := gitOutput(worktree, "log", "--no-merges", "--format=%B%x1e", "main..HEAD")
+	messages, err := gitOutput(worktree, "log", "--format=%B%x1e", "main..HEAD")
 	if err != nil {
 		return "", err
 	}
 	var commits []string
 	for _, m := range strings.Split(messages, string(rune(0x1e))) {
-		if m = strings.TrimSpace(m); m != "" {
+		if m = strings.TrimSpace(m); m != "" && !untitled(firstLine(m)) {
 			commits = append(commits, m)
 		}
 	}
@@ -340,7 +343,7 @@ func squashMessage(worktree, branch, message string) (string, error) {
 	} else {
 		switch len(stripped) {
 		case 0:
-			return "", fmt.Errorf("no commits on %s since main; give -m", branch)
+			return "", fmt.Errorf("no titled commits on %s since main (only merges or placeholders like wip); give -m or reword the tip", branch)
 		case 1:
 			body = stripped[0]
 		default:
@@ -356,6 +359,26 @@ func squashMessage(worktree, branch, message string) (string, error) {
 		return body + "\n", nil
 	}
 	return body + "\n\n" + strings.Join(trailerLines, "\n") + "\n", nil
+}
+
+// untitled is true for a subject that cannot title a squash: git's default
+// merge subjects and checkpoint placeholders.
+func untitled(subject string) bool {
+	s := strings.ToLower(strings.TrimSpace(subject))
+	for _, prefix := range []string{"merge branch ", "merge remote-tracking branch ", "merge commit ", "fixup!", "squash!", "amend!"} {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	words := strings.FieldsFunc(s, func(r rune) bool { return r == ' ' || r == ':' || r == '.' || r == '(' })
+	if len(words) == 0 {
+		return true
+	}
+	switch words[0] {
+	case "wip", "tmp", "temp", "checkpoint", "fixup", "squash", "todo", "xxx":
+		return true
+	}
+	return false
 }
 
 func firstLine(s string) string {
