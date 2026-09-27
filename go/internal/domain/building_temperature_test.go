@@ -5,36 +5,33 @@ import "testing"
 func TestBuildingTemperatureRange(t *testing.T) {
 	valid := []float64{-273.15, 0, 21.5, 1000}
 	for _, celsius := range valid {
-		if _, err := NewBuildingTemperature("thing", celsius, "token"); err != nil {
+		if _, err := NewBuildingTemperature("thing", celsius); err != nil {
 			t.Fatalf("expected %v celsius to be valid: %v", celsius, err)
 		}
 	}
 	invalid := []float64{-273.16, -274, 1000.01, 5000}
 	for _, celsius := range invalid {
-		if _, err := NewBuildingTemperature("thing", celsius, "token"); err == nil {
+		if _, err := NewBuildingTemperature("thing", celsius); err == nil {
 			t.Fatalf("expected %v celsius to be rejected", celsius)
 		}
 	}
 }
 
 func TestBuildingTemperatureIdentity(t *testing.T) {
-	if _, err := NewBuildingTemperature("", 20, "token"); err == nil {
+	if _, err := NewBuildingTemperature("", 20); err == nil {
 		t.Fatal("expected empty thing to be rejected")
 	}
-	if _, err := NewBuildingTemperature("thing", 20, ""); err == nil {
-		t.Fatal("expected empty before token to be rejected")
-	}
-	bt, err := NewBuildingTemperature("thing", 20, "token")
+	bt, err := NewBuildingTemperature("thing", 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bt.Thing() != "thing" || bt.Celsius() != 20 || bt.BeforeToken() != "token" {
+	if bt.Thing() != "thing" || bt.Celsius() != 20 {
 		t.Fatal("incorrect building temperature accessors")
 	}
 }
 
 func TestBuildingTemperatureAction(t *testing.T) {
-	bt, err := NewBuildingTemperature("thing", 20, "token")
+	bt, err := NewBuildingTemperature("thing", 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +52,7 @@ func TestBuildingTemperatureAction(t *testing.T) {
 }
 
 func TestBuildingTemperatureSupportedByPlan(t *testing.T) {
-	bt, err := NewBuildingTemperature("thing", 20, "token")
+	bt, err := NewBuildingTemperature("thing", 20)
 	if err != nil {
 		t.Fatal(err)
 	}

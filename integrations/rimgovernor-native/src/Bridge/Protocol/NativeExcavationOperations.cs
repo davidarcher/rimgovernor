@@ -1,10 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -31,16 +28,6 @@ namespace HomeBridge.BridgeTools
         }
         private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ && cell.X >= 0 && cell.Z >= 0;
 
-        internal static string Token(Common.Identity identity, IntVec3 cell, string definition, int hitPoints, bool designated)
-        {
-            using (var bytes = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
-                { writer.Write(identity.ColonyId); writer.Write(identity.LoadToken); writer.Write(identity.MapId); writer.Write(cell.x); writer.Write(cell.z); writer.Write(definition); writer.Write(hitPoints); writer.Write(designated); }
-                using (var hash = SHA256.Create()) return "excavate-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
-            }
-        }
-
         internal static Obs.ExcavationCell Row(IntVec3 cell, Map map, Common.ObservationContext context)
         {
             var row = new Obs.ExcavationCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = false, MineDesignated = false, Eligible = false };
@@ -57,15 +44,6 @@ namespace HomeBridge.BridgeTools
             if (rock != null)
             {
                 row.MineableDefName = rock.def.defName; row.MineableId = rock.GetUniqueLoadID(); row.HitPoints = rock.HitPoints;
-                row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = rock.GetUniqueLoadID(),
-                    Token = Token(context.Identity, cell, rock.def.defName, rock.HitPoints, row.MineDesignated) };
-            }
-            else if (row.Walkable)
-            {
-                // Already cleared (pawns finished a designation the controller
-                // no longer tracks): the snapshot lets an excavation of this
-                // cell be adopted as done rather than held as changed geometry.
-                row.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = "cleared", Token = Token(context.Identity, cell, "", 0, row.MineDesignated) };
             }
             var blocker = ExcavationTools.CellBlocker(cell, map);
             row.Eligible = blocker == null && ExcavationTools.Eligible(cell, map);

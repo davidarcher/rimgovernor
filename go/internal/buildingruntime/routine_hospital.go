@@ -212,7 +212,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if target.Medical {
 		return RoutineBuildingResult{Reason: BuildingExistingFacility}, nil
 	}
-	patch, err := domain.NewBedMedical(choice.Bed, true, target.Token)
+	patch, err := domain.NewBedMedical(choice.Bed, true)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

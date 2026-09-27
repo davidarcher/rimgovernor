@@ -132,12 +132,9 @@ func ReviewRefrigeration(fact FoodStorageObservation, active bool, p FoodStorage
 // typed building read, power state from the same-tick power census. Cold
 // is the cell behind the cooler (Position - facing), Hot the cell in front.
 type RefrigerationCooler struct {
-	ID       string
-	Position domain.Cell
-	Rotation domain.Rotation
-	// Token is the exact CAS snapshot token the building-temperature patch
-	// needs; empty when the typed settings read did not supply one.
-	Token              string
+	ID                 string
+	Position           domain.Cell
+	Rotation           domain.Rotation
 	Target             domain.Fact[float64]
 	Connected, PowerOn domain.Fact[bool]
 	// HotIndoors is the typed thermal-side fact when the reader supplies
@@ -205,11 +202,10 @@ type RefrigerationProposal struct {
 	Key    domain.MethodID
 	Room   string
 	// Cell and Rotation place a new cooler in the room's wall with its cold
-	// side facing the room; Cooler, Token and TargetC patch an existing one.
+	// side facing the room; Cooler and TargetC patch an existing one.
 	Cell     domain.Cell
 	Rotation domain.Rotation
 	Cooler   string
-	Token    string
 	TargetC  float64
 }
 
@@ -370,11 +366,8 @@ func serveRoom(room string, coolers []RefrigerationCooler, rooms map[string]Room
 			return RefrigerationProposal{Method: RefrigerationUnknown}, ""
 		}
 		if target > p.FreezerTargetC {
-			if cooler.Token == "" {
-				return RefrigerationProposal{Method: RefrigerationUnknown}, ""
-			}
 			digest := sha256.Sum256([]byte(cooler.ID + "/target"))
-			return RefrigerationProposal{Method: RefrigerationSetTarget, Key: domain.MethodID(fmt.Sprintf("refrigeration-%x", digest[:12])), Room: room, Cooler: cooler.ID, Token: cooler.Token, TargetC: p.FreezerTargetC}, ""
+			return RefrigerationProposal{Method: RefrigerationSetTarget, Key: domain.MethodID(fmt.Sprintf("refrigeration-%x", digest[:12])), Room: room, Cooler: cooler.ID, TargetC: p.FreezerTargetC}, ""
 		}
 		waiting = firstReason(waiting, RefrigerationWait)
 	}

@@ -391,7 +391,7 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 			if current.PlayerOwned {
 				continue
 			}
-			value, err := domain.NewClaimBuilding(target.EntityID, current.Token)
+			value, err := domain.NewClaimBuilding(target.EntityID)
 			if err != nil {
 				return RoutineBuildingResult{}, false, err
 			}

@@ -26,7 +26,7 @@ func (n *rockCoolerNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 	for _, cell := range cells {
 		row := bridge.ExcavationSiteCell{Cell: cell}
 		if n.rock[cell] {
-			row.Definition, row.Eligible, row.Token = "Granite", true, "tok-Granite"
+			row.Definition, row.Eligible = "Granite", true
 		} else {
 			row.Walkable = true
 		}

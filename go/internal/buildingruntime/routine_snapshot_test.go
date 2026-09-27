@@ -442,7 +442,7 @@ func replayRecordedCooler(t *testing.T, r snapshot.Routine, power bool) policy.R
 		if b.Definition != "Cooler" {
 			continue
 		}
-		cooler := policy.RefrigerationCooler{ID: b.ID, Position: b.Cell, Connected: b.Connected, PowerOn: b.Powered, Token: "recorded", Target: domain.Known(21.0), HotIndoors: domain.Known(false)}
+		cooler := policy.RefrigerationCooler{ID: b.ID, Position: b.Cell, Connected: b.Connected, PowerOn: b.Powered, Target: domain.Known(21.0), HotIndoors: domain.Known(false)}
 		for _, rot := range []domain.Rotation{domain.North, domain.East, domain.South, domain.West} {
 			if cooler.Rotation = rot; inside[cooler.Cold()] {
 				break
@@ -470,7 +470,7 @@ func replayRecordedCooler(t *testing.T, r snapshot.Routine, power bool) policy.R
 // target (to the freezer setpoint) rather than building a second one.
 func assertSetpointPatch(t *testing.T, got policy.RefrigerationProposal) {
 	t.Helper()
-	if got.Method != policy.RefrigerationSetTarget || got.Cooler == "" || got.Token != "recorded" {
+	if got.Method != policy.RefrigerationSetTarget || got.Cooler == "" {
 		t.Fatalf("refrigeration: %+v, want %s on the recorded cooler", got, policy.RefrigerationSetTarget)
 	}
 }

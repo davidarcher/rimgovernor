@@ -27,7 +27,6 @@ type ExcavationSiteCell struct {
 	MineDesignated bool
 	Eligible       bool
 	Blocker        string
-	Token          string
 }
 
 // ExcavationSite is the site-level answer for one ordered cell set: the
@@ -97,17 +96,12 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 		if row == nil || position == nil || position.X == nil || position.Z == nil || position.GetX() != cells[i].X || position.GetZ() != cells[i].Z || row.Fogged == nil || row.Eligible == nil || row.MineDesignated == nil {
 			return ExcavationSite{}, raw, contract("excavation site row mismatch")
 		}
-		item := ExcavationSiteCell{Cell: cells[i], Fogged: row.GetFogged(), Definition: row.GetMineableDefName(), HitPoints: row.GetHitPoints(), Roof: row.GetRoofDefName(), HoldsRoof: row.GetHoldsRoof(), Walkable: row.GetWalkable(), MineDesignated: row.GetMineDesignated(), Eligible: row.GetEligible(), Blocker: row.GetBlocker(), Token: row.GetSnapshot().GetToken()}
-		if item.Fogged && (item.Definition != "" || item.Eligible || item.Token != "") {
+		item := ExcavationSiteCell{Cell: cells[i], Fogged: row.GetFogged(), Definition: row.GetMineableDefName(), HitPoints: row.GetHitPoints(), Roof: row.GetRoofDefName(), HoldsRoof: row.GetHoldsRoof(), Walkable: row.GetWalkable(), MineDesignated: row.GetMineDesignated(), Eligible: row.GetEligible(), Blocker: row.GetBlocker()}
+		if item.Fogged && (item.Definition != "" || item.Eligible) {
 			return ExcavationSite{}, raw, contract("fogged excavation cell carries facts")
 		}
-		if !item.Fogged && item.Definition != "" && (validID(item.Definition) != nil || validID(item.Token) != nil) {
-			return ExcavationSite{}, raw, contract("excavation cell snapshot unavailable")
-		}
-		// An open cell carries a snapshot too, so an excavation of a cell the
-		// pawns already cleared can be adopted as done.
-		if !item.Fogged && item.Definition == "" && item.Token != "" && validID(item.Token) != nil {
-			return ExcavationSite{}, raw, contract("excavation cell snapshot unavailable")
+		if !item.Fogged && item.Definition != "" && validID(item.Definition) != nil {
+			return ExcavationSite{}, raw, contract("invalid excavation cell definition")
 		}
 		if item.Eligible && (item.Definition == "" || item.Blocker != "") {
 			return ExcavationSite{}, raw, contract("inconsistent excavation eligibility")

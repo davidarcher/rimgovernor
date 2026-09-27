@@ -435,7 +435,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 		clockSchedulerLog("Fields: grower %s crop moved (%s -> %s) since the census", choice.Grower, choice.Current, target.Crop)
 		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, false, nil
 	}
-	patch, err := domain.NewGrowerCrop(choice.Grower, choice.Crop.Name, target.Token)
+	patch, err := domain.NewGrowerCrop(choice.Grower, choice.Crop.Name)
 	if err != nil {
 		return RoutineFieldResult{}, false, err
 	}

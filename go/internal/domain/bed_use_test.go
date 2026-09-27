@@ -3,23 +3,20 @@ package domain
 import "testing"
 
 func TestBedUseIdentity(t *testing.T) {
-	if _, err := NewBedMedical("", true, "token"); err == nil {
+	if _, err := NewBedMedical("", true); err == nil {
 		t.Fatal("expected empty thing to be rejected")
 	}
-	if _, err := NewBedMedical("bed", true, ""); err == nil {
-		t.Fatal("expected empty before token to be rejected")
-	}
-	b, err := NewBedMedical("bed", true, "token")
+	b, err := NewBedMedical("bed", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.Thing() != "bed" || !b.Medical() || b.BeforeToken() != "token" {
+	if b.Thing() != "bed" || !b.Medical() {
 		t.Fatal("incorrect bed medical accessors")
 	}
 }
 
 func TestBedUseAction(t *testing.T) {
-	b, err := NewBedMedical("bed", true, "token")
+	b, err := NewBedMedical("bed", true)
 	if err != nil {
 		t.Fatal(err)
 	}

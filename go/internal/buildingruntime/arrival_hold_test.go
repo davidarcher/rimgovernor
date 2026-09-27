@@ -43,7 +43,7 @@ func arrivalPlan(t *testing.T) (store.PlanState, domain.GenerationSnapshot) {
 	d, _ := domain.NewOwnedDraftAction("draft", draft)
 	movement, _ := domain.NewMovement("pawn", domain.Cell{X: 5, Z: 5}, d.ID())
 	move, _ := domain.NewMovementAction("move", movement)
-	wall, _ := domain.NewBreachDeconstruction("Thing_Wall1", "Wall", domain.Cell{X: 6, Z: 6})
+	wall, _ := domain.NewDeconstruction("Thing_Wall1", "Wall", domain.Cell{X: 6, Z: 6})
 	breach, _ := domain.NewDeconstructionAction("breach", wall)
 	spec, err := domain.NewPlan("routine-shrine-test", 1, []domain.Action{d, move, breach},
 		domain.ActionDependency{Action: "breach", Requires: "draft"}, domain.ActionDependency{Action: "breach", Requires: "move"})

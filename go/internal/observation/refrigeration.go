@@ -64,9 +64,6 @@ func ReadRefrigerationCoolers(ctx context.Context, source RefrigerationSource, e
 		settings := row.GetSettings()
 		if settings != nil {
 			cooler.Target = optional(settings.TargetTemperatureC)
-			if settings.Snapshot != nil && settings.Snapshot.GetEntityId() == cooler.ID {
-				cooler.Token = settings.Snapshot.GetToken()
-			}
 		}
 		coolers = append(coolers, cooler)
 	}

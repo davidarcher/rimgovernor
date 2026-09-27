@@ -104,7 +104,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		planID := domain.MintPlanID("routine-drill-removal")
-		value, err := domain.NewDrillDeconstruction(drill.ID, drill.Definition, drill.Position)
+		value, err := domain.NewDeconstruction(drill.ID, drill.Definition, drill.Position)
 		if err != nil {
 			return RoutineResourceResult{}, true, err
 		}

@@ -266,7 +266,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 		if target.PlayerOwned {
 			continue
 		}
-		value, err := domain.NewClaimBuilding(casket.EntityID, target.Token)
+		value, err := domain.NewClaimBuilding(casket.EntityID)
 		if err != nil {
 			return RoutineShrineResult{}, err
 		}
@@ -350,7 +350,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	if definition == "" {
 		definition = "Wall"
 	}
-	value, err := domain.NewBreachDeconstruction(wall.EntityID, definition, wall.Cell)
+	value, err := domain.NewDeconstruction(wall.EntityID, definition, wall.Cell)
 	if err != nil {
 		return RoutineShrineResult{}, err
 	}

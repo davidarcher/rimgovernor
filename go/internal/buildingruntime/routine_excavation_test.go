@@ -52,7 +52,7 @@ func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 		} else if n.hazard[cell] {
 			row.Roof, row.HoldsRoof, row.Blocker = "RoofRockThick", true, "No native rock at cell"
 		} else if def := n.rock[cell]; def != "" {
-			row.Definition, row.Roof, row.HoldsRoof, row.Eligible, row.Token = def, "RoofRockThick", true, !n.blocked[cell], "tok-"+def
+			row.Definition, row.Roof, row.HoldsRoof, row.Eligible = def, "RoofRockThick", true, !n.blocked[cell]
 		} else {
 			row.Walkable, row.Roof = true, "RoofRockThick"
 		}

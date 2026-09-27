@@ -163,10 +163,10 @@ func TestRefrigerationMethodBuildsOnVentedWallThenServesExistingCooler(t *testin
 	}
 
 	// Existing cooler with cold side inside the room, warm target: set target.
-	cooler := RefrigerationCooler{ID: "cooler", Position: domain.Cell{X: 9, Z: 10}, Rotation: domain.West, Token: "tok", Target: domain.Known(21.0), Connected: domain.Known(true), PowerOn: domain.Known(true)}
+	cooler := RefrigerationCooler{ID: "cooler", Position: domain.Cell{X: 9, Z: 10}, Rotation: domain.West, Target: domain.Known(21.0), Connected: domain.Known(true), PowerOn: domain.Known(true)}
 	served := base
 	served.Coolers = []RefrigerationCooler{cooler}
-	if got, err = SelectRefrigerationMethod(review, domain.Known(served), p, false); err != nil || got.Method != RefrigerationSetTarget || got.Cooler != "cooler" || got.Token != "tok" || got.TargetC != p.FreezerTargetC {
+	if got, err = SelectRefrigerationMethod(review, domain.Known(served), p, false); err != nil || got.Method != RefrigerationSetTarget || got.Cooler != "cooler" || got.TargetC != p.FreezerTargetC {
 		t.Fatal(got, err)
 	}
 	// Target already set: wait for native cooling; a second cooler only once

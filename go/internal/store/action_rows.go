@@ -61,13 +61,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if lift, ok := a.FoundationRemoval(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'foundation_removal',?,?,?)", a.ID(), plan, ordinal, lift.Definition(), lift.Cell().X, lift.Cell().Z)
 	} else if cut, ok := a.Deconstruction(); ok {
-		var variant sql.NullString
-		if cut.Breach() {
-			variant = sql.NullString{String: "breach", Valid: true}
-		} else if cut.Drill() {
-			variant = sql.NullString{String: "drill", Valid: true}
-		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,stuff) VALUES(?,?,?,'deconstruction',?,?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z, variant)
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'deconstruction',?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
 	} else if move, _, ok := a.Relocation(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,rotation) VALUES(?,?,?,?,?,?,?,?,?)", a.ID(), plan, ordinal, a.Kind(), move.Thing(), move.Definition(), move.Cell().X, move.Cell().Z, move.Rotation())
 	} else if cut, ok := a.CutPlant(); ok {
@@ -133,14 +127,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,wall_removal_payload) VALUES(?,?,?,'wall_removal',?)", a.ID(), plan, ordinal, data)
 	} else if temperature, ok := a.BuildingTemperature(); ok {
-		data, encodeErr := json.Marshal(buildingTemperaturePayload{temperature.Celsius(), temperature.BeforeToken()})
+		data, encodeErr := json.Marshal(buildingTemperaturePayload{temperature.Celsius()})
 		if encodeErr != nil {
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,building_temperature_payload) VALUES(?,?,?,'building_temperature',?,?)", a.ID(), plan, ordinal, temperature.Thing(), data)
 	} else if claim, ok := a.ClaimBuilding(); ok {
-		// stuff carries the CAS token; there is nothing else to say.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,stuff) VALUES(?,?,?,'claim_building',?,?)", a.ID(), plan, ordinal, claim.Thing(), claim.BeforeToken())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'claim_building',?)", a.ID(), plan, ordinal, claim.Thing())
 	} else if edit, ok := a.ZoneCellEdit(); ok {
 		data, encodeErr := json.Marshal(zoneCellEditPayload{edit.Mode(), edit.Cells()})
 		if encodeErr != nil {
@@ -156,12 +149,11 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if del, ok := a.ZoneDelete(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target) VALUES(?,?,?,'zone_delete',?)", a.ID(), plan, ordinal, del.Zone())
 	} else if crop, ok := a.GrowerCrop(); ok {
-		// definition carries the wanted crop, stuff the CAS token.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'grower_crop',?,?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop(), crop.BeforeToken())
+		// definition carries the wanted crop.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'grower_crop',?,?)", a.ID(), plan, ordinal, crop.Thing(), crop.Crop())
 	} else if medical, ok := a.BedUse(); ok {
-		// definition carries the wanted flag, or "prisoners" (#880), stuff
-		// the CAS token.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'bed_medical',?,?,?)", a.ID(), plan, ordinal, medical.Thing(), bedUseDefinition(medical), medical.BeforeToken())
+		// definition carries the wanted flag, or "prisoners" (#880).
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'bed_medical',?,?)", a.ID(), plan, ordinal, medical.Thing(), bedUseDefinition(medical))
 	} else if assign, ok := a.BedAssign(); ok {
 		// definition carries the expected previous bed; empty means none.
 		def := ""
@@ -390,7 +382,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, buildingTemperatureBlob) {
 			return domain.Action{}, 0, errors.New("noncanonical building temperature payload")
 		}
-		bt, err := domain.NewBuildingTemperature(target.String, payload.Celsius, payload.Before)
+		bt, err := domain.NewBuildingTemperature(target.String, payload.Celsius)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -522,14 +514,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewFoundationRemovalAction(id, f)
 		return a, ordinal, err
 	}
-	if kind == "deconstruction" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && (!stuff.Valid || stuff.String == "breach" || stuff.String == "drill") && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
-		construct := domain.NewDeconstruction
-		if stuff.String == "breach" {
-			construct = domain.NewBreachDeconstruction
-		} else if stuff.String == "drill" {
-			construct = domain.NewDrillDeconstruction
-		}
-		c, err := construct(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+	if kind == "deconstruction" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		c, err := domain.NewDeconstruction(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -743,8 +729,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewResearchSelectAction(id, v)
 		return a, ordinal, err
 	}
-	if kind == "claim_building" && target.Valid && stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
-		claim, err := domain.NewClaimBuilding(target.String, stuff.String)
+	if kind == "claim_building" && target.Valid && !stuff.Valid && !def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		claim, err := domain.NewClaimBuilding(target.String)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -759,18 +745,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewZoneDeleteAction(id, del)
 		return a, ordinal, err
 	}
-	if kind == "grower_crop" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
-		crop, err := domain.NewGrowerCrop(target.String, def.String, stuff.String)
+	if kind == "grower_crop" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		crop, err := domain.NewGrowerCrop(target.String, def.String)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewGrowerCropAction(id, crop)
 		return a, ordinal, err
 	}
-	if kind == "bed_medical" && target.Valid && def.Valid && stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false" || def.String == bedPrisonersUse) {
-		medical, err := domain.NewBedMedical(target.String, def.String == "true", stuff.String)
+	if kind == "bed_medical" && target.Valid && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && (def.String == "true" || def.String == "false" || def.String == bedPrisonersUse) {
+		medical, err := domain.NewBedMedical(target.String, def.String == "true")
 		if def.String == bedPrisonersUse {
-			medical, err = domain.NewBedPrisoners(target.String, stuff.String)
+			medical, err = domain.NewBedPrisoners(target.String)
 		}
 		if err != nil {
 			return domain.Action{}, 0, err
@@ -914,7 +900,6 @@ type wallRemovalPayload struct {
 
 type buildingTemperaturePayload struct {
 	Celsius float64
-	Before  string
 }
 
 type caravanPayload struct {

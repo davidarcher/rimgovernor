@@ -145,7 +145,7 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	patch, ok := plan.Progress[0].Action().BuildingTemperature()
-	if !ok || patch.Thing() != "cooler" || patch.Celsius() != -5 || patch.BeforeToken() != "tok-1" {
+	if !ok || patch.Thing() != "cooler" || patch.Celsius() != -5 {
 		t.Fatal(patch, ok)
 	}
 	if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {

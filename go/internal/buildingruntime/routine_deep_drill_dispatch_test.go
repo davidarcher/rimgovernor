@@ -186,7 +186,7 @@ func TestDeepDrillRemovesOnlyExhaustedDrills(t *testing.T) {
 				t.Fatal(err)
 			}
 			cut, ok := plan.Spec.Actions()[0].Deconstruction()
-			if !ok || !cut.Drill() || cut.Breach() || cut.Target() != "Thing_DeepDrill_7" || cut.Definition() != "DeepDrill" || cut.Cell() != (domain.Cell{X: 4, Z: 1}) {
+			if !ok || cut.Target() != "Thing_DeepDrill_7" || cut.Definition() != "DeepDrill" || cut.Cell() != (domain.Cell{X: 4, Z: 1}) {
 				t.Fatal(cut)
 			}
 			if plan.Progress[0].View().Stage != domain.Pending {

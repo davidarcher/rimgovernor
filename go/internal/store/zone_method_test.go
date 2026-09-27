@@ -379,7 +379,7 @@ func TestCommitGrowerCropExemptFromOpenFieldWork(t *testing.T) {
 
 func growerCropPlan(t *testing.T, id string) domain.PlanSpec {
 	t.Helper()
-	g, err := domain.NewGrowerCrop("Thing_HydroponicsBasin1", "Plant_Potato", "crop-before")
+	g, err := domain.NewGrowerCrop("Thing_HydroponicsBasin1", "Plant_Potato")
 	if err != nil {
 		t.Fatal(err)
 	}

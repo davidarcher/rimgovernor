@@ -22,7 +22,6 @@ func excavationSiteRow(x, z int32, fogged bool) *o.ExcavationCell {
 		return row
 	}
 	row.MineableDefName, row.HitPoints, row.RoofDefName, row.HoldsRoof, row.Walkable, row.Eligible = proto.String("Granite"), proto.Int32(900), proto.String("RoofRockThick"), proto.Bool(true), proto.Bool(false), proto.Bool(true)
-	row.Snapshot = &o.SnapshotRef{Token: proto.String("excavate-tok")}
 	return row
 }
 func excavationSiteReply(rows ...*o.ExcavationCell) *o.ExcavationSiteReply {
@@ -56,10 +55,10 @@ func TestReadExcavationSiteDecodesRowsInRequestOrderAndKeepsFogUnknown(t *testin
 		t.Fatal(site)
 	}
 	visible, fogged := site.Cells[0], site.Cells[1]
-	if visible.Fogged || !visible.Eligible || visible.Definition != "Granite" || visible.Roof != "RoofRockThick" || visible.Token != "excavate-tok" || !visible.HoldsRoof {
+	if visible.Fogged || !visible.Eligible || visible.Definition != "Granite" || visible.Roof != "RoofRockThick" || !visible.HoldsRoof {
 		t.Fatal(visible)
 	}
-	if !fogged.Fogged || fogged.Eligible || fogged.Definition != "" || fogged.Token != "" {
+	if !fogged.Fogged || fogged.Eligible || fogged.Definition != "" {
 		t.Fatal(fogged)
 	}
 	if !site.WorkerAvailable || !site.AccessReachable || len(site.Workers) != 1 || site.RoofCellsChecked != 12 {

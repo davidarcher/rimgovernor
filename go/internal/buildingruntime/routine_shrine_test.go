@@ -234,7 +234,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		t.Fatalf("%+v %v", move, ok)
 	}
 	breach, ok := actions[2].Deconstruction()
-	if !ok || !breach.Breach() || breach.Target() != "wall" || breach.Definition() != "Wall" || breach.Cell() != (domain.Cell{X: 30, Z: 35}) {
+	if !ok || breach.Target() != "wall" || breach.Definition() != "Wall" || breach.Cell() != (domain.Cell{X: 30, Z: 35}) {
 		t.Fatalf("%+v %v", breach, ok)
 	}
 	deps := plan.Spec.Dependencies()
@@ -298,7 +298,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	actions = plan.Spec.Actions()
 	first, ok := actions[0].ClaimBuilding()
 	second, ok2 := actions[1].ClaimBuilding()
-	if !ok || !ok2 || first.Thing() != "empty-a" || first.BeforeToken() != "claim-empty-a" || second.Thing() != "empty-b" {
+	if !ok || !ok2 || first.Thing() != "empty-a" || second.Thing() != "empty-b" {
 		t.Fatal(actions)
 	}
 	if len(source.reads) != 3 || source.reads[2] != "stale" {

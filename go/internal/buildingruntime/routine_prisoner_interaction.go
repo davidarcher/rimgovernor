@@ -212,7 +212,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	if target.Prisoners {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	patch, err := domain.NewBedPrisoners(bed, target.Token)
+	patch, err := domain.NewBedPrisoners(bed)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

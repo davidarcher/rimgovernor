@@ -3,20 +3,17 @@ package domain
 import "testing"
 
 func TestGrowerCropIdentity(t *testing.T) {
-	if _, err := NewGrowerCrop("", "Plant_Potato", "token"); err == nil {
+	if _, err := NewGrowerCrop("", "Plant_Potato"); err == nil {
 		t.Fatal("expected empty thing to be rejected")
 	}
-	if _, err := NewGrowerCrop("basin", "", "token"); err == nil {
+	if _, err := NewGrowerCrop("basin", ""); err == nil {
 		t.Fatal("expected empty crop to be rejected")
 	}
-	if _, err := NewGrowerCrop("basin", "Plant_Potato", ""); err == nil {
-		t.Fatal("expected empty before token to be rejected")
-	}
-	g, err := NewGrowerCrop("basin", "Plant_Potato", "token")
+	g, err := NewGrowerCrop("basin", "Plant_Potato")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g.Thing() != "basin" || g.Crop() != "Plant_Potato" || g.BeforeToken() != "token" {
+	if g.Thing() != "basin" || g.Crop() != "Plant_Potato" {
 		t.Fatal("incorrect grower crop accessors")
 	}
 	action, err := NewGrowerCropAction("a", g)

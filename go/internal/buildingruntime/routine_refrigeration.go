@@ -235,7 +235,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineBuildingResult{}, loadErr
 	}
-	patch, err := domain.NewBuildingTemperature(proposal.Cooler, proposal.TargetC, proposal.Token)
+	patch, err := domain.NewBuildingTemperature(proposal.Cooler, proposal.TargetC)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

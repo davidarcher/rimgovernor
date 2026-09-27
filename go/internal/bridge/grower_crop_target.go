@@ -6,19 +6,15 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// GrowerCropTarget refreshes one exact plant grower's crop CAS snapshot
-// token, the same scoped-refresh shape BedUseTarget uses. The token
-// (NativeGrowerCrop.Snapshot, on the same
-// rimgovernor/observations_list_buildings row) covers the grower's current
-// crop; Crop is empty when the grower has none.
+// GrowerCropTarget refreshes one exact plant grower's current crop from
+// the rimgovernor/observations_list_buildings row; Crop is empty when the grower has none.
 type GrowerCropTarget struct {
 	Context *c.ObservationContext
 	Thing   string
-	Token   string
 	Crop    string
 }
 
-// ReadGrowerCropTarget observes one exact grower's crop and CAS token via
+// ReadGrowerCropTarget observes one exact grower's crop via
 // the existing building lookup.
 func (client *Client) ReadGrowerCropTarget(ctx context.Context, identity *c.Identity, thing string) (GrowerCropTarget, Result, error) {
 	if validID(thing) != nil {
@@ -41,5 +37,5 @@ func (client *Client) ReadGrowerCropTarget(ctx context.Context, identity *c.Iden
 	if settings == nil || settings.Snapshot == nil || settings.Snapshot.GetEntityId() != thing || settings.Medical != nil || settings.TargetTemperatureC != nil || settings.CropDefName != nil && validID(settings.GetCropDefName()) != nil {
 		return GrowerCropTarget{}, raw, contract("building is not a plant grower")
 	}
-	return GrowerCropTarget{Context: v.Context, Thing: thing, Token: settings.Snapshot.GetToken(), Crop: settings.GetCropDefName()}, raw, nil
+	return GrowerCropTarget{Context: v.Context, Thing: thing, Crop: settings.GetCropDefName()}, raw, nil
 }

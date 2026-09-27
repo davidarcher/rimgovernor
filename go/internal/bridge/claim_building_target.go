@@ -9,7 +9,8 @@ import (
 )
 
 // ClaimBuildingTarget refreshes one exact claimable building's faction and
-// CAS token (#459), the scoped-refresh shape BedUseTarget uses. The
+// CAS token (#459); the token binds the open-casket pawn order
+// (open_casket_boundary.go). The
 // listing row is read without the player-only filter: the target is by
 // definition not the player's yet.
 type ClaimBuildingTarget struct {

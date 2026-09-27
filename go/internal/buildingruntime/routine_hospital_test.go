@@ -47,7 +47,7 @@ func (n *hospitalNative) ReadBedUseTarget(_ context.Context, _ *c.Identity, thin
 
 func (n *hospitalNative) PreviewBedUse(_ context.Context, _ *c.Identity, patch domain.BedUse) (*op.PreviewReply, bridge.Result, error) {
 	n.bedPreviews++
-	if patch.Thing() != n.target.Thing || patch.BeforeToken() != n.target.Token || !patch.Medical() {
+	if patch.Thing() != n.target.Thing || !patch.Medical() {
 		return nil, bridge.Result{}, bridge.ErrContract
 	}
 	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(!n.refuse)}}}, bridge.Result{}, nil
@@ -88,7 +88,7 @@ func hospitalFixture(t *testing.T) (*RoutineHospitalPlanner, *store.Store, *hosp
 	native.rooms = &o.ListRoomsReply{Outcome: &o.ListRoomsReply_Observed{Observed: &o.RoomsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: hospitalCount(1), Rooms: []*o.RoomState{room}}}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: []*o.UpkeepBed{{Bed: bed, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(20)}},
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
-	native.target = bridge.BedUseTarget{Context: proto.Clone(v.Context).(*c.ObservationContext), Thing: "bed", Token: "bed-cas"}
+	native.target = bridge.BedUseTarget{Context: proto.Clone(v.Context).(*c.ObservationContext), Thing: "bed"}
 	base.reviewer.native = native
 	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainMedicalCare})
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
@@ -132,7 +132,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	patch, ok := plan.Progress[0].Action().BedUse()
-	if !ok || patch.Thing() != "bed" || !patch.Medical() || patch.BeforeToken() != "bed-cas" {
+	if !ok || patch.Thing() != "bed" || !patch.Medical() {
 		t.Fatal(plan.Progress[0].Action())
 	}
 	// The open patch is existing work; once it retires, the used method is

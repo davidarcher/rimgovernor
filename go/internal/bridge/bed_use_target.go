@@ -6,15 +6,11 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// BedUseTarget refreshes one exact humanlike bed's medical-flag CAS
-// snapshot token, the same scoped-refresh shape BuildingTemperatureTarget
-// uses. The token (NativeBedUse.Snapshot, on the same
-// rimgovernor/observations_list_buildings row) covers the flag and the
-// bed's owner set, since the game's setter drops every owner.
+// BedUseTarget refreshes one exact humanlike bed's use flags and owners
+// from the rimgovernor/observations_list_buildings row.
 type BedUseTarget struct {
 	Context *c.ObservationContext
 	Thing   string
-	Token   string
 	Medical bool
 	// Prisoners is the bed set for prisoners (#880).
 	Prisoners bool
@@ -44,5 +40,5 @@ func (client *Client) ReadBedUseTarget(ctx context.Context, identity *c.Identity
 	if settings == nil || settings.Snapshot == nil || settings.Snapshot.GetEntityId() != thing || settings.Medical == nil || settings.TargetTemperatureC != nil {
 		return BedUseTarget{}, raw, contract("building is not a humanlike bed")
 	}
-	return BedUseTarget{Context: v.Context, Thing: thing, Token: settings.Snapshot.GetToken(), Medical: settings.GetMedical(), Prisoners: settings.GetForPrisoners(), Owners: append([]string{}, settings.AssignedPawnIds...)}, raw, nil
+	return BedUseTarget{Context: v.Context, Thing: thing, Medical: settings.GetMedical(), Prisoners: settings.GetForPrisoners(), Owners: append([]string{}, settings.AssignedPawnIds...)}, raw, nil
 }

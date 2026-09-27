@@ -648,7 +648,7 @@ enum ExcavationSupport { EXCAVATION_SUPPORT_UNSPECIFIED = 0; EXCAVATION_SUPPORT_
 message ExcavationCell {
   rimgovernor.common.v1.Cell cell = 1; optional bool fogged = 2; optional string mineable_def_name = 3; optional string mineable_id = 4;
   optional int32 hit_points = 5; optional string roof_def_name = 6; optional bool holds_roof = 7; optional bool walkable = 8;
-  optional bool mine_designated = 9; optional bool eligible = 10; optional string blocker = 11; SnapshotRef snapshot = 12;
+  optional bool mine_designated = 9; optional bool eligible = 10; optional string blocker = 11; reserved 12;
 }
 message ExcavationSiteSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; repeated ExcavationCell cells = 2;
