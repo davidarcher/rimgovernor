@@ -12,8 +12,7 @@ import (
 
 // NamingAttempt targets the colony-wide, one-shot initial faction/settlement
 // naming dialog: the exact observed window ID plus suggestions stand in for
-// an EntityPrecondition/snapshot token, exactly like ResearchSelectAttempt's
-// project/token pair.
+// an EntityPrecondition/snapshot token.
 type NamingAttempt struct {
 	Identity       *c.Identity
 	Attempt        *c.AttemptKey

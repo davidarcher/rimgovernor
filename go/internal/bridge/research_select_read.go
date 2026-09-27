@@ -11,8 +11,7 @@ import (
 )
 
 // ResearchRead is the native research snapshot ReadResearch translates into
-// EnsureResearch's policy shapes: the fresh CAS token SelectResearch needs,
-// which project (if any) is already current, and the project/bench facts
+// EnsureResearch's policy shapes: which project (if any) is already current, and the project/bench facts
 // policy.ResearchPrerequisiteQueue and policy.UsableResearchLaboratories
 // inspect. Unlike ReadColonyFacts's exhaustive census validation, this
 // reviews only the fields EnsureResearch's dispatch vertical consumes; wider
@@ -20,7 +19,6 @@ import (
 // are an open native-acceptance item alongside G01.12.
 type ResearchRead struct {
 	Context        *c.ObservationContext
-	SnapshotToken  string
 	CurrentProject string
 	Projects       map[string]policy.ResearchProjectFacts
 	Finished       []string
@@ -67,7 +65,7 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity) (Research
 	if v.Snapshot == nil || validID(v.Snapshot.GetToken()) != nil {
 		return ResearchRead{}, contract("invalid research snapshot token")
 	}
-	out := ResearchRead{Context: v.Context, SnapshotToken: v.Snapshot.GetToken(), Projects: map[string]policy.ResearchProjectFacts{}}
+	out := ResearchRead{Context: v.Context, Projects: map[string]policy.ResearchProjectFacts{}}
 	current := ""
 	for _, row := range v.Projects {
 		if row == nil || row.Project == nil || validID(row.Project.GetDefName()) != nil {

@@ -6,10 +6,8 @@ const ResearchSelectAction ActionKind = "research_select"
 
 // ResearchSelect is explicit intent to set the native current research
 // project to one already-queued, prerequisite-ordered ResearchProjectDef.
-// It reuses the native SelectResearch operation and is only ever dispatched when no
-// native research project is already selected -- EnsureResearch's routine
-// planner never proposes a replacement for player-chosen research in
-// progress.
+// It is sent as a ResearchIntent on Actions/Apply; EnsureResearch's routine
+// planner proposes one only while no native research project is current.
 type ResearchSelect struct {
 	project string
 }

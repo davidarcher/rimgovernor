@@ -16,8 +16,7 @@ import (
 )
 
 // ConfirmColonyNamesNative and ConfirmColonyNamesWriter narrow *bridge.Client
-// and *bridge.NamingControl to what confirmColonyNamesBoundary consumes, the
-// same split ResearchSelect uses.
+// and *bridge.NamingControl to what confirmColonyNamesBoundary consumes.
 type ConfirmColonyNamesNative interface {
 	PreviewConfirmColonyNames(context.Context, *c.Identity, int32, string, string) (*op.PreviewReply, bridge.Result, error)
 	LookupConfirmColonyNames(context.Context, bridge.NamingAttempt) (*r.LookupReply, bridge.Result, error)

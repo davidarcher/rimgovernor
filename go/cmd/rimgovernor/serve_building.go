@@ -145,7 +145,6 @@ type buildingServiceBridge struct {
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
-	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
 	trade               *buildingruntime.TradeCapabilities
@@ -281,10 +280,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	researchSelect, err := bridge.NewResearchSelectControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	namingControl, err := bridge.NewNamingControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -381,7 +376,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
-		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
@@ -738,13 +732,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		questAcceptCapabilities = client.questAccept
 	}
-	var researchSelectCapabilities *buildingruntime.ResearchSelectCapabilities
-	if config.researchPlans() {
-		if client.research == nil {
-			return errors.New("research plans require typed capabilities")
-		}
-		researchSelectCapabilities = client.research
-	}
 	var namingCapabilities *buildingruntime.ConfirmColonyNamesCapabilities
 	if config.routineNamingPlans {
 		if client.naming == nil {
@@ -897,7 +884,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		PrisonerInteraction: prisonerInteractionCapabilities,
 		QuestAccept:         questAcceptCapabilities,
 		CaravanDeparture:    caravanDepartureCapabilities,
-		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
 		DialogAnswer:        dialogCapabilities,
 		Trade:               tradeCapabilities,

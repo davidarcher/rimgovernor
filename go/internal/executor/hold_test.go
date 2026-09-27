@@ -24,7 +24,7 @@ func allKnownReasons() []policy.Reason {
 		policy.HomeCoverageGeometryChanged, policy.HusbandryAnimalUnavailable,
 		policy.NativeIneligible, policy.PatientIneligible, policy.PlayerOrder, policy.PrisonerUnavailable,
 		policy.RecoveryServicePawnUnavailable,
-		policy.RepairerUnavailable, policy.RescuerUnavailable, policy.ResearchProjectClaimed,
+		policy.RepairerUnavailable, policy.RescuerUnavailable,
 		policy.StructureIneligible, policy.UnsuitableEquipment,
 		policy.UnsupportedThreat, policy.WallRemovalGeometryChanged, policy.WallRemovalTargetChanged,
 		policy.ExcavationUnsupported, policy.ExcavationGeometryChanged,

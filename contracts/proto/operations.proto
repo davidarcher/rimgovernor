@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 58;
-  reserved "set_apparel_policy";
+  reserved 12, 58;
+  reserved "select_research", "set_apparel_policy";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -75,7 +75,6 @@ message Operation {
     PatchBuilding patch_building = 6;
     PatchPawn patch_pawn = 7;
     AddBill add_bill = 8;
-    SelectResearch select_research = 12;
     CreateZone create_zone = 14;
     DeleteZone delete_zone = 15;
     EditZoneCells edit_zone_cells = 16;
@@ -294,7 +293,6 @@ message BillSettings {
   optional rimgovernor.common.v1.CorpseClass corpse_class = 14;
 }
 message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; optional string replace_owned_bill_id = 4; }
-message SelectResearch { optional string project_def = 1; optional string expected_snapshot_token = 2; }
 message DefinitionList { repeated string defs = 1; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
 enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
@@ -444,8 +442,13 @@ message Action {
     HaulIntent haul = 13;
     MeleeIntent melee = 14;
     ApparelPolicyIntent apparel_policy = 15;
+    ResearchIntent research = 16;
   }
 }
+// Make the project the ordinary research slot's current project; native
+// refuses a finished, unstartable or anomaly knowledge project, and a
+// project already current is applied again.
+message ResearchIntent { optional string project_def = 1; }
 // Create or update the named role apparel policy and assign it to one free
 // colonist; tainted apparel is always excluded and forced or locked apparel
 // is released. A pawn already on a matching policy is applied again.

@@ -92,7 +92,6 @@ type SessionConfig struct {
 	// BedAssign backs the sleeping family's bed ownership transfer, the
 	// same one-shot CAS write shape as BedUse.
 	BedAssign           *bedassign.Capabilities
-	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
 	DialogAnswer        *DialogAnswerCapabilities
 	Trade               *TradeCapabilities
@@ -399,9 +398,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.ResearchSelect != nil && (config.ResearchSelect.Native == nil || config.ResearchSelect.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.ConfirmColonyNames != nil && (config.ConfirmColonyNames.Native == nil || config.ConfirmColonyNames.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -555,11 +551,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Bills != nil {
 		if err := worker.EnableBill(bill.NewBillBoundary(place, *config.Bills)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.ResearchSelect != nil {
-		if err := worker.EnableResearchSelect(&researchSelectBoundary{Boundary: place, research: *config.ResearchSelect}); err != nil {
 			return cleanup(err)
 		}
 	}

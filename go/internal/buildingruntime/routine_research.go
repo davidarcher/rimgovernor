@@ -26,9 +26,8 @@ import (
 // the wire ResearchProject message's lab-requirement/CanStart fields are not
 // yet decoded into bridge.ResearchRead (an open item alongside the
 // Hidden-field approximation ResearchRead's own doc comment discloses), so
-// the native SelectResearch preview -- run later, at dispatch-inspection
-// time, by researchSelectBoundary.InspectResearchSelect -- remains the
-// authoritative admission gate. RoutineGearPlanner draws the same line
+// native validation of the ResearchIntent when it applies remains the
+// authoritative gate. RoutineGearPlanner draws the same line
 // against its own native preview.
 type RoutineResearchSource interface {
 	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
@@ -231,7 +230,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	next := string(queue[0])
 	// A rung locked only for lack of a bench is a building need, not a
-	// selection: native SelectResearch refuses it until the bench stands
+	// selection: native refuses the ResearchIntent until the bench stands
 	// (#254). The ladder's plans are this goal's methods, so an open bench
 	// build reads as existing work above and the selection follows it.
 	if policy.ResearchBenchNeeded(projects[queue[0]]) {

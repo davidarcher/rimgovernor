@@ -41,7 +41,7 @@ func (n *researchNative) ReadResearch(ctx context.Context, _ *c.Identity) (bridg
 		}
 		return domain.Known(ids)
 	}
-	read := bridge.ResearchRead{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), SnapshotToken: "token", CurrentProject: n.current, Finished: n.finished, Projects: map[string]policy.ResearchProjectFacts{
+	read := bridge.ResearchRead{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), CurrentProject: n.current, Finished: n.finished, Projects: map[string]policy.ResearchProjectFacts{
 		"Stonecutting": {Name: "Stonecutting", Hidden: domain.Known(false), Prerequisites: known(), HiddenPrerequisites: known()},
 		"Electricity":  {Name: "Electricity", Hidden: domain.Known(false), Prerequisites: known(), HiddenPrerequisites: known()},
 		"Batteries":    {Name: "Batteries", Hidden: domain.Known(false), Prerequisites: known("Electricity"), HiddenPrerequisites: known()},

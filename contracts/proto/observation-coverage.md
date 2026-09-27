@@ -293,7 +293,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
 | PatchPawn.pawn | ReadPawnSettings.snapshot (same pawn ID) |
 | AddBill.bench | ReadBills.bench.snapshot; whole ordered stack token |
-| SelectResearch.expected_snapshot_token | ReadResearch.snapshot |
 | CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZone/EditZoneCells/PatchStockpile.zone | ListZones.zone.snapshot |
 | ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |

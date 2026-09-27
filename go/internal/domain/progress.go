@@ -111,7 +111,6 @@ const (
 	HeldRecoveryServicePawnUnavailable HeldReason = "recovery_service_pawn_unavailable"
 	HeldRepairerUnavailable            HeldReason = "repairer_unavailable"
 	HeldRescuerUnavailable             HeldReason = "rescuer_unavailable"
-	HeldResearchProjectClaimed         HeldReason = "research_project_claimed"
 	HeldStructureIneligible            HeldReason = "structure_ineligible"
 	HeldUnsuitableEquipment            HeldReason = "unsuitable_equipment"
 	HeldUnsupportedThreat              HeldReason = "unsupported_threat"
@@ -140,7 +139,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldHomeCoverageGeometryChanged, HeldHusbandryAnimalUnavailable,
 	HeldNativeIneligible, HeldPatientIneligible, HeldPlayerOrder, HeldPrisonerUnavailable,
 	HeldRecoveryServicePawnUnavailable,
-	HeldRepairerUnavailable, HeldRescuerUnavailable, HeldResearchProjectClaimed,
+	HeldRepairerUnavailable, HeldRescuerUnavailable,
 	HeldStructureIneligible, HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
 	HeldExcavationUnsupported, HeldExcavationGeometryChanged,

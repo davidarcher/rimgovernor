@@ -45,7 +45,6 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.RecoveryServicePawnUnavailable: domain.HeldRecoveryServicePawnUnavailable,
 	policy.RepairerUnavailable:            domain.HeldRepairerUnavailable,
 	policy.RescuerUnavailable:             domain.HeldRescuerUnavailable,
-	policy.ResearchProjectClaimed:         domain.HeldResearchProjectClaimed,
 	policy.StructureIneligible:            domain.HeldStructureIneligible,
 	policy.UnsuitableEquipment:            domain.HeldUnsuitableEquipment,
 	policy.UnsupportedThreat:              domain.HeldUnsupportedThreat,

@@ -4,7 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// NamingRefused mirrors ResearchProjectClaimed: the native validators
+// NamingRefused: the native validators
 // (IsValidName/IsValidSecondName) refused the exact suggestions this action
 // targets, re-checked immediately before dispatch.
 const NamingRefused Reason = "naming_refused"
