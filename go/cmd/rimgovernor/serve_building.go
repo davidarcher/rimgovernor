@@ -34,7 +34,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/stockpilewrite"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zonedelete"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -116,7 +115,6 @@ type buildingServiceBridge struct {
 	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	excavation          *excavation.ExcavationCapabilities
 	zones               *zone.ZoneCapabilities
-	work                *work.WorkCapabilities
 	supplies            *supply.SupplyCapabilities
 	cutPlant            *cutplant.CutPlantCapabilities
 	moveBuilding        *movebuilding.Capabilities
@@ -210,10 +208,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	excavationWriter, err := bridge.NewExcavationControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	workWriter, err := bridge.NewWorkControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -319,7 +313,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		excavation:      &excavation.ExcavationCapabilities{Native: client, Writer: excavationWriter},
-		work:            &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:        &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		cutPlant:        &cutplant.CutPlantCapabilities{Native: client, Writer: cutPlantWriter},
 		moveBuilding:    &movebuilding.Capabilities{Native: client, Writer: moveBuildingWriter},
@@ -549,15 +542,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		mineAcquisitionCapabilities = client.mineAcquisition
 	}
-	// Recovery reconciles saved colonist areas through work assignments
-	// (#500), so its plans need the work executor too.
-	var workCapabilities *work.WorkCapabilities
-	if config.routineWorkPlans || config.routineRecoveryPlans {
-		if client.work == nil {
-			return errors.New("work plans require typed settings capabilities")
-		}
-		workCapabilities = client.work
-	}
 	var meleeCapabilities *melee.MeleeCapabilities
 	var rangedCapabilities *ranged.RangedCapabilities
 	var movementCapabilities *buildingruntime.MovementCapabilities
@@ -775,7 +759,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Excavation:          excavationCapabilities,
 		Zones:               zoneCapabilities,
 		Bills:               billCapabilities,
-		Work:                workCapabilities,
 		Supplies:            supplyCapabilities,
 		Draft:               client.draft,
 		Clock:               clockCapabilities,

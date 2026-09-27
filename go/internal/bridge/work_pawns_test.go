@@ -59,7 +59,7 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 
 // TestWorkAllowedAreaDetailValidation covers issue #167: allowed_area_id is
 // part of the work snapshot (NativeWorkSettings' token commits to it and
-// PatchPawn writes it), so every selection that requests work detail --
+// WorkSettingsIntent writes it), so every selection that requests work detail --
 // routine and tend -- must accept it, while the combat-only selection must
 // keep refusing it as unrequested settings detail.
 func TestWorkAllowedAreaDetailValidation(t *testing.T) {

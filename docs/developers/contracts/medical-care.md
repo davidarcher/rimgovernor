@@ -72,9 +72,9 @@ tending continues without medicine. Glitterworld is never selected automatically
 Unknown clinical or stock facts defer a change.
 
 Auto reassesses the current care setting, including settings changed during Manual.
-Care writes use the existing typed `PatchPawn.medical_care` operation through Hands,
-with the current settings token and observed care readback. A changed token refuses
-a stale action; the next review plans from the new facts. Care-only writes also
+Care writes send `WorkSettingsIntent.medical_care` on Actions/Apply through Hands;
+native checks the pawn when it applies and a ceiling already set applies again. A
+refused write is replanned from fresh facts on the next review. Care-only writes also
 permit downed patients, without enabling work or timetable writes to them.
 
 While the medicine reserve is low, it contributes the configured herbal target per colonist to

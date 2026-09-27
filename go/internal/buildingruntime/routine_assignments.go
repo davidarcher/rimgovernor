@@ -175,7 +175,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	for _, pawn := range pawns {
 		byID[pawn.ID] = pawn
 	}
-	// The schedule planner rides the same PatchPawn write: a pawn whose
+	// The schedule planner rides the same WorkSettingsIntent: a pawn whose
 	// timetable differs from its role template gets the timetable in the
 	// same assignment as its priorities (or alone), under the same token.
 	schedules := map[policy.PawnID][]string{}
@@ -293,7 +293,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 
 // cancelStaleWorkActions cancels every undispatched work assignment on the
 // plan whose premise no longer holds against the fresh decision: the pawn's
-// settings token or manual mode moved (WorkBoundary.InspectWork would hold
+// settings token or manual mode moved (the write rests on a stale read),
 // the write forever), the pawn dropped out of the decision, or the policy
 // now wants a different priority for a work type the action sets. A pending
 // action the fresh decision still agrees with stays open.

@@ -6,8 +6,8 @@ The work planner (`policy.PlanWork`, `go/internal/policy/work_assignment.go`)
 turns the routine read's pawns into one priority matrix per review: every work
 type native reports, every available colonist whose work applies. It is a
 proposal compared against the readback (`Matches`), never permission to change
-a pawn's settings; the work review dispatches the differences through
-`WorkBoundary.AssignWork` under the pawn's snapshot token, and a player
+a pawn's settings; the work review dispatches the differences as a
+`WorkSettingsIntent` on Actions/Apply, and a player
 `WorkOverride` (per pawn × work type) always wins.
 
 ## Pawn profile
@@ -154,12 +154,11 @@ known timetable is planned, whoever wrote it: a timetable edited under Manual
 is replanned like any other once Auto holds (control-loop.md, Manual
 control; #461); an unknown timetable (issue `schedule`) is skipped.
 
-The work review sends a mismatching timetable in the pawn's `PatchPawn`
-(`domain.NewScheduleAssignment`, `Schedule.assignment_defs` all 24 hours,
-`SettingsField.Schedule` in the receipt) under the same snapshot token as the
-priorities, so a timetable edit between read and write refuses the whole
-pawn. Native (`NativeWorkSettings`) hashes the current 24 def names into the
-token, requires every `TimeAssignmentDef` and a 24-slot tracker, writes through
+The work review sends a mismatching timetable in the pawn's
+`WorkSettingsIntent` (`domain.NewScheduleAssignment`, `Schedule.assignment_defs`
+all 24 hours, `SettingsField.Schedule` in the applied result) together with the
+priorities. Native (`WorkSettingsActionHandler`) requires every
+`TimeAssignmentDef` and a 24-slot tracker when it applies, writes through
 `Pawn_TimetableTracker.SetAssignment`, and reads the timetable back into
 `Matches`. `RoutineFacts.WorkCoverage` is false while any planned timetable
 differs from the readback.
@@ -179,13 +178,13 @@ sheet; every core role is owned once and the written matrix replans
 unchanged; a NightOwl's night shift, a QuickSleeper's six-hour sleep and a
 hand-edited timetable replanned; two pawns under the Construction floor
 help at 4 beside six walls. `takeover/schedule` still writes a timetable
-through the real `PatchPawn` execute and reads it back natively.
+through a real `WorkSettingsIntent` and reads it back natively.
 
 ## Social drug policy
 
 The autonomous work routine assigns `RimGovernor social drugs` through
-`SetDrugPolicy`, using the same durable settings actions and pawn snapshot CAS
-as work assignment. Native execution creates or updates the named policy,
+a drug-policy-only `WorkSettingsIntent`, using the same durable settings
+actions as work assignment. Native apply creates or updates the named policy,
 assigns the pawn and makes it the colony default; the controller owns drug
 policies under autonomous control, so any other policy or drifted contents are
 replaced. Only Beer and SmokeleafJoint

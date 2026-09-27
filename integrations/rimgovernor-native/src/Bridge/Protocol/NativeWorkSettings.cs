@@ -8,45 +8,17 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // The settings token fences work, area, schedule, food and medical care.
-    // AllowedArea (Assignment: a named area or an explicit clear) and
-    // Schedule (the full 24-slot timetable, #417) are admitted alongside --
-    // or instead of -- work priorities through this same PatchPawn dispatch:
-    // the wire shape already carries the fields together, and the
-    // CAS/admission/receipt mechanics required are identical, so the
-    // combined snapshot token below covers whichever of the fields a given
-    // command actually touches. A pure work-priority write is consequently
-    // also sensitive to an unrelated area or timetable change (and vice
-    // versa); that is the same single-token-per-write-surface discipline
-    // PatchBuilding's settings fields already share. Food-policy assignment
-    // and complete filter configuration are included in the same CAS.
+    // The pawn settings snapshot observations publish: work, area, schedule,
+    // food, medical care and drug policy under one token.
     internal static class NativeWorkSettings
     {
-        private static bool ValidArea(Operations.Assignment? area) => area == null
-            || area.ValueCase == Operations.Assignment.ValueOneofCase.Clear
-            || (area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ProtoBoundary.IsIdentifier(area.EntityId));
-
-        private static bool ValidSchedule(Operations.Schedule? schedule) => schedule == null
-            || (schedule.AssignmentDefs.Count == ScheduleHours && schedule.AssignmentDefs.All(ProtoBoundary.IsIdentifier));
-
         internal const int ScheduleHours = 24;
-
-        internal static bool Valid(Operations.PatchPawn? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Pawn) && command.Work.Count <= 256
-            && (command.Work.Count > 0 || command.AllowedArea != null || command.Schedule != null || command.FoodAllow != null || command.HasMedicalCare)
-            && NativeFoodPolicy.Valid(command.FoodAllow)
-            && command.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
-            && command.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == command.Work.Count
-            && ValidSchedule(command.Schedule) && ValidCare(command) && !command.HasHostilityResponse && !command.HasSelfTend
-            && !command.HasFollowDrafted && !command.HasFollowFieldwork && ValidArea(command.AllowedArea) && command.Master == null
-            && command.Training.Count == 0 && !command.HasSlaughter && !command.HasReleaseToWild;
 
         private static bool Eligible(Pawn pawn) => pawn != null && !pawn.Destroyed && pawn.Spawned && ProtoBoundary.IsLoaded(pawn.Map)
             && pawn.IsFreeColonist && !pawn.Dead && !pawn.Drafted && !pawn.InMentalState
@@ -55,13 +27,9 @@ namespace HomeBridge.BridgeTools
         // area is the pawn's actual current restriction identity (empty
         // string when unrestricted), always the real GetUniqueLoadID()
         // value published elsewhere for this same pawn field
-        // (NativePawnDetails' allowed_area_id) -- never the caller-supplied
-        // request identifier, so a request naming an area by a different
-        // (but equivalent) identifier scheme cannot desync the token.
-        // schedule is the pawn's current timetable def names hour 0 first
-        // (empty when the pawn has no timetable tracker), so a timetable edit
-        // by the player invalidates a pending work write the same way an
-        // area change does.
+        // (NativePawnDetails' allowed_area_id). schedule is the pawn's
+        // current timetable def names hour 0 first (empty when the pawn has
+        // no timetable tracker).
         internal static string Token(Common.Identity identity, string pawn, bool manual, Obs.WorkSetting[] work, string area, string[] schedule, string care = "")
         {
             using (var bytes = new MemoryStream())
@@ -82,7 +50,7 @@ namespace HomeBridge.BridgeTools
 
         private static string CurrentAreaId(Pawn pawn) => pawn.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "";
 
-        private static string[] CurrentSchedule(Pawn pawn) => pawn.timetable?.times?.Select(t => t?.defName ?? "").ToArray() ?? new string[0];
+        internal static string[] CurrentSchedule(Pawn pawn) => pawn.timetable?.times?.Select(t => t?.defName ?? "").ToArray() ?? new string[0];
 
         internal static Obs.SnapshotRef? Snapshot(Pawn pawn, Common.ObservationContext context)
         {
@@ -99,24 +67,13 @@ namespace HomeBridge.BridgeTools
         // Resolves a requested area identifier tolerantly against either the
         // GetUniqueLoadID() scheme published by observations_list_pawns'
         // allowed_area_id, or the Area.ID integer scheme
-        // NativeRecoveryFacts's roofed-refuge census currently publishes: a
-        // RecoveryAreaProposal candidate names a refuge from that census, so
-        // this write path must accept its identifier as-is.
-        private static Area_Allowed? ResolveArea(Pawn pawn, string entityId) => pawn.Map?.areaManager.AllAreas.OfType<Area_Allowed>()
+        // NativeRecoveryFacts's roofed-refuge census publishes.
+        internal static Area_Allowed? ResolveArea(Pawn pawn, string entityId) => pawn.Map?.areaManager.AllAreas.OfType<Area_Allowed>()
             .FirstOrDefault(a => a.GetUniqueLoadID() == entityId || a.ID.ToString(CultureInfo.InvariantCulture) == entityId);
 
-        private static bool PrepareArea(Operations.PatchPawn command, Pawn pawn, out bool requested, out bool clear, out Area_Allowed? area)
-        {
-            requested = command.AllowedArea != null; clear = false; area = null;
-            if (!requested) return true;
-            if (command.AllowedArea!.ValueCase == Operations.Assignment.ValueOneofCase.Clear) { clear = true; return AreaSafeAndReachable(pawn, null); }
-            area = ResolveArea(pawn, command.AllowedArea.EntityId);
-            return area != null && AreaSafeAndReachable(pawn, area);
-        }
-
-        // Recheck at preview and apply: a settings token alone does not bind
-        // changing weather, roof geometry or paths. Removing a saved restriction
-        // restores ordinary native job reachability; it never teleports a pawn.
+        // Checked when a restriction is applied: weather, roof geometry and
+        // paths move. Removing a saved restriction restores ordinary native
+        // job reachability; it never teleports a pawn.
         internal static bool AreaSafeAndReachable(Pawn pawn, Area_Allowed? area)
         {
             var conditions = new System.Collections.Generic.List<GameCondition>();
@@ -127,146 +84,44 @@ namespace HomeBridge.BridgeTools
             return area.ActiveCells.Any(c => !c.Fogged(pawn.Map) && c.Standable(pawn.Map)
                 && pawn.CanReach(c, Verse.AI.PathEndMode.OnCell, Danger.Some));
         }
+    }
 
-        private static bool ScheduleDefined(Operations.PatchPawn command) => command.Schedule == null
-            || command.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null);
-
-        private static bool ScheduleWritable(Operations.PatchPawn command, Pawn pawn) => command.Schedule == null
-            || pawn.timetable?.times != null && pawn.timetable.times.Count == ScheduleHours;
-
+    // WorkSettingsIntent (#941): one free colonist's work priorities, allowed
+    // area, timetable and food additions together, or the medicine ceiling
+    // alone, or the social-only drug policy alone. Native checks the pawn and
+    // each field live when it applies; settings that already hold apply again.
+    internal sealed class WorkSettingsActionHandler : IActionHandler
+    {
         internal const string Kind = "Work settings";
-        // Prepare is the apply-time precondition list for work priorities,
-        // the allowed-area assignment and the timetable
-        // (action-contracts.md): Eligible plus the request's own rows, one
-        // rule at a time.
-        private static bool Prepare(Operations.PatchPawn command, Common.ObservationContext context, out Pawn? pawn, out Common.Failure failure)
-        {
-            pawn = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact work/area/schedule/food snapshot and a supported settings change.");
-            if (!Valid(command)) return false;
-            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
-            var manual = PawnSettingsRead.ManualPriorities();
-            var rules = new ApplyPreconditions(Kind)
-                .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
-                .Require(() => found!.IsFreeColonist && !found.Dead, "the pawn is not a living free colonist")
-                .Require(() => !found!.Downed || CareOnly(command), "the pawn is downed")
-                .Require(() => !found!.Drafted, "the pawn is drafted")
-                .Require(() => !found!.InMentalState, "the pawn is in a mental state")
-                .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
-                .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
-                .Require(() => command.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef) != null), "a requested work type is not defined")
-                .Require(() => command.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
-                .Require(() => manual.GetValueOrDefault() || command.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
-                .Require(() => PrepareArea(command, found!, out _, out _, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
-                .Require(() => ScheduleDefined(command), "a requested timetable assignment is not defined")
-                .Require(() => ScheduleWritable(command, found!), "the pawn has no 24-hour timetable")
-                .Require(() => !command.HasMedicalCare || found!.playerSettings != null, "the pawn has no medical care settings")
-                .Require(() => NativeFoodPolicy.Writable(found!, command.FoodAllow), "the requested food is not natively eligible")
-                .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area/schedule/food/care snapshot changed since it was read");
-            if (!rules.Holds) { failure = rules.Failure(); return false; }
-            pawn = found;
-            return true;
-        }
 
-        private static Receipts.EffectEvidence Evidence(Operations.PatchPawn command, string after, bool matches)
-        {
-            var effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = command.Pawn.EntityId,
-                BeforeToken = command.Pawn.ExpectedSnapshotToken, AfterToken = after } };
-            foreach (var row in command.Work) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
-                WorkTypeDef = row.WorkTypeDef, Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
-            if (command.AllowedArea != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea,
-                Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
-            if (command.Schedule != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule,
-                Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
-            if (command.FoodAllow != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
-                Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
-            if (command.HasMedicalCare) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.MedicalCare,
-                Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
-            return new Receipts.EffectEvidence { Settings = effect };
-        }
+        internal WorkSettingsActionHandler() { NativeDrugPolicy.Install(); }
 
-        internal static Operations.PreviewReply Preview(Operations.PatchPawn command, Common.ObservationContext context)
-        {
-            try
-            {
-                if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true } };
-            }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Work preview failed: " + error.GetType().Name) }; }
-        }
+        private static bool ValidArea(Operations.Assignment? area) => area == null
+            || area.ValueCase == Operations.Assignment.ValueOneofCase.Clear
+            || (area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ProtoBoundary.IsIdentifier(area.EntityId));
 
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition; var command = request.Operation.PatchPawn;
-            try
-            {
-                if (!Prepare(command, context, out var pawn, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                // Track even partial application. A setter failure cannot erase a write.
-                state.WorkSettings.Add(pre.Attempt.Clone(), command.Clone());
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success
-                        || !Prepare(command, context, out var checkedPawn, out failure) || !ReferenceEquals(pawn, checkedPawn))
-                        throw new InvalidOperationException("Work admission changed before effect.");
-                    foreach (var row in command.Work) pawn!.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef), row.Priority);
-                    if (command.HasMedicalCare) pawn!.playerSettings.medCare = Care(command.MedicalCare);
-                    if (!PrepareArea(command, pawn!, out var requested, out var clear, out var area))
-                        throw new InvalidOperationException("Requested allowed area is no longer resolvable.");
-                    if (requested) pawn!.playerSettings.AreaRestrictionInPawnCurrentMap = clear ? null : area;
-                    if (command.Schedule != null)
-                    {
-                        if (!ScheduleWritable(command, pawn!) || !ScheduleDefined(command))
-                            throw new InvalidOperationException("Requested timetable is no longer writable.");
-                        for (var hour = 0; hour < ScheduleHours; hour++)
-                            pawn!.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(command.Schedule.AssignmentDefs[hour]));
-                    }
-                    NativeFoodPolicy.Apply(pawn!, command.FoodAllow);
-                    var snapshot = Snapshot(pawn!, context);
-                    if (snapshot == null || !Matches(pawn!, command)) throw new InvalidOperationException("Native work settings require readback.");
-                    evidence = Evidence(command, snapshot.Token, true);
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Work admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted work settings require observation: " + error.GetType().Name) };
-            }
-        }
+        private static bool ValidSchedule(Operations.Schedule? schedule) => schedule == null
+            || (schedule.AssignmentDefs.Count == NativeWorkSettings.ScheduleHours && schedule.AssignmentDefs.All(ProtoBoundary.IsIdentifier));
 
-        private static bool Matches(Pawn pawn, Operations.PatchPawn command)
-        {
-            if (command.HasMedicalCare && (pawn.playerSettings == null || pawn.playerSettings.medCare != Care(command.MedicalCare))) return false;
-            if (!NativeFoodPolicy.Matches(pawn, command.FoodAllow)) return false;
-            if (!command.Work.All(row => {
-                var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
-                return def != null && pawn.workSettings.GetPriority(def) == row.Priority;
-            })) return false;
-            if (command.Schedule != null && !CurrentSchedule(pawn).SequenceEqual(command.Schedule.AssignmentDefs, StringComparer.Ordinal)) return false;
-            if (command.AllowedArea == null) return true;
-            var current = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
-            if (command.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return current == null;
-            return current != null && (current.GetUniqueLoadID() == command.AllowedArea.EntityId
-                || current.ID.ToString(CultureInfo.InvariantCulture) == command.AllowedArea.EntityId);
-        }
+        private static bool DrugOnly(Operations.WorkSettingsIntent intent) => intent.HasDrugPolicy
+            && !intent.HasMedicalCare && intent.Work.Count == 0 && intent.AllowedArea == null && intent.Schedule == null && intent.FoodAllow == null;
 
-        private static bool CareOnly(Operations.PatchPawn command) => command.HasMedicalCare
-            && command.Work.Count == 0 && command.AllowedArea == null && command.Schedule == null && command.FoodAllow == null;
+        private static bool CareOnly(Operations.WorkSettingsIntent intent) => intent.HasMedicalCare
+            && !intent.HasDrugPolicy && intent.Work.Count == 0 && intent.AllowedArea == null && intent.Schedule == null && intent.FoodAllow == null;
 
-        private static bool ValidCare(Operations.PatchPawn command) => !command.HasMedicalCare || CareOnly(command)
-            && (command.MedicalCare == Operations.MedicalCare.NoMedicine
-                || command.MedicalCare == Operations.MedicalCare.HerbalOrWorse
-                || command.MedicalCare == Operations.MedicalCare.NormalOrWorse);
+        private static bool ValidCare(Operations.WorkSettingsIntent intent) => !intent.HasMedicalCare || CareOnly(intent)
+            && (intent.MedicalCare == Operations.MedicalCare.NoMedicine
+                || intent.MedicalCare == Operations.MedicalCare.HerbalOrWorse
+                || intent.MedicalCare == Operations.MedicalCare.NormalOrWorse);
+
+        private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
+            && intent.HasPawnId && ProtoBoundary.IsIdentifier(intent.PawnId)
+            && (intent.HasDrugPolicy ? DrugOnly(intent) && ProtoBoundary.IsIdentifier(intent.DrugPolicy)
+                : (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null || intent.FoodAllow != null || intent.HasMedicalCare)
+                && intent.Work.Count <= 256 && NativeFoodPolicy.Valid(intent.FoodAllow)
+                && intent.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
+                && intent.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
+                && ValidSchedule(intent.Schedule) && ValidCare(intent) && ValidArea(intent.AllowedArea));
 
         private static MedicalCareCategory Care(Operations.MedicalCare care) => care switch
         {
@@ -276,23 +131,107 @@ namespace HomeBridge.BridgeTools
             _ => throw new InvalidOperationException("Unsupported autonomous medical care tier.")
         };
 
-        internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Operations.PatchPawn command)
+        private static bool AreaResolves(Operations.WorkSettingsIntent intent, Pawn pawn, out Area_Allowed? area)
         {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false,
-                Unknown = new Receipts.UnknownEffect { Reason = "Exact work settings are unavailable." } };
-            try
+            area = null;
+            if (intent.AllowedArea == null) return true;
+            if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return NativeWorkSettings.AreaSafeAndReachable(pawn, null);
+            area = NativeWorkSettings.ResolveArea(pawn, intent.AllowedArea.EntityId);
+            return area != null && NativeWorkSettings.AreaSafeAndReachable(pawn, area);
+        }
+
+        // Holds says whether every requested field already reads as asked.
+        private static bool Holds(Pawn pawn, Operations.WorkSettingsIntent intent)
+        {
+            if (intent.HasDrugPolicy) return NativeDrugPolicy.Matches(pawn, intent.DrugPolicy);
+            if (intent.HasMedicalCare && (pawn.playerSettings == null || pawn.playerSettings.medCare != Care(intent.MedicalCare))) return false;
+            if (!NativeFoodPolicy.Matches(pawn, intent.FoodAllow)) return false;
+            if (intent.Work.Count > 0 && pawn.workSettings?.Initialized != true) return false;
+            if (!intent.Work.All(row => {
+                var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
+                return def != null && pawn.workSettings.GetPriority(def) == row.Priority;
+            })) return false;
+            if (intent.Schedule != null && !NativeWorkSettings.CurrentSchedule(pawn).SequenceEqual(intent.Schedule.AssignmentDefs, StringComparer.Ordinal)) return false;
+            if (intent.AllowedArea == null) return true;
+            var current = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
+            if (intent.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return current == null;
+            return current != null && (current.GetUniqueLoadID() == intent.AllowedArea.EntityId
+                || current.ID.ToString(CultureInfo.InvariantCulture) == intent.AllowedArea.EntityId);
+        }
+
+        // Resolve finds the pawn and returns null when the intent applies:
+        // either every field already holds, or each apply-time rule
+        // (action-contracts.md) passes.
+        private static Common.Failure? Resolve(Operations.WorkSettingsIntent? intent, Common.ObservationContext context, out Pawn pawn, out bool holds)
+        {
+            pawn = null!; holds = false;
+            if (!Valid(intent))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact pawn and a supported settings change.");
+            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent!.PawnId);
+            if (found != null && !found.Dead && found.IsFreeColonist && Holds(found, intent!)) { pawn = found; holds = true; return null; }
+            var manual = PawnSettingsRead.ManualPriorities();
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
+                .Require(() => found!.IsFreeColonist && !found.Dead, "the pawn is not a living free colonist");
+            if (intent!.HasDrugPolicy)
+                rules.Require(() => NativeDrugPolicy.Writable(found!), "the pawn has no drug policy");
+            else
+                rules.Require(() => !found!.Downed || CareOnly(intent), "the pawn is downed")
+                    .Require(() => !found!.Drafted, "the pawn is drafted")
+                    .Require(() => !found!.InMentalState, "the pawn is in a mental state")
+                    .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
+                    .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
+                    .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef) != null), "a requested work type is not defined")
+                    .Require(() => intent.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
+                    .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
+                    .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
+                    .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
+                    .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable")
+                    .Require(() => !intent.HasMedicalCare || found!.playerSettings != null, "the pawn has no medical care settings")
+                    .Require(() => NativeFoodPolicy.Writable(found!, intent.FoodAllow), "the requested food is not natively eligible");
+            if (!rules.Holds) return rules.Failure();
+            pawn = found!;
+            return null;
+        }
+
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.WorkSettings, context, out _, out _);
+
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        {
+            var intent = action.WorkSettings;
+            var failure = Resolve(intent, context, out var pawn, out var holds);
+            if (failure != null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + failure.Detail);
+            if (!holds)
             {
-                var pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
-                var snapshot = pawn == null ? null : Snapshot(pawn, context);
-                if (snapshot == null) return result;
-                var matches = Matches(pawn!, command); var evidence = Evidence(command, snapshot.Token, matches);
-                result.CompleteInspection = true;
-                if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
-                else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence,
-                    Detail = "Current work settings differ; do not restore over player changes." };
+                if (intent.HasDrugPolicy) NativeDrugPolicy.Apply(pawn, intent.DrugPolicy);
+                foreach (var row in intent.Work) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef), row.Priority);
+                if (intent.HasMedicalCare) pawn.playerSettings.medCare = Care(intent.MedicalCare);
+                if (intent.AllowedArea != null)
+                {
+                    if (!AreaResolves(intent, pawn, out var area)) throw new InvalidOperationException("Requested allowed area is no longer resolvable.");
+                    pawn.playerSettings.AreaRestrictionInPawnCurrentMap = area;
+                }
+                if (intent.Schedule != null)
+                    for (var hour = 0; hour < NativeWorkSettings.ScheduleHours; hour++)
+                        pawn.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(intent.Schedule.AssignmentDefs[hour]));
+                NativeFoodPolicy.Apply(pawn, intent.FoodAllow);
+                if (!Holds(pawn, intent)) throw new InvalidOperationException("Native work settings did not take effect.");
             }
-            catch (Exception) { }
-            return result;
+            return new Receipts.EffectEvidence { Settings = Evidence(intent) };
+        }
+
+        private static Receipts.SettingsEffect Evidence(Operations.WorkSettingsIntent intent)
+        {
+            var effect = new Receipts.SettingsEffect { Snapshot = new Receipts.SnapshotEvidence { EntityId = intent.PawnId } };
+            void Add(Receipts.SettingsField field) => effect.Fields.Add(new Receipts.FieldResult { Field = field, Outcome = Receipts.FieldOutcome.Applied });
+            if (intent.HasDrugPolicy) Add(Receipts.SettingsField.DrugPolicy);
+            foreach (var row in intent.Work) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
+                WorkTypeDef = row.WorkTypeDef, Outcome = Receipts.FieldOutcome.Applied });
+            if (intent.AllowedArea != null) Add(Receipts.SettingsField.AllowedArea);
+            if (intent.Schedule != null) Add(Receipts.SettingsField.Schedule);
+            if (intent.FoodAllow != null) Add(Receipts.SettingsField.FoodRestriction);
+            if (intent.HasMedicalCare) Add(Receipts.SettingsField.MedicalCare);
+            return effect;
         }
     }
 }

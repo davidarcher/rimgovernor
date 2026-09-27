@@ -20,7 +20,7 @@ const ScheduleHours = 24
 // encoding retains a bounded typed list without exposing mutable action
 // slices. An assignment may carry work priorities, an allowed-area
 // assignment (named or an explicit clear), a 24-hour timetable, or any of
-// them together -- the native PatchPawn write surface admits the fields
+// them together -- the native WorkSettingsIntent admits the fields
 // alone or combined through one shared CAS token, so this type mirrors that
 // at the domain boundary rather than splitting into further action kinds.
 type WorkAssignment struct {
@@ -108,7 +108,7 @@ func newWorkAssignment(pawn PawnID, before string, manual bool, settings []WorkS
 	return WorkAssignment{pawn: pawn, before: before, manual: manual, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
 }
 
-// NewMedicalCareAssignment changes only the medicine ceiling through PatchPawn.
+// NewMedicalCareAssignment changes only the medicine ceiling through WorkSettingsIntent.
 // Automatic care never authorizes glitterworld medicine or disables tending.
 func NewMedicalCareAssignment(pawn PawnID, before, care string) (WorkAssignment, error) {
 	if !validID(string(pawn)) || !validID(before) || care != "NoMeds" && care != "HerbalOrWorse" && care != "NormalOrWorse" {

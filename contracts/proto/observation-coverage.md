@@ -293,7 +293,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | ExcavateCell.expected_snapshot_token | ReadExcavationSite.cells[].snapshot (cell + rock def + hit points + designation; never a Mineable ThingID) |
 | DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
-| PatchPawn.pawn | ReadPawnSettings.snapshot (same pawn ID) |
+| WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | AddBill.bench | ReadBills.bench.snapshot; whole ordered stack token |
 | CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZone/EditZoneCells/PatchStockpile.zone | ListZones.zone.snapshot |

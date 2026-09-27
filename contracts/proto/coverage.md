@@ -39,7 +39,7 @@ discovered/mapped, not as live source links.
 | `home/confirm_colony_names` | Actions.Apply NamingIntent (autopilot); PresentationReads.PreviewNaming/PlayerPresentation.Apply naming (future player affordance, unregistered) | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/zone_cells` | Operations.Preview / Execute: CreateZone / DeleteZone / EditZoneCells / RepairZone / PatchStockpile / PatchGrowing; Observations.ListZones | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/place_building` | Operations.Preview / Execute: PlaceBuilding; Placement.Preview | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/pawn_config` | Operations.Preview / Execute: PatchPawn; Observations.ReadPawnSettings | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/pawn_config` | Actions.Apply WorkSettingsIntent; Observations.ReadPawnSettings | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/building_config` | Operations.Preview / Execute: PatchBuilding; Observations.ReadBuildingSettings / PresentationReads.Gizmos | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/bills` | Operations.Preview / Execute: AddBill / PatchBill / DeleteBill / MoveBill; Observations.ReadBills / ReadRecipes | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/order` | Operations.Preview / Execute: SetDrafted / AttackTarget / PawnTargetOrder; Actions.Apply MoveIntent; Observations.ResolveTarget; Operations.ReleaseOwnedDraft | Typed | `controller/rimgovernor/bridge_game.py:16` |

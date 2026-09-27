@@ -64,7 +64,7 @@ Source files below are under `integrations/rimgovernor-native/src/Bridge`. Read-
 | NativeCutPlant.cs | DesignateThing cut_plant | Exact blighted plant from `blighted_plants` (CAS on the plant's identity/blight/designation token), ordinary CutPlant designation via Designator_PlantsCut; refuses forbidden, fogged, out-of-colony or unreachable plants. Pending while the designated plant stands; completion is the plant gone (#245). |
 | NativeClearCover.cs | ClearCover | Exact cover thing from `DefenseCell.cover_*` (CAS on identity/def/cell/designation token), the designation its kind needs via the game's own designator: Mine (excavation geometry guard), CutPlant, Haul (a store must accept the chunk) or Deconstruct (deconstruction safety); refuses forbidden, fogged, already designated or unreachable things. Pending while the designated thing stands at its cell; completion is the thing gone (#581). |
 | BuildingConfigTool.cs | PatchBuilding | Forbidden,power,temperature,medical,owner,prisoner flags and a plant grower's crop (`plant_def`, NativeGrowerCrop) and a claim for the player (`claim`, NativeClaimBuilding, #459); field result + exact before/after snapshot. Gizmos are reads. |
-| PawnConfigTool.cs | PatchPawn | Work,schedule,food allow,care,hostility,self-tend,follow,area,master,training/slaughter/release; cascaded changes in snapshot. Food allow uses full settings CAS and native eligibility, assigning a copy without changing shared policies. Drop/nickname excluded from automation. |
+| PawnConfigTool.cs | Actions.Apply WorkSettingsIntent | Work, schedule, food allow, area, care or the social drug policy, validated live; settings that already hold apply again. Food allow uses native eligibility, assigning a copy without changing shared policies. Hostility, self-tend, follow, drop and nickname excluded from automation. |
 | BillsTool.cs | AddBill | Native bill ID plus expected bench stack; optional repeat/filter/worker/store fields; exact stack readback. Index alone is not identity. Production is later observation. |
 | NativeResearchSelectOperations.cs | Actions.Apply ResearchIntent | Native eligible project selection validated live, the current project applies again; never finish research; current/progress/capability reads separate. |
 | ZoneCellsTool.cs | CreateZone/DeleteZone/EditZoneCells/PatchStockpile | Exact cells, crop/sow/cut/filter/priority; per-cell refusal and complete geometry/filter readback. Repair and allow_split require explicit reviewed player maintenance. Typed native: `NativeZoneCreation.cs` (any label, any priority/preset/`FilterPatch` body for stockpiles; growing zones stay the fixed crop shape), `NativeStockpilePatch.cs` (priority and/or filter patch on one stockpile under its ListZones token, or on one player storage building such as a shelf under the storage token its ListBuildings settings row carries; absent parts preserve the live setting, an unresolved selector refuses the whole body) and `NativeZoneCellEdit.cs`/`NativeZoneDeletion.cs`. `FilterPatch` selectors are exact defNames; `hit_points_min/max` are fractions in [0, 1] and `quality_min/max` QualityCategory names, each pair required together. ListZones `include_filter` returns the live allowed defs, configurable special rules and both ranges; the per-zone token covers them. the `zone/delete` case (`acceptance run zone/delete`) covers all four. |
@@ -104,12 +104,12 @@ Hard native work remains: token producers/resolution/CAS are not implemented for
 
 ## Social drug settings
 
-`SetDrugPolicy` uses an exact pawn settings token and the ordinary authority,
-attempt, preview and progress paths. The named policy is created or updated,
+A drug-policy-only `WorkSettingsIntent` applies on Actions/Apply; a pawn
+already on the matching default policy applies again. The named policy is created or updated,
 assigned to the pawn and installed as the default. It permits only Beer and
 SmokeleafJoint for recreation, with all scheduled, addiction and inventory use
-disabled. `SETTINGS_FIELD_DRUG_POLICY` evidence binds the before/after settings
-snapshots; observed completion rechecks the assigned policy and default.
+disabled. The applied result carries `SETTINGS_FIELD_DRUG_POLICY` after native
+reads the assigned policy and default back.
 
 `BillSettings.beer_reserve=true` is valid only for an ordinary single-product
 wort recipe with target-count settings. Its saved bill counts wort, barrel

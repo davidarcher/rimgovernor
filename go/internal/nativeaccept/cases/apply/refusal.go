@@ -147,6 +147,27 @@ func run(ctx context.Context, s cases.Session) error {
 		report[strings.ReplaceAll(label, "-", "_")] = got
 		return nil
 	}
+	// intentRefused applies one Actions/Apply intent and asserts its result
+	// is a refusal whose code and reason are the documented ones.
+	intentRefused := func(label string, action map[string]any, code, reason string) error {
+		action["key"] = "refusal-" + label
+		reply, err := h.Wire(ctx, "apply-"+label, "operations_apply", map[string]any{"identity": identity, "actions": []any{action}})
+		if err != nil {
+			return err
+		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		refusal, ok := na.AsMap(result["refused"])
+		got := na.AsString(refusal["reason"])
+		if !ok || na.AsString(refusal["code"]) != code || !strings.Contains(got, reason) {
+			return fmt.Errorf("%s: expected %s %q, got %#v", label, code, reason, result)
+		}
+		report[strings.ReplaceAll(label, "-", "_")] = got
+		return nil
+	}
 	at := func(cell map[string]any) string { return fmt.Sprintf("(%v, %v)", cell["x"], cell["z"]) }
 	zone := map[string]any{"entityId": tokens["zoneId"], "expectedSnapshotToken": tokens["zoneToken"]}
 
@@ -256,30 +277,14 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := move("draft-pawn", map[string]any{"action": "draft_pawn", "id": tokens["pawnId"]}); err != nil {
 		return err
 	}
-	// Haul is an intent on Actions/Apply (#856): the refusal is the action's
-	// result, not a failure reply.
-	{
-		reply, err := h.Wire(ctx, "apply-haul", "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{
-			"key": "refusal-haul", "haul": map[string]any{"pawnId": tokens["pawnId"], "thingId": tokens["haulItemId"]},
-		}}})
-		if err != nil {
-			return err
-		}
-		results := na.AsSlice(reply["results"])
-		if len(results) != 1 {
-			return fmt.Errorf("haul: expected one result, got %#v", reply)
-		}
-		result, _ := na.AsMap(results[0])
-		refusal, ok := na.AsMap(result["refused"])
-		got := na.AsString(refusal["reason"])
-		if !ok || na.AsString(refusal["code"]) != "FAILURE_CODE_INVALID_REQUEST" || !strings.Contains(got, "Haul refused: the pawn is drafted") {
-			return fmt.Errorf("haul: expected the drafted refusal, got %#v", result)
-		}
-		report["haul"] = got
+	// Haul and work settings are intents on Actions/Apply (#856, #941): the
+	// refusal is the action's result, not a failure reply.
+	if err := intentRefused("haul", map[string]any{"haul": map[string]any{"pawnId": tokens["pawnId"], "thingId": tokens["haulItemId"]}},
+		"FAILURE_CODE_INVALID_REQUEST", "Haul refused: the pawn is drafted"); err != nil {
+		return err
 	}
-	if err := refused("work-settings", map[string]any{"patchPawn": map[string]any{
-		"pawn": map[string]any{"entityId": tokens["pawnId"], "expectedSnapshotToken": tokens["pawnWorkToken"]},
-		"work": []map[string]any{{"workTypeDef": "Hauling", "priority": 3}},
+	if err := intentRefused("work-settings", map[string]any{"workSettings": map[string]any{
+		"pawnId": tokens["pawnId"], "work": []map[string]any{{"workTypeDef": "Hauling", "priority": 1}},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Work settings refused: the pawn is drafted"); err != nil {
 		return err
 	}

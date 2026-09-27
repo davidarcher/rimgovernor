@@ -27,8 +27,8 @@ func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids [
 
 // validateSettings enforces that PawnSettings carries only the fields the
 // request actually asked for: work priorities and the allowed area under
-// work (the work snapshot token commits to both, and PatchPawn writes both --
-// WorkBoundary's area readback depends on it, #167), care policy under care,
+// work (the work snapshot token commits to both and WorkSettingsIntent
+// writes both, #167), care policy under care,
 // timetable slots under schedule. Any subset may be set; unrequested fields
 // are refused.
 func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {

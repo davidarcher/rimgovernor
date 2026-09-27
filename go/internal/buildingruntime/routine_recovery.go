@@ -12,7 +12,7 @@ import (
 
 // RoutineRecoveryPlanner reconciles colonist and animal areas from current
 // hazards before proposing repair/breakdown/refuel work. Area correction needs
-// no disaster history. Colonists use PatchPawn CAS and animals use husbandry's
+// no disaster history. Colonists use WorkSettingsIntent and animals use husbandry's
 // current-settings/census CAS, both through ordinary Hands admission.
 //
 // Unlike RoutineGearPlanner, this planner re-derives its selection with a

@@ -676,7 +676,7 @@ func RoutineWorkDemand(facts RoutineFacts, building bool) WorkDemand {
 	return demand
 }
 
-// WorkChanges is the PatchPawn work rows an assignment needs on a pawn:
+// WorkChanges is the WorkSettingsIntent work rows an assignment needs on a pawn:
 // the priorities the readback does not already hold. Checkbox mode
 // (manual priorities off) only knows enabled (3) or disabled (0), so the
 // numbered ranks collapse to that pair, matching how PlanWork judges

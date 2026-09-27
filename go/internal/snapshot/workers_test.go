@@ -15,7 +15,7 @@ import (
 // coverage, nightowl and helpers at 04b0a98c (#748) before those cases
 // were retired. "before" is WorkersFixture's seeded sheet; "after" is the
 // readback once the planned matrix (and, for nightowl, the timetables)
-// went through native PatchPawn. Role order (A, B, C) is the fixture's.
+// went through native work settings writes. Role order (A, B, C) is the fixture's.
 // Every run seeded the same three debug-start pawns.
 const roleA, roleB, roleC = "Thing_Human79", "Thing_Human82", "Thing_Human85"
 

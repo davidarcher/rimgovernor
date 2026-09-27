@@ -34,12 +34,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/store/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/store/tend"
-	"github.com/davidarcher/RimGovernor/go/internal/store/work"
 	"github.com/davidarcher/RimGovernor/go/internal/store/zone"
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 126
+const schemaVersion = 127
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -67,7 +66,6 @@ type PlanState struct {
 	DraftAdmissions               []ActionDraftAdmission
 	AcquisitionAdmissions         []ActionAcquisitionAdmission
 	SupplyAdmissions              []ActionSupplyAdmission
-	WorkAdmissions                []ActionWorkAdmission
 	TendAdmissions                []ActionTendAdmission
 	RescueAdmissions              []ActionRescueAdmission
 	CaptureAdmissions             []ActionCaptureAdmission
@@ -253,7 +251,6 @@ CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id),
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
 CREATE TABLE bill_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id),payload BLOB NOT NULL) STRICT;
 CREATE TABLE zone_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE work_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE supply_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE tend_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -683,16 +680,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if zonePresent {
 			state.ZoneAdmissions = append(state.ZoneAdmissions, ActionZoneAdmission{Action: a.ID(), Admission: zoneAdmission})
 		}
-		workAdmission, workPresent, e := work.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.WorkAssignmentAction && !workPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("work progress lacks admission")
-		}
-		if workPresent {
-			state.WorkAdmissions = append(state.WorkAdmissions, ActionWorkAdmission{Action: a.ID(), Admission: workAdmission})
-		}
 
 		admission, present, err := loadAdmission(ctx, tx, a, p)
 		if err != nil {
@@ -1073,14 +1060,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 		if event.Kind == "dispatch" && !zone.GuardDispatch(state.ZoneAdmissions, action, event.Snapshot, event.Tick) {
 			return domain.Progress{}, errors.New("zone dispatch lacks current admission")
-		}
-	}
-	if current.Action().Kind() == domain.WorkAssignmentAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("work requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !work.GuardDispatch(state.WorkAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("work dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.TendAction {

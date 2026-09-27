@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 12, 21, 32, 46, 53, 58;
-  reserved "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed";
+  reserved 7, 12, 21, 32, 46, 53, 58, 59;
+  reserved "patch_pawn", "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed", "set_drug_policy";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -77,7 +77,6 @@ message Operation {
     AcquireResource acquire_resource = 4;
     DesignateThing designate_thing = 5;
     PatchBuilding patch_building = 6;
-    PatchPawn patch_pawn = 7;
     AddBill add_bill = 8;
     CreateZone create_zone = 14;
     DeleteZone delete_zone = 15;
@@ -107,7 +106,6 @@ message Operation {
     Deconstruct deconstruct = 55;
     ReleaseDeconstructions release_deconstructions = 56;
     Arrest arrest = 57;
-    SetDrugPolicy set_drug_policy = 59;
     ClearCover clear_cover = 60;
     Uninstall uninstall = 61;
     CombatOrders combat_orders = 62;
@@ -120,9 +118,6 @@ message Operation {
 
 // Tokens are opaque native snapshots scoped to request identity and exact entity.
 message EntityPrecondition { optional string entity_id = 1; optional string expected_snapshot_token = 2; }
-// Creates/updates a named social-only policy, assigns an eligible pawn and
-// makes it the default. No hard drugs or scheduled consumption.
-message SetDrugPolicy { EntityPrecondition pawn = 1; optional string name = 2; }
 message Clear {}
 message Assignment { oneof value { string entity_id = 1; Clear clear = 2; } }
 message DefCount { optional string def_name = 1; optional int32 count = 2; }
@@ -232,28 +227,8 @@ enum MedicalCare {
   MEDICAL_CARE_UNSPECIFIED = 0; MEDICAL_CARE_NO_CARE = 1; MEDICAL_CARE_NO_MEDICINE = 2;
   MEDICAL_CARE_HERBAL_OR_WORSE = 3; MEDICAL_CARE_NORMAL_OR_WORSE = 4; MEDICAL_CARE_BEST = 5;
 }
-enum HostilityResponse { HOSTILITY_RESPONSE_UNSPECIFIED = 0; HOSTILITY_RESPONSE_IGNORE = 1; HOSTILITY_RESPONSE_ATTACK = 2; HOSTILITY_RESPONSE_FLEE = 3; }
 message WorkPriority { optional string work_type_def = 1; optional int32 priority = 2; }
 message Schedule { repeated string assignment_defs = 1; }
-message Training { optional string trainable_def = 1; optional bool wanted = 2; }
-message PatchPawn {
-  EntityPrecondition pawn = 1;
-  repeated WorkPriority work = 2;
-  Schedule schedule = 3;
-  optional MedicalCare medical_care = 4;
-  optional HostilityResponse hostility_response = 5;
-  optional bool self_tend = 6;
-  optional bool follow_drafted = 7;
-  optional bool follow_fieldwork = 8;
-  Assignment allowed_area = 9;
-  Assignment master = 10;
-  repeated Training training = 11;
-  optional bool slaughter = 12;
-  optional bool release_to_wild = 13;
-  // Add eligible food definitions to a private copy of the pawn's diet.
-  // Native admission rechecks eligibility and the complete settings CAS.
-  DefinitionList food_allow = 14;
-}
 message FilterSelector { oneof definition { string thing_def = 1; string category_def = 2; string special_filter_def = 3; } }
 message SelectorList { repeated FilterSelector selectors = 1; }
 message FilterPatch {
@@ -432,6 +407,7 @@ message Action {
     AcceptQuestIntent accept_quest = 20;
     FormCaravanIntent form_caravan = 21;
     BedAssignIntent bed_assign = 22;
+    WorkSettingsIntent work_settings = 23;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
@@ -439,6 +415,21 @@ message Action {
 // and label stand in for an entity precondition, and native refuses on any drift.
 // With joiner_letter_token, window_id is a WandererJoins letter ID and option 0
 // accepts the joiner; a joiner already accepted by that letter applies again.
+// Write one free colonist's settings: work priorities, allowed area, the
+// 24-hour timetable and food additions together, or the medicine ceiling
+// alone, or the named social-only drug policy alone (created or updated,
+// assigned and made the default; no hard drugs or scheduled use). Native
+// checks the pawn and each field live when it applies; settings that
+// already hold apply again.
+message WorkSettingsIntent {
+  optional string pawn_id = 1;
+  repeated WorkPriority work = 2;
+  Assignment allowed_area = 3;
+  Schedule schedule = 4;
+  optional MedicalCare medical_care = 5;
+  DefinitionList food_allow = 6;
+  optional string drug_policy = 7;
+}
 // Assign one free colonist to one humanlike bed, replacing the bed it owned
 // when the planner chose (expected_previous_bed: that bed or clear). Native
 // checks the pawn, the bed and that ownership live; a pawn that already owns

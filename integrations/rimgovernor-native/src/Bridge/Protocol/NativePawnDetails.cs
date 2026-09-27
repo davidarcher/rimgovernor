@@ -323,9 +323,9 @@ namespace HomeBridge.BridgeTools
 
         // Projects the pawn's current allowed-area restriction under d.Work
         // (issue #167): NativeWorkSettings.Token commits the work snapshot to
-        // CurrentAreaId and PatchPawn's AllowedArea assignment writes through
-        // the same token domain, so a work-snapshot reader (buildingruntime/
-        // work.WorkBoundary's readback, the recovery/area case) must see the
+        // CurrentAreaId and WorkSettingsIntent's allowed_area writes through
+        // the same token domain, so a work-snapshot reader (the routine
+        // work review, the recovery/area case) must see the
         // area alongside the priorities. Unset when the pawn is unrestricted,
         // matching the AllowedArea{Clear} write; Missing when the pawn has no
         // player settings at all.

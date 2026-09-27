@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                     var cells = area.ActiveCells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
                     if (cells.Count > 4096) throw new InvalidOperationException("Recovery area exceeds bound.");
                     // GetUniqueLoadID(), not the bare Area.ID int: this is the
-                    // same identifier space PatchPawn's allowed_area
+                    // same identifier space WorkSettingsIntent's allowed_area
                     // assignment resolves and NativePawnDetails' own
                     // allowed_area_id publishes, so a RecoveryAreaProposal
                     // naming a refuge from this census round-trips through

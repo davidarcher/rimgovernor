@@ -1,90 +1,54 @@
 package bridge
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
-	"google.golang.org/protobuf/proto"
 )
 
-func workTestAssignment() domain.WorkAssignment {
-	w, _ := domain.NewWorkAssignment("pawn", "before", true, []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
-	return w
-}
-func workTestEffect() *r.EffectEvidence {
-	return &r.EffectEvidence{Effect: &r.EffectEvidence_Settings{Settings: &r.SettingsEffect{Snapshot: &r.SnapshotEvidence{EntityId: proto.String("pawn"), BeforeToken: proto.String("before"), AfterToken: proto.String("after")}, Fields: []*r.FieldResult{{Field: r.SettingsField_SETTINGS_FIELD_WORK.Enum(), Outcome: r.FieldOutcome_FIELD_OUTCOME_APPLIED.Enum(), Entry: &r.FieldResult_WorkTypeDef{WorkTypeDef: "Cooking"}}}}}}
-}
-func workTestAttempt() WorkAttempt {
-	return WorkAttempt{pbIdentity(), buildingPre().Attempt, 1, workTestAssignment()}
-}
-func workTestReceipt() *r.Receipt {
-	v := draftTestReceipt()
-	v.Outcome = &r.Receipt_Applied{Applied: &r.Applied{Observed: workTestEffect()}}
-	return v
-}
-func TestWorkFixedCapabilityAndReceiptCorrelation(t *testing.T) {
-	calls := 0
-	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
-		calls++
-		if arg.Tool != "rimgovernor/operations_execute" {
-			t.Fatal(arg.Tool)
-		}
-		draftTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: &op.Operation{Command: &op.Operation_PatchPawn{PatchPawn: &op.PatchPawn{Pawn: &op.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("before")}, Work: []*op.WorkPriority{{WorkTypeDef: proto.String("Cooking"), Priority: proto.Int32(1)}}}}}})
-		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: workTestReceipt()}}), nil
-	}}, time.Second)
-	writer, err := NewWorkControl(client)
+func workTestIntent(t *testing.T, w domain.WorkAssignment, err error) *op.WorkSettingsIntent {
+	t.Helper()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = writer.AssignWork(context.Background(), buildingPre(), workTestAssignment()); err != nil || calls != 1 {
-		t.Fatal(calls, err)
+	action, err := domain.NewWorkAssignmentAction("work-0", w)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for name, edit := range map[string]func(*r.Receipt){
-		"attempt": func(v *r.Receipt) { v.Attempt.AttemptId = proto.Uint64(2) },
-		"pawn":    func(v *r.Receipt) { v.GetApplied().Observed.GetSettings().Snapshot.EntityId = proto.String("foreign") },
-		"before": func(v *r.Receipt) {
-			v.GetApplied().Observed.GetSettings().Snapshot.BeforeToken = proto.String("foreign")
-		},
-		"field": func(v *r.Receipt) {
-			v.GetApplied().Observed.GetSettings().Fields[0].Field = r.SettingsField_SETTINGS_FIELD_MEDICAL_CARE.Enum()
-		},
-		"priority target": func(v *r.Receipt) {
-			v.GetApplied().Observed.GetSettings().Fields[0].Entry = &r.FieldResult_WorkTypeDef{WorkTypeDef: "Doctor"}
-		},
-		"unknown": func(v *r.Receipt) {
-			v.GetApplied().Observed.GetSettings().Fields[0].Outcome = r.FieldOutcome_FIELD_OUTCOME_UNKNOWN.Enum()
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			v := workTestReceipt()
-			edit(v)
-			if err := workReceipt(v, workTestAttempt()); err == nil {
-				t.Fatal("accepted foreign settings evidence")
-			}
-		})
+	built, err := workSettingsAction(action)
+	if err != nil || built.GetWorkSettings().GetPawnId() != "pawn" {
+		t.Fatal(built, err)
 	}
+	return built.GetWorkSettings()
 }
 
-func TestMedicalCareOperationAndEvidence(t *testing.T) {
-	w, err := domain.NewMedicalCareAssignment("pawn", "before", "HerbalOrWorse")
-	if err != nil {
-		t.Fatal(err)
+func TestWorkSettingsIntent(t *testing.T) {
+	w, err := domain.NewWorkAssignment("pawn", "before", true, []domain.WorkSetting{{Definition: "Cooking", Priority: 1}})
+	if v := workTestIntent(t, w, err); len(v.Work) != 1 || v.Work[0].GetWorkTypeDef() != "Cooking" || v.Work[0].GetPriority() != 1 || v.MedicalCare != nil || v.DrugPolicy != nil {
+		t.Fatal(v)
 	}
-	patch := workOperation(w).GetPatchPawn()
-	if patch.GetMedicalCare() != op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE || len(patch.Work) != 0 {
-		t.Fatal(patch)
+	w, err = domain.NewMedicalCareAssignment("pawn", "before", "HerbalOrWorse")
+	if v := workTestIntent(t, w, err); v.GetMedicalCare() != op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE || len(v.Work) != 0 {
+		t.Fatal(v)
 	}
-	effect := workTestEffect()
-	effect.GetSettings().Fields = []*r.FieldResult{{Field: r.SettingsField_SETTINGS_FIELD_MEDICAL_CARE.Enum(), Outcome: r.FieldOutcome_FIELD_OUTCOME_APPLIED.Enum()}}
-	if err := workEffect(effect, w, true); err != nil {
-		t.Fatal(err)
+	w, err = domain.NewDrugPolicyAssignment("pawn", "before", "social")
+	if v := workTestIntent(t, w, err); v.GetDrugPolicy() != "social" || v.MedicalCare != nil || len(v.Work) != 0 {
+		t.Fatal(v)
 	}
-	effect.GetSettings().Fields[0].Field = r.SettingsField_SETTINGS_FIELD_WORK.Enum()
-	if err := workEffect(effect, w, true); err == nil {
-		t.Fatal("work receipt certified care")
+	w, err = domain.NewFoodAssignment("pawn", "before", []string{"MealSimple"})
+	if v := workTestIntent(t, w, err); len(v.GetFoodAllow().GetDefs()) != 1 || v.GetFoodAllow().Defs[0] != "MealSimple" {
+		t.Fatal(v)
+	}
+	w, err = domain.NewAreaAssignment("pawn", "before", true, "")
+	if v := workTestIntent(t, w, err); v.GetAllowedArea().GetClear() == nil {
+		t.Fatal(v)
+	}
+	w, err = domain.NewAreaAssignment("pawn", "before", false, "Area_7")
+	if v := workTestIntent(t, w, err); v.GetAllowedArea().GetEntityId() != "Area_7" {
+		t.Fatal(v)
+	}
+	if _, err := workSettingsAction(domain.Action{}); err == nil {
+		t.Fatal("built a work intent from a foreign action")
 	}
 }

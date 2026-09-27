@@ -28,7 +28,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/stockpilewrite"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/work"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zonedelete"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -40,7 +39,6 @@ type SessionConfig struct {
 	Deconstruction *DeconstructionCapabilities
 	Bills          *bill.BillCapabilities
 	Zones          *zone.ZoneCapabilities
-	Work           *work.WorkCapabilities
 	Acquisition    *acquisition.AcquisitionCapabilities
 	Supplies       *supply.SupplyCapabilities
 	CutPlant       *cutplant.CutPlantCapabilities
@@ -323,9 +321,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.CoverClearance != nil && (config.CoverClearance.Native == nil || config.CoverClearance.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.Work != nil && (config.Work.Native == nil || config.Work.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -489,11 +484,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.StockpileWrite != nil {
 		if err := worker.EnableZoneWrite(stockpilewrite.NewBoundary(place, *config.StockpileWrite), domain.ZoneCellEditAction, domain.StockpilePatchAction); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Work != nil {
-		if err := worker.EnableWork(work.NewWorkBoundary(place, *config.Work)); err != nil {
 			return cleanup(err)
 		}
 	}

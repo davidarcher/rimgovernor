@@ -14,7 +14,7 @@ type ActionBuildingTemperatureAdmission = buildingtemperature.ActionAdmission
 
 // PrepareBuildingTemperature atomically records the exact building
 // target-temperature CAS evidence and prepares pending work, mirroring
-// PrepareWork's one-shot Settings-style admission shape. This record is
+// the one-shot Settings-style admission shape. This record is
 // evidence, not a lease: the executor must inspect and prepare again before
 // dispatch after restart, even when Prepared was persisted.
 func (s *Store) PrepareBuildingTemperature(ctx context.Context, plan domain.PlanID, action domain.ActionID, admission BuildingTemperatureAdmission) (domain.Progress, error) {
