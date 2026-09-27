@@ -137,7 +137,7 @@ func CompactHistory(ctx context.Context, tx *sql.Tx, profile string) (HistoryCom
 			}
 			held := false
 			for _, event := range page.Page.Events {
-				held = held || clockEventInterrupts(event)
+				held = held || PageInterrupts(event, page.Page)
 			}
 			if held {
 				break

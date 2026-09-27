@@ -145,7 +145,23 @@ func EventInterrupts(event *k.Event) bool {
 		return true
 	}
 }
-func clockEventInterrupts(event *k.Event) bool { return EventInterrupts(event) }
+
+// PageInterrupts is EventInterrupts for an event read on a page: a stop
+// taken in another world than the page's (a kept game's previous load,
+// #887) interrupts nothing in the world read now.
+func PageInterrupts(event *k.Event, page *k.EventsPage) bool {
+	return EventInterrupts(event) && !OtherWorld(event, page)
+}
+
+// OtherWorld reports whether the event was observed in another world (colony,
+// load or map) than the page's current context.
+func OtherWorld(event *k.Event, page *k.EventsPage) bool {
+	a, b := event.GetContext().GetIdentity(), page.GetContext().GetIdentity()
+	if a == nil || b == nil {
+		return false
+	}
+	return a.GetColonyId() != b.GetColonyId() || a.GetLoadToken() != b.GetLoadToken() || a.GetMapId() != b.GetMapId()
+}
 func clockReviewState(head clockReviewHead, inbox Inbox, cursor int64) ReviewState {
 	state := ReviewState{Revision: head.Revision, InboxCursor: cursor, ReviewedCursor: head.Reviewed, AcknowledgedCursor: head.Acknowledged, Holds: []Hold{}}
 	for _, p := range inbox.Pages {
@@ -159,7 +175,7 @@ func clockReviewState(head clockReviewHead, inbox Inbox, cursor int64) ReviewSta
 			state.Holds = append(state.Holds, Hold{Kind: GapHold, FromCursor: p.Request.GetAfterCursor() + 1, ThroughCursor: p.Page.GetNextCursor()})
 		}
 		for _, event := range p.Page.Events {
-			if event.GetCursor() > head.Acknowledged && clockEventInterrupts(event) {
+			if event.GetCursor() > head.Acknowledged && PageInterrupts(event, p.Page) {
 				state.Holds = append(state.Holds, Hold{Kind: InterruptionHold, FromCursor: event.GetCursor(), ThroughCursor: event.GetCursor()})
 			}
 		}

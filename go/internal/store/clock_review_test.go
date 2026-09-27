@@ -10,6 +10,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -153,6 +154,36 @@ func TestClockReviewEventClassification(t *testing.T) {
 	}
 	if !clock.BenignStopEvent(letterPause("PositiveEvent").GetStopped()) || clock.BenignStopEvent(letterPause("ThreatBig").GetStopped()) {
 		t.Fatal("BenignStopEvent disagrees with EventInterrupts")
+	}
+}
+
+// A kept game's journal carries stops from the world it had loaded before;
+// read on a page whose context is a newly loaded world they interrupt
+// nothing (#887).
+func TestClockPageInterruptsDropsOlderWorldStop(t *testing.T) {
+	t.Parallel()
+	world := func(colony, load string, mapID int32) *c.ObservationContext {
+		return &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String(colony), LoadToken: proto.String(load), MapId: proto.Int32(mapID)}}
+	}
+	current := world("colony", "load-2", 1)
+	stop := func(at *c.ObservationContext) *k.Event {
+		return &k.Event{Context: at, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_LETTER_PAUSE.Enum()}}}
+	}
+	for _, tc := range []struct {
+		name  string
+		event *k.Event
+		want  bool
+	}{
+		{"current world", stop(current), true},
+		{"older load", stop(world("colony", "load-1", 1)), false},
+		{"other colony", stop(world("lab", "load-2", 1)), false},
+		{"other map", stop(world("colony", "load-2", 2)), false},
+		{"no event context", stop(nil), true},
+	} {
+		page := &k.EventsPage{Context: current, Events: []*k.Event{tc.event}}
+		if got := clock.PageInterrupts(tc.event, page); got != tc.want {
+			t.Errorf("%s: interrupts=%v, want %v", tc.name, got, tc.want)
+		}
 	}
 }
 func TestClockReviewRollbackAndCorruptProvenance(t *testing.T) {

@@ -350,7 +350,7 @@ func clockStopEvidence(stop *k.StopEvent) string {
 // window the scheduler admitted is no longer running, whatever stopped it.
 func clockPollStopped(page *k.EventsPage) bool {
 	for _, event := range page.Events {
-		if _, ok := event.Event.(*k.Event_Stopped); ok {
+		if _, ok := event.Event.(*k.Event_Stopped); ok && !clock.OtherWorld(event, page) {
 			return true
 		}
 	}
@@ -364,7 +364,7 @@ func clockPollInterrupts(page *k.EventsPage) bool {
 // past the cursor granted (-1 for none).
 func clockPollInterruptsAfter(page *k.EventsPage, granted int64) bool {
 	for _, event := range page.Events {
-		if event.GetCursor() > granted && clock.EventInterrupts(event) {
+		if event.GetCursor() > granted && clock.PageInterrupts(event, page) {
 			return true
 		}
 	}

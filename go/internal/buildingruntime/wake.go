@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -169,6 +170,9 @@ func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families 
 		case *k.Event_OperationOutcome:
 			outcomes = append(outcomes, wakeOutcome(v.OperationOutcome))
 		case *k.Event_Stopped:
+			if clock.OtherWorld(event, page) {
+				continue // a previous load's stop (#887)
+			}
 			stopped = true
 			if at := event.GetObservedAtUnixMs(); at > 0 && (stopAt.IsZero() || time.UnixMilli(at).Before(stopAt)) {
 				stopAt = time.UnixMilli(at)
