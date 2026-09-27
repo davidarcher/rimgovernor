@@ -25,8 +25,9 @@
 //     touches the native mod sources or go/internal/buildingruntime (#273: nothing cheaper than a
 //     game run proves those) unless -unverified says the landing goes
 //     without, to be named in the commit body;
-//  4. squash-merges the branch into the main checkout, which must be clean,
-//     with a message built from the branch's commits (-m or -F overrides
+//  4. squash-merges the branch into the main checkout, which must be clean
+//     (a refusal names each dirty path, its mtime, main's last landing on it
+//     and the worktrees holding the same content, #965), with a message built from the branch's commits (-m or -F overrides
 //     the subject and body) carrying the branch's Co-Authored-By
 //     trailers, and refuses a squash whose tree is not the merged
 //     branch's;
@@ -101,9 +102,15 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if branch == "main" || branch == "HEAD" {
 		return fmt.Errorf("%s is not a task branch", branch)
 	}
-	mainCheckout, err := branchWorktree(worktree, "main")
+	trees, err := listWorktrees(worktree)
 	if err != nil {
 		return err
+	}
+	mainCheckout := ""
+	for _, wt := range trees {
+		if wt.Branch == "main" {
+			mainCheckout = wt.Path
+		}
 	}
 	if mainCheckout == "" {
 		return errors.New("main is not checked out in any worktree; land needs the main checkout")
@@ -125,7 +132,7 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err := requireClean(worktree, "branch worktree"); err != nil {
 		return err
 	}
-	if err := requireClean(mainCheckout, "main checkout"); err != nil {
+	if err := requireCleanMain(mainCheckout, trees); err != nil {
 		return err
 	}
 	if err := gate.prepare(worktree); err != nil {
@@ -234,25 +241,6 @@ func closeIssue(issue int, noClose bool) issueCloser {
 		}
 		fmt.Printf("closed issue #%d\n", number)
 	}
-}
-
-// branchWorktree returns the worktree path that has branch checked out, or
-// "" when none does.
-func branchWorktree(repo, branch string) (string, error) {
-	out, err := git(repo, "worktree", "list", "--porcelain")
-	if err != nil {
-		return "", err
-	}
-	path := ""
-	for _, line := range strings.Split(out, "\n") {
-		switch {
-		case strings.HasPrefix(line, "worktree "):
-			path = strings.TrimPrefix(line, "worktree ")
-		case line == "branch refs/heads/"+branch:
-			return filepath.Clean(path), nil
-		}
-	}
-	return "", nil
 }
 
 func requireClean(dir, what string) error {

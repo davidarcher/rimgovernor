@@ -94,7 +94,9 @@ first fix failed. Every landing report ends with one line:
 
 - Open a pull request, or push to GitHub. GitHub holds issues only; the
   maintainer pushes `main` by hand.
-- `git reset --soft main` to squash, or edit the `main` checkout directly.
+- `git reset --soft main` to squash, or edit the `main` checkout directly,
+  not even to try a fix on the user's launcher game (which builds from
+  `main`): land it `-unverified`, then restart the launcher (#965).
 - Kill `RimWorldWin64.exe` by image name; peers' games run
   beside yours. Stop your own by root or pid (runbook).
 - Replace an installed DLL while any RimWorld instance is running, yours or
