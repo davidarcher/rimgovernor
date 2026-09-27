@@ -87,6 +87,28 @@ func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 	}
 }
 
+// With main checked out nowhere, land moves the ref alone and leaves the
+// detached primary checkout, dirt included, as it was.
+func TestLandNeedsNoMainCheckout(t *testing.T) {
+	root, wt := newRepo(t)
+	mustGit(t, root, "switch", "-q", "--detach", "main")
+	write(t, filepath.Join(root, "a.txt"), "scratch\n")
+	write(t, filepath.Join(wt, "b.txt"), "b\n")
+	mustGit(t, wt, "add", ".")
+	mustGit(t, wt, "commit", "-qm", "Add b")
+
+	t.Chdir(wt)
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "Add b\ninit" {
+		t.Errorf("main subjects:\n%s", got)
+	}
+	if got := mustGit(t, root, "status", "--porcelain"); got != "M a.txt" {
+		t.Errorf("primary checkout touched:\n%s", got)
+	}
+}
+
 // A wip commit under a merge renamed to the milestone subject never titles
 // the squash (28f2a7184 landed as "wip").
 func TestLandNeverTitlesASquashWip(t *testing.T) {

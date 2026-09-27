@@ -25,12 +25,14 @@
 //     touches the native mod sources or go/internal/buildingruntime (#273: nothing cheaper than a
 //     game run proves those) unless -unverified says the landing goes
 //     without, to be named in the commit body;
-//  4. squash-merges the branch into the main checkout, which must be clean
-//     (a refusal names each dirty path, its mtime, main's last landing on it
-//     and the worktrees holding the same content, #965), with a message built from the branch's commits (-m or -F overrides
-//     the subject and body) carrying the branch's Co-Authored-By
-//     trailers, and refuses a squash whose tree is not the merged
-//     branch's;
+//  4. commits the merged branch's tree onto main as one squash commit and
+//     moves the main ref only if main has not moved since step 2, with a
+//     message built from the branch's commits (-m or -F overrides the
+//     subject and body) carrying the branch's Co-Authored-By trailers. No
+//     checkout of main is needed; a worktree that has main checked out
+//     must be clean (a refusal names each dirty path, its mtime, main's
+//     last landing on it and the worktrees holding the same content, #965)
+//     and is brought along after the move;
 //  5. resets the branch to the new main when its tree is identical, so
 //     the next task starts from main rather than re-landing the same diff;
 //  6. closes the GitHub issue the branch is for (the number in a branch
@@ -106,14 +108,13 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err != nil {
 		return err
 	}
+	// land moves the main ref itself; a worktree that has main checked out
+	// is optional and only brought along after the move.
 	mainCheckout := ""
 	for _, wt := range trees {
 		if wt.Branch == "main" {
 			mainCheckout = wt.Path
 		}
-	}
-	if mainCheckout == "" {
-		return errors.New("main is not checked out in any worktree; land needs the main checkout")
 	}
 	if messageFile != "" {
 		data, err := os.ReadFile(messageFile)
@@ -132,13 +133,19 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err := requireClean(worktree, "branch worktree"); err != nil {
 		return err
 	}
-	if err := requireCleanMain(mainCheckout, trees); err != nil {
-		return err
+	if mainCheckout != "" {
+		if err := requireCleanMain(mainCheckout, trees); err != nil {
+			return err
+		}
 	}
 	if err := gate.prepare(worktree); err != nil {
 		return err
 	}
-	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
+	oldMain, err := git(worktree, "rev-parse", "main")
+	if err != nil {
+		return err
+	}
+	if _, err := git(worktree, "merge", "--no-edit", oldMain); err != nil {
 		_, _ = git(worktree, "merge", "--abort")
 		return fmt.Errorf("merging main into %s: %w\nresolve the conflict on the branch (git merge main), commit, and run land again", branch, err)
 	}
@@ -172,28 +179,31 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err != nil {
 		return err
 	}
-	if _, err := git(mainCheckout, "merge", "--squash", head); err != nil {
-		_, _ = git(mainCheckout, "reset", "--hard", "HEAD")
-		return fmt.Errorf("squash-merging %s into main: %w", branch, err)
-	}
-	if _, err := git(mainCheckout, "diff", "--cached", "--quiet", head); err != nil {
-		_, _ = git(mainCheckout, "reset", "--hard", "HEAD")
-		return fmt.Errorf("the squash of %s staged on main differs from the merged branch (%.9s); nothing landed", branch, head)
-	}
+	// The merged branch's tree is the squash: commit it onto the main land
+	// merged and move the ref only if main is still there, so no checkout
+	// of main is needed and a concurrent move is refused, not overwritten.
 	messagePath := filepath.Join(os.TempDir(), fmt.Sprintf("land-%d.txt", os.Getpid()))
-	if err := os.WriteFile(messagePath, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(messagePath, []byte(strings.TrimRight(body, "\n")+"\n"), 0o644); err != nil {
 		return err
 	}
 	defer os.Remove(messagePath)
-	if _, err := git(mainCheckout, "commit", "-F", messagePath); err != nil {
-		_, _ = git(mainCheckout, "reset", "--hard", "HEAD")
-		return fmt.Errorf("committing on main: %w", err)
+	squash, err := git(worktree, "commit-tree", head+"^{tree}", "-p", oldMain, "-F", messagePath)
+	if err != nil {
+		return fmt.Errorf("committing the squash of %s: %w", branch, err)
 	}
-	landed, err := git(mainCheckout, "rev-parse", "--short", "HEAD")
+	if _, err := git(worktree, "update-ref", "-m", "land: "+branch, "refs/heads/main", squash, oldMain); err != nil {
+		return fmt.Errorf("main moved off %.9s while %s was landing; nothing landed, run land again: %w", oldMain, branch, err)
+	}
+	landed, err := git(worktree, "rev-parse", "--short", squash)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("landed %s on main as %s\n", branch, landed)
+	if mainCheckout != "" {
+		if _, err := git(mainCheckout, "read-tree", "-m", "-u", oldMain, squash); err != nil {
+			fmt.Printf("main checkout %s not updated to %s (%v); bring it along with git reset --keep main there\n", mainCheckout, landed, err)
+		}
+	}
 	// main may have moved again while the tests ran; catch the branch up
 	// so the identical-tree check below sees only what this landing missed.
 	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
@@ -208,7 +218,7 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 		fmt.Printf("%s left as is: its tree differs from the landed main\n", branch)
 	}
 	if close != nil {
-		close(mainCheckout, branch, landed)
+		close(worktree, branch, landed)
 	}
 	return nil
 }
