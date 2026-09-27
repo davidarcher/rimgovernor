@@ -643,7 +643,8 @@ const (
 
 // CeilingRatio is one governed row's achieved wall TPS against the
 // governor-off ceiling of the same fixture (#635): the number that judges
-// the controller's speed policy, reported beside paused_fraction_native.
+// how close governed play runs to the simulation's own speed, reported
+// beside paused_fraction_native.
 type CeilingRatio struct {
 	Case                 string  `json:"case"`
 	AchievedTPS          float64 `json:"achieved_tps"`

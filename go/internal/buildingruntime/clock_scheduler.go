@@ -47,10 +47,6 @@ type ClockSchedulerConfig struct {
 	// keeps the critical evidence inside (issue #627); zero is
 	// DefaultPaceHorizonTicks. Unused unless Start.PlayerAccelerated.
 	PaceHorizonTicks domain.Tick
-	// SpeedPolicy, when set, raises the requested speed above Start per
-	// window while readmit and observe latency hold (#635). Ignored under
-	// Start.PlayerAccelerated, whose backoff owns the pace.
-	SpeedPolicy *SpeedPolicyConfig
 	// FollowPlayerSpeed starts each window at the speed the player last
 	// chose in the loaded game (Status.player_speed, #875), Ultrafast when
 	// none was chosen; an Ultrafast window runs player acceleration.
@@ -329,11 +325,6 @@ type ClockScheduler struct {
 	// window, kept across stops so the next window starts with a pace
 	// (seedLiveDrift) instead of the stopped clock's zero.
 	pacePerSecond float64
-	// speed is the speed policy's state (#635), under the player gate.
-	speed speedPolicy
-	// blindTicks is the widest SpeedChanged.BlindTicks a poll saw since the
-	// last admission (#737): written by the poll, taken by the step.
-	blindTicks *atomic.Int64
 	// combatStops measures combat windows' stops (#849), under the player gate.
 	combatStops combatStopMetrics
 	// livePaceTicks is the pace a step projects the tick by (drift):
@@ -601,7 +592,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), blindTicks: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
 	if config.Start.PlayerAccelerated || config.FollowPlayerSpeed {
 		scheduler.paceEpoch = new(atomic.Pointer[k.Epoch])
 		scheduler.pace = newPaceBackoff(config.PaceHorizonTicks, clock.Now, scheduler.requestCeiling)
@@ -1339,15 +1330,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		start.Policy.CombatStopEvents = armedCombatStops(fightOpen)
 	}
 	s.combatStops.admitted(call, status.GetStopped(), status.GetContext().GetTick(), s.clock.Now(), out.Combat)
-	var speedNext speedPolicy
-	if sp := s.config.SpeedPolicy; sp != nil && !start.PlayerAccelerated {
-		s.speed.config = *sp
-		sample := speedLatency{Readmit: paused, Observe: facts.ObservedAt.Sub(started), Blind: s.blindTicks.Swap(0), BlindBudget: int64(start.BlindTickBudget)}
-		var level int
-		level, speedNext = s.speed.next(speedLevel(start.Speed, start.TestAcceleration), sample)
-		start.Speed, start.TestAcceleration = speedOfLevel(level)
-		clockSchedulerLog("speed policy: readmit=%s observe=%s blind=%d/%d -> %s accel=%v", sample.Readmit, sample.Observe, sample.Blind, sample.BlindBudget, start.Speed, start.TestAcceleration)
-	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: start.MaxTicks}
 	key, err := clockSchedulerKey(admission, fingerprint, start)
 	if err != nil {
@@ -1396,9 +1378,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	s.running.Store(err == nil)
 	if err == nil {
-		if s.config.SpeedPolicy != nil && !start.PlayerAccelerated {
-			s.speed = speedNext
-		}
 		s.seedLiveDrift(status.Context.GetTick())
 	}
 	return out, err

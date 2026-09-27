@@ -135,7 +135,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	fresh = page.GetGap() || len(page.Events) > 0
-	s.noteBlindTicks(page)
 	// The first page fixes the history watermark: native's newest cursor
 	// when this process first read events. While nothing is enabled, a page
 	// at or before it is not fresh evidence: a kept game's backlog of stops
