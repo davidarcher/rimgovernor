@@ -8,6 +8,10 @@
 | Load token | Identity of the current loaded game context; old in-flight work cannot carry it into another load. |
 | Player direction | The intent supplied by the player. There is one author of orders, so no direction counter or compare-and-swap exists; authority is the load token, native tick, native order generation and a pause flag. |
 | Goal | A desired outcome, often maintained over time, such as sufficient food supply. |
+| Standard | A goal holding a measured target over time; a chore is a Standard whose target is no outstanding work. See [goal concepts](architecture/control-loop.md#goal-concepts). |
+| Project | A goal with a finite finished state and dependency links to other Projects. |
+| Response | An incident triggered by an event, one row per occurrence. |
+| Rule | An admission veto; it rejects proposals and pursues nothing. |
 | Method | A selected way to pursue a goal, retaining its attempts and step associations. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |
 | ColonyPlan | The shared persistent goal/action system used by player requests and routine control. |

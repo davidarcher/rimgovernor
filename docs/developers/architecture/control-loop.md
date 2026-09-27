@@ -66,6 +66,37 @@ pawn's ordinary bed under native rules. Medical beds cannot be assigned by the
 bed-ownership operation. The hospital planner supplies medical beds, and the
 sleeping planner uses the existing bed-assignment operation for ordinary beds.
 
+## Goal concepts
+
+Every goal the routine review raises is one of four concepts (epic #1012).
+Today all four are still stored as goal rows; the concept says which
+lifecycle a goal follows as they move apart.
+
+| Concept | What it is | Lifecycle |
+| --- | --- | --- |
+| Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and GoalID; re-arms with a new epoch when the target regresses. |
+| Project | A finite piece of work with a finished state and dependency links to other Projects. | Keyed by world and GoalID; finishes once. A finished Project that later breaks opens a new Project, never an epoch bump. The colony stage is derived from finished foothold Projects. |
+| Response | An incident triggered by an event, one row per occurrence (trigger, start, end). | Opens on the event, closes when it is handled. Methods and plans still go through the shared ColonyPlan and Admission. |
+| Rule | An admission veto. It rejects proposals; it pursues nothing and owns no methods. | Evaluated at Admission. Suspending other work is a Rule's job, not a priority value. |
+
+Rules carry no GoalID of their own: the emergency check (`EmergencyRule`) and
+the unsafe-item veto split from `ManageSupplySafety` are Rules, while
+`ManageSupplySafety` itself is the Standard doing the allow and forbid work.
+
+Every GoalID in `go/internal/policy`:
+
+| Concept | GoalIDs |
+| --- | --- |
+| Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices` |
+| Project | `AllowStartingSupplies`, `EnsureInitialShelter`, `EnsureFoodSupply`, `EnsureCooking`, `EnsureBasicDefense`, `EnsureBasicPower`, `EnsureBasicComfort`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
+| Standard (chore) | `MaintainWaste`, `RemoveBlight`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
+| Standard | `EnsureTemperatureSafety`, `EnsureComfort`, `EnsureExpansion`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `TradeWithCaravan`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainStorage` |
+| Rule | none (see above) |
+
+The foothold goals are Projects even where they measure a quantity (food
+days, armed colonists): the foothold is reached once, and a later shortfall
+opens a new Project.
+
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock
