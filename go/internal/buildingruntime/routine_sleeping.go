@@ -201,7 +201,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) || r.goal == policy.MaintainSleeping {
 		selected := false
 		for _, row := range review.Development.Rows {
-			selected = selected || row.Goal == r.goal && row.Selected
+			// A resource or equipment goal held on an existing commitment
+			// keeps building its prerequisite bench (#981).
+			held := row.Committed && (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment)
+			selected = selected || row.Goal == r.goal && (row.Selected || held)
 		}
 		if !selected {
 			return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
