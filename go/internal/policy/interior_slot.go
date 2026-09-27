@@ -40,6 +40,8 @@ var interiorPieceDefs = func() map[string]InteriorPieceDef {
 	add(pieceFamilyStove, domain.Cell{X: 3, Z: 1}, "FueledStove", "ElectricStove")
 	add(pieceFamilyBench, domain.Cell{X: 3, Z: 1}, "TableStonecutter", "FueledSmithy", "ElectricSmithy", "HandTailoringBench", "ElectricTailoringBench", "TableMachining", "ElectricSmelter", "TableSculpting", "Brewery", "DrugLab")
 	add(pieceFamilyBench, domain.Cell{X: 5, Z: 2}, "FabricationBench")
+	// Buildings_Misc.xml ElectricCrematorium (#833): 3x2, (0,0,-1).
+	add(pieceFamilyBench, domain.Cell{X: 3, Z: 2}, CrematoriumDefinition)
 	add(pieceFamilyResearch, domain.Cell{X: 3, Z: 2}, "SimpleResearchBench")
 	add(pieceFamilyResearch, domain.Cell{X: 5, Z: 2}, "HiTechResearchBench")
 	// Beds have no interaction cell (Buildings_Furniture.xml, Royalty's

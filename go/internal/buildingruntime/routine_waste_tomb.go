@@ -36,35 +36,35 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	}
 	step := tombStep(reading.Projection)
 	if step.Kind == policy.TombNone {
-		return RoutineWasteResult{}, false, nil
+		return r.stageCremation(call, epoch, state, review, goal, reading)
 	}
 	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)
 	var result RoutineBuildingResult
 	if step.Kind == policy.TombShell {
 		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, tombMethod(step), "routine-waste-tomb")
 	} else {
-		result, err = r.placeSarcophagus(call, epoch, state, review, goal, reading, step)
+		result, err = r.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
 	}
 	return RoutineWasteResult{Reason: result.Reason}, true, err
 }
 
-// placeSarcophagus previews and admits the step's sarcophagus.
-func (r *RoutineWastePlanner) placeSarcophagus(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.TombStep) (RoutineBuildingResult, error) {
+// placePiece previews and admits one interior piece: a sarcophagus (#832)
+// or the crematorium (#833).
+func (r *RoutineWastePlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID, prefix string) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
-	method := tombMethod(step)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	stuff := ""
 	for _, d := range facts.Definitions {
-		if d.Name == step.Piece.Def {
+		if d.Name == piece.Def {
 			stuff, _ = d.Stuff.Value()
 		}
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.PlanID(fmt.Sprintf("routine-waste-tomb-%x", digest[:16]))
+	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -78,7 +78,7 @@ func (r *RoutineWastePlanner) placeSarcophagus(call, epoch context.Context, stat
 	if err := check(); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	building, err := domain.NewBuilding(step.Piece.Def, step.Piece.Anchor(), step.Piece.Rot, stuff)
+	building, err := domain.NewBuilding(piece.Def, piece.Anchor(), piece.Rot, stuff)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -97,7 +97,7 @@ func (r *RoutineWastePlanner) placeSarcophagus(call, epoch context.Context, stat
 	can, ck := v.CanPlace.Value()
 	safe, sk := v.SafeToPlace.Value()
 	if !ck || !can || !sk || !safe {
-		clockSchedulerLog("%s: sarcophagus %s refused at %d,%d", goal.Goal.ID, step.Piece.Slot, step.Piece.Anchor().X, step.Piece.Anchor().Z)
+		clockSchedulerLog("%s: %s %s refused at %d,%d", goal.Goal.ID, piece.Def, piece.Slot, piece.Anchor().X, piece.Anchor().Z)
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}

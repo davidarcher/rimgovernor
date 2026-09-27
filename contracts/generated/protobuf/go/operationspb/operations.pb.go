@@ -4568,7 +4568,11 @@ type BillSettings struct {
 	Store                  *BillStore             `protobuf:"bytes,11,opt,name=store,proto3" json:"store,omitempty"`
 	Ingredients            *FilterPatch           `protobuf:"bytes,12,opt,name=ingredients,proto3" json:"ingredients,omitempty"`
 	// Wort bill whose target counts wort, fermenting contents and finished beer.
-	BeerReserve   *bool `protobuf:"varint,13,opt,name=beer_reserve,json=beerReserve,proto3,oneof" json:"beer_reserve,omitempty"`
+	BeerReserve *bool `protobuf:"varint,13,opt,name=beer_reserve,json=beerReserve,proto3,oneof" json:"beer_reserve,omitempty"`
+	// Corpse bill ingredient filter (#833): whose corpses a corpse recipe
+	// (ButcherCorpseFlesh, CremateCorpse) takes. Required on corpse recipes,
+	// refused on others; a butcher bill with a pinned worker is humanlike.
+	CorpseClass   *commonpb.CorpseClass `protobuf:"varint,14,opt,name=corpse_class,json=corpseClass,proto3,enum=rimgovernor.common.v1.CorpseClass,oneof" json:"corpse_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4692,6 +4696,13 @@ func (x *BillSettings) GetBeerReserve() bool {
 		return *x.BeerReserve
 	}
 	return false
+}
+
+func (x *BillSettings) GetCorpseClass() commonpb.CorpseClass {
+	if x != nil && x.CorpseClass != nil {
+		return *x.CorpseClass
+	}
+	return commonpb.CorpseClass(0)
 }
 
 type AddBill struct {
@@ -8970,7 +8981,7 @@ const file_operations_proto_rawDesc = "" +
 	"\tBillStore\x12:\n" +
 	"\x04mode\x18\x01 \x01(\x0e2$.rimgovernor.operations.v1.StoreModeH\x00R\x04mode\x12\x19\n" +
 	"\azone_id\x18\x02 \x01(\tH\x00R\x06zoneIdB\r\n" +
-	"\vdestination\"\xe0\x06\n" +
+	"\vdestination\"\xbd\a\n" +
 	"\fBillSettings\x12K\n" +
 	"\vrepeat_mode\x18\x01 \x01(\x0e2%.rimgovernor.operations.v1.RepeatModeH\x00R\n" +
 	"repeatMode\x88\x01\x01\x12&\n" +
@@ -8986,7 +8997,9 @@ const file_operations_proto_rawDesc = "" +
 	" \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x06worker\x12:\n" +
 	"\x05store\x18\v \x01(\v2$.rimgovernor.operations.v1.BillStoreR\x05store\x12H\n" +
 	"\vingredients\x18\f \x01(\v2&.rimgovernor.operations.v1.FilterPatchR\vingredients\x12&\n" +
-	"\fbeer_reserve\x18\r \x01(\bH\tR\vbeerReserve\x88\x01\x01B\x0e\n" +
+	"\fbeer_reserve\x18\r \x01(\bH\tR\vbeerReserve\x88\x01\x01\x12J\n" +
+	"\fcorpse_class\x18\x0e \x01(\x0e2\".rimgovernor.common.v1.CorpseClassH\n" +
+	"R\vcorpseClass\x88\x01\x01B\x0e\n" +
 	"\f_repeat_modeB\x0f\n" +
 	"\r_repeat_countB\x0f\n" +
 	"\r_target_countB\x14\n" +
@@ -8999,7 +9012,8 @@ const file_operations_proto_rawDesc = "" +
 	"_skill_minB\f\n" +
 	"\n" +
 	"_skill_maxB\x0f\n" +
-	"\r_beer_reserve\"\x98\x02\n" +
+	"\r_beer_reserveB\x0f\n" +
+	"\r_corpse_class\"\x98\x02\n" +
 	"\aAddBill\x12C\n" +
 	"\x05bench\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x05bench\x12\"\n" +
 	"\n" +
@@ -9633,7 +9647,8 @@ var file_operations_proto_goTypes = []any{
 	(*commonpb.Cell)(nil),                  // 125: rimgovernor.common.v1.Cell
 	(*placementpb.PlacementCandidate)(nil), // 126: rimgovernor.placement.v1.PlacementCandidate
 	(placementpb.Rotation)(0),              // 127: rimgovernor.placement.v1.Rotation
-	(*receiptspb.JobEffect)(nil),           // 128: rimgovernor.receipts.v1.JobEffect
+	(commonpb.CorpseClass)(0),              // 128: rimgovernor.common.v1.CorpseClass
+	(*receiptspb.JobEffect)(nil),           // 129: rimgovernor.receipts.v1.JobEffect
 }
 var file_operations_proto_depIdxs = []int32{
 	118, // 0: rimgovernor.operations.v1.ExecuteRequest.precondition:type_name -> rimgovernor.authority.v1.WritePrecondition
@@ -9757,120 +9772,121 @@ var file_operations_proto_depIdxs = []int32{
 	31,  // 118: rimgovernor.operations.v1.BillSettings.worker:type_name -> rimgovernor.operations.v1.Assignment
 	52,  // 119: rimgovernor.operations.v1.BillSettings.store:type_name -> rimgovernor.operations.v1.BillStore
 	51,  // 120: rimgovernor.operations.v1.BillSettings.ingredients:type_name -> rimgovernor.operations.v1.FilterPatch
-	28,  // 121: rimgovernor.operations.v1.AddBill.bench:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	53,  // 122: rimgovernor.operations.v1.AddBill.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	28,  // 123: rimgovernor.operations.v1.BillPrecondition.bench:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	55,  // 124: rimgovernor.operations.v1.PatchBill.bill:type_name -> rimgovernor.operations.v1.BillPrecondition
-	53,  // 125: rimgovernor.operations.v1.PatchBill.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	55,  // 126: rimgovernor.operations.v1.DeleteBill.bill:type_name -> rimgovernor.operations.v1.BillPrecondition
-	55,  // 127: rimgovernor.operations.v1.MoveBill.bill:type_name -> rimgovernor.operations.v1.BillPrecondition
-	125, // 128: rimgovernor.operations.v1.DrillPolicy.cell:type_name -> rimgovernor.common.v1.Cell
-	32,  // 129: rimgovernor.operations.v1.DefCounts.rows:type_name -> rimgovernor.operations.v1.DefCount
-	60,  // 130: rimgovernor.operations.v1.DrillPolicies.rows:type_name -> rimgovernor.operations.v1.DrillPolicy
-	61,  // 131: rimgovernor.operations.v1.SetProductionPolicy.floors:type_name -> rimgovernor.operations.v1.DefCounts
-	61,  // 132: rimgovernor.operations.v1.SetProductionPolicy.commitments:type_name -> rimgovernor.operations.v1.DefCounts
-	62,  // 133: rimgovernor.operations.v1.SetProductionPolicy.stopped_defs:type_name -> rimgovernor.operations.v1.DefinitionList
-	63,  // 134: rimgovernor.operations.v1.SetProductionPolicy.drills:type_name -> rimgovernor.operations.v1.DrillPolicies
-	7,   // 135: rimgovernor.operations.v1.StockpileSettings.priority:type_name -> rimgovernor.operations.v1.StoragePriority
-	8,   // 136: rimgovernor.operations.v1.StockpileSettings.preset:type_name -> rimgovernor.operations.v1.FilterPreset
-	51,  // 137: rimgovernor.operations.v1.StockpileSettings.filter:type_name -> rimgovernor.operations.v1.FilterPatch
-	6,   // 138: rimgovernor.operations.v1.CreateZone.type:type_name -> rimgovernor.operations.v1.ZoneType
-	35,  // 139: rimgovernor.operations.v1.CreateZone.cells:type_name -> rimgovernor.operations.v1.Cells
-	65,  // 140: rimgovernor.operations.v1.CreateZone.stockpile:type_name -> rimgovernor.operations.v1.StockpileSettings
-	66,  // 141: rimgovernor.operations.v1.CreateZone.growing:type_name -> rimgovernor.operations.v1.GrowingSettings
-	67,  // 142: rimgovernor.operations.v1.CreateZone.fishing:type_name -> rimgovernor.operations.v1.FishingSettings
-	28,  // 143: rimgovernor.operations.v1.DeleteZone.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 144: rimgovernor.operations.v1.EditZoneCells.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	9,   // 145: rimgovernor.operations.v1.EditZoneCells.edit:type_name -> rimgovernor.operations.v1.CellEdit
-	35,  // 146: rimgovernor.operations.v1.EditZoneCells.cells:type_name -> rimgovernor.operations.v1.Cells
-	28,  // 147: rimgovernor.operations.v1.RepairZone.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 148: rimgovernor.operations.v1.PatchStockpile.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	65,  // 149: rimgovernor.operations.v1.PatchStockpile.settings:type_name -> rimgovernor.operations.v1.StockpileSettings
-	28,  // 150: rimgovernor.operations.v1.PatchGrowing.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	66,  // 151: rimgovernor.operations.v1.PatchGrowing.settings:type_name -> rimgovernor.operations.v1.GrowingSettings
-	28,  // 152: rimgovernor.operations.v1.ExtendHome.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 153: rimgovernor.operations.v1.AssignBed.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 154: rimgovernor.operations.v1.AssignBed.bed:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	31,  // 155: rimgovernor.operations.v1.AssignBed.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
-	28,  // 156: rimgovernor.operations.v1.Deconstruct.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 157: rimgovernor.operations.v1.RemoveWall.wall:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 158: rimgovernor.operations.v1.Arrest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 159: rimgovernor.operations.v1.Arrest.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 160: rimgovernor.operations.v1.Arrest.bed:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 161: rimgovernor.operations.v1.RecoveryArea.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 162: rimgovernor.operations.v1.RecoveryArea.area:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 163: rimgovernor.operations.v1.RecoverService.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 164: rimgovernor.operations.v1.RecoverService.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	10,  // 165: rimgovernor.operations.v1.RecoverService.method:type_name -> rimgovernor.operations.v1.ServiceMethod
-	28,  // 166: rimgovernor.operations.v1.ManageWaste.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 167: rimgovernor.operations.v1.ManageWaste.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	30,  // 168: rimgovernor.operations.v1.ExpectedJob.idle:type_name -> rimgovernor.operations.v1.Clear
-	28,  // 169: rimgovernor.operations.v1.RelieveNeed.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	11,  // 170: rimgovernor.operations.v1.RelieveNeed.need:type_name -> rimgovernor.operations.v1.Need
-	84,  // 171: rimgovernor.operations.v1.RelieveNeed.expected_job:type_name -> rimgovernor.operations.v1.ExpectedJob
-	28,  // 172: rimgovernor.operations.v1.ImproveGear.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 173: rimgovernor.operations.v1.ImproveGear.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 174: rimgovernor.operations.v1.QueueSurgery.patient:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	2,   // 175: rimgovernor.operations.v1.QueueSurgery.expected_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	28,  // 176: rimgovernor.operations.v1.SetAnimalTraining.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 177: rimgovernor.operations.v1.SlaughterAnimal.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 178: rimgovernor.operations.v1.TameAnimal.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 179: rimgovernor.operations.v1.ReleaseAnimal.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 180: rimgovernor.operations.v1.SetAnimalArea.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	31,  // 181: rimgovernor.operations.v1.SetAnimalArea.area:type_name -> rimgovernor.operations.v1.Assignment
-	28,  // 182: rimgovernor.operations.v1.SetAnimalMaster.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	31,  // 183: rimgovernor.operations.v1.SetAnimalMaster.master:type_name -> rimgovernor.operations.v1.Assignment
-	28,  // 184: rimgovernor.operations.v1.SetAnimalFollowing.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 185: rimgovernor.operations.v1.SetPrisonerInteraction.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	12,  // 186: rimgovernor.operations.v1.SetPrisonerInteraction.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
-	28,  // 187: rimgovernor.operations.v1.SetDrafted.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 188: rimgovernor.operations.v1.MovePawn.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	125, // 189: rimgovernor.operations.v1.MovePawn.destination:type_name -> rimgovernor.common.v1.Cell
-	28,  // 190: rimgovernor.operations.v1.AttackTarget.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 191: rimgovernor.operations.v1.AttackTarget.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	13,  // 192: rimgovernor.operations.v1.AttackTarget.mode:type_name -> rimgovernor.operations.v1.AttackMode
-	28,  // 193: rimgovernor.operations.v1.PawnTargetOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 194: rimgovernor.operations.v1.PawnTargetOrder.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	14,  // 195: rimgovernor.operations.v1.PawnTargetOrder.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
-	28,  // 196: rimgovernor.operations.v1.OpenTrade.trader:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 197: rimgovernor.operations.v1.OpenTrade.negotiator:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 198: rimgovernor.operations.v1.SetTradeLines.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	101, // 199: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
-	28,  // 200: rimgovernor.operations.v1.AcceptTrade.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	32,  // 201: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
-	28,  // 202: rimgovernor.operations.v1.EndTrade.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	15,  // 203: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
-	105, // 204: rimgovernor.operations.v1.FormCaravan.cargo:type_name -> rimgovernor.operations.v1.CargoSelection
-	28,  // 205: rimgovernor.operations.v1.TravelCaravan.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	16,  // 206: rimgovernor.operations.v1.TravelCaravan.kind:type_name -> rimgovernor.operations.v1.TravelKind
-	28,  // 207: rimgovernor.operations.v1.GiftCaravanSilver.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 208: rimgovernor.operations.v1.GiftCaravanSilver.faction:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 209: rimgovernor.operations.v1.AcceptQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 210: rimgovernor.operations.v1.FulfillQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	28,  // 211: rimgovernor.operations.v1.FulfillQuest.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	121, // 212: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	28,  // 213: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	113, // 214: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	122, // 215: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
-	128, // 216: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
-	113, // 217: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	122, // 218: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
-	114, // 219: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
-	114, // 220: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
-	115, // 221: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
-	120, // 222: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
-	28,  // 223: rimgovernor.operations.v1.SetApparelPolicy.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	19,  // 224: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
-	17,  // 225: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
-	113, // 226: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
-	20,  // 227: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
-	18,  // 228: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
-	116, // 229: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
-	227, // [227:230] is the sub-list for method output_type
-	224, // [224:227] is the sub-list for method input_type
-	224, // [224:224] is the sub-list for extension type_name
-	224, // [224:224] is the sub-list for extension extendee
-	0,   // [0:224] is the sub-list for field type_name
+	128, // 121: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
+	28,  // 122: rimgovernor.operations.v1.AddBill.bench:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	53,  // 123: rimgovernor.operations.v1.AddBill.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	28,  // 124: rimgovernor.operations.v1.BillPrecondition.bench:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	55,  // 125: rimgovernor.operations.v1.PatchBill.bill:type_name -> rimgovernor.operations.v1.BillPrecondition
+	53,  // 126: rimgovernor.operations.v1.PatchBill.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	55,  // 127: rimgovernor.operations.v1.DeleteBill.bill:type_name -> rimgovernor.operations.v1.BillPrecondition
+	55,  // 128: rimgovernor.operations.v1.MoveBill.bill:type_name -> rimgovernor.operations.v1.BillPrecondition
+	125, // 129: rimgovernor.operations.v1.DrillPolicy.cell:type_name -> rimgovernor.common.v1.Cell
+	32,  // 130: rimgovernor.operations.v1.DefCounts.rows:type_name -> rimgovernor.operations.v1.DefCount
+	60,  // 131: rimgovernor.operations.v1.DrillPolicies.rows:type_name -> rimgovernor.operations.v1.DrillPolicy
+	61,  // 132: rimgovernor.operations.v1.SetProductionPolicy.floors:type_name -> rimgovernor.operations.v1.DefCounts
+	61,  // 133: rimgovernor.operations.v1.SetProductionPolicy.commitments:type_name -> rimgovernor.operations.v1.DefCounts
+	62,  // 134: rimgovernor.operations.v1.SetProductionPolicy.stopped_defs:type_name -> rimgovernor.operations.v1.DefinitionList
+	63,  // 135: rimgovernor.operations.v1.SetProductionPolicy.drills:type_name -> rimgovernor.operations.v1.DrillPolicies
+	7,   // 136: rimgovernor.operations.v1.StockpileSettings.priority:type_name -> rimgovernor.operations.v1.StoragePriority
+	8,   // 137: rimgovernor.operations.v1.StockpileSettings.preset:type_name -> rimgovernor.operations.v1.FilterPreset
+	51,  // 138: rimgovernor.operations.v1.StockpileSettings.filter:type_name -> rimgovernor.operations.v1.FilterPatch
+	6,   // 139: rimgovernor.operations.v1.CreateZone.type:type_name -> rimgovernor.operations.v1.ZoneType
+	35,  // 140: rimgovernor.operations.v1.CreateZone.cells:type_name -> rimgovernor.operations.v1.Cells
+	65,  // 141: rimgovernor.operations.v1.CreateZone.stockpile:type_name -> rimgovernor.operations.v1.StockpileSettings
+	66,  // 142: rimgovernor.operations.v1.CreateZone.growing:type_name -> rimgovernor.operations.v1.GrowingSettings
+	67,  // 143: rimgovernor.operations.v1.CreateZone.fishing:type_name -> rimgovernor.operations.v1.FishingSettings
+	28,  // 144: rimgovernor.operations.v1.DeleteZone.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 145: rimgovernor.operations.v1.EditZoneCells.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	9,   // 146: rimgovernor.operations.v1.EditZoneCells.edit:type_name -> rimgovernor.operations.v1.CellEdit
+	35,  // 147: rimgovernor.operations.v1.EditZoneCells.cells:type_name -> rimgovernor.operations.v1.Cells
+	28,  // 148: rimgovernor.operations.v1.RepairZone.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 149: rimgovernor.operations.v1.PatchStockpile.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	65,  // 150: rimgovernor.operations.v1.PatchStockpile.settings:type_name -> rimgovernor.operations.v1.StockpileSettings
+	28,  // 151: rimgovernor.operations.v1.PatchGrowing.zone:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	66,  // 152: rimgovernor.operations.v1.PatchGrowing.settings:type_name -> rimgovernor.operations.v1.GrowingSettings
+	28,  // 153: rimgovernor.operations.v1.ExtendHome.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 154: rimgovernor.operations.v1.AssignBed.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 155: rimgovernor.operations.v1.AssignBed.bed:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	31,  // 156: rimgovernor.operations.v1.AssignBed.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
+	28,  // 157: rimgovernor.operations.v1.Deconstruct.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 158: rimgovernor.operations.v1.RemoveWall.wall:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 159: rimgovernor.operations.v1.Arrest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 160: rimgovernor.operations.v1.Arrest.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 161: rimgovernor.operations.v1.Arrest.bed:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 162: rimgovernor.operations.v1.RecoveryArea.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 163: rimgovernor.operations.v1.RecoveryArea.area:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 164: rimgovernor.operations.v1.RecoverService.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 165: rimgovernor.operations.v1.RecoverService.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	10,  // 166: rimgovernor.operations.v1.RecoverService.method:type_name -> rimgovernor.operations.v1.ServiceMethod
+	28,  // 167: rimgovernor.operations.v1.ManageWaste.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 168: rimgovernor.operations.v1.ManageWaste.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	30,  // 169: rimgovernor.operations.v1.ExpectedJob.idle:type_name -> rimgovernor.operations.v1.Clear
+	28,  // 170: rimgovernor.operations.v1.RelieveNeed.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	11,  // 171: rimgovernor.operations.v1.RelieveNeed.need:type_name -> rimgovernor.operations.v1.Need
+	84,  // 172: rimgovernor.operations.v1.RelieveNeed.expected_job:type_name -> rimgovernor.operations.v1.ExpectedJob
+	28,  // 173: rimgovernor.operations.v1.ImproveGear.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 174: rimgovernor.operations.v1.ImproveGear.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 175: rimgovernor.operations.v1.QueueSurgery.patient:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	2,   // 176: rimgovernor.operations.v1.QueueSurgery.expected_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	28,  // 177: rimgovernor.operations.v1.SetAnimalTraining.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 178: rimgovernor.operations.v1.SlaughterAnimal.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 179: rimgovernor.operations.v1.TameAnimal.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 180: rimgovernor.operations.v1.ReleaseAnimal.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 181: rimgovernor.operations.v1.SetAnimalArea.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	31,  // 182: rimgovernor.operations.v1.SetAnimalArea.area:type_name -> rimgovernor.operations.v1.Assignment
+	28,  // 183: rimgovernor.operations.v1.SetAnimalMaster.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	31,  // 184: rimgovernor.operations.v1.SetAnimalMaster.master:type_name -> rimgovernor.operations.v1.Assignment
+	28,  // 185: rimgovernor.operations.v1.SetAnimalFollowing.animal:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 186: rimgovernor.operations.v1.SetPrisonerInteraction.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	12,  // 187: rimgovernor.operations.v1.SetPrisonerInteraction.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
+	28,  // 188: rimgovernor.operations.v1.SetDrafted.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 189: rimgovernor.operations.v1.MovePawn.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	125, // 190: rimgovernor.operations.v1.MovePawn.destination:type_name -> rimgovernor.common.v1.Cell
+	28,  // 191: rimgovernor.operations.v1.AttackTarget.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 192: rimgovernor.operations.v1.AttackTarget.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	13,  // 193: rimgovernor.operations.v1.AttackTarget.mode:type_name -> rimgovernor.operations.v1.AttackMode
+	28,  // 194: rimgovernor.operations.v1.PawnTargetOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 195: rimgovernor.operations.v1.PawnTargetOrder.target:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	14,  // 196: rimgovernor.operations.v1.PawnTargetOrder.kind:type_name -> rimgovernor.operations.v1.PawnOrderKind
+	28,  // 197: rimgovernor.operations.v1.OpenTrade.trader:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 198: rimgovernor.operations.v1.OpenTrade.negotiator:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 199: rimgovernor.operations.v1.SetTradeLines.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	101, // 200: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
+	28,  // 201: rimgovernor.operations.v1.AcceptTrade.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	32,  // 202: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
+	28,  // 203: rimgovernor.operations.v1.EndTrade.session:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	15,  // 204: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
+	105, // 205: rimgovernor.operations.v1.FormCaravan.cargo:type_name -> rimgovernor.operations.v1.CargoSelection
+	28,  // 206: rimgovernor.operations.v1.TravelCaravan.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	16,  // 207: rimgovernor.operations.v1.TravelCaravan.kind:type_name -> rimgovernor.operations.v1.TravelKind
+	28,  // 208: rimgovernor.operations.v1.GiftCaravanSilver.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 209: rimgovernor.operations.v1.GiftCaravanSilver.faction:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 210: rimgovernor.operations.v1.AcceptQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 211: rimgovernor.operations.v1.FulfillQuest.quest:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	28,  // 212: rimgovernor.operations.v1.FulfillQuest.caravan:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	121, // 213: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	28,  // 214: rimgovernor.operations.v1.ReleaseOwnedDraftRequest.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	113, // 215: rimgovernor.operations.v1.DraftRelease.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	122, // 216: rimgovernor.operations.v1.DraftRelease.context:type_name -> rimgovernor.common.v1.ObservationContext
+	129, // 217: rimgovernor.operations.v1.DraftRelease.observed:type_name -> rimgovernor.receipts.v1.JobEffect
+	113, // 218: rimgovernor.operations.v1.DraftReleaseUncertain.request:type_name -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	122, // 219: rimgovernor.operations.v1.DraftReleaseUncertain.context:type_name -> rimgovernor.common.v1.ObservationContext
+	114, // 220: rimgovernor.operations.v1.ReleaseOwnedDraftReply.released:type_name -> rimgovernor.operations.v1.DraftRelease
+	114, // 221: rimgovernor.operations.v1.ReleaseOwnedDraftReply.already_released:type_name -> rimgovernor.operations.v1.DraftRelease
+	115, // 222: rimgovernor.operations.v1.ReleaseOwnedDraftReply.uncertain:type_name -> rimgovernor.operations.v1.DraftReleaseUncertain
+	120, // 223: rimgovernor.operations.v1.ReleaseOwnedDraftReply.failure:type_name -> rimgovernor.common.v1.Failure
+	28,  // 224: rimgovernor.operations.v1.SetApparelPolicy.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
+	19,  // 225: rimgovernor.operations.v1.Operations.Preview:input_type -> rimgovernor.operations.v1.PreviewRequest
+	17,  // 226: rimgovernor.operations.v1.Operations.Execute:input_type -> rimgovernor.operations.v1.ExecuteRequest
+	113, // 227: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:input_type -> rimgovernor.operations.v1.ReleaseOwnedDraftRequest
+	20,  // 228: rimgovernor.operations.v1.Operations.Preview:output_type -> rimgovernor.operations.v1.PreviewReply
+	18,  // 229: rimgovernor.operations.v1.Operations.Execute:output_type -> rimgovernor.operations.v1.ExecuteReply
+	116, // 230: rimgovernor.operations.v1.Operations.ReleaseOwnedDraft:output_type -> rimgovernor.operations.v1.ReleaseOwnedDraftReply
+	228, // [228:231] is the sub-list for method output_type
+	225, // [225:228] is the sub-list for method input_type
+	225, // [225:225] is the sub-list for extension type_name
+	225, // [225:225] is the sub-list for extension extendee
+	0,   // [0:225] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }

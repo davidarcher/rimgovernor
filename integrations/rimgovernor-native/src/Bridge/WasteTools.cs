@@ -97,15 +97,15 @@ namespace HomeBridge.BridgeTools
                 meaning = "Exposed and relocated are live item states; buried is native containment. Absence does not prove destruction." };
         }
 
-        // CorpseOf is a corpse's inner pawn class (#832): "colonist" for the
-        // player faction's humanlike, "stranger" for any other humanlike,
-        // "animal" otherwise; null for anything that is not a corpse.
-        internal static string? CorpseOf(Thing thing)
+        // CorpseOf is a corpse's inner pawn class (#832): colonist for the
+        // player faction's humanlike, stranger for any other humanlike,
+        // animal otherwise; null for anything that is not a corpse.
+        internal static Common.CorpseClass? CorpseOf(Thing thing)
         {
             var inner = (thing as Corpse)?.InnerPawn;
             if (inner == null) return null;
-            if (!inner.RaceProps.Humanlike) return "animal";
-            return inner.Faction == Faction.OfPlayer ? "colonist" : "stranger";
+            if (!inner.RaceProps.Humanlike) return Common.CorpseClass.Animal;
+            return inner.Faction == Faction.OfPlayer ? Common.CorpseClass.Colonist : Common.CorpseClass.Stranger;
         }
 
         // Project is the same census as Census("", "") on the typed wire
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
                 var rot = thing.TryGetComp<CompRottable>();
                 if (rot != null) row.RotStage = rot.Stage.ToString();
                 var of = CorpseOf(thing);
-                if (of != null) row.CorpseOf = of;
+                if (of != null) row.CorpseClass = of.Value;
                 items.Add(row);
             }
             foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
@@ -139,7 +139,7 @@ namespace HomeBridge.BridgeTools
                     var row = new Obs.WasteItem { Thing = Ref(body, grave.Position), Count = 1, Kind = "corpse", ProtectedReason = "grave",
                         Eligible = false, State = Obs.WasteLocation.Buried, GraveId = Id(grave) };
                     var of = CorpseOf(body);
-                    if (of != null) row.CorpseOf = of;
+                    if (of != null) row.CorpseClass = of.Value;
                     items.Add(row);
                 }
             if (items.Count > 256)

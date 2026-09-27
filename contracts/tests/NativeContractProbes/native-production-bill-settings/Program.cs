@@ -66,9 +66,25 @@ internal static class NativeProductionBillSettingsProbe
         butcher.Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Forever,
             Suspended = false, IngredientSearchRadius = 40,
             Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor } };
-        Check(NativeProductionBillSettings.Valid(butcher), "unfiltered butcher bill rejected" );
+        Check(!NativeProductionBillSettings.Valid(butcher), "butcher bill without a corpse class accepted");
+        butcher.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
+        Check(NativeProductionBillSettings.Valid(butcher), "animal butcher bill rejected" );
         butcher.ReplaceOwnedBillId = "foreign-bill";
         Check(NativeProductionBillSettings.Valid(butcher), "butcher takeover rejected" );
+        var cremate = butcher.Clone();
+        cremate.RecipeDef = "CremateCorpse";
+        cremate.ClearReplaceOwnedBillId();
+        foreach (var of in new[] { RimGovernor.Protocol.Common.CorpseClass.Colonist, RimGovernor.Protocol.Common.CorpseClass.Stranger, RimGovernor.Protocol.Common.CorpseClass.Animal }) {
+            cremate.Settings.CorpseClass = of;
+            Check(NativeProductionBillSettings.Valid(cremate), "cremation rejected for " + of);
+        }
+        cremate.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
+        Check(!NativeProductionBillSettings.Valid(cremate), "pinned cremation accepted");
+        var classedMeal = bill.Clone();
+        classedMeal.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
+        Check(!NativeProductionBillSettings.Valid(classedMeal), "corpse class accepted outside corpse recipes");
+        Check(!NativeProductionBillSettings.Valid(new Operations.AddBill(butcher) { Settings = new Operations.BillSettings(butcher.Settings) { Worker = new Operations.Assignment { EntityId = "Pawn_Cook" } } }), "pinned animal butcher accepted");
+        butcher.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Stranger;
         butcher.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
         Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");
         var invalidWorker = butcher.Clone();

@@ -108,6 +108,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_waste.go":                {"waste"},
 	"routine_waste_tomb.go":           {"waste"},
 	"routine_tomb_facts.go":           {"waste"},
+	"routine_waste_cremation.go":      {"waste"},
 	"routine_workshop.go":             {"workshop"},
 }
 

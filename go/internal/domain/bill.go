@@ -33,6 +33,7 @@ type ProductionBill struct {
 	ingredients          string
 	worker               string
 	replace              string
+	corpses              CorpseOf
 }
 
 func NewProductionBill(bench, recipe, token string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
@@ -54,7 +55,11 @@ func NewProductionBill(bench, recipe, token string, mode BillMode, target int32,
 		data, _ := json.Marshal(rows)
 		filter = string(data)
 	}
-	return ProductionBill{bench: bench, recipe: recipe, token: token, mode: mode, target: target, ingredients: filter}, nil
+	b := ProductionBill{bench: bench, recipe: recipe, token: token, mode: mode, target: target, ingredients: filter}
+	if mode == ButcherForever {
+		b.corpses = CorpseAnimal
+	}
+	return b, nil
 }
 
 // A humanlike butcher bill is always pinned and never accepts animal corpses.
@@ -63,9 +68,33 @@ func NewHumanButcherBill(bench, token, worker string) (ProductionBill, error) {
 	if err != nil || !validID(worker) {
 		return ProductionBill{}, errors.New("invalid human butcher bill")
 	}
-	b.mode, b.worker = HumanButcherForever, worker
+	b.mode, b.worker, b.corpses = HumanButcherForever, worker, CorpseStranger
 	return b, nil
 }
+
+// Corpse bill recipes (#833).
+const (
+	ButcherRecipe = "ButcherCorpseFlesh"
+	CremateRecipe = "CremateCorpse"
+)
+
+// NewCorpseBill is a forever corpse bill: a recipe (butcher or cremate)
+// plus an ingredient filter by whose corpse it is. Butchering animals is the
+// plain ButcherForever bill; humanlike butchering (strangers, pinned
+// worker) stays NewHumanButcherBill. Cremation takes any class; which
+// class to cremate is policy's choice.
+func NewCorpseBill(bench, recipe, token string, corpses CorpseOf) (ProductionBill, error) {
+	if recipe == ButcherRecipe && corpses == CorpseAnimal {
+		return NewProductionBill(bench, recipe, token, ButcherForever, 0)
+	}
+	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) || !validID(token) {
+		return ProductionBill{}, errors.New("invalid corpse bill")
+	}
+	return ProductionBill{bench: bench, recipe: recipe, token: token, mode: ButcherForever, corpses: corpses}, nil
+}
+
+// Corpses is a corpse bill's ingredient filter; empty for other bills.
+func (b ProductionBill) Corpses() CorpseOf { return b.corpses }
 
 func (b ProductionBill) Worker() string { return b.worker }
 
@@ -74,6 +103,9 @@ func (b ProductionBill) Worker() string { return b.worker }
 func (b ProductionBill) ClaimRecipe() string {
 	if b.mode == HumanButcherForever {
 		return b.recipe + "/humanlike"
+	}
+	if b.recipe == CremateRecipe {
+		return b.recipe + "/" + string(b.corpses)
 	}
 	return b.recipe
 }
@@ -105,6 +137,8 @@ func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
 	canonical, err := NewProductionBill(b.bench, b.recipe, b.token, b.mode, b.target, b.Ingredients()...)
 	if b.mode == HumanButcherForever {
 		canonical, err = NewHumanButcherBill(b.bench, b.token, b.worker)
+	} else if b.recipe == CremateRecipe {
+		canonical, err = NewCorpseBill(b.bench, b.recipe, b.token, b.corpses)
 	}
 	if err == nil && b.replace != "" {
 		canonical, err = canonical.ReplaceOwnedBill(b.replace)

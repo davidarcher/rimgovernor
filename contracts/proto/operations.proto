@@ -229,6 +229,10 @@ message BillSettings {
   FilterPatch ingredients = 12;
   // Wort bill whose target counts wort, fermenting contents and finished beer.
   optional bool beer_reserve = 13;
+  // Corpse bill ingredient filter (#833): whose corpses a corpse recipe
+  // (ButcherCorpseFlesh, CremateCorpse) takes. Required on corpse recipes,
+  // refused on others; a butcher bill with a pinned worker is humanlike.
+  optional rimgovernor.common.v1.CorpseClass corpse_class = 14;
 }
 message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; optional string replace_owned_bill_id = 4; }
 message BillPrecondition { EntityPrecondition bench = 1; optional string bill_id = 2; }

@@ -702,8 +702,9 @@ message HusbandryRequest { ReadScope scope = 1; rimgovernor.common.v1.PageReques
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 enum WasteLocation { WASTE_LOCATION_UNSPECIFIED = 0; WASTE_LOCATION_EXPOSED = 1; WASTE_LOCATION_RELOCATED = 2; WASTE_LOCATION_BURIED = 3; }
 message WasteItem { EntityRef thing = 1; optional int64 count = 2; optional WasteLocation state = 3; optional string zone_id = 4; optional string grave_id = 5; optional string rot_stage = 6; optional string kind = 7; optional bool eligible = 8; optional string protected_reason = 9;
-  // A corpse's inner pawn: "colonist" (the player faction's humanlike), "stranger" (any other humanlike) or "animal"; unset for non-corpses.
-  optional string corpse_of = 10; }
+  reserved 10; reserved "corpse_of";
+  // A corpse's inner pawn; unset for non-corpses.
+  optional rimgovernor.common.v1.CorpseClass corpse_class = 11; }
 message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WasteItem items = 2; Completeness completeness = 3; }
 message WasteRequest { ReadScope scope = 1; repeated string unwanted_ids = 2; repeated string bury_ids = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

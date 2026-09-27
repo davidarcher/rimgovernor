@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -50,7 +51,7 @@ func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
 			continue
 		}
 		cell := domain.Cell{X: position.GetX(), Z: position.GetZ()}
-		items = append(items, policy.WasteItem{ID: id, Kind: row.GetKind(), State: wasteLocation(row.GetState()), Eligible: row.GetEligible(), Cell: cell, CorpseOf: domain.CorpseOf(row.GetCorpseOf()), Grave: row.GetGraveId()})
+		items = append(items, policy.WasteItem{ID: id, Kind: row.GetKind(), State: wasteLocation(row.GetState()), Eligible: row.GetEligible(), Cell: cell, CorpseOf: bridge.CorpseOf(row.GetCorpseClass()), Grave: row.GetGraveId()})
 	}
 	return domain.Known(items)
 }

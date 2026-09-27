@@ -43,7 +43,29 @@ namespace HomeBridge.BridgeTools {
   internal static bool UsableForNewBill(Thing bench)=>Usable(bench)||bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is Building_WorkTable table&&table.UsableForBillsAfterFueling();
   // Ordinary production: every product is a spawnable item (food, kibble,
   // blocks, weapons, apparel alike); corpse butchering keeps its special case.
-  internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(recipe.defName=="ButcherCorpseFlesh"||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
+  internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(CorpseRecipe(recipe.defName)||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
+  internal static bool CorpseRecipe(string recipe)=>NativeProductionBillSettings.CorpseRecipe(recipe);
+  private static bool HumanlikeCorpse(ThingDef d)=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true;
+  // The class a corpse bill takes: animal without humanlike corpses, else
+  // stranger when the stranger special filter is allowed, else colonist.
+  internal static Common.CorpseClass CorpseClass(Bill bill){
+   if(!bill.ingredientFilter.AllowedThingDefs.Any(HumanlikeCorpse))return Common.CorpseClass.Animal;
+   var stranger=DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowCorpsesStranger");
+   return stranger!=null&&bill.ingredientFilter.Allows(stranger)?Common.CorpseClass.Stranger:Common.CorpseClass.Colonist;
+  }
+  // The one corpse filter path: corpse defs by humanlike status within the
+  // recipe's own filters, then the CorpsesHumanlike special filters.
+  private static void ConfigureCorpses(Bill_Production bill,RecipeDef recipe,Common.CorpseClass of){
+   bool human=of!=Common.CorpseClass.Animal;
+   foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.IsCorpse))
+    bill.ingredientFilter.SetAllow(def,HumanlikeCorpse(def)==human&&(recipe.fixedIngredientFilter==null||recipe.fixedIngredientFilter.Allows(def))&&recipe.ingredients.Any(i=>i.filter.Allows(def)));
+   if(!human)return;
+   // Colonist covers the colony's slaves; everything else under the
+   // humanlike corpse category (unnatural, future DLC rows) is refused.
+   var allowed=of==Common.CorpseClass.Colonist?new[]{"AllowCorpsesColonist","AllowCorpsesSlave"}:new[]{"AllowCorpsesStranger"};
+   foreach(var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(f=>f.parentCategory?.defName=="CorpsesHumanlike"))
+    bill.ingredientFilter.SetAllow(special,allowed.Contains(special.defName));
+  }
   internal static bool Product(ThingDef d)=>d!=null&&d.category==ThingCategory.Item&&!d.IsCorpse;
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
@@ -53,8 +75,9 @@ namespace HomeBridge.BridgeTools {
    var fresh=new Bill_Production { recipe=bill.recipe, ingredientFilter=new ThingFilter() };
    fresh.ingredientFilter.CopyAllowancesFrom(bill.recipe.defaultIngredientFilter ?? bill.recipe.fixedIngredientFilter);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
-    bool human=bill.recipe.defName=="ButcherCorpseFlesh" && bill.ingredientFilter.AllowedThingDefs.Any(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true);
-    ConfigureIngredients(fresh,bill.recipe,new Operations.BillSettings{Worker=human?new Operations.Assignment{EntityId=row.WorkerId}:null},bench.Map);
+    var defaults=new Operations.BillSettings();
+    if(CorpseRecipe(bill.recipe.defName))defaults.CorpseClass=CorpseClass(bill);
+    ConfigureIngredients(fresh,bill.recipe,defaults,bench.Map);
     row.DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter);
     row.UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly;
    }
@@ -72,11 +95,8 @@ namespace HomeBridge.BridgeTools {
       bill.ingredientFilter.SetDisallowAll();
       foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
      }
-     if(recipe.defName=="ButcherCorpseFlesh"){
-      bool human=s.Worker!=null;
-      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.IsCorpse))
-       bill.ingredientFilter.SetAllow(def,(def.ingestible?.sourceDef?.race?.Humanlike==true)==human && recipe!.ingredients.Any(i=>i.filter.Allows(def)));
-     }else{
+     if(CorpseRecipe(recipe.defName))ConfigureCorpses(bill,recipe,s.CorpseClass);
+     else{
       // Shared colonist cooking never creates human-meat meals. Dedicated
       // destination bills must supply their own explicit routing contract.
       bool trade=s.Ingredients!=null&&recipe!.products.All(p=>p.thingDef.defName=="MealSurvivalPack");
@@ -101,11 +121,11 @@ namespace HomeBridge.BridgeTools {
    if(command.HasReplaceOwnedBillId && replaced==null){failure=Refuse("replacement must be the same recipe on this bench or an ordinary meal tier on this map");return false;}
    if(giver.BillStack.Count>=15 && replaced?.billStack!=giver.BillStack){failure=Refuse("bill stack is full");return false;}
    var humanButcher=command.RecipeDef=="ButcherCorpseFlesh"&&command.Settings.Worker!=null;
-   if((replaced==null || replaced.recipe.defName!=command.RecipeDef) && giver.BillStack.Bills.Any(b=>b!=replaced && b.recipe.defName==command.RecipeDef && (command.RecipeDef!="ButcherCorpseFlesh" || b.ingredientFilter.AllowedThingDefs.Any(d=>d.IsCorpse && (d.ingestible?.sourceDef?.race?.Humanlike==true)==humanButcher)))){failure=Refuse("bench already carries a matching "+command.RecipeDef+" bill");return false;}
+   if((replaced==null || replaced.recipe.defName!=command.RecipeDef) && giver.BillStack.Bills.Any(b=>b!=replaced && b.recipe.defName==command.RecipeDef && (!CorpseRecipe(command.RecipeDef) || CorpseClass(b)==command.Settings.CorpseClass))){failure=Refuse("bench already carries a matching "+command.RecipeDef+" bill");return false;}
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
    if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
    if(command.Settings.BeerReserve && (recipe.products.Count!=1 || recipe.products[0].thingDef.defName!="Wort")){failure=Refuse("Beer reserve requires a wort recipe");return false;}
-   if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
+   if(!CorpseRecipe(command.RecipeDef)&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
    if(command.HasReplaceOwnedBillId && replaced!.recipe.defName!=command.RecipeDef && (recipe.products.Count!=1 || recipe.products[0].thingDef.ingestible==null || recipe.products[0].thingDef.ingestible.preferability<FoodPreferability.MealSimple || recipe.products[0].thingDef.ingestible.preferability>FoodPreferability.MealLavish)){failure=Refuse("replacement requires an ordinary meal recipe");return false;}
    var ingredientRecipe=recipe;
    if(command.Settings.Ingredients!=null){

@@ -9,24 +9,24 @@ import (
 )
 
 func TestColonyWasteCorpseOfIsOneOfThreeClasses(t *testing.T) {
-	reply := func(of string) *o.WasteReply {
+	reply := func(of c.CorpseClass) *o.WasteReply {
 		return &o.WasteReply{Outcome: &o.WasteReply_Observed{Observed: &o.WasteSnapshot{
 			Items: []*o.WasteItem{{
-				Thing:    &o.EntityRef{Id: proto.String("Corpse_1"), DefName: proto.String("Corpse_Human"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
-				Kind:     proto.String("corpse"),
-				State:    o.WasteLocation_WASTE_LOCATION_EXPOSED.Enum(),
-				CorpseOf: proto.String(of),
+				Thing:       &o.EntityRef{Id: proto.String("Corpse_1"), DefName: proto.String("Corpse_Human"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
+				Kind:        proto.String("corpse"),
+				State:       o.WasteLocation_WASTE_LOCATION_EXPOSED.Enum(),
+				CorpseClass: of.Enum(),
 			}},
 			Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
 		}}}
 	}
 	size := &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)}
-	for _, of := range []string{"colonist", "stranger", "animal"} {
+	for _, of := range []c.CorpseClass{c.CorpseClass_CORPSE_CLASS_COLONIST, c.CorpseClass_CORPSE_CLASS_STRANGER, c.CorpseClass_CORPSE_CLASS_ANIMAL} {
 		if err := validateColonyWaste(reply(of), size, 0); err != nil {
 			t.Errorf("%s: %v", of, err)
 		}
 	}
-	if err := validateColonyWaste(reply("raider"), size, 0); err == nil {
-		t.Error("an unknown corpse class passed")
+	if err := validateColonyWaste(reply(c.CorpseClass_CORPSE_CLASS_UNSPECIFIED), size, 0); err == nil {
+		t.Error("an unspecified corpse class passed")
 	}
 }

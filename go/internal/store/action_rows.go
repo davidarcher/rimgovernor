@@ -23,7 +23,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {
-		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces()})
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces(), storedCorpses(b)})
 		if err != nil {
 			return err
 		}
@@ -216,6 +216,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target, payload.Ingredients...)
 		if payload.Mode == domain.HumanButcherForever && payload.Recipe == "ButcherCorpseFlesh" && payload.Target == 0 && len(payload.Ingredients) == 0 {
 			value, err = domain.NewHumanButcherBill(payload.Bench, payload.Token, payload.Worker)
+		}
+		if payload.Corpses != "" {
+			if payload.Mode != domain.ButcherForever || payload.Target != 0 || len(payload.Ingredients) > 0 {
+				return domain.Action{}, 0, errors.New("invalid corpse bill payload")
+			}
+			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Token, payload.Corpses)
 		}
 		if payload.Mode != domain.HumanButcherForever && payload.Worker != "" {
 			return domain.Action{}, 0, errors.New("worker on ordinary bill")
@@ -836,9 +842,20 @@ type billPayload struct {
 	Bench, Recipe, Token string
 	Mode                 domain.BillMode
 	Target               int32
-	Ingredients          []string `json:",omitempty"`
-	Worker               string   `json:",omitempty"`
-	Replace              string   `json:",omitempty"`
+	Ingredients          []string        `json:",omitempty"`
+	Worker               string          `json:",omitempty"`
+	Replace              string          `json:",omitempty"`
+	Corpses              domain.CorpseOf `json:",omitempty"`
+}
+
+// storedCorpses is the bill row's corpse filter: only a cremation bill
+// records one. A butcher row implies animal (stranger with a worker), so
+// rows written before #833 load unchanged.
+func storedCorpses(b domain.ProductionBill) domain.CorpseOf {
+	if b.Recipe() == domain.CremateRecipe {
+		return b.Corpses()
+	}
+	return ""
 }
 
 type wallRemovalPayload struct {

@@ -28,6 +28,10 @@ message Cell {
   optional int32 z = 2;
 }
 
+// Whose corpse a thing is (#832/#833): the player faction's humanlike
+// (colonists and slaves), any other humanlike, or an animal.
+enum CorpseClass { CORPSE_CLASS_UNSPECIFIED = 0; CORPSE_CLASS_COLONIST = 1; CORPSE_CLASS_STRANGER = 2; CORPSE_CLASS_ANIMAL = 3; }
+
 enum FailureCode {
   FAILURE_CODE_UNSPECIFIED = 0;
   FAILURE_CODE_INVALID_REQUEST = 1;

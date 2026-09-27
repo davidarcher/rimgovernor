@@ -78,6 +78,9 @@ func BillOperation(bill domain.ProductionBill) *op.Operation {
 		}
 		settings.Ingredients = &op.FilterPatch{Replace: &op.SelectorList{Selectors: selectors}}
 	}
+	if bill.Corpses() != "" {
+		settings.CorpseClass = CorpseClass(bill.Corpses()).Enum()
+	}
 	if bill.Mode() == domain.HumanButcherForever {
 		settings.Worker = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: bill.Worker()}}
 	}

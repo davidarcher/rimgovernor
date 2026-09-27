@@ -45,34 +45,36 @@ namespace RimGovernor.Protocol.Common {
             "CQoHX2RldGFpbCJLCgtQYWdlUmVxdWVzdBISCgVsaW1pdBgBIAEoDUgAiAEB",
             "EhMKBmN1cnNvchgCIAEoCUgBiAEBQggKBl9saW1pdEIJCgdfY3Vyc29yIlgK",
             "CFBhZ2VJbmZvEhUKCGNvbXBsZXRlGAEgASgISACIAQESGAoLbmV4dF9jdXJz",
-            "b3IYAiABKAlIAYgBAUILCglfY29tcGxldGVCDgoMX25leHRfY3Vyc29yKvgD",
-            "CgtGYWlsdXJlQ29kZRIcChhGQUlMVVJFX0NPREVfVU5TUEVDSUZJRUQQABIg",
-            "ChxGQUlMVVJFX0NPREVfSU5WQUxJRF9SRVFVRVNUEAESHAoYRkFJTFVSRV9D",
-            "T0RFX1VOQVZBSUxBQkxFEAISHwobRkFJTFVSRV9DT0RFX1NUQUxFX0lERU5U",
-            "SVRZEAMSIQodRkFJTFVSRV9DT0RFX1NUQUxFX0dFTkVSQVRJT04QBBIjCh9G",
-            "QUlMVVJFX0NPREVfQVVUSE9SSVRZX1JFUVVJUkVEEAUSHgoaRkFJTFVSRV9D",
-            "T0RFX0xFQVNFX0VYUElSRUQQBhIfChtGQUlMVVJFX0NPREVfT1dORVJfQ09O",
-            "RkxJQ1QQBxIhCh1GQUlMVVJFX0NPREVfQVRURU1QVF9DT05GTElDVBAIEiMK",
-            "H0ZBSUxVUkVfQ09ERV9DQVBBQ0lUWV9FWEhBVVNURUQQCRIaChZGQUlMVVJF",
-            "X0NPREVfTk9UX0ZPVU5EEAoSHAoYRkFJTFVSRV9DT0RFX1VOU1VQUE9SVEVE",
-            "EAsSHwobRkFJTFVSRV9DT0RFX05BVElWRV9GQUlMVVJFEAwSGgoWRkFJTFVS",
-            "RV9DT0RFX0NBTkNFTExFRBANEiIKHkZBSUxVUkVfQ09ERV9ERUFETElORV9F",
-            "WENFRURFRBAOKqkDChFVbmF2YWlsYWJsZVJlYXNvbhIiCh5VTkFWQUlMQUJM",
-            "RV9SRUFTT05fVU5TUEVDSUZJRUQQABIhCh1VTkFWQUlMQUJMRV9SRUFTT05f",
-            "Tk9UX0xPQURFRBABEiMKH1VOQVZBSUxBQkxFX1JFQVNPTl9OT1RfT0JTRVJW",
-            "RUQQAhIiCh5VTkFWQUlMQUJMRV9SRUFTT05fVU5TVVBQT1JURUQQAxIiCh5V",
-            "TkFWQUlMQUJMRV9SRUFTT05fUkVBRF9GQUlMRUQQBBIcChhVTkFWQUlMQUJM",
-            "RV9SRUFTT05fU1RBTEUQBRIlCiFVTkFWQUlMQUJMRV9SRUFTT05fTElNSVRf",
-            "RVhDRUVERUQQBhIkCiBVTkFWQUlMQUJMRV9SRUFTT05fTk9UX1JFUVVFU1RF",
-            "RBAHEiUKIVVOQVZBSUxBQkxFX1JFQVNPTl9OT1RfQVBQTElDQUJMRRAIEh0K",
-            "GVVOQVZBSUxBQkxFX1JFQVNPTl9ISURERU4QCRIvCitVTkFWQUlMQUJMRV9S",
-            "RUFTT05fTkFUSVZFX0NPTVBPTkVOVF9NSVNTSU5HEApCZVpFZ2l0aHViLmNv",
-            "bS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL2Nv",
-            "bW1vbnBiO2NvbW1vbnBiqgIbUmltR292ZXJub3IuUHJvdG9jb2wuQ29tbW9u",
-            "YgZwcm90bzM="));
+            "b3IYAiABKAlIAYgBAUILCglfY29tcGxldGVCDgoMX25leHRfY3Vyc29yKnoK",
+            "C0NvcnBzZUNsYXNzEhwKGENPUlBTRV9DTEFTU19VTlNQRUNJRklFRBAAEhkK",
+            "FUNPUlBTRV9DTEFTU19DT0xPTklTVBABEhkKFUNPUlBTRV9DTEFTU19TVFJB",
+            "TkdFUhACEhcKE0NPUlBTRV9DTEFTU19BTklNQUwQAyr4AwoLRmFpbHVyZUNv",
+            "ZGUSHAoYRkFJTFVSRV9DT0RFX1VOU1BFQ0lGSUVEEAASIAocRkFJTFVSRV9D",
+            "T0RFX0lOVkFMSURfUkVRVUVTVBABEhwKGEZBSUxVUkVfQ09ERV9VTkFWQUlM",
+            "QUJMRRACEh8KG0ZBSUxVUkVfQ09ERV9TVEFMRV9JREVOVElUWRADEiEKHUZB",
+            "SUxVUkVfQ09ERV9TVEFMRV9HRU5FUkFUSU9OEAQSIwofRkFJTFVSRV9DT0RF",
+            "X0FVVEhPUklUWV9SRVFVSVJFRBAFEh4KGkZBSUxVUkVfQ09ERV9MRUFTRV9F",
+            "WFBJUkVEEAYSHwobRkFJTFVSRV9DT0RFX09XTkVSX0NPTkZMSUNUEAcSIQod",
+            "RkFJTFVSRV9DT0RFX0FUVEVNUFRfQ09ORkxJQ1QQCBIjCh9GQUlMVVJFX0NP",
+            "REVfQ0FQQUNJVFlfRVhIQVVTVEVEEAkSGgoWRkFJTFVSRV9DT0RFX05PVF9G",
+            "T1VORBAKEhwKGEZBSUxVUkVfQ09ERV9VTlNVUFBPUlRFRBALEh8KG0ZBSUxV",
+            "UkVfQ09ERV9OQVRJVkVfRkFJTFVSRRAMEhoKFkZBSUxVUkVfQ09ERV9DQU5D",
+            "RUxMRUQQDRIiCh5GQUlMVVJFX0NPREVfREVBRExJTkVfRVhDRUVERUQQDiqp",
+            "AwoRVW5hdmFpbGFibGVSZWFzb24SIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VO",
+            "U1BFQ0lGSUVEEAASIQodVU5BVkFJTEFCTEVfUkVBU09OX05PVF9MT0FERUQQ",
+            "ARIjCh9VTkFWQUlMQUJMRV9SRUFTT05fTk9UX09CU0VSVkVEEAISIgoeVU5B",
+            "VkFJTEFCTEVfUkVBU09OX1VOU1VQUE9SVEVEEAMSIgoeVU5BVkFJTEFCTEVf",
+            "UkVBU09OX1JFQURfRkFJTEVEEAQSHAoYVU5BVkFJTEFCTEVfUkVBU09OX1NU",
+            "QUxFEAUSJQohVU5BVkFJTEFCTEVfUkVBU09OX0xJTUlUX0VYQ0VFREVEEAYS",
+            "JAogVU5BVkFJTEFCTEVfUkVBU09OX05PVF9SRVFVRVNURUQQBxIlCiFVTkFW",
+            "QUlMQUJMRV9SRUFTT05fTk9UX0FQUExJQ0FCTEUQCBIdChlVTkFWQUlMQUJM",
+            "RV9SRUFTT05fSElEREVOEAkSLworVU5BVkFJTEFCTEVfUkVBU09OX05BVElW",
+            "RV9DT01QT05FTlRfTUlTU0lORxAKQmVaRWdpdGh1Yi5jb20vZGF2aWRhcmNo",
+            "ZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9jb21tb25wYjtjb21t",
+            "b25wYqoCG1JpbUdvdmVybm9yLlByb3RvY29sLkNvbW1vbmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
-          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Identity), global::RimGovernor.Protocol.Common.Identity.Parser, new[]{ "ColonyId", "LoadToken", "MapId" }, new[]{ "ColonyId", "LoadToken", "MapId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.ObservationContext), global::RimGovernor.Protocol.Common.ObservationContext.Parser, new[]{ "Identity", "Tick", "NativeGeneration" }, new[]{ "Tick", "NativeGeneration" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.AttemptKey), global::RimGovernor.Protocol.Common.AttemptKey.Parser, new[]{ "ControllerSessionId", "ActionId", "AttemptId" }, new[]{ "ControllerSessionId", "ActionId", "AttemptId" }, null, null, null),
@@ -87,6 +89,17 @@ namespace RimGovernor.Protocol.Common {
 
   }
   #region Enums
+  /// <summary>
+  /// Whose corpse a thing is (#832/#833): the player faction's humanlike
+  /// (colonists and slaves), any other humanlike, or an animal.
+  /// </summary>
+  public enum CorpseClass {
+    [pbr::OriginalName("CORPSE_CLASS_UNSPECIFIED")] Unspecified = 0,
+    [pbr::OriginalName("CORPSE_CLASS_COLONIST")] Colonist = 1,
+    [pbr::OriginalName("CORPSE_CLASS_STRANGER")] Stranger = 2,
+    [pbr::OriginalName("CORPSE_CLASS_ANIMAL")] Animal = 3,
+  }
+
   public enum FailureCode {
     [pbr::OriginalName("FAILURE_CODE_UNSPECIFIED")] Unspecified = 0,
     [pbr::OriginalName("FAILURE_CODE_INVALID_REQUEST")] InvalidRequest = 1,
