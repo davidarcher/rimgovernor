@@ -72,6 +72,8 @@ type RoomUpgrade struct {
 	Weakest RoomStat
 	// Cells, when set, places Def at each cell (a floor, #830).
 	Cells []domain.Cell
+	// Stuff, when set, overrides the definition's default stuff (#842).
+	Stuff string
 }
 
 // NextRoomUpgrade returns the first (by room id) upgrade due, false when

@@ -323,7 +323,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
 				}
 				if rep, due := bedReplacement(facts); due && rep.Step == policy.BedReplaceBuild {
-					return r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: rep.Room, Slot: "bed", Def: rep.Def, Anchor: rep.Cell, Rot: rep.Rot})
+					return r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: rep.Room, Slot: "bed", Def: rep.Def, Stuff: rep.Stuff, Anchor: rep.Cell, Rot: rep.Rot})
 				}
 				if upgrade, due := beautyUpgrade(facts); due {
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)

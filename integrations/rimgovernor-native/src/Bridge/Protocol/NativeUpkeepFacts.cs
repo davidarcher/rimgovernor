@@ -377,7 +377,7 @@ namespace HomeBridge.BridgeTools
                         TemperatureC = Number(b.AmbientTemperature) };
                     var room = b.GetRoom();
                     if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    if (b.TryGetQuality(out var quality)) row.Quality = quality.ToString();
+                    if (b.TryGetQuality(out var quality)) row.Quality = quality.ToString(); if (b.Stuff != null) row.Stuff = b.Stuff.defName;
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
                     Require(owners.Count, 256); row.Owners.AddRange(owners);
                     row.Users.AddRange(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())));

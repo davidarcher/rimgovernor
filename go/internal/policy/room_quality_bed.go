@@ -12,15 +12,59 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 //   - remove: the old bed, now unowned and worse, is deconstructed; so
 //     is a new bed that came out no better (the next epoch rebuilds).
 //
-// Material is not a lever: the bed census carries no stuff and the native
-// build picks wood whenever the bed allows it, so a new bed can only
-// improve on quality.
+// Material (#842): a room whose weakest stat is wealth or beauty gets its
+// bed rebuilt in a better stuff the colony has stock for, judged by the
+// stuff's beauty and market value factors (bedStuffScore). A quality
+// rebuild never builds in a worse stuff than the owned bed's.
 
 // bedQualityRank orders the native QualityCategory names.
 var bedQualityRank = map[string]int{"Awful": 0, "Poor": 1, "Normal": 2, "Good": 3, "Excellent": 4, "Masterwork": 5, "Legendary": 6}
 
 // replacementBedSizes are the North footprints of the beds the closer builds.
 var replacementBedSizes = map[Resource]domain.Cell{"Bed": {X: 1, Z: 2}, "DoubleBed": {X: 2, Z: 2}, "RoyalBed": {X: 2, Z: 2}}
+
+// bedStuffFactors are the vanilla stuff beauty factor and market value per
+// unit of the stuffs a bed takes; a stuff missing here (a mod's) is never
+// built and scores as unknown.
+var bedStuffFactors = map[Resource]struct{ Beauty, Value float64 }{
+	"WoodLog": {1, 1.2}, "Steel": {1, 1.9}, "Plasteel": {1, 9}, "Uranium": {1, 6},
+	"Silver": {6, 1}, "Gold": {20, 10}, "Jade": {7, 5},
+	"BlocksSandstone": {1, 0.9}, "BlocksGranite": {1, 0.9}, "BlocksLimestone": {1, 0.9}, "BlocksSlate": {1, 0.9}, "BlocksMarble": {1.35, 1},
+}
+
+// bedStuffScore ranks a bed's stuff: beauty factor times market value.
+func bedStuffScore(stuff Resource) (float64, bool) {
+	f, ok := bedStuffFactors[stuff]
+	return f.Beauty * f.Value, ok
+}
+
+// BedMaterials is what a material choice reads: the colony stock by
+// definition and the stuff units each bed definition takes.
+type BedMaterials struct {
+	Stock map[Resource]int64
+	Cost  map[Resource]int64
+}
+
+// bestStuff is the best-scoring stocked stuff for def scoring above floor
+// (or at least floor when orEqual), false when none.
+func (m BedMaterials) bestStuff(def Resource, floor float64, orEqual bool) (Resource, bool) {
+	cost, ok := m.Cost[def]
+	if !ok || cost <= 0 {
+		return "", false
+	}
+	var best Resource
+	bestScore := 0.0
+	for stuff := range bedStuffFactors {
+		score, _ := bedStuffScore(stuff)
+		if m.Stock[stuff] < cost || score < floor || score == floor && !orEqual {
+			continue
+		}
+		if best == "" || score > bestScore || score == bestScore && stuff < best {
+			best, bestScore = stuff, score
+		}
+	}
+	return best, best != ""
+}
 
 // BedReplacementStep is one step of a bed replacement.
 type BedReplacementStep string
@@ -40,12 +84,17 @@ type BedReplacement struct {
 	Pawn             PawnID
 	Bed, PreviousBed string
 	Def              string
-	Cell             domain.Cell
-	Rot              domain.Rotation
+	// Stuff is the material a Build step builds in, empty for the
+	// definition's default.
+	Stuff string
+	Cell  domain.Cell
+	Rot   domain.Rotation
 }
 
 // bedBetter reports whether x improves on b for a room that wants the
-// definition want: the wanted definition first, then quality.
+// definition want: the wanted definition first, then quality and stuff,
+// each no worse and one strictly better. A stuff unknown on either bed
+// compares equal.
 func bedBetter(x, b SleepingBed, want Resource) bool {
 	if x.Definition != want {
 		return false
@@ -57,13 +106,34 @@ func bedBetter(x, b SleepingBed, want Resource) bool {
 	bq, bk := b.Quality.Value()
 	xr, xok := bedQualityRank[xq]
 	br, bok := bedQualityRank[bq]
-	return xk && bk && xok && bok && xr > br
+	if !xk || !bk || !xok || !bok {
+		return false
+	}
+	xs, bs := bedScore(x), bedScore(b)
+	xok, bok = xs >= 0, bs >= 0
+	if !xok || !bok {
+		xs, bs = 0, 0
+	}
+	return xr >= br && xs >= bs && (xr > br || xs > bs)
+}
+
+// bedScore is the bed's stuff score, -1 when unknown.
+func bedScore(b SleepingBed) float64 {
+	stuff, ok := b.Stuff.Value()
+	if !ok {
+		return -1
+	}
+	score, ok := bedStuffScore(Resource(stuff))
+	if !ok {
+		return -1
+	}
+	return score
 }
 
 // NextBedReplacement returns the first (by room id) bed replacement step
 // due, false when none. rooms are the furniture rooms; available reports a
 // definition the colony can build now.
-func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool) (BedReplacement, bool) {
+func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, materials BedMaterials) (BedReplacement, bool) {
 	census, ok := obs.Rooms.Value()
 	if !ok {
 		return BedReplacement{}, false
@@ -133,12 +203,29 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 		if !tk || !qk || t.NeverUpgrade || t.Min <= 0 || q.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max) || WeakestRoomStat(q) == RoomStatSpace {
 			continue
 		}
+		if !available(string(want)) {
+			continue
+		}
+		owns := bedScore(owned)
 		name, _ := owned.Quality.Value()
-		if rank, ok := bedQualityRank[name]; !ok || rank >= bedQualityRank["Normal"] || !available(string(want)) {
+		var stuff Resource
+		if rank, ok := bedQualityRank[name]; ok && rank < bedQualityRank["Normal"] {
+			// Quality: never in a worse stuff than the owned bed's.
+			if owns >= 0 {
+				if stuff, ok = materials.bestStuff(want, owns, true); !ok {
+					continue
+				}
+			}
+		} else if w := WeakestRoomStat(q); owns >= 0 && (w == RoomStatWealth || w == RoomStatBeauty) {
+			var ok bool
+			if stuff, ok = materials.bestStuff(want, owns, false); !ok {
+				continue
+			}
+		} else {
 			continue
 		}
 		if cell, rot, ok := bedSpot(room, want); ok {
-			return BedReplacement{Step: BedReplaceBuild, Room: s.room, Def: string(want), Cell: cell, Rot: rot}, true
+			return BedReplacement{Step: BedReplaceBuild, Room: s.room, Def: string(want), Stuff: string(stuff), Cell: cell, Rot: rot}, true
 		}
 	}
 	return BedReplacement{}, false

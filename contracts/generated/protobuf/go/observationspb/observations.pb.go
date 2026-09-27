@@ -24024,6 +24024,7 @@ type UpkeepBed struct {
 	TemperatureC      *float64               `protobuf:"fixed64,11,opt,name=temperature_c,json=temperatureC,proto3,oneof" json:"temperature_c,omitempty"`
 	RoomId            *string                `protobuf:"bytes,12,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	Quality           *string                `protobuf:"bytes,13,opt,name=quality,proto3,oneof" json:"quality,omitempty"`
+	Stuff             *string                `protobuf:"bytes,15,opt,name=stuff,proto3,oneof" json:"stuff,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -24145,6 +24146,13 @@ func (x *UpkeepBed) GetRoomId() string {
 func (x *UpkeepBed) GetQuality() string {
 	if x != nil && x.Quality != nil {
 		return *x.Quality
+	}
+	return ""
+}
+
+func (x *UpkeepBed) GetStuff() string {
+	if x != nil && x.Stuff != nil {
+		return *x.Stuff
 	}
 	return ""
 }
@@ -39513,7 +39521,7 @@ const file_observations_proto_rawDesc = "" +
 	"\t_medicineB\x13\n" +
 	"\x11_nutrition_givingB\n" +
 	"\n" +
-	"\b_burning\"\xce\x04\n" +
+	"\b_burning\"\xf3\x04\n" +
 	"\tUpkeepBed\x128\n" +
 	"\x03bed\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x03bed\x12\x19\n" +
 	"\x05slots\x18\x02 \x01(\rH\x00R\x05slots\x88\x01\x01\x12!\n" +
@@ -39528,7 +39536,8 @@ const file_observations_proto_rawDesc = "" +
 	" \x01(\bH\x05R\x06roofed\x88\x01\x01\x12(\n" +
 	"\rtemperature_c\x18\v \x01(\x01H\x06R\ftemperatureC\x88\x01\x01\x12\x1c\n" +
 	"\aroom_id\x18\f \x01(\tH\aR\x06roomId\x88\x01\x01\x12\x1d\n" +
-	"\aquality\x18\r \x01(\tH\bR\aquality\x88\x01\x01B\b\n" +
+	"\aquality\x18\r \x01(\tH\bR\aquality\x88\x01\x01\x12\x19\n" +
+	"\x05stuff\x18\x0f \x01(\tH\tR\x05stuff\x88\x01\x01B\b\n" +
 	"\x06_slotsB\f\n" +
 	"\n" +
 	"_humanlikeB\x15\n" +
@@ -39542,7 +39551,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_room_idB\n" +
 	"\n" +
-	"\b_quality\"\x94\x01\n" +
+	"\b_qualityB\b\n" +
+	"\x06_stuff\"\x94\x01\n" +
 	"\vStorageCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06roofed\x18\x02 \x01(\bH\x00R\x06roofed\x88\x01\x01\x12\x1f\n" +

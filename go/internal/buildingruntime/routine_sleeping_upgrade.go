@@ -50,7 +50,18 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
 	}
-	return policy.NextBedReplacement(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
+	materials := policy.BedMaterials{Cost: map[policy.Resource]int64{}}
+	materials.Stock, _ = facts.Resources.Value()
+	for _, d := range facts.Definitions {
+		stuff, sk := d.Stuff.Value()
+		costs, ck := d.Costs.Value()
+		for _, c := range costs {
+			if sk && ck && c.Resource == policy.Resource(stuff) {
+				materials.Cost[policy.Resource(d.Name)] = c.Count
+			}
+		}
+	}
+	return policy.NextBedReplacement(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, materials)
 }
 
 // titleFurniture is the next unmet royal bedroom thing (#815).
@@ -141,9 +152,9 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	stuff := ""
+	stuff := u.Stuff
 	for _, d := range facts.Definitions {
-		if d.Name == u.Def {
+		if stuff == "" && d.Name == u.Def {
 			stuff, _ = d.Stuff.Value()
 		}
 	}

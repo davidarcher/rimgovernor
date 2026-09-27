@@ -16,24 +16,24 @@ func TestTitleRequiresRoyalBedRegardlessOfTarget(t *testing.T) {
 	obs.People = []SleepingPerson{{ID: "a", Title: knightTitle()}}
 	obs.Beds = []SleepingBed{replacementBed("Bed_1", "Good", "a")}
 	all := func(string) bool { return true }
-	u, ok := NextBedReplacement(obs, nil, rooms, all)
+	u, ok := NextBedReplacement(obs, nil, rooms, all, BedMaterials{})
 	if !ok || u.Step != BedReplaceBuild || u.Def != "RoyalBed" {
 		t.Fatalf("royal build = %+v %v", u, ok)
 	}
 	royal := replacementBed("Bed_2", "Poor")
 	royal.Definition = "RoyalBed"
 	obs.Beds = append(obs.Beds, royal)
-	if u, ok := NextBedReplacement(obs, nil, rooms, all); !ok || u.Step != BedReplaceAssign || u.Bed != "Bed_2" {
+	if u, ok := NextBedReplacement(obs, nil, rooms, all, BedMaterials{}); !ok || u.Step != BedReplaceAssign || u.Bed != "Bed_2" {
 		t.Fatalf("royal assign = %+v %v", u, ok)
 	}
 	royal.Owners = []PawnID{"a"}
 	obs.Beds = []SleepingBed{replacementBed("Bed_1", "Good"), royal}
-	if u, ok := NextBedReplacement(obs, nil, rooms, all); !ok || u.Step != BedReplaceRemove || u.Bed != "Bed_1" {
+	if u, ok := NextBedReplacement(obs, nil, rooms, all, BedMaterials{}); !ok || u.Step != BedReplaceRemove || u.Bed != "Bed_1" {
 		t.Fatalf("royal remove = %+v %v", u, ok)
 	}
 	// No royal bed researched: nothing.
 	obs.Beds = []SleepingBed{replacementBed("Bed_1", "Good", "a")}
-	if u, ok := NextBedReplacement(obs, nil, rooms, func(d string) bool { return d != "RoyalBed" }); ok {
+	if u, ok := NextBedReplacement(obs, nil, rooms, func(d string) bool { return d != "RoyalBed" }, BedMaterials{}); ok {
 		t.Fatalf("unavailable = %+v", u)
 	}
 }

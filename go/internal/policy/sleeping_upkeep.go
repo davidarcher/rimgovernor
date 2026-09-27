@@ -33,6 +33,8 @@ type SleepingBed struct {
 	// Room is the native room id (RoomQuality.ID); Quality the native
 	// QualityCategory name, unknown for a bed without quality.
 	Room, Quality domain.Fact[string]
+	// Stuff is the native stuff defName (#842), unknown for a stuffless bed.
+	Stuff domain.Fact[string]
 	// Cell is the bed's position (its head cell).
 	Cell domain.Cell
 }
