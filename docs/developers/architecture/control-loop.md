@@ -108,13 +108,12 @@ or budgets labor.
 | --- | --- |
 | Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainFoodStorage`, `MaintainRefrigeration`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment`, `RemoveBlight` |
 | Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
-| Production | `EnsureBasicPower`, `MaintainResource` |
-| Research | `EnsureResearch` |
+| Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
 | Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves` |
-| Labor | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MoodGoal(pawn)` |
-| Supply | `AllowStartingSupplies`, `SecureSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `MaintainStorage`, `TradeWithCaravan` |
-| Upkeep | `MaintainWaste`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainRoutes`, `RecoverDisasterServices`, `AnswerDialog`, `ConfirmColonyNames` |
+| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MoodGoal(pawn)` |
+| Upkeep | `AllowStartingSupplies`, `SecureSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `MaintainStorage`, `TradeWithCaravan`, `MaintainWaste`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainRoutes`, `RecoverDisasterServices` |
+| System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |
 
 ## Execute under supervision
 

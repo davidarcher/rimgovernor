@@ -60,7 +60,7 @@ func TestGoalConceptCoversEveryGoalID(t *testing.T) {
 	if found != len(goalDomains) {
 		t.Errorf("found %d GoalID constants, tagged %d with a domain", found, len(goalDomains))
 	}
-	if GoalDomain(MoodGoal("pawn1")) != DomainLabor || GoalDomain("NotAGoal") != DomainUnknown {
+	if GoalDomain(MoodGoal("pawn1")) != DomainPeople || GoalDomain("NotAGoal") != DomainUnknown {
 		t.Error("GoalDomain misclassifies a mood goal or an unknown id")
 	}
 	for id, want := range map[GoalID]Concept{

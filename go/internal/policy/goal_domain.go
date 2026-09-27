@@ -7,16 +7,16 @@ package policy
 type Domain string
 
 const (
-	DomainUnknown    Domain = ""
-	DomainFood       Domain = "Food"
-	DomainShelter    Domain = "Shelter"
-	DomainProduction Domain = "Production"
-	DomainResearch   Domain = "Research"
-	DomainMilitary   Domain = "Military"
-	DomainMedical    Domain = "Medical"
-	DomainLabor      Domain = "Labor"
-	DomainSupply     Domain = "Supply"
-	DomainUpkeep     Domain = "Upkeep"
+	DomainUnknown  Domain = ""
+	DomainFood     Domain = "Food"
+	DomainShelter  Domain = "Shelter"
+	DomainIndustry Domain = "Industry"
+	DomainMilitary Domain = "Military"
+	DomainMedical  Domain = "Medical"
+	DomainPeople   Domain = "People"
+	DomainUpkeep   Domain = "Upkeep"
+	// DomainSystem holds game-plumbing goals; panels do not show it.
+	DomainSystem Domain = "System"
 )
 
 var goalDomains = map[GoalID]Domain{
@@ -40,10 +40,9 @@ var goalDomains = map[GoalID]Domain{
 	MaintainFlooring:        DomainShelter,
 	MaintainHomeCoverage:    DomainShelter,
 
-	EnsureBasicPower: DomainProduction,
-	MaintainResource: DomainProduction,
-
-	EnsureResearch: DomainResearch,
+	EnsureBasicPower: DomainIndustry,
+	MaintainResource: DomainIndustry,
+	EnsureResearch:   DomainIndustry,
 
 	ActiveCombat:          DomainMilitary,
 	EnsureBasicDefense:    DomainMilitary,
@@ -56,17 +55,16 @@ var goalDomains = map[GoalID]Domain{
 	MaintainMedicalCare:     DomainMedical,
 	MaintainMedicalReserves: DomainMedical,
 
-	RestoreWorkers:        DomainLabor,
-	EnsureWorkAssignments: DomainLabor,
-	MaintainPopulation:    DomainLabor,
+	RestoreWorkers:        DomainPeople,
+	EnsureWorkAssignments: DomainPeople,
+	MaintainPopulation:    DomainPeople,
 
-	AllowStartingSupplies: DomainSupply,
-	SecureSupplies:        DomainSupply,
-	ManageSupplySafety:    DomainSupply,
-	MaintainStockpiles:    DomainSupply,
-	MaintainStorage:       DomainSupply,
-	TradeWithCaravan:      DomainSupply,
-
+	AllowStartingSupplies:    DomainUpkeep,
+	SecureSupplies:           DomainUpkeep,
+	ManageSupplySafety:       DomainUpkeep,
+	MaintainStockpiles:       DomainUpkeep,
+	MaintainStorage:          DomainUpkeep,
+	TradeWithCaravan:         DomainUpkeep,
 	MaintainWaste:            DomainUpkeep,
 	TidyLayout:               DomainUpkeep,
 	ClearHomeObstructions:    DomainUpkeep,
@@ -75,15 +73,16 @@ var goalDomains = map[GoalID]Domain{
 	MaintainFireSafety:       DomainUpkeep,
 	MaintainRoutes:           DomainUpkeep,
 	RecoverDisasterServices:  DomainUpkeep,
-	AnswerDialog:             DomainUpkeep,
-	ConfirmColonyNames:       DomainUpkeep,
+
+	AnswerDialog:       DomainSystem,
+	ConfirmColonyNames: DomainSystem,
 }
 
 // GoalDomain tags id with its colony area. Mood goals (one per pawn) are
-// Labor; an unknown id is DomainUnknown.
+// People; an unknown id is DomainUnknown.
 func GoalDomain(id GoalID) Domain {
 	if IsMoodGoal(id) {
-		return DomainLabor
+		return DomainPeople
 	}
 	return goalDomains[id]
 }
