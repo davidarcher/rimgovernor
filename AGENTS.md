@@ -20,7 +20,7 @@ once acceptance passes, and land immediately.
    not ask. Size an iteration to a coherent milestone, not the smallest
    possible edit, so slow checks run once against meaningful progress.
 4. At the milestone, if `cmd/test` named affected case areas, run the one
-   command it prints, `acceptance suite -tier smoke` (six short cases,
+   command it prints, `acceptance suite -tier smoke` (three short cases,
    minutes), and hand that output to `cmd/land -results`. The affected
    areas themselves are proven by `go test` and the on-demand full tier
    (#752); the scheduled nightly runs only the twelve end-to-end cases

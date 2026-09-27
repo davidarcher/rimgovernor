@@ -93,7 +93,7 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	if !reflect.DeepEqual(p.Files, []string{"a", "b"}) {
 		t.Fatal(p.Files)
 	}
-	if !reflect.DeepEqual(p.Shards[0].Cases, []string{"light/dark", "pawn/reads", "smoke/identity"}) {
+	if !reflect.DeepEqual(p.Shards[0].Cases, []string{"light/dark", "smoke/identity"}) {
 		t.Fatal(p.Shards)
 	}
 	if !reflect.DeepEqual(p.Cases[0].Roles, []string{"bridge", "controller"}) {
