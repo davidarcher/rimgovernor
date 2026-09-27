@@ -663,6 +663,12 @@ func copyFile(source, destination string) error {
 	return out.Close()
 }
 
+// IdleExitArg makes a harness-launched game quit after 20 minutes without
+// a bridge call (native IdleExit), so a warm game kept at the main menu
+// (KeepGameEnv) that no run comes back to does not linger. Only acceptance
+// launches carry it; the player's config (setup.RenderConfig) never does.
+const IdleExitArg = "-rimgovernor-idle-exit=20"
+
 // PrepareRendered launches the unified native package without batch-mode flags, for
 // a visible window. Returns the rewritten config directory (root/config).
 func PrepareRendered(root string, expansions ...string) (string, error) {
@@ -712,7 +718,7 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "Player.log"),
 		"-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720", "-rimgovernor-pause-on-load",
-		"-rimgovernor-test-acceleration",
+		"-rimgovernor-test-acceleration", IdleExitArg,
 	}
 	if err := writeConfig(filepath.Join(configuration, "config.json"), config); err != nil {
 		return "", err
@@ -800,7 +806,7 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	// never does.
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
-		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration",
+		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
 	}
 	destination := filepath.Join(root, "config-headless")
 	if err := os.MkdirAll(destination, 0755); err != nil {

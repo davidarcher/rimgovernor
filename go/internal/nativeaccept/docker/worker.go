@@ -152,7 +152,7 @@ func prepareConfig(cfg WorkerConfig) error {
 	game["target"] = "/worker/game/" + filepath.Base(target)
 	game["args"] = []any{
 		"-savedatafolder=/worker/profile", "-logFile", "/worker/HeadlessPlayer.log",
-		"-batchmode", "-nographics", "-rimgovernor-pause-on-load",
+		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", nativeaccept.IdleExitArg,
 	}
 	section, _ := config["rimgovernor"].(map[string]any)
 	if section == nil {

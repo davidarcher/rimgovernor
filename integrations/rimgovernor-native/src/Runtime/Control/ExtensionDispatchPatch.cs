@@ -143,7 +143,16 @@ namespace HomeBridge.BridgeTools
         {
             var invoke = invokeAlias!;
             var normalize = normalizeArguments!;
-            return parameters => Task.Run(() => invoke(alias, normalize(parameters)));
+            // IdleExit counts the call as activity from arrival to return.
+            return parameters =>
+            {
+                IdleExit.Begin();
+                return Task.Run(() =>
+                {
+                    try { return invoke(alias, normalize(parameters)); }
+                    finally { IdleExit.End(); }
+                });
+            };
         }
     }
 }

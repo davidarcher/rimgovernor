@@ -110,6 +110,12 @@ func TestRenderConfigLaunchesTheCopy(t *testing.T) {
 	if g.Args[0] != "-savedatafolder="+filepath.Join(l.Root, "profile") {
 		t.Fatalf("args = %v", g.Args)
 	}
+	// The launcher's player game must never idle-exit.
+	for _, a := range g.Args {
+		if strings.HasPrefix(a, "-rimgovernor-idle-exit") {
+			t.Fatalf("player config carries %s: %v", a, g.Args)
+		}
+	}
 }
 
 func TestRenderModsConfigActivatesTheBridgeStack(t *testing.T) {

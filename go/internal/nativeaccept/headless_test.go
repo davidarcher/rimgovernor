@@ -484,7 +484,7 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	for i, a := range args {
 		joined[i] = a.(string)
 	}
-	foundBatch, foundNoGraphics, foundAcceleration := false, false, false
+	foundBatch, foundNoGraphics, foundAcceleration, foundIdleExit := false, false, false, false
 	for _, a := range joined {
 		if a == "-batchmode" {
 			foundBatch = true
@@ -492,12 +492,18 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 		if a == "-nographics" {
 			foundNoGraphics = true
 		}
+		if a == IdleExitArg {
+			foundIdleExit = true
+		}
 		if a == "-rimgovernor-test-acceleration" {
 			foundAcceleration = true
 		}
 	}
 	if !foundBatch || !foundNoGraphics {
 		t.Fatalf("headless args missing batch/nographics flags: %v", joined)
+	}
+	if !foundIdleExit {
+		t.Fatalf("headless args missing %s: %v", IdleExitArg, joined)
 	}
 	if !foundAcceleration {
 		t.Fatalf("headless args missing the test-acceleration gate: %v", joined)
@@ -621,7 +627,7 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 	for _, a := range args {
 		joined[a.(string)] = true
 	}
-	for _, flag := range []string{"-screen-fullscreen", "-screen-width", "-screen-height", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration"} {
+	for _, flag := range []string{"-screen-fullscreen", "-screen-width", "-screen-height", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg} {
 		if !joined[flag] {
 			t.Fatalf("windowed args missing %s: %v", flag, args)
 		}
