@@ -3,12 +3,10 @@ package observation
 import (
 	"context"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -47,66 +45,34 @@ type RoutineTraderSource interface {
 
 type RoutineReading struct {
 	ColonyReading
-	Emergency          policy.EmergencyFacts
-	ResearchReceipt    bridge.Result
-	TradersReceipt     bridge.Result
-	EmergencyReceipt   bridge.Result
-	PawnReceipt        bridge.Result
-	DefinitionReceipt  bridge.Result
-	TemperatureReceipt bridge.Result
-	PopulationReceipt  bridge.Result
-	QuestReceipt       bridge.Result
+	Emergency policy.EmergencyFacts
 	// Sections is the reading's decoded census, per section with the tick
 	// each reply described, for the step's facts.Store.
 	Sections RoutineSections
 }
 
 type routineBracket struct {
-	roomsEnabled       bool
-	temperature        domain.Fact[policy.RoomObservation]
-	temperatureReceipt bridge.Result
-	construction       domain.Fact[policy.CurrentConstruction]
+	roomsEnabled bool
+	temperature  domain.Fact[policy.RoomObservation]
+	construction domain.Fact[policy.CurrentConstruction]
 	RoutineSource
-	expected          Identity
-	emergency         bridge.EmergencyObservation
-	receipt           bridge.Result
-	pawnReceipt       bridge.Result
-	population        bridge.PrisonerCensus
-	populationReceipt bridge.Result
-	research          domain.Fact[policy.ResearchFacts]
-	researchReceipt   bridge.Result
-	quests            domain.Fact[[]policy.JoinerOffer]
-	questReceipt      bridge.Result
-	traders           domain.Fact[[]policy.TraderFacts]
-	tradersReceipt    bridge.Result
-	armed             domain.Fact[int64]
-	work              domain.Fact[[]policy.WorkPawn]
-	medical           domain.Fact[[]policy.CarePawn]
-	mood              domain.Fact[[]policy.MoodPawn]
-	definitions       []string
-	extraDefinitions  []PlanningDefinition
-	definitionReceipt bridge.Result
+	expected         Identity
+	emergency        bridge.EmergencyObservation
+	population       bridge.PrisonerCensus
+	research         domain.Fact[policy.ResearchFacts]
+	quests           domain.Fact[[]policy.JoinerOffer]
+	traders          domain.Fact[[]policy.TraderFacts]
+	armed            domain.Fact[int64]
+	work             domain.Fact[[]policy.WorkPawn]
+	medical          domain.Fact[[]policy.CarePawn]
+	mood             domain.Fact[[]policy.MoodPawn]
+	definitions      []string
+	extraDefinitions []PlanningDefinition
 	// The tick each section's reply described, set on its own wave lane;
 	// zero where the source offered no read.
 	emergencyTick, pawnsTick, populationTick, researchTick, roomsTick int64
-	// store is the reading's section refresher (RoutineStoreFrom) and
-	// served the sections it served from the store instead of reading,
-	// with the held value the section keeps.
-	store    RoutineStore
-	served   map[facts.Section]bool
-	servedMu sync.Mutex
-}
-
-// serve records that section was served from the store as held: its
-// value stands for this reading and its provenance is kept. Wave lanes write
-// concurrently; section assembly reads only after wave.Wait has joined them.
-func (s *routineBracket) serve(section facts.Section) {
-	s.servedMu.Lock()
-	defer s.servedMu.Unlock()
-	if s.served == nil {
-		s.served = map[facts.Section]bool{}
-	}
-	s.served[section] = true
+	// mirror carries the reviewer's mirror-backed reads (RoutineMirrorFrom).
+	mirror RoutineMirror
 }
 
 // ReadColonyFacts fans the routine census out inside ObserveColony's
@@ -130,8 +96,8 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	wave := newReadWave(ctx)
 	wave.Go(func(ctx context.Context) error {
 		var err error
-		if s.store.Colony != nil && len(defs) == 0 {
-			colony, receipt, err = s.store.Colony(ctx, id, planning)
+		if s.mirror.Colony != nil && len(defs) == 0 {
+			colony, receipt, err = s.mirror.Colony(ctx, id, planning)
 		} else {
 			colony, receipt, err = s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
 		}
@@ -180,7 +146,7 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 // reply, which is in flight on another lane of the wave.
 func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.ListPawnsReply, error) {
 	var err error
-	s.emergency, s.receipt, err = s.ReadEmergency(ctx, id)
+	s.emergency, _, err = s.ReadEmergency(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +155,7 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 		return nil, err
 	}
 	identity.Paused = s.expected.Paused
-	if !cachedColonyBoundary(identity, s.expected, bridge.FactEmergency) {
+	if !sameColonyContext(identity, s.expected) {
 		return nil, ErrChanged
 	}
 	s.emergencyTick = s.emergency.Context.GetTick()
@@ -204,21 +170,11 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	// The held pawn detail serves while it is fresh under the pawn cadence
-	// and projects the same roster the census just named; a changed roster
-	// is a new census whatever the age.
-	if held, ok := heldSection[RoutinePawns](s.store, facts.Pawns, int64(s.expected.Tick)); ok && len(held.Value.Work) == len(ids) {
-		s.work, s.medical, s.mood, s.armed = domain.Known(held.Value.Work), domain.Known(held.Value.Medical), domain.Known(held.Value.Mood), domain.Known(held.Value.Armed)
-		s.pawnsTick = held.AsOf
-		s.serve(facts.Pawns)
-		return nil, nil
-	}
 	read := s.ReadRoutinePawns
-	if s.store.Pawns != nil {
-		read = s.store.Pawns
+	if s.mirror.Pawns != nil {
+		read = s.mirror.Pawns
 	}
-	pawns, pawnReceipt, err := read(ctx, id, ids)
-	s.pawnReceipt = pawnReceipt
+	pawns, _, err := read(ctx, id, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -233,20 +189,15 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 		return nil, err
 	}
 	observed.Paused = s.expected.Paused
-	if !cachedColonyBoundary(observed, s.expected, bridge.FactPawns) {
+	if !sameColonyContext(observed, s.expected) {
 		return nil, ErrChanged
 	}
 	return pawns, nil
 }
 
 func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) error {
-	if held, ok := heldSection[bridge.PrisonerCensus](s.store, facts.Population, int64(s.expected.Tick)); ok {
-		s.population, s.populationTick = held.Value, held.AsOf
-		s.serve(facts.Population)
-		return nil
-	}
 	var err error
-	s.population, s.populationReceipt, err = s.ReadRoutinePopulation(ctx, id)
+	s.population, _, err = s.ReadRoutinePopulation(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -255,7 +206,7 @@ func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) err
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !cachedColonyBoundary(identity, s.expected, bridge.FactPawns) {
+	if !sameColonyContext(identity, s.expected) {
 		return ErrChanged
 	}
 	s.populationTick = s.population.Context.GetTick()
@@ -278,7 +229,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{roomsEnabled: rooms, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...), store: RoutineStoreFrom(ctx)}
+	bracket := &routineBracket{roomsEnabled: rooms, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...), mirror: RoutineMirrorFrom(ctx)}
 	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err
@@ -302,7 +253,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
 		reading.Projection.Facts.Comfort = hostedComfort(reading.Projection.Facts.Comfort, bracket.temperature)
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, Sections: bracket.sections(reading.Projection), EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt, QuestReceipt: bracket.questReceipt, TradersReceipt: bracket.tradersReceipt}, nil
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, Sections: bracket.sections(reading.Projection)}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both
@@ -338,8 +289,7 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 	// planners of one step share one read (#599); only this planner's own
 	// names join its projection.
 	request := DefinitionPoolFrom(ctx).Request(missing, census)
-	reply, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, true, request)
-	s.definitionReceipt = receipt
+	reply, _, err := s.RoutineSource.ReadColonyFacts(ctx, id, true, request)
 	if err != nil {
 		return err
 	}
@@ -348,7 +298,7 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 		return err
 	}
 	extra.Identity.Paused = s.expected.Paused
-	if !cachedColonyBoundary(extra.Identity, s.expected, bridge.FactColony) {
+	if !sameColonyContext(extra.Identity, s.expected) {
 		return ErrChanged
 	}
 	requested := map[string]bool{}
@@ -374,8 +324,7 @@ func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
 	if !ok {
 		return nil
 	}
-	read, receipt, err := source.ReadWorldProgression(ctx, id, false)
-	s.questReceipt = receipt
+	read, _, err := source.ReadWorldProgression(ctx, id, false)
 	if err != nil {
 		return err
 	}
@@ -384,7 +333,7 @@ func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !cachedColonyBoundary(identity, s.expected, bridge.FactColony) {
+	if !sameColonyContext(identity, s.expected) {
 		return ErrChanged
 	}
 	offers := make([]policy.JoinerOffer, 0, len(read.Quests))
@@ -399,17 +348,11 @@ func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
 // research read leaves the fact unknown, and a research snapshot from a
 // different colony boundary invalidates the whole reading.
 func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error {
-	if held, ok := heldSection[policy.ResearchFacts](s.store, facts.Research, int64(s.expected.Tick)); ok {
-		s.research, s.researchTick = domain.Known(held.Value), held.AsOf
-		s.serve(facts.Research)
-		return nil
-	}
 	source, ok := s.RoutineSource.(RoutineResearchSource)
 	if !ok {
 		return nil
 	}
-	read, receipt, err := source.ReadResearch(ctx, id)
-	s.researchReceipt = receipt
+	read, _, err := source.ReadResearch(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -418,7 +361,7 @@ func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !cachedColonyBoundary(identity, s.expected, bridge.FactResearch) {
+	if !sameColonyContext(identity, s.expected) {
 		return ErrChanged
 	}
 	s.researchTick = read.Context.GetTick()
@@ -445,8 +388,7 @@ func (s *routineBracket) readTraders(ctx context.Context, id *c.Identity) error 
 	if !ok {
 		return nil
 	}
-	read, receipt, err := source.ListTraders(ctx, id)
-	s.tradersReceipt = receipt
+	read, _, err := source.ListTraders(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -455,7 +397,7 @@ func (s *routineBracket) readTraders(ctx context.Context, id *c.Identity) error 
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !cachedColonyBoundary(identity, s.expected, bridge.FactColony) {
+	if !sameColonyContext(identity, s.expected) {
 		return ErrChanged
 	}
 	rows := make([]policy.TraderFacts, 0, len(read.Traders))

@@ -20,12 +20,11 @@ import (
 
 // The snapshot stream (#858). Native publishes whole BundleSnapshot frames
 // into a shared-memory ring (every PeriodTicks, on a pause edge and after
-// every applied write), and the state families are read only from it: a
-// read in a shape a frame carries (frameShaped) is served from the newest
-// frame, waiting for one when the stream is not open yet, the frame
-// predates this client's last write, or the subscription just grew to
-// carry it. It never crosses GABP. A parameterized read no frame holds (a
-// page cursor, an id list, a filter) still does.
+// every applied write), and the state families are read from it: a read
+// is looked up by its encoded request in the newest frame, waiting for one
+// when the stream is not open yet, the frame predates this client's last
+// write, or the subscription is growing to carry it. A read the frame
+// does not answer (a page cursor, an id list, a filter) crosses GABP.
 //
 // The subscription grows itself: a read of a resource's sources or of a
 // planning band is added to it, and the stream is resubscribed so later
@@ -97,47 +96,6 @@ func frameServes(method string) bool {
 // scoped is every observation request: its scope names the world.
 type scoped interface{ GetScope() *o.ReadScope }
 
-// frameShaped reports whether request is the shape a frame carries for
-// method (with the subscription grown to it). The routine pawn detail is
-// shaped by the frame's own colonist roster, so it is judged against the
-// frame instead (frameRead).
-func frameShaped(method string, request proto.Message) bool {
-	r, ok := request.(scoped)
-	if !ok {
-		return false
-	}
-	id := r.GetScope().GetExpectedIdentity()
-	if id == nil {
-		return false
-	}
-	switch v := request.(type) {
-	case *o.StatusRequest:
-		return proto.Equal(v, emergencyRequest(id))
-	case *o.ColonyFactsRequest:
-		return proto.Equal(v, colonyFactsRequest(id, true, nil))
-	case *o.PopulationRequest:
-		return proto.Equal(v, populationRequest(id))
-	case *o.ResearchRequest:
-		return proto.Equal(v, researchRequest(id))
-	case *o.ListBuildingsRequest:
-		return proto.Equal(v, buildingsListRequest(id)) || proto.Equal(v, constructionBuildingsRequest(id, nil))
-	case *o.BillsRequest:
-		return proto.Equal(v, billsListRequest(id))
-	case *o.ListZonesRequest:
-		return proto.Equal(v, zoneSectionRequest(id))
-	case *o.TradersRequest:
-		return proto.Equal(v, tradersRequest(id))
-	case *o.WorldProgressionRequest:
-		return proto.Equal(v, worldProgressionRequest(id, false))
-	case *o.ResourceSourcesRequest:
-		return validID(v.GetResource()) == nil && proto.Equal(v, resourceSourcesRequest(id, v.GetResource()))
-	case *o.GetCellsRequest:
-		band, ok := frameBand(v.GetRectangle())
-		return ok && proto.Equal(v, planningBandRequest(id, band))
-	}
-	return false
-}
-
 // frameBand is the planning band a frame carries for rect: the whole
 // rectangle when it fits one band.
 func frameBand(rect *o.Rectangle) (policy.Rectangle, bool) {
@@ -152,18 +110,22 @@ func frameBand(rect *o.Rectangle) (policy.Rectangle, bool) {
 }
 
 // frameRead serves name/request from the snapshot stream. served is false
-// only for a read no frame carries (no stream on this client, another
-// method, another shape); that read goes over GABP. Otherwise the reply
-// comes from a frame or the read fails: ErrRefused when the frames
-// describe another world, ErrUnavailable when no frame carrying it arrives
-// within the call timeout.
+// for a read no frame answers (no stream on this client, another method, a
+// request shape the newest frame does not carry); that read goes over GABP.
+// Otherwise the reply comes from a frame or the read fails: ErrRefused
+// when the frames describe another world, ErrUnavailable when no frame
+// arrives within the call timeout.
 func (caller *Client) frameRead(ctx context.Context, name string, request, reply proto.Message) (served bool, err error) {
 	s := caller.frames
 	if s == nil || !frameServes(name) {
 		return false, nil
 	}
-	shaped := frameShaped(name, request)
-	if !shaped && name != "rimgovernor/observations_list_pawns" {
+	r, ok := request.(scoped)
+	if !ok {
+		return false, nil
+	}
+	identity := r.GetScope().GetExpectedIdentity()
+	if identity == nil {
 		return false, nil
 	}
 	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
@@ -171,17 +133,15 @@ func (caller *Client) frameRead(ctx context.Context, name string, request, reply
 		return true, contract("request encoding: %v", err)
 	}
 	key := readCacheKey{method: name, request: string(encoded)}
-	identity := request.(scoped).GetScope().GetExpectedIdentity()
-	if identity == nil {
-		return false, nil
-	}
 	caller.frameSubscribe(name, request)
-	return caller.frameReadKey(ctx, name, key, identity, shaped, reply)
+	return caller.frameReadKey(ctx, name, key, identity, true, reply)
 }
 
 // frameReadKey waits for a frame past this client's last write that
-// answers key and decodes its reply (frameRead).
-func (caller *Client) frameReadKey(ctx context.Context, name string, key readCacheKey, identity *c.Identity, shaped bool, reply proto.Message) (served bool, err error) {
+// answers key and decodes its reply (frameRead). With fallback, a frame of
+// the same world that answers the method only in other shapes, while no
+// subscription change is pending, sends the read over GABP instead.
+func (caller *Client) frameReadKey(ctx context.Context, name string, key readCacheKey, identity *c.Identity, fallback bool, reply proto.Message) (served bool, err error) {
 	s := caller.frames
 	ctx, cancel := context.WithTimeout(ctx, caller.timeout)
 	defer cancel()
@@ -202,7 +162,7 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 			continue
 		}
 		s.mu.Lock()
-		needs := s.needs
+		needs, pending := s.needs, s.stale || s.opening
 		s.mu.Unlock()
 		frame, ok, err := reader.Latest()
 		if err != nil {
@@ -212,7 +172,7 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 		if ok {
 			after = frame.Number
 			if frame.Writes >= needs {
-				payload, world, found, decoded := s.lookup(frame, key)
+				payload, world, found, carries, decoded := s.lookup(frame, key)
 				if decoded != nil && caller.recorder != nil {
 					caller.recorder.Event("native_frame", caller.snapshotRecordingContext(ctx), false, decoded)
 				}
@@ -227,8 +187,8 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 					return true, nil
 				case world != nil && !sameIdentity(world, identity):
 					return miss("identity", fmt.Errorf("%w: %s asked for another world than the snapshot frames describe", ErrRefused, name))
-				case world != nil && !shaped:
-					// Pawn detail for another roster than the frame's.
+				case world != nil && fallback && carries && !pending:
+					// The frame answers the method, in another shape.
 					return false, nil
 				}
 			}
@@ -241,11 +201,12 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 
 // lookup finds key in frame's table, building the table the first time a
 // frame is read, and names the world the frame describes (nil when it
-// cannot be decoded). decoded is set when this call built the table: the
+// cannot be decoded). carries reports whether the frame answers the
+// method in any request shape. decoded is set when this call built the table: the
 // frame's size and cost (#858), one native_frame row per frame the
 // controller consumed. skipped counts the frames published since the last
 // one consumed and never read.
-func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload []byte, world *c.Identity, ok bool, decoded map[string]any) {
+func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload []byte, world *c.Identity, ok, carries bool, decoded map[string]any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if frame.Number != s.number {
@@ -258,12 +219,15 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 		}
 		if err != nil {
 			decoded["error"] = err.Error()
-			return nil, nil, false, decoded
+			return nil, nil, false, false, decoded
 		}
 		s.number, s.table, s.identity = frame.Number, table, identity
 	}
 	payload, ok = s.table[key]
-	return payload, s.identity, ok, decoded
+	for held := range s.table {
+		carries = carries || held.method == key.method
+	}
+	return payload, s.identity, ok, carries, decoded
 }
 
 // frameTable decodes one frame into the replies its sections answer.
@@ -464,12 +428,13 @@ func (caller *Client) frameSubscribe(name string, request proto.Message) {
 	defer s.mu.Unlock()
 	switch r := request.(type) {
 	case *o.ResourceSourcesRequest:
-		if !slices.Contains(s.resources, r.GetResource()) {
+		if validID(r.GetResource()) == nil && !slices.Contains(s.resources, r.GetResource()) {
 			s.resources = append(s.resources, r.GetResource())
 			s.stale = true
 		}
 	case *o.GetCellsRequest:
-		if name == "rimgovernor/observations_get_cells" && !proto.Equal(r.GetRectangle(), s.window) {
+		band, ok := frameBand(r.GetRectangle())
+		if ok && proto.Equal(r, planningBandRequest(r.GetScope().GetExpectedIdentity(), band)) && !proto.Equal(r.GetRectangle(), s.window) {
 			s.window = proto.Clone(r.GetRectangle()).(*o.Rectangle)
 			s.stale = true
 		}

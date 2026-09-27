@@ -50,7 +50,7 @@ func FillZones(ctx context.Context, native ZonesNative, id *c.Identity, expected
 		return err
 	}
 	actual.Paused = expected.Paused
-	if !cachedColonyBoundary(actual, expected, bridge.FactColony) {
+	if !sameColonyContext(actual, expected) {
 		return ErrChanged
 	}
 	p.Zones = held

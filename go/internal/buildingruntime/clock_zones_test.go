@@ -69,7 +69,7 @@ func TestZonesRefreshInvalidationAndScope(t *testing.T) {
 		}
 	}
 	held, _ := facts.Get[bridge.ZonesRead](store, facts.Zones)
-	if f.reads != 4 || held.AsOf != 103 || held.Stale.Any() {
+	if f.reads != 4 || held.AsOf != 103 {
 		t.Fatal(f.reads, held)
 	}
 	p.scope.Load = "b"

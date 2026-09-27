@@ -40,7 +40,7 @@ func (s *routineBracket) readConstruction(ctx context.Context, id *c.Identity) e
 		return err
 	}
 	observed.Paused = s.expected.Paused
-	if !cachedColonyBoundary(observed, s.expected, bridge.FactColony) {
+	if !sameColonyContext(observed, s.expected) {
 		return ErrChanged
 	}
 	s.construction, err = ConstructionBuildings(snapshot, ids)

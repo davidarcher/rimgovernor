@@ -35,7 +35,7 @@ type ClearanceSource interface {
 // unknown. Transport, malformed-contract and identity errors remain errors.
 func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[ClearanceCensus], error) {
 	unknown := domain.Unknown[ClearanceCensus]()
-	if source == nil || expected.Validate() != nil || !sameColonyBoundary(expected, expected) {
+	if source == nil || expected.Validate() != nil || !sameColonyContext(expected, expected) {
 		return unknown, ErrContract
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
@@ -67,7 +67,7 @@ func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expecte
 	if err != nil {
 		return unknown, err
 	}
-	if !aheadColonyBoundary(actual, expected, bridge.FactColony) {
+	if !sameColonyContext(actual, expected) {
 		return unknown, ErrChanged
 	}
 	rows := make([]ClearanceTarget, 0, len(v.Targets))

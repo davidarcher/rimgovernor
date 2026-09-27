@@ -111,19 +111,18 @@ func TestClockPageInvalidationNarrowed(t *testing.T) {
 	if !facts.apply(narrowedPage) {
 		t.Fatal("a narrowed page must report its drop")
 	}
-	if !facts.store.Fresh(factsstore.PlanningCells, 1) {
+	if !unmarked(facts.store, factsstore.PlanningCells) {
 		t.Fatal("a window the rectangle misses must stay fresh")
 	}
-	zones, ok := factsstore.Get[int](facts.store, factsstore.Zones)
-	if !ok || zones.Value != 3 || !reflect.DeepEqual(zones.Stale.IDs, []string{"Zone_7"}) || facts.store.Fresh(factsstore.Zones, 1) {
-		t.Fatalf("zones = %+v ok=%v", zones, ok)
+	if unmarked(facts.store, factsstore.Zones) {
+		t.Fatal("zones survived a colony invalidation")
 	}
-	if !facts.store.Fresh(factsstore.Rooms, 1) {
+	if !unmarked(facts.store, factsstore.Rooms) {
 		t.Fatal("rooms touched by a colony invalidation")
 	}
 	facts.apply(wholePage)
-	if held, ok := factsstore.Get[int](facts.store, factsstore.Zones); !ok || !held.Stale.All || facts.store.Fresh(factsstore.Zones, 1) {
-		t.Fatal("zones must retain a stale delta baseline after a whole-family mention")
+	if unmarked(facts.store, factsstore.PlanningCells) {
+		t.Fatal("a whole-family mention must drop the window")
 	}
 }
 
@@ -137,4 +136,10 @@ func TestClockFactsRememberBounded(t *testing.T) {
 	if n := len(facts.watched); n == 0 || n > clockFactsWatchedMax {
 		t.Fatal(n)
 	}
+}
+
+// unmarked reports a section the store still holds.
+func unmarked(store *factsstore.Store, section factsstore.Section) bool {
+	_, ok := factsstore.Get[any](store, section)
+	return ok
 }

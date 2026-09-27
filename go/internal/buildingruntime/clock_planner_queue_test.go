@@ -12,26 +12,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TestClockSchedulerSectionWakeRunsDeclaringPlannersAndReadsTheirSections:
-// a fact change in one section (buildings, published under the colony
-// family) wakes only the planners declaring it, and the step reads only
-// the sections they declare (#625): the held population and research
-// sections are served from the store past their cadence and stay out of
-// the bundle request, while the colony facts are read anew. A pawns wake
-// selects the pawn readers and no building planner.
-func TestClockSchedulerSectionWakeRunsDeclaringPlannersAndReadsTheirSections(t *testing.T) {
+// TestClockSchedulerSectionWakeRunsDeclaringPlanners: a fact change in one
+// section (buildings, published under the colony family) wakes only the
+// planners declaring it (#625), and the step reads the colony anew. A
+// pawns wake selects the pawn readers and no building planner.
+func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	ctx := context.Background()
 	first, err := s.Step(ctx)
-	if err != nil || first.Routine == nil || first.Sections != nil || first.Sleeping == nil || n.populationReads != 1 {
-		t.Fatal(first, err, n.populationReads)
+	if err != nil || first.Routine == nil || first.Sleeping == nil {
+		t.Fatal(first, err)
 	}
 	reads := n.reads
 	s.lastFull = s.clock.Now()
-	// Far past every section's cadence: only a section the wave's planners
-	// consume is read again.
 	tick := f.status.Context.GetTick() + 60000
 	f.status.Context.Tick = proto.Int64(tick)
 	n.reply.GetObserved().Context.Tick = proto.Int64(tick)
@@ -45,17 +40,14 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlannersAndReadsTheirSections(t *
 	if err != nil || step.Reason.Cause != StepLive || !reflect.DeepEqual(step.Planners, []string{"sleeping"}) {
 		t.Fatal(step, err)
 	}
-	if !reflect.DeepEqual(step.Sections, []string{"colony", "planning_cells", "rooms", "zones", "buildings"}) {
-		t.Fatal(step.Sections)
-	}
-	if n.reads <= reads || n.populationReads != 1 {
-		t.Fatal(n.reads-reads, n.populationReads)
+	if n.reads <= reads {
+		t.Fatal(n.reads - reads)
 	}
 	// A pawns wake selects the pawn readers (the idle-draft restorer is the
 	// configured one) and no building planner.
 	pawns, err := s.StepWithReason(ctx, StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}})
-	if err != nil || !reflect.DeepEqual(pawns.Planners, []string{"idleDrafts"}) || !reflect.DeepEqual(pawns.Sections, []string{"pawns", "emergency"}) || n.populationReads != 1 {
-		t.Fatal(pawns, err, n.populationReads)
+	if err != nil || !reflect.DeepEqual(pawns.Planners, []string{"idleDrafts"}) {
+		t.Fatal(pawns, err)
 	}
 }
 

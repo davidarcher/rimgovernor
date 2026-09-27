@@ -88,8 +88,8 @@ func TestRoutineReadingSections(t *testing.T) {
 	if _, ok := facts.Get[RoutinePawns](store, facts.Pawns); ok {
 		t.Fatal("pawns filed without a read")
 	}
-	if !store.Fresh(facts.Research, tick+7) || store.Fresh(facts.Research, tick) {
-		t.Fatal("research freshness follows its own as-of, not the bundle's")
+	if research, ok := facts.Get[policy.ResearchFacts](store, facts.Research); !ok || research.AsOf != tick+7 {
+		t.Fatal("research keeps its own as-of, not the bundle's")
 	}
 	sections.File(nil, scope)
 }

@@ -279,7 +279,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			if err != nil {
 				return RoutineResourceResult{}, true, err
 			}
-			if !held.Complete || held.Stale.Any() {
+			if !held.Complete {
 				return RoutineResourceResult{}, true, ErrControl
 			}
 			cells = held.Value.Cells

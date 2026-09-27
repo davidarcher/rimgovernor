@@ -22,7 +22,7 @@ type ShrineSource interface {
 // malformed-contract and identity errors remain errors.
 func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity) (domain.Fact[[]AncientShrine], error) {
 	unknown := domain.Unknown[[]AncientShrine]()
-	if source == nil || expected.Validate() != nil || !sameColonyBoundary(expected, expected) {
+	if source == nil || expected.Validate() != nil || !sameColonyContext(expected, expected) {
 		return unknown, ErrContract
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
@@ -53,7 +53,7 @@ func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity)
 	if err != nil {
 		return unknown, err
 	}
-	if !aheadColonyBoundary(actual, expected, bridge.FactColony) {
+	if !sameColonyContext(actual, expected) {
 		return unknown, ErrChanged
 	}
 	kinds := map[o.ShrineGuardKind]policy.ShrineGuardKind{

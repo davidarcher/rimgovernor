@@ -12,8 +12,7 @@ import (
 // zoneRefresher is the step's refresher for the policy zone census
 // (#358): planners ask it through observation.WithZones, and a review step
 // asks it once up front. A review step reads the census whole once; any
-// other ask serves the held census while it is fresh under FactColony's
-// tolerance.
+// other ask serves the held census until an invalidation marks it.
 type zoneRefresher struct {
 	native observation.ZonesNative
 	store  *facts.Store
@@ -27,7 +26,7 @@ type zoneRefresher struct {
 func (p *zoneRefresher) Zones(ctx context.Context, id *c.Identity) (facts.Held[bridge.ZonesRead], error) {
 	held, ok := facts.Get[bridge.ZonesRead](p.store, facts.Zones)
 	ok = ok && p.store.Scope() == p.scope && held.Value.Context.GetIdentity().GetColonyId() == id.GetColonyId() && held.Value.Context.GetIdentity().GetMapId() == id.GetMapId()
-	if ok && !held.Stale.Any() && (p.refreshed || !p.review && p.store.Fresh(facts.Zones, max(p.tick, held.AsOf))) {
+	if ok && (p.refreshed || !p.review) {
 		return held, nil
 	}
 	read, _, err := p.native.ReadZoneSection(ctx, id)

@@ -101,7 +101,7 @@ func TestCutPlantBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
 	b, f := newCutPlantBoundaryFixture(t)
 	p := f.Placement
 	target := executor.Target{Action: p.Action, Snapshot: p.Snapshot}
-	previewTick := f.Receipt.AdmittedContext.GetTick() + 2*bridge.FactEmergency.TickTolerance()
+	previewTick := f.Receipt.AdmittedContext.GetTick() + 2*250
 	f.Receipt.AdmittedContext.Tick = proto.Int64(previewTick)
 	f.read.Context.Tick = proto.Int64(previewTick - 5)
 	f.Emergency.Context.Tick = proto.Int64(previewTick + 7)
@@ -114,7 +114,7 @@ func TestCutPlantBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.read.Context.Tick = proto.Int64(previewTick)
-	f.Emergency.Context.Tick = proto.Int64(previewTick - bridge.FactEmergency.TickTolerance())
+	f.Emergency.Context.Tick = proto.Int64(previewTick - 250)
 	if inspection, err := b.InspectCutPlant(context.Background(), target); err != nil || !inspection.Accepted {
 		t.Fatal(inspection, err)
 	}

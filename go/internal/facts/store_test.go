@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-func TestStorePutGetFresh(t *testing.T) {
+func TestStorePutGet(t *testing.T) {
 	s := NewStore()
 	scope := Scope{Load: "load-1", Generation: 3}
 	Put(s, scope, Research, Held[[]string]{Value: []string{"Electricity"}, AsOf: 1000, Complete: true, Source: "rimgovernor/observations_read_research"})
@@ -21,48 +21,8 @@ func TestStorePutGetFresh(t *testing.T) {
 	if _, ok := Get[int](s, Rooms); ok {
 		t.Fatal("an absent section reads back")
 	}
-	// Research tolerates a day; the emergency census only the planning tolerance.
-	if !s.Fresh(Research, 1000+bridge.FactTickToleranceResearch) || s.Fresh(Research, 999) {
-		t.Fatal("research freshness")
-	}
-	if s.Fresh(Emergency, 1000+bridge.FactTickToleranceEmergency+1_000_000) || !s.Fresh(Emergency, 1000) {
-		t.Fatal("emergency freshness")
-	}
-	if s.Fresh(Rooms, 1000) {
-		t.Fatal("an absent section is never fresh")
-	}
 	if s.Len() != 2 || s.Scope() != scope {
 		t.Fatalf("len=%d scope=%+v", s.Len(), s.Scope())
-	}
-}
-
-// The refresh cadence table (#360): the population census follows the
-// colony's tolerance rather than its invalidation family's, every other
-// section its family's; a policy's max age only ever tightens it.
-func TestSectionCadence(t *testing.T) {
-	for section, want := range map[Section]int64{
-		Colony: bridge.FactTickToleranceColony, PlanningCells: bridge.FactTickToleranceColony, Zones: bridge.FactTickToleranceColony, Buildings: bridge.FactTickToleranceColony,
-		Population: bridge.FactTickToleranceColony, Pawns: bridge.FactTickTolerancePawns, Emergency: bridge.FactTickToleranceEmergency,
-		Rooms: bridge.FactTickToleranceRooms, Research: bridge.FactTickToleranceResearch,
-	} {
-		if got := section.TickTolerance(); got != want {
-			t.Errorf("%s cadence = %d, want %d", section, got, want)
-		}
-	}
-	s := NewStore()
-	Put(s, Scope{Load: "load-1", Generation: 1}, Population, Held[int]{Value: 1, AsOf: 1000, Complete: true, Source: "x"})
-	Put(s, Scope{Load: "load-1", Generation: 1}, Rooms, Held[int]{Value: 1, AsOf: 1000, Complete: true, Source: "x"})
-	if !s.Fresh(Population, 1000+bridge.FactTickToleranceColony) || s.Fresh(Population, 1000+bridge.FactTickToleranceColony+1_000_000) {
-		t.Fatal("population freshness follows the colony cadence")
-	}
-	if !s.FreshWithin(Rooms, 1000, 0) || s.FreshWithin(Rooms, 1001+int64(bridge.FactTickTolerancePawns)+1_000_000, 0) || !s.FreshWithin(Rooms, 1100, 100) || s.FreshWithin(Rooms, 1101+1_000_000, 100) {
-		t.Fatal("a max age tightens the cadence")
-	}
-	if !s.FreshWithin(Rooms, 1000+bridge.FactTickToleranceRooms, 1_000_000) {
-		t.Fatal("a max age wider than the cadence leaves it alone")
-	}
-	if s.FreshWithin(Rooms, 999, bridge.FactTickUnbounded) {
-		t.Fatal("a scope behind the row is never fresh")
 	}
 }
 
@@ -92,15 +52,10 @@ func TestStoreInvalidate(t *testing.T) {
 	if _, ok := Get[string](s, Colony); ok {
 		t.Fatal("colony survived its family's invalidation")
 	}
-	// An incremental section is kept and marked stale (#357, #358): its
-	// next refresh is a delta over the held value, not a full read.
 	for _, section := range []Section{PlanningCells, Zones, Buildings, Bills} {
-		if held, ok := Get[string](s, section); !ok || held.AsOf != 10 || s.Fresh(section, 10) || !held.Stale.All {
-			t.Fatalf("%s = %+v ok=%v fresh=%v", section, held, ok, s.Fresh(section, 10))
+		if fresh(s, section) {
+			t.Fatalf("%s survived its family's invalidation", section)
 		}
-	}
-	if status := s.Status(); len(status) != 9 || status[0].Section != PlanningCells || !status[0].Stale.All {
-		t.Fatalf("status = %+v", status)
 	}
 	for _, section := range []Section{Population, Research, Pawns, Emergency, Rooms} {
 		if _, ok := Get[string](s, section); !ok {
@@ -112,34 +67,14 @@ func TestStoreInvalidate(t *testing.T) {
 		t.Fatal("research survived Invalidate")
 	}
 	s.InvalidateAll()
-	if s.Len() != 4 || s.Scope() != scope {
+	if s.Len() != 0 || s.Scope() != scope {
 		t.Fatalf("after InvalidateAll len=%d scope=%+v", s.Len(), s.Scope())
 	}
-	// A put clears the stale mark; a scope change drops the section.
+	// A scope change drops every section.
 	Put(s, scope, PlanningCells, Held[string]{Value: "w", AsOf: 20, Complete: true})
-	if !s.Fresh(PlanningCells, 20) {
-		t.Fatal("a put must clear the stale mark")
-	}
 	Put(s, Scope{Load: "b", Generation: 1}, Colony, Held[string]{})
 	if _, ok := Get[string](s, PlanningCells); ok {
-		t.Fatal("a scope change must drop an incremental section")
-	}
-}
-
-func TestStoreResyncRequest(t *testing.T) {
-	s := NewStore()
-	if s.ResyncDue(PlanningCells) {
-		t.Fatal("nothing requested")
-	}
-	s.RequestResync(PlanningCells)
-	s.RequestResync(PlanningCells)
-	if !s.ResyncDue(PlanningCells) || s.ResyncDue(PlanningCells) {
-		t.Fatal("a request is reported once")
-	}
-	var nilStore *Store
-	nilStore.RequestResync(PlanningCells)
-	if nilStore.ResyncDue(PlanningCells) {
-		t.Fatal("a nil store owes nothing")
+		t.Fatal("a scope change must drop a section")
 	}
 }
 
@@ -161,11 +96,17 @@ func TestStoreStatusAndSpread(t *testing.T) {
 		t.Fatalf("empty spread = %d %d", min, spread)
 	}
 	var nilStore *Store
-	if nilStore.Status() != nil || nilStore.AsOf() != nil || nilStore.Fresh(Colony, 0) || nilStore.Len() != 0 {
+	if nilStore.Status() != nil || nilStore.AsOf() != nil || fresh(nilStore, Colony) || nilStore.Len() != 0 {
 		t.Fatal("a nil store must hold nothing")
 	}
 	Put(nilStore, scope, Colony, Held[string]{})
 	nilStore.Invalidate(Colony)
 	nilStore.InvalidateFamily(bridge.FactColony)
 	nilStore.InvalidateAll()
+}
+
+// fresh reports a held section.
+func fresh(s *Store, section Section) bool {
+	_, ok := Get[any](s, section)
+	return ok
 }

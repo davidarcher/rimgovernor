@@ -955,7 +955,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			if err != nil {
 				return nil, policy.StockObservation{}, "", err
 			}
-			if !held.Complete || held.Stale.Any() {
+			if !held.Complete {
 				return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
 			}
 			facts.Cells = held.Value.Cells

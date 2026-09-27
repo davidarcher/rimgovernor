@@ -13,7 +13,7 @@ import (
 
 func (s *ClockScheduler) establishExtent(ctx context.Context, tick domain.Tick) error {
 	held, ok := facts.Get[observation.ColonyProjection](s.facts.store, facts.Colony)
-	if !ok || !held.Complete || held.Stale.Any() {
+	if !ok || !held.Complete {
 		return nil
 	}
 	p := held.Value
@@ -64,7 +64,7 @@ func (p *Player) ChangeExpansionArea(ctx context.Context, world store.World, id,
 	}
 	if !remove {
 		held, ok := facts.Get[observation.ColonyProjection](p.extentFacts, facts.Colony)
-		if !ok || !held.Complete || held.Stale.Any() || !held.Value.Identity.SameContext(identity) {
+		if !ok || !held.Complete || !held.Value.Identity.SameContext(identity) {
 			return ErrControl
 		}
 		for _, cell := range cells {

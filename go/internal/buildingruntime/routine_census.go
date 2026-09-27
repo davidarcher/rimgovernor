@@ -19,8 +19,7 @@ import (
 // colony mirror and decides at the tick its sections are complete
 // through; a planner of the same colony, load, map and native generation
 // decides there too, on a paused or a running clock, until committed
-// clock evidence invalidates the census or the planner's tick passes it by
-// more than the pawn cadence (bridge.FactTickTolerancePawns). A stale read
+// clock evidence invalidates the census. A stale read
 // is not obeyed: every write carries its CAS evidence, which the native
 // refuses once the world moved.
 type routineCensus struct {
@@ -167,13 +166,13 @@ func (s *routineCensusStore) lookup(source, reviewerSource any, expected observa
 
 // sameObservedIdentity matches the census identity (from colony facts)
 // against the planner's expected identity: the same load, map and
-// generation, at the census tick or within the pawn cadence after it. An
-// expected tick before the census belongs to an older read.
+// generation, at the census tick or after it. An expected tick before the
+// census belongs to an older read.
 func sameObservedIdentity(census, expected observation.Identity) bool {
 	a, ak := census.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()
 	lag := int64(expected.Tick) - int64(census.Tick)
-	return census.SameContext(expected) && lag >= 0 && lag <= bridge.FactTickTolerancePawns && ak && bk && a == b
+	return census.SameContext(expected) && lag >= 0 && ak && bk && a == b
 }
 
 // sameNativeSource reports whether two planner sources are one native

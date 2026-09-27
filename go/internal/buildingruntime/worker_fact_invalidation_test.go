@@ -43,7 +43,7 @@ func TestWorkerNativeCallDropsWrittenFamilies(t *testing.T) {
 			t.Fatal("nothing dispatched")
 		}
 		for _, section := range sections {
-			if held := w.config.Store.Held(section, 100); held == called {
+			if held := unmarked(w.config.Store, section); held == called {
 				t.Fatalf("native called %v: %s held %v", called, section, held)
 			}
 		}

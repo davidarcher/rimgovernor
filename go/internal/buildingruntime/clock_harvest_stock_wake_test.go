@@ -60,13 +60,12 @@ func TestClockHarvestAndStockRowsWakeTheirPlanners(t *testing.T) {
 		}
 	}
 
-	// The fact store keeps the zones section's value and marks only the
-	// ripe zone stale, so the next read is a delta over it.
+	// The fact store drops the zones section, so the next ask reads it.
 	f := newClockFacts(nil)
 	scope := facts.Scope{Load: "l", Generation: 1}
 	facts.Put(f.store, scope, facts.Zones, facts.Held[int]{Value: 3, AsOf: 1, Source: "z"})
 	f.apply(clockFactsPage(clockFactsInvalidated(&k.ObservationInvalidated{Families: colony, EntityIds: []string{"Zone_12"}})))
-	if held, ok := facts.Get[int](f.store, facts.Zones); !ok || held.Value != 3 || !reflect.DeepEqual(held.Stale.IDs, []string{"Zone_12"}) {
-		t.Fatalf("zones after harvest row = %+v ok=%v", held, ok)
+	if held, ok := facts.Get[int](f.store, facts.Zones); ok {
+		t.Fatalf("zones after harvest row = %+v", held)
 	}
 }

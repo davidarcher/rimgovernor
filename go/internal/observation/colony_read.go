@@ -28,27 +28,9 @@ type ColonyReading struct {
 	Receipt               bridge.Result
 }
 
-// sameColonyBoundary is the rule every routine read applies to a reply's
+// sameColonyContext is the rule every routine read applies to a reply's
 // context: the expected load, map and native generation. Its tick never
-// makes it stale; the clock need not be stopped (#243).
-func sameColonyBoundary(actual, expected Identity) bool {
-	return sameColonyContext(actual, expected)
-}
-
-// cachedColonyBoundary is sameColonyBoundary for a read the step's fact
-// cache may serve: a row behind the anchor is not a changed context (#306).
-func cachedColonyBoundary(actual, expected Identity, family bridge.FactFamily) bool {
-	return sameColonyContext(actual, expected)
-}
-
-// aheadColonyBoundary is sameColonyBoundary for a live read anchored on an
-// identity the step's fact cache may have served: under a running window
-// the anchor row lawfully sits behind the live read, the mirror of
-// cachedColonyBoundary (#306, #712).
-func aheadColonyBoundary(actual, expected Identity, family bridge.FactFamily) bool {
-	return sameColonyContext(actual, expected)
-}
-
+// makes it stale; every section of one read comes from one frame (#884).
 func sameColonyContext(actual, expected Identity) bool {
 	a, ak := actual.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()
@@ -64,7 +46,7 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	if source == nil || clock == nil || maxAge <= 0 || expected.Validate() != nil {
 		return result, ErrContract
 	}
-	if !sameColonyBoundary(expected, expected) {
+	if !sameColonyContext(expected, expected) {
 		return result, ErrChanged
 	}
 	result.StartedAt = clock.Now()
@@ -96,7 +78,7 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	// Colony facts do not carry pause state; that fact is the caller's.
 	observed := projection.Identity
 	observed.Paused = expected.Paused
-	if !cachedColonyBoundary(observed, expected, bridge.FactColony) {
+	if !sameColonyContext(observed, expected) {
 		return result, ErrChanged
 	}
 	result.ObservedAt = clock.Now()

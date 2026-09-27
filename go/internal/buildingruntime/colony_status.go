@@ -155,7 +155,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 	}
 	if held, ok := facts.Get[observation.ColonyProjection](s.food, facts.Colony); ok {
 		id := held.Value.Identity
-		if id.SameContext(decoded) && id.Tick <= decoded.Tick && bridge.FactColony.Fresh(int64(id.Tick), int64(decoded.Tick)) {
+		if id.SameContext(decoded) && id.Tick <= decoded.Tick {
 			a, ak := id.NativeGeneration.Value()
 			b, bk := decoded.NativeGeneration.Value()
 			if ak && bk && a == b {

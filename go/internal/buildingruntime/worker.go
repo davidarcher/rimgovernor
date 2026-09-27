@@ -548,9 +548,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				w.config.Store.InvalidateFamily(families...)
 			}
 			workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
-			if receipt, known := after.Receipt.Value(); known && receipt == domain.ReceiptRefused && workerMapConsumingKind(candidate.kind) {
-				w.config.Store.RequestResync(facts.PlanningCells)
-			}
 		}
 		delay := w.config.StepInterval
 		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
@@ -720,17 +717,6 @@ func liveDispatchKind(kind domain.ActionKind) bool {
 	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
 		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ResearchSelectAction, domain.HomeCoverageAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction:
-		return true
-	}
-	return false
-}
-
-// workerMapConsumingKind lists the kinds whose dispatch native refuses
-// when the map moved under the plan: their refusal is evidence the held
-// planning window may be wrong.
-func workerMapConsumingKind(kind domain.ActionKind) bool {
-	switch kind {
-	case domain.BuildingAction, domain.ZoneCreateAction, domain.ExcavationAction, domain.WallRemovalAction, domain.HomeCoverageAction:
 		return true
 	}
 	return false

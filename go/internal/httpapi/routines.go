@@ -213,27 +213,6 @@ type routineSectionDTO struct {
 	Complete bool   `json:"complete"`
 	Source   string `json:"source"`
 	StoredAt string `json:"storedAt"`
-	// Stale is what a narrowed invalidation marked since the value was
-	// held (#359): entity ids, an inclusive cell rectangle [minX, minZ,
-	// maxX, maxZ], or the whole section; absent while nothing is marked.
-	Stale *routineStaleDTO `json:"stale,omitempty"`
-}
-
-type routineStaleDTO struct {
-	IDs  []string `json:"ids,omitempty"`
-	Rect []int32  `json:"rect,omitempty"`
-	All  bool     `json:"all,omitempty"`
-}
-
-func routineStale(st facts.Staleness) *routineStaleDTO {
-	if !st.Any() {
-		return nil
-	}
-	out := &routineStaleDTO{IDs: st.IDs, All: st.All}
-	if st.Rect != nil {
-		out.Rect = []int32{st.Rect.MinX, st.Rect.MinZ, st.Rect.MaxX, st.Rect.MaxZ}
-	}
-	return out
 }
 
 // colonyStageDTO is the colony stage (#630): its name, the review tick it
@@ -343,7 +322,7 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.ColonyGrid = colonyGrid(v.ColonyGrid, v.Bounds)
 	result.Progress = goalProgress(v.Progress)
 	for _, section := range v.Sections {
-		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano), Stale: routineStale(section.Stale)})
+		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano)})
 	}
 	if v.LastReviewKnown {
 		tick := v.LastReviewTick

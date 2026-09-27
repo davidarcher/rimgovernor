@@ -257,11 +257,6 @@ type ClockSchedulerResult struct {
 	// waits on the open work it reported (plannerQueue.waits, #625); the
 	// clock_step row reports it as waiting.
 	Waiting []string
-	// Sections names the census sections a subset step read at cadence,
-	// the union its planners declare (sectionsWanted); nil when every
-	// planner ran and every section was read. The clock_step row reports
-	// it as sections.
-	Sections []string
 	// Proposals are the migrated planners' proposals in the coordinator's
 	// rank order, each admitted with its plan, waiting on the claim a
 	// higher-ranked proposal holds (#622) or expired against this step's
@@ -773,9 +768,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		extra["journal_ms"] = float64(journal.total) / float64(time.Millisecond)
 		if len(out.Waiting) > 0 {
 			extra["waiting"] = out.Waiting
-		}
-		if out.Sections != nil {
-			extra["sections"] = out.Sections
 		}
 		// The step's budgets (#623) beside what it used: reads against the
 		// read budget, the planner waves against the wall budget, the
@@ -1478,8 +1470,6 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	if s.config.Routine != nil {
 		s.config.Routine.pause = clockPause(status)
 	}
-	wanted := s.sectionsWanted(sel.pick)
-	out.Sections = sectionNames(wanted)
 	// Under player acceleration the critical wave is the evidence the
 	// backoff keeps inside the horizon, aged from the step's status read.
 	watched := func(time.Duration, bool) {}
@@ -1491,7 +1481,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		s.paceEpoch.Store(proto.Clone(status.GetRunning().GetEpoch()).(*k.Epoch))
 		watched = s.pace.Watch(call, readAt)
 	}
-	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, wanted, sel.pick)
+	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, sel.pick)
 	if err != nil {
 		watched(0, false)
 		return nil, err
@@ -1758,14 +1748,13 @@ func (s *ClockScheduler) fullStepDue() bool {
 // the wave sharing arbiter, returning the queued names without waiting.
 // Routine's own error aborts before anything is queued; an error from a
 // queued planner is isolated by the wave and surfaces later, from its
-// failures, without stopping the step. wanted names the sections the
-// selected planners consume (nil: every section, #625). The colony stage's
+// failures, without stopping the step. The colony stage's
 // Foothold hold also drops the comfort-class planners and promotes the
 // startup planners into the critical cycle for the step (#658).
-func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, wanted map[facts.Section]bool, pick func(plannerEntry) bool) ([]string, error) {
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
 	startup := false
 	if s.config.Routine != nil {
-		review, err := s.config.Routine.step(call, epoch, arbiter, wanted)
+		review, err := s.config.Routine.step(call, epoch, arbiter, pick != nil)
 		if err != nil {
 			return nil, fmt.Errorf("routine: %w", err)
 		}

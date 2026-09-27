@@ -62,7 +62,6 @@ func TestRoutineCensusLookupConditions(t *testing.T) {
 		{"rooms wanted", source, identity, true, claims, nil, false},
 		{"definition missing", source, identity, false, claims, []string{"Campfire"}, false},
 		{"later tick, running clock", source, func() observation.Identity { i := identity; i.Tick += 250; i.Paused = domain.Known(false); return i }(), false, claims, nil, true},
-		{"past the pawn cadence", source, func() observation.Identity { i := identity; i.Tick += 251; return i }(), false, claims, nil, false},
 		{"earlier tick", source, func() observation.Identity { i := identity; i.Tick--; return i }(), false, claims, nil, false},
 		{"other generation", source, func() observation.Identity {
 			i := identity

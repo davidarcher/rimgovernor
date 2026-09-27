@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -209,31 +207,5 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	again, err := s.StepWithReason(ctx, StepReason{Cause: StepFull})
 	if err != nil && !errors.Is(err, executor.ErrHeld) || again.Routine == nil || !again.Routine.Review.Enabled || again.Routine.Review.Revision != review.Revision+1 {
 		t.Fatal(again, err)
-	}
-}
-
-// TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition (#360): the
-// reviewer's routine store bounds the rooms section to the step's tick
-// while a temperature condition the colony facts name is active, and leaves
-// the cadence alone otherwise.
-func TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition(t *testing.T) {
-	t.Parallel()
-	s, f := schedulerFixture(t)
-	schedulerRoutine(t, s, f)
-	r := s.config.Routine
-	scope := factsstore.Scope{Load: "load", Generation: 1}
-	if rs := r.routineStore(nil, observation.Identity{}); rs.Store != s.facts.store || rs.MaxAge != nil {
-		t.Fatal("max age without colony facts", rs.MaxAge)
-	}
-	colony := observation.ColonyProjection{}
-	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "Flashstorm"}})
-	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
-	if rs := r.routineStore(nil, observation.Identity{}); rs.MaxAge != nil {
-		t.Fatal("max age under a flashstorm", rs.MaxAge)
-	}
-	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "2", Definition: policy.ConditionColdSnap}})
-	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
-	if rs := r.routineStore(nil, observation.Identity{}); rs.MaxAge[factsstore.Rooms] != 0 || len(rs.MaxAge) != 1 {
-		t.Fatal("max age under a cold snap", rs.MaxAge)
 	}
 }

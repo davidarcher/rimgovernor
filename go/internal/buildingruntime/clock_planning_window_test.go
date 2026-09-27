@@ -14,23 +14,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The refresher's decision table (#356): a full review step reads a stale
-// window and serves a fresh one; a timer or event step serves whatever it
-// holds; nothing held is read on demand whatever the step.
+// The refresher's decision table (#356): a full review step reads the
+// window once and serves it after; a timer or event step serves whatever
+// it holds; nothing held is read on demand whatever the step.
 func TestPlanningWindowReadDecision(t *testing.T) {
 	for _, tc := range []struct {
-		name                string
-		review, held, fresh bool
-		read                bool
+		name                    string
+		review, refreshed, held bool
+		read                    bool
 	}{
-		{"review, fresh", true, true, true, false},
-		{"review, stale", true, true, false, true},
-		{"review, nothing held", true, false, false, true},
-		{"timer, fresh", false, true, true, false},
-		{"timer, stale", false, true, false, false},
+		{"review, first ask", true, false, true, true},
+		{"review, read already", true, true, true, false},
+		{"review, nothing held", true, true, false, true},
+		{"timer, held", false, false, true, false},
 		{"planner demand, nothing held", false, false, false, true},
 	} {
-		if got := planningWindowRead(tc.review, tc.held, tc.fresh); got != tc.read {
+		if got := planningWindowRead(tc.review, tc.refreshed, tc.held); got != tc.read {
 			t.Errorf("%s: read=%v, want %v", tc.name, got, tc.read)
 		}
 	}
@@ -67,18 +66,17 @@ func TestPlanningWindowServesStoreAndReadsOnDemand(t *testing.T) {
 	if stored, ok := facts.Get[observation.PlanningCells](store, facts.PlanningCells); !ok || stored.AsOf != 100 {
 		t.Fatalf("stored = %+v ok=%v", stored, ok)
 	}
-	// A later timer step far past the tolerance still serves the held window.
-	w = &planningWindow{native: native, store: store, scope: scope, tick: 100 + bridge.FactTickToleranceColony + 1, review: false}
+	// A later timer step still serves the held window.
+	w = &planningWindow{native: native, store: store, scope: scope, tick: 2601, review: false}
 	if held, err = w.PlanningWindow(context.Background(), identity, rect); err != nil || native.reads != 1 || held.AsOf != 100 {
 		t.Fatalf("%+v %v reads=%d", held, err, native.reads)
 	}
-	// A full review at that tick reads again; one within tolerance does not.
+	// A full review reads again, once.
 	native.tick = 2700
-	w = &planningWindow{native: native, store: store, scope: scope, tick: 100 + bridge.FactTickToleranceColony + 1, review: true}
+	w = &planningWindow{native: native, store: store, scope: scope, tick: 2601, review: true}
 	if held, err = w.PlanningWindow(context.Background(), identity, rect); err != nil || native.reads != 2 || held.AsOf != 2700 {
 		t.Fatalf("%+v %v reads=%d", held, err, native.reads)
 	}
-	w = &planningWindow{native: native, store: store, scope: scope, tick: 2800, review: true}
 	if held, err = w.PlanningWindow(context.Background(), identity, rect); err != nil || native.reads != 2 || held.AsOf != 2700 {
 		t.Fatalf("%+v %v reads=%d", held, err, native.reads)
 	}

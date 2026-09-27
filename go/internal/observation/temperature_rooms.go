@@ -6,7 +6,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -25,17 +24,11 @@ func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*
 	if !s.roomsEnabled {
 		return nil, nil
 	}
-	if held, ok := heldSection[policy.RoomObservation](s.store, facts.Rooms, int64(s.expected.Tick)); ok {
-		s.temperature, s.roomsTick = domain.Known(held.Value), held.AsOf
-		s.serve(facts.Rooms)
-		return nil, nil
-	}
 	source, ok := s.RoutineSource.(TemperatureSource)
 	if !ok {
 		return nil, ErrContract
 	}
-	reply, receipt, err := source.ReadTemperatureRooms(ctx, id)
-	s.temperatureReceipt = receipt
+	reply, _, err := source.ReadTemperatureRooms(ctx, id)
 	if errors.Is(err, bridge.ErrUnavailable) {
 		return nil, nil
 	}
@@ -54,7 +47,7 @@ func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*
 		return nil, err
 	}
 	observed.Paused = s.expected.Paused
-	if !cachedColonyBoundary(observed, s.expected, bridge.FactRooms) {
+	if !sameColonyContext(observed, s.expected) {
 		return nil, ErrChanged
 	}
 	return rooms, nil

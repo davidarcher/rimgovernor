@@ -122,19 +122,18 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 	}
 }
 
-// A cached row behind the anchor (#306) or a live read ahead of a
-// cache-served anchor (#712) is the same world at any tick distance; only
-// another native generation changes it.
+// A row behind the anchor (#306) or ahead of it (#712) is the same world
+// at any tick distance; only another native generation changes it.
 func TestColonyBoundariesIgnoreTickDistance(t *testing.T) {
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 10000, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
 	for _, tick := range []domain.Tick{10000, 10251, 70000, 9999, 0} {
 		actual := expected
 		actual.Tick = tick
-		if !sameColonyBoundary(actual, expected) || !cachedColonyBoundary(actual, expected, bridge.FactResearch) || !aheadColonyBoundary(actual, expected, bridge.FactColony) {
+		if !sameColonyContext(actual, expected) {
 			t.Fatal("tick distance changed the boundary", tick)
 		}
 		actual.NativeGeneration = domain.Known(domain.NativeGeneration(2))
-		if sameColonyBoundary(actual, expected) || cachedColonyBoundary(actual, expected, bridge.FactResearch) || aheadColonyBoundary(actual, expected, bridge.FactColony) {
+		if sameColonyContext(actual, expected) {
 			t.Fatal("a row of another generation passed the boundary", tick)
 		}
 	}

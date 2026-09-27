@@ -417,20 +417,14 @@ Every state read a step issues (the bundle, the routine census and each
 composed planner's own reads) is served from the newest snapshot frame
 (#858, `bridge/frames.go`) past the client's last write; only parameterized
 reads no frame carries and the tick read cross GABP. The frame stream is the
-only cross-step memo of wire replies. Each read family (`bridge.FactFamily`)
-keeps a tick tolerance (`FactFamily.TickTolerance`, #243): `definitions` and
-`world` survive any tick advance; `research` serves 60000 ticks, `colony` and
-`rooms` 2500, `pawns` and `emergency` 250, `identity` the same tick only.
-Readers accept a reply that far behind their anchor: a routine read's
-boundary (`observation.cachedColonyBoundary`, #306) and a pawn-order
-admission anchored on its preview tick (#323). The decoded store
+only cross-step memo of wire replies. The sections of one frame share its
+tick, so readers apply no tick check between rows: a routine read's boundary
+(`observation.sameColonyContext`, #306) compares load, map and native
+generation only, whatever the distance from its anchor. The decoded store
 (`facts.Store`) drops sections on a write, a scope change, `AuthorityChanged`,
-`EpochStarted`, a stop and the families an `OperationOutcome` changes; a
-narrowed `ObservationInvalidated` (#359) marks instead (`facts.Store.Apply`):
-the ids on the family's entity sections, the rectangle on an intersecting
-cell section, the whole section when the narrowing does not fit its shape.
-A marked section no longer reads as fresh; the routine status API reports
-the marks as `stale`.
+`EpochStarted`, a stop and the families an `OperationOutcome` or an
+`ObservationInvalidated` names (`facts.Store.Apply`); a narrowed rectangle
+that misses the held planning window leaves it held (#656).
 
 Beside the cache the scheduler keeps one `facts.Store` (`go/internal/facts`,
 #354): decoded state per section (`colony`, `planning_cells`, `population`,
@@ -461,9 +455,8 @@ Sparse deltas retain ordinary rows when a full flag grid would cost more.
 The step attaches a
 refresher to its context (`observation.WithPlanningWindow`); a planning
 colony read whose reply lists no cells asks it, and the refresher reads
-natively when nothing held covers the region or when a full review step
-finds the held section stale under `FactTickToleranceColony`, and serves
-the held window on every timer or event step. The step's read cache makes
+natively when nothing held covers the region and once per full review
+step, and serves the held window on every timer or event step. The step's read cache makes
 a second ask in the step free; a failed read serves the held window when
 one covers the region. The section files with the window reply's own
 tick, so `as_of_spread` is non-zero on steps served from the store. The
@@ -476,28 +469,9 @@ reread whole. The #795 `mirror_poll` cell grid and the #357
 `CellTracking.cs` only feeds the view's change ledger. The CellGrid format
 survives only as the snapshot recorder's planning_cells line encoding.
 
-The continuous sections follow the same pattern with a cadence each
-(#360). The reviewer attaches `observation.RoutineStore` (the store plus
-any `MaxAge` a policy sets per section) to the review's context; the
-routine bracket serves `research`, `population`, `rooms` and `pawns` from
-the store when the held row is still fresh at the reading's tick under
-the section's cadence (`facts.Section.TickTolerance`: pawns and emergency
-at `PlanningTickTolerance`, rooms and population at
-`FactTickToleranceColony`, research at `FactTickToleranceResearch`, each
-widened by the shim `LiveDrift`, kept at the step's inventory drift) and
-reads natively otherwise; the colony facts and
-the emergency census are always read. A served section keeps its own
-`AsOf` and is not refiled (`RoutineSections.Served`), so `as_of_spread`
-shows what the review planned against. The step's bundle request leaves
-out a family the store holds fresh at the tick the step expects (the last
-status tick plus the inventory drift; `bundleFamilies`), so research and
-population ride nearly no bundle and pawns ride only when the clock has
-moved. The one policy that needs a fresher read than its cadence is
-temperature: while a `ColdSnap`, `HeatWave` or `VolcanicWinter` condition
-is active (`policy.RoomTemperatureUrgent`, judged from the held colony
-facts, so onset lags one step) rooms get `MaxAge` 0 and are read every
-review. What a policy decides is unchanged: it sees the same decoded
-values, at most one cadence older.
+The routine review reads every continuous section (`research`,
+`population`, `rooms`, `pawns`) from the frame on every review; none is
+served from the store in its place (#884).
 
 The entity list reads (`zones`, `buildings`, `bills`) are read whole on
 every review step (`refreshEntitySections`) and filed in the store as
@@ -526,8 +500,8 @@ is complete through. The review reads the colonists' pawn detail
 bench's bills and recipes, keyed by bench thing id; a keyframe every read)
 through the mirror, and retains its census for the step's planners
 (`routineCensus`): a planner of the same load, map and native generation
-plans from it at any tick up to the pawn cadence after the review
-(`bridge.FactTickTolerancePawns`), paused or running, until committed
+plans from it at any tick at or after the review, paused or running,
+until committed
 clock evidence invalidates it; the work planner serves the review's bench
 table the same way. There is no paused review bracket: CAS evidence on
 every write refuses a decision the world moved past. Research
@@ -644,10 +618,7 @@ or whose declared `sections` include one the `ObservationInvalidated` row
 dirtied (`facts.Invalidation.Sections`: a whole family names every section
 it holds, entity ids the entity sections, a rect the planning cells), and
 all of them when authority changed. Each entry declares the
-snapshot frame sections it consumes; a subset step reads only
-those at cadence and serves every other section held from the store past
-its cadence (`RoutineStore.Held`), and reports them as `sections` on its
-`clock_step` row. An entry that reported `existing_work` waits on the open
+snapshot frame sections it consumes. An entry that reported `existing_work` waits on the open
 attempts of its kinds it found (`plannerQueue.waits`): it is not selected
 again until one of them reaches its outcome row, its own next review tick
 passes, or a full step runs, and a step that skips it lists it under

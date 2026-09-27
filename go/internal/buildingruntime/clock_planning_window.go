@@ -24,7 +24,7 @@ type PlanningWindowNative interface {
 // (#356): the scheduler attaches one to each step's context
 // (observation.WithPlanningWindow) and every planning colony read in the
 // step whose reply carries no cells asks it. It reads natively once per
-// full review step when the held section is stale, and on demand when a
+// full review step, and on demand when a
 // planner asks for a region the store does not hold (planningWindowCovers);
 // a timer or event step
 // with a held window serves it whatever its age, since stale state is
@@ -39,17 +39,15 @@ type planningWindow struct {
 	scope  facts.Scope
 	tick   int64
 	review bool
+	// refreshed is set once a review step has read the window.
+	refreshed bool
 }
 
 // planningWindowRead is the refresher's decision: whether the window is
 // read natively rather than served from the store. held is whether the
-// store holds the requested region at all, fresh whether that row still
-// serves the step's tick under FactColony's tolerance.
-func planningWindowRead(review, held, fresh bool) bool {
-	if !held {
-		return true
-	}
-	return review && !fresh
+// store holds the requested region at all; a review step reads it once.
+func planningWindowRead(review, refreshed, held bool) bool {
+	return !held || review && !refreshed
 }
 
 // planningWindowSlack is how far, in cells on each axis, a planner's
@@ -74,13 +72,14 @@ func planningWindowCovers(held, region policy.Rectangle) bool {
 func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[observation.PlanningCells], error) {
 	held, ok := facts.Get[observation.PlanningCells](p.store, facts.PlanningCells)
 	ok = ok && planningWindowCovers(held.Value.Region, region)
-	if !planningWindowRead(p.review, ok, ok && p.store.Fresh(facts.PlanningCells, p.tick)) {
+	if !planningWindowRead(p.review, p.refreshed, ok) {
 		return held, nil
 	}
 	if ok {
 		region = held.Value.Region
 	}
 	window, _, err := p.native.ReadPlanningWindow(ctx, identity, region)
+	p.refreshed = p.refreshed || err == nil && p.review
 	if err != nil {
 		if ok {
 			clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)

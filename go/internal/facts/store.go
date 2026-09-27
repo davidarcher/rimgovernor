@@ -2,7 +2,7 @@
 // colony state a scheduler step planned against, held per section with the
 // tick each section describes, so a later step can ask what is held and
 // how old it is instead of reconstituting everything from a fresh bundle.
-// It reuses bridge.FactFamily for tick tolerance and invalidation.
+// It follows bridge.FactFamily for invalidation.
 package facts
 
 import (
@@ -36,8 +36,7 @@ func Sections() []Section {
 	return []Section{Colony, PlanningCells, Population, Research, Pawns, Emergency, Rooms, Zones, Buildings, Bills}
 }
 
-// Family is the bridge fact family whose tick tolerance and invalidation
-// the section follows.
+// Family is the bridge fact family whose invalidation the section follows.
 func (s Section) Family() bridge.FactFamily {
 	switch s {
 	case Colony, PlanningCells, Zones, Buildings, Bills:
@@ -54,31 +53,15 @@ func (s Section) Family() bridge.FactFamily {
 	return ""
 }
 
-// TickTolerance is the section's refresh cadence (#360): the greatest tick
-// advance a held section serves a review step across before the step reads
-// it again. The continuous families do not follow their invalidation
-// family's memo tolerance where that is tighter than their consumers need:
-// the population census moves on the colony's scale (a prisoner's
-// resistance, a guest's stay), not the pawn census's. Every other section
-// keeps its family's tolerance.
-func (s Section) TickTolerance() int64 {
-	if s == Population {
-		return bridge.FactTickToleranceColony
-	}
-	return s.Family().TickTolerance()
-}
-
 // Cells reports whether the section's rows are cells, so an invalidation
-// narrowed to a rectangle can leave it alone when the rectangle lies
-// outside the region it holds.
+// narrowed to a rectangle leaves it held when the rectangle lies outside
+// the region it holds.
 func (s Section) Cells() bool { return s == PlanningCells }
 
-// Incremental reports a section whose next read can be a delta over the
-// value held (planning_cells, #357; zones, buildings and bills, #358): an
-// invalidation marks such a section stale rather than dropping it, so the
-// refresher asks the native for the cells or entities changed since the
-// held as-of tick instead of the whole section.
-func (s Section) Incremental() bool {
+// Entities reports a section of keyed rows (planning cells, zones,
+// buildings, bills): the sections an invalidation narrowed to entity ids
+// or cells names (Invalidation.Sections).
+func (s Section) Entities() bool {
 	switch s {
 	case PlanningCells, Zones, Buildings, Bills:
 		return true
@@ -102,40 +85,17 @@ func (r Rect) Intersects(o Rect) bool {
 	return r.MinX <= o.MaxX && o.MinX <= r.MaxX && r.MinZ <= o.MaxZ && o.MinZ <= r.MaxZ
 }
 
-// Union is the smallest rectangle covering both.
-func (r Rect) Union(o Rect) Rect {
-	if r.Unknown() || o.Unknown() {
-		return Rect{}
-	}
-	return Rect{MinX: min(r.MinX, o.MinX), MinZ: min(r.MinZ, o.MinZ), MaxX: max(r.MaxX, o.MaxX), MaxZ: max(r.MaxZ, o.MaxZ)}
-}
-
-// Staleness is the part of a held section a narrowed invalidation named
-// since it was put: entity ids for entity sections, a rectangle for cell
-// sections, or the whole section when the narrowing did not fit its shape.
-// The value stays held (a plan may still reason over it; apply refuses
-// stale intent) but the section no longer reads as fresh.
-type Staleness struct {
-	IDs  []string
-	Rect *Rect
-	All  bool
-}
-
-// Any reports whether anything is marked stale.
-func (st Staleness) Any() bool { return st.All || st.Rect != nil || len(st.IDs) > 0 }
-
 // Held is one section's decoded value with its provenance: AsOf is the
 // tick the reply described, Complete whether the value covers the whole
 // section (a partial census is held but marked), Source the native method
-// that produced it, Region the cells a cell section covers (unknown for
-// the rest) and Stale what a narrowed invalidation has marked since.
+// that produced it and Region the cells a cell section covers (unknown for
+// the rest).
 type Held[T any] struct {
 	Value    T
 	AsOf     int64
 	Complete bool
 	Source   string
 	Region   Rect
-	Stale    Staleness
 }
 
 // Scope is the (load, native generation) a held section belongs to: a
@@ -153,7 +113,6 @@ type Status struct {
 	Complete bool
 	Source   string
 	StoredAt time.Time
-	Stale    Staleness
 }
 
 type row struct {
@@ -163,7 +122,6 @@ type row struct {
 	source   string
 	storedAt time.Time
 	region   Rect
-	stale    Staleness
 }
 
 // Store holds the sections under one scope. One writer (the scheduler
@@ -173,9 +131,6 @@ type Store struct {
 	mu    sync.RWMutex
 	scope Scope
 	rows  map[Section]row
-	// resync names the incremental sections whose next refresh must be a
-	// full read (#357).
-	resync map[Section]bool
 	// versions counts, per section, the invalidations the native
 	// fact-change stream has named it in (an ObservationInvalidated row, an
 	// operation outcome, a scope change): the per-section version a
@@ -223,59 +178,7 @@ func Get[T any](s *Store, section Section) (Held[T], bool) {
 	if !ok {
 		return Held[T]{}, false
 	}
-	return Held[T]{Value: value, AsOf: r.asOf, Complete: r.complete, Source: r.source, Region: r.region, Stale: r.stale}, true
-}
-
-// Fresh reports whether the held section still serves a step at scopeTick
-// under the section's cadence (TickTolerance, widened by the running
-// window's drift as bridge.FactFamily.Fresh is); an absent or
-// stale-marked section is never fresh.
-func (s *Store) Fresh(section Section, scopeTick int64) bool {
-	return s.FreshWithin(section, scopeTick, bridge.FactTickUnbounded)
-}
-
-// Held reports whether the section's value is usable at all at scopeTick
-// (held, not stale-marked, not from ahead of the step), cadence aside: a
-// review serves a section none of its selected planners consume from it
-// however old the value is (#625), and reads it again only once an
-// invalidation drops or marks it.
-func (s *Store) Held(section Section, scopeTick int64) bool {
-	if s == nil {
-		return false
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	r, ok := s.rows[section]
-	return ok && !r.stale.Any() && r.asOf <= scopeTick
-}
-
-// FreshWithin is Fresh under the tighter of the section's cadence and
-// maxAge, a policy's own bound in ticks (#360): a consumer that needs a
-// continuous value fresher than the cadence asks with it, and a section
-// older than that is read again. FactTickUnbounded leaves the cadence
-// alone; zero serves the step's own tick only.
-func (s *Store) FreshWithin(section Section, scopeTick, maxAge int64) bool {
-	if s == nil {
-		return false
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	r, ok := s.rows[section]
-	return ok && !r.stale.Any() && sectionFresh(section, r.asOf, scopeTick, maxAge)
-}
-
-// sectionFresh is bridge.FactFamily.Fresh with the section's cadence,
-// bounded by maxAge when that is tighter.
-func sectionFresh(section Section, rowTick, scopeTick, maxAge int64) bool {
-	advance := scopeTick - rowTick
-	if advance < 0 {
-		return false
-	}
-	tolerance := section.TickTolerance()
-	if maxAge != bridge.FactTickUnbounded && (tolerance == bridge.FactTickUnbounded || maxAge < tolerance) {
-		tolerance = maxAge
-	}
-	return tolerance == bridge.FactTickUnbounded || advance <= tolerance
+	return Held[T]{Value: value, AsOf: r.asOf, Complete: r.complete, Source: r.source, Region: r.region}, true
 }
 
 // Scope is the scope the held rows belong to.
@@ -341,44 +244,10 @@ func (s *Store) Versions() map[string]uint64 {
 	return out
 }
 
-// drop forgets a section, or marks an incremental one wholly stale so its
-// next refresh is a delta over the value kept.
+// drop forgets a section and moves its version.
 func (s *Store) drop(section Section) {
 	s.bump(section)
-	if !section.Incremental() {
-		delete(s.rows, section)
-		return
-	}
-	if r, ok := s.rows[section]; ok {
-		r.stale.All = true
-		s.rows[section] = r
-	}
-}
-
-// RequestResync asks that the next refresh of an incremental section be a
-// full read rather than a delta (a planner's apply refused on a map CAS
-// token, #357); any goroutine may ask. ResyncDue reports and clears it.
-func (s *Store) RequestResync(section Section) {
-	if s == nil {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.resync == nil {
-		s.resync = map[Section]bool{}
-	}
-	s.resync[section] = true
-}
-
-func (s *Store) ResyncDue(section Section) bool {
-	if s == nil {
-		return false
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	due := s.resync[section]
-	delete(s.resync, section)
-	return due
+	delete(s.rows, section)
 }
 
 // InvalidateFamily drops every section of the named families.
@@ -432,7 +301,7 @@ func (inv Invalidation) Sections() []Section {
 		}
 		fitted := false
 		for _, section := range FamilySections(family) {
-			if section.Cells() && inv.Rect != nil || !section.Cells() && section.Incremental() && len(inv.IDs) > 0 {
+			if section.Cells() && inv.Rect != nil || !section.Cells() && section.Entities() && len(inv.IDs) > 0 {
 				add(section)
 				fitted = true
 			}
@@ -477,68 +346,24 @@ func InvalidationFromWire(o *k.ObservationInvalidated) (Invalidation, bool) {
 	return inv, true
 }
 
-// Apply takes one invalidation. Without narrowing it drops the families'
-// sections (InvalidateFamily). Narrowed, it keeps every value and marks:
-// the ids on the families' entity sections; the rectangle on a cell
-// section whose region it intersects (a disjoint cell section stays
-// fresh); the whole section when the narrowing does not fit its shape
-// (ids alone against cells, a rectangle alone against entities).
+// Apply takes one invalidation: it drops every section of its families,
+// except a cell section whose region a narrowing rectangle misses, which
+// is unchanged, value and version both, so proposals planned from it hold
+// (#656).
 func (s *Store) Apply(inv Invalidation) {
 	if s == nil {
 		return
 	}
-	if !inv.Narrowed() {
-		s.InvalidateFamily(inv.Families...)
-		return
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for section, r := range s.rows {
-		if !containsFamily(inv.Families, section.Family()) {
-			continue
-		}
-		switch {
-		case section.Cells() && inv.Rect != nil:
-			if !inv.Rect.Intersects(r.region) {
-				// Disjoint: the held window is unchanged, value and
-				// version both, so proposals planned from it hold (#656).
+	for _, family := range inv.Families {
+		for _, section := range FamilySections(family) {
+			if r, ok := s.rows[section]; ok && section.Cells() && inv.Rect != nil && !inv.Rect.Intersects(r.region) {
 				continue
 			}
-			marked := *inv.Rect
-			if r.stale.Rect != nil {
-				marked = marked.Union(*r.stale.Rect)
-			}
-			r.stale.Rect = &marked
-		case !section.Cells() && len(inv.IDs) > 0:
-			for _, id := range inv.IDs {
-				if !containsID(r.stale.IDs, id) {
-					r.stale.IDs = append(r.stale.IDs, id)
-				}
-			}
-		default:
-			r.stale.All = true
-		}
-		s.rows[section] = r
-		s.bump(section)
-	}
-}
-
-func containsFamily(families []bridge.FactFamily, family bridge.FactFamily) bool {
-	for _, f := range families {
-		if f == family {
-			return true
+			s.drop(section)
 		}
 	}
-	return false
-}
-
-func containsID(ids []string, id string) bool {
-	for _, held := range ids {
-		if held == id {
-			return true
-		}
-	}
-	return false
 }
 
 // InvalidateAll drops every section and moves every version (a held or
@@ -566,7 +391,7 @@ func (s *Store) Status() []Status {
 	out := make([]Status, 0, len(s.rows))
 	for _, section := range Sections() {
 		if r, ok := s.rows[section]; ok {
-			out = append(out, Status{Section: section, Family: section.Family(), AsOf: r.asOf, Complete: r.complete, Source: r.source, StoredAt: r.storedAt, Stale: r.stale})
+			out = append(out, Status{Section: section, Family: section.Family(), AsOf: r.asOf, Complete: r.complete, Source: r.source, StoredAt: r.storedAt})
 		}
 	}
 	return out

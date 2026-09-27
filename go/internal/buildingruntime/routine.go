@@ -131,43 +131,25 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 	return r.staged().Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
-// routineStore is the review's section refresher (#360): the reviewer's
-// facts store, with the section ages the policies bound tighter than the
-// cadence. Only room temperature has one: while a temperature condition is
-// active (policy.RoomTemperatureUrgent over the colony facts the last
-// review held), the temperature planner plans against the step's own
-// room census, so rooms are read every review until it ends. A subset
-// review (wanted names the sections its planners consume, #625) serves
-// every other section held past its cadence: the review consumes it, but
-// nothing this step plans from it, so it is read again only once it is
-// invalidated or a planner consuming it runs.
-func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool, expected observation.Identity) observation.RoutineStore {
-	out := observation.RoutineStore{Store: r.store}
-	if r.mirror != nil {
-		generation, _ := expected.NativeGeneration.Value()
-		scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
-		out.Pawns = func(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
-			return readPawns(ctx, r.mirror, scope, r.native, id, ids)
-		}
-		r.census.rememberColony(nil)
-		out.Colony = func(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
-			reply, receipt, versions, err := readColony(ctx, r.mirror, scope, r.native, id, planning)
-			if versions != nil {
-				r.census.rememberColony(versions)
-			}
-			return reply, receipt, err
-		}
+// routineMirror is the review's colony mirror reads (#795); zero without
+// a mirror.
+func (r *RoutineReviewer) routineMirror(expected observation.Identity) observation.RoutineMirror {
+	var out observation.RoutineMirror
+	if r.mirror == nil {
+		return out
 	}
-	if colony, ok := facts.Get[observation.ColonyProjection](r.store, facts.Colony); ok && policy.RoomTemperatureUrgent(colony.Value.Facts.DisasterConditions) {
-		out.MaxAge = map[facts.Section]int64{facts.Rooms: 0}
+	generation, _ := expected.NativeGeneration.Value()
+	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
+	out.Pawns = func(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
+		return readPawns(ctx, r.mirror, scope, r.native, id, ids)
 	}
-	if wanted != nil {
-		out.Held = map[facts.Section]bool{}
-		for _, section := range facts.Sections() {
-			if !wanted[section] {
-				out.Held[section] = true
-			}
+	r.census.rememberColony(nil)
+	out.Colony = func(ctx context.Context, id *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
+		reply, receipt, versions, err := readColony(ctx, r.mirror, scope, r.native, id, planning)
+		if versions != nil {
+			r.census.rememberColony(versions)
 		}
+		return reply, receipt, err
 	}
 	return out
 }
@@ -229,15 +211,12 @@ func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, 
 		return store.RoutineReviewResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch, newStepArbiter(), nil)
+	return r.step(call, epoch, newStepArbiter(), false)
 }
 
 // step is also usable by a scheduler already holding the player gate;
-// wanted names the sections the planners following the review consume
-// when only a subset of them follows (nil: every planner, every section
-// at cadence).
-func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter, wanted map[facts.Section]bool) (store.RoutineReviewResult, error) {
-	partial := wanted != nil
+// partial is set when only a subset of the planners follows the review.
+func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter, partial bool) (store.RoutineReviewResult, error) {
 	p := r.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -312,7 +291,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		observe = observation.ObserveRoutineRooms
 	}
-	reading, err := observe(observation.WithRoutineStore(ctx, r.routineStore(wanted, expected)), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
+	reading, err := observe(observation.WithRoutineMirror(ctx, r.routineMirror(expected)), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err

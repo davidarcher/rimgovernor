@@ -355,36 +355,3 @@ func openWorkIndex(plans []store.PlanState) func(domain.ActionID) bool {
 	}
 	return func(id domain.ActionID) bool { return open[id] }
 }
-
-// sectionsWanted is the union of the sections the selected planners
-// declare, the sections a subset step reads at cadence (the rest are
-// served held, #625); nil when every planner runs.
-func (s *ClockScheduler) sectionsWanted(pick func(plannerEntry) bool) map[facts.Section]bool {
-	if pick == nil {
-		return nil
-	}
-	wanted := map[facts.Section]bool{}
-	for _, entry := range s.catalog {
-		if !entry.configured(&s.config) || !pick(entry) {
-			continue
-		}
-		for _, section := range entry.sections {
-			wanted[section] = true
-		}
-	}
-	return wanted
-}
-
-// sectionNames lists a wanted set in report order, for the step row.
-func sectionNames(wanted map[facts.Section]bool) []string {
-	if wanted == nil {
-		return nil
-	}
-	out := []string{}
-	for _, section := range facts.Sections() {
-		if wanted[section] {
-			out = append(out, string(section))
-		}
-	}
-	return out
-}
