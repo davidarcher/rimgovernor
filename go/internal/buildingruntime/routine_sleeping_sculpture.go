@@ -18,15 +18,14 @@ import (
 // beyond RoutineBuildingSource; a source without it skips the lever.
 type sculptureSource interface {
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
-	ReadPackedItems(context.Context, *c.Identity, string) ([]string, bridge.Result, error)
-	ResolvePackedInstall(context.Context, *c.Identity, string, domain.Cell, domain.Rotation) (string, string, bridge.Result, error)
+	ReadPackedItems(context.Context, *c.Identity, string) ([]bridge.PackedItem, bridge.Result, error)
 }
 
 var _ sculptureSource = (*bridge.Client)(nil)
 
 // sculptBedroom is the beauty lever after pots and floors (#830): one
 // small sculpture bill at an art bench, then the finished packed sculpture
-// installed (InstallBuilding on the packed item) on free floor in the
+// installed (a RelocateIntent on the packed item's inner building) on free floor in the
 // room; one change a step, each once per goal epoch. due is false when
 // the lever has nothing to do.
 func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading) (RoutineBuildingResult, bool, error) {
@@ -51,9 +50,15 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 		rows = append(rows, b.Bench)
 		tokens[b.Bench.ID] = b.Token
 	}
-	packed, _, err := native.ReadPackedItems(call, identity, policy.PackedSculptureDefinition)
+	items, _, err := native.ReadPackedItems(call, identity, policy.PackedSculptureDefinition)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
+	}
+	packed := make([]string, 0, len(items))
+	inner := map[string]bridge.PackedItem{}
+	for _, item := range items {
+		packed = append(packed, item.ID)
+		inner[item.ID] = item
 	}
 	step, due := policy.NextSculpture(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), rows, packed)
 	if !due {
@@ -81,12 +86,12 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 			return RoutineBuildingResult{}, false, err
 		}
 	case policy.SculptureInstall:
-		inner, def, _, err := native.ResolvePackedInstall(call, identity, step.Packed, step.Anchor, domain.North)
-		if err != nil || def != policy.SculptureDefinition {
+		item := inner[step.Packed]
+		if item.InnerDef != policy.SculptureDefinition {
 			clockSchedulerLog("%s: bedroom %s: packed sculpture %s not installable at %d,%d", goal.Goal.ID, step.Room, step.Packed, step.Anchor.X, step.Anchor.Z)
 			return RoutineBuildingResult{Reason: BuildingMethodRefused}, true, nil
 		}
-		move, err := domain.NewMoveBuilding(inner, def, step.Anchor, domain.North)
+		move, err := domain.NewMoveBuilding(item.Inner, item.InnerDef, step.Anchor, domain.North)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}

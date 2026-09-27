@@ -286,7 +286,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 
 | Operations precondition | Read path |
 |---|---|
-| InstallBuilding.packed_or_inner | none: the exact inner building or packed item (ColonyFacts ids) is re-resolved and every rule re-evaluated at apply |
 | AcquireResource.source | ListResourceSources.source.snapshot |
 | DesignateIntent.thing_id | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |

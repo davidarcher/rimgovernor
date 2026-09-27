@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 5, 20, 25, 26, 47, 55, 56, 60;
-  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service";
+  reserved 3, 5, 20, 25, 26, 47, 55, 56, 60, 61;
+  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service", "install_building", "uninstall";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -82,7 +82,6 @@ message Operation {
   reserved 42, 43, 45;
   reserved "travel_caravan", "gift_caravan_silver", "fulfill_quest";
   oneof command {
-    InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
     PatchBuilding patch_building = 6;
     // Preview only: the siting read planners run per candidate; zones are
@@ -96,7 +95,6 @@ message Operation {
     PawnTargetOrder pawn_target_order = 36;
     CancelAcquisition cancel_acquisition = 54;
     Arrest arrest = 57;
-    Uninstall uninstall = 61;
     CombatOrders combat_orders = 62;
   }
   // Why the controller issues this operation, one short ASCII line such as
@@ -113,14 +111,6 @@ message DefCount { optional string def_name = 1; optional int32 count = 2; }
 message CellList { repeated rimgovernor.common.v1.Cell cells = 1; }
 message Rectangle { rimgovernor.common.v1.Cell origin = 1; optional int32 width = 2; optional int32 height = 3; }
 message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectangle = 2; } }
-message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
-// Designates one exact installed, minifiable, player-owned building for
-// vanilla Uninstall (#843). No snapshot token: native re-evaluates every rule
-// at apply and adopts an existing Uninstall designation on the building.
-// Evidence is the InstallationEffect: PLACEABLE at preview, UNINSTALL_QUEUED
-// while the designation stands, PACKED once the building is minified.
-// Native does not haul; vanilla hauling moves the packed item to storage.
-message Uninstall { EntityPrecondition target = 1; }
 // Batched combat micro (#850): every order applies in request order within
 // one native call, so on one game tick. Each pawn's snapshot token is checked
 // once, before any order runs; a pawn may carry several orders (fire mode
@@ -407,6 +397,7 @@ message Action {
     ExcavateIntent excavate = 35;
     WasteIntent waste = 36;
     RecoverIntent recover = 37;
+    RelocateIntent relocate = 38;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -442,6 +433,14 @@ message DeconstructIntent { optional string target_id = 1; }
 // colony building with the game's own WorkGiver job. Native refuses a
 // building that no longer needs the method; a pawn already servicing the
 // building applies again.
+// Move one exact installed player building (or install a packed item, named
+// by its own id or its inner building's) at destination/rotation through the
+// game's reinstall or install blueprint; with uninstall, designate the
+// building for vanilla Uninstall where it stands (destination ignored).
+// Evidence is the InstallationEffect: QUEUED with the blueprint id, or
+// UNINSTALL_QUEUED. A blueprint or designation already standing for the same
+// order applies again.
+message RelocateIntent { optional string thing_id = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; optional bool uninstall = 4; }
 message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
 message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }
 message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }

@@ -89,8 +89,6 @@ type Result struct {
 type Executor struct {
 	acquisition                AcquisitionBoundary
 	acquisitionJournal         AcquisitionJournal
-	moveBuilding               MoveBuildingBoundary
-	moveBuildingJournal        MoveBuildingJournal
 	tend                       TendBoundary
 	tendJournal                TendJournal
 	rescue                     RescueBoundary
@@ -306,9 +304,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.AcquisitionAction && e.acquisition != nil {
 		return e.runAcquisition(ctx, action, progress, authority, generation)
-	}
-	if (action.Kind() == domain.MoveBuildingAction || action.Kind() == domain.UninstallBuildingAction) && e.moveBuilding != nil {
-		return e.runMoveBuilding(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.TendAction && e.tend != nil {
 		return e.runTend(ctx, action, progress, authority, generation)

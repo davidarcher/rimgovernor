@@ -19,7 +19,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
@@ -29,10 +28,7 @@ import (
 )
 
 type SessionConfig struct {
-	Acquisition *acquisition.AcquisitionCapabilities
-	// MoveBuilding backs the tidy family's furniture re-siting through the
-	// game's Reinstall (#808).
-	MoveBuilding   *movebuilding.Capabilities
+	Acquisition    *acquisition.AcquisitionCapabilities
 	RoutineMethods bool
 	Control        ControlConfig
 	Executor       executor.Limits
@@ -279,9 +275,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		moves = &movementBoundary{Boundary: place, writer: config.Movement.Writer}
 	}
 	var worker *executor.Executor
-	if config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.MoveBuilding != nil && (config.MoveBuilding.Native == nil || config.MoveBuilding.Writer == nil)", ErrControl))
-	}
 	if config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Acquisition != nil && (config.Acquisition.Native == nil || config.Acquisition.Writer == nil)", ErrControl))
 	}
@@ -362,11 +355,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// typed boundary value, rather than composed into a single value for
 	// executor.New to discover by type assertion — see executor.EnableAcquisition
 	// for why the composed-value approach was unsafe.
-	if config.MoveBuilding != nil {
-		if err := worker.EnableMoveBuilding(movebuilding.NewBoundary(place, *config.MoveBuilding)); err != nil {
-			return cleanup(err)
-		}
-	}
 	if config.BuildingTemperature != nil {
 		if err := worker.EnableBuildingTemperature(buildingtemperature.NewBoundary(place, *config.BuildingTemperature)); err != nil {
 			return cleanup(err)

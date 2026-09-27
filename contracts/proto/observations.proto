@@ -176,6 +176,9 @@ message EntityRef {
   optional int32 map_id = 4;
   rimgovernor.common.v1.Cell position = 5;
   SnapshotRef snapshot = 6; // Required when usable as an operation EntityPrecondition.
+  // A packed (minified) item's inner building, for a RelocateIntent install.
+  optional string inner_id = 7;
+  optional string inner_def_name = 8;
 }
 message TargetRef { oneof target { EntityRef entity = 1; rimgovernor.common.v1.Cell cell = 2; rimgovernor.common.v1.Unavailable unavailable = 3; } }
 message Quantity { optional string def_name = 1; optional int64 units = 2; }

@@ -19,14 +19,10 @@ import (
 // packedSource is the native half that reinstalls stored packed furniture
 // (#830, #843); a source without it builds new beds instead.
 type packedSource interface {
-	ReadPackedItems(context.Context, *c.Identity, string) ([]string, bridge.Result, error)
-	ResolvePackedInstall(context.Context, *c.Identity, string, domain.Cell, domain.Rotation) (string, string, bridge.Result, error)
+	ReadPackedItems(context.Context, *c.Identity, string) ([]bridge.PackedItem, bridge.Result, error)
 }
 
 var _ packedSource = (*bridge.Client)(nil)
-
-// packedResolveCap bounds the packed items previewed for one install.
-const packedResolveCap = 8
 
 const couplePackMethod = "sleeping-couple-pack-"
 
@@ -42,15 +38,11 @@ func (r *RoutineSleepingUpkeepPlanner) storedPiece(call context.Context, state C
 	if err != nil {
 		return domain.MoveBuilding{}, false, err
 	}
-	for i, id := range packed {
-		if i >= packedResolveCap {
-			break
-		}
-		inner, got, _, err := native.ResolvePackedInstall(call, identity, id, anchor, rot)
-		if err != nil || got != def {
+	for _, item := range packed {
+		if item.InnerDef != def {
 			continue
 		}
-		move, err := domain.NewMoveBuilding(inner, got, anchor, rot)
+		move, err := domain.NewMoveBuilding(item.Inner, def, anchor, rot)
 		return move, err == nil, err
 	}
 	return domain.MoveBuilding{}, false, nil

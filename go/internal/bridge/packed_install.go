@@ -3,18 +3,18 @@ package bridge
 import (
 	"context"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 )
 
-// ReadPackedItems lists the exact ids of the colony's spawned, unheld
-// packed (minified) items of one packed definition (#830), for
-// InstallBuilding on a packed piece.
-func (client *Client) ReadPackedItems(ctx context.Context, identity *c.Identity, packedDef string) ([]string, Result, error) {
+// PackedItem is one spawned, unheld packed (minified) item and the building
+// inside it; a RelocateIntent on Inner installs it (#830).
+type PackedItem struct{ ID, Inner, InnerDef string }
+
+// ReadPackedItems lists the colony's spawned, unheld packed items of one
+// packed definition.
+func (client *Client) ReadPackedItems(ctx context.Context, identity *c.Identity, packedDef string) ([]PackedItem, Result, error) {
 	if ValidateIdentity(identity) != nil || validID(packedDef) != nil {
 		return nil, Result{}, contract("invalid packed items read")
 	}
@@ -42,49 +42,17 @@ func (client *Client) ReadPackedItems(ctx context.Context, identity *c.Identity,
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return nil, raw, contract("invalid packed items context")
 	}
-	var out []string
+	var out []PackedItem
 	for _, row := range snapshot.Stocks {
 		if row == nil || row.Definition.GetDefName() != packedDef {
 			return nil, raw, contract("invalid packed items row")
 		}
 		for _, item := range row.Items {
-			if validID(item.GetId()) != nil {
-				return nil, raw, contract("invalid packed item id")
+			if validID(item.GetId()) != nil || validID(item.GetInnerId()) != nil || validID(item.GetInnerDefName()) != nil {
+				return nil, raw, contract("invalid packed item")
 			}
-			out = append(out, item.GetId())
+			out = append(out, PackedItem{item.GetId(), item.GetInnerId(), item.GetInnerDefName()})
 		}
 	}
 	return out, raw, nil
-}
-
-// ResolvePackedInstall previews InstallBuilding on one packed item and
-// returns the inner building's id and definition the native projection
-// names; the move then carries the inner id, which native resolves back to
-// the packed item (#830).
-func (client *Client) ResolvePackedInstall(ctx context.Context, identity *c.Identity, packed string, cell domain.Cell, rot domain.Rotation) (string, string, Result, error) {
-	rotation, ok := moveRotations[rot]
-	if ValidateIdentity(identity) != nil || validID(packed) != nil || !ok {
-		return "", "", Result{}, contract("invalid packed install preview")
-	}
-	operation := &op.Operation{Command: &op.Operation_InstallBuilding{InstallBuilding: &op.InstallBuilding{
-		PackedOrInner: &op.EntityPrecondition{EntityId: proto.String(packed)},
-		Destination:   &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}, Rotation: rotation.Enum()}}}
-	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: operation}, reply)
-	if err != nil {
-		return "", "", raw, err
-	}
-	if buildingUnknown(reply) != nil {
-		return "", "", raw, contract("unknown packed install preview fields")
-	}
-	if reply.GetFailure() != nil {
-		return "", "", raw, failure(reply.GetFailure(), raw)
-	}
-	v := reply.GetEvaluated()
-	e := v.GetProjected().GetInstallation()
-	if v == nil || !v.GetAccepted() || buildingContext(v.Context, identity, 0, false) != nil || e == nil || validID(e.GetInnerThingId()) != nil || validID(e.GetDefName()) != nil ||
-		e.GetStage() != r.InstallationStage_INSTALLATION_STAGE_PLACEABLE || e.GetCell().GetX() != cell.X || e.GetCell().GetZ() != cell.Z || e.GetRotation() != rotation {
-		return "", "", raw, contract("invalid packed install preview evidence")
-	}
-	return e.GetInnerThingId(), e.GetDefName(), raw, nil
 }

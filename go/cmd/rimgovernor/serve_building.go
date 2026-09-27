@@ -24,7 +24,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movebuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/tend"
@@ -103,7 +102,6 @@ type buildingServiceBridge struct {
 	writes              boundary.BuildingWriter
 	acquisition         *acquisition.AcquisitionCapabilities
 	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
-	moveBuilding        *movebuilding.Capabilities
 	draft               *draft.DraftCapabilities
 	clock               *buildingruntime.ClockCapabilities
 	clockReads          serviceClockReads
@@ -189,10 +187,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	moveBuildingWriter, err := bridge.NewMoveBuildingControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	moodReliefWriter, err := bridge.NewMoodReliefWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -236,7 +230,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter, moodReliefWorld: client,
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
-		moveBuilding:    &movebuilding.Capabilities{Native: client, Writer: moveBuildingWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Writer: actionsWriter},
@@ -515,14 +508,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		claimBuildingCapabilities = client.claimBuilding
 	}
-	// ... and re-sites furniture through the game's Reinstall (#808).
-	var moveBuildingCapabilities *movebuilding.Capabilities
-	if config.routineTidyPlans {
-		if client.moveBuilding == nil {
-			return errors.New("tidy plans require typed move capabilities")
-		}
-		moveBuildingCapabilities = client.moveBuilding
-	}
 	// The shrine family opens filled caskets through the shared executor (#460).
 	var openCasketCapabilities *buildingruntime.OpenCasketCapabilities
 	if config.routineShrinePlans {
@@ -558,7 +543,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Haul:                haulCapabilities,
 		Repair:              repairCapabilities,
 		Clean:               cleanCapabilities,
-		MoveBuilding:        moveBuildingCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
 		Trade:               tradeCapabilities,

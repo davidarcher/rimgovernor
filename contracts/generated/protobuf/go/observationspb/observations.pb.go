@@ -1988,13 +1988,16 @@ func (x *DefinitionRef) GetLabel() string {
 }
 
 type EntityRef struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
-	DefName       *string                `protobuf:"bytes,2,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
-	Label         *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	MapId         *int32                 `protobuf:"varint,4,opt,name=map_id,json=mapId,proto3,oneof" json:"map_id,omitempty"`
-	Position      *commonpb.Cell         `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
-	Snapshot      *SnapshotRef           `protobuf:"bytes,6,opt,name=snapshot,proto3" json:"snapshot,omitempty"` // Required when usable as an operation EntityPrecondition.
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	DefName  *string                `protobuf:"bytes,2,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Label    *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	MapId    *int32                 `protobuf:"varint,4,opt,name=map_id,json=mapId,proto3,oneof" json:"map_id,omitempty"`
+	Position *commonpb.Cell         `protobuf:"bytes,5,opt,name=position,proto3" json:"position,omitempty"`
+	Snapshot *SnapshotRef           `protobuf:"bytes,6,opt,name=snapshot,proto3" json:"snapshot,omitempty"` // Required when usable as an operation EntityPrecondition.
+	// A packed (minified) item's inner building, for a RelocateIntent install.
+	InnerId       *string `protobuf:"bytes,7,opt,name=inner_id,json=innerId,proto3,oneof" json:"inner_id,omitempty"`
+	InnerDefName  *string `protobuf:"bytes,8,opt,name=inner_def_name,json=innerDefName,proto3,oneof" json:"inner_def_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2069,6 +2072,20 @@ func (x *EntityRef) GetSnapshot() *SnapshotRef {
 		return x.Snapshot
 	}
 	return nil
+}
+
+func (x *EntityRef) GetInnerId() string {
+	if x != nil && x.InnerId != nil {
+		return *x.InnerId
+	}
+	return ""
+}
+
+func (x *EntityRef) GetInnerDefName() string {
+	if x != nil && x.InnerDefName != nil {
+		return *x.InnerDefName
+	}
+	return ""
 }
 
 type TargetRef struct {
@@ -33978,18 +33995,22 @@ const file_observations_proto_rawDesc = "" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
-	"\x06_label\"\x9f\x02\n" +
+	"\x06_label\"\x8a\x03\n" +
 	"\tEntityRef\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x03 \x01(\tH\x02R\x05label\x88\x01\x01\x12\x1a\n" +
 	"\x06map_id\x18\x04 \x01(\x05H\x03R\x05mapId\x88\x01\x01\x127\n" +
 	"\bposition\x18\x05 \x01(\v2\x1b.rimgovernor.common.v1.CellR\bposition\x12D\n" +
-	"\bsnapshot\x18\x06 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotB\x05\n" +
+	"\bsnapshot\x18\x06 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12\x1e\n" +
+	"\binner_id\x18\a \x01(\tH\x04R\ainnerId\x88\x01\x01\x12)\n" +
+	"\x0einner_def_name\x18\b \x01(\tH\x05R\finnerDefName\x88\x01\x01B\x05\n" +
 	"\x03_idB\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_labelB\t\n" +
-	"\a_map_id\"\xd2\x01\n" +
+	"\a_map_idB\v\n" +
+	"\t_inner_idB\x11\n" +
+	"\x0f_inner_def_name\"\xd2\x01\n" +
 	"\tTargetRef\x12@\n" +
 	"\x06entity\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefH\x00R\x06entity\x121\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cell\x12F\n" +

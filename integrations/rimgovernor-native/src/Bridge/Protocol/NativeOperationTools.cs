@@ -27,10 +27,6 @@ namespace HomeBridge.BridgeTools
         // NativeBuildingTemperature, medical via NativeBedUse, plant_def via
         // NativeGrowerCrop), observed by field.
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
-        // InstallBuilding admissions (NativeMoveBuilding, #808), observed by the queued installation.
-        internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Moves = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
-        // Uninstall admissions (NativeUninstallBuilding, #843), observed by the uninstall designation.
-        internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Uninstalls = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
@@ -111,10 +107,6 @@ namespace HomeBridge.BridgeTools
                         : request.Operation.PatchBuilding.HasClaim
                             ? NativeClaimBuilding.Execute(state, request, context)
                             : NativeBuildingTemperature.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Uninstall)
-                return NativeUninstallBuilding.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
-                return NativeMoveBuilding.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                 return NativeDraftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
@@ -171,10 +163,6 @@ namespace HomeBridge.BridgeTools
                             : parsed.Operation.PatchBuilding.HasClaim
                                 ? NativeClaimBuilding.Preview(parsed.Operation.PatchBuilding, context)
                                 : NativeBuildingTemperature.Preview(parsed.Operation.PatchBuilding, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Uninstall)
-                    return ProtoBoundary.Encode(NativeUninstallBuilding.Preview(parsed.Operation.Uninstall, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
-                    return ProtoBoundary.Encode(NativeMoveBuilding.Preview(parsed.Operation.InstallBuilding, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PawnTargetOrder)
@@ -241,12 +229,6 @@ namespace HomeBridge.BridgeTools
                     INativeAcquisitionRecord acquisition;
                     if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) });
-                    Receipts.InstallationEffect uninstall;
-                    if (state.Uninstalls.TryGetValue(parsed.Attempt, out uninstall))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeUninstallBuilding.Observe(parsed.Attempt, context, uninstall) });
-                    Receipts.InstallationEffect move;
-                    if (state.Moves.TryGetValue(parsed.Attempt, out move))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeMoveBuilding.Observe(parsed.Attempt, context, move) });
                     Operations.PatchBuilding buildingPatch;
                     if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical || buildingPatch.HasForPrisoners

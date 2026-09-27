@@ -47,6 +47,8 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.ExcavationAction:          true,
 	domain.WasteAction:               true,
 	domain.RecoveryServiceAction:     true,
+	domain.MoveBuildingAction:        true,
+	domain.UninstallBuildingAction:   true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

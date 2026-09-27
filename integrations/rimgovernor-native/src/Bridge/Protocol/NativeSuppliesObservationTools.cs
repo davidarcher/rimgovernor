@@ -252,9 +252,18 @@ namespace HomeBridge.BridgeTools
                 w.Write(entry.Position.x); w.Write(entry.Position.z);
             });
 
-        private static Obs.EntityRef Entity(Thing thing, IntVec3 position) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
-            DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap),
-            MapId = thing.MapHeld?.uniqueID ?? throw new InvalidOperationException("Stock map unavailable."), Position = new Common.Cell { X = position.x, Z = position.z } };
+        private static Obs.EntityRef Entity(Thing thing, IntVec3 position)
+        {
+            var entity = new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
+                DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap),
+                MapId = thing.MapHeld?.uniqueID ?? throw new InvalidOperationException("Stock map unavailable."), Position = new Common.Cell { X = position.x, Z = position.z } };
+            if (thing is MinifiedThing mini && mini.InnerThing != null)
+            {
+                entity.InnerId = Id(mini.InnerThing.GetUniqueLoadID());
+                entity.InnerDefName = Id(mini.InnerThing.def.defName);
+            }
+            return entity;
+        }
         private static string Category(Obs.StockFilter filter) => filter.HasCategory ? filter.Category : "haulable";
         private static string Ownership(Obs.StockFilter filter) => filter.HasOwnership ? filter.Ownership : "ours";
         private static bool IncludeHeld(Obs.StockFilter filter) => !filter.HasIncludeHeld || filter.IncludeHeld;
