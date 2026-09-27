@@ -45,13 +45,42 @@ func (o Options) StagesDir(c Case) string {
 }
 
 // casesDir is this package's source directory (the area packages are its
-// subdirectories), "" when the binary carries no source path.
+// subdirectories), "" when the binary carries no source path. Under
+// -trimpath (GOFLAGS) the recorded path is the import path, which resolves
+// against the go.mod of the working directory or an ancestor (or its go/).
 func casesDir() string {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		return ""
 	}
-	return filepath.Dir(file)
+	dir := filepath.Dir(file)
+	if filepath.IsAbs(dir) {
+		return dir
+	}
+	importDir := filepath.ToSlash(dir)
+	for wd, _ := os.Getwd(); wd != ""; {
+		for _, root := range []string{wd, filepath.Join(wd, "go")} {
+			data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+			if err != nil {
+				continue
+			}
+			for _, line := range strings.Split(string(data), "\n") {
+				mod, ok := strings.CutPrefix(strings.TrimSpace(line), "module ")
+				if !ok {
+					continue
+				}
+				if rel, ok := strings.CutPrefix(importDir, strings.TrimSpace(mod)+"/"); ok {
+					return filepath.Join(root, filepath.FromSlash(rel))
+				}
+			}
+		}
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			break
+		}
+		wd = parent
+	}
+	return ""
 }
 
 // StageKey is the hash a stage bundle of c is keyed on: sha256 over the
