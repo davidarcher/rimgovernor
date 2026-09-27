@@ -15,23 +15,21 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // RoutineTradeSource is the native census RoutineTradePlanner reads between
 // phases: the trader census for the caravan and negotiator to open with, the
 // trade-session read for the walk or session native holds, a
 // fresh colony facts read for the medicine and resource stock the need is
-// re-measured from, the session-scoped sheet each decision is made from,
-// and native's own previews of the session phases (acceptance, not
-// authority; the executor re-previews at dispatch).
+// re-measured from, and the session-scoped sheet each decision is made
+// from. A phase is not previewed: native judges it when it applies, and a
+// refusal fails its method.
 type RoutineTradeSource interface {
 	ReadConstructionDeficits(context.Context, *c.Identity) (bridge.ConstructionDeficitRead, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
 	ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error)
 	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
-	PreviewTrade(context.Context, *c.Identity, *op.Operation) (*op.PreviewReply, bridge.Result, error)
 }
 
 // RoutineTradePlanner drives TradeWithCaravan (#234) one phase edge per
@@ -359,9 +357,8 @@ func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlStat
 }
 
 // open commits the Open phase: the census already vetted the negotiator's
-// eligibility and the trader's tradeability, and the executor previews the
-// open itself at dispatch (native checks reachability there and walks the
-// negotiator over).
+// eligibility and the trader's tradeability, and native checks
+// reachability when the open applies and walks the negotiator over.
 func (r *RoutineTradePlanner) open(call, epoch context.Context, state ControlState, goal store.GoalState, trader string, negotiator bridge.NegotiatorRead, attempt int, arbiter *stepArbiter, started time.Time) (RoutineTradeResult, error) {
 	if !arbiter.tryClaim(nil, "pawn:"+negotiator.ID) {
 		return RoutineTradeResult{Reason: BuildingMethodUsed}, nil
@@ -424,12 +421,6 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		value, err := domain.NewTradeSetLines(trader, negotiator, tradeLinesOf(selection), false)
 		if err != nil {
 			return RoutineTradeResult{}, err
-		}
-		if accepted, err := r.previewed(call, state, value); err != nil || !accepted {
-			if err != nil {
-				return RoutineTradeResult{}, err
-			}
-			return r.cancel(call, epoch, state, goal, trader, negotiator, started)
 		}
 		return r.commit(call, epoch, state, goal, domain.TradeSetLines, 0, trader, value, started)
 	}
@@ -513,36 +504,10 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	return economic, facts, nil
 }
 
-// previewed asks native whether the intent would apply to the live session
-// now (acceptance, not authority; the executor re-previews at dispatch).
-func (r *RoutineTradePlanner) previewed(call context.Context, state ControlState, value domain.Trade) (bool, error) {
-	action, err := domain.NewTradeAction("routine-trade-preview", value)
-	if err != nil {
-		return false, err
-	}
-	intent, err := tradeIntent(action)
-	if err != nil {
-		return false, err
-	}
-	preview, _, err := r.native.PreviewTrade(call, boundary.Identity(state.Snapshot), intent)
-	if err != nil {
-		return false, err
-	}
-	evaluated := preview.GetEvaluated()
-	return evaluated != nil && evaluated.GetAccepted(), nil
-}
-
 func (r *RoutineTradePlanner) cancel(call, epoch context.Context, state ControlState, goal store.GoalState, trader string, negotiator domain.PawnID, started time.Time) (RoutineTradeResult, error) {
 	value, err := domain.NewTradeEnd(trader, negotiator, domain.TradeEndCancel, false)
 	if err != nil {
 		return RoutineTradeResult{}, err
-	}
-	accepted, err := r.previewed(call, state, value)
-	if err != nil {
-		return RoutineTradeResult{}, err
-	}
-	if !accepted {
-		return RoutineTradeResult{Reason: BuildingMethodRefused, Trader: trader, Phase: domain.TradeEnd}, nil
 	}
 	return r.commit(call, epoch, state, goal, domain.TradeEnd, 0, trader, value, started)
 }

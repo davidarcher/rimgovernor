@@ -3,6 +3,8 @@ package bridge
 import (
 	"context"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -13,6 +15,40 @@ import (
 // that native applies in order, each validated against live state and
 // applied or refused on its own. A resent key returns its first result.
 const ActionsApplyMethod = "rimgovernor/operations_apply"
+
+// intentKinds holds the Actions/Apply builder of every intent-mode kind. A
+// kind registers here, from init, and that registration is what makes
+// domain.ActionKind.IntentMode true for it. Adding a kind: a new Action
+// oneof arm in operations.proto, a native IActionHandler for it in
+// NativeActionDispatch.cs, and a builder registered below.
+var intentKinds = map[domain.ActionKind]func(domain.Action) (*o.Action, error){}
+
+func registerIntentKind(kind domain.ActionKind, build func(domain.Action) (*o.Action, error)) {
+	intentKinds[kind] = build
+	domain.RegisterIntentKind(kind)
+}
+
+func init() {
+	registerIntentKind(domain.TradeAction, tradeAction)
+}
+
+// IntentAction is the wire action for an intent-mode domain action, sent
+// under key.
+func IntentAction(key string, action domain.Action) (*o.Action, error) {
+	build, ok := intentKinds[action.Kind()]
+	if !ok {
+		return nil, contract("%s is not an intent-mode kind", action.Kind())
+	}
+	if validID(key) != nil {
+		return nil, contract("intent key invalid")
+	}
+	wire, err := build(action)
+	if err != nil {
+		return nil, err
+	}
+	wire.Key = proto.String(key)
+	return wire, nil
+}
 
 // ActionsWriter sends intent batches.
 type ActionsWriter struct{ client *Client }

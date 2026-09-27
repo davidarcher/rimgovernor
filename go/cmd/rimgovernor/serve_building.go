@@ -306,7 +306,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	tradeWriter, err := bridge.NewTradeWriter(client)
+	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -398,7 +398,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		apparelPolicy:       &buildingruntime.ApparelPolicyCapabilities{Native: client, Writer: apparelPolicyControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
-		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: tradeWriter},
+		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},

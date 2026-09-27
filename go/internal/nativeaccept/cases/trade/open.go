@@ -3,7 +3,7 @@
 // colonist negotiator teleported adjacent to the trader (the immediate open
 // path), and native TradeSession admission (an actual TradeSession.SetupWith,
 // mirroring HomeTradeTools' own opening path) invoked through the same
-// rimgovernor/operations_execute wire contract Go's bridge.TradeWriter
+// rimgovernor/operations_apply wire contract Go's bridge.ActionsWriter
 // drives.
 //
 // Trade operations are idempotent intents naming the session's trader and
@@ -28,13 +28,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const sessionOwner = "native-trade-accept-acceptance"
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "trade/open",
 		Scope: "Native OpenTrade intent: a real TradeSession admission against an actual spawned trader " +
-			"caravan, unknown-trader and other-pair refusals, open-or-reuse on a fresh attempt, replay idempotency, and the session in the trade-session read.",
+			"caravan, unknown-trader and other-pair refusals, open-or-reuse under a fresh key, a resent key replayed, and the session in the trade-session read.",
 		Start:  cases.LabStart(),
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
@@ -45,7 +43,7 @@ func init() {
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, identity, names := s.Harness(), s.Identity(), s.Names()
-	for _, required := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_preview", "rimgovernor/observations_read_trade_session"} {
+	for _, required := range []string{"rimgovernor/operations_apply", "rimgovernor/observations_read_trade_session"} {
 		if !na.Contains(names, required) {
 			return fmt.Errorf("missing %s in discovery", required)
 		}
@@ -101,76 +99,68 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("teleport-adjacent refused: %#v", teleport)
 	}
 
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
-	if err != nil {
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity); err != nil {
 		return err
 	}
-	grantContext, _ := na.AsMap(grant["context"])
-
-	openIntent := func(trader, negotiator string) map[string]any {
-		return map[string]any{"openTrade": map[string]any{"traderId": trader, "negotiatorId": negotiator, "giftMode": false}}
-	}
-	buildRequest := func(actionID string, operation map[string]any) map[string]any {
-		return map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
-				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
-			},
-			"operation": operation,
+	// apply sends one open intent under key and returns its result.
+	apply := func(label, key, trader, negotiator string) (map[string]any, error) {
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{
+			"key": key, "trade": map[string]any{"traderId": trader, "negotiatorId": negotiator, "open": map[string]any{"giftMode": false}},
+		}}})
+		if err != nil {
+			return nil, err
 		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
+	}
+	refusedCode := func(result map[string]any) string {
+		refused, _ := na.AsMap(result["refused"])
+		return na.AsString(refused["code"])
+	}
+	openTrade := func(label string, result map[string]any) (map[string]any, error) {
+		receipt, _ := na.AsMap(result["applied"])
+		applied, ok := na.AsMap(receipt["applied"])
+		if !ok {
+			return nil, fmt.Errorf("%s: expected an applied outcome, got %#v", label, result)
+		}
+		observed, _ := na.AsMap(applied["observed"])
+		trade, _ := na.AsMap(observed["trade"])
+		return trade, nil
 	}
 
 	// Refusal 1: a trader that is not on the map.
-	if code, err := failureCode(ctx, h, "unknown-trader", buildRequest("trade-open-unknown", openIntent("Thing_NoSuchTrader", negotiatorID))); err != nil {
+	unknown, err := apply("unknown-trader", "trade-open-unknown", "Thing_NoSuchTrader", negotiatorID)
+	if err != nil {
 		return err
-	} else if code != "FAILURE_CODE_NOT_FOUND" {
-		return fmt.Errorf("unknown-trader: expected FAILURE_CODE_NOT_FOUND, got %q", code)
+	}
+	if code := refusedCode(unknown); code != "FAILURE_CODE_NOT_FOUND" {
+		return fmt.Errorf("unknown-trader: expected a FAILURE_CODE_NOT_FOUND refusal, got %#v", unknown)
 	}
 
-	// Preview: accepted, but never opens the live TradeSession.
-	previewReply, err := h.Wire(ctx, "preview", "operations_preview", map[string]any{"identity": identity, "operation": openIntent(traderID, negotiatorID)})
+	// Apply: the real native TradeSession admission.
+	first, err := apply("open", "trade-open", traderID, negotiatorID)
 	if err != nil {
 		return err
 	}
-	evaluated, ok := na.AsMap(previewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview: expected an evaluated reply, got %#v", previewReply)
-	}
-	if accepted, _ := na.AsBool(evaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview: expected the open to be accepted, got %#v", evaluated)
-	}
-	previewTrade, _ := na.AsMap(evaluated["trade"])
-	if na.AsString(previewTrade["settlementId"]) != traderID {
-		return fmt.Errorf("preview: unexpected preview settlementId (expected trader entity id): %#v", previewTrade)
-	}
-
-	// Execute: the real native TradeSession admission.
-	openRequest := buildRequest("trade-open", openIntent(traderID, negotiatorID))
-	receiptReply, err := h.Wire(ctx, "execute", "operations_execute", openRequest)
+	appliedTrade, err := openTrade("open", first)
 	if err != nil {
 		return err
 	}
-	_, receipt, err := na.Outcome(receiptReply, "receipt")
-	if err != nil {
-		return err
-	}
-	applied, ok := na.AsMap(receipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute: expected an applied outcome, got %#v", receipt)
-	}
-	appliedObserved, _ := na.AsMap(applied["observed"])
-	appliedTrade, _ := na.AsMap(appliedObserved["trade"])
 	if na.AsString(appliedTrade["sessionId"]) == "" || na.AsString(appliedTrade["factionId"]) == "" {
-		return fmt.Errorf("execute: expected session and faction ids, got %#v", appliedTrade)
+		return fmt.Errorf("open: expected session and faction ids, got %#v", appliedTrade)
 	}
 	if executed, _ := na.AsBool(appliedTrade["executed"]); executed {
-		return fmt.Errorf("execute: expected executed=false for a bare open, got %#v", appliedTrade)
+		return fmt.Errorf("open: expected executed=false for a bare open, got %#v", appliedTrade)
 	}
 	if closed, _ := na.AsBool(appliedTrade["closed"]); closed {
-		return fmt.Errorf("execute: expected closed=false for a bare open, got %#v", appliedTrade)
+		return fmt.Errorf("open: expected closed=false for a bare open, got %#v", appliedTrade)
 	}
 
-	// The applied receipt is the whole outcome (trade is an intent-mode
+	// The applied result is the whole outcome (trade is an intent-mode
 	// kind); the live session shows in the trade-session read.
 	sessionReply, err := h.Wire(ctx, "session", "observations_read_trade_session", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 	if err != nil {
@@ -184,42 +174,37 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("session: expected %s trading with %s in an open session, got %#v", negotiatorID, traderID, session)
 	}
 
-	// Replay: the exact same attempt returns an identical receipt.
-	replayReply, err := h.Wire(ctx, "replay", "operations_execute", openRequest)
+	// Resend: the same key returns the identical result.
+	replay, err := apply("resend", "trade-open", traderID, negotiatorID)
 	if err != nil {
 		return err
 	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(replay, receipt) {
-		return fmt.Errorf("replay: replay of the same attempt returned a different receipt")
+	if !na.DeepEqual(replay, first) {
+		return fmt.Errorf("resend: the same key returned a different result")
 	}
 
-	// Open-or-reuse: a fresh attempt for the same pair applies against the
+	// Open-or-reuse: a fresh key for the same pair applies against the
 	// live session rather than conflicting.
-	reuseReply, err := h.Wire(ctx, "reuse", "operations_execute", buildRequest("trade-open-again", openIntent(traderID, negotiatorID)))
+	again, err := apply("reuse", "trade-open-again", traderID, negotiatorID)
 	if err != nil {
 		return err
 	}
-	_, reuse, err := na.Outcome(reuseReply, "receipt")
+	reuseTrade, err := openTrade("reuse", again)
 	if err != nil {
 		return err
 	}
-	reuseApplied, _ := na.AsMap(reuse["applied"])
-	reuseObserved, _ := na.AsMap(reuseApplied["observed"])
-	reuseTrade, _ := na.AsMap(reuseObserved["trade"])
 	if na.AsString(reuseTrade["sessionId"]) != na.AsString(appliedTrade["sessionId"]) {
-		return fmt.Errorf("reuse: expected the live session %q, got %#v", na.AsString(appliedTrade["sessionId"]), reuse)
+		return fmt.Errorf("reuse: expected the live session %q, got %#v", na.AsString(appliedTrade["sessionId"]), again)
 	}
 
 	// Refusal 2: a different negotiator while the session is held.
 	if otherID != "" {
-		if code, err := failureCode(ctx, h, "other-pair", buildRequest("trade-open-other", openIntent(traderID, otherID))); err != nil {
+		other, err := apply("other-pair", "trade-open-other", traderID, otherID)
+		if err != nil {
 			return err
-		} else if code != "FAILURE_CODE_STALE_IDENTITY" {
-			return fmt.Errorf("other-pair: expected FAILURE_CODE_STALE_IDENTITY, got %q", code)
+		}
+		if code := refusedCode(other); code != "FAILURE_CODE_STALE_IDENTITY" {
+			return fmt.Errorf("other-pair: expected a FAILURE_CODE_STALE_IDENTITY refusal, got %#v", other)
 		}
 	}
 
@@ -228,18 +213,4 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), s.Config().Headless)
-}
-
-// failureCode wires request through operations_execute and returns the
-// failure code.
-func failureCode(ctx context.Context, h *na.Harness, label string, request map[string]any) (string, error) {
-	reply, err := h.Wire(ctx, label, "operations_execute", request)
-	if err != nil {
-		return "", err
-	}
-	_, failure, err := na.Outcome(reply, "failure")
-	if err != nil {
-		return "", err
-	}
-	return na.AsString(failure["code"]), nil
 }

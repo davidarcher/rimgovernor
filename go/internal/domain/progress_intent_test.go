@@ -2,6 +2,9 @@ package domain
 
 import "testing"
 
+// bridge registers trade in production; domain tests stand in for it.
+func init() { RegisterIntentKind(TradeAction) }
+
 func dispatchedIntent(t *testing.T) (Progress, GenerationSnapshot) {
 	t.Helper()
 	value, err := NewTradeOpen("trader", "negotiator", false)

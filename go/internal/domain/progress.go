@@ -380,8 +380,14 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 // receipt is terminal (applied completes, refused fails, unknown is sent
 // again), with no observation phase, and the routine owning the
 // kind reads its next phase from live facts rather than per-attempt
-// progress. A kind opts in here.
-func (k ActionKind) IntentMode() bool { return k == TradeAction }
+// progress. A kind opts in by registering an Actions/Apply builder in
+// bridge/actions.go, whose init calls RegisterIntentKind.
+func (k ActionKind) IntentMode() bool { return intentKinds[k] }
+
+// intentKinds is written only from package init, before any goroutine reads it.
+var intentKinds = map[ActionKind]bool{}
+
+func RegisterIntentKind(k ActionKind) { intentKinds[k] = true }
 
 func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
 	if p.action.kind == OwnedDraftAction {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -64,5 +65,27 @@ func TestActionsApplyRefusesDuplicateKeys(t *testing.T) {
 	writer := actionsWriter(t, &o.ApplyReply{})
 	if _, _, err := writer.Apply(context.Background(), pbIdentity(), []*o.Action{probeAction("a"), probeAction("a")}); err == nil {
 		t.Fatal("duplicate keys accepted")
+	}
+}
+
+func TestTradeRegistersAsIntentKind(t *testing.T) {
+	if !domain.TradeAction.IntentMode() || domain.BuildingAction.IntentMode() {
+		t.Fatal("trade alone registers as an intent kind")
+	}
+	value, err := domain.NewTradeEnd("trader-1", "pawn-1", domain.TradeEndCancel, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewTradeAction("a1", value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := IntentAction("plan/1", action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trade := wire.GetTrade()
+	if wire.GetKey() != "plan/1" || trade.GetTraderId() != "trader-1" || trade.GetNegotiatorId() != "pawn-1" || trade.GetEnd().GetKind() != o.EndTradeKind_END_TRADE_KIND_CANCEL {
+		t.Fatalf("%v", wire)
 	}
 }
