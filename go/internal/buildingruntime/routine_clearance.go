@@ -195,7 +195,7 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	if !ok {
 		return RoutineClearanceResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	value, err := domain.NewAllowListStockpileZone(domain.LowPriority, allow, cells)
+	value, err := allowListZone(domain.LowPriority, allow, cells)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}

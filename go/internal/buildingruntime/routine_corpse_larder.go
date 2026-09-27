@@ -90,7 +90,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 	p := r.reviewer.player
 	state := p.session.State()
 	started := r.reviewer.clock.Now()
-	zone, err := domain.NewStockpileZone(domain.CorpseLarderPreset, domain.ImportantPriority, []domain.Cell{cell})
+	zone, err := domain.NewFilteredStockpileZone(domain.CorpseLarderFilter(), domain.ImportantPriority, []domain.Cell{cell})
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

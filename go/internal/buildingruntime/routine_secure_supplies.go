@@ -532,7 +532,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	if len(cells) == 0 {
 		return PlanResult{}, nil
 	}
-	value, err := domain.NewStockpileZone(domain.GeneralPreset, domain.NormalPriority, cells)
+	value, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, cells)
 	if err == nil {
 		value, err = value.WithRole(domain.GeneralRole)
 	}
@@ -626,7 +626,7 @@ func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, ident
 				cells = append(cells, domain.Cell{X: x, Z: z})
 			}
 		}
-		value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{definition}, cells)
+		value, err := allowListZone(domain.ImportantPriority, []string{definition}, cells)
 		if err == nil {
 			value, err = value.WithRole(domain.CoveredRolePrefix + definition)
 		}

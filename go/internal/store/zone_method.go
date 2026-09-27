@@ -117,7 +117,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 				return ErrConflict
 			}
 		}
-		if larder && zone.Preset() != domain.CorpseLarderPreset {
+		if larder && zone.Filter() != domain.CorpseLarderFilter() {
 			return ErrConflict
 		}
 		for _, cell := range zone.Cells() {

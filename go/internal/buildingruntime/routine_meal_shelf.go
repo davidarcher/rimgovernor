@@ -157,7 +157,7 @@ func (r *RoutineMealShelfPlanner) step(call, epoch context.Context) (RoutineMeal
 	var evaluated policy.Preview
 	accepted := false
 	for _, candidate := range sites {
-		value, err := domain.NewAllowListStockpileZone(domain.CriticalPriority, mealShelfDefinitions, candidate)
+		value, err := allowListZone(domain.CriticalPriority, mealShelfDefinitions, candidate)
 		if err != nil {
 			return RoutineMealShelfResult{}, err
 		}

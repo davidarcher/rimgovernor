@@ -583,7 +583,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 // (NativeResourceSourcesTool.Storage) to see whether hauling that source's
 // yield needs a new covered stockpile zone (policy.SelectResourceStorageZone).
 // It mirrors coveredStorageFallback's exact zone-build shape
-// (NewAllowListStockpileZone/PreviewZone/AdmitBuildingMethod, not
+// (allowListZone/PreviewZone/AdmitBuildingMethod, not
 // CommitGoalMethod, since a zone carries footprint like a building), but the
 // candidate cells come directly from native's own hauler-reachable, roofed,
 // unreserved scan rather than policy.CoveredStorageSites -- no geometry is
@@ -643,7 +643,7 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 	if len(cells) == 0 {
 		return RoutineResourceResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{string(resource)}, cells)
+	value, err := allowListZone(domain.ImportantPriority, []string{string(resource)}, cells)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

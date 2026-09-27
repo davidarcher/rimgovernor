@@ -45,7 +45,7 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState,
 			bill = true
 		case action.Kind() == domain.ZoneCreateAction:
 			z, _ := action.ZoneCreate()
-			if z.Kind() != domain.StockpileZone || z.Preset() != domain.NothingPreset {
+			if _, allowOnly := z.Filter().AllowOnlyDefinitions(); z.Kind() != domain.StockpileZone || !allowOnly {
 				return false, nil
 			}
 			bill = true

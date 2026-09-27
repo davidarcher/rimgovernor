@@ -145,7 +145,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	var preview policy.Preview
 	accepted := false
 	for _, candidate := range sites {
-		value, err := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, candidate)
+		value, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, candidate)
 		if err != nil {
 			return RoutineFoodStorageResult{}, err
 		}

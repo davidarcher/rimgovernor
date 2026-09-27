@@ -24,28 +24,59 @@ func TestZoneCanonicalConnectedAndImmutable(t *testing.T) {
 
 func TestStockpileZoneCanonicalAndClosedToFoodImportant(t *testing.T) {
 	cells := []Cell{{X: 2, Z: 1}, {X: 1, Z: 1}}
-	z, err := NewStockpileZone(FoodPreset, ImportantPriority, cells)
+	z, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, cells)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if z.Kind() != StockpileZone || z.Preset() != FoodPreset || z.Priority() != ImportantPriority || z.Crop() != "" {
+	if z.Kind() != StockpileZone || z.Filter() != FoodFilter() || z.Priority() != ImportantPriority || z.Crop() != "" {
 		t.Fatal("unexpected stockpile zone fields", z)
 	}
 	if z.Label() != "RimGovernor food storage" {
 		t.Fatal("unexpected label", z.Label())
 	}
-	same, err := NewStockpileZone(FoodPreset, ImportantPriority, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
+	same, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
 	if err != nil || z != same {
 		t.Fatal("mutable/canonical", z, err)
 	}
-	for _, bad := range []struct {
-		preset   StockpilePreset
-		priority StockpilePriority
-	}{{"nothing", ImportantPriority}, {FoodPreset, "urgent"}, {"", ""}} {
-		if _, err := NewStockpileZone(bad.preset, bad.priority, cells); err == nil {
-			t.Fatal(bad)
+	for _, priority := range []StockpilePriority{"urgent", ""} {
+		if _, err := NewFilteredStockpileZone(FoodFilter(), priority, cells); err == nil {
+			t.Fatal(priority)
 		}
 	}
+}
+
+// The named filters keep the labels their retired presets sent native.
+func TestStockpileLabelsFollowFilters(t *testing.T) {
+	cells := []Cell{{X: 1, Z: 1}}
+	larder, _ := NewFilteredStockpileZone(CorpseLarderFilter(), ImportantPriority, cells)
+	dump, _ := allowListZone(LowPriority, []string{"ChunkGranite"}, cells)
+	other, _ := NewFilteredStockpileZone(WornDumpFilter(), LowPriority, cells)
+	for z, want := range map[ZoneCreate]string{larder: "RimGovernor corpse larder", dump: "RimGovernor dumping", other: "RimGovernor stockpile"} {
+		if z.Label() != want {
+			t.Fatal(z.Label(), want)
+		}
+	}
+}
+
+func allowListZone(priority StockpilePriority, allow []string, cells []Cell) (ZoneCreate, error) {
+	f, err := AllowOnlyFilter(allow)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return NewFilteredStockpileZone(f, priority, cells)
+}
+
+func thirtyThree() []string {
+	var out []string
+	for i := 0; i < 33; i++ {
+		out = append(out, "Def"+string(rune('A'+i)))
+	}
+	return out
+}
+
+func allowOf(z ZoneCreate) []string {
+	names, _ := z.Filter().AllowOnlyDefinitions()
+	return names
 }
 
 func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
@@ -54,15 +85,15 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stockpile, err := NewStockpileZone(FoodPreset, ImportantPriority, cells)
+	stockpile, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, cells)
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowList, err := NewAllowListStockpileZone(ImportantPriority, []string{"MealSimple"}, cells)
+	allowList, err := allowListZone(ImportantPriority, []string{"MealSimple"}, cells)
 	if err != nil {
 		t.Fatal(err)
 	}
-	general, err := NewStockpileZone(GeneralPreset, NormalPriority, cells)
+	general, err := NewFilteredStockpileZone(GeneralFilter(), NormalPriority, cells)
 	if err != nil || general.Label() != "RimGovernor general store" {
 		t.Fatal(general, err)
 	}
@@ -75,29 +106,29 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if _, err := ReconstructZone(ZoneCreate{kind: "bogus"}); err == nil {
 		t.Fatal("expected unsupported zone kind error")
 	}
-	if _, err := ReconstructZone(ZoneCreate{kind: StockpileZone, preset: "bogus"}); err == nil {
-		t.Fatal("expected unsupported stockpile preset error")
+	if _, err := ReconstructZone(ZoneCreate{kind: StockpileZone, priority: "bogus"}); err == nil {
+		t.Fatal("expected invalid stockpile error")
 	}
 }
 
 func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
 	cells := []Cell{{X: 2, Z: 1}, {X: 1, Z: 1}}
 	names := []string{"MealSimple", "MealFine"}
-	z, err := NewAllowListStockpileZone(ImportantPriority, names, cells)
+	z, err := allowListZone(ImportantPriority, names, cells)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if z.Kind() != StockpileZone || z.Preset() != NothingPreset || z.Priority() != ImportantPriority {
+	if z.Kind() != StockpileZone || z.Filter().Base() != BaseNothing || z.Priority() != ImportantPriority {
 		t.Fatal("unexpected allow-list zone fields", z)
 	}
 	if z.Label() != "RimGovernor supplies storage" {
 		t.Fatal("unexpected label", z.Label())
 	}
 	names[0] = "Tampered"
-	if got := z.Allow(); len(got) != 2 || got[0] != "MealFine" || got[1] != "MealSimple" {
+	if got := allowOf(z); len(got) != 2 || got[0] != "MealFine" || got[1] != "MealSimple" {
 		t.Fatal("allow-list not canonical/immutable", got)
 	}
-	same, err := NewAllowListStockpileZone(ImportantPriority, []string{"MealFine", "MealSimple"}, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
+	same, err := allowListZone(ImportantPriority, []string{"MealFine", "MealSimple"}, []Cell{{X: 1, Z: 1}, {X: 2, Z: 1}})
 	if err != nil || z != same {
 		t.Fatal("mutable/canonical", z, same, err)
 	}
@@ -107,18 +138,16 @@ func TestAllowListStockpileZoneCanonicalAndBounded(t *testing.T) {
 	}{
 		{"urgent", names},
 		{ImportantPriority, nil},
-		{ImportantPriority, []string{"a", "a"}},
-		{ImportantPriority, []string{""}},
-		{ImportantPriority, make([]string, 33)},
+		{ImportantPriority, thirtyThree()},
 	} {
-		if _, err := NewAllowListStockpileZone(bad.priority, bad.allow, cells); err == nil {
+		if _, err := allowListZone(bad.priority, bad.allow, cells); err == nil {
 			t.Fatal(bad)
 		}
 	}
 }
 
 func TestNewZoneCreateActionRejectsNonCanonicalZone(t *testing.T) {
-	value, err := NewStockpileZone(FoodPreset, ImportantPriority, []Cell{{X: 1, Z: 1}})
+	value, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, []Cell{{X: 1, Z: 1}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,10 +168,10 @@ func TestNewZoneCreateActionRejectsNonCanonicalZone(t *testing.T) {
 func TestStockpilePrioritiesSpanVanilla(t *testing.T) {
 	cells := []Cell{{X: 1, Z: 1}}
 	for _, p := range []StockpilePriority{CriticalPriority, ImportantPriority, PreferredPriority, NormalPriority, LowPriority} {
-		if z, err := NewStockpileZone(FoodPreset, p, cells); err != nil || z.Priority() != p {
+		if z, err := NewFilteredStockpileZone(FoodFilter(), p, cells); err != nil || z.Priority() != p {
 			t.Fatal(p, err)
 		}
-		if _, err := NewAllowListStockpileZone(p, []string{"Steel"}, cells); err != nil {
+		if _, err := allowListZone(p, []string{"Steel"}, cells); err != nil {
 			t.Fatal(p, err)
 		}
 	}

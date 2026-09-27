@@ -59,8 +59,8 @@ func TestMealShelfSitsBesideTheDiningTableOffTheChairCells(t *testing.T) {
 		t.Fatal(room, sites, err)
 	}
 	// The shelf is a Critical meals-only allow list.
-	zone, err := domain.NewAllowListStockpileZone(domain.CriticalPriority, mealShelfDefinitions, sites[0])
-	if err != nil || zone.Priority() != domain.CriticalPriority || len(zone.Allow()) != len(mealShelfDefinitions) {
+	zone, err := allowListZone(domain.CriticalPriority, mealShelfDefinitions, sites[0])
+	if err != nil || zone.Priority() != domain.CriticalPriority || len(allowOf(zone)) != len(mealShelfDefinitions) {
 		t.Fatal(zone, err)
 	}
 }

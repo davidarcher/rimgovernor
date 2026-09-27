@@ -11,38 +11,54 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The named preset constructors now build a domain.StockpileFilter; their
-// CreateZone wire bytes must equal what the pre-filter preset switch
-// (legacyStockpileSettings, copied verbatim) sent.
+// legacyZone is a zone the retired preset constructors (#932) built, with
+// the preset and canonical allow-list they named it by.
+type legacyZone struct {
+	domain.ZoneCreate
+	preset string
+	allow  []string
+}
+
+// The named filters replace the retired presets; their CreateZone wire
+// bytes (settings and label) must equal what the preset switch
+// (legacyStockpileSettings, copied verbatim) and preset labels sent.
 func TestPresetFiltersWireUnchanged(t *testing.T) {
 	cells := []domain.Cell{{X: 1, Z: 1}}
-	var zones []domain.ZoneCreate
-	for _, preset := range []domain.StockpilePreset{domain.FoodPreset, domain.CorpseLarderPreset, domain.GeneralPreset} {
+	var zones []legacyZone
+	presets := map[string]domain.StockpileFilter{"food": domain.FoodFilter(), "corpse_larder": domain.CorpseLarderFilter(), "general": domain.GeneralFilter()}
+	labels := map[string]string{"food": "RimGovernor food storage", "corpse_larder": "RimGovernor corpse larder", "general": "RimGovernor general store"}
+	for preset, filter := range presets {
 		for _, priority := range []domain.StockpilePriority{domain.CriticalPriority, domain.ImportantPriority, domain.PreferredPriority, domain.NormalPriority, domain.LowPriority} {
-			z, err := domain.NewStockpileZone(preset, priority, cells)
+			z, err := domain.NewFilteredStockpileZone(filter, priority, cells)
 			if err != nil {
 				t.Fatal(err)
 			}
-			zones = append(zones, z)
+			if z.Label() != labels[preset] {
+				t.Fatal(preset, z.Label())
+			}
+			zones = append(zones, legacyZone{z, preset, nil})
 		}
 	}
-	for _, allow := range [][]string{{"Steel"}, {"WoodLog", "Cloth", "Steel"}} {
-		z, err := domain.NewAllowListStockpileZone(domain.LowPriority, allow, cells)
-		if err != nil {
-			t.Fatal(err)
+	for _, allow := range [][]string{{"Steel"}, {"Cloth", "Steel", "WoodLog"}} {
+		for priority, label := range map[domain.StockpilePriority]string{domain.LowPriority: "RimGovernor dumping", domain.ImportantPriority: "RimGovernor supplies storage"} {
+			f, err := domain.AllowOnlyFilter(allow)
+			if err != nil {
+				t.Fatal(err)
+			}
+			z, err := domain.NewFilteredStockpileZone(f, priority, cells)
+			if err != nil || z.Label() != label {
+				t.Fatal(z.Label(), err)
+			}
+			zones = append(zones, legacyZone{z, "nothing", allow})
 		}
-		zones = append(zones, z)
 	}
 	det := proto.MarshalOptions{Deterministic: true}
 	for _, z := range zones {
 		want, _ := det.Marshal(legacyStockpileSettings(z))
-		got, _ := det.Marshal(stockpileSettings(z))
+		got, _ := det.Marshal(stockpileSettings(z.ZoneCreate))
 		if !bytes.Equal(want, got) {
-			t.Fatalf("%s/%s wire drift:\nwant %v\n got %v", z.Preset(), z.Priority(), legacyStockpileSettings(z), stockpileSettings(z))
+			t.Fatalf("%s/%s wire drift:\nwant %v\n got %v", z.preset, z.Priority(), legacyStockpileSettings(z), stockpileSettings(z.ZoneCreate))
 		}
-	}
-	if got := zones[len(zones)-1].Allow(); len(got) != 3 || got[0] != "Cloth" || got[2] != "WoodLog" {
-		t.Fatal("allow-list not canonical", got)
 	}
 }
 
@@ -99,7 +115,7 @@ func compactJSON(t *testing.T, m proto.Message) string {
 	return out.String()
 }
 
-func legacyStockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
+func legacyStockpileSettings(zone legacyZone) *op.StockpileSettings {
 	var priority op.StoragePriority
 	switch zone.Priority() {
 	case domain.CriticalPriority:
@@ -114,27 +130,27 @@ func legacyStockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 		priority = op.StoragePriority_STORAGE_PRIORITY_LOW
 	}
 	var preset op.FilterPreset
-	switch zone.Preset() {
-	case domain.FoodPreset:
+	switch zone.preset {
+	case "food":
 		preset = op.FilterPreset_FILTER_PRESET_FOOD
-	case domain.NothingPreset, domain.CorpseLarderPreset:
+	case "nothing", "corpse_larder":
 		preset = op.FilterPreset_FILTER_PRESET_NOTHING
-	case domain.GeneralPreset:
+	case "general":
 		preset = op.FilterPreset_FILTER_PRESET_NONPERISHABLES
 	}
 	settings := &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
-	if zone.Preset() == domain.CorpseLarderPreset {
+	if zone.preset == "corpse_larder" {
 		settings.Filter = &op.FilterPatch{
 			Allow:    []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesAnimal"}}, {Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowFresh"}}},
 			Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowRotten"}}},
 		}
 	}
-	if zone.Preset() == domain.GeneralPreset {
+	if zone.preset == "general" {
 		settings.Filter = &op.FilterPatch{Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "Chunks"}}}}
 	}
-	if zone.Preset() == domain.NothingPreset {
+	if zone.preset == "nothing" {
 		var allow []*op.FilterSelector
-		for _, name := range zone.Allow() {
+		for _, name := range zone.allow {
 			allow = append(allow, &op.FilterSelector{Definition: &op.FilterSelector_ThingDef{ThingDef: name}})
 		}
 		settings.Filter = &op.FilterPatch{Allow: allow}

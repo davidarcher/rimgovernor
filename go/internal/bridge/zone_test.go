@@ -58,7 +58,7 @@ func TestFishingZoneExtensionBindsIdentityAndFloor(t *testing.T) {
 }
 
 func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
-	zone, err := domain.NewStockpileZone(domain.CorpseLarderPreset, domain.ImportantPriority, []domain.Cell{{X: 1, Z: 2}})
+	zone, err := domain.NewFilteredStockpileZone(domain.CorpseLarderFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 2}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
 func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	cells := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
 	growing, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", cells)
-	stockpile, _ := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, cells)
+	stockpile, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, cells)
 
 	g := ZoneConfiguration(growing)
 	if g.GetType() != op.ZoneType_ZONE_TYPE_GROWING || g.Stockpile != nil || g.GetGrowing().GetPlantDef() != "Plant_Rice" || !g.GetGrowing().GetAllowSow() || !g.GetGrowing().GetAllowCut() {
@@ -87,7 +87,7 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	if s.GetLabel() != "RimGovernor food storage" || g.GetLabel() != "RimGovernor crops" {
 		t.Fatal("unexpected zone labels", g.GetLabel(), s.GetLabel())
 	}
-	allowList, _ := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, cells)
+	allowList, _ := allowListZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, cells)
 	a := ZoneConfiguration(allowList)
 	if a.GetType() != op.ZoneType_ZONE_TYPE_STOCKPILE || a.GetStockpile().GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || a.GetStockpile().GetPriority() != op.StoragePriority_STORAGE_PRIORITY_IMPORTANT {
 		t.Fatal("unexpected allow-list stockpile configuration", a)
@@ -108,7 +108,7 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 }
 
 func TestStockpileZoneExactConfigurationEvidence(t *testing.T) {
-	zone, _ := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}})
+	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}})
 	token := ZoneConfigurationToken(zone)
 	v := &r.EffectEvidence{Effect: &r.EffectEvidence_Zone{Zone: &r.ZoneEffect{ZoneId: proto.String("zone1"), Present: proto.Bool(true), ListedCellCount: proto.Int32(2), GridCellCount: proto.Int32(2), PhantomCellCount: proto.Int32(0), ChangedCells: proto.Int32(2), Snapshot: &r.SnapshotEvidence{EntityId: proto.String("zone1"), BeforeToken: proto.String("map-token"), AfterToken: proto.String(token)}}}}
 	for _, cell := range zone.Cells() {
@@ -120,7 +120,7 @@ func TestStockpileZoneExactConfigurationEvidence(t *testing.T) {
 	// Native leaves AfterToken hashed for a different desired configuration
 	// (e.g. it could not confirm the live filter matches the requested preset
 	// exactly); readback must not paper over that with geometry alone.
-	other, _ := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, []domain.Cell{{X: 0, Z: 0}, {X: 2, Z: 0}})
+	other, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 0, Z: 0}, {X: 2, Z: 0}})
 	v.GetZone().Cells[1].Cell.X = proto.Int32(2)
 	if matches, _ := ZoneMatches(v, other, "map-token"); matches {
 		t.Fatal("expected mismatch against stale configuration hash")
@@ -131,7 +131,7 @@ func TestStockpileZoneExactConfigurationEvidence(t *testing.T) {
 // is a reply the planner moves past to its next candidate, not a contract
 // violation; a failure outcome or a missing verdict still rejects (#223).
 func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
-	zone, _ := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
+	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
 	target := ZoneTarget{Zone: zone, Token: "zone-abc"}
 	valid := &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: pbContext(), Accepted: proto.Bool(true)}}}
 	for _, test := range []struct {

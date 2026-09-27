@@ -209,6 +209,22 @@ func AllowOnlyFilter(definitions []string) (StockpileFilter, error) {
 	return NewStockpileFilter(BaseNothing, rows, nil)
 }
 
+// AllowOnlyDefinitions is an AllowOnlyFilter's thing definitions; ok is
+// false for any other filter.
+func (f StockpileFilter) AllowOnlyDefinitions() ([]string, bool) {
+	if f.base != BaseNothing || len(f.Disallow()) != 0 || f.hasHitPoints || f.hasQuality {
+		return nil, false
+	}
+	var names []string
+	for _, s := range f.Allow() {
+		if s.Kind != ThingDefSelector {
+			return nil, false
+		}
+		names = append(names, s.Name)
+	}
+	return names, len(names) != 0
+}
+
 // stockpileFilterPayload is the filter's persisted and canonical JSON form.
 type stockpileFilterPayload struct {
 	Base      FilterBase

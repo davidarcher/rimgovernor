@@ -52,7 +52,7 @@ func TestFilteredStockpileZoneRoleRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if z, err = z.WithRole("dump:worn"); err != nil || z.Role() != "dump:worn" || z.Filter() != f || z.Preset() != "" {
+	if z, err = z.WithRole("dump:worn"); err != nil || z.Role() != "dump:worn" || z.Filter() != f {
 		t.Fatal(z, err)
 	}
 	if r, err := ReconstructZone(z); err != nil || r != z {
@@ -61,8 +61,8 @@ func TestFilteredStockpileZoneRoleRoundTrips(t *testing.T) {
 	if _, err := NewZoneCreateAction("a", z); err != nil {
 		t.Fatal(err)
 	}
-	legacy, _ := NewAllowListStockpileZone(ImportantPriority, []string{"Steel", "Cloth"}, []Cell{{X: 1, Z: 1}})
-	if r, err := ReconstructZone(legacy); err != nil || r != legacy || legacy.Role() != "" || len(legacy.Allow()) != 2 {
+	legacy, _ := allowListZone(ImportantPriority, []string{"Steel", "Cloth"}, []Cell{{X: 1, Z: 1}})
+	if r, err := ReconstructZone(legacy); err != nil || r != legacy || legacy.Role() != "" || len(allowOf(legacy)) != 2 {
 		t.Fatal("legacy reconstruct", r, err)
 	}
 	crop, _ := NewZoneCreate(GrowingZone, "Plant_Rice", []Cell{{X: 1, Z: 1}})

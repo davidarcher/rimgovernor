@@ -218,7 +218,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// The allow-list body bridge.stockpileSettings sends for
-	// domain.NewAllowListStockpileZone, plus both filter ranges.
+	// an AllowOnlyFilter stockpile, plus both filter ranges.
 	stockpileBody := map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT", "preset": "FILTER_PRESET_NOTHING",
 		"filter": map[string]any{"allow": []map[string]any{{"thingDef": "Steel"}, {"thingDef": "WoodLog"}},
 			"hitPointsMin": 0.5, "hitPointsMax": 1, "qualityMin": "Normal", "qualityMax": "Legendary"}}

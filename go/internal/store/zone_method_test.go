@@ -19,7 +19,7 @@ func stockpilePlan(t *testing.T, id domain.PlanID, cells ...[]domain.Cell) domai
 	t.Helper()
 	var actions []domain.Action
 	for i, block := range cells {
-		zone, err := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, block)
+		zone, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, block)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestCommitStockpileZoneMethodBindsToSecureSuppliesGoal(t *testing.T) {
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"MedicineHerbal"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
+	zone, err := allowListZone(domain.ImportantPriority, []string{"MedicineHerbal"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"Steel"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
+	zone, err := allowListZone(domain.ImportantPriority, []string{"Steel"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestCommitStockpileZoneMethodBindsToAnimalFeedGoal(t *testing.T) {
 	if g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"Kibble"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
+	zone, err := allowListZone(domain.ImportantPriority, []string{"Kibble"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
-	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 6, Z: 6}, {X: 4, Z: 7}})
+	zone, err := allowListZone(domain.ImportantPriority, []string{"MealSimple", "MealFine"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 6, Z: 6}, {X: 4, Z: 7}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,11 +240,11 @@ func TestCommitStockpileZoneMethodRejectsOverlappingCells(t *testing.T) {
 	r := foodStorageDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodStorage)
-	zone1, err := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
+	zone1, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	zone2, err := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
+	zone2, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 4, Z: 6}})
 	if err != nil {
 		t.Fatal(err)
 	}

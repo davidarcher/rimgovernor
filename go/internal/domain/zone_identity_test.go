@@ -4,7 +4,7 @@ import "testing"
 
 func dispatchedZone(t *testing.T) (Progress, GenerationSnapshot) {
 	t.Helper()
-	zone, err := NewStockpileZone(FoodPreset, ImportantPriority, []Cell{{X: 3, Z: 5}})
+	zone, err := NewFilteredStockpileZone(FoodFilter(), ImportantPriority, []Cell{{X: 3, Z: 5}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,7 +39,7 @@ func TestShellInteriorIsInsideThePerimeter(t *testing.T) {
 	if len(cells) != 16 || cells[0] != (domain.Cell{X: 11, Z: 21}) || cells[15] != (domain.Cell{X: 14, Z: 24}) {
 		t.Fatal(cells)
 	}
-	if _, err := domain.NewStockpileZone(domain.GeneralPreset, domain.NormalPriority, cells); err != nil {
+	if _, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, cells); err != nil {
 		t.Fatal(err)
 	}
 }

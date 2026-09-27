@@ -26,7 +26,7 @@ func TestStockpileWriteActionsRoundTripAndAdmission(t *testing.T) {
 	zone, _ := domain.NewFilteredStockpileZone(filter, domain.LowPriority, []domain.Cell{{X: 1, Z: 1}})
 	zone, _ = zone.WithRole("dump:worn")
 	za, _ := domain.NewZoneCreateAction("zone", zone)
-	legacy, _ := domain.NewStockpileZone(domain.GeneralPreset, domain.NormalPriority, []domain.Cell{{X: 1, Z: 3}})
+	legacy, _ := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, []domain.Cell{{X: 1, Z: 3}})
 	la, _ := domain.NewZoneCreateAction("legacy", legacy)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{ea, pa, za, la})
 	if err != nil {
