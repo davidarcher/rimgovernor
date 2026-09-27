@@ -29,42 +29,43 @@ func splitTanks(view CombatView) (rest, tanks []SquadDefenderFacts) {
 }
 
 // tankRoles puts one tank on the cell in front of each gunner, toward the
-// approach, in the gunners' line order. Tanks beyond the gunners get no
-// role.
-func tankRoles(tanks []SquadDefenderFacts, gunners []DefensivePosition, toward domain.Rotation) []CombatRole {
+// approach, in the gunners' line order, skipping a gunner whose front cell
+// the game did not report standable (#881). The cell behind the gunner is
+// the tank's Home when standable. Tanks beyond the gunners get no role.
+func tankRoles(tanks []SquadDefenderFacts, gunners []DefensivePosition, toward domain.Rotation, geometry GeometryReply) []CombatRole {
 	v, ok := towardVector(toward)
 	if !ok {
 		return nil
 	}
 	var roles []CombatRole
-	for i := range min(len(tanks), len(gunners)) {
-		g := gunners[i].Cell
-		cell := domain.Cell{X: g.X - v.X, Z: g.Z - v.Z}
-		if cell.X < 0 || cell.Z < 0 {
+	for _, g := range gunners {
+		if len(roles) == len(tanks) {
+			break
+		}
+		cell := domain.Cell{X: g.Cell.X - v.X, Z: g.Cell.Z - v.Z}
+		if !geometry.stands(cell) {
 			continue
 		}
-		roles = append(roles, CombatRole{Pawn: tanks[i].ID, Cell: &cell, Duty: DutyTank})
+		role := CombatRole{Pawn: tanks[len(roles)].ID, Cell: &cell, Duty: DutyTank}
+		if back := (domain.Cell{X: g.Cell.X + v.X, Z: g.Cell.Z + v.Z}); geometry.stands(back) {
+			role.Home = &back
+		}
+		roles = append(roles, role)
 	}
 	return roles
 }
 
 // pullBackTank is the reaction table's shield row (#866): on a shield
-// broken stop for a tank, the tank retreats to the cell behind its gunner
-// and leaves the tank duty.
-func pullBackTank(view CombatView, stop StopEvent, m *CombatMemory) {
-	layout, ok := view.Layout.Value()
-	v, vok := towardVector(layout.Toward)
-	if stop.Kind != StopShieldBroken || !ok || !vok {
+// broken stop for a tank, the tank leaves the tank duty and retreats to
+// its Home behind its gunner, or holds where it stands without one.
+func pullBackTank(stop StopEvent, m *CombatMemory) {
+	if stop.Kind != StopShieldBroken {
 		return
 	}
 	for i := range m.Roles {
 		r := &m.Roles[i]
-		if r.Pawn != stop.Pawn || r.Duty != DutyTank || r.Cell == nil {
-			continue
+		if r.Pawn == stop.Pawn && r.Duty == DutyTank {
+			r.Cell, r.Duty, r.Retreat = r.Home, "", true
 		}
-		// The tank's cell is one step in front of its gunner; behind the
-		// gunner is two steps back from it.
-		back := domain.Cell{X: r.Cell.X + 2*v.X, Z: r.Cell.Z + 2*v.Z}
-		r.Cell, r.Duty, r.Retreat = &back, "", true
 	}
 }

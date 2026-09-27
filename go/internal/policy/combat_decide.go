@@ -36,11 +36,11 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// layout) it forms at once.
 			return nil, ask, memory
 		}
-		next.Tactic, next.Roles, next.Refusal = formation(view, geometry)
+		next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
 		next.Formed = view.Tick
 	}
 	peel(view, stop, &next)
-	pullBackTank(view, stop, &next)
+	pullBackTank(stop, &next)
 	next.Roles = focusFire(view, next.Roles, memory.Roles)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
@@ -186,8 +186,10 @@ const (
 // cover_behind_line role's anchor.
 type GeometryRequest struct {
 	Propose FormationRole
-	// Cells are named cells to score (#861: the shooters' cells), their
-	// lines of fire answered in GeometryReply.Lines.
+	// Cells are named cells to score: the shooters' cells (#861), their
+	// lines of fire answered in GeometryReply.Lines, and Formation's
+	// Go-computed cells (#881: tank, peeler and blocking-hold cover cells),
+	// their standability answered in GeometryReply.Standable.
 	Cells    []domain.Cell
 	Line     []domain.Cell
 	Hostiles []domain.PawnID
@@ -211,10 +213,16 @@ type GeometryReply struct {
 	// Lines are the named and proposed cells' sight lines to the ask's
 	// hostiles.
 	Lines []SightLine
-	// Scored is the game's cover for the line and proposed cells (#862);
+	// Scored is the game's cover for the named and proposed cells (#862);
 	// Formation ranks its candidate cells by it.
 	Scored []ScoredCell `json:",omitempty"`
+	// Standable are the named cells the game reported standable, and every
+	// proposal (#881). A Go-computed cell is used only when it is here.
+	Standable []domain.Cell `json:",omitempty"`
 }
+
+// stands reports a cell the reply says is standable.
+func (g GeometryReply) stands(c domain.Cell) bool { return slices.Contains(g.Standable, c) }
 
 // CombatTactic is the formation a fight runs.
 type CombatTactic string
@@ -236,6 +244,9 @@ type CombatRole struct {
 	// Retreat marks a role pulled back to its inner-line cell (#860), or
 	// a hurt blocker relieved by the reserve (#864).
 	Retreat bool `json:",omitempty"`
+	// Home is a checked standby cell (#881): where a peeler waits between
+	// targets, or where a tank pulls back to when its shield breaks.
+	Home *domain.Cell `json:",omitempty"`
 }
 
 // CombatOrderKind is the combat.orders order an order becomes.
@@ -285,10 +296,14 @@ type CombatMemory struct {
 	Tactic CombatTactic `json:",omitempty"`
 	Roles  []CombatRole `json:",omitempty"`
 	// Refusal is why the last Formation did not hold the line, when it did not.
-	Refusal string        `json:",omitempty"`
-	Formed  domain.Tick   `json:",omitempty"`
-	Issued  []IssuedOrder `json:",omitempty"`
-	Tick    domain.Tick   `json:",omitempty"`
+	Refusal string      `json:",omitempty"`
+	Formed  domain.Tick `json:",omitempty"`
+	// Relieved are the blockers the reserve relieved (#864), in relief
+	// order; a re-formation ranks them last among the brawlers (#881), so
+	// it keeps the rotation.
+	Relieved []domain.PawnID `json:",omitempty"`
+	Issued   []IssuedOrder   `json:",omitempty"`
+	Tick     domain.Tick     `json:",omitempty"`
 	// Rescue is the rescue under way (#867).
 	Rescue *CombatRescue `json:",omitempty"`
 }
@@ -307,6 +322,7 @@ func (m CombatMemory) Forget(pawn domain.PawnID) CombatMemory {
 func (m CombatMemory) clone() CombatMemory {
 	m.Roles = slices.Clone(m.Roles)
 	m.Issued = slices.Clone(m.Issued)
+	m.Relieved = slices.Clone(m.Relieved)
 	if m.Rescue != nil {
 		r := *m.Rescue
 		r.Doors = slices.Clone(r.Doors)
@@ -380,7 +396,7 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 	switch m.Tactic {
 	case TacticHold:
 		layout, ok := view.Layout.Value()
-		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, view.Positional)
+		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, unpeeled(view, stop, m))
 	case TacticSquad:
 		down := map[domain.PawnID]bool{}
 		for _, t := range view.Threats {
@@ -411,15 +427,24 @@ func formationAsk(view CombatView) *GeometryRequest {
 	if !ok || len(layout.Firing) == 0 {
 		return nil
 	}
-	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing), Cells: shooterCells(view)}
-	// Named cells share the cells cap with the proposals: half each at most.
-	if len(ask.Cells) > maxGeometryCells/2 {
-		ask.Cells = ask.Cells[:maxGeometryCells/2]
-	}
+	ask := &GeometryRequest{Propose: RoleCoverBehindLine, Line: slices.Clone(layout.Firing)}
+	// The Go-computed cells come first so the cap drops shooters, not them.
+	named := formationChecks(view, layout)
+	// Named cells share the cells cap with the proposals: half each at
+	// most, or all but the choke's neighbours for a blocking formation.
+	limit := maxGeometryCells / 2
 	if choke, ourSide, ok := blockingChoke(view); ok {
 		// A blocking formation spends the stop's one proposal on blocker
-		// cells; the named line is still scored.
+		// cells and names the cells around the line instead, so the game
+		// scores their cover for the riflemen (#881).
 		ask.Propose, ask.Choke, ask.OurSide = RoleAdjacentToChoke, choke, ourSide
+		named = append(named, aroundLine(layout.Firing)...)
+		limit = maxGeometryCells - 8 - len(ask.Line)
+	}
+	for _, c := range append(named, shooterCells(view)...) {
+		if len(ask.Cells) < limit && !slices.Contains(ask.Cells, c) {
+			ask.Cells = append(ask.Cells, c)
+		}
 	}
 	// The top-scored hostiles first (#863), so the cap drops the least urgent.
 	for _, h := range rankThreats(view) {
@@ -430,6 +455,28 @@ func formationAsk(view CombatView) *GeometryRequest {
 	return ask
 }
 
+// formationChecks are the cells Formation computes itself and names for
+// the game to check (#881): the peeler's home, and in front of and behind
+// each firing cell (a tank's cell and its pull-back cell).
+func formationChecks(view CombatView, layout CombatLayout) []domain.Cell {
+	var out []domain.Cell
+	add := func(c domain.Cell) {
+		if c.X >= 0 && c.Z >= 0 && !slices.Contains(out, c) && !slices.Contains(layout.Firing, c) {
+			out = append(out, c)
+		}
+	}
+	if home := peelerHome(view); home != nil {
+		add(*home)
+	}
+	if v, ok := towardVector(layout.Toward); ok {
+		for _, f := range layout.Firing {
+			add(domain.Cell{X: f.X - v.X, Z: f.Z - v.Z})
+			add(domain.Cell{X: f.X + v.X, Z: f.Z + v.Z})
+		}
+	}
+	return out
+}
+
 // maxGeometryHostiles is bridge.CombatGeometryMaxHostiles.
 const maxGeometryHostiles = 16
 
@@ -438,13 +485,20 @@ const maxGeometryHostiles = 16
 // or squad defense. The hold's candidate cells are the layout's firing
 // cells first, then the game's covered cells behind the line (#871), so a
 // defender the line has no room for still gets a covered cell.
-func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatRole, string) {
+func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID) (CombatTactic, []CombatRole, string) {
 	refusal := "no complete defense layout"
 	if layout, ok := view.Layout.Value(); ok {
 		cells := slices.Clone(layout.Firing)
 		_, _, blocking := blockingChoke(view)
-		for _, c := range geometry.Proposals {
-			if !blocking && !slices.Contains(cells, c) {
+		candidates := geometry.Proposals
+		if blocking {
+			// The proposals are blocker cells; the riflemen's covered
+			// cells are the named cells around the line the game found
+			// standable and covered (#881).
+			candidates = coveredAround(layout.Firing, geometry)
+		}
+		for _, c := range candidates {
+			if !slices.Contains(cells, c) {
 				cells = append(cells, c)
 			}
 		}
@@ -458,8 +512,8 @@ func formation(view CombatView, geometry GeometryReply) (CombatTactic, []CombatR
 				cell := p.Cell
 				roles = append(roles, CombatRole{Pawn: p.Defender, Cell: &cell, Target: domain.PawnID(p.Target), Ranged: true})
 			}
-			roles = append(roles, brawlerRoles(view, defenders, blocking, geometry.Proposals)...)
-			roles = append(roles, tankRoles(tanks, positions, layout.Toward)...)
+			roles = append(roles, brawlerRoles(view, defenders, blocking, geometry, relieved)...)
+			roles = append(roles, tankRoles(tanks, positions, layout.Toward, geometry)...)
 			return TacticHold, sortRoles(roles), ""
 		}
 	}

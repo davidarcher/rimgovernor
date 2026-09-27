@@ -251,6 +251,9 @@ type CombatPawn struct {
 	WeaponWarmupTicks   *int32                 `protobuf:"varint,23,opt,name=weapon_warmup_ticks,json=weaponWarmupTicks,proto3,oneof" json:"weapon_warmup_ticks,omitempty"`
 	WeaponCooldownTicks *int32                 `protobuf:"varint,24,opt,name=weapon_cooldown_ticks,json=weaponCooldownTicks,proto3,oneof" json:"weapon_cooldown_ticks,omitempty"`
 	WeaponMelee         *bool                  `protobuf:"varint,25,opt,name=weapon_melee,json=weaponMelee,proto3,oneof" json:"weapon_melee,omitempty"`
+	// Colonists (#881): worn sharp armor, the stronger of natural armor and
+	// the best worn layer (the raid_armor rule per pawn), to 0.05.
+	Armor *float64 `protobuf:"fixed64,29,opt,name=armor,proto3,oneof" json:"armor,omitempty"`
 	// The watermark of the row's last change: when events concerned the pawn
 	// since the last compare, the newest of the highest rank (downing or
 	// death, then another #849 stop kind, then any), the matching combat_events
@@ -467,6 +470,13 @@ func (x *CombatPawn) GetWeaponMelee() bool {
 		return *x.WeaponMelee
 	}
 	return false
+}
+
+func (x *CombatPawn) GetArmor() float64 {
+	if x != nil && x.Armor != nil {
+		return *x.Armor
+	}
+	return 0
 }
 
 func (x *CombatPawn) GetChanged() *Watermark {
@@ -1970,7 +1980,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xcc\v\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xf1\v\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2002,11 +2012,12 @@ const file_mirror_proto_rawDesc = "" +
 	"\fweapon_range\x18\x16 \x01(\x01H\x14R\vweaponRange\x88\x01\x01\x123\n" +
 	"\x13weapon_warmup_ticks\x18\x17 \x01(\x05H\x15R\x11weaponWarmupTicks\x88\x01\x01\x127\n" +
 	"\x15weapon_cooldown_ticks\x18\x18 \x01(\x05H\x16R\x13weaponCooldownTicks\x88\x01\x01\x12&\n" +
-	"\fweapon_melee\x18\x19 \x01(\bH\x17R\vweaponMelee\x88\x01\x01\x12:\n" +
+	"\fweapon_melee\x18\x19 \x01(\bH\x17R\vweaponMelee\x88\x01\x01\x12\x19\n" +
+	"\x05armor\x18\x1d \x01(\x01H\x18R\x05armor\x88\x01\x01\x12:\n" +
 	"\achanged\x18\x1a \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\achanged\x12$\n" +
-	"\vshield_belt\x18\x1b \x01(\bH\x18R\n" +
+	"\vshield_belt\x18\x1b \x01(\bH\x19R\n" +
 	"shieldBelt\x88\x01\x01\x12(\n" +
-	"\rmedical_skill\x18\x1c \x01(\x05H\x19R\fmedicalSkill\x88\x01\x01B\x05\n" +
+	"\rmedical_skill\x18\x1c \x01(\x05H\x1aR\fmedicalSkill\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_sideB\r\n" +
 	"\v_faction_idB\n" +
@@ -2034,7 +2045,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\r_weapon_rangeB\x16\n" +
 	"\x14_weapon_warmup_ticksB\x18\n" +
 	"\x16_weapon_cooldown_ticksB\x0f\n" +
-	"\r_weapon_meleeB\x0e\n" +
+	"\r_weapon_meleeB\b\n" +
+	"\x06_armorB\x0e\n" +
 	"\f_shield_beltB\x10\n" +
 	"\x0e_medical_skill\"\xe0\x04\n" +
 	"\x0eCombatEventRow\x120\n" +

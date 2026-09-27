@@ -16,7 +16,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "combatlab/rescue",
 		Scope: "Rescue under fire (#867), a native op contract no snapshot can prove: on lab-open with colonist 2 downed, a bed and a player door behind the line, " +
-			"combat.geometry's rescue_path role returns colonist 0's pathfinder route to the downed colonist, every cell scored with a hostile line-of-fire flag that agrees with its lines; " +
+			"combat.geometry's rescue_path role returns colonist 0's pathfinder route to the downed colonist, every cell scored with a hostile line-of-fire flag that agrees with its lines, and a second (warm) read within the 50 ms main-thread budget (#881); " +
 			"one combat.orders call forbids the door, orders colonist 0 to rescue colonist 2 and refuses colonist 1's rescue of a standing raider (cannot_rescue); " +
 			"one tick later colonist 0's job is Rescue on colonist 2 and the door reads forbidden; a second call allows it again.",
 		Start:       cases.Lab{Colonists: 3},
@@ -158,13 +158,24 @@ func rescuePath(ctx context.Context, h *na.Harness, s cases.Session, rescuer str
 	to := &c.Cell{X: proto.Int32(int32(downed.X)), Z: proto.Int32(int32(downed.Z))}
 	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_RescuePath{RescuePath: &mp.CombatRescuePath{To: to}}}
 	request := bridge.CombatGeometryProposeAsk(identity, propose, hostiles, rescuer)
-	reply := &mp.CombatGeometryReply{}
-	if err := wireProto(ctx, h, "combat-rescue-path", "combat_geometry", request, reply); err != nil {
-		return err
+	// Two reads (#881): the first on a fresh game pays one-time costs; the
+	// second, warm, must fit the #851 main-thread budget.
+	var g *mp.CombatGeometry
+	var ms []float64
+	for i, label := range []string{"combat-rescue-path", "combat-rescue-path-warm"} {
+		reply := &mp.CombatGeometryReply{}
+		if err := wireProto(ctx, h, label, "combat_geometry", request, reply); err != nil {
+			return err
+		}
+		g = reply.GetObserved()
+		if err := bridge.ValidateCombatGeometry(g, request); err != nil {
+			return fmt.Errorf("rescue_path read %d reply %v: %w", i+1, reply, err)
+		}
+		ms = append(ms, g.GetMainThreadMs())
 	}
-	g := reply.GetObserved()
-	if err := bridge.ValidateCombatGeometry(g, request); err != nil {
-		return fmt.Errorf("rescue_path reply %v: %w", reply, err)
+	report["rescuePathMs"] = map[string]any{"cold": ms[0], "warm": ms[1]}
+	if ms[1] > geometryBudgetMs {
+		return fmt.Errorf("warm rescue_path read took %.1f ms of main thread (cold %.1f ms), over %.0f ms", ms[1], ms[0], geometryBudgetMs)
 	}
 	route := g.GetProposed()
 	fire := 0

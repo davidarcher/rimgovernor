@@ -210,9 +210,17 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 		slog.Default().InfoContext(ctx, "combat geometry: "+err.Error(), telemetry.ComponentKey, "routine-defense")
 		return reply
 	}
+	// Every proposal is standable by contract; a named cell is when the
+	// game says so (#881).
+	for _, row := range geometry.GetCells() {
+		if cell := row.GetCell(); cell != nil && row.GetStandable() {
+			reply.Standable = append(reply.Standable, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		}
+	}
 	for _, row := range geometry.GetProposed() {
 		if cell := row.GetCell(); cell != nil {
 			reply.Proposals = append(reply.Proposals, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+			reply.Standable = append(reply.Standable, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
 	}
 	for _, row := range append(slices.Clone(geometry.GetCells()), geometry.GetProposed()...) {

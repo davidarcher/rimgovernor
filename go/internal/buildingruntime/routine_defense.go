@@ -291,11 +291,22 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, id := range orderable {
 		owned[id] = true
 	}
+	// The frame's colonist rows carry worn armor (#881), which ranks
+	// blockers and tanks.
+	armor := map[domain.PawnID]float64{}
+	for _, row := range combat.Pawns {
+		if row.Armor != nil {
+			armor[domain.PawnID(row.GetId())] = row.GetArmor()
+		}
+	}
 	var defenders []policy.SquadDefenderFacts
 	var profiles []policy.PawnProfile
 	for _, pawn := range combat.Emergency.Facts.Colonists {
 		row := in.rows[string(pawn.ID)]
 		d := squadDefenderFacts(row)
+		if a, ok := armor[d.ID]; ok {
+			d.Armor = domain.Known(a)
+		}
 		if owned[d.ID] {
 			d.DraftOwned = domain.Known(false)
 		}

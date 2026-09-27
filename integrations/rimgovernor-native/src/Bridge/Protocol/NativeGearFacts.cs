@@ -170,14 +170,20 @@ namespace HomeBridge.BridgeTools
             var total = 0.0;
             var count = 0;
             foreach (var hostile in hostiles) {
-                var armor = Number(hostile.GetStatValue(StatDefOf.ArmorRating_Sharp));
-                if (hostile.apparel != null)
-                    foreach (var apparel in hostile.apparel.WornApparel)
-                        armor = Math.Max(armor, Number(apparel.GetStatValue(StatDefOf.ArmorRating_Sharp)));
-                total += armor;
+                total += PawnArmor(hostile);
                 count++;
             }
             return count == 0 ? (double?)null : Number(total / count);
+        }
+
+        // One pawn's sharp armor: natural armor or its strongest worn layer.
+        internal static double PawnArmor(Pawn pawn)
+        {
+            var armor = Number(pawn.GetStatValue(StatDefOf.ArmorRating_Sharp));
+            if (pawn.apparel != null)
+                foreach (var apparel in pawn.apparel.WornApparel)
+                    armor = Math.Max(armor, Number(apparel.GetStatValue(StatDefOf.ArmorRating_Sharp)));
+            return armor;
         }
 
         private static Obs.GearItem Gear(Thing thing)

@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // StopMeleeContact is the #849 stop for a melee job begun between a
 // hostile and a colonist: the event's Pawn is the attacker, its Target
@@ -42,11 +46,52 @@ func peel(view CombatView, stop StopEvent, m *CombatMemory) {
 	}
 	r := &m.Roles[peeler]
 	if r.Target != "" && view.hostileDown(r.Target) {
-		r.Target, r.Cell = "", peelerHome(view)
+		r.Target, r.Cell = "", r.Home
 	}
 	if r.Target == "" && stop.Kind == StopMeleeContact && gunner && !view.hostileDown(stop.Pawn) {
 		r.Target, r.Cell = stop.Pawn, nil
 	}
+}
+
+// peelable is the one melee contact the peeler answers (#881): its live
+// target; or, when it is free, the stop's attacker on a gunner, else the
+// first hostile in melee on a gunner. Empty without a peeler.
+func peelable(view CombatView, stop StopEvent, m CombatMemory) domain.PawnID {
+	gunners := map[domain.PawnID]bool{}
+	var peeler *CombatRole
+	for i, r := range m.Roles {
+		if r.Ranged {
+			gunners[r.Pawn] = true
+		}
+		if r.Duty == DutyPeeler {
+			peeler = &m.Roles[i]
+		}
+	}
+	switch {
+	case peeler == nil:
+		return ""
+	case peeler.Target != "" && !view.hostileDown(peeler.Target):
+		return peeler.Target
+	case stop.Kind == StopMeleeContact && gunners[stop.Target] && !view.hostileDown(stop.Pawn):
+		return stop.Pawn
+	}
+	for _, p := range view.Pawns {
+		if p.Stance == StanceMelee && gunners[p.Target] && !gunners[p.ID] && !p.Dead && !p.Downed {
+			return p.ID
+		}
+	}
+	return ""
+}
+
+// unpeeled is the positional threats less the contact the peeler answers:
+// a melee attacker on a gunner stands on the cover row, and breaking that
+// contact is the peeler's job, not a compromised hold (#881).
+func unpeeled(view CombatView, stop StopEvent, m CombatMemory) []DefensiveThreatFacts {
+	id := peelable(view, stop, m)
+	if id == "" {
+		return view.Positional
+	}
+	return slices.DeleteFunc(slices.Clone(view.Positional), func(t DefensiveThreatFacts) bool { return domain.PawnID(t.ID) == id })
 }
 
 // hostileDown reports a hostile known downed or dead.

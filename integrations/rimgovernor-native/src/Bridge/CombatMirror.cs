@@ -283,6 +283,11 @@ namespace HomeBridge.BridgeTools
                 }
                 catch { }
             }
+            if (side == Mirror.CombatSide.Colonist)
+            {
+                try { row.Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05); }
+                catch { }
+            }
             row.ShieldBelt = shield != null;
             try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row.MedicalSkill = medicine.Level; } catch { }
             var weapon = pawn.equipment?.Primary;

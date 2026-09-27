@@ -20,7 +20,7 @@ func fallBack(view CombatView, stop StopEvent, m *CombatMemory) bool {
 	}
 	var who func(CombatRole) bool
 	switch {
-	case stop.Kind == StopBreach || HoldCompromised(layout.Firing, layout.Toward, view.Positional):
+	case stop.Kind == StopBreach || HoldCompromised(layout.Firing, layout.Toward, unpeeled(view, stop, *m)):
 		who = func(CombatRole) bool { return true }
 	case stop.Kind == StopSeriousInjury && stop.Pawn != "":
 		who = func(r CombatRole) bool { return r.Pawn == stop.Pawn }

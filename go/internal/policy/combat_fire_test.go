@@ -40,7 +40,7 @@ func TestDecideCombatSpacesFiringCells(t *testing.T) {
 func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 	view := threatView()
 	_, ask, _ := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
-	if ask == nil || ask.Propose != RoleCoverBehindLine || len(ask.Cells) != 3 {
+	if ask == nil || ask.Propose != RoleCoverBehindLine || !reflect.DeepEqual(ask.Cells[len(ask.Cells)-3:], shooterCells(view.sorted())) {
 		t.Fatalf("formation ask %+v", ask)
 	}
 	a, b := domain.Cell{X: 9, Z: 23}, domain.Cell{X: 8, Z: 23}

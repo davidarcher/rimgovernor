@@ -2,6 +2,7 @@ package policy
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -43,11 +44,19 @@ func decideChoke(t *testing.T, view CombatView, stop StopEvent, memory CombatMem
 		return orders, next
 	}
 	layout, _ := view.Layout.Value()
-	want := &GeometryRequest{Propose: RoleAdjacentToChoke, Line: layout.Firing, Choke: domain.Cell{X: 9, Z: 17}, OurSide: domain.Cell{X: 9, Z: 20}, Hostiles: []domain.PawnID{"r1", "r2"}, Cells: shooterCells(view.sorted())}
+	// Named: Formation's own cells, the cells around the line (#881), then
+	// the shooters'.
+	var cells []domain.Cell
+	for _, c := range append(append(formationChecks(view.sorted(), layout), aroundLine(layout.Firing)...), shooterCells(view.sorted())...) {
+		if !slices.Contains(cells, c) {
+			cells = append(cells, c)
+		}
+	}
+	want := &GeometryRequest{Propose: RoleAdjacentToChoke, Line: layout.Firing, Choke: domain.Cell{X: 9, Z: 17}, OurSide: domain.Cell{X: 9, Z: 20}, Hostiles: []domain.PawnID{"r1", "r2"}, Cells: cells}
 	if !reflect.DeepEqual(ask, want) {
 		t.Fatalf("ask %+v, want %+v", ask, want)
 	}
-	orders, _, next = DecideCombat(view, GeometryReply{Answered: true, Proposals: chokeCells}, stop, memory)
+	orders, _, next = DecideCombat(view, GeometryReply{Answered: true, Proposals: chokeCells, Standable: ask.Cells}, stop, memory)
 	return orders, next
 }
 

@@ -44,6 +44,45 @@ func CoverScore(s ScoredCell) float64 {
 	return (own - theirs) / float64(len(lines))
 }
 
+// aroundLine are the in-bounds cells within one step (8-way) of the line,
+// not on it: the cells cover_behind_line considers, named instead when the
+// stop's proposal goes to the choke (#881).
+func aroundLine(line []domain.Cell) []domain.Cell {
+	var out []domain.Cell
+	for _, l := range line {
+		for dx := int32(-1); dx <= 1; dx++ {
+			for dz := int32(-1); dz <= 1; dz++ {
+				c := domain.Cell{X: l.X + dx, Z: l.Z + dz}
+				if c.X >= 0 && c.Z >= 0 && !slices.Contains(line, c) && !slices.Contains(out, c) {
+					out = append(out, c)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// coveredAround are the cells around the line that the game reported
+// standable with some cover against a hostile: the cover_behind_line rule
+// applied to the game's own scores.
+func coveredAround(line []domain.Cell, geometry GeometryReply) []domain.Cell {
+	covered := map[domain.Cell]bool{}
+	for _, s := range geometry.Scored {
+		for _, l := range s.Lines {
+			if l.Cover > 0 {
+				covered[s.Cell] = true
+			}
+		}
+	}
+	var out []domain.Cell
+	for _, c := range aroundLine(line) {
+		if covered[c] && geometry.stands(c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // RankByCover orders cells best cover score first. Cells the geometry did
 // not score keep their order after the scored ones; ties keep input order,
 // so without a geometry reply the order is unchanged.

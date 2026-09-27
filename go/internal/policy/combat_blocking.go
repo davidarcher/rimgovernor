@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -78,15 +79,36 @@ func byArmor(out []SquadDefenderFacts) []SquadDefenderFacts {
 	return out
 }
 
+// rotated is the brawler pool with the relieved blockers last, in relief
+// order (#881), so a re-formation keeps the rotation.
+func rotated(pool []SquadDefenderFacts, relieved []domain.PawnID) []SquadDefenderFacts {
+	var fresh, rested []SquadDefenderFacts
+	for _, d := range pool {
+		if !slices.Contains(relieved, d.ID) {
+			fresh = append(fresh, d)
+		}
+	}
+	for _, id := range relieved {
+		for _, d := range pool {
+			if d.ID == id {
+				rested = append(rested, d)
+			}
+		}
+	}
+	return append(fresh, rested...)
+}
+
 // brawlerRoles gives a hold's brawlers their duties. In a blocking
 // formation the best-armored take the game's proposed cells just outside
 // the choke, at most three, and the next is the reserve (on the next
 // proposed cell when there is one); with two or more brawlers one is
 // always held back, so a hurt blocker can be relieved. The next brawler
 // after those is the peeler (#865), waiting at its home behind the
-// gunners.
-func brawlerRoles(view CombatView, defenders []SquadDefenderFacts, blocking bool, proposals []domain.Cell) []CombatRole {
-	pool := brawlers(defenders)
+// gunners when the game found that cell standable. Blockers the reserve
+// relieved rank last (#881).
+func brawlerRoles(view CombatView, defenders []SquadDefenderFacts, blocking bool, geometry GeometryReply, relieved []domain.PawnID) []CombatRole {
+	pool := rotated(brawlers(defenders), relieved)
+	proposals := geometry.Proposals
 	n := 0
 	if blocking {
 		n = min(maxChokeBlockers, len(proposals), len(pool))
@@ -109,7 +131,11 @@ func brawlerRoles(view CombatView, defenders []SquadDefenderFacts, blocking bool
 		n++
 	}
 	if n < len(pool) {
-		roles = append(roles, CombatRole{Pawn: pool[n].ID, Cell: peelerHome(view), Duty: DutyPeeler})
+		role := CombatRole{Pawn: pool[n].ID, Duty: DutyPeeler}
+		if home := peelerHome(view); home != nil && geometry.stands(*home) {
+			role.Cell, role.Home = home, home
+		}
+		roles = append(roles, role)
 	}
 	return roles
 }
@@ -148,5 +174,6 @@ func relieveBlocker(view CombatView, stop StopEvent, m *CombatMemory) bool {
 	// The relieved blocker's pull-back is a retreat: it passes the aim
 	// guard and the #860 fall-back leaves it in place.
 	m.Roles[hurt].Cell, m.Roles[hurt].Duty, m.Roles[hurt].Target, m.Roles[hurt].Retreat = back, "", "", true
+	m.Relieved = append(slices.DeleteFunc(m.Relieved, func(id domain.PawnID) bool { return id == stop.Pawn }), stop.Pawn)
 	return true
 }

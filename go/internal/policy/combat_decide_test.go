@@ -53,7 +53,7 @@ func decideStop(t *testing.T, view CombatView, stop StopEvent, memory CombatMemo
 			t.Fatal("a geometry ask came with orders or a memory change")
 		}
 		var again *GeometryRequest
-		orders, again, next = DecideCombat(view, GeometryReply{Answered: true}, stop, memory)
+		orders, again, next = DecideCombat(view, GeometryReply{Answered: true, Standable: ask.Cells}, stop, memory)
 		if again != nil {
 			t.Fatal("a second geometry round trip in one stop")
 		}
