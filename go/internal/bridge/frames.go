@@ -752,7 +752,7 @@ func combatRoom(row *mp.CombatRoom) (policy.CombatRoom, bool) {
 	if int64(w)*int64(h) != int64(row.GetCellCount()) {
 		return policy.CombatRoom{}, false
 	}
-	room := policy.CombatRoom{Interior: policy.Rectangle{X: lo.X, Z: lo.Z, Width: w, Height: h}}
+	room := policy.CombatRoom{Interior: policy.Rectangle{X: lo.X, Z: lo.Z, Width: w, Height: h}, Roofed: row.GetRoofed()}
 	for _, d := range row.GetDoors() {
 		if c, ok := protoCell(d); ok {
 			room.Doors = append(room.Doors, c)
@@ -772,7 +772,7 @@ func validateCombat(v *o.BundleSnapshot) error {
 		if validID(row.GetId()) != nil || row.GetSide() == mp.CombatSide_COMBAT_SIDE_UNSPECIFIED || row.Cell == nil {
 			return contract("combat pawn without id, side or cell")
 		}
-		for _, n := range []*float64{row.Health, row.BleedRate, row.Pain, row.MoveSpeed, row.ShieldEnergy, row.WeaponRange} {
+		for _, n := range []*float64{row.Health, row.BleedRate, row.Pain, row.MoveSpeed, row.ShieldEnergy, row.WeaponRange, row.MeleePower} {
 			if !combatNumber(n, true) {
 				return contract("combat pawn number")
 			}

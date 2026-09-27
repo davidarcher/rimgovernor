@@ -261,8 +261,10 @@ type CombatPawn struct {
 	Changed *Watermark `protobuf:"bytes,26,opt,name=changed,proto3" json:"changed,omitempty"`
 	// Rescuer choice (#867): a worn CompShield apparel (shield belt), and the
 	// Medicine skill level (absent without skills).
-	ShieldBelt    *bool  `protobuf:"varint,27,opt,name=shield_belt,json=shieldBelt,proto3,oneof" json:"shield_belt,omitempty"`
-	MedicalSkill  *int32 `protobuf:"varint,28,opt,name=medical_skill,json=medicalSkill,proto3,oneof" json:"medical_skill,omitempty"`
+	ShieldBelt   *bool  `protobuf:"varint,27,opt,name=shield_belt,json=shieldBelt,proto3,oneof" json:"shield_belt,omitempty"`
+	MedicalSkill *int32 `protobuf:"varint,28,opt,name=medical_skill,json=medicalSkill,proto3,oneof" json:"medical_skill,omitempty"`
+	// Melee strength (#969): the MeleeDPS stat, to 0.1.
+	MeleePower    *float64 `protobuf:"fixed64,30,opt,name=melee_power,json=meleePower,proto3,oneof" json:"melee_power,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -500,6 +502,13 @@ func (x *CombatPawn) GetMedicalSkill() int32 {
 	return 0
 }
 
+func (x *CombatPawn) GetMeleePower() float64 {
+	if x != nil && x.MeleePower != nil {
+		return *x.MeleePower
+	}
+	return 0
+}
+
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points
 // below max.
 type CombatDoorRow struct {
@@ -710,6 +719,7 @@ type CombatRoom struct {
 	Max           *commonpb.Cell         `protobuf:"bytes,3,opt,name=max,proto3" json:"max,omitempty"`
 	CellCount     *uint32                `protobuf:"varint,4,opt,name=cell_count,json=cellCount,proto3,oneof" json:"cell_count,omitempty"`
 	Doors         []*commonpb.Cell       `protobuf:"bytes,5,rep,name=doors,proto3" json:"doors,omitempty"`
+	Roofed        *bool                  `protobuf:"varint,6,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"` // no open roof cell (#968)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -777,6 +787,13 @@ func (x *CombatRoom) GetDoors() []*commonpb.Cell {
 		return x.Doors
 	}
 	return nil
+}
+
+func (x *CombatRoom) GetRoofed() bool {
+	if x != nil && x.Roofed != nil {
+		return *x.Roofed
+	}
+	return false
 }
 
 // rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that
@@ -2131,7 +2148,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xf1\v\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xa7\f\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2168,7 +2185,9 @@ const file_mirror_proto_rawDesc = "" +
 	"\achanged\x18\x1a \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\achanged\x12$\n" +
 	"\vshield_belt\x18\x1b \x01(\bH\x19R\n" +
 	"shieldBelt\x88\x01\x01\x12(\n" +
-	"\rmedical_skill\x18\x1c \x01(\x05H\x1aR\fmedicalSkill\x88\x01\x01B\x05\n" +
+	"\rmedical_skill\x18\x1c \x01(\x05H\x1aR\fmedicalSkill\x88\x01\x01\x12$\n" +
+	"\vmelee_power\x18\x1e \x01(\x01H\x1bR\n" +
+	"meleePower\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_sideB\r\n" +
 	"\v_faction_idB\n" +
@@ -2199,7 +2218,8 @@ const file_mirror_proto_rawDesc = "" +
 	"\r_weapon_meleeB\b\n" +
 	"\x06_armorB\x0e\n" +
 	"\f_shield_beltB\x10\n" +
-	"\x0e_medical_skill\"\xcd\x01\n" +
+	"\x0e_medical_skillB\x0e\n" +
+	"\f_melee_power\"\xcd\x01\n" +
 	"\rCombatDoorRow\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\"\n" +
@@ -2231,7 +2251,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\a_detailB\x10\n" +
 	"\x0e_raid_strategyB\f\n" +
 	"\n" +
-	"_open_tick\"\xfa\x01\n" +
+	"_open_tick\"\xa2\x02\n" +
 	"\n" +
 	"CombatRoom\x12\x1c\n" +
 	"\aroom_id\x18\x01 \x01(\tH\x00R\x06roomId\x88\x01\x01\x12-\n" +
@@ -2239,10 +2259,12 @@ const file_mirror_proto_rawDesc = "" +
 	"\x03max\x18\x03 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x03max\x12\"\n" +
 	"\n" +
 	"cell_count\x18\x04 \x01(\rH\x01R\tcellCount\x88\x01\x01\x121\n" +
-	"\x05doors\x18\x05 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05doorsB\n" +
+	"\x05doors\x18\x05 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05doors\x12\x1b\n" +
+	"\x06roofed\x18\x06 \x01(\bH\x02R\x06roofed\x88\x01\x01B\n" +
 	"\n" +
 	"\b_room_idB\r\n" +
-	"\v_cell_count\"\x9a\x02\n" +
+	"\v_cell_countB\t\n" +
+	"\a_roofed\"\x9a\x02\n" +
 	"\x15CombatGeometryRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x121\n" +
 	"\x05cells\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cells\x12\x1f\n" +

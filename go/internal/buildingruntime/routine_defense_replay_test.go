@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -24,7 +25,12 @@ type defenseReplayNative struct {
 	native   uint64
 	step     snapshot.Defense
 	orders   combatOrdersFake
+	// mirror is the frame's combat pawn rows, set by a test (#969); the
+	// recordings carry none.
+	mirror []*mp.CombatPawn
 }
+
+func (n *defenseReplayNative) combatMirror() []*mp.CombatPawn { return n.mirror }
 
 func (n *defenseReplayNative) context(raw []byte) *c.ObservationContext {
 	n.t.Helper()
@@ -77,21 +83,22 @@ func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []dom
 		}
 		steps = append(steps, step)
 	}
-	results, methods, db := replayDefenseSteps(t, steps...)
+	results, methods, db := replayDefenseSteps(t, nil, steps...)
 	if len(steps) == 1 && string(results[0].Reason) != steps[0].Reason {
 		t.Fatalf("%s: replay %s, recorded %s", paths[0], results[0].Reason, steps[0].Reason)
 	}
 	return results, methods, db
 }
 
-// replayDefenseSteps is replayDefense over loaded, possibly edited, steps.
-func replayDefenseSteps(t *testing.T, steps ...snapshot.Defense) ([]RoutineDefenseResult, []domain.MethodID, *store.Store) {
+// replayDefenseSteps is replayDefense over loaded, possibly edited, steps,
+// with mirror as every frame's combat pawn rows.
+func replayDefenseSteps(t *testing.T, mirror []*mp.CombatPawn, steps ...snapshot.Defense) ([]RoutineDefenseResult, []domain.MethodID, *store.Store) {
 	t.Helper()
 	r, db, session, _, _ := routineFixture(t)
 	ctx := context.Background()
 	current := session.State().Snapshot
 	world := store.World{Colony: current.Colony, Load: current.Load, Map: current.Map}
-	native := &defenseReplayNative{t: t, identity: boundary.Identity(current), native: uint64(current.Native)}
+	native := &defenseReplayNative{t: t, identity: boundary.Identity(current), native: uint64(current.Native), mirror: mirror}
 	planner, err := NewRoutineDefensePlanner(r, framed{native})
 	if err != nil {
 		t.Fatal(err)

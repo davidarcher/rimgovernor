@@ -93,6 +93,9 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		return bridge.Combat{}, err
 	}
 	frame := &o.BundleSnapshot{Context: emergency.Context, Emergency: emergencySnapshot(emergency.Context, emergency.Facts)}
+	if m, ok := f.legacyDefense.(interface{ combatMirror() []*mp.CombatPawn }); ok {
+		frame.CombatPawns = m.combatMirror()
+	}
 	hostiles, _, buildings := defenseTargets(emergency.Facts.Threats)
 	var ids []string
 	seen := map[string]bool{}

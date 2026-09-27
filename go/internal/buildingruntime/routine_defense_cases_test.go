@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -45,6 +46,59 @@ func TestDefenseReplaySiegeHoldsWhileTravelling(t *testing.T) {
 	}
 }
 
+// meleeStep is defense/raid-bypass with the colonists' weapons read as
+// melee weapons, and the frame's combat rows giving every colonist
+// melee power 5 and every hostile foe (#969).
+func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
+	t.Helper()
+	step, err := snapshot.LoadDefense("testdata/defense/raid-bypass-sappers.json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply := &o.ListPawnsReply{}
+	if err = protojson.Unmarshal(step.CombatPawns, reply); err != nil {
+		t.Fatal(err)
+	}
+	var mirror []*mp.CombatPawn
+	for _, p := range reply.GetObserved().GetPawns() {
+		row := &mp.CombatPawn{Id: proto.String(p.GetPawn().GetId()), Side: mp.CombatSide_COMBAT_SIDE_COLONIST.Enum(), Cell: p.GetPawn().GetPosition(),
+			Downed: proto.Bool(p.GetDowned()), Dead: proto.Bool(p.GetDead()), Health: proto.Float64(1), MeleePower: proto.Float64(5)}
+		if p.GetHostile() {
+			row.Side, row.MeleePower = mp.CombatSide_COMBAT_SIDE_HOSTILE.Enum(), proto.Float64(foe)
+		} else {
+			for _, item := range p.GetEquipment().GetEquipped() {
+				item.Ranged, item.Range = proto.Bool(false), nil
+			}
+		}
+		mirror = append(mirror, row)
+	}
+	if step.CombatPawns, err = protojson.Marshal(reply); err != nil {
+		t.Fatal(err)
+	}
+	return step, mirror
+}
+
+// defense/raid-bypass fought in melee: a pair whose melee power beats the
+// raider's engages it, a pair it outmatches does not and shelters (#969).
+func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
+	t.Parallel()
+	step, mirror := meleeStep(t, 8)
+	results, methods, db := replayDefenseSteps(t, mirror, step)
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
+	if melee, ranged := squadAttacks(t, db, results[0].Plan); len(melee) == 0 || len(ranged) != 0 {
+		t.Fatal("no melee on a raider the pair beats", melee, ranged)
+	}
+	step, mirror = meleeStep(t, 12)
+	results, methods, db = replayDefenseSteps(t, mirror, step)
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticShelter)
+	fight, _, _ := db.LoadCombatFight(context.Background(), results[0].Plan)
+	for _, role := range fight.Memory.Roles {
+		if role.Target != "" {
+			t.Fatal("engaged a raider the pair cannot beat", role)
+		}
+	}
+}
+
 // defense/drop: a centre-drop assault lands beside the colony; the layout
 // is irrelevant and squad defense engages at the threat with no defender
 // routed to a firing cell.
@@ -78,7 +132,7 @@ func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
 	if step.CombatPawns, err = protojson.Marshal(reply); err != nil {
 		t.Fatal(err)
 	}
-	results, methods, db := replayDefenseSteps(t, step)
+	results, methods, db := replayDefenseSteps(t, nil, step)
 	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
 		t.Fatal("squad defense does not engage the mech")
@@ -146,7 +200,9 @@ func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
 // a raider is behind the line the hold is dropped. The recording has one
 // free armed colonist and five unarmed ones against four melee raiders: no
 // armed pair per raider, so no squad forms and nobody brawls with fists
-// (#948). The later steps replay as one fight.
+// (#948). Instead every free colonist is moved away from the raiders
+// (#968; the recording has no roofed room). The later steps replay as one
+// fight.
 func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 	t.Parallel()
 	results, _, db := replayDefense(t,
@@ -157,7 +213,7 @@ func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 	if results[0].Reason != BuildingMethodAdmitted {
 		t.Fatal(results)
 	}
-	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodHoldFallback || results[3].Reason != BuildingMethodExistingWork {
+	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodCombatOrders || results[3].Reason != BuildingMethodExistingWork {
 		t.Fatal(results)
 	}
 	for _, r := range results[1:] {
@@ -165,8 +221,26 @@ func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 			t.Fatal("the fight changed plans", results)
 		}
 	}
-	if melee, ranged := squadAttacks(t, db, results[3].Plan); len(melee)+len(ranged) != 0 {
-		t.Fatal("an unviable squad attacked", melee, ranged)
+	fight, _, err := db.LoadCombatFight(context.Background(), results[3].Plan)
+	if err != nil || fight.Memory.Tactic != policy.TacticShelter || len(fight.Memory.Roles) < 2 {
+		t.Fatalf("fight %+v (%v), want shelter", fight.Memory, err)
+	}
+	for _, role := range fight.Memory.Roles {
+		if role.Target != "" || role.Cell == nil {
+			t.Fatal("a shelter role engages or stays", role)
+		}
+	}
+	moves := 0
+	for _, o := range fight.Memory.Issued {
+		if o.Kind == policy.OrderAttack {
+			t.Fatal("an unviable squad attacked", o)
+		}
+		if o.Kind == policy.OrderMove && o.Reason == policy.ReasonRetreat {
+			moves++
+		}
+	}
+	if moves != len(fight.Memory.Roles) {
+		t.Fatalf("%d retreat moves for %d roles", moves, len(fight.Memory.Roles))
 	}
 }
 

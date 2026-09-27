@@ -270,6 +270,7 @@ namespace HomeBridge.BridgeTools
                 row.BleedRate = Step(pawn.health.hediffSet.BleedRateTotal, 0.05);
                 row.Pain = Step(pawn.health.hediffSet.PainTotal, 0.05);
                 row.MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1);
+                row.MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1);
             }
             catch { }
             var shield = pawn.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null);

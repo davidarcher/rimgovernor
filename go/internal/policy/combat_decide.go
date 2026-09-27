@@ -723,6 +723,9 @@ func formation(view CombatView, geometry GeometryReply, relieved []domain.PawnID
 		assignments, ok = SelectSquadDefense(markSquadMechs(view), view.Defenders)
 	}
 	if !ok {
+		if roles := shelterRoles(view); len(roles) > 0 {
+			return TacticShelter, roles, refusal
+		}
 		return "", nil, refusal
 	}
 	roles := make([]CombatRole, 0, len(assignments))

@@ -22,10 +22,11 @@ type PodArrival struct {
 }
 
 // CombatRoom is one standing room on the map (#897): its floor and the
-// doors in its walls.
+// doors in its walls. Roofed is every floor cell roofed (#968).
 type CombatRoom struct {
 	Interior Rectangle
 	Doors    []domain.Cell `json:",omitempty"`
+	Roofed   bool          `json:",omitempty"`
 }
 
 // contains reports c on the room's floor.

@@ -64,6 +64,8 @@ message CombatPawn {
   // Medicine skill level (absent without skills).
   optional bool shield_belt = 27;
   optional int32 medical_skill = 28;
+  // Melee strength (#969): the MeleeDPS stat, to 0.1.
+  optional double melee_power = 30;
 }
 
 // A damaged player door (BundleSnapshot.combat_doors, #900): hit points
@@ -123,6 +125,7 @@ message CombatRoom {
   rimgovernor.common.v1.Cell max = 3;
   optional uint32 cell_count = 4;
   repeated rimgovernor.common.v1.Cell doors = 5;
+  optional bool roofed = 6; // no open roof cell (#968)
 }
 
 // rimgovernor/combat_geometry (#851): an on-demand read, not mirrored, that

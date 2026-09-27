@@ -30,6 +30,8 @@ type SquadThreatFacts struct {
 	// Mech is a Mech_ pawn kind (#970), marked from the combat view.
 	Mech        bool
 	LinesOfFire map[domain.PawnID]bool
+	// MeleePower is the pawn's MeleeDPS scaled by health (#969).
+	MeleePower domain.Fact[float64]
 }
 
 // SquadDefenderFacts describes one candidate defender. Health/NeedsTend mirror
@@ -56,6 +58,27 @@ type SquadDefenderFacts struct {
 	// Armor is the pawn's worn sharp armor rating; it ranks choke
 	// blockers (#864). Unknown ranks after every known rating.
 	Armor domain.Fact[float64]
+	// MeleePower is the pawn's MeleeDPS scaled by health (#969).
+	MeleePower domain.Fact[float64]
+}
+
+// meleeBeats reports whether defenders can win a melee against t (#969):
+// their summed melee power above t's. A gun among them, a building or
+// any unknown power is not a melee this compares.
+func meleeBeats(t SquadThreatFacts, defenders []SquadDefenderFacts) bool {
+	foe, ok := t.MeleePower.Value()
+	if t.Building || !ok {
+		return true
+	}
+	sum := 0.0
+	for _, d := range defenders {
+		power, pk := d.MeleePower.Value()
+		if !pk || positive(d.RangedEquipped) {
+			return true
+		}
+		sum += power
+	}
+	return sum > foe
 }
 
 type SquadMode uint8
@@ -192,9 +215,11 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 	}
 
 	var defenderPool []SquadDefenderFacts
+	byID := map[domain.PawnID]SquadDefenderFacts{}
 	for _, d := range defenders {
 		if eligibleDefender(d) {
 			defenderPool = append(defenderPool, d)
+			byID[d.ID] = d
 		}
 	}
 	sort.Slice(defenderPool, func(i, j int) bool {
@@ -273,6 +298,13 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 			}
 			chosen = append(chosen, SquadAssignment{Defender: id, Target: t.ID, Mode: mode})
 		}
+		if ok && !ranged {
+			var pair []SquadDefenderFacts
+			for _, a := range chosen {
+				pair = append(pair, byID[a.Defender])
+			}
+			ok = meleeBeats(t, pair)
+		}
 		if !ok {
 			// Release any partial reservation; an unsupported encounter is an
 			// explicit hold, not a partially defended one.
@@ -344,7 +376,7 @@ func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefende
 		}
 		return pool[i].ID < pool[j].ID
 	})
-	if len(pool) < 3 {
+	if len(pool) < 3 || !meleeBeats(threat, pool[:3]) {
 		return nil, false
 	}
 	var assignments []SquadAssignment

@@ -71,7 +71,7 @@ namespace HomeBridge.BridgeTools
                     maxX = System.Math.Max(maxX, c.x); maxZ = System.Math.Max(maxZ, c.z);
                 }
                 var row = new RimGovernor.Protocol.Mirror.CombatRoom { RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    Min = new Common.Cell { X = minX, Z = minZ }, Max = new Common.Cell { X = maxX, Z = maxZ }, CellCount = (uint)room.CellCount };
+                    Min = new Common.Cell { X = minX, Z = minZ }, Max = new Common.Cell { X = maxX, Z = maxZ }, CellCount = (uint)room.CellCount, Roofed = room.OpenRoofCount == 0 };
                 for (int x = minX - 1; x <= maxX + 1; x++)
                     for (int z = minZ - 1; z <= maxZ + 1; z++)
                     {

@@ -341,9 +341,14 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	// The frame's colonist rows carry worn armor (#881), which ranks
 	// blockers and tanks.
 	armor := map[domain.PawnID]float64{}
+	// Melee power (#969) is the MeleeDPS stat scaled by health.
+	melee := map[domain.PawnID]domain.Fact[float64]{}
 	for _, row := range combat.Pawns {
 		if row.Armor != nil {
 			armor[domain.PawnID(row.GetId())] = row.GetArmor()
+		}
+		if row.MeleePower != nil && row.Health != nil {
+			melee[domain.PawnID(row.GetId())] = domain.Known(row.GetMeleePower() * row.GetHealth())
 		}
 	}
 	var defenders []policy.SquadDefenderFacts
@@ -354,6 +359,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 		if a, ok := armor[d.ID]; ok {
 			d.Armor = domain.Known(a)
 		}
+		d.MeleePower = melee[d.ID]
 		if owned[d.ID] {
 			d.DraftOwned = domain.Known(false)
 		}
@@ -377,6 +383,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 		row := in.rows[id]
 		facts := squadThreatFacts(row)
 		facts.Hunting = domain.Known(in.hunting[id])
+		facts.MeleePower = melee[domain.PawnID(id)]
 		threats = append(threats, facts)
 		positional = append(positional, defensiveThreatFacts(row))
 	}
