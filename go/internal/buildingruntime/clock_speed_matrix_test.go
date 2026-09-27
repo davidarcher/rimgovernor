@@ -68,6 +68,10 @@ type speedNative struct {
 	// integrated, so the tick a read observes never exceeds the anchor by
 	// more than the budget plus the throttled ticks of the read gap.
 	regulator speedRegulator
+	// stopLag backdates each stop's StoppedAtUnixMs; speeds is the
+	// requested speed of each window started, beside starts.
+	stopLag time.Duration
+	speeds  []k.Speed
 }
 
 type speedRegulator struct {
@@ -116,14 +120,23 @@ func (n *speedNative) advance() {
 	if tick < n.deadline {
 		return
 	}
+	n.stop(&k.StopEvent{Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), Evidence: &k.StopEvent_Budget{Budget: &k.BudgetReached{StartTick: proto.Int64(n.startTick), TickDeadline: proto.Int64(n.deadline), ActualTick: proto.Int64(tick)}}})
+}
+
+// stop ends the running window at its current tick for the event's reason,
+// journaling the Stopped row and releasing the long poll. The status's
+// StoppedAtUnixMs is backdated by stopLag, a native that reports its stop
+// late, which the scheduler reads as readmit latency (#736). Callers hold mu.
+func (n *speedNative) stop(event *k.StopEvent) {
+	running := n.status.GetRunning()
 	now := time.Now()
+	tick := n.status.Context.GetTick()
 	epoch := running.Epoch
-	n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(now.UnixMilli())}}
+	n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: event.Reason, ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(now.Add(-n.stopLag).UnixMilli())}}
 	n.status.ActualPaused = proto.Bool(true)
 	n.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum()
 	cursor := int64(len(n.events) + 1)
-	n.events = append(n.events, &k.Event{Cursor: proto.Int64(cursor), Owner: proto.Clone(epoch.Owner).(*k.EpochOwner), Context: proto.Clone(n.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(now.UnixMilli()),
-		Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), Evidence: &k.StopEvent_Budget{Budget: &k.BudgetReached{StartTick: proto.Int64(n.startTick), TickDeadline: proto.Int64(n.deadline), ActualTick: proto.Int64(tick)}}}}})
+	n.events = append(n.events, &k.Event{Cursor: proto.Int64(cursor), Owner: proto.Clone(epoch.Owner).(*k.EpochOwner), Context: proto.Clone(n.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(now.UnixMilli()), Event: &k.Event_Stopped{Stopped: event}})
 	n.status.NewestCursor = proto.Int64(cursor)
 	if n.regulator.budget > 0 {
 		n.regulator.unacked = append(n.regulator.unacked, speedRow{cursor, tick})
@@ -132,6 +145,34 @@ func (n *speedNative) advance() {
 	n.stopped(now)
 	close(n.changed)
 	n.changed = make(chan struct{})
+}
+
+// injure stops the running window on a colonist injury, as native's watch
+// does; false when no window runs.
+func (n *speedNative) injure() (time.Time, bool) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.advance()
+	if n.status.GetRunning() == nil {
+		return time.Time{}, false
+	}
+	n.stop(&k.StopEvent{Reason: k.StopReason_STOP_REASON_COLONIST_INJURY.Enum(), Evidence: &k.StopEvent_Injury{Injury: &k.Injury{Pawn: &k.PawnEvent{PawnId: proto.String("Human1"), Name: proto.String("Ann"), Reason: proto.String("bite")}}}})
+	return time.Now(), true
+}
+
+// lagStops backdates every later stop's StoppedAtUnixMs by lag.
+func (n *speedNative) lagStops(lag time.Duration) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.stopLag = lag
+}
+
+// requested returns the speed each window was started at, with its start
+// time, in order.
+func (n *speedNative) requested() ([]k.Speed, []time.Time) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return append([]k.Speed(nil), n.speeds...), append([]time.Time(nil), n.starts...)
 }
 
 // stopped closes the running span at now. Callers hold mu.
@@ -357,6 +398,7 @@ func (n *speedNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlR
 		n.pausedAcc += n.startedAt.Sub(n.stoppedAt)
 	}
 	n.starts = append(n.starts, n.startedAt)
+	n.speeds = append(n.speeds, r.GetSpeed())
 	n.stoppedAt = time.Time{}
 	if budget := int64(r.GetBlindTickBudget()); budget > 0 {
 		epoch.BlindTickBudget = proto.Uint32(r.GetBlindTickBudget())
@@ -552,7 +594,7 @@ type speedSpan struct {
 // speedMatrixFixture is schedulerFixture on a speedNative with the worker
 // loops of NewClockWorker, the step and the poll wrapped so the test sees
 // each step's reason and result and the span of every poll.
-func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.GenerationSnapshot, config ClockWorkerConfig, record func(speedStep), recordPoll func(speedSpan)) (*ClockScheduler, *ClockWorker) {
+func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.GenerationSnapshot, config ClockWorkerConfig, speed *SpeedPolicyConfig, record func(speedStep), recordPoll func(speedSpan)) (*ClockScheduler, *ClockWorker) {
 	t.Helper()
 	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
@@ -586,7 +628,7 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	// A fake armed with a blind-tick budget before the fixture is built
 	// regulates every window the scheduler starts (#583).
 	start := bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: watch, LeaseMS: 30_000, MaxTicks: 100, BlindTickBudget: uint32(native.regulator.budget)}
-	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: sessionConfig.Control.ProfileDirectory, Start: start, MaxAge: time.Second}, wallClock{})
+	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: sessionConfig.Control.ProfileDirectory, Start: start, MaxAge: time.Second, SpeedPolicy: speed}, wallClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -704,7 +746,7 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			var mu sync.Mutex
 			var steps []speedStep
 			var polls []speedSpan
-			scheduler, worker := speedMatrixFixture(t, native, snapshot, config, func(step speedStep) {
+			scheduler, worker := speedMatrixFixture(t, native, snapshot, config, nil, func(step speedStep) {
 				mu.Lock()
 				steps = append(steps, step)
 				mu.Unlock()
@@ -856,7 +898,7 @@ func TestClockSpeedMatrixRegulatorBoundsBlindTicks(t *testing.T) {
 	var mu sync.Mutex
 	var steps []speedStep
 	var polls []speedSpan
-	_, worker := speedMatrixFixture(t, native, snapshot, config, func(step speedStep) {
+	_, worker := speedMatrixFixture(t, native, snapshot, config, nil, func(step speedStep) {
 		mu.Lock()
 		steps = append(steps, step)
 		mu.Unlock()
@@ -913,4 +955,88 @@ func TestClockSpeedMatrixRegulatorBoundsBlindTicks(t *testing.T) {
 		t.Fatal("no poll carried the regulator rows")
 	}
 	t.Logf("regulator: %d throttles, %d SpeedChanged rows, widest blind span %d of budget %d over %d observations, %d steps and %d polls", r.throttles, r.changes, r.maxBlind, budget, r.observations, len(steps), len(polls))
+}
+
+// TestClockSpeedMatrixSpeedPolicy runs the scheduler and worker with the
+// speed policy (#635) on DefaultSpeedPolicy(StepInterval) against
+// speedNative from Normal, and waits until calm windows have raised the
+// requested speed (#736). Then:
+//   - latency over bound: the native reports its next stops past
+//     ReadmitBound (StoppedAtUnixMs backdated), and the next window's
+//     requested speed drops a step below the window before it;
+//   - injury stop in bound: a colonist injury stops a raised window. It is
+//     a hold (clock.EventInterrupts): the poll hands control back, and it
+//     must do so within ReadmitBound of the stop at the raised speed, with
+//     no window started after it.
+func TestClockSpeedMatrixSpeedPolicy(t *testing.T) {
+	t.Parallel()
+	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}
+	policy := DefaultSpeedPolicy(config.StepInterval)
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
+	// raised waits for a window started above Normal and returns how many
+	// windows had started then.
+	raised := func(t *testing.T, native *speedNative) int {
+		t.Helper()
+		for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(2 * time.Millisecond) {
+			if speeds, _ := native.requested(); len(speeds) > 0 && speeds[len(speeds)-1] > k.Speed_SPEED_NORMAL {
+				return len(speeds)
+			}
+		}
+		t.Fatal("calm windows never raised the requested speed above Normal")
+		return 0
+	}
+	t.Run("latency over bound", func(t *testing.T) {
+		t.Parallel()
+		native := newSpeedNative(snapshot, time.Millisecond)
+		speedMatrixFixture(t, native, snapshot, config, &policy, func(speedStep) {}, func(speedSpan) {})
+		n := raised(t, native)
+		native.lagStops(2 * policy.ReadmitBound)
+		// The window running when the lag is armed may have been admitted
+		// from an unlagged stop; the one after it cannot have been.
+		var speeds []k.Speed
+		for deadline := time.Now().Add(30 * time.Second); len(speeds) <= n+1; time.Sleep(2 * time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Fatalf("no window started after window %d", n+1)
+			}
+			speeds, _ = native.requested()
+		}
+		if before, after := speeds[n], speeds[n+1]; after != before-1 && !(before == k.Speed_SPEED_NORMAL && after == before) {
+			t.Fatalf("readmit over %s: window %d requested %s after %s, want one step lower (all %v)", policy.ReadmitBound, n+2, after, before, speeds)
+		}
+	})
+	t.Run("injury stop in bound", func(t *testing.T) {
+		t.Parallel()
+		native := newSpeedNative(snapshot, time.Millisecond)
+		scheduler, _ := speedMatrixFixture(t, native, snapshot, config, &policy, func(speedStep) {}, func(speedSpan) {})
+		var at time.Time
+		var n int
+		for deadline := time.Now().Add(30 * time.Second); at.IsZero(); {
+			if time.Now().After(deadline) {
+				t.Fatal("no raised window to injure")
+			}
+			n = raised(t, native)
+			if speeds, _ := native.requested(); len(speeds) == n {
+				at, _ = native.injure()
+			}
+		}
+		var handled time.Time
+		for deadline := at.Add(5 * policy.ReadmitBound); handled.IsZero() && time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+			if !scheduler.session.State().Enabled {
+				handled = time.Now()
+			}
+		}
+		if handled.IsZero() {
+			t.Fatal("the injury stop never handed control back")
+		}
+		if latency := handled.Sub(at); latency > policy.ReadmitBound {
+			t.Fatalf("injury stop handed control back %s after it landed, over ReadmitBound %s", latency, policy.ReadmitBound)
+		}
+		speeds, _ := native.requested()
+		if speeds[n-1] <= k.Speed_SPEED_NORMAL {
+			t.Fatalf("injured window ran at %s, not a raised speed", speeds[n-1])
+		}
+		if len(speeds) != n {
+			t.Fatalf("%d windows started after the injury stop; it is a hold", len(speeds)-n)
+		}
+	})
 }
