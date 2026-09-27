@@ -36,9 +36,9 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	first := reviewRoutine(t, s, &r)
 	food := progressRecord(t, first.Review, policy.EnsureFoodSupply)
 	// A fresh colony reviews at Foothold, where StageGoalStallScale cuts the
-	// deadline to one in-game hour so a stuck rung rotates quickly, not
+	// deadline to six in-game hours so a stuck rung rotates quickly, not
 	// after a full day.
-	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks/24 || food.Expected == "" {
+	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks/4 || food.Expected == "" {
 		t.Fatalf("food record %+v", food)
 	}
 	expansion := developmentRow(t, first.Review, policy.EnsureExpansion)
@@ -136,17 +136,18 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1})
-	reviewRoutine(t, s, &r)
+	settled := reviewRoutine(t, s, &r)
 	r.Tick += 3000
 	second := reviewRoutine(t, s, &r)
 	wood = progressRecord(t, second.Review, policy.MaintainResource)
-	// Still Foothold: the one-hour deadline applies here too.
-	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != second.Review.Tick || wood.NextReview != second.Review.Tick+policy.DevelopmentStallTicks/24 {
+	// Still Foothold: the six-hour deadline applies here too, so 3000 ticks
+	// later the settlement's progress still stands.
+	if wood.Blocked != policy.BlockedNoWorker || wood.Method != "cut" || wood.LastProgress != settled.Review.Tick || wood.NextReview != settled.Review.Tick+policy.DevelopmentStallTicks/4 {
 		t.Fatalf("issued cut with no plant cutter must be blocked: %+v", wood)
 	}
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})
 	third := reviewRoutine(t, s, &r)
-	if wood = progressRecord(t, third.Review, policy.MaintainResource); wood.Blocked != "" || wood.LastProgress != second.Review.Tick {
+	if wood = progressRecord(t, third.Review, policy.MaintainResource); wood.Blocked != "" || wood.LastProgress != settled.Review.Tick {
 		t.Fatalf("a cutter arrived, the order is not yet progress: %+v", wood)
 	}
 }

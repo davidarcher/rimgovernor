@@ -165,7 +165,7 @@ func TestStageRoutinePolicyBudgets(t *testing.T) {
 		wood    int64
 		stall   int64
 	}{
-		{StageFoothold, 2, 5, 350, base.GoalStallTicks / 24},
+		{StageFoothold, 2, 5, 350, base.GoalStallTicks / 4},
 		{StageReserves, 5, 5, 350, base.GoalStallTicks},
 		{StageStable, 8, 7.5, 525, base.GoalStallTicks},
 		{StageDevelopment, len(DefaultResearchLadder()), 10, 700, base.GoalStallTicks},

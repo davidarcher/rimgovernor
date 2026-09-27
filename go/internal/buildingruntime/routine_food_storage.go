@@ -31,10 +31,10 @@ func NewRoutineFoodStoragePlanner(reviewer *RoutineReviewer, native FieldNative)
 	return &RoutineFoodStoragePlanner{reviewer: reviewer, native: native}, nil
 }
 
-// step furnishes the same starter shell EnsureInitialShelter already built,
-// rather than selecting or building a new room: the player-selected shelter
-// handoff (backlog row 894) is not composed yet, so this slice only closes the
-// narrower starter-room fallback.
+// step zones food storage on any roofed floor (a non-bedroom room first,
+// then the starter shelter, then any roofed cell) and, before any roofed
+// floor exists, on an outdoor block beside the cooking bench. A starter room
+// full of sleeping spots never blocks it.
 func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineFoodStorageResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -95,10 +95,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
-	room, known := starterRoom(claims)
-	if !known {
-		return RoutineFoodStorageResult{Reason: BuildingMethodNoSpace}, nil
-	}
+	room, roomKnown := starterRoom(claims)
 	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
@@ -122,7 +119,39 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	for _, cell := range projection.Cells {
 		siteCells[cell.Cell] = cell
 	}
-	sites := foodStorageSites(room, siteCells, occupied)
+	claimRows, _ := claims.Value()
+	for _, cell := range shellInteriors(nil, claimRows) {
+		// A shell's floor belongs to its own furniture until it is roofed;
+		// the roofed tiers below still reach it through the roof check.
+		if c, ok := siteCells[cell]; ok {
+			if roofed, rk := c.Roofed.Value(); !rk || !roofed {
+				occupied[cell] = true
+			}
+		}
+	}
+	anchor, anchored := foodStorageAnchor(claimRows, room, roomKnown)
+	priority := domain.ImportantPriority
+	sleeping := policy.SleepingRoomCells(projection.Rooms)
+	// Any roofed room that is not a bedroom first, then the starter shelter
+	// (its canonical back-of-room block), then any other roofed floor.
+	sites := foodStorageBlocks(siteCells, occupied, anchor, func(c policy.SiteCell) bool {
+		return roofedIndoors(c) && !sleeping[c.Cell]
+	})
+	if roomKnown {
+		sites = append(sites, foodStorageSites(room, siteCells, occupied)...)
+	}
+	sites = append(sites, foodStorageBlocks(siteCells, occupied, anchor, roofedIndoors)...)
+	if len(sites) == 0 && anchored && len(goal.Methods) == 0 {
+		// No roofed floor yet: an outdoor zone beside the cooking spot
+		// consolidates food early. It stays below the indoor zone's
+		// priority, so haulers carry the food indoors once one exists; the
+		// goal (nine roofed cells) stays open until then.
+		priority = domain.PreferredPriority
+		sites = foodStorageBlocks(siteCells, occupied, anchor, func(policy.SiteCell) bool { return true })
+	}
+	if len(sites) > maxFoodStorageSites {
+		sites = sites[:maxFoodStorageSites]
+	}
 	if len(sites) == 0 {
 		return RoutineFoodStorageResult{Reason: BuildingMethodNoSpace}, nil
 	}
@@ -137,7 +166,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	var preview policy.Preview
 	accepted := false
 	for _, candidate := range sites {
-		value, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, candidate)
+		value, err := domain.NewFilteredStockpileZone(domain.FoodFilter(), priority, candidate)
 		if err != nil {
 			return RoutineFoodStorageResult{}, err
 		}
@@ -306,6 +335,91 @@ func rectangleRing(cells map[domain.Cell]bool, door bool) (policy.Rectangle, boo
 }
 
 const maxFoodStorageSites = 8
+
+func roofedIndoors(c policy.SiteCell) bool {
+	indoors, ik := c.Indoors.Value()
+	roofed, rk := c.Roofed.Value()
+	return ik && indoors && rk && roofed
+}
+
+// foodStorageCookingDefinitions are the cooking benches an outdoor food
+// zone sits beside.
+var foodStorageCookingDefinitions = map[string]bool{"Campfire": true, "FueledStove": true, "ElectricStove": true}
+
+// foodStorageAnchor is the cell food storage clusters around: the colony's
+// cooking bench when one is claimed, else the starter shelter's middle.
+func foodStorageAnchor(claims []policy.ConstructionClaim, room policy.Rectangle, roomKnown bool) (domain.Cell, bool) {
+	for _, claim := range claims {
+		if foodStorageCookingDefinitions[claim.Building.Definition()] {
+			return claim.Building.Cell(), true
+		}
+	}
+	if roomKnown {
+		return domain.Cell{X: room.X + room.Width/2, Z: room.Z + room.Height/2}, true
+	}
+	return domain.Cell{}, false
+}
+
+// foodStorageBlocks lists up to maxFoodStorageSites free 3x3 blocks whose
+// every cell passes allow, nearest anchor first. Free is the starter-room
+// search's ground test without its roof requirement.
+func foodStorageBlocks(cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool, anchor domain.Cell, allow func(policy.SiteCell) bool) [][]domain.Cell {
+	free := func(cell domain.Cell) bool {
+		if occupied[cell] {
+			return false
+		}
+		c, known := cells[cell]
+		if !known || !allow(c) {
+			return false
+		}
+		walkable, wk := c.Walkable.Value()
+		taken, ok := c.Occupied.Value()
+		zoned, zk := c.Zone.Value()
+		empty, ek := c.StorageEmpty.Value()
+		return wk && walkable && ok && !taken && zk && !zoned && ek && empty
+	}
+	type candidate struct {
+		dist  int64
+		block []domain.Cell
+	}
+	var candidates []candidate
+	for origin := range cells {
+		block := make([]domain.Cell, 0, 9)
+	scan:
+		for dx := int32(0); dx < 3; dx++ {
+			for dz := int32(0); dz < 3; dz++ {
+				cell := domain.Cell{X: origin.X + dx, Z: origin.Z + dz}
+				if !free(cell) {
+					break scan
+				}
+				block = append(block, cell)
+			}
+		}
+		if len(block) != 9 {
+			continue
+		}
+		dx, dz := int64(origin.X+1-anchor.X), int64(origin.Z+1-anchor.Z)
+		candidates = append(candidates, candidate{dx*dx + dz*dz, block})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		a, b := candidates[i], candidates[j]
+		if a.dist != b.dist {
+			return a.dist < b.dist
+		}
+		if a.block[0].X != b.block[0].X {
+			return a.block[0].X < b.block[0].X
+		}
+		return a.block[0].Z < b.block[0].Z
+	})
+	var sites [][]domain.Cell
+	for _, c := range candidates {
+		if len(sites) == maxFoodStorageSites {
+			break
+		}
+		sites = append(sites, c.block)
+	}
+	return sites
+}
 
 // shellInteriors lists every cell inside the bounds of each wall ring a
 // plan raises, built or not: the floor a shell encloses (or will enclose

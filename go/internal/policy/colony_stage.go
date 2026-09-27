@@ -364,14 +364,14 @@ func StageReserveScale(stage ColonyStage) float64 {
 }
 
 // StageGoalStallScale is the factor GoalStallTicks shrinks by at a stage:
-// one in-game hour (1/24 of the configured deadline, which defaults to one
-// day) at Foothold, so a stuck method rotates within the hour rather than
-// waiting out a full day while the colony has no shelter or starvation
-// runway yet; unchanged from Reserves on, once the food ladder and the rest
-// of production have room to wait out a slower method.
+// six in-game hours (1/4 of the configured deadline, which defaults to one
+// day) at Foothold, so a stuck method rotates within the day while the
+// colony has no shelter or starvation runway yet, without churning methods
+// that are merely slow (one hour cooled them before a hauler arrived);
+// unchanged from Reserves on.
 func StageGoalStallScale(stage ColonyStage) float64 {
 	if stage == StageFoothold {
-		return 1.0 / 24
+		return 1.0 / 4
 	}
 	return 1
 }

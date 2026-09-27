@@ -321,12 +321,37 @@ func KitchenSeparation(rooms domain.Fact[RoomObservation]) domain.Fact[[]Separat
 	return domain.Known(result)
 }
 
+var sleepingDefinitions = map[Resource]bool{"SleepingSpot": true, "DoubleSleepingSpot": true, "Bed": true, "DoubleBed": true, "RoyalBed": true}
+
+// SleepingRoomCells is every cell of every sleeping room (the Bedroom role,
+// or any room holding a bed or sleeping spot). Unknown room facts mark
+// nothing.
+func SleepingRoomCells(rooms domain.Fact[RoomObservation]) map[domain.Cell]bool {
+	census, known := rooms.Value()
+	if !known {
+		return nil
+	}
+	cells := map[domain.Cell]bool{}
+	for _, room := range census.Rooms {
+		role, _ := room.Role.Value()
+		if role == RoomRoleBedroom || roomHolds(room, sleepingDefinitions) {
+			for _, c := range room.Cells {
+				cells[c] = true
+			}
+		}
+	}
+	return cells
+}
+
 // SeparationProtectedCells returns every cell of every room holding the
 // benches in set (cooking rooms for a butcher placement, butcher rooms for
 // a cooking placement; a butcher also avoids any room the game already
 // scores a Kitchen, #805), so a placement search never proposes a site that
 // would co-locate the two. Unknown room facts protect nothing: the
-// placement's own native preview still owns legality.
+// placement's own native preview still owns legality. Sleeping rooms (the
+// Bedroom role, or any room holding a bed or sleeping spot, so the starter
+// bedroom counts before native scores it) are protected for both
+// placements: blood filth and a campfire's smoke stay out of bedrooms.
 func SeparationProtectedCells(rooms domain.Fact[RoomObservation], butcherPlacement bool) []domain.Cell {
 	census, known := rooms.Value()
 	if !known {
@@ -339,7 +364,7 @@ func SeparationProtectedCells(rooms domain.Fact[RoomObservation], butcherPlaceme
 	var cells []domain.Cell
 	for _, room := range census.Rooms {
 		role, _ := room.Role.Value()
-		if roomHolds(room, set) || butcherPlacement && role == RoomRoleKitchen {
+		if role == RoomRoleBedroom || roomHolds(room, sleepingDefinitions) || roomHolds(room, set) || butcherPlacement && role == RoomRoleKitchen {
 			cells = append(cells, room.Cells...)
 		}
 	}
