@@ -1,6 +1,6 @@
 // The research/ladder case proves the default research roadmap (#230) and
 // the bench it stands on (#254): on the Core tribal baseline, with no
-// --routine-research-target, no workshop need and no research bench, the
+// workshop need and no research bench, the
 // service stages a simple research bench in the fixture's starter hut,
 // selects the ladder's first unfinished rung once the bench stands, lends
 // the clock ticks until the game finishes it, and then selects the next.

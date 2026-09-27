@@ -2,7 +2,7 @@
 // the bounded, structured evidence that tells planner starvation apart
 // from a missing material, a missing worker, an admitted-but-unworked
 // action and ordinary non-work activity, plus the idle-pawn tick
-// accounting and the project-limit comparison the campaign child reuses.
+// accounting.
 //
 // It is diagnosis only. Nothing here ranks, plans, dispatches or changes
 // game speed or authority; every field is read from evidence the run

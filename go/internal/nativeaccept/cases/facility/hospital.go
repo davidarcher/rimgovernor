@@ -154,7 +154,7 @@ func bedConverted(sample map[string]any) bool {
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
 		kinds, _ := plan["kinds"].(map[string]int)
-		if strings.HasPrefix(id, "routine-hospital-") && actions > 0 && stages["completed"] == actions && kinds[string(domain.BedUseAction)] == actions {
+		if strings.HasPrefix(id, "routine-hospital-") && actions > 0 && stages["completed"] == actions && kinds[string(domain.BedMedicalAction)] == actions {
 			return true
 		}
 	}

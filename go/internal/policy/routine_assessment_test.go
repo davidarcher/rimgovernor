@@ -23,7 +23,7 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	}
 	for _, n := range r.Assessments {
 		// EnsureResearch, MaintainResource and ProductionPolicy are gated on
-		// operator config (RoutinePolicy.ResearchTarget/ResourceTargets/
+		// operator config (RoutinePolicy.ResourceTargets/
 		// ResourceReserves/StoppedResources): DefaultRoutinePolicy's empty
 		// target/map is itself known evidence ("no target configured" is
 		// certain, not unobserved) even though every other assessment here

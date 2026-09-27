@@ -35,22 +35,16 @@ func TestBlockedTicksIgnoresRewindsAndBoundsGaps(t *testing.T) {
 	}
 }
 
-func TestCompareLimitsLabelsObservations(t *testing.T) {
-	out := CompareLimits([]LimitObservation{
-		{Limit: 8, Variant: "wood_sufficient", Seed: "s", Revision: "abc", ShelterRecovery: domain.Known[domain.Tick](900)},
-		{Limit: 2, Variant: "wood_sufficient", Seed: "s", Revision: "abc"},
-	})
-	runs, _ := out["runs"].([]map[string]any)
-	if len(runs) != 2 || runs[0]["limit"] != 2 || runs[1]["limit"] != 8 {
-		t.Fatalf("runs = %v", runs)
+func TestObservationRowLabelsObservations(t *testing.T) {
+	unknown := Observation{Variant: "wood_sufficient", Seed: "s", Revision: "abc"}.Row()
+	if unknown["shelter_recovery_tick"] != nil {
+		t.Fatalf("an unobserved recovery must stay unknown: %v", unknown)
 	}
-	if runs[0]["shelter_recovery_tick"] != nil {
-		t.Fatalf("an unobserved recovery must stay unknown: %v", runs[0])
+	known := Observation{ShelterRecovery: domain.Known[domain.Tick](900)}.Row()
+	if known["shelter_recovery_tick"] != domain.Tick(900) {
+		t.Fatalf("row = %v", known)
 	}
-	if runs[1]["shelter_recovery_tick"] != domain.Tick(900) {
-		t.Fatalf("runs = %v", runs)
-	}
-	if label, _ := out["label"].(string); label == "" {
-		t.Fatal("comparison is unlabelled; it must not read as proof")
+	if label, _ := known["label"].(string); label == "" {
+		t.Fatal("observation is unlabelled; it must not read as proof")
 	}
 }

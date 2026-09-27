@@ -35,14 +35,9 @@ const (
 	VariantEnv = "RIMGOVERNOR_ACCEPT_STARTUP_LABOR_VARIANT"
 	// TicksEnv overrides the observation window in game ticks.
 	TicksEnv = "RIMGOVERNOR_ACCEPT_STARTUP_LABOR_TICKS"
-	// LimitsEnv turns on comparison mode: a comma-separated list of
-	// --routine-project-limit values (for example "2,4,8,auto"), each
-	// replayed over the same fixture and seed. Unset runs one window at
-	// the service default, auto (#655).
-	LimitsEnv = "RIMGOVERNOR_ACCEPT_STARTUP_LABOR_LIMITS"
 )
 
-// windowTicks is the observed stretch per limit: a third of a game day,
+// windowTicks is the observed stretch: a third of a game day,
 // long enough for several reviews and the first construction rung.
 const windowTicks domain.Tick = 20000
 
@@ -62,8 +57,8 @@ func laborCase() cases.Case {
 		RequiredOps: []string{"test/startup_labor_setup", "test/startup_labor_read"},
 		Keep:        []string{string(na.LiveNeeds)},
 		Serve:       &cases.ServeSpec{NativeTimeout: 30 * time.Second, Prefix: "startuplabor"},
-		Budget:      30 * time.Minute,
-		Reason:      "comparison mode replays the same window under each declared project limit, so the budget covers three windows plus their reloads",
+		Budget:      15 * time.Minute,
+		Reason:      "one window of a third of a game day over an eight-colonist fixture",
 		Run:         run,
 	}
 }
@@ -86,28 +81,6 @@ func window() domain.Tick {
 	return windowTicks
 }
 
-// limits are the project limits comparison mode replays, or a single
-// unset limit (the service default, auto) in the ordinary run; 0 is auto.
-func limits() ([]int, error) {
-	raw := strings.TrimSpace(os.Getenv(LimitsEnv))
-	if raw == "" {
-		return []int{0}, nil
-	}
-	var out []int
-	for _, field := range strings.Split(raw, ",") {
-		if strings.TrimSpace(field) == "auto" {
-			out = append(out, 0)
-			continue
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(field))
-		if err != nil || n < 1 || n > 8 {
-			return nil, fmt.Errorf("%s=%q: each limit is 1..8 or auto", LimitsEnv, raw)
-		}
-		out = append(out, n)
-	}
-	return out, nil
-}
-
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	v := variant()
@@ -117,29 +90,11 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["fixture"] = prepared
-	caps, err := limits()
+	obs, err := observe(ctx, s, v)
 	if err != nil {
 		return err
 	}
-	var observations []startuplabor.LimitObservation
-	for i, limit := range caps {
-		if i > 0 {
-			// Comparison mode replays the same precondition: the Start
-			// fixture runs again over the running game.
-			if _, err := s.Reload(ctx); err != nil {
-				return fmt.Errorf("reload for limit %d: %w", limit, err)
-			}
-			if _, err := validateFixture(s.Prepared()); err != nil {
-				return fmt.Errorf("reload for limit %d: %w", limit, err)
-			}
-		}
-		obs, err := observe(ctx, s, v, limit)
-		if err != nil {
-			return err
-		}
-		observations = append(observations, obs)
-	}
-	report["limit_comparison"] = startuplabor.CompareLimits(observations)
+	report["observation"] = obs.Row()
 	return nil
 }
 
@@ -195,26 +150,22 @@ func validateFixture(prepared map[string]any) (map[string]any, error) {
 	return row, nil
 }
 
-// observe plays one window under one project limit and derives the
+// observe plays one window and derives the
 // window's diagnosis: the per-review classification, the idle accounting
 // off the reviews' own pawn census, and the two shelter milestones.
-func observe(ctx context.Context, s cases.Session, variant string, limit int) (startuplabor.LimitObservation, error) {
-	spec := s.Spec()
-	if limit > 0 {
-		spec.Extra = append(append([]string(nil), spec.Extra...), "--routine-project-limit", strconv.Itoa(limit))
-	}
-	service, err := s.Serve(ctx, spec)
+func observe(ctx context.Context, s cases.Session, variant string) (startuplabor.Observation, error) {
+	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
-		return startuplabor.LimitObservation{}, err
+		return startuplabor.Observation{}, err
 	}
 	st, err := na.OpenStoreWithRetry(ctx, service.StatePath)
 	if err != nil {
 		service.Stop()
-		return startuplabor.LimitObservation{}, err
+		return startuplabor.Observation{}, err
 	}
 	defer st.Close()
-	obs := startuplabor.LimitObservation{
-		Limit: limit, Variant: variant, WindowTicks: window(),
+	obs := startuplabor.Observation{
+		Variant: variant, WindowTicks: window(),
 		FirstEnclosure: domain.Unknown[domain.Tick](), ShelterRecovery: domain.Unknown[domain.Tick](),
 	}
 	w := na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited}
@@ -260,7 +211,7 @@ func observe(ctx context.Context, s cases.Session, variant string, limit int) (s
 		// case exists to record, not a harness failure to hide: the
 		// error carries the reviews seen so far.
 		service.Stop()
-		return obs, fmt.Errorf("limit %d: observed %d diagnoses before the window closed: %w", limit, len(diagnoses), err)
+		return obs, fmt.Errorf("observed %d diagnoses before the window closed: %w", len(diagnoses), err)
 	}
 	service.Stop()
 	obs.Blocked = startuplabor.BlockedTicks(diagnoses, window(), 0)
@@ -270,7 +221,7 @@ func observe(ctx context.Context, s cases.Session, variant string, limit int) (s
 	for _, d := range diagnoses {
 		rows = append(rows, d.Row())
 	}
-	s.Report()[fmt.Sprintf("diagnoses_limit_%d", limit)] = rows
+	s.Report()["diagnoses"] = rows
 	return obs, nil
 }
 

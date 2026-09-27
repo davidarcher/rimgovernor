@@ -23,7 +23,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	s := open(t, path)
 	r := routineRequest()
 	r.Policy.MaxDevelopmentProjects, r.Policy.AutoDevelopment = policy.MaxAutoDevelopmentProjects, true
-	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkResearch: 1, policy.WorkPlantCutting: 1})

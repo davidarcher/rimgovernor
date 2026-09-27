@@ -21,11 +21,8 @@ labor contention and observed outdoor risk. Each goal declares the native work t
 that can serve it; admission is bounded by both the project limit and free pawns of
 those types. Accepted work keeps its identity as capacity changes; unavailable methods
 yield to other candidates.
-`--routine-project-limit` defaults to `auto` (#655). An explicit `N` (1..8) is the
-count of concurrent optional projects (routine development goals and player projects)
-holding a slot, and the stage adds one at Development; it is the rollback to fixed
-slots and a safety ceiling an operator can set, not a substitute for worker
-accounting. `auto` bounds slots only at eight
+Optional-project admission is automatic (#655; the fixed-count
+`--routine-project-limit` was removed in #875): it bounds slots only at eight
 (planner cost) and admits every project a distinct observed worker can take
 (`policy.DevelopmentCensus` matched by the worker allocator): a pawn enabled for
 three work types is one worker, open startup and survival work holds its worker
@@ -146,9 +143,7 @@ facts are bound to the tick they observed, so admission holds with
 planning tolerance (`bridge.PlanningTickTolerance`, the tightest fact
 family's: 250 ticks) or a window has since outrun them; the scheduler's
 `MaxAge` bounds only the admission reads. A routine window runs
-`--clock-window-ticks` (default one game day, 60000 ticks, the review
-guarantee of #126; up to the wire bound of 1800000, where the budget is a
-safety net rather than a review guarantee, #584) unless danger or player
+one game day (60000 ticks, the review guarantee of #126; fixed since #875) unless danger or player
 input stops it earlier: there is no wall-time budget and no `--clock-window-seconds` any
 more (#244), since reviews and routine orders happen under the running
 window. Each step's flight-recorder `clock_step` row carries the window it

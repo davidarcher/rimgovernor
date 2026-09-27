@@ -2,7 +2,7 @@ package domain
 
 import "testing"
 
-func TestBedUseIdentity(t *testing.T) {
+func TestBedMedicalIdentity(t *testing.T) {
 	if _, err := NewBedMedical("", true, "token"); err == nil {
 		t.Fatal("expected empty thing to be rejected")
 	}
@@ -18,25 +18,25 @@ func TestBedUseIdentity(t *testing.T) {
 	}
 }
 
-func TestBedUseAction(t *testing.T) {
+func TestBedMedicalAction(t *testing.T) {
 	b, err := NewBedMedical("bed", true, "token")
 	if err != nil {
 		t.Fatal(err)
 	}
-	action, err := NewBedUseAction("a", b)
+	action, err := NewBedMedicalAction("a", b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action.Kind() != BedUseAction {
+	if action.Kind() != BedMedicalAction {
 		t.Fatal("unexpected kind")
 	}
-	if got, ok := action.BedUse(); !ok || got != b {
+	if got, ok := action.BedMedical(); !ok || got != b {
 		t.Fatal("bed medical accessor mismatch")
 	}
 	if _, ok := action.BuildingTemperature(); ok {
 		t.Fatal("bed medical action must not read as temperature")
 	}
-	if _, err := NewBedUseAction("a", BedUse{}); err == nil {
+	if _, err := NewBedMedicalAction("a", BedMedical{}); err == nil {
 		t.Fatal("zero bed medical accepted")
 	}
 	if _, err := NewPlan("plan", 1, []Action{action}); err != nil {

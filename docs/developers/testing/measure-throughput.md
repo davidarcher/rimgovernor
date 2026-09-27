@@ -14,7 +14,7 @@ internal sample to a flight recorder: `<profile>/flight/flight.jsonl` by
 default (#299; the ring outlives each launch, the sequence continues
 across launches and each row's `run` names the launch that wrote it),
 `--flight-recorder <absolute path>` to record elsewhere (the acceptance
-runner's per-case path), `--no-flight-recorder` to run without one.
+runner's per-case path).
 Segments rotate beside the path (8 x 8 MiB); the reader picks them all
 up. A running service also serves the ring over `GET
 /api/telemetry/events` and `GET /api/telemetry/metrics` (see [the

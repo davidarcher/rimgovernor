@@ -29,7 +29,7 @@ import (
 // than per harness: the clock speed comes from ClockSpeedArgs
 // (RIMGOVERNOR_ACCEPT_CLOCK_SPEED, #128), the flight recorder and
 // --listen 127.0.0.1:0 are always on, --pprof is on unless
-// RIMGOVERNOR_ACCEPT_PPROF opts out (see pprof.go), --refresh is 1s, and
+// RIMGOVERNOR_ACCEPT_PPROF opts out (see pprof.go), and
 // the service's profile, state, logs and profiles live under the run's
 // output directory.
 type ServeSpec struct {
@@ -231,7 +231,6 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 		"--game", cfg.GameID,
 		"--state", statePath,
 		"--listen", "127.0.0.1:0",
-		"--refresh", "1s",
 		"--timeout", timeout.String(),
 		"--flight-recorder", flightPath,
 		// The clock trace lands in service/stderr.log: a hold is attributed

@@ -18,8 +18,7 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
    next routine review reads that record as the derived `EnsureResearch`
-   target (`policy.ResearchGoal`: an operator `--routine-research-target`
-   still wins, and the default research ladder follows when no need is
+   target (`policy.ResearchGoal`: the default research ladder follows when no need is
    recorded, see [research](../contracts/research.md)), raises the goal, and
    adds Research to the work requirements so a researcher is assigned;
    `RoutineResearchPlanner` selects the prerequisite chain natively.

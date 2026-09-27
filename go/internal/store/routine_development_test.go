@@ -138,7 +138,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Policy.SetProjectLimit(1)
-	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
 	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
@@ -202,7 +202,8 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	if developmentExemptMethod(dialogPlan) {
 		t.Fatal("ordinary dialog gained the population exemption")
 	}
-	// Recovered facts retire the goals; missing facts leave them unknown.
+	// Recovered facts retire the goals; missing facts leave the resource
+	// unknown (the research ladder is only walked under a known census).
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Current: "Stonecutting", Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 120}})
 	out = reviewRoutine(t, s, &r)
@@ -211,7 +212,7 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	}
 	r.Facts.Research, r.Facts.Resources = domain.Unknown[policy.ResearchFacts](), domain.Unknown[[]policy.Amount]()
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.EnsureResearch).Goal.Need != domain.NeedUnknown || routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedUnknown {
+	if routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedUnknown {
 		t.Fatal(out.Goals)
 	}
 }
@@ -226,7 +227,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	s := open(t, path)
 	r := routineRequest()
 	r.Policy.SetProjectLimit(4)
-	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResearchLadder = []string{"Stonecutting"}
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Workers = domain.Known(4)
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkResearch: 1, policy.WorkPlantCutting: 1})

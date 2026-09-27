@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -142,10 +141,7 @@ func parseClockSpeed(speed string) k.Speed {
 // day, the review guarantee of #126) unless danger or player input stops it
 // earlier (#244, #584): the planners review and the Worker dispatches under
 // the running window, so the stop between windows is the exception, not the
-// review cadence. --clock-window-ticks narrows the budget for a run that
-// wants more frequent stops, and raises it up to the wire bound
-// (maxClockWindowTicks, 30 game days) for one that wants the budget as a
-// pure safety net.
+// review cadence. (The --clock-window-ticks override was removed in #875.)
 //
 // The default stays at a day. The review inputs that once reached the
 // controller only through a review now have journal rows: the native
@@ -161,9 +157,7 @@ func parseClockSpeed(speed string) k.Speed {
 // while a quiet siege does not stop more often than the planners take.
 const (
 	defaultClockWindowTicks = 60000
-	// The bridge's own bound on StartRequest.max_ticks (bridge.ClockStart).
-	maxClockWindowTicks = 1800000
-	combatBackstopTicks = 300
+	combatBackstopTicks     = 300
 	// maxClockBlindTicks is the wire bound on StartRequest.blind_tick_budget.
 	maxClockBlindTicks = 1800000
 )
@@ -259,7 +253,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	flooring := sc.routineFlooringPlans
 	routes := sc.routineRoutesPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
-	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.resourceTargetsConfigured()
+	caravanJourneyTracking, resourceTargets := sc.caravanJourneyTracking, sc.resourceTargetsConfigured()
 	animalFeedPlans, productionPolicyPlans := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
@@ -268,10 +262,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
-	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), uint32(sc.clockBlindTicks))
-	// Ultrafast without the dev tick boost always runs player pacing (#627, #875).
-	config.Start.PlayerAccelerated = config.Start.Speed == k.Speed_SPEED_ULTRAFAST && !config.Start.TestAcceleration
-	config.Start.FrameBudgetMS = uint32(sc.clockFrameBudgetMS)
+	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
+	config.Start.PlayerAccelerated = sc.clockPacing == "player"
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
 		// The native digest appends a colony row when a stock crosses one
@@ -306,7 +298,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || defensiveLayout || naming || dialog || trade || researchTarget != "" || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || tidy || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -665,7 +657,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return nil, errors.New("dialog plans require typed colony observations")
 			}
-			config.Dialog, err = buildingruntime.NewRoutineDialogPlanner(reviewer, dialogNative, policy.DialogAnswerPolicy{Prefer: splitDialogPrefer(sc.routineDialogPrefer)})
+			config.Dialog, err = buildingruntime.NewRoutineDialogPlanner(reviewer, dialogNative, policy.DialogAnswerPolicy{Prefer: policy.DefaultDialogAnswerPrefer})
 			if err != nil {
 				return nil, err
 			}
@@ -861,8 +853,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.RoutineCapabilities) {
 	thresholds := policy.DefaultRoutinePolicy()
 	thresholds.FoodReserveDays = sc.routineFoodReserveDays
-	thresholds.MaxDevelopmentProjects = sc.routineProjectLimit
-	thresholds.AutoDevelopment = sc.routineProjectAuto
 	capabilities := buildingruntime.RoutineCapabilities{LayoutOverlay: sc.layoutOverlay}
 	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
@@ -970,8 +960,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	thresholds.ResearchLadder = nil
 	if sc.researchPlans() {
-		thresholds.ResearchTarget = sc.routineResearchTarget
-		thresholds.ResearchLadder = sc.researchLadder()
+		thresholds.ResearchLadder = policy.DefaultResearchLadder()
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
 	}
 	if sc.resourceTargetsConfigured() {
@@ -1009,16 +998,4 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.ProductionPolicy)
 	}
 	return thresholds, capabilities
-}
-
-// splitDialogPrefer parses --routine-dialog-prefer: comma-separated label
-// patterns, blanks dropped, order kept.
-func splitDialogPrefer(raw string) []string {
-	var out []string
-	for _, pattern := range strings.Split(raw, ",") {
-		if pattern = strings.TrimSpace(pattern); pattern != "" {
-			out = append(out, pattern)
-		}
-	}
-	return out
 }

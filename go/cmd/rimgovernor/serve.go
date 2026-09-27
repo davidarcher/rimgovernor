@@ -31,7 +31,6 @@ func (wallClock) Now() time.Time { return time.Now() }
 type serveConfig struct {
 	bridge                          bridge.ProcessConfig
 	flightRecorder                  string
-	noFlightRecorder                bool
 	state, listen, assets           string
 	profile                         string
 	playerControl                   bool
@@ -99,9 +98,6 @@ type serveConfig struct {
 	routineSilverReserve            int64
 	routineComponentTarget          int64
 	routineItemWealthShare          float64
-	routineDialogPrefer             string
-	routineResearchTarget           string
-	routineResearchLadder           string
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
 	routineStoneBlockTarget         int64
@@ -111,26 +107,28 @@ type serveConfig struct {
 	routineResourceReserves         resourceReserveFlags
 	routineStoppedResources         stoppedResourceFlags
 	routineMethods                  bool
-	routineProjectLimit             int
-	routineProjectAuto              bool
 	caravanJourneyTracking          bool
 	worldEvaluation                 bool
-	worldEvaluationFoodMarginDays   float64
 	refresh                         time.Duration
 	clockSpeed                      string
 	clockTestAcceleration           bool
-	clockWindowTicks                uint
 	clockBlindTicks                 uint
-	clockFrameBudgetMS              uint
+	clockPacing                     string
 	chat                            bool
 	resume                          bool
 	pprof                           bool
 	debug                           bool
 	chatModel                       string
 	chatBaseURL                     string
-	chatContextTokens               int
-	chatMaxOutputTokens             int
 }
+
+// Fixed serve settings that were flags until #875.
+const (
+	serveRefresh                  = 3 * time.Second // observation refresh interval (tests shorten serveConfig.refresh)
+	worldEvaluationFoodMarginDays = 0.5             // caravan food days beyond the home route
+	chatContextTokens             = 8192            // approximate model context window
+	chatMaxOutputTokens           = 1024            // output tokens per chat completion
+)
 
 // routineFamiliesEnv names the environment variable that narrows the routine
 // planner families an autonomous serve composes, for targeted/debug runs. It
@@ -153,25 +151,18 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.state, "state", "", "absolute fresh Go SQLite database path")
 	flags.StringVar(&c.assets, "assets", "", "absolute built dashboard directory (optional)")
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
-	flags.DurationVar(&c.refresh, "refresh", 3*time.Second, "observation refresh interval")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
-	flags.UintVar(&c.clockFrameBudgetMS, "clock-frame-budget-ms", 0, fmt.Sprintf("when the window runs Ultrafast without --clock-test-acceleration (player pacing, #627): wall milliseconds per frame the tick loop may take, the rest kept for input, rendering and control dispatch (%d..%d; 0 is native's default 30)", bridge.MinClockFrameBudgetMS, bridge.MaxClockFrameBudgetMS))
+	c.refresh = serveRefresh
+	flags.StringVar(&c.clockPacing, "clock-pacing", "fixed", "how an Ultrafast window paces its ticks: fixed (the speed's own rate) or player (issue #627: native raises ticks per frame toward the boosted rate while the frame's tick work stays inside native's frame budget, and the controller lowers the rate before its critical evidence goes stale); player needs --clock-speed Ultrafast and no --clock-test-acceleration")
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
-	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised routine window may run before it pauses (1..%d, default one game day); reviews and routine orders happen under the running window, and danger or player input still stops it earlier; above a day the budget is a safety net rather than a review guarantee; combat windows stay at %d", maxClockWindowTicks, combatBackstopTicks))
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
-	flags.BoolVar(&c.noFlightRecorder, "no-flight-recorder", false, "run without a flight recorder; /api/telemetry answers 404")
-	c.routineProjectLimit, c.routineProjectAuto = policy.MaxAutoDevelopmentProjects, true
-	flags.Var(projectLimitFlag{&c.routineProjectLimit, &c.routineProjectAuto}, "routine-project-limit", "auto (the default) admits every optional project a distinct observed worker can take, at most 8; an explicit 1..8 is a fixed count of concurrent optional projects (development goals and player projects holding a slot), also bounded by observed workers, and is the rollback to the pre-auto behaviour")
-	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
 	flags.Int64Var(&c.routineSilverReserve, "routine-silver-reserve", 0, "silver TradeWithCaravan never spends below when buying from a caravan")
 	flags.Int64Var(&c.routineComponentTarget, "routine-component-target", 0, "ComponentIndustrial stock TradeWithCaravan buys toward and, with the resource family, MaintainResource mines toward; 0 tracks no component target")
 	flags.Float64Var(&c.routineItemWealthShare, "routine-item-wealth-share", 0, "share (0..1) of colony wealth held as items past which TradeWithCaravan sells raw-material hoards (steel, plasteel, gold, uranium, jade) down to their economic floors; 0 disables")
-	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
-	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward; any use replaces the default floors (policy.DefaultResourceTargets)")
 	flags.Float64Var(&c.routineFoodReserveDays, "routine-food-reserve-days", policy.DefaultFoodReserveDays, "days of forbidden durable food kept outside ordinary runway; 0 disables reserve management")
 	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", policy.DefaultStoneBlockTarget, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
@@ -185,12 +176,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
 	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
 	flags.Float64Var(&c.routinePrisonerReleaseAfterDays, "routine-prisoner-release-after-days", 0, "days in custody after which MaintainPopulation proposes releasing a prisoner whose recruit resistance is unbroken (or who was never recruitable) while the colony food runway is below its routine target; 0 (the default) never releases")
-	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
 	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
 	flags.StringVar(&c.chatBaseURL, "chat-base-url", "http://127.0.0.1:1234/v1", "local OpenAI-compatible base URL (e.g. LM Studio) chat sends completions to")
-	flags.IntVar(&c.chatContextTokens, "chat-context-tokens", 8192, "approximate model context window chat budgets prompts against (4096..16777216)")
-	flags.IntVar(&c.chatMaxOutputTokens, "chat-max-output-tokens", 1024, "maximum output tokens chat requests per completion")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
@@ -200,7 +188,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-frame-budget-ms", "clock-window-ticks", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-research-ladder", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-pacing", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "chat-model", "chat-base-url", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -219,26 +207,23 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 			return c, errors.New("serve requires an absolute --profile (or --observe)")
 		}
 	}
-	if !c.routineProjectAuto && (c.routineProjectLimit < 1 || c.routineProjectLimit > 8) {
-		return c, errors.New("--routine-project-limit must be 1 through 8, or auto")
-	}
 	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" && c.clockSpeed != "Ultrafast" {
 		return c, errors.New("--clock-speed must be Normal, Fast, Superfast or Ultrafast")
 	}
 	if c.clockTestAcceleration && c.clockSpeed != "Ultrafast" {
 		return c, errors.New("--clock-test-acceleration requires --clock-speed Ultrafast")
 	}
-	if c.clockWindowTicks < 1 || c.clockWindowTicks > maxClockWindowTicks {
-		return c, fmt.Errorf("--clock-window-ticks must be 1 through %d", maxClockWindowTicks)
-	}
-	if c.clockFrameBudgetMS != 0 && (c.clockFrameBudgetMS < bridge.MinClockFrameBudgetMS || c.clockFrameBudgetMS > bridge.MaxClockFrameBudgetMS) {
-		return c, fmt.Errorf("--clock-frame-budget-ms must be 0 or %d through %d", bridge.MinClockFrameBudgetMS, bridge.MaxClockFrameBudgetMS)
+	switch c.clockPacing {
+	case "fixed":
+	case "player":
+		if c.clockSpeed != "Ultrafast" || c.clockTestAcceleration {
+			return c, errors.New("--clock-pacing player requires --clock-speed Ultrafast without --clock-test-acceleration")
+		}
+	default:
+		return c, errors.New("--clock-pacing must be fixed or player")
 	}
 	if c.clockBlindTicks > maxClockBlindTicks {
 		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)
-	}
-	if c.worldEvaluationFoodMarginDays < 0 {
-		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")
 	}
 	if (c.routineSilverReserve != 0 || c.routineComponentTarget != 0 || c.routineItemWealthShare != 0) && !c.routineTradePlans {
 		return c, errors.New("--routine-silver-reserve, --routine-component-target and --routine-item-wealth-share require the trade routine family")
@@ -300,29 +285,20 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 			return c, err
 		}
 	}
-	if c.refresh < 500*time.Millisecond || c.refresh > time.Minute || c.bridge.Timeout < time.Second || c.bridge.Timeout > time.Minute {
-		return c, errors.New("refresh must be 500ms..1m and timeout 1s..1m")
+	if c.bridge.Timeout < time.Second || c.bridge.Timeout > time.Minute {
+		return c, errors.New("--timeout must be 1s..1m")
 	}
 	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
 		return c, errors.New("--flight-recorder requires an absolute path")
 	}
-	if c.noFlightRecorder && c.flightRecorder != "" {
-		return c, errors.New("--no-flight-recorder and --flight-recorder are exclusive")
-	}
 	// The recorder is on by default under the profile (#299): a player
 	// launch keeps the same evidence the acceptance runner reads, in a ring
 	// the profile owns. Acceptance names its per-case path explicitly.
-	if c.flightRecorder == "" && !c.noFlightRecorder && c.profile != "" {
+	if c.flightRecorder == "" && c.profile != "" {
 		c.flightRecorder = filepath.Join(c.profile, "flight", "flight.jsonl")
 	}
-	if !c.chat && (explicit["chat-base-url"] || explicit["chat-context-tokens"] || explicit["chat-max-output-tokens"]) {
-		return c, errors.New("--chat-base-url, --chat-context-tokens and --chat-max-output-tokens require --chat-model")
-	}
-	if c.chatContextTokens < 4096 || c.chatContextTokens > 1<<24 {
-		return c, errors.New("--chat-context-tokens must be 4096..16777216")
-	}
-	if c.chatMaxOutputTokens < 1 || c.chatMaxOutputTokens >= c.chatContextTokens-2048 {
-		return c, errors.New("--chat-max-output-tokens must be positive and leave room under --chat-context-tokens")
+	if !c.chat && (explicit["chat-base-url"]) {
+		return c, errors.New("--chat-base-url requires --chat-model")
 	}
 	return c, nil
 }
@@ -421,12 +397,10 @@ func routineFamilies(c *serveConfig) []routineFamily {
 	}
 }
 
-// researchPlans reports whether EnsureResearch is composed: an operator
-// target always is; the research family follows the projects the workshop
-// ladder records for a MaintainResource bench (issue #4 M4) and otherwise
-// the research ladder (#230).
+// researchPlans reports whether EnsureResearch is composed: with the research
+// family, which always has the default research ladder (#230).
 func (c serveConfig) researchPlans() bool {
-	return c.routineResearchTarget != "" || c.routineResearchPlans && (c.resourceTargetsConfigured() || c.routineWorkshopPlans && c.routineGearPlans || len(c.researchLadder()) > 0)
+	return c.routineResearchPlans
 }
 
 func (c serveConfig) workshopPlans() bool {
@@ -446,17 +420,6 @@ func (c serveConfig) resourceTargets() map[policy.Resource]int64 {
 		return c.routineResourceTargets.Map()
 	}
 	return policy.DefaultResourceTargets()
-}
-
-// researchLadder is --routine-research-ladder split, blanks dropped.
-func (c serveConfig) researchLadder() []string {
-	var ladder []string
-	for _, name := range strings.Split(c.routineResearchLadder, ",") {
-		if name = strings.TrimSpace(name); name != "" {
-			ladder = append(ladder, name)
-		}
-	}
-	return ladder
 }
 
 // activeRoutineFamilies reports the name of every routine planner family this
@@ -602,35 +565,4 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 		return err
 	}
 	return server.Serve(ctx, listener)
-}
-
-// projectLimitFlag is --routine-project-limit: an explicit slot count, or
-// auto (policy.MaxAutoDevelopmentProjects slots, admission by distinct
-// observed workers). A number is range-checked after parsing.
-type projectLimitFlag struct {
-	limit *int
-	auto  *bool
-}
-
-func (f projectLimitFlag) String() string {
-	if f.auto != nil && *f.auto {
-		return "auto"
-	}
-	if f.limit == nil {
-		return ""
-	}
-	return strconv.Itoa(*f.limit)
-}
-
-func (f projectLimitFlag) Set(value string) error {
-	if value == "auto" {
-		*f.auto, *f.limit = true, policy.MaxAutoDevelopmentProjects
-		return nil
-	}
-	n, err := strconv.Atoi(value)
-	if err != nil {
-		return errors.New("must be 1 through 8, or auto")
-	}
-	*f.auto, *f.limit = false, n
-	return nil
 }

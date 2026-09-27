@@ -41,7 +41,7 @@ func args(ctx context.Context, h *na.Harness, size int32) (map[string]any, error
 	if err != nil {
 		return nil, err
 	}
-	reading, err := observation.ObserveColony(observation.WithPlanningWindow(ctx, window{h.Client}), h.Client, wallClock{}, expected, time.Minute, true, nil)
+	reading, err := observation.ObserveColony(ctx, h.Client, wallClock{}, expected, time.Minute, true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("colony facts: %w", err)
 	}

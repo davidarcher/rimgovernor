@@ -3,12 +3,10 @@
 [Documentation](../../README.md)
 
 `EnsureResearch` shares ColonyPlan, priority arbitration and Hands. Its target
-(`policy.ResearchGoal`) is, in order: the operator's `--routine-research-target`;
-the project a maintained production target's workshop ladder recorded as gating
+(`policy.ResearchGoal`) is, in order: the project a maintained production target's workshop ladder recorded as gating
 its bench (a *derived* need: the goal stays in deficit while the project is
 current, so the ladder is not left waiting); else the first unfinished rung of
-the research ladder (`RoutinePolicy.ResearchLadder`, `--routine-research-ladder`,
-default Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
+the research ladder (`RoutinePolicy.ResearchLadder`, `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
 Smithing, CarpetMaking, ComplexClothing, Machining, Gunsmithing). A rung is a deficit only while the
 research tab is idle: any current project, the player's own included, recovers
 it and is never replaced, and the research planner lends the clock ticks until it

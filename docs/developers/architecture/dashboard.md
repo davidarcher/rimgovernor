@@ -132,7 +132,7 @@ and transport details.
 
 `serve` keeps a flight recorder under the profile by default
 (`<profile>/flight/flight.jsonl`, an 8 x 8 MiB ring; `--flight-recorder
-<path>` moves it, `--no-flight-recorder` turns it off, `--observe` has no
+<path>` moves it, `--observe` has no
 profile and so none), and the same listener reads it back, so a live game
 that seems to be doing nothing has evidence beyond stderr:
 

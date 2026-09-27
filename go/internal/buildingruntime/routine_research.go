@@ -17,7 +17,7 @@ import (
 
 // RoutineResearchSource is the native research census RoutineResearchPlanner
 // reads to find the next prerequisite-ordered project toward the goal
-// policy.ResearchGoal resolves: RoutinePolicy.ResearchTarget, else the
+// policy.ResearchGoal resolves: the
 // project the workshop ladder recorded as gating a MaintainResource bench,
 // else the next unfinished rung of RoutinePolicy.ResearchLadder (#230).
 // Laboratory/researcher usability
@@ -161,8 +161,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	needs = r.reviewer.fishingResearchNeeds(needs)
 	needs = policy.DeepDrillingResearch(needs, review.ResourceRunwayState())
-	roadmap := staged.ResearchTarget == "" && (len(needs) > 0 || len(staged.ResearchLadder) > 0)
-	if staged.ResearchTarget == "" && !roadmap {
+	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
 	var goal store.GoalState
@@ -178,9 +177,6 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, err
 	}
 	deficit := found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
-	if !deficit && !roadmap {
-		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
-	}
 	if deficit {
 		for _, method := range goal.Methods {
 			plan, err := p.journal.LoadPlan(call, method.Plan)

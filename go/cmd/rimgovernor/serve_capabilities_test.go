@@ -35,7 +35,6 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		var c serveConfig
-		c.routineProjectLimit = 2
 		found := false
 		for _, f := range routineFamilies(&c) {
 			if f.Name == tc.family {
@@ -50,7 +49,6 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 			t.Errorf("%s family does not declare %s: %v", tc.family, tc.goal, capabilities.Methods)
 		}
 		var none serveConfig
-		none.routineProjectLimit = 2
 		if _, bare := routineCapabilities(none); slices.Contains(bare.Methods, tc.goal) {
 			t.Errorf("%s declared with no family enabled", tc.goal)
 		}
@@ -63,7 +61,6 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 	t.Parallel()
 	var c serveConfig
-	c.routineProjectLimit = 2
 	c.routineStoneBlockTarget = 10
 	for _, f := range routineFamilies(&c) {
 		*f.Enabled = true

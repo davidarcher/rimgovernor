@@ -7,7 +7,7 @@ import (
 )
 
 // GrowerCropTarget refreshes one exact plant grower's crop CAS snapshot
-// token, the same scoped-refresh shape BedUseTarget uses. The token
+// token, the same scoped-refresh shape BedMedicalTarget uses. The token
 // (NativeGrowerCrop.Snapshot, on the same
 // rimgovernor/observations_list_buildings row) covers the grower's current
 // crop; Crop is empty when the grower has none.

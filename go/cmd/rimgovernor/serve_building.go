@@ -14,7 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedassign"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bedmedical"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
@@ -152,7 +152,7 @@ type buildingServiceBridge struct {
 	trade               *buildingruntime.TradeCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
-	bedUse              *beduse.Capabilities
+	bedMedical          *bedmedical.Capabilities
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
 	zoneDelete          *zonedelete.Capabilities
@@ -322,7 +322,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	bedUseControl, err := bridge.NewBedUseControl(client)
+	bedMedicalControl, err := bridge.NewBedMedicalControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -401,7 +401,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: tradeWriter},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
-		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
+		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
 		zoneDelete:          &zonedelete.Capabilities{Native: client, Writer: zoneDeleteControl},
@@ -816,12 +816,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		buildingTemperatureCapabilities = client.buildingTemperature
 	}
 	// The hospital family patches beds medical through the shared executor.
-	var bedUseCapabilities *beduse.Capabilities
+	var bedMedicalCapabilities *bedmedical.Capabilities
 	if config.routineHospitalPlans {
-		if client.bedUse == nil {
+		if client.bedMedical == nil {
 			return errors.New("hospital plans require typed capabilities")
 		}
-		bedUseCapabilities = client.bedUse
+		bedMedicalCapabilities = client.bedMedical
 	}
 	// The field family re-crops plant growers through the shared executor.
 	var growerCropCapabilities *growercrop.Capabilities
@@ -933,7 +933,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Trade:               tradeCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
-		BedUse:              bedUseCapabilities,
+		BedMedical:          bedMedicalCapabilities,
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
 		ZoneDelete:          zoneDeleteCapabilities,
@@ -1012,7 +1012,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		if !ok {
 			return errors.New("world evaluation requires typed world progression and colony fact observations")
 		}
-		if worldEvaluation, err = buildingruntime.NewWorldEvaluation(player, worldNative, policy.WorldEvaluationPolicy{TravelFoodMarginDays: config.worldEvaluationFoodMarginDays}); err != nil {
+		if worldEvaluation, err = buildingruntime.NewWorldEvaluation(player, worldNative, policy.WorldEvaluationPolicy{TravelFoodMarginDays: worldEvaluationFoodMarginDays}); err != nil {
 			return err
 		}
 	}
@@ -1043,7 +1043,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 		defer func() { result = errors.Join(result, modelClient.Close()) }()
-		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: config.chatContextTokens, MaxOutputTokens: config.chatMaxOutputTokens}, modelClient)
+		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: chatContextTokens, MaxOutputTokens: chatMaxOutputTokens}, modelClient)
 		if err != nil {
 			return err
 		}

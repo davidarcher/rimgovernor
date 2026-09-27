@@ -5,7 +5,7 @@ import "errors"
 // GrowerCrop is an immutable, comparable value: a one-shot patch of the crop
 // one exact plant grower sows (Building_PlantGrower.SetPlantDefToGrow on
 // the native side), CAS-gated by an already-observed exact snapshot token
-// the same way BedUse gates a bed's medical flag. The token covers the
+// the same way BedMedical gates a bed's medical flag. The token covers the
 // grower's current crop; there is no pawn/Job involved -- see
 // NativeGrowerCrop.cs and bridge/grower_crop.go.
 type GrowerCrop struct {

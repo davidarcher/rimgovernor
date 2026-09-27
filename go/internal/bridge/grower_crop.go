@@ -13,7 +13,7 @@ import (
 
 // GrowerCropAttempt is GrowerCrop's WorkAttempt-equivalent: the
 // write/lookup/observe scoping for one PatchBuilding plant_def admission,
-// mirroring BedUseAttempt's shape.
+// mirroring BedMedicalAttempt's shape.
 type GrowerCropAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey

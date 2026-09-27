@@ -11,24 +11,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// BedUseAttempt is BedUse's WorkAttempt-equivalent: the
+// BedMedicalAttempt is BedMedical's WorkAttempt-equivalent: the
 // write/lookup/observe scoping for one PatchBuilding medical admission,
 // mirroring BuildingTemperatureAttempt's shape.
-type BedUseAttempt struct {
+type BedMedicalAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey
 	Generation uint64
-	Medical    domain.BedUse
+	Medical    domain.BedMedical
 }
-type BedUseControl struct{ client *Client }
+type BedMedicalControl struct{ client *Client }
 
-func NewBedUseControl(client *Client) (*BedUseControl, error) {
+func NewBedMedicalControl(client *Client) (*BedMedicalControl, error) {
 	if client == nil {
 		return nil, contract("bed medical client missing")
 	}
-	return &BedUseControl{client}, nil
+	return &BedMedicalControl{client}, nil
 }
-func validateBedUse(t domain.BedUse) error {
+func validateBedMedical(t domain.BedMedical) error {
 	canonical, err := domain.NewBedMedical(t.Thing(), t.Medical(), t.BeforeToken())
 	if t.Prisoners() {
 		canonical, err = domain.NewBedPrisoners(t.Thing(), t.BeforeToken())
@@ -38,7 +38,7 @@ func validateBedUse(t domain.BedUse) error {
 	}
 	return err
 }
-func bedUseOperation(t domain.BedUse) *op.Operation {
+func bedMedicalOperation(t domain.BedMedical) *op.Operation {
 	patch := &op.PatchBuilding{Building: &op.EntityPrecondition{EntityId: proto.String(t.Thing()), ExpectedSnapshotToken: proto.String(t.BeforeToken())}}
 	if t.Prisoners() {
 		patch.ForPrisoners = proto.Bool(true)
@@ -47,12 +47,12 @@ func bedUseOperation(t domain.BedUse) *op.Operation {
 	}
 	return &op.Operation{Command: &op.Operation_PatchBuilding{PatchBuilding: patch}}
 }
-func (client *Client) PreviewBedUse(ctx context.Context, identity *c.Identity, target domain.BedUse) (*op.PreviewReply, Result, error) {
-	if ValidateIdentity(identity) != nil || validateBedUse(target) != nil {
+func (client *Client) PreviewBedMedical(ctx context.Context, identity *c.Identity, target domain.BedMedical) (*op.PreviewReply, Result, error) {
+	if ValidateIdentity(identity) != nil || validateBedMedical(target) != nil {
 		return nil, Result{}, contract("invalid bed medical preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: bedUseOperation(target)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: bedMedicalOperation(target)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -68,12 +68,12 @@ func (client *Client) PreviewBedUse(ctx context.Context, identity *c.Identity, t
 	}
 	return reply, raw, nil
 }
-func (writer *BedUseControl) ApplyBedUse(ctx context.Context, pre *a.WritePrecondition, target domain.BedUse) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validateBedUse(target) != nil {
+func (writer *BedMedicalControl) ApplyBedMedical(ctx context.Context, pre *a.WritePrecondition, target domain.BedMedical) (*op.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validateBedMedical(target) != nil {
 		return nil, Result{}, contract("invalid bed medical execution")
 	}
 	reply := &op.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: bedUseOperation(target)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: bedMedicalOperation(target)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -87,16 +87,16 @@ func (writer *BedUseControl) ApplyBedUse(ctx context.Context, pre *a.WritePrecon
 	if v == nil {
 		return nil, raw, contract("bed medical owner mismatch")
 	}
-	err = bedUseReceipt(v, BedUseAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target})
+	err = bedMedicalReceipt(v, BedMedicalAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target})
 	return reply, raw, err
 }
-func validBedUseAttempt(w BedUseAttempt) error {
+func validBedMedicalAttempt(w BedMedicalAttempt) error {
 	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid bed medical attempt")
 	}
-	return validateBedUse(w.Medical)
+	return validateBedMedical(w.Medical)
 }
-func bedUseEffect(v *r.EffectEvidence, target domain.BedUse, matches bool) error {
+func bedMedicalEffect(v *r.EffectEvidence, target domain.BedMedical, matches bool) error {
 	effect := v.GetSettings()
 	if effect == nil || effect.Snapshot == nil || effect.Snapshot.GetEntityId() != target.Thing() || effect.Snapshot.GetBeforeToken() != target.BeforeToken() || validID(effect.Snapshot.GetAfterToken()) != nil || len(effect.Fields) != 1 {
 		return contract("bed medical effect mismatch")
@@ -115,27 +115,27 @@ func bedUseEffect(v *r.EffectEvidence, target domain.BedUse, matches bool) error
 	}
 	return nil
 }
-func bedUseReceipt(v *r.Receipt, w BedUseAttempt) error {
+func bedMedicalReceipt(v *r.Receipt, w BedMedicalAttempt) error {
 	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("bed medical admission mismatch")
 	}
 	switch out := v.Outcome.(type) {
 	case *r.Receipt_Applied:
-		return bedUseEffect(out.Applied.GetObserved(), w.Medical, true)
+		return bedMedicalEffect(out.Applied.GetObserved(), w.Medical, true)
 	case *r.Receipt_Uncertain:
 		if out.Uncertain == nil {
 			return contract("bed medical uncertainty missing")
 		}
 		if out.Uncertain.LastObserved != nil {
-			return bedUseEffect(out.Uncertain.LastObserved, w.Medical, true)
+			return bedMedicalEffect(out.Uncertain.LastObserved, w.Medical, true)
 		}
 		return nil
 	default:
 		return contract("unsupported bed medical receipt")
 	}
 }
-func (client *Client) LookupBedUse(ctx context.Context, w BedUseAttempt) (*r.LookupReply, Result, error) {
-	if err := validBedUseAttempt(w); err != nil {
+func (client *Client) LookupBedMedical(ctx context.Context, w BedMedicalAttempt) (*r.LookupReply, Result, error) {
+	if err := validBedMedicalAttempt(w); err != nil {
 		return nil, Result{}, err
 	}
 	reply := &r.LookupReply{}
@@ -151,7 +151,7 @@ func (client *Client) LookupBedUse(ctx context.Context, w BedUseAttempt) (*r.Loo
 	}
 	switch v := reply.Outcome.(type) {
 	case *r.LookupReply_Receipt:
-		err = bedUseReceipt(v.Receipt, w)
+		err = bedMedicalReceipt(v.Receipt, w)
 	case *r.LookupReply_Unknown:
 		err = buildingContext(v.Unknown.GetContext(), w.Identity, 0, false)
 	case *r.LookupReply_InFlight:
@@ -164,8 +164,8 @@ func (client *Client) LookupBedUse(ctx context.Context, w BedUseAttempt) (*r.Loo
 	}
 	return reply, raw, err
 }
-func (client *Client) ObserveBedUse(ctx context.Context, w BedUseAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
-	if validBedUseAttempt(w) != nil || bedUseReceipt(admitted, w) != nil {
+func (client *Client) ObserveBedMedical(ctx context.Context, w BedMedicalAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
+	if validBedMedicalAttempt(w) != nil || bedMedicalReceipt(admitted, w) != nil {
 		return nil, Result{}, contract("bed medical observation admission mismatch")
 	}
 	reply := &r.ProgressReply{}
@@ -192,12 +192,12 @@ func (client *Client) ObserveBedUse(ctx context.Context, w BedUseAttempt, admitt
 		if !v.GetCompleteInspection() {
 			return nil, raw, contract("incomplete bed medical completion")
 		}
-		err = bedUseEffect(out.Completed.GetEvidence(), w.Medical, true)
+		err = bedMedicalEffect(out.Completed.GetEvidence(), w.Medical, true)
 	case *r.Progress_Unsuccessful:
 		if !v.GetCompleteInspection() || out.Unsuccessful.GetReason() != r.UnsuccessfulReason_UNSUCCESSFUL_REASON_OUTCOME_NOT_ACHIEVED {
 			return nil, raw, contract("unverified bed medical failure")
 		}
-		err = bedUseEffect(out.Unsuccessful.GetEvidence(), w.Medical, false)
+		err = bedMedicalEffect(out.Unsuccessful.GetEvidence(), w.Medical, false)
 	default:
 		err = contract("unsupported bed medical progress")
 	}

@@ -8,7 +8,8 @@
 // op, relaunch. Every assertion is native end state or an advancing
 // GoalProgress record (#629), never a plan count.
 //
-// The player control path is Ultrafast under #627's player pacing.
+// The player control path is plain Ultrafast today; #627's player pacing
+// mode replaces it through ControlModeEnv once it lands (see playerControl).
 package campaign
 
 import (
@@ -39,10 +40,29 @@ const (
 	modSet      = "Core"
 )
 
-// playerControl is the player control path: plain Ultrafast, which serve
-// runs under #627's player pacing since #875.
+// ControlModeEnv selects the player control path: "ultrafast" (the
+// default: --clock-speed Ultrafast with no test acceleration, the fastest
+// speed a player can select) or, once #627 lands, "player" for its paced
+// mode. An unknown value fails the case before the game is opened.
+const ControlModeEnv = "RIMGOVERNOR_ACCEPT_CAMPAIGN_CONTROL"
+
+// playerControl resolves ControlModeEnv to serve arguments.
 func playerControl() (mode string, args []string, err error) {
-	return "player", []string{"--clock-speed", "Ultrafast"}, nil
+	mode = os.Getenv(ControlModeEnv)
+	if mode == "" {
+		mode = "ultrafast"
+	}
+	switch mode {
+	case "ultrafast":
+		// Plain Ultrafast: no --clock-test-acceleration (the native dev
+		// tick boost is not a speed a player can select).
+		return mode, []string{"--clock-speed", "Ultrafast"}, nil
+	case "player":
+		// #627's player acceleration: Ultrafast paced per frame against
+		// native's frame budget, with the controller's backoff.
+		return mode, []string{"--clock-speed", "Ultrafast", "--clock-pacing", "player"}, nil
+	}
+	return mode, nil, fmt.Errorf("%s=%q: one of ultrafast, player", ControlModeEnv, mode)
 }
 
 // WindowTicksEnv overrides the foothold window (footholdTicks) in game

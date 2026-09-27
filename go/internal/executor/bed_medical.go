@@ -10,60 +10,60 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// BedUseJournal is the building-patch admission journal: the bed
+// BedMedicalJournal is the building-patch admission journal: the bed
 // medical patch records the same exact-thing/CAS-token admission a
 // temperature patch does.
-type BedUseJournal interface {
+type BedMedicalJournal interface {
 	Journal
 	PrepareBuildingTemperature(context.Context, domain.PlanID, domain.ActionID, store.BuildingTemperatureAdmission) (domain.Progress, error)
 }
-type BedUseInspection struct {
+type BedMedicalInspection struct {
 	Current               domain.GenerationSnapshot
 	Tick                  domain.Tick
 	StartedAt, ObservedAt time.Time
-	Medical               domain.BedUse
+	Medical               domain.BedMedical
 	SnapshotToken         string
 	Accepted              bool
 	Emergency             policy.EmergencySnapshot
 }
-type BedUseDispatch struct {
+type BedMedicalDispatch struct {
 	Attempt       Placement
 	SnapshotToken string
 }
-type BedUseEvidence struct {
+type BedMedicalEvidence struct {
 	Observation           domain.Observation
 	StartedAt, ObservedAt time.Time
 	Complete              bool
-	Medical               domain.BedUse
+	Medical               domain.BedMedical
 	Matches               domain.Fact[bool]
 }
-type BedUseBoundary interface {
-	InspectBedUse(context.Context, Target) (BedUseInspection, error)
-	ApplyBedUse(context.Context, BedUseDispatch) (Receipt, error)
-	ObserveBedUse(context.Context, Placement, domain.GenerationSnapshot) (BedUseEvidence, error)
+type BedMedicalBoundary interface {
+	InspectBedMedical(context.Context, Target) (BedMedicalInspection, error)
+	ApplyBedMedical(context.Context, BedMedicalDispatch) (Receipt, error)
+	ObserveBedMedical(context.Context, Placement, domain.GenerationSnapshot) (BedMedicalEvidence, error)
 }
 
-// EnableBedUse activates the bed-medical capability, the one-shot CAS
+// EnableBedMedical activates the bed-medical capability, the one-shot CAS
 // patch of a humanlike bed's medical flag; it shares the building-patch
 // admission record with EnableBuildingTemperature. See EnableAcquisition for
 // why capabilities are wired this way instead of inferred from a composed
 // Boundary.
-func (e *Executor) EnableBedUse(medical BedUseBoundary) error {
+func (e *Executor) EnableBedMedical(medical BedMedicalBoundary) error {
 	if medical == nil {
 		return errors.New("bed medical boundary required")
 	}
-	j, ok := e.journal.(BedUseJournal)
+	j, ok := e.journal.(BedMedicalJournal)
 	if !ok {
 		return errors.New("bed medical boundary requires typed journal")
 	}
-	e.bedUse, e.bedUseJournal = medical, j
+	e.bedMedical, e.bedMedicalJournal = medical, j
 	return nil
 }
 
-func (e *Executor) runBedUse(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
+func (e *Executor) runBedMedical(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()
-	medical, ok := action.BedUse()
+	medical, ok := action.BedMedical()
 	if !ok || p.Action() != action {
 		return result, ErrEvidence
 	}
@@ -72,7 +72,7 @@ func (e *Executor) runBedUse(ctx context.Context, action domain.Action, p domain
 		if current.Validate() != nil || current.Colony != v.Snapshot.Colony || current.Map != v.Snapshot.Map || current.Load != v.Snapshot.Load {
 			return result, ErrAuthority
 		}
-		evidence, err := e.bedUse.ObserveBedUse(ctx, Placement{action, v.Attempt, v.Snapshot, v.Tick}, current)
+		evidence, err := e.bedMedical.ObserveBedMedical(ctx, Placement{action, v.Attempt, v.Snapshot, v.Tick}, current)
 		if err != nil {
 			return result, err
 		}
@@ -130,13 +130,13 @@ func (e *Executor) runBedUse(ctx context.Context, action domain.Action, p domain
 		}
 		expected.Plan, expected.Revision = v.Plan, v.Revision
 	}
-	var inspection BedUseInspection
+	var inspection BedMedicalInspection
 	for range 2 {
 		if err := e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
 		var err error
-		inspection, err = e.bedUse.InspectBedUse(ctx, Target{action, expected})
+		inspection, err = e.bedMedical.InspectBedMedical(ctx, Target{action, expected})
 		if err != nil {
 			return result, err
 		}
@@ -146,7 +146,7 @@ func (e *Executor) runBedUse(ctx context.Context, action domain.Action, p domain
 		if inspection.Current != expected || inspection.Medical != medical || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) || !policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick).Clear {
 			return result, ErrHeld
 		}
-		next, err := e.bedUseJournal.PrepareBuildingTemperature(ctx, v.Plan, v.Action, store.BuildingTemperatureAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: medical.Thing(), SnapshotToken: inspection.SnapshotToken})
+		next, err := e.bedMedicalJournal.PrepareBuildingTemperature(ctx, v.Plan, v.Action, store.BuildingTemperatureAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: medical.Thing(), SnapshotToken: inspection.SnapshotToken})
 		if err != nil {
 			return result, err
 		}
@@ -171,7 +171,7 @@ func (e *Executor) runBedUse(ctx context.Context, action domain.Action, p domain
 		return e.record(result, v.Plan, attempt, domain.ReceiptUnknown, ErrHeld)
 	}
 	result.NativeCalled = true
-	receipt, err := e.bedUse.ApplyBedUse(ctx, BedUseDispatch{attempt, inspection.SnapshotToken})
+	receipt, err := e.bedMedical.ApplyBedMedical(ctx, BedMedicalDispatch{attempt, inspection.SnapshotToken})
 	kind := receipt.Kind
 	if err != nil {
 		kind = receiptAfterCallError(err)

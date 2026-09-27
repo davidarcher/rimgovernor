@@ -91,7 +91,7 @@ func TestServeClockTestAccelerationRequiresUltrafast(t *testing.T) {
 	if err != nil || !c.clockTestAcceleration {
 		t.Fatalf("ultrafast acceleration: %+v %v", c, err)
 	}
-	config := serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, uint32(c.clockWindowTicks), uint32(c.clockBlindTicks))
+	config := serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, defaultClockWindowTicks, uint32(c.clockBlindTicks))
 	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || !config.Start.TestAcceleration {
 		t.Fatalf("window start: %+v", config.Start)
 	}
@@ -107,7 +107,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
-	for _, extra := range [][]string{{"--profile", dir}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--clock-speed", "Ultrafast", "--clock-test-acceleration"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
+	for _, extra := range [][]string{{"--profile", dir}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--clock-speed", "Ultrafast", "--clock-test-acceleration"}, {"unexpected"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--observe"), extra...), io.Discard); err == nil {
 			t.Fatalf("observe accepted %v", extra)
 		}
@@ -177,7 +177,7 @@ func TestServeChatEnabledByModelName(t *testing.T) {
 	if err != nil || !c.chat || c.chatModel != "local" {
 		t.Fatal(c, err)
 	}
-	for _, extra := range [][]string{{"--chat-base-url", "http://127.0.0.1:1/v1"}, {"--chat-context-tokens", "8192"}, {"--chat-model", "m", "--chat-context-tokens", "100"}, {"--chat-model", "m", "--chat-max-output-tokens", "8000"}} {
+	for _, extra := range [][]string{{"--chat-base-url", "http://127.0.0.1:1/v1"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
 			t.Fatalf("accepted %v", extra)
 		}

@@ -1,7 +1,7 @@
 // Package bedassign wires MaintainSleeping's bed ownership transfer: one
 // exact pawn, one exact vacant bed and the pawn's expected previous bed,
 // driven through the typed AssignBed operation
-// (NativeBedAssignOperations.cs). It follows the beduse Settings-style
+// (NativeBedAssignOperations.cs). It follows the bedmedical Settings-style
 // shape (fresh CAS reads, native preview, then a direct
 // write/lookup/observe) rather than the Owner/Attempt Job pattern of
 // pawn-order boundaries: the game's TryAssignPawn is synchronous, so the

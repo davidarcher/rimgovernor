@@ -126,7 +126,7 @@ func init() {
 			fmt.Sprint(names) + " are staged in turn over the live map, each recovered by the routine families composed so far and audited natively, " +
 			"and no goal an earlier stage recovered reopens (new method epoch), is rebound or is invalidated while the later ones are handled.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
-		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Extra: []string{"--routine-project-limit", "4"}, Prefix: prefix},
+		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Prefix: prefix},
 		Stages: names,
 		Budget: campaignBudget,
 		Reason: "Four deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",

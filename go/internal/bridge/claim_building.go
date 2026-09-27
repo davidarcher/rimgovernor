@@ -12,7 +12,7 @@ import (
 )
 
 // ClaimBuildingAttempt is the write/lookup/observe scoping for one
-// PatchBuilding claim admission (#459), mirroring BedUseAttempt.
+// PatchBuilding claim admission (#459), mirroring BedMedicalAttempt.
 type ClaimBuildingAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey

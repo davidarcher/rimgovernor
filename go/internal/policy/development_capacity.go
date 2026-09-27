@@ -10,7 +10,7 @@ import (
 // Development capacity (#649) is the one accounting the ranking, a
 // planner's yield and method admission share. A development slot is a
 // concurrent optional project (a goal ranked at priority 3-4 or a player
-// project); the limit (explicit --routine-project-limit, or
+// project); the limit (a fixed count set by tests, or
 // MaxAutoDevelopmentProjects in automatic mode) bounds planner cost and
 // queue growth, never worker use. Worker capacity is separate: each held
 // or selected project needs labor for its profile, and developmentFit

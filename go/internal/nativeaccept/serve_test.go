@@ -48,18 +48,18 @@ func TestMain(m *testing.M) {
 func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	t.Setenv(ClockSpeedEnv, "Ultrafast")
 	cfg := &Config{Configuration: "C:/cfg", GameID: "rimworld"}
-	argv := ServeArgs(cfg, "C:/gabs.exe", "C:/out/service-profile", "C:/out/service.sqlite", "C:/out/flight.jsonl", ServeSpec{Resume: true, Extra: []string{"--routine-project-limit", "2"}})
+	argv := ServeArgs(cfg, "C:/gabs.exe", "C:/out/service-profile", "C:/out/service.sqlite", "C:/out/flight.jsonl", ServeSpec{Resume: true, Extra: []string{"--routine-food-reserve-days", "2"}})
 	joined := strings.Join(argv, " ")
 	for _, want := range []string{
 		"serve --profile C:/out/service-profile --gabs C:/gabs.exe --config C:/cfg --game rimworld --state C:/out/service.sqlite",
-		"--listen 127.0.0.1:0", "--refresh 1s", "--timeout 15s", "--flight-recorder C:/out/flight.jsonl",
-		"--clock-speed Ultrafast --clock-test-acceleration", "--pprof", "--resume", "--routine-project-limit 2",
+		"--listen 127.0.0.1:0", "--timeout 15s", "--flight-recorder C:/out/flight.jsonl",
+		"--clock-speed Ultrafast --clock-test-acceleration", "--pprof", "--resume", "--routine-food-reserve-days 2",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("argv %q lacks %q", joined, want)
 		}
 	}
-	if strings.Index(joined, "--clock-speed") > strings.Index(joined, "--routine-project-limit") {
+	if strings.Index(joined, "--clock-speed") > strings.Index(joined, "--routine-food-reserve-days") {
 		t.Errorf("Extra must follow the shared flags so a harness can override them: %q", joined)
 	}
 	if got := ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{NativeTimeout: 45 * time.Second}); !strings.Contains(strings.Join(got, " "), "--timeout 45s") {

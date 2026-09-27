@@ -6,11 +6,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LimitObservation is one comparison-mode run: the same fixture, variant
-// and seed played under one explicit --routine-project-limit. Every field
+// Observation is one startup/labor window: the fixture, variant and seed
+// played under the service default. Every field
 // is an observation of that run, not a bound anything is held to.
-type LimitObservation struct {
-	Limit    int
+type Observation struct {
 	Variant  string
 	Seed     string
 	Revision string
@@ -67,38 +66,30 @@ func BlockedTicks(diagnoses []Diagnosis, window, maxGap domain.Tick) map[Class]d
 	return out
 }
 
-// CompareLimits renders the comparison artifact. It is labelled as
-// observations on the named revision: the rows diagnose the cap, they do
-// not gate it and they are not a root cause.
-func CompareLimits(obs []LimitObservation) map[string]any {
-	sorted := append([]LimitObservation(nil), obs...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Limit < sorted[j].Limit })
-	rows := make([]map[string]any, 0, len(sorted))
-	for _, o := range sorted {
-		row := map[string]any{
-			"limit": o.Limit, "variant": o.Variant, "seed": o.Seed, "revision": o.Revision,
-			"window_ticks": o.WindowTicks, "idle": o.Idle.Row(),
-		}
-		if v, known := o.FirstEnclosure.Value(); known {
-			row["first_enclosure_tick"] = v
-		} else {
-			row["first_enclosure_tick"] = nil
-		}
-		if v, known := o.ShelterRecovery.Value(); known {
-			row["shelter_recovery_tick"] = v
-		} else {
-			row["shelter_recovery_tick"] = nil
-		}
-		blocked := map[string]int64{}
-		for c, t := range o.Blocked {
-			blocked[string(c)] = int64(t)
-		}
-		row["blocked_ticks"] = blocked
-		rows = append(rows, row)
+// Row renders the observation artifact. It is labelled as an observation on
+// the named revision: it diagnoses the run, it does not gate it and it is
+// not a root cause.
+func (o Observation) Row() map[string]any {
+	row := map[string]any{
+		"kind":    "startup_labor_observation",
+		"label":   "observations on the tested revision; not a performance gate and not a proven root cause",
+		"variant": o.Variant, "seed": o.Seed, "revision": o.Revision,
+		"window_ticks": o.WindowTicks, "idle": o.Idle.Row(),
 	}
-	return map[string]any{
-		"kind":  "startup_labor_limit_comparison",
-		"label": "observations on the tested revision; not a performance gate and not a proven root cause",
-		"runs":  rows,
+	if v, known := o.FirstEnclosure.Value(); known {
+		row["first_enclosure_tick"] = v
+	} else {
+		row["first_enclosure_tick"] = nil
 	}
+	if v, known := o.ShelterRecovery.Value(); known {
+		row["shelter_recovery_tick"] = v
+	} else {
+		row["shelter_recovery_tick"] = nil
+	}
+	blocked := map[string]int64{}
+	for c, t := range o.Blocked {
+		blocked[string(c)] = int64(t)
+	}
+	row["blocked_ticks"] = blocked
+	return row
 }

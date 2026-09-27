@@ -113,17 +113,7 @@ type RoutinePolicy struct {
 	// is highest; it returns to this value once the colony reaches
 	// Reserves.
 	GoalStallTicks int64
-	// ResearchTarget is an operator-declared desired native ResearchProjectDef
-	// name; empty disables EnsureResearch's routine dispatch. The need is
-	// measured against RoutineFacts.Research each review (idle tab with the
-	// target unfinished is a deficit; any current project or a finished
-	// target is recovered). With no explicit target the review derives one
-	// from RoutineFacts.ResearchNeeds, the projects the workshop ladder
-	// recorded as gating a MaintainResource bench (issue #4 M4), else from
-	// ResearchLadder.
-	ResearchTarget string
-	// ResearchLadder is the ordered roadmap EnsureResearch walks when no
-	// ResearchTarget is set and the workshop ladder records no need
+	// ResearchLadder is the ordered roadmap EnsureResearch walks when the workshop ladder records no need
 	// (DefaultResearchLadder by default; empty disables the roadmap). Each
 	// rung is reached through ResearchPrerequisiteQueue like a target, a
 	// current native project is respected and recovers the goal, and the
@@ -200,8 +190,7 @@ type RoutinePolicy struct {
 	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
 	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
 	// construction RoutineDefenseLayoutPlanner proposes from a fresh native
-	// defense-site census. It keeps the same config-only posture as
-	// ResearchTarget: the review does not derive layout completeness from a
+	// defense-site census. It is config-only: the review does not derive layout completeness from a
 	// census, the planner decides per tier from its own admitted plans.
 	DefensiveLayout bool
 	// Stage holds the colony stage thresholds (#630); zero fields take the
@@ -210,7 +199,7 @@ type RoutinePolicy struct {
 }
 
 // SetProjectLimit makes the development limit an explicit slot count
-// (1..8), leaving automatic admission: the operator's rollback path.
+// (1..8), leaving automatic admission; serve always runs auto (#875).
 func (p *RoutinePolicy) SetProjectLimit(n int) {
 	p.MaxDevelopmentProjects, p.AutoDevelopment = n, false
 }
@@ -265,9 +254,6 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.GoalStallTicks <= 0 {
 		return errors.New("invalid goal stall grace")
-	}
-	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
-		return errors.New("invalid research target")
 	}
 	if err := p.Trade.Validate(); err != nil {
 		return err

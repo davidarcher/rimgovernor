@@ -59,7 +59,7 @@ func TestResourceTargetNeedUsesWorstCoveredTarget(t *testing.T) {
 // of leaving them permanently deficit_unknown.
 func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	p := DefaultRoutinePolicy()
-	p.ResearchTarget = "Stonecutting"
+	p.ResearchLadder = []string{"Stonecutting"}
 	p.ResourceTargets = map[Resource]int64{"Steel": 100}
 	p.ResourceReserves = map[Resource]int64{"WoodLog": 50}
 	f := stableRoutine()
@@ -93,14 +93,15 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if !selected[MaintainResource].Selected || selected[MaintainResource].Score != 60 {
 		t.Fatal(selected[MaintainResource])
 	}
-	// Missing native facts keep a configured target unknown, never recovered.
+	// Missing native facts keep a configured resource target unknown, never
+	// recovered; the research ladder is not walked without a census.
 	f.Research, f.Resources = domain.Unknown[ResearchFacts](), domain.Unknown[[]Amount]()
 	r, err = DetectRoutine(f, RoutineLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, a := range r.Assessments {
-		if (a.ID == EnsureResearch || a.ID == MaintainResource) && a.Need != domain.NeedUnknown {
+		if a.ID == MaintainResource && a.Need != domain.NeedUnknown {
 			t.Fatal(a)
 		}
 	}

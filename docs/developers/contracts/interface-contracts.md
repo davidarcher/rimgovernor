@@ -63,8 +63,7 @@ accelerated epoch admits a live ceiling change through `SpeedRequest`
 while its speed stays Ultrafast. `speedmatrix/plain`'s `regulated` row runs
 uncapped under a 300-tick budget and must match the capped speeds' outcome.
 
-Player acceleration (any `--clock-speed Ultrafast` window without
-`--clock-test-acceleration` since #875, `StartRequest.pacing =
+Player acceleration (`--clock-pacing player`, `StartRequest.pacing =
 PACING_PLAYER_ACCELERATED`, #627) is the player-launch mode: Ultrafast only,
 never with `--clock-test-acceleration` (which stays acceptance-only). Native
 raises Ultrafast's multiplier between 15x and 150x against the frame budget

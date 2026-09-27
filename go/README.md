@@ -61,15 +61,14 @@ the controller.
 | --- | --- |
 | `--gabs`, `--config`, `--game`, `--state` | Absolute GABS, config and state paths and the configured game ID (both modes). |
 | `--profile` | Absolute shared game profile; required for autonomous play. |
-| `--assets`, `--listen`, `--refresh`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); observation refresh and native call timeout. |
+| `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
-| `--clock-window-ticks` | Game ticks one colony window runs before it pauses for a full review: `2500` (default) up to `60000`; combat windows stay at 300. Watched outcomes, danger and player input stop a window earlier regardless. |
-| `--routine-project-limit`, `--routine-research-target`, `--routine-research-ladder`, `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: optional project concurrency, research goal and default research ladder, resource production targets/reserves/stops and herd ceilings. |
+| `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: resource production targets/reserves/stops and herd ceilings. |
 | `--routine-silver-reserve`, `--routine-component-target` | Trade tuning (require the `trade` family): silver `TradeWithCaravan` never spends below; the `ComponentIndustrial` stock it buys toward and, with the `resource` family, `MaintainResource` mines toward. |
-| `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
+| `--resource-rule` | Resource reservation rules for building admission. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
-| `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
-| `--flight-recorder <path>`, `--no-flight-recorder` | Where the flight recorder ring lives (default `<profile>/flight/flight.jsonl`; none under `--observe`), or none at all (see [Native request diagnostics](#native-request-diagnostics)). |
+| `--chat-model`, `--chat-base-url` | Local model chat; `--chat-base-url` requires `--chat-model`. |
+| `--flight-recorder <path>` | Where the flight recorder ring lives (default `<profile>/flight/flight.jsonl`; none under `--observe`) (see [Native request diagnostics](#native-request-diagnostics)). |
 
 **Configuration sources and precedence.** `serve` reads exactly two sources,
 in this order: command-line flags, then process environment. There is no
@@ -272,10 +271,8 @@ use bounded native deficit fractions. Accepted player projects and unresolved
 optional methods consume capacity across shared plans; admission rechecks new
 commitments in the same transaction as the method. Manual clears selections;
 world changes or tick rewinds reset age. Unknown worker counts admit no
-optional work. Optional concurrency defaults to `auto`: every project a distinct
-observed worker can take, at most eight. Configure `serve --routine-project-limit N`
-(1–8) to fix the slot count instead, also bounded by observed workers; that is the
-rollback to the pre-auto behaviour.
+optional work. Optional concurrency is automatic: every project a distinct
+observed worker can take, at most eight.
 Accepted work remains tracked when capacity falls. Persisted ranking does not
 create missing action families or replace native resource/placement admission.
 
@@ -881,7 +878,7 @@ old results. Native notification production still requires game-level acceptance
 reads, and every kinded service event, to a flight recorder ring under the
 profile (`<profile>/flight/flight.jsonl`) by default; `--flight-recorder
 <absolute-path>` names another ring (the acceptance runner's per-case path),
-`--no-flight-recorder` records nothing, and `--observe` has no profile and so
+and `--observe` has no profile and so
 no default ring. The ring outlives each launch: a new launch continues the
 sequence and stamps its rows with its own `run` id. A running service serves
 the ring back over `GET /api/telemetry/events` (paged by sequence) and `GET

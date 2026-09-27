@@ -52,7 +52,7 @@ func decodeSample(v map[string]any, phase string, at time.Time) (Sample, error) 
 }
 
 // checkSample returns every invariant this sample violates. limit is
-// serve's --routine-project-limit; researchTarget non-empty means the
+// the development slot bound; researchTarget non-empty means the
 // review carried a research target whose deficit must be measured, never
 // unknown.
 func checkSample(s Sample, limit int, researchTarget string) []string {

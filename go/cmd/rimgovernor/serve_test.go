@@ -28,7 +28,7 @@ func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
 	if _, err := parseServe(base, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{nil, base[1:], append(append([]string(nil), base...), "--listen", "0.0.0.0:8080"), append(append([]string(nil), base...), "--refresh", "0s"), append(append([]string(nil), base...), "--state", "relative.db"), append(append([]string(nil), base...), "unexpected")} {
+	for _, args := range [][]string{nil, base[1:], append(append([]string(nil), base...), "--listen", "0.0.0.0:8080"), append(append([]string(nil), base...), "--timeout", "0s"), append(append([]string(nil), base...), "--state", "relative.db"), append(append([]string(nil), base...), "unexpected")} {
 		if _, err := parseServe(args, io.Discard); err == nil {
 			t.Fatalf("unsafe/incomplete options accepted: %q", args)
 		}
@@ -51,7 +51,7 @@ func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 }
 
 // A plain serve records under the profile; --observe has no profile and
-// so no recorder; --no-flight-recorder turns it off; --flight-recorder
+// so no recorder; --flight-recorder
 // keeps naming the acceptance runner's per-case path.
 func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 	dir := t.TempDir()
@@ -61,17 +61,10 @@ func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 	if err != nil || config.flightRecorder != filepath.Join(dir, "flight", "flight.jsonl") {
 		t.Fatalf("default ring: %q %v", config.flightRecorder, err)
 	}
-	config, err = parseServe(append(append([]string{}, base...), "--no-flight-recorder"), io.Discard)
-	if err != nil || config.flightRecorder != "" {
-		t.Fatalf("--no-flight-recorder: %q %v", config.flightRecorder, err)
-	}
 	explicit := filepath.Join(dir, "case", "flight.jsonl")
 	config, err = parseServe(append(append([]string{}, base...), "--flight-recorder", explicit), io.Discard)
 	if err != nil || config.flightRecorder != explicit {
 		t.Fatalf("explicit ring: %q %v", config.flightRecorder, err)
-	}
-	if _, err := parseServe(append(append([]string{}, base...), "--flight-recorder", explicit, "--no-flight-recorder"), io.Discard); err == nil {
-		t.Fatal("accepted --flight-recorder with --no-flight-recorder")
 	}
 	observe := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
 	if config, err = parseServe(observe, io.Discard); err != nil || config.flightRecorder != "" {
@@ -88,19 +81,6 @@ func TestServePprofIsOffUnlessAsked(t *testing.T) {
 	}
 	if config, err = parseServe(append(append([]string{}, base...), "--pprof"), io.Discard); err != nil || !config.pprof {
 		t.Fatalf("--pprof not retained: %+v %v", config, err)
-	}
-}
-
-func TestServeWorldEvaluationFlagValidation(t *testing.T) {
-	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
-	base := append(serveBase(dir), "--profile", dir)
-	c, err := parseServe(append(append([]string(nil), base...), "--world-evaluation-food-margin-days", "1.5"), io.Discard)
-	if err != nil || !c.worldEvaluation || c.worldEvaluationFoodMarginDays != 1.5 {
-		t.Fatal(c, err)
-	}
-	if _, err := parseServe(append(append([]string(nil), base...), "--world-evaluation-food-margin-days", "-1"), io.Discard); err == nil {
-		t.Fatal("negative food margin days accepted")
 	}
 }
 
@@ -427,33 +407,12 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 	}
 }
 
-// --clock-window-ticks is the routine window budget (default one game day)
-// within 1..maxClockWindowTicks, the wire bound above which no window can
-// be admitted (#584); the combat window never exceeds it, and the retired
-// --clock-window-seconds is refused (#244).
+// The routine window budget is one game day (#584, fixed since #875); the
+// retired --clock-window-seconds is refused (#244).
 func TestServeClockWindowTicksFlag(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
 	base := append(serveBase(dir), "--profile", dir)
-	c, err := parseServe(base, io.Discard)
-	if err != nil || c.clockWindowTicks != defaultClockWindowTicks || defaultClockWindowTicks != 60000 {
-		t.Fatal(c.clockWindowTicks, err)
-	}
-	// Above a day the budget is a safety net, which an operator may ask
-	// for; the wire bound is the refusal (#584).
-	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-ticks", "600000"), io.Discard)
-	if err != nil || c.clockWindowTicks != 600000 {
-		t.Fatal(c.clockWindowTicks, err)
-	}
-	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-ticks", "15000"), io.Discard)
-	if err != nil || c.clockWindowTicks != 15000 {
-		t.Fatal(c.clockWindowTicks, err)
-	}
-	for _, bad := range []string{"0", "1800001"} {
-		if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-ticks", bad), io.Discard); err == nil {
-			t.Fatal("accepted --clock-window-ticks", bad)
-		}
-	}
 	if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-seconds", "2"), io.Discard); err == nil {
 		t.Fatal("accepted the retired --clock-window-seconds")
 	}
@@ -464,7 +423,7 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 	// The blind-tick regulator (#583) is armed per window from the flag.
 	if c, err := parseServe(append(append([]string(nil), base...), "--clock-blind-ticks", "300"), io.Discard); err != nil || c.clockBlindTicks != 300 {
 		t.Fatalf("blind ticks: %+v %v", c, err)
-	} else if config = serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, uint32(c.clockWindowTicks), uint32(c.clockBlindTicks)); config.Start.BlindTickBudget != 300 {
+	} else if config = serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, defaultClockWindowTicks, uint32(c.clockBlindTicks)); config.Start.BlindTickBudget != 300 {
 		t.Fatal(config.Start)
 	}
 	if _, err := parseServe(append(append([]string(nil), base...), "--clock-blind-ticks", "1800001"), io.Discard); err == nil {

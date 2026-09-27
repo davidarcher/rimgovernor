@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // The development case is issue #9's controller-side native acceptance for
@@ -21,8 +23,7 @@ import (
 // what the controller replay can establish -- admission bounded by the
 // project limit, the observed worker count and per-work-type free labor;
 // an explicit reason on every deferred goal, with a censused bottleneck on
-// labor deferrals; a measured (never unknown) research deficit when a
-// research target is configured, proving the review-time research read;
+// labor deferrals; a ranked EnsureResearch row from the default research ladder;
 // and waiting ages retained across the restart pair -- and records
 // per-goal admission and deferral metrics. It does not establish pawn
 // progress on any project: that is the sustained matrix's campaign
@@ -33,9 +34,7 @@ import (
 // (counted under the launch's keepalive entry, not asserted) so the
 // ranking plays through the map's threats.
 const (
-	projectLimit   = 2
 	minReviews     = 2
-	researchTarget = "MicroelectronicsBasics"
 	resourceTarget = "WoodLog:400"
 	watch          = 6 * time.Minute
 	afterRestart   = 3 * time.Minute
@@ -45,12 +44,12 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name:  "service/development",
-		Scope: "Development priorities (#9): a resumed controller's recorded ranking is sampled through /api/routines across a kill-and-restart pair; admission stays within the project limit, worker count and free labor, every deferral carries a reason, a configured research target is measured at review time, and waiting ages survive the restart. Pawn progress is out of scope.",
+		Scope: "Development priorities (#9): a resumed controller's recorded ranking is sampled through /api/routines across a kill-and-restart pair; admission stays within the project limit, worker count and free labor, every deferral carries a reason, the default research ladder ranks EnsureResearch, and waiting ages survive the restart. Pawn progress is out of scope.",
 		Start: cases.Save{Name: sustained.BaselineSave},
 		// Every family composes; the ranking under test is the whole ladder.
 		Serve: &cases.ServeSpec{
 			Resume: true, Prefix: "development", NativeTimeout: 15 * time.Second,
-			Extra: []string{"--routine-project-limit", fmt.Sprint(projectLimit), "--routine-research-target", researchTarget, "--routine-resource-target", resourceTarget},
+			Extra: []string{"--routine-resource-target", resourceTarget},
 		},
 		Budget: 15 * time.Minute,
 		Run:    development,
@@ -97,7 +96,7 @@ func development(ctx context.Context, s cases.Session) error {
 				return err
 			}
 			samples = append(samples, sample)
-			for _, v := range checkSample(sample, projectLimit, researchTarget) {
+			for _, v := range checkSample(sample, policy.MaxAutoDevelopmentProjects, "") {
 				violations = append(violations, fmt.Sprintf("%s sample %d (tick %d): %s", phase, len(samples), tickOf(sample), v))
 			}
 			select {
@@ -207,7 +206,7 @@ func development(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("only %d distinct review tick(s) sampled (minimum %d); the clock never advanced past the resumed review", metrics.Reviews, minReviews)
 	}
 	if !metrics.ResearchRanked {
-		return fmt.Errorf("research target %q never produced a ranked EnsureResearch row", researchTarget)
+		return errors.New("the default research ladder never produced a ranked EnsureResearch row")
 	}
 	if len(violations) > 0 {
 		return fmt.Errorf("%d invariant violation(s); first: %s", len(violations), violations[0])

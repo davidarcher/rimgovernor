@@ -1,6 +1,6 @@
 // Package growercrop wires the one-shot patch of the crop a plant grower
 // sows, the same Settings-style boundary shape as
-// internal/buildingruntime/beduse and buildingtemperature (fresh CAS read, native
+// internal/buildingruntime/bedmedical and buildingtemperature (fresh CAS read, native
 // preview, emergency check, then a direct write/lookup/observe) rather than
 // the live-dispatch Owner/Attempt Job pattern of pawn-order boundaries.
 package growercrop

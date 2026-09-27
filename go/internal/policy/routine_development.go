@@ -177,15 +177,12 @@ func DefaultResearchLadder() []string {
 }
 
 // ResearchGoal resolves the project EnsureResearch pursues and whether it is
-// a workshop need (derived): the operator target first, then the first
+// a workshop need (derived): the first
 // unfinished project the workshop ladder recorded, then the first unfinished
 // rung of RoutinePolicy.ResearchLadder. A ladder rung is only walked under a
 // known research census: the ladder is a default, not a declared need, and
 // without the census there is nothing to measure it against.
 func ResearchGoal(p RoutinePolicy, needs []string, facts domain.Fact[ResearchFacts]) (target string, derived bool) {
-	if p.ResearchTarget != "" {
-		return p.ResearchTarget, false
-	}
 	if target = ResearchGoalTarget("", needs, facts); target != "" {
 		return target, true
 	}

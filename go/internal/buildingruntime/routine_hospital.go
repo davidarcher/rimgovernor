@@ -29,13 +29,13 @@ const (
 // hospital planner needs on top of the building source.
 type RoutineHospitalSource interface {
 	RoutineBuildingSource
-	ReadBedUseTarget(context.Context, *c.Identity, string) (bridge.BedUseTarget, bridge.Result, error)
-	PreviewBedUse(context.Context, *c.Identity, domain.BedUse) (*op.PreviewReply, bridge.Result, error)
+	ReadBedMedicalTarget(context.Context, *c.Identity, string) (bridge.BedMedicalTarget, bridge.Result, error)
+	PreviewBedMedical(context.Context, *c.Identity, domain.BedMedical) (*op.PreviewReply, bridge.Result, error)
 }
 
 // RoutineHospitalPlanner gives MaintainMedicalCare's patients a hosted
 // medical bed: it flags an existing bed in a Hospital-hosting room medical
-// (a one-shot BedUse patch), and when no bed can be spared it stages one
+// (a one-shot BedMedical patch), and when no bed can be spared it stages one
 // through the same building ladder EnsureComfort walks (furnish a hosting
 // room, else a starter shell first), converting it on a later review.
 // Tending, rescue and the medicine reserve stay their own families.
@@ -203,7 +203,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
-	target, _, err := r.native.ReadBedUseTarget(call, boundary.Identity(state.Snapshot), choice.Bed)
+	target, _, err := r.native.ReadBedMedicalTarget(call, boundary.Identity(state.Snapshot), choice.Bed)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -217,7 +217,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	preview, _, err := r.native.PreviewBedUse(call, boundary.Identity(state.Snapshot), patch)
+	preview, _, err := r.native.PreviewBedMedical(call, boundary.Identity(state.Snapshot), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -233,7 +233,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-hospital-%x", digest[:16]))
-	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	action, err := domain.NewBedMedicalAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

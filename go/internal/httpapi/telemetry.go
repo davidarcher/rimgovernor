@@ -18,7 +18,7 @@ import (
 // readable over the controller's own listener, so a live game that seems
 // to be doing nothing has evidence beyond stderr. Both routes are
 // read-only and unauthenticated like /api/state, and answer 404 when the
-// service runs without a recorder (serve --no-flight-recorder).
+// service runs without a recorder (serve --observe).
 //
 //   - GET /api/telemetry/events?since=<seq>&kind=<k,...>&limit=<n> pages the
 //     retained segments by sequence: the rows after since (default 0, the

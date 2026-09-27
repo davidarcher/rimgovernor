@@ -30,11 +30,6 @@ func TestResearchGoalWalksTheLadder(t *testing.T) {
 	if target, derived := ResearchGoal(p, []string{"Stonecutting"}, census); target != "Electricity" || derived {
 		t.Fatal("a finished need falls through to the ladder", target, derived)
 	}
-	p.ResearchTarget = "Batteries"
-	if target, derived := ResearchGoal(p, []string{"Smithing"}, census); target != "Batteries" || derived {
-		t.Fatal("the operator target wins", target, derived)
-	}
-	p.ResearchTarget = ""
 	p.ResearchLadder = []string{"Unlisted", "Batteries"}
 	if target, _ := ResearchGoal(p, nil, census); target != "Batteries" {
 		t.Fatal("an unlisted rung is skipped", target)

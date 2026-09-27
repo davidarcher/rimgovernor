@@ -2,41 +2,41 @@ package domain
 
 import "errors"
 
-// BedUse is an immutable, comparable value: a one-shot patch of a
+// BedMedical is an immutable, comparable value: a one-shot patch of a
 // humanlike bed's use -- its medical flag (Building_Bed.Medical on the
 // native side), or, for a prisoners patch (#880), setting it for
 // prisoners -- CAS-gated by an already-observed exact snapshot token the
 // same way BuildingTemperature gates a setpoint. The token covers both
 // flags and the bed's owner set, since either setter drops every owner;
 // there is no pawn/Job involved -- see NativeBedMedical.cs and
-// bridge/bed_use.go.
-type BedUse struct {
+// bridge/bed_medical.go.
+type BedMedical struct {
 	thing     string
 	medical   bool
 	prisoners bool
 	before    string
 }
 
-func NewBedMedical(thing string, medical bool, before string) (BedUse, error) {
+func NewBedMedical(thing string, medical bool, before string) (BedMedical, error) {
 	if !validID(thing) || !validID(before) {
-		return BedUse{}, errors.New("invalid bed medical identity")
+		return BedMedical{}, errors.New("invalid bed medical identity")
 	}
-	return BedUse{thing: thing, medical: medical, before: before}, nil
+	return BedMedical{thing: thing, medical: medical, before: before}, nil
 }
 
 // NewBedPrisoners sets one exact bed for prisoners (#880); there is no
 // patch back to colonists.
-func NewBedPrisoners(thing string, before string) (BedUse, error) {
+func NewBedPrisoners(thing string, before string) (BedMedical, error) {
 	b, err := NewBedMedical(thing, false, before)
 	b.prisoners = err == nil
 	return b, err
 }
-func (b BedUse) Thing() string       { return b.thing }
-func (b BedUse) Medical() bool       { return b.medical }
-func (b BedUse) Prisoners() bool     { return b.prisoners }
-func (b BedUse) BeforeToken() string { return b.before }
+func (b BedMedical) Thing() string       { return b.thing }
+func (b BedMedical) Medical() bool       { return b.medical }
+func (b BedMedical) Prisoners() bool     { return b.prisoners }
+func (b BedMedical) BeforeToken() string { return b.before }
 
-func NewBedUseAction(id ActionID, b BedUse) (Action, error) {
+func NewBedMedicalAction(id ActionID, b BedMedical) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
@@ -47,8 +47,8 @@ func NewBedUseAction(id ActionID, b BedUse) (Action, error) {
 	if err != nil || canonical != b {
 		return Action{}, errors.New("invalid bed medical")
 	}
-	return Action{id: id, kind: BedUseAction, bedUse: b}, nil
+	return Action{id: id, kind: BedMedicalAction, bedMedical: b}, nil
 }
-func (a Action) BedUse() (BedUse, bool) {
-	return a.bedUse, a.kind == BedUseAction
+func (a Action) BedMedical() (BedMedical, bool) {
+	return a.bedMedical, a.kind == BedMedicalAction
 }
