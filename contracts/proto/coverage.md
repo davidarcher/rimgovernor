@@ -21,13 +21,12 @@ discovered/mapped, not as live source links.
 | `games_status` | Go controller gamehost process adapter | External host | `controller/rimgovernor/bridge.py:54` |
 | `rimworld/load_game_ready` | Lifecycle.Load / ReadLoad | Typed | `controller/rimgovernor/bridge.py:153` |
 | `home/upkeep_home` | Operations.Preview / Execute: ExtendHome | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/upkeep_wall` | Operations.Preview / Execute: RemoveWall / ReleaseWallRemovals | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/upkeep_wall` | Operations.Preview / Execute: RemoveWall | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/upkeep_bed` | Operations.Preview / Execute: AssignBed | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/recovery_area` | Operations.Preview / Execute: RecoveryArea | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/recover_service` | Operations.Preview / Execute: RecoverService | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/husbandry_config` | Operations.Preview / Execute: SetAnimalTraining / SlaughterAnimal | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/relieve_need` | Operations.Preview / Execute: RelieveNeed | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/medical_operations` | Operations.Preview / Execute: QueueSurgery; Observations.ReadMedicalCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/medical_operations` | Observations.ReadMedicalCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan_gift` | Operations.Preview / Execute: GiftCaravanSilver | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/fulfill_quest` | Operations.Preview / Execute: FulfillQuest | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan` | Operations.Preview / Execute: FormCaravan / TravelCaravan; Observations.ReadCaravanCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |

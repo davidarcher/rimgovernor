@@ -13,8 +13,7 @@ namespace HomeBridge.BridgeTools
 
         // Identity-only check for a target whose CAS token travels on a
         // decoupled sibling field instead of this EntityPrecondition's own
-        // (e.g. RecoverService.expected_target_snapshot_token), the same
-        // split QueueSurgery uses for its patient's health-signature token.
+        // (e.g. RecoverService.expected_target_snapshot_token).
         internal static bool ValidEntityId(Operations.EntityPrecondition? entity) => entity != null
             && entity.HasEntityId && ProtoBoundary.IsIdentifier(entity.EntityId);
 

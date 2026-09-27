@@ -71,8 +71,8 @@ type RecoveryServiceAttempt struct {
 }
 
 // recoveryServiceOperation builds the RecoverService command. The target's
-// CAS token travels on the decoupled ExpectedTargetSnapshotToken field
-// (mirroring QueueSurgery's expected_health_token), not on Target's own
+// CAS token travels on the decoupled ExpectedTargetSnapshotToken field, not
+// on Target's own
 // EntityPrecondition, which carries identity only: the target's
 // recovery-specific token has no existing observation read that could
 // produce it ahead of time, so ReadRecoveryServiceTarget discovers it via an
@@ -110,8 +110,7 @@ func recoveryServiceDiscoveryCommand(pawn, pawnToken, thing string, method Recov
 // native-computed recovery-service CAS token (NativeRecoveryOperations.Token:
 // hit points, breakdown state, fuel level, forbidden, burning), discovered
 // via an unconstrained RecoverService preview -- no expected target token
-// supplied -- the same way bridge.SurgeryTarget/ReadSurgeryTarget establishes
-// a patient's health-signature baseline for QueueSurgery. The general upkeep
+// supplied. The general upkeep
 // census strips snapshot tokens, and the row-level building read
 // (NativeBuildingObservationTools, bridge.ReadConstructionBuildings) only
 // ever populates a row-level "building-" hash over unrelated fields, never

@@ -9,6 +9,7 @@ import (
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+	pl "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -48,7 +49,7 @@ func TestPreviewCaravanDepartureAcceptedAndRejections(t *testing.T) {
 		{"not accepted", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false},
 		{"missing accepted", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = nil }, false},
 		{"unexpected preparation", func(v *op.PreviewReply) {
-			v.GetEvaluated().Preparation = &op.PreviewEvaluation_Surgery{Surgery: &op.SurgeryPreparation{}}
+			v.GetEvaluated().Preparation = &op.PreviewEvaluation_Placement{Placement: &pl.PlacementEvaluated{}}
 		}, false},
 		{"missing caravan projection", func(v *op.PreviewReply) { v.GetEvaluated().Projected = &r.EffectEvidence{} }, false},
 		{"destination mismatch", func(v *op.PreviewReply) { v.GetEvaluated().Projected.GetCaravan().DestinationTile = proto.Int32(7) }, false},

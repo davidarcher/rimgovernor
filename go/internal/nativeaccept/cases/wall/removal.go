@@ -1,14 +1,12 @@
-// The wall/removal case proves the typed RemoveWall and
-// ReleaseWallRemovals operations (#83) on a loaded save: NativeWallRemovalOperations
+// The wall/removal case proves the typed RemoveWall operation (#83) on a
+// loaded save: NativeWallRemovalOperations
 // resolves the guarded demolition site from the wall identity alone, refuses
 // a wall without completed stone backups, admits the original's demolition
 // once same-stuff stone backups stand in its backup cells, and a real
 // supervised native deconstruct job clears the wall (observed Completed with
 // the wall gone from the building census, not just a receipt). A standing
 // stone permanent wall then makes the backups cleanup sites: one backup is
-// demolished the same way, and a further pending removal is retired by
-// ReleaseWallRemovals (released_count 1, progress Unsuccessful, designation
-// gone). Replay and lookup return the original receipt.
+// demolished the same way. Replay and lookup return the original receipt.
 //
 // A LightingFixture + UpkeepFixture build supplies test/lighting_prepare (an
 // enclosed roofed room of colonist walls) and test/stone_walls_spawn (finished
@@ -89,9 +87,8 @@ func colonistWalls(ctx context.Context, h *na.Harness, scope map[string]any, lab
 func init() {
 	cases.Register(cases.Case{
 		Name: "wall/removal",
-		Scope: "Native RemoveWall/ReleaseWallRemovals dispatch: site resolution from the wall identity, refusal without " +
-			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, release of a pending " +
-			"removal, replay and lookup idempotency.",
+		Scope: "Native RemoveWall dispatch: site resolution from the wall identity, refusal without " +
+			"backups, guarded demolition of the original and of a backup by real supervised native deconstruct jobs, replay and lookup idempotency.",
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
 		Budget: 5 * time.Minute,
 		Run:    runRemoval,
@@ -553,52 +550,6 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("after-cleanup-census: expected two remaining backups naming the next, got %#v", afterCleanupRow)
 	}
 	report["backup_demolished"] = firstBackup
-
-	// Release retires a pending guarded removal and drops its designation.
-	releasedRequest, _, err := execute("execute-second-cleanup", "wall-second-cleanup", secondBackup)
-	if err != nil {
-		return err
-	}
-	if err := acquire("release-acquire"); err != nil {
-		return err
-	}
-	generation, err = currentGeneration("release-generation")
-	if err != nil {
-		return err
-	}
-	releaseReply, err := h.Wire(ctx, "execute-release", "operations_execute", buildRequest("wall-release", generation, map[string]any{"releaseWallRemovals": map[string]any{}}))
-	if err != nil {
-		return err
-	}
-	_, releaseReceipt, err := na.Outcome(releaseReply, "receipt")
-	if err != nil {
-		return fmt.Errorf("execute-release: %w", err)
-	}
-	releaseApplied, _ := na.AsMap(releaseReceipt["applied"])
-	releaseObserved, _ := na.AsMap(releaseApplied["observed"])
-	releaseEffect, _ := na.AsMap(releaseObserved["wall"])
-	if na.AsNumber(releaseEffect["releasedCount"]) != 1 {
-		return fmt.Errorf("execute-release: expected one released removal, got %#v", releaseEffect)
-	}
-	released, err := progress("progress-released", attemptOf(releasedRequest))
-	if err != nil {
-		return err
-	}
-	if _, ok := na.AsMap(released["unsuccessful"]); !ok {
-		return fmt.Errorf("progress-released: expected an unsuccessful effect after release, got %#v", released)
-	}
-	afterRelease, err := census("after-release-census", "")
-	if err != nil {
-		return err
-	}
-	afterReleaseRow, err := rowForNormal(afterRelease, chosen.nx, chosen.nz)
-	if err != nil {
-		return fmt.Errorf("after-release-census: %w", err)
-	}
-	if designated, _ := na.AsBool(afterReleaseRow["designated"]); designated {
-		return fmt.Errorf("after-release-census: released designation still stands: %#v", afterReleaseRow)
-	}
-	report["released"] = secondBackup
 
 	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {

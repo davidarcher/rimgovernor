@@ -437,7 +437,7 @@ which reproduces that run's world fresh. A `Save` start carries its own
 world and refuses `-seed`. A pinned debug start caches as its own
 `RimGovernor-debug-...-seed-<s>` save, so a repeat under it loads. A serve-driven case declares `Serve: &cases.ServeSpec{...}` and
 calls `s.Serve(ctx, s.Spec())` when its in-game setup is done (the
-`dialog/pause`, `surgery/queue` and `light/*` cases are the reference
+`dialog/pause` and `light/*` cases are the reference
 shapes); `s.Reattach(ctx)` takes the slot back for the postmortem reads.
 A case that composes the serve lifecycle itself uses `s.Launch`. Every
 service a run launches is profiled (#301): the runner passes `--pprof`,
@@ -890,8 +890,7 @@ grant.
 By default `StartDebugGame` loads a saved copy of the quick start
 (`RimGovernor-debug-<size>-<coverage>[-<dlc>][-<biomes>]` in `profile/Saves`,
 written by the first start that misses it) instead of generating a world
-and map: ~2.7s against ~5.4s on a warm process, surgery/queue 14s to 10s
-on a kept game. The loaded colony is the same one every run rather than
+and map: ~2.7s against ~5.4s on a warm process. The loaded colony is the same one every run rather than
 a new world, so a case that is about world generation or a first-load
 identity opts out with `RIMGOVERNOR_ACCEPT_CACHED_START=0`, and the save
 must be deleted to pick up a fixture or start change that alters the

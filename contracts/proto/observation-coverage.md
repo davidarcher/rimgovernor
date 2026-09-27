@@ -299,13 +299,10 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |
 | AssignBed.pawn/bed/expected_previous_bed | ListPawns.pawn.snapshot; ListBuildings.building.snapshot; pawn settings/owned bed readback |
 | RemoveWall.wall/expected_site_snapshot_token | ListWallUpgradeSites.target.snapshot and site.snapshot, exact geometry below |
-| ReleaseWallRemovals.expected_snapshot_token | ReadColonyFacts.upkeep.wall_removal.snapshot |
-| RecoveryArea.pawn/area | ListPawns.pawn.snapshot; ReadRecovery.area.snapshot |
 | RecoverService.target/pawn | ReadRecovery.building.snapshot; ListPawns.pawn.snapshot |
 | ManageWaste.target/pawn | ReadWaste.thing.snapshot; ListPawns.pawn.snapshot |
 | RelieveNeed.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | ImproveGear.pawn/target/loadout | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
-| QueueSurgery.patient/health/care | ListPawns.pawn.snapshot, PawnHealth.snapshot, PawnSettings.medical_care; ReadMedicalCatalog snapshot for preparation |
 | SetAnimalTraining/SlaughterAnimal.animal/census | ReadHusbandry.pawn.snapshot, animal.census_snapshot; settings snapshot separate |
 | SetPrisonerInteraction.pawn | ReadPopulation.pawn.snapshot and current interaction |
 | SetDrafted/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |

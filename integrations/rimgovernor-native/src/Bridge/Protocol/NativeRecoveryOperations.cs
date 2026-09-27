@@ -160,8 +160,7 @@ namespace HomeBridge.BridgeTools
         // requireExpected additionally enforces the caller's
         // expected_target_snapshot_token precondition (Execute always
         // requires it; Preview only when the caller supplied it, letting an
-        // unconstrained call establish the current baseline), mirroring
-        // NativeSurgeryOperations.Prepare's requireExpected split. token is
+        // unconstrained call establish the current baseline). token is
         // always the current native-computed value, returned so Preview can
         // report it regardless of requireExpected.
         private static bool Prepare(Operations.RecoverService command, Common.ObservationContext context, bool requireExpected, out NativeControlIdentity identity,
@@ -247,9 +246,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 // An unconstrained call (no expected_target_snapshot_token set)
-                // establishes the current baseline, the same role an
-                // unconstrained QueueSurgery call plays for its health token:
-                // there is no existing observation read that could produce
+                // establishes the current baseline: there is no existing
+                // observation read that could produce
                 // this recovery-specific building token ahead of time.
                 var requireExpected = command.HasExpectedTargetSnapshotToken;
                 if (!Prepare(command, context, requireExpected, out _, out var pawn, out var building, out var snapshot, out var token, out var failure))

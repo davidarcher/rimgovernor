@@ -17,10 +17,9 @@ operation envelope neighbors (now other probe names within the same
 `NativeContractProbes.csproj`). Gameplay acceptance requires the private native
 runner; these checks do not establish pawn movement.
 
-The adapter requires an existing eligible owned draft and exact snapshot. It
-refuses blocked, fogged and unreachable destinations without snapping to another
-cell. A pawn already at the destination yields NoChange without a job setter.
-Otherwise it issues ordinary native Goto under current authority. Only the exact
-observed job and one native order revision establish correlation. Queued jobs
-remain pending; disappearance alone cannot establish arrival. Native generation,
-claim or later order changes invalidate movement progress.
+Movement is the `MoveIntent` arm of Actions/Apply (`MoveActionHandler`). Native
+validates at apply time: the pawn must be alive, spawned and drafted under an
+owned claim, and the cell standable, unfogged and reachable; it never snaps to
+another cell. A pawn already on the cell or walking there is applied without a
+new order; otherwise it issues an ordinary native Goto. The applied receipt is
+terminal and says nothing about arrival.

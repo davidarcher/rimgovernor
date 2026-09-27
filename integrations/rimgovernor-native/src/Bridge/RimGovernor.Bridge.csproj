@@ -72,7 +72,6 @@
     <Compile Include="../../../../scripts/fixtures/CampaignMetricsFixture.cs" Condition="'$(CampaignMetricsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestFulfillFixture.cs" Condition="'$(QuestFulfillFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuildingTemperatureFixture.cs" Condition="'$(BuildingTemperatureFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/SurgeryFixture.cs" Condition="'$(SurgeryFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CaravanControlFixture.cs" Condition="'$(CaravanControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CaravanDepartureFixture.cs" Condition="'$(CaravanDepartureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryServiceFixture.cs" Condition="'$(RecoveryServiceFixture)' == 'true'" />

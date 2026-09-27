@@ -102,21 +102,8 @@ current operation bills. Its catalog is patient-specific. Available ingredients
 and doctors do not certify bed access, sufficient reachable medicine or eventual
 success; normal native work selection still checks those conditions.
 
-`RequestSurgery` requires an explicit player choice of the inspected patient,
-recipe and part. It creates a `PLAYER` action executed by Hands. Runtime dispatch
-requires its recorded semantic intent, matching arguments, current direction/load
-and unchanged health identity and care policy. No autonomous elective-surgery method
-exists. The native operation rechecks eligibility in its main-thread transaction
-and queues an ordinary medical bill. Existing patient bills are preserved and prevent
-adding competing work. Patient policies, beds and native medicine restrictions remain
-in force. Recipes requiring extra dialogs, faction violations or unsupported health
-effects remain inspection-only.
-
-Completion requires the expected newly added condition on the exact body part or
-observed removal of the targeted condition. Bill removal, delivery receipts and elapsed
-ticks are insufficient. Failure, cancellation, suspension, death and missing health
-remain explicit; failed operations are never automatically repeated. Surgical health
-changes and postoperative recovery are separate outcomes.
+There is no surgery operation: the controller never queues an operation bill;
+surgery stays a player action.
 
 The native setup used by medical acceptance
 is excluded from production builds and from the model execution surface.

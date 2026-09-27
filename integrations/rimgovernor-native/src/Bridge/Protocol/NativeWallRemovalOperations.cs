@@ -207,41 +207,5 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // ReleaseWallRemovals retires every open guarded removal on this game
-        // (the legacy release action); the receipt counts what was open.
-        internal static Operations.PreviewReply PreviewRelease(Operations.ReleaseWallRemovals command, Common.ObservationContext context)
-        {
-            if (command.HasExpectedSnapshotToken && command.ExpectedSnapshotToken.Length == 0)
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An expected snapshot token must not be blank.") };
-            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
-        }
-
-        internal static Operations.ExecuteReply ExecuteRelease(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            NativeAttemptLedger.Admission? handle = null;
-            var pre = request.Precondition;
-            try
-            {
-                var preview = PreviewRelease(request.Operation.ReleaseWallRemovals, context);
-                if (preview.Failure != null) return new Operations.ExecuteReply { Failure = preview.Failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                int released;
-                using (authority.Owned()) released = WallUpgradeSafety.ReleaseAll();
-                var evidence = new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { ReleasedCount = released, DemolitionObserved = false } };
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, null!, "Wall release interrupted: " + error.GetType().Name) };
-                return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Wall release failed: " + error.GetType().Name) };
-            }
-        }
     }
 }

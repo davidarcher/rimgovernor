@@ -32,6 +32,9 @@ message Uncertain {
 // Every evidence branch is concrete; none permits arbitrary named properties.
 message EffectEvidence {
   reserved 7;
+  // Area and surgery effects went with RecoveryArea and QueueSurgery (#938).
+  reserved 12, 14;
+  reserved "area", "surgery";
   oneof effect {
     ConstructionEffect construction = 1;
     InstallationEffect installation = 2;
@@ -43,9 +46,7 @@ message EffectEvidence {
     HomeEffect home = 9;
     BedEffect bed = 10;
     WallEffect wall = 11;
-    AreaEffect area = 12;
     JobEffect job = 13;
-    SurgeryEffect surgery = 14;
     AnimalEffect animal = 15;
     PrisonerEffect prisoner = 16;
     TradeEffect trade = 17;
@@ -172,8 +173,7 @@ message ReleaseDeconstructionsEffect { optional int32 released_count = 1; }
 // draft_claim_id: the claim an applied draft order holds (#910); absent on every other order.
 message CombatOrderResult { optional uint32 index = 1; optional string pawn_id = 2; optional bool applied = 3; optional string refusal = 4; optional string job_def = 5; optional string draft_claim_id = 6; }
 message CombatOrdersEffect { repeated CombatOrderResult results = 1; }
-message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; optional int32 released_count = 4; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
-message AreaEffect { optional string pawn_id = 1; optional string area_id = 2; optional string previous_area_id = 3; optional int64 expires_tick = 4; SnapshotEvidence snapshot = 5; }
+message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {
   optional string pawn_id = 1;
@@ -203,7 +203,6 @@ message JobEffect {
   // distinct from resulting_snapshot_token's post-effect pawn meaning.
   optional string target_snapshot_token = 23;
 }
-message SurgeryEffect { optional string patient_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional bool queued = 5; optional string health_token = 6; SnapshotEvidence bill_stack = 7; }
 message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; optional bool tame_designated = 6; optional bool release_designated = 7; optional string allowed_area_id = 8; optional string master_id = 9; optional bool follow_drafted = 10; optional bool follow_fieldwork = 11; }
 // outcome is the pawn's actual custody state read from native at observation:
 // held (still a colony prisoner), recruited, enslaved, converted, released,

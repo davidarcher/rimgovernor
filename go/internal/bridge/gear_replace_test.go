@@ -49,7 +49,7 @@ func TestPreviewGearReplaceAcceptedAndRejections(t *testing.T) {
 		{"not accepted", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false},
 		{"missing accepted", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = nil }, false},
 		{"unexpected preparation", func(v *op.PreviewReply) {
-			v.GetEvaluated().Preparation = &op.PreviewEvaluation_Surgery{Surgery: &op.SurgeryPreparation{}}
+			v.GetEvaluated().Preparation = &op.PreviewEvaluation_Caravan{Caravan: &op.CaravanPreparation{}}
 		}, false},
 		{"missing job projection", func(v *op.PreviewReply) { v.GetEvaluated().Projected = &r.EffectEvidence{} }, false},
 		{"projection mismatch", func(v *op.PreviewReply) { v.GetEvaluated().Projected.GetJob().JobDef = proto.String("Other") }, false},

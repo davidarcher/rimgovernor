@@ -38,9 +38,7 @@ func recoveryServiceMethodWire(method domain.RecoveryMethod) bridge.RecoveryServ
 // bridge.ReadRecoveryServiceTarget, an unconstrained preview round-trip that
 // discovers the building's fresh recovery-specific CAS token (there is no
 // existing observation read that could produce it -- see
-// NativeRecoveryOperations.Token's own doc comment on the native side), the
-// same role bridge.ReadSurgeryTarget plays for a patient's health-signature
-// baseline before QueueSurgery.
+// NativeRecoveryOperations.Token's own doc comment on the native side).
 type RecoveryServiceNative interface {
 	ReadPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	ReadRecoveryServiceTarget(context.Context, *c.Identity, string, string, string, bridge.RecoveryServiceMethod) (bridge.RecoveryServiceTarget, bridge.Result, error)

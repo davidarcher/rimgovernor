@@ -58,7 +58,7 @@ func wallRemovalEvidence(evidence *r.EffectEvidence, expected WallRemovalAttempt
 	if wall == nil || wall.TargetId == nil || wall.GetTargetId() != expected.Target {
 		return nil, contract("wall removal target mismatch")
 	}
-	allowed := &r.WallEffect{TargetId: wall.TargetId, RemovalId: wall.RemovalId, WorkerIds: wall.WorkerIds, ReleasedCount: wall.ReleasedCount, DemolitionObserved: wall.DemolitionObserved, Site: wall.Site}
+	allowed := &r.WallEffect{TargetId: wall.TargetId, RemovalId: wall.RemovalId, WorkerIds: wall.WorkerIds, DemolitionObserved: wall.DemolitionObserved, Site: wall.Site}
 	if !proto.Equal(wall, allowed) {
 		return nil, contract("wall removal effect fields missing or unsupported")
 	}

@@ -57,7 +57,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeSettlementGiftRecord> SettlementGifts = new Dictionary<Common.AttemptKey, NativeSettlementGiftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetDrugPolicy> DrugPolicies = new Dictionary<Common.AttemptKey, Operations.SetDrugPolicy>();
-        internal readonly Dictionary<Common.AttemptKey, NativeSurgeryRecord> Surgeries = new Dictionary<Common.AttemptKey, NativeSurgeryRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeNamingRecord> Naming = new Dictionary<Common.AttemptKey, NativeNamingRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeJoinerLetterRecord> JoinerLetters = new Dictionary<Common.AttemptKey, NativeJoinerLetterRecord>();
@@ -195,8 +194,6 @@ namespace HomeBridge.BridgeTools
                 return NativeSettlementGiftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.FulfillQuest)
                 return NativeQuestFulfillOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
-                return NativeSurgeryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
                 return NativeCaravanTravel.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ConfirmColonyNames)
@@ -219,8 +216,6 @@ namespace HomeBridge.BridgeTools
                 return NativeWallRemovalOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
                 return NativeArrestOperations.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
-                return NativeWallRemovalOperations.ExecuteRelease(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                 return NativeZoneDeletion.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
@@ -308,8 +303,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeQuestFulfillOperations.Preview(parsed.Operation.FulfillQuest, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrugPolicy)
                     return ProtoBoundary.Encode(NativeDrugPolicyOperations.Preview(parsed.Operation.SetDrugPolicy, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
-                    return ProtoBoundary.Encode(NativeSurgeryOperations.Preview(parsed.Operation.QueueSurgery, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
                     return ProtoBoundary.Encode(NativeCaravanTravel.Preview(parsed.Operation.TravelCaravan, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ConfirmColonyNames)
@@ -332,8 +325,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
                     return ProtoBoundary.Encode(NativeArrestOperations.Preview(parsed.Operation.Arrest, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
-                    return ProtoBoundary.Encode(NativeWallRemovalOperations.PreviewRelease(parsed.Operation.ReleaseWallRemovals, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                     return ProtoBoundary.Encode(NativeZoneDeletion.Preview(parsed.Operation.DeleteZone, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
@@ -470,9 +461,6 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeQuestFulfillOperations.Observe(parsed.Attempt, context, questFulfill) });
                     if (state.DrugPolicies.TryGetValue(parsed.Attempt, out var drugPolicy))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeDrugPolicyOperations.Observe(parsed.Attempt, context, drugPolicy) });
-                    NativeSurgeryRecord surgery;
-                    if (state.Surgeries.TryGetValue(parsed.Attempt, out surgery))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = surgery.Observe(parsed.Attempt, context) });
                     NativeCaravanTravelRecord caravanTravel;
                     if (state.CaravanTravels.TryGetValue(parsed.Attempt, out caravanTravel))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCaravanTravel.Observe(parsed.Attempt, context, caravanTravel) });

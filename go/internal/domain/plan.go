@@ -47,8 +47,6 @@ const BedAssignAction ActionKind = "bed_assign"
 
 // WallRemovalAction is declared in wall_removal.go alongside its payload.
 
-// SurgeryAction is declared in surgery.go alongside its Surgery payload.
-
 // TravelCaravanAction is declared in travel_caravan.go alongside its
 // TravelCaravan payload.
 

@@ -37,16 +37,17 @@ message PreviewEvaluation {
   // Trade previews moved to Actions/Apply (TradeIntent), which has none.
   reserved 7;
   reserved "trade";
+  // Surgery preparation went with QueueSurgery (#938).
+  reserved 6;
+  reserved "surgery";
   oneof preparation {
     CaravanPreparation caravan = 5;
-    SurgeryPreparation surgery = 6;
     rimgovernor.placement.v1.PlacementEvaluated placement = 8;
   }
 }
 message StockAvailability { optional string def_name = 1; optional int32 available = 2; }
 message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; optional bool hostile = 7; optional int32 goodwill = 8; optional string faction_id = 9; }
 message CaravanPreparation { optional float mass_usage = 1; optional float mass_capacity = 2; repeated DefCount selected_cargo = 3; repeated DefCount carried_cargo = 4; repeated StockAvailability materials = 5; repeated string home_pawn_ids = 6; optional int32 home_doctors = 7; RoutePreparation route = 8; optional string return_storage_snapshot_token = 9; }
-message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
 message Operation {
   reserved 13;
   // Trade moved to Actions/Apply (TradeIntent).
@@ -61,6 +62,9 @@ message Operation {
   // Arms nothing sent and native never handled (#856 cleanup).
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
+  // Arms Go never sent (#938).
+  reserved 23, 24, 29;
+  reserved "release_wall_removals", "recovery_area", "queue_surgery";
   oneof command {
     InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
@@ -76,13 +80,10 @@ message Operation {
     ExtendHome extend_home = 20;
     AssignBed assign_bed = 21;
     RemoveWall remove_wall = 22;
-    ReleaseWallRemovals release_wall_removals = 23;
-    RecoveryArea recovery_area = 24;
     RecoverService recover_service = 25;
     ManageWaste manage_waste = 26;
     RelieveNeed relieve_need = 27;
     ImproveGear improve_gear = 28;
-    QueueSurgery queue_surgery = 29;
     SetAnimalTraining set_animal_training = 30;
     SlaughterAnimal slaughter_animal = 31;
     SetPrisonerInteraction set_prisoner_interaction = 32;
@@ -314,22 +315,19 @@ message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_
 // target still in a legal arrestable mental state. Destination is a prisoner
 // bed; hostile aggressive states (including Berserk) are refused by native rules.
 message Arrest { EntityPrecondition pawn = 1; EntityPrecondition target = 2; EntityPrecondition bed = 3; }
-message ReleaseWallRemovals { optional string expected_snapshot_token = 1; }
-message RecoveryArea { EntityPrecondition pawn = 1; EntityPrecondition area = 2; }
 enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
 // expected_target_snapshot_token is decoupled from target's own EntityPrecondition
 // (whose token field is unused for this operation; only entity_id identity is
 // required) because the target's recovery-specific CAS token
 // (NativeRecoveryOperations.Token) has no existing observation read that could
 // produce it ahead of time: an unconstrained preview (this field omitted)
-// establishes the baseline, mirroring QueueSurgery's expected_health_token.
+// establishes the baseline.
 message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; optional string expected_target_snapshot_token = 4; }
 message ManageWaste { EntityPrecondition target = 1; EntityPrecondition pawn = 2; repeated string unwanted_ids = 3; repeated string bury_ids = 4; }
 enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
 message ExpectedJob { oneof state { int32 job_id = 1; Clear idle = 2; } }
 message RelieveNeed { EntityPrecondition pawn = 1; optional Need need = 2; ExpectedJob expected_job = 3; optional string expected_schedule_def = 4; }
 message ImproveGear { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional string expected_loadout_token = 3; }
-message QueueSurgery { EntityPrecondition patient = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string expected_health_token = 4; optional MedicalCare expected_care = 5; }
 message SetAnimalTraining { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional string trainable_def = 3; }
 message SlaughterAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional bool cancel = 3; }
 message TameAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
