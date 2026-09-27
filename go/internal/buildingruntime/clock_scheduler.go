@@ -1821,11 +1821,7 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 		request.Zones = proto.Bool(keyframe(facts.Zones))
 	}
 	if _, ok := s.native.(PlanningWindowNative); ok && stale(facts.PlanningCells) {
-		if view := s.planningWindowView(); view != nil {
-			request.PlanningWindowView = view
-		} else {
-			request.PlanningWindow = s.legacyPlanningWindow()
-		}
+		request.PlanningWindowView = s.planningWindowView()
 	}
 	asks := s.facts.asks
 	if !s.lastTickKnown && asks.Empty() {
@@ -1863,23 +1859,13 @@ func decodePlanningWindowView(request *o.BundleRequest, loaded *o.BundleSnapshot
 
 // planningWindowView is the opt-in planning window view (#650) for the
 // held window's region: nil when no window is held, the region is past
-// the view's bound, or the native refused the view once.
+// or the region is past the view's bound.
 func (s *ClockScheduler) planningWindowView() *o.BundlePlanningWindowViewRequest {
-	held, ok := facts.Get[observation.PlanningCells](s.facts.store, facts.PlanningCells)
-	if !ok || s.facts.viewUnsupported {
-		return nil
-	}
-	return bridge.BundlePlanningWindowViewRequest(held.Value.Region)
-}
-
-// legacyPlanningWindow is the same-tick planning window band for the held
-// window; nil when none is held.
-func (s *ClockScheduler) legacyPlanningWindow() *o.BundlePlanningWindowRequest {
 	held, ok := facts.Get[observation.PlanningCells](s.facts.store, facts.PlanningCells)
 	if !ok {
 		return nil
 	}
-	return bridge.BundlePlanningWindowRequest(&bridge.BundlePlanningWindow{Region: held.Value.Region})
+	return bridge.BundlePlanningWindowViewRequest(held.Value.Region)
 }
 
 // bundleMasks is the review bundle's field mask per continuous family

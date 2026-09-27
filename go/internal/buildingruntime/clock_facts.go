@@ -38,10 +38,6 @@ type clockFacts struct {
 	// asks are the step families the last review step's planners asked
 	// for, folded into the next review bundle (#593).
 	asks bridge.BundleStepAsks
-	// viewUnsupported is set once a native refused the bundle's planning
-	// window view request (#650): every later review asks for the legacy
-	// band instead.
-	viewUnsupported bool
 	// pollZones is set when the native's zones are the policy census
 	// (observation.ZonesNative): the poll loop then carries them (#795).
 	// Guarded by mu.

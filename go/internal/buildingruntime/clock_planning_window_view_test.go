@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -124,10 +123,9 @@ func (n *viewRefusingNative) ReadBundle(ctx context.Context, req *o.BundleReques
 	return n.schedulerNative.ReadBundle(ctx, req)
 }
 
-// TestReadStepBundleFallsBackToTheLegacyBand (#650): a native that refuses
-// the view is asked once more, in the same step, for the legacy delta
-// band, and never for the view again; other refusals are not a fallback.
-func TestReadStepBundleFallsBackToTheLegacyBand(t *testing.T) {
+// TestRefusedViewIsAnError: a native that refuses the view fails the
+// step's bundle read; there is no fallback band.
+func TestRefusedViewIsAnError(t *testing.T) {
 	s, f := schedulerFixture(t)
 	n := &viewRefusingNative{schedulerNative: f}
 	s.native = n
@@ -136,17 +134,8 @@ func TestReadStepBundleFallsBackToTheLegacyBand(t *testing.T) {
 	if request.PlanningWindowView == nil {
 		t.Fatal("a held window was not asked as a view")
 	}
-	reply, err := s.readStepBundle(context.Background(), request)
-	if err != nil || reply.GetObserved() == nil || len(n.requests) != 2 {
-		t.Fatal(reply, err, len(n.requests))
-	}
-	legacy := n.requests[1]
-	if legacy.PlanningWindowView != nil || legacy.PlanningWindow == nil || legacy.PlanningWindow.ChangedSinceTick != nil || !s.facts.viewUnsupported || s.planningWindowView() != nil {
-		t.Fatal("fallback", legacy, s.facts.viewUnsupported)
-	}
-	if viewRefused(errors.New("transport")) || viewRefused(&bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_STALE_IDENTITY.Enum()}}) ||
-		viewRefused(&bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Detail: proto.String("Bundle events require explicit cursor>=0.")}}) {
-		t.Fatal("a refusal other than an invalid request fell back")
+	if _, err := s.readStepBundle(context.Background(), request); err == nil || len(n.requests) != 1 {
+		t.Fatal(err, len(n.requests))
 	}
 }
 
@@ -230,7 +219,7 @@ func TestPendingViewIsNotARefusal(t *testing.T) {
 		t.Fatal("a pending view was served", view)
 	}
 	facts.Put(s.facts.store, facts.Scope{Load: "load"}, facts.PlanningCells, facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: viewTestRegion}, AsOf: 100, Complete: true})
-	if s.facts.viewUnsupported || s.planningWindowView() == nil {
+	if s.planningWindowView() == nil {
 		t.Fatal("a pending view stopped the view being asked")
 	}
 }

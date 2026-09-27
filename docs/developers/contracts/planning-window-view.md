@@ -192,11 +192,11 @@ frame source and clock and the job one band per frame.
 ## Controller consumption
 
 - A review step whose planning cells are stale asks for the view of the
-  held window's region instead of the legacy band
+  held window's region instead of the band
   (`ClockScheduler.bundleStepFamilies`).
-- A native without the view refuses the request as invalid ProtoJSON. The
-  scheduler then re-reads the step's bundle once with the legacy band and
-  never asks for the view again in that process: the one explicit fallback.
+- The native and the service ship together: a bundle refused for the view
+  fails the step like any other refused bundle; there is no fallback to the
+  band.
 - The bundle validator admits the section only when requested and under the
   bundle's context. `bridge.DecodePlanningWindowView` refuses a region or
   mask mismatch, an incomplete root, chunks that do not tile the rows, a
