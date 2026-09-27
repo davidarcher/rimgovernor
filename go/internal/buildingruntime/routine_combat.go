@@ -1,0 +1,230 @@
+package buildingruntime
+
+import (
+	"context"
+	"crypto/sha256"
+	"fmt"
+	"log/slog"
+	"strings"
+	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
+	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+	"google.golang.org/protobuf/proto"
+)
+
+// combatMethodPrefix names the ActiveCombat method that owns a fight
+// (#852): one plan of owned drafts for the formation's defenders. Its
+// orders are DecideCombat's, sent through combat.orders at each stop and
+// recorded as the plan's evidence (store.RecordCombatStop).
+const combatMethodPrefix = "combat-"
+
+// admitFight commits the fight's plan: an owned draft for every defender
+// the formation gave a role, and the formation as the fight's memory.
+// Orders follow at the stops once the drafts are held.
+func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, memory policy.CombatMemory) (RoutineDefenseResult, error) {
+	p := r.reviewer.player
+	if len(memory.Roles) == 0 {
+		return RoutineDefenseResult{Reason: BuildingMethodNoSquad}, nil
+	}
+	pawns := make([]domain.PawnID, 0, len(memory.Roles))
+	hash := sha256.New()
+	fmt.Fprintf(hash, "%s\n", memory.Tactic)
+	for _, role := range memory.Roles {
+		pawns = append(pawns, role.Pawn)
+		fmt.Fprintf(hash, "%s/%s\n", role.Pawn, role.Target)
+	}
+	if !arbiter.tryClaim(pawns) {
+		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+	}
+	method, id := defenseMethodIDs(strings.TrimSuffix(combatMethodPrefix, "-"), goal, hash)
+	actions := make([]domain.Action, 0, len(pawns))
+	for _, pawn := range pawns {
+		draft, err := domain.NewOwnedDraft(pawn)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		action, err := domain.NewOwnedDraftAction(domain.ActionID(fmt.Sprintf("%s-draft-%s", id, pawn)), draft)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineDefenseResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	if err = p.journal.OpenCombatFight(call, id, memory); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// issueCombatOrders sends one stop's orders as one combat.orders batch and
+// returns the stop's evidence and the memory without the refused orders,
+// which the next stop gives again.
+func (r *RoutineDefensePlanner) issueCombatOrders(call context.Context, state ControlState, plan domain.PlanID, tick domain.Tick, orders []policy.CombatOrder, memory policy.CombatMemory) (store.CombatStopRecord, policy.CombatMemory, error) {
+	session, err := r.reviewer.player.journal.Identity(call)
+	if err != nil {
+		return store.CombatStopRecord{}, memory, err
+	}
+	if len(orders) > bridge.MaxCombatOrders {
+		orders = orders[:bridge.MaxCombatOrders]
+	}
+	command := &op.CombatOrders{}
+	for _, order := range orders {
+		wire := &op.CombatOrder{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(order.Pawn))}}
+		switch order.Kind {
+		case policy.OrderMove:
+			wire.Order = &op.CombatOrder_Move{Move: &c.Cell{X: proto.Int32(order.Cell.X), Z: proto.Int32(order.Cell.Z)}}
+		case policy.OrderAttack:
+			wire.Order = &op.CombatOrder_Attack{Attack: &op.EntityPrecondition{EntityId: proto.String(string(order.Target))}}
+		default:
+			return store.CombatStopRecord{}, memory, ErrControl
+		}
+		command.Orders = append(command.Orders, wire)
+	}
+	pre := &a.WritePrecondition{
+		Identity: boundary.Identity(state.Snapshot), ExpectedGeneration: proto.Uint64(uint64(state.Snapshot.Native)),
+		Attempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String(fmt.Sprintf("%s-stop-%d", plan, tick)), AttemptId: proto.Uint64(1)},
+	}
+	results, _, _, err := r.native.CombatOrders(call, pre, command)
+	if err != nil {
+		return store.CombatStopRecord{}, memory, err
+	}
+	record := store.CombatStopRecord{Tick: tick}
+	for i, order := range orders {
+		// An uncertain receipt carries no results: the orders stay issued
+		// and the next mirror read shows what took.
+		row := store.CombatOrderRecord{CombatOrder: order, Applied: results == nil}
+		if results != nil {
+			row.Applied, row.Refusal = results[i].Applied, results[i].Refusal
+		}
+		if !row.Applied && results != nil {
+			memory = memory.Forget(order.Pawn)
+		}
+		record.Orders = append(record.Orders, row)
+	}
+	return record, memory, nil
+}
+
+// answerGeometry answers DecideCombat's geometry ask with one
+// combat.geometry read proposing cells for the ask's role (#871). A failed
+// or refused read is an answer with no proposals: Formation keeps the
+// layout's firing line.
+func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.Identity, ask *policy.GeometryRequest) policy.GeometryReply {
+	reply := policy.GeometryReply{Answered: true}
+	if ask == nil || ask.Propose != policy.RoleCoverBehindLine || len(ask.Hostiles) == 0 {
+		return reply
+	}
+	line := make([]*c.Cell, 0, len(ask.Line))
+	for _, cell := range ask.Line {
+		line = append(line, &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)})
+	}
+	if len(line) >= bridge.CombatGeometryMaxCells {
+		line = line[:bridge.CombatGeometryMaxCells-1]
+	}
+	hostiles := make([]string, 0, len(ask.Hostiles))
+	for _, h := range ask.Hostiles {
+		hostiles = append(hostiles, string(h))
+	}
+	propose := &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}
+	geometry, _, err := r.native.CombatGeometry(ctx, bridge.CombatGeometryProposeAsk(identity, propose, hostiles, ""))
+	if err != nil {
+		slog.Default().InfoContext(ctx, "combat geometry: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+		return reply
+	}
+	for _, row := range geometry.GetProposed() {
+		if cell := row.GetCell(); cell != nil {
+			reply.Proposals = append(reply.Proposals, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		}
+	}
+	return reply
+}
+
+// combatPawnStates is the fight's live state: the mirror's combat pawns
+// (#851) when the scheduler files them, else the combat read's rows
+// (position, downed, dead; no stance or target).
+func (r *RoutineDefensePlanner) combatPawnStates(rows map[string]*n.PawnState) []policy.CombatPawnState {
+	var out []policy.CombatPawnState
+	if held, ok := facts.Get[EntitySection[*mp.CombatPawn]](r.reviewer.store, facts.CombatPawns); ok {
+		for id, row := range held.Value {
+			s := policy.CombatPawnState{ID: domain.PawnID(id), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance())}
+			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
+				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+			}
+			out = append(out, s)
+		}
+		return out
+	}
+	for id, row := range rows {
+		s := policy.CombatPawnState{ID: domain.PawnID(id), Downed: row.GetDowned(), Dead: row.GetDead()}
+		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
+			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func combatStance(s mp.CombatStance) policy.CombatStance {
+	switch s {
+	case mp.CombatStance_COMBAT_STANCE_IDLE:
+		return policy.StanceIdle
+	case mp.CombatStance_COMBAT_STANCE_WARMUP:
+		return policy.StanceWarmup
+	case mp.CombatStance_COMBAT_STANCE_COOLDOWN:
+		return policy.StanceCooldown
+	case mp.CombatStance_COMBAT_STANCE_MOVING:
+		return policy.StanceMoving
+	case mp.CombatStance_COMBAT_STANCE_MELEE:
+		return policy.StanceMelee
+	}
+	return policy.StanceUnknown
+}
+
+// combatStop is the stop being answered: the newest mirrored combat event
+// (#851) of a #849 stop kind after the fight's last decision, or none (the
+// first decision, or the tick-budget backstop).
+func (r *RoutineDefensePlanner) combatStop(since domain.Tick) policy.StopEvent {
+	held, ok := facts.Get[EntitySection[*mp.CombatEventRow]](r.reviewer.store, facts.CombatEvents)
+	if !ok {
+		return policy.StopEvent{}
+	}
+	var newest *mp.CombatEventRow
+	for _, row := range held.Value {
+		if row.Stop == nil || row.GetAt().GetTick() <= int64(since) {
+			continue
+		}
+		if newest == nil || bridge.MirrorBefore(newest.GetAt(), row.GetAt()) {
+			newest = row
+		}
+	}
+	if newest == nil {
+		return policy.StopEvent{}
+	}
+	return policy.StopEvent{
+		Kind: policy.CombatStopKind(strings.ToLower(strings.TrimPrefix(newest.GetStop().String(), "COMBAT_EVENT_"))),
+		Pawn: domain.PawnID(newest.GetThingId()), Target: domain.PawnID(newest.GetTargetId()),
+	}
+}

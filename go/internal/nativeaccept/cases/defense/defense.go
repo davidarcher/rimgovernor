@@ -10,7 +10,7 @@
 // reaches the killbox entry and every colony door through them) and by a
 // native inspection that no colonist stands on a trap. A real RaidEnemy
 // edge assault is then raised at the opening and the RoutineDefensePlanner
-// must respond with hold-the-line (method "hold-…"). The service then
+// must open one fight (method "combat-…") formed as hold-the-line (#852). The service then
 // holds the raid itself -- the scheduler admits bounded combat watch
 // windows acknowledging the live hostiles while the ActiveCombat goal has
 // an admitted plan (#69) -- and the run waits for the goal to recover, then
@@ -424,14 +424,17 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	if err != nil {
 		return fmt.Errorf("combat response: %w", err)
 	}
-	if !strings.HasPrefix(string(method.Method), "hold-") {
-		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "hold-")
+	if !strings.HasPrefix(string(method.Method), "combat-") {
+		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "combat-")
 	}
-	plan, err := svc.store.LoadPlan(ctx, method.Plan)
+	fight, ok, err := svc.store.LoadCombatFight(ctx, method.Plan)
 	if err != nil {
 		return err
 	}
-	if err := assertHoldPlan(plan.Spec, layout); err != nil {
+	if !ok {
+		return fmt.Errorf("combat plan %s has no fight record", method.Plan)
+	}
+	if err := assertHoldPlan(fight.Memory, layout); err != nil {
 		return err
 	}
 	// The service holds the raid: with the hold plan admitted the
@@ -454,7 +457,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// planner re-verifies the record after the combat epoch, re-opens
 	// every tier that lost a building and rebuilds it.
 	resolvedTick, _ := resolved["resolved_tick"].(int64)
-	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "hold-", svc.wait(repairTimeout))
+	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "combat-", svc.wait(repairTimeout))
 	report["defenders_released"] = released
 	if err != nil {
 		return fmt.Errorf("draft release after raid: %w", err)
@@ -730,49 +733,34 @@ func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.
 // counts as dispatched when a defender reached its cell or fired and no
 // stage failed: the third defender never drafted is the turrets' doing.
 func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, w na.Wait) (map[string]any, error) {
-	var out map[string]any
-	_, err := na.WaitPlan(ctx, s, w, id, func(state store.PlanState) (string, bool, error) {
-		st := stages(state.Progress)
-		drafts, moves, attacks, moved, fired, ready, failed := 0, 0, 0, 0, 0, true, false
-		for _, p := range state.Progress {
-			v := p.View()
-			// An attack whose target the turrets killed first is the raid
-			// ending, not the plan failing.
-			if reason, _ := v.UnsuccessfulReason.Value(); v.Stage == domain.Unsuccessful && reason != domain.TargetDead {
-				failed = true
-			}
-			switch p.Action().Kind() {
-			case domain.OwnedDraftAction:
-				drafts++
-				ready = ready && v.Stage == domain.Completed
-			case domain.MovementAction:
-				moves++
-				if v.Stage == domain.Completed {
-					moved++
+	out := map[string]any{}
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		evidence, err := s.CombatEvidence(ctx, id)
+		if err != nil {
+			return "", false, err
+		}
+		moves, attacks := 0, 0
+		for _, stop := range evidence {
+			for _, o := range stop.Orders {
+				if !o.Applied {
+					continue
 				}
-				ready = ready && (v.Attempt > 0 || v.Stage == domain.Completed)
-			case domain.RangedAttackAction:
-				attacks++
-				if v.Stage == domain.Completed {
-					fired++
+				switch o.Kind {
+				case policy.OrderMove:
+					moves++
+				case policy.OrderAttack:
+					attacks++
 				}
 			}
 		}
-		out = map[string]any{"stages": st}
-		if drafts == 0 || moves == 0 || attacks == 0 {
-			return "", false, fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks: %v", drafts, moves, attacks, st)
-		}
-		if ready || (!domain.GoalWorkOpen(state.Progress) && (fired > 0 || moved > 0) && !failed) {
-			out = map[string]any{"stages": st, "drafts": drafts, "moves": moves, "attacks": attacks, "moved": moved, "fired": fired}
+		out["stops"], out["moves"], out["attacks"] = len(evidence), moves, attacks
+		if moves > 0 {
 			return "", true, nil
 		}
-		if !domain.GoalWorkOpen(state.Progress) {
-			return "", false, fmt.Errorf("hold plan settled before dispatch: %v", st)
-		}
-		return na.PlanSignature(state), false, nil
+		return fmt.Sprint(len(evidence)), false, nil
 	})
 	if err != nil {
-		return out, fmt.Errorf("hold plan not dispatched: %w", err)
+		return out, fmt.Errorf("fight issued no applied move: %w", err)
 	}
 	return out, nil
 }
@@ -831,19 +819,21 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 			}
 			need = string(goal.Goal.Need)
 			for _, m := range goal.Methods {
-				if strings.HasPrefix(string(m.Method), "hold-") {
+				if strings.HasPrefix(string(m.Method), "combat-") {
 					holdPlans[m.Plan] = true
 				}
 			}
 		}
 		for id := range holdPlans {
-			state, err := s.LoadPlan(ctx, id)
+			evidence, err := s.CombatEvidence(ctx, id)
 			if err != nil {
 				return "", false, err
 			}
-			for _, p := range state.Progress {
-				if m, ok := p.Action().Movement(); ok && p.View().Stage == domain.Completed {
-					onLine[m.Pawn()] = true
+			for _, stop := range evidence {
+				for _, o := range stop.Orders {
+					if o.Kind == policy.OrderMove && o.Applied {
+						onLine[o.Pawn] = true
+					}
 				}
 			}
 		}
@@ -1096,12 +1086,14 @@ func stages(progress []domain.Progress) []string {
 	return out
 }
 
-// assertHoldPlan checks a hold-the-line plan carries draft, move and ranged
-// attack per defender: every move targets one of the layout's firing cells
-// and never a trap cell, and every attack depends on that defender's move.
-func assertHoldPlan(spec domain.PlanSpec, layout store.DefenseLayoutRecord) error {
+// assertHoldPlan checks the fight formed hold-the-line: every positioned
+// role stands on one of the layout's firing cells and never a trap cell.
+func assertHoldPlan(memory policy.CombatMemory, layout store.DefenseLayoutRecord) error {
 	if len(layout.Firing) == 0 {
 		return errors.New("layout has no firing cells")
+	}
+	if memory.Tactic != policy.TacticHold {
+		return fmt.Errorf("fight formed %q, want %q", memory.Tactic, policy.TacticHold)
 	}
 	firing := map[domain.Cell]bool{}
 	for _, c := range layout.Firing {
@@ -1115,47 +1107,21 @@ func assertHoldPlan(spec domain.PlanSpec, layout store.DefenseLayoutRecord) erro
 			}
 		}
 	}
-	drafts, attacks := 0, 0
-	moves := map[domain.PawnID]domain.ActionID{}
-	for _, a := range spec.Actions() {
-		switch a.Kind() {
-		case domain.OwnedDraftAction:
-			drafts++
-		case domain.MovementAction:
-			m, _ := a.Movement()
-			if traps[m.Destination()] {
-				return fmt.Errorf("hold plan moves %s onto trap cell %+v", m.Pawn(), m.Destination())
-			}
-			if !firing[m.Destination()] {
-				return fmt.Errorf("hold plan moves %s to %+v, not a firing cell %v", m.Pawn(), m.Destination(), layout.Firing)
-			}
-			moves[m.Pawn()] = a.ID()
-		case domain.RangedAttackAction:
-			attacks++
-		}
-	}
-	if drafts == 0 || len(moves) == 0 || attacks == 0 {
-		return fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks", drafts, len(moves), attacks)
-	}
-	requires := map[domain.ActionID]map[domain.ActionID]bool{}
-	for _, d := range spec.Dependencies() {
-		if requires[d.Action] == nil {
-			requires[d.Action] = map[domain.ActionID]bool{}
-		}
-		requires[d.Action][d.Requires] = true
-	}
-	for _, a := range spec.Actions() {
-		attack, ok := a.RangedAttack()
-		if !ok {
+	positioned := 0
+	for _, role := range memory.Roles {
+		if role.Cell == nil {
 			continue
 		}
-		move, positioned := moves[attack.Pawn()]
-		if !positioned {
-			return fmt.Errorf("hold plan attacks with %s without a move to a firing cell", attack.Pawn())
+		positioned++
+		if traps[*role.Cell] {
+			return fmt.Errorf("hold places %s on trap cell %+v", role.Pawn, *role.Cell)
 		}
-		if !requires[a.ID()][move] {
-			return fmt.Errorf("hold plan attack %s does not depend on move %s", a.ID(), move)
+		if !firing[*role.Cell] {
+			return fmt.Errorf("hold places %s on %+v, not a firing cell %v", role.Pawn, *role.Cell, layout.Firing)
 		}
+	}
+	if positioned == 0 {
+		return errors.New("hold places no defender")
 	}
 	return nil
 }

@@ -225,7 +225,9 @@ func clockWindowFinished(status *k.Status, original *k.Epoch) bool {
 		if actual.GetLastTick() != original.GetTickDeadline() {
 			return false
 		}
-	case k.StopReason_STOP_REASON_WATCH_LATCHED:
+	case k.StopReason_STOP_REASON_WATCH_LATCHED, k.StopReason_STOP_REASON_COMBAT_EVENT:
+		// A combat event stop (#849) is armed only while a fight plan owns
+		// the combat (#852), so it ends the window like a latched watch.
 		if actual.GetLastTick() > original.GetTickDeadline() {
 			return false
 		}

@@ -1237,7 +1237,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.Deferred = true
 		return out, nil
 	}
-	combatPlan, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
+	combatPlan, fightOpen, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
 	if err != nil {
 		return out, err
 	}
@@ -1377,8 +1377,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		start.MaxTicks = out.Decision.MaxTicks
 		// Native stops the window on the tick an armed event happens
-		// (#849); the combat budget is the backstop when none does.
-		start.Policy.CombatStopEvents = slices.Clone(combatStopEvents)
+		// (#849); the combat budget is the backstop when none does. The
+		// list is armed only while an admitted fight plan owns the combat
+		// (#852): its stop is then that plan's next decision and is benign
+		// (clock.BenignStop). A window with no owning fight is disarmed, so
+		// a combat stop never lands without a plan to answer it.
+		start.Policy.CombatStopEvents = armedCombatStops(fightOpen)
 	}
 	s.combatStops.admitted(call, status.GetStopped(), status.GetContext().GetTick(), s.clock.Now(), out.Combat)
 	var speedNext speedPolicy
@@ -2160,13 +2164,17 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 // clockSchedulerCombatPlan reports whether the current routine review binds an
 // active ActiveCombat goal whose admitted plan still has open work: the only
 // evidence under which live hostiles are watched rather than refused.
-func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, error) {
+func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, bool, error) {
 	review, err := journal.LoadRoutineReview(ctx)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	if !review.Enabled || review.Snapshot != current {
-		return false, nil
+		return false, false, nil
+	}
+	fights, err := journal.OpenCombatFights(ctx)
+	if err != nil {
+		return false, false, err
 	}
 	for _, binding := range review.Goals {
 		if binding.Need != policy.ActiveCombat {
@@ -2174,26 +2182,40 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 		}
 		goal, err := journal.LoadGoal(ctx, binding.Goal)
 		if errors.Is(err, store.ErrNotFound) {
-			return false, nil
+			return false, false, nil
 		}
 		if err != nil {
-			return false, err
+			return false, false, err
 		}
 		if goal.Retired || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
-			return false, nil
+			return false, false, nil
 		}
 		for _, method := range goal.Methods {
+			// An open fight (#852) owns the combat after its drafts
+			// complete: its orders go out at each stop, not as plan work.
+			if fights[method.Plan] {
+				return true, true, nil
+			}
 			plan, err := journal.LoadPlan(ctx, method.Plan)
 			if err != nil {
-				return false, err
+				return false, false, err
 			}
 			if domain.GoalWorkOpen(plan.Progress) {
-				return true, nil
+				return true, false, nil
 			}
 		}
-		return false, nil
+		return false, false, nil
 	}
-	return false, nil
+	return false, false, nil
+}
+
+// armedCombatStops is the combat event list a combat window arms: every
+// stop event while an admitted fight plan owns the combat, none otherwise.
+func armedCombatStops(fightOpen bool) []k.CombatEvent {
+	if !fightOpen {
+		return nil
+	}
+	return slices.Clone(combatStopEvents)
 }
 func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkItem, start bridge.ClockStart) (string, error) {
 	policyBytes, err := (proto.MarshalOptions{Deterministic: true}).Marshal(start.Policy)

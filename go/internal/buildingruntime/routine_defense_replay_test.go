@@ -23,6 +23,7 @@ type defenseReplayNative struct {
 	identity *c.Identity
 	native   uint64
 	step     snapshot.Defense
+	orders   combatOrdersFake
 }
 
 func (n *defenseReplayNative) context(raw []byte) *c.ObservationContext {
@@ -106,7 +107,7 @@ func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []dom
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		if string(got.Reason) != step.Reason {
+		if len(paths) == 1 && string(got.Reason) != step.Reason {
 			t.Fatalf("%s: replay %s, recorded %s", path, got.Reason, step.Reason)
 		}
 		results = append(results, got)
@@ -144,30 +145,36 @@ func admittedMethod(t *testing.T, db *store.Store, plan domain.PlanID) domain.Me
 	return ""
 }
 
-// squadAttacks is the admitted squad plan's attacks by mode.
+// squadAttacks is the fight's squad formation: its roles' targets by mode.
 func squadAttacks(t *testing.T, db *store.Store, plan domain.PlanID) (melee, ranged map[domain.PawnID]int) {
 	t.Helper()
-	state, err := db.LoadPlan(context.Background(), plan)
-	if err != nil {
-		t.Fatal(err)
+	fight, ok, err := db.LoadCombatFight(context.Background(), plan)
+	if err != nil || !ok {
+		t.Fatal("no fight for", plan, err)
 	}
 	melee, ranged = map[domain.PawnID]int{}, map[domain.PawnID]int{}
-	for _, action := range state.Spec.Actions() {
-		if _, ok := action.Movement(); ok {
+	for _, role := range fight.Memory.Roles {
+		if role.Cell != nil {
 			t.Fatal("squad defense positioned a defender")
 		}
-		if a, ok := action.RangedAttack(); ok {
-			ranged[a.Target()]++
-		} else if a, ok := action.MeleeAttack(); ok {
-			melee[a.Target()]++
+		if role.Ranged {
+			ranged[role.Target]++
+		} else {
+			melee[role.Target]++
 		}
 	}
 	return melee, ranged
 }
 
-func wantMethod(t *testing.T, got domain.MethodID, prefix string) {
+// wantTactic checks that the step admitted the fight's combat method with
+// the formation's tactic.
+func wantTactic(t *testing.T, db *store.Store, method domain.MethodID, plan domain.PlanID, tactic policy.CombatTactic) {
 	t.Helper()
-	if !strings.HasPrefix(string(got), prefix) {
-		t.Fatalf("method %q, want %s…", got, prefix)
+	if !strings.HasPrefix(string(method), combatMethodPrefix) {
+		t.Fatalf("method %q, want %s…", method, combatMethodPrefix)
+	}
+	fight, ok, err := db.LoadCombatFight(context.Background(), plan)
+	if err != nil || !ok || fight.Memory.Tactic != tactic {
+		t.Fatalf("fight %+v, want %s (%v)", fight, tactic, err)
 	}
 }

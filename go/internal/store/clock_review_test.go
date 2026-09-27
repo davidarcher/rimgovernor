@@ -107,7 +107,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 		}
 		reason := k.StopReason(number)
 		event := &k.Event{Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: reason.Enum()}}}
-		want := reason != k.StopReason_STOP_REASON_TICK_BUDGET && reason != k.StopReason_STOP_REASON_REQUESTED_PAUSE && reason != k.StopReason_STOP_REASON_WATCH_LATCHED
+		want := reason != k.StopReason_STOP_REASON_TICK_BUDGET && reason != k.StopReason_STOP_REASON_REQUESTED_PAUSE && reason != k.StopReason_STOP_REASON_WATCH_LATCHED && reason != k.StopReason_STOP_REASON_COMBAT_EVENT
 		if clock.EventInterrupts(event) != want || clock.BenignStop(reason) == want {
 			t.Fatal(reason)
 		}

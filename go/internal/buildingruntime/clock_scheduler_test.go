@@ -327,10 +327,10 @@ func TestClockSchedulerCombatPlanAdmitsBoundedCombatWindow(t *testing.T) {
 	if start.MaxTicks != 30 || got.Attempt.Intent.Window.MaxTicks != 30 || start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COMBAT || !reflect.DeepEqual(start.Policy.AcknowledgedHostileIds, []string{"archer", "raider"}) || len(start.Policy.AcknowledgedDownedColonistIds)+len(start.Policy.MedicalRestIds) != 0 {
 		t.Fatal(start)
 	}
-	// The combat window is armed with every combat stop event (#849); its
-	// tick budget is the backstop.
-	if !slices.Equal(start.Policy.CombatStopEvents, combatStopEvents) || len(combatStopEvents) != len(k.CombatEvent_name)-1 {
-		t.Fatal("combat window not armed", start.Policy.CombatStopEvents)
+	// No fight plan owns this combat (#852), so the window is disarmed:
+	// its tick budget alone stops it.
+	if len(start.Policy.CombatStopEvents) != 0 {
+		t.Fatal("combat window armed without a fight", start.Policy.CombatStopEvents)
 	}
 	if s.config.Start.Policy.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(s.config.Start.Policy.AcknowledgedHostileIds)+len(s.config.Start.Policy.CombatStopEvents) != 0 {
 		t.Fatal("combat window mutated the configured colony policy")
@@ -368,5 +368,61 @@ func TestClockSchedulerRejectsCombatBudgetAboveColonyBudget(t *testing.T) {
 	config.CombatMaxTicks = config.Start.MaxTicks + 1
 	if _, err := NewClockScheduler(s.player, s.session, s.native, config, s.clock); err == nil {
 		t.Fatal("combat budget above colony budget")
+	}
+}
+
+// An armed combat stop (#849) under an open fight plan (#852) is that
+// plan's next decision: the scheduler resumes with another armed window.
+// With the fight closed and hostiles still live, no window is admitted and
+// the stop holds.
+func TestClockSchedulerCombatStopResumesOnlyUnderAFight(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	ctx := context.Background()
+	f.emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
+	plan := combatGoalPlan(t, s)
+	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Step(ctx)
+	if err != nil || got.Attempt == nil || !got.Combat || f.writes != 1 {
+		t.Fatal(got, err, f.writes)
+	}
+	if start := got.Attempt.Intent.Command.Start; !slices.Equal(start.Policy.CombatStopEvents, combatStopEvents) || len(combatStopEvents) != len(k.CombatEvent_name)-1 {
+		t.Fatal("fight window not armed", start.Policy.CombatStopEvents)
+	}
+	stopCombatWindow := func() {
+		t.Helper()
+		epochs, err := s.player.journal.LoadClockEpochs(ctx, 4096)
+		if err != nil || len(epochs) == 0 {
+			t.Fatal(epochs, err)
+		}
+		epoch := proto.Clone(epochs[len(epochs)-1].Epoch).(*k.Epoch)
+		f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_COMBAT_EVENT.Enum(), CombatEvent: k.CombatEvent_COMBAT_EVENT_ENTERED_RANGE.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
+		f.status.ActualPaused, f.status.NativeTickBoundary, f.status.DurableEvents = proto.Bool(true), proto.Bool(true), proto.Bool(true)
+		f.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum()
+	}
+	stopCombatWindow()
+	// The fake's tick does not move, so the resumed window is the same
+	// logical window: admitted again, not a new native write.
+	got, err = s.Step(ctx)
+	if err != nil || !got.Decision.Admitted || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || !got.Combat {
+		t.Fatalf("an armed combat stop under a fight did not resume %+v %v", got.Decision, err)
+	}
+	stopCombatWindow()
+	if err = s.player.journal.CloseCombatFight(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	// The fight retired but the plan's draft work is still open: the next
+	// window is disarmed first, so no combat stop lands without an owner.
+	got, err = s.Step(ctx)
+	if err != nil || got.Attempt == nil || len(got.Attempt.Intent.Command.Start.Policy.CombatStopEvents) != 0 {
+		t.Fatal("a window armed after its fight closed", got.Decision, err)
+	}
+	// With no plan at all, the live raider holds the clock.
+	s2, f2 := schedulerFixture(t)
+	f2.emergency.Threats = f.emergency.Threats
+	if got, err = s2.Step(ctx); err == nil || got.Decision.Admitted || f2.writes != 0 {
+		t.Fatal("a combat with no owning plan was admitted", got.Decision, err)
 	}
 }

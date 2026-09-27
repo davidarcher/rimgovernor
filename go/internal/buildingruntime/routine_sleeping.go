@@ -38,10 +38,12 @@ const (
 	// BuildingMethodNoSquad is the defense planner's answer when live
 	// threats remain and no eligible squad can be assigned to them (#326).
 	BuildingMethodNoSquad RoutineBuildingReason = "no_eligible_squad"
-	// BuildingMethodHoldFallback: a standing hold-the-line method was
-	// cancelled because the raid crossed the line (#118); the next step
-	// answers the intruders with squad defense.
+	// BuildingMethodHoldFallback: the fight's hold-the-line formation was
+	// re-formed as squad defense because the raid crossed the line (#118).
 	BuildingMethodHoldFallback RoutineBuildingReason = "hold_fallback"
+	// BuildingMethodCombatOrders: the fight's stop sent changed orders
+	// (#852), recorded as its plan's evidence.
+	BuildingMethodCombatOrders RoutineBuildingReason = "combat_orders"
 	// BuildingShellBlocked: a shell begun earlier stands at the colony centre
 	// but the cells it still needs are not placeable this review, or it
 	// stands whole without a finished room inside; the routine waits rather

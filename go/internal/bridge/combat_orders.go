@@ -254,6 +254,12 @@ func (control *CombatOrdersControl) Issue(ctx context.Context, pre *a.WritePreco
 	return nil, reply, raw, contract("combat orders execute outcome missing")
 }
 
+// CombatOrders issues one combat.orders batch (CombatOrdersControl.Issue):
+// the fight's orders at a stop (#852).
+func (client *Client) CombatOrders(ctx context.Context, pre *a.WritePrecondition, command *o.CombatOrders) ([]CombatOrderResult, *o.ExecuteReply, Result, error) {
+	return (&CombatOrdersControl{client: client}).Issue(ctx, pre, command)
+}
+
 // logCombatOrder writes one service-log line per order result, the
 // combat_order ... outcome=<applied|refused> line combatlab metrics count.
 func logCombatOrder(ctx context.Context, res CombatOrderResult) {

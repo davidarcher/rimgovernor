@@ -2,7 +2,7 @@ package buildingruntime
 
 import (
 	"context"
-	"strings"
+	"fmt"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -48,9 +49,65 @@ func (n *raidTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, id
 	return reply, r, err
 }
 
-// A hold-the-line method stands while the raid is in front of the line;
-// once a live raider is past the cover row the hold is cancelled and the
-// next step answers with squad defense (#118 breach fallback).
+// acquireFightDrafts takes every owned draft of the fight's plan through
+// dispatch, a claimed receipt and a completed observation: the defenders
+// are drafted and the plan holds them.
+func acquireFightDrafts(t *testing.T, db *store.Store, plan domain.PlanID, current domain.GenerationSnapshot) {
+	t.Helper()
+	ctx := context.Background()
+	state, err := db.LoadPlan(ctx, plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := current
+	snapshot.Plan, snapshot.Revision = plan, state.Spec.Revision()
+	controller, err := db.Identity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range state.Spec.Actions() {
+		draft, ok := action.OwnedDraft()
+		if !ok {
+			continue
+		}
+		if _, err = db.PrepareDraft(ctx, plan, action.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 7, Pawn: draft.Pawn(), PawnSnapshotToken: "cas"}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, plan, action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		claim := domain.DraftClaim{Action: action.ID(), Attempt: 1, Pawn: draft.Pawn(), Claim: domain.DraftClaimID("claim-" + string(draft.Pawn())), Session: domain.ControllerSessionID(controller), Origin: snapshot}
+		if _, err = db.RecordDraftReceipt(ctx, plan, action.ID(), 1, domain.ReceiptAccepted, domain.Known(claim)); err != nil {
+			t.Fatal(err)
+		}
+		observed := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 8, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}
+		if _, err = db.ObserveDraft(ctx, plan, observed, snapshot, domain.Known(claim)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// batchOrders is one combat.orders batch as pawn -> "move x,z" or
+// "attack target".
+func batchOrders(batch *op.CombatOrders) map[string]string {
+	out := map[string]string{}
+	for _, order := range batch.Orders {
+		switch v := order.Order.(type) {
+		case *op.CombatOrder_Move:
+			out[order.GetPawn().GetEntityId()] = fmt.Sprintf("move %d,%d", v.Move.GetX(), v.Move.GetZ())
+		case *op.CombatOrder_Attack:
+			out[order.GetPawn().GetEntityId()] = "attack " + v.Attack.GetEntityId()
+		}
+	}
+	return out
+}
+
+// One ActiveCombat plan owns the fight (#852): it holds the defenders'
+// drafts, and each stop sends only the changed orders, recorded as its
+// evidence. The hold-the-line formation moves the riflemen to the firing
+// cells; a steady stop orders and records nothing; once a live raider is
+// past the cover row the formation re-forms as squad defense on the
+// intruder (#118 breach fallback) in the same plan.
 func TestRoutineDefenseAbandonsACrossedHoldForSquadDefense(t *testing.T) {
 	t.Parallel()
 	r, db, session, _, n := routineFixture(t)
@@ -81,74 +138,65 @@ func TestRoutineDefenseAbandonsACrossedHoldForSquadDefense(t *testing.T) {
 	if err != nil || got.Reason != BuildingMethodAdmitted {
 		t.Fatal(got, err)
 	}
-	hold := got.Plan
-	combat := func() store.GoalState {
-		t.Helper()
-		review, err := db.LoadRoutineReview(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, binding := range review.Goals {
-			if binding.Need == policy.ActiveCombat {
-				goal, err := db.LoadGoal(ctx, binding.Goal)
-				if err != nil {
-					t.Fatal(err)
-				}
-				return goal
-			}
-		}
-		t.Fatal(review.Goals)
-		return store.GoalState{}
+	plan := got.Plan
+	fight, ok, err := db.LoadCombatFight(ctx, plan)
+	if err != nil || !ok || !fight.Open || fight.Memory.Tactic != policy.TacticHold || len(fight.Memory.Roles) != 2 {
+		t.Fatalf("%+v %v %v", fight, ok, err)
 	}
-	if methods := combat().Methods; len(methods) != 1 || !strings.HasPrefix(string(methods[0].Method), "hold-") {
-		t.Fatalf("%+v", methods)
+	state, err := db.LoadPlan(ctx, plan)
+	if err != nil {
+		t.Fatal(err)
 	}
-	// The raider at the sandbags' outer face is still in front: the hold
-	// is existing work.
+	for _, action := range state.Spec.Actions() {
+		if _, ok := action.OwnedDraft(); !ok {
+			t.Fatalf("the fight's plan carries a %s action", action.Kind())
+		}
+	}
+	// No draft is held yet: nothing can be ordered.
+	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodExistingWork || len(native.orders.batches) != 0 {
+		t.Fatal(got, err, native.orders.batches)
+	}
+	acquireFightDrafts(t, db, plan, snapshot)
+	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodCombatOrders || len(native.orders.batches) != 1 {
+		t.Fatal(got, err)
+	}
+	if orders := batchOrders(native.orders.batches[0]); orders["a"] != "move 9,23" || orders["b"] != "move 8,23" {
+		t.Fatal(orders)
+	}
+	// Nothing changed: no orders, no evidence.
 	native.raider = domain.Cell{X: 9, Z: 21}
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodExistingWork {
+	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodExistingWork || len(native.orders.batches) != 1 {
 		t.Fatal(got, err)
 	}
-	// Past the cover row the hold is cancelled outright.
+	if evidence, err := db.CombatEvidence(ctx, plan); err != nil || len(evidence) != 1 || len(evidence[0].Orders) != 2 || !evidence[0].Orders[0].Applied {
+		t.Fatalf("%+v %v", evidence, err)
+	}
+	// Past the cover row the same fight re-forms as squad defense on the
+	// intruder, never a second plan.
 	native.raider = domain.Cell{X: 12, Z: 22}
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodHoldFallback {
+	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodCombatOrders || got.Plan != plan || len(native.orders.batches) != 2 {
 		t.Fatal(got, err)
 	}
-	state, err := db.LoadPlan(ctx, hold)
+	if orders := batchOrders(native.orders.batches[1]); orders["a"] != "attack raider" || orders["b"] != "attack raider" {
+		t.Fatal(orders)
+	}
+	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Memory.Tactic != policy.TacticSquad {
+		t.Fatal(fight.Memory)
+	}
+	// The raid over, the fight closes and its drafts are no longer held.
+	review, err := db.LoadRoutineReview(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range state.Progress {
-		if v := p.View(); v.Stage != domain.Cancelled {
-			t.Fatalf("%s is %s after the fallback, want cancelled", v.Action, v.Stage)
-		}
-	}
-	// With the hold settled, the intruder is answered by squad defense at
-	// the threat, never a second line position.
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodAdmitted {
-		t.Fatal(got, err)
-	}
-	methods := combat().Methods
-	if len(methods) != 2 || !strings.HasPrefix(string(methods[1].Method), "squad-") {
-		t.Fatalf("%+v", methods)
-	}
-	squad, err := db.LoadPlan(ctx, methods[1].Plan)
-	if err != nil {
+	facts.Hostiles = domain.Known(int64(0))
+	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: snapshot, Tick: 9, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
-	attacks := 0
-	for _, action := range squad.Spec.Actions() {
-		if _, ok := action.Movement(); ok {
-			t.Fatal("squad defense positioned a defender")
-		}
-		if a, ok := action.RangedAttack(); ok && a.Target() == "raider" {
-			attacks++
-		} else if a, ok := action.MeleeAttack(); ok && a.Target() == "raider" {
-			attacks++
-		}
+	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodNoDeficit {
+		t.Fatal(got, err)
 	}
-	if attacks != 2 {
-		t.Fatalf("%d attacks on the intruder", attacks)
+	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Open {
+		t.Fatal("the fight stayed open after recovery")
 	}
 }
 

@@ -406,6 +406,10 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	fights, err := w.player.journal.OpenCombatFights(call)
+	if err != nil {
+		return err
+	}
 	breakHeld := map[domain.ActionID]bool{}
 	if scope.Enabled && scope.ObservationKnown {
 		breakHeld, err = w.breakDispatchHolds(call, scope.Snapshot, plans)
@@ -431,7 +435,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			cleanup := workerCleanupEligible(plan, v, planScope, world)
+			cleanup := workerCleanupEligible(plan, v, planScope, world, fights[plan.Spec.ID()])
 			if !cleanup && !v.Unresolved && breakHeld[v.Action] {
 				continue
 			}
@@ -907,8 +911,10 @@ func workerScope(scope ControlState) ControlState {
 }
 
 // Draft ownership outlives ordinary progress. Completed drafts remain useful only
-// while their original active plan still has unfinished, nonfailed work.
-func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
+// while their original active plan still has unfinished, nonfailed work, or
+// while the plan is an open combat fight (#852), whose orders go out at
+// each stop outside the plan's actions.
+func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World, fight bool) bool {
 	cleanup, known := v.DraftCleanup.Value()
 	if !known || v.Attempt == 0 {
 		return false
@@ -935,7 +941,7 @@ func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope Co
 	// (#228, #318, #342). The claim readback at the next order catches a
 	// pawn the player undrafted meanwhile. An explicit Manual still
 	// releases every draft (Control.Manual).
-	if playerWorld(v.Snapshot) == world && workerPlanHoldsDraft(plan, v) {
+	if playerWorld(v.Snapshot) == world && (workerPlanHoldsDraft(plan, v) || fight && v.Stage == domain.Completed) {
 		return false
 	}
 	if !scope.Enabled || !scope.ObservationKnown || playerWorld(scope.Snapshot) != world || scope.Snapshot != v.Snapshot {

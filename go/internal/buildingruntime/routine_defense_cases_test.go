@@ -20,7 +20,7 @@ import (
 func TestDefenseReplaySapperRaidBypassesTheLine(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/raid-bypass-sappers.json.gz")
-	wantMethod(t, methods[0], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); len(melee)+len(ranged) == 0 {
 		t.Fatal("squad defense attacks no raider")
 	}
@@ -31,7 +31,7 @@ func TestDefenseReplaySapperRaidBypassesTheLine(t *testing.T) {
 func TestDefenseReplaySiegeIsASquadSortie(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/siege.json.gz")
-	wantMethod(t, methods[0], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); len(melee)+len(ranged) == 0 {
 		t.Fatal("the sortie attacks no besieger")
 	}
@@ -43,7 +43,7 @@ func TestDefenseReplaySiegeIsASquadSortie(t *testing.T) {
 func TestDefenseReplayCenterDropIsSquadDefense(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/drop-center.json.gz")
-	wantMethod(t, methods[0], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Human53013"]+ranged["Thing_Human53013"] == 0 {
 		t.Fatal("squad defense does not engage the dropped raider")
 	}
@@ -54,7 +54,7 @@ func TestDefenseReplayCenterDropIsSquadDefense(t *testing.T) {
 func TestDefenseReplayHuntingPredatorIsSquadDefense(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/predator-hunt.json.gz")
-	wantMethod(t, methods[0], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Cougar53013"]+ranged["Thing_Cougar53013"] == 0 {
 		t.Fatal("squad defense does not attack the predator")
 	}
@@ -65,7 +65,7 @@ func TestDefenseReplayHuntingPredatorIsSquadDefense(t *testing.T) {
 func TestDefenseReplayHiveIsSquadTargeted(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/hive.json.gz")
-	wantMethod(t, methods[0], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[0].Plan); melee["Thing_Hive53013"]+ranged["Thing_Hive53013"] == 0 {
 		t.Fatal("squad defense does not target the hive")
 	}
@@ -76,15 +76,16 @@ func TestDefenseReplayHiveIsSquadTargeted(t *testing.T) {
 func TestDefenseReplayShipPartIsShotFromALineOfFire(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t, "testdata/defense/shippart-rifles.json.gz")
-	wantMethod(t, methods[0], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if _, ranged := squadAttacks(t, db, results[0].Plan); ranged["Thing_DefoliatorShipPart53021"] == 0 {
 		t.Fatal("no ranged attack on the ship part")
 	}
 }
 
 // defense/raid-breach: an edge assault is held from the firing line; once
-// a raider is behind the line the hold is cancelled and the intruders are
-// answered with squad defense at the threat.
+// a raider is behind the line the same fight re-forms as squad defense at
+// the threat. The recording's later steps (a cancelled hold, then a fresh
+// squad plan) replay as one fight.
 func TestDefenseReplayBreachFallsBackToSquadDefense(t *testing.T) {
 	t.Parallel()
 	results, methods, db := replayDefense(t,
@@ -92,20 +93,19 @@ func TestDefenseReplayBreachFallsBackToSquadDefense(t *testing.T) {
 		"testdata/defense/raid-breach-2-held.json.gz",
 		"testdata/defense/raid-breach-3-fallback.json.gz",
 		"testdata/defense/raid-breach-4-squad.json.gz")
-	wantMethod(t, methods[0], "hold-")
-	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodHoldFallback {
+	if results[0].Reason != BuildingMethodAdmitted {
 		t.Fatal(results)
 	}
-	hold, err := db.LoadPlan(t.Context(), results[0].Plan)
-	if err != nil {
-		t.Fatal(err)
+	// hold_fallback is a hold re-formed as squad defense.
+	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodHoldFallback || results[3].Reason != BuildingMethodExistingWork {
+		t.Fatal(results)
 	}
-	for _, p := range hold.Progress {
-		if v := p.View(); v.Stage != domain.Cancelled && v.Stage != domain.Completed {
-			t.Fatalf("%s is %s after the fallback", v.Action, v.Stage)
+	for _, r := range results[1:] {
+		if r.Plan != results[0].Plan {
+			t.Fatal("the fight changed plans", results)
 		}
 	}
-	wantMethod(t, methods[3], "squad-")
+	wantTactic(t, db, methods[0], results[0].Plan, policy.TacticSquad)
 	if melee, ranged := squadAttacks(t, db, results[3].Plan); len(melee)+len(ranged) == 0 {
 		t.Fatal("squad defense attacks no intruder")
 	}

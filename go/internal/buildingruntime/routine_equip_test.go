@@ -22,6 +22,7 @@ type equipTestNative struct {
 	// filtered is the pawns the map holds that an exact-ID census excludes:
 	// animals, visitors and prisoners a caller never asked for.
 	filtered uint64
+	orders   combatOrdersFake
 }
 
 func (n *equipTestNative) pawn(id string) *o.PawnState {

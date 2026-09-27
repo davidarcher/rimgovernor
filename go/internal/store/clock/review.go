@@ -92,6 +92,10 @@ func BenignStop(reason k.StopReason) bool {
 	switch reason {
 	case k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_REQUESTED_PAUSE, k.StopReason_STOP_REASON_WATCH_LATCHED:
 		return true
+	case k.StopReason_STOP_REASON_COMBAT_EVENT:
+		// Armed only while an admitted fight plan owns the combat (#852,
+		// armedCombatStops): the stop is that plan's next decision.
+		return true
 	}
 	return false
 }

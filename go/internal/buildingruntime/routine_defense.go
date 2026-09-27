@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"hash"
 	"log/slog"
-	"sort"
+	"reflect"
 	"strings"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -17,14 +16,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	mirrorpb "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 type RoutineDefenseSource interface {
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	ReadLinesOfFire(context.Context, *c.Identity, []domain.Cell, []domain.Cell) (bridge.LinesOfFire, bridge.Result, error)
+	// CombatOrders sends a stop's changed orders (#850, #852).
+	CombatOrders(context.Context, *a.WritePrecondition, *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error)
+	CombatGeometry(context.Context, *mirrorpb.CombatGeometryRequest) (*mirrorpb.CombatGeometry, bridge.Result, error)
 }
 type RoutineDefensePlanner struct {
 	reviewer *RoutineReviewer
@@ -87,40 +92,35 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		if err = r.settleUnissuedWork(call, goal); err != nil {
 			return RoutineDefenseResult{}, err
 		}
+		// The fight is over: closing it lets draft cleanup release its
+		// defenders, and the goal satisfies once they are released.
+		for _, method := range goal.Methods {
+			if strings.HasPrefix(string(method.Method), combatMethodPrefix) {
+				if err = p.journal.CloseCombatFight(call, method.Plan); err != nil {
+					return RoutineDefenseResult{}, err
+				}
+			}
+		}
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	// Open hold methods are re-examined against the live raid below (#118):
-	// a hold whose line the raid has crossed is cancelled so squad defense
-	// takes over. Any other open work waits.
-	var openHolds []store.PlanState
+	// One ActiveCombat plan owns the fight (#852): its open combat method
+	// is the fight the stop decides for. Any other open work waits.
+	var fight *store.PlanState
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		// A Manual cycle mid-raid (an interruption hold, then a resume)
-		// releases every owned draft; the moves and attacks layered on
-		// those drafts can then never dispatch, and while they stay open
-		// the goal would never re-plan (#5 scenario 2). Cancel them so a
-		// fresh hold or squad method is admitted against the live raid.
-		for _, orphan := range orphanedDraftDependents(plan.Spec, plan.Progress) {
-			if _, err = p.journal.Cancel(call, method.Plan, orphan); err != nil {
-				return RoutineDefenseResult{}, err
-			}
-		}
-		if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
-			return RoutineDefenseResult{}, err
-		}
 		if !domain.GoalWorkOpen(plan.Progress) {
 			continue
 		}
-		if !strings.HasPrefix(string(method.Method), "hold-") {
+		if !strings.HasPrefix(string(method.Method), combatMethodPrefix) || fight != nil {
 			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
 		}
-		openHolds = append(openHolds, plan)
+		fight = &plan
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -179,6 +179,31 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if result, err := r.planBreak(call, epoch, goal, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
 		return result, err
 	}
+	var orderable []domain.PawnID
+	var memory policy.CombatMemory
+	if fight != nil {
+		record, ok, err := p.journal.LoadCombatFight(call, fight.Spec.ID())
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		if !ok {
+			// The fight's row is written after its plan commits; a crash
+			// between them leaves the plan to reopen it.
+			if err = p.journal.OpenCombatFight(call, fight.Spec.ID(), memory); err != nil {
+				return RoutineDefenseResult{}, err
+			}
+			record.Open = true
+		}
+		if !record.Open {
+			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
+		}
+		memory = record.Memory
+		orderable = policy.CombatOrderable(fight.Progress)
+	}
+	owned := map[domain.PawnID]bool{}
+	for _, id := range orderable {
+		owned[id] = true
+	}
 	var defenders []policy.SquadDefenderFacts
 	var profiles []policy.PawnProfile
 	for _, pawn := range emergency.Facts.Colonists {
@@ -186,7 +211,12 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		if row == nil {
 			return RoutineDefenseResult{}, ErrControl
 		}
-		defenders = append(defenders, squadDefenderFacts(row))
+		d := squadDefenderFacts(row)
+		if owned[d.ID] {
+			// The fight's own drafts are its defenders, not work elsewhere.
+			d.DraftOwned = domain.Known(false)
+		}
+		defenders = append(defenders, d)
 		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
 	}
 	// The combat read carries the biography, so the line split comes from
@@ -201,6 +231,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		defenders[i].FrontLine = holds[defenders[i].ID]
 	}
 	var threats []policy.SquadThreatFacts
+	positional := make([]policy.DefensiveThreatFacts, 0, len(hostileIDs))
 	for _, id := range hostileIDs {
 		row := rows[id]
 		if row == nil {
@@ -209,6 +240,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		facts := squadThreatFacts(row)
 		facts.Hunting = domain.Known(hunting[id])
 		threats = append(threats, facts)
+		positional = append(positional, defensiveThreatFacts(row))
 	}
 	if len(buildings) > 0 {
 		lines, err := r.buildingLinesOfFire(call, identity, buildings, defenders, rows)
@@ -219,119 +251,58 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
 		}
 	}
-	if len(openHolds) > 0 {
-		// Breach fallback (#118): the line is held only while every live
-		// raider is still in front of it. A raider past the cover row, or a
-		// raid that switched to a breach or sapper toil, has made the firing
-		// cells the wrong place to stand; the hold's drafts, moves and
-		// attacks are cancelled (the released defenders are eligible again)
-		// and the next step answers the intruders with squad defense at the
-		// threat. Without that proof the hold stands.
-		compromised, err := r.holdCompromised(call, state, hostileIDs, rows)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		if !compromised {
-			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
-		}
-		for _, plan := range openHolds {
-			for _, progress := range plan.Progress {
-				v := progress.View()
-				if v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
-					continue
-				}
-				if _, err = p.journal.Cancel(call, plan.Spec.ID(), v.Action); err != nil {
-					return RoutineDefenseResult{}, err
-				}
-			}
-		}
-		return RoutineDefenseResult{Reason: BuildingMethodHoldFallback}, nil
-	}
-	// A complete defensive layout against an ordinary edge assault sends the
-	// ranged line to its firing cells first; anything else is squad defense.
-	if held, err := r.holdTheLine(call, epoch, goal, state, started, arbiter, hostileIDs, rows, defenders); err != nil || held.Reason != "" {
-		return held, err
-	}
-	var assignments []policy.SquadAssignment
-	var ok bool
-	if len(threats) == 1 {
-		assignments, ok = policy.SelectTribalRaiderDefense(threats[0], defenders)
-	}
-	if !ok {
-		assignments, ok = policy.SelectSquadDefense(threats, defenders)
-	}
-	if !ok {
-		return RoutineDefenseResult{Reason: BuildingMethodNoSquad}, nil
-	}
-	defenderIDs := make([]domain.PawnID, 0, len(assignments))
-	for _, a := range assignments {
-		defenderIDs = append(defenderIDs, a.Defender)
-	}
-	if !arbiter.tryClaim(defenderIDs) {
-		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
-	}
-	sort.Slice(assignments, func(i, j int) bool {
-		if assignments[i].Defender != assignments[j].Defender {
-			return assignments[i].Defender < assignments[j].Defender
-		}
-		return assignments[i].Target < assignments[j].Target
-	})
-	hash := sha256.New()
-	for _, a := range assignments {
-		fmt.Fprintf(hash, "%s/%s/%d\n", a.Defender, a.Target, a.Mode)
-	}
-	method, id := defenseMethodIDs("squad", goal, hash)
-	var actions []domain.Action
-	for _, a := range assignments {
-		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, a.Defender))
-		draft, err := domain.NewOwnedDraft(a.Defender)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		draftAction, err := domain.NewOwnedDraftAction(draftID, draft)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		actions = append(actions, draftAction)
-		attackID := domain.ActionID(fmt.Sprintf("%s-attack-%s-%s", id, a.Defender, a.Target))
-		var attackAction domain.Action
-		switch a.Mode {
-		case policy.SquadRanged:
-			intent, err := domain.NewRangedAttack(a.Defender, domain.PawnID(a.Target), draftID)
-			if err != nil {
-				return RoutineDefenseResult{}, err
-			}
-			attackAction, err = domain.NewRangedAttackAction(attackID, intent)
-			if err != nil {
-				return RoutineDefenseResult{}, err
-			}
-		default:
-			intent, err := domain.NewMeleeAttack(a.Defender, domain.PawnID(a.Target), draftID)
-			if err != nil {
-				return RoutineDefenseResult{}, err
-			}
-			attackAction, err = domain.NewMeleeAttackAction(attackID, intent)
-			if err != nil {
-				return RoutineDefenseResult{}, err
-			}
-		}
-		actions = append(actions, attackAction)
-	}
-	plan, err := domain.NewPlan(id, 1, actions)
+	// A complete record from an earlier load of this colony still holds:
+	// its geometry is on the map and its completion was census-verified
+	// when written. Combat cannot wait for the layout review to adopt it
+	// (that review does not run under a raid), and a wall lost since is the
+	// same degradation a raider causes mid-session.
+	layout, ok, err := p.journal.LoadDefenseLayout(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
 	if err != nil {
 		return RoutineDefenseResult{}, err
+	}
+	tick := domain.Tick(emergency.Context.GetTick())
+	view := policy.CombatView{Tick: tick, Pawns: r.combatPawnStates(rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable}
+	if ok && layout.Complete {
+		view.Layout = domain.Known(policy.CombatLayout{Firing: layout.Firing, Toward: layout.Toward})
+	}
+	stop := r.combatStop(memory.Tick)
+	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
+	if ask != nil {
+		orders, _, next = policy.DecideCombat(view, r.answerGeometry(call, boundary.Identity(state.Snapshot), ask), stop, memory)
+	}
+	if next.Formed == tick && next.Refusal != "" && next.Tactic != policy.TacticHold {
+		// Squad defense follows; say which gate refused the hold (#714).
+		slog.Default().InfoContext(call, "hold refused: "+next.Refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "goal", string(goal.Goal.ID))
+	}
+	if fight == nil {
+		return r.admitFight(call, epoch, goal, state, started, arbiter, next)
+	}
+	id := fight.Spec.ID()
+	if len(orders) == 0 {
+		// A stop that changes nothing writes nothing; a re-formation that
+		// could order no one yet keeps its roles for the next stop.
+		if next.Formed != memory.Formed || next.Tactic != memory.Tactic || !reflect.DeepEqual(next.Roles, memory.Roles) {
+			if err = p.journal.SaveCombatMemory(call, id, next); err != nil {
+				return RoutineDefenseResult{}, err
+			}
+			if memory.Tactic == policy.TacticHold && next.Tactic != policy.TacticHold {
+				return RoutineDefenseResult{Reason: BuildingMethodHoldFallback, Plan: id}, nil
+			}
+		}
+		return RoutineDefenseResult{Reason: BuildingMethodExistingWork, Plan: id}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineDefenseResult{}, ErrControl
-	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+	record, next, err := r.issueCombatOrders(call, state, id, tick, orders, next)
+	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	record.Stop = stop
+	if err = p.journal.RecordCombatStop(call, id, record, next); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	return RoutineDefenseResult{Reason: BuildingMethodCombatOrders, Plan: id}, nil
 }
 
 // buildingLinesOfFire reads, for every standing hostile building, which
@@ -420,114 +391,6 @@ func primaryRange(equipment *n.PawnEquipment) float64 {
 		}
 	}
 	return 0
-}
-
-// holdTheLine returns a zero Reason when the stored layout is absent or
-// incomplete or the threat is not an edge assault, so the caller continues
-// with squad defense. Otherwise it commits draft, movement to the firing cell
-// and ranged attack for every positioned defender.
-func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal store.GoalState, state ControlState, started time.Time, arbiter *stepArbiter, hostileIDs []string, rows map[string]*n.PawnState, defenders []policy.SquadDefenderFacts) (RoutineDefenseResult, error) {
-	p := r.reviewer.player
-	layout, ok, err := p.journal.LoadDefenseLayout(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
-	if err != nil {
-		return RoutineDefenseResult{}, err
-	}
-	// A complete record from an earlier load of this colony still holds:
-	// its geometry is on the map and its completion was census-verified
-	// when written. Combat cannot wait for the layout review to adopt it
-	// (that review does not run under a raid), and a wall lost since is the
-	// same degradation a raider causes mid-session.
-	if !ok || !layout.Complete {
-		return RoutineDefenseResult{}, nil
-	}
-	threats := make([]policy.DefensiveThreatFacts, 0, len(hostileIDs))
-	for _, id := range hostileIDs {
-		threats = append(threats, defensiveThreatFacts(rows[id]))
-	}
-	positions, refusal := policy.ExplainDefensivePositions(layout.Firing, layout.Toward, threats, defenders)
-	if refusal != "" {
-		// Squad defense follows; say which gate refused the hold (#714).
-		slog.Default().InfoContext(call, "hold refused: "+refusal, telemetry.ComponentKey, "routine-defense", telemetry.KindKey, "hold_refused", "goal", string(goal.Goal.ID))
-		return RoutineDefenseResult{}, nil
-	}
-	defenderIDs := make([]domain.PawnID, 0, len(positions))
-	for _, a := range positions {
-		defenderIDs = append(defenderIDs, a.Defender)
-	}
-	if !arbiter.tryClaim(defenderIDs) {
-		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
-	}
-	hash := sha256.New()
-	for _, a := range positions {
-		fmt.Fprintf(hash, "%s/%d/%d/%s\n", a.Defender, a.Cell.X, a.Cell.Z, a.Target)
-	}
-	method, id := defenseMethodIDs("hold", goal, hash)
-	var actions []domain.Action
-	var dependencies []domain.ActionDependency
-	for _, a := range positions {
-		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, a.Defender))
-		draft, err := domain.NewOwnedDraft(a.Defender)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		draftAction, err := domain.NewOwnedDraftAction(draftID, draft)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		moveID := domain.ActionID(fmt.Sprintf("%s-move-%s", id, a.Defender))
-		movement, err := domain.NewMovement(a.Defender, a.Cell, draftID)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		moveAction, err := domain.NewMovementAction(moveID, movement)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		attackID := domain.ActionID(fmt.Sprintf("%s-attack-%s-%s", id, a.Defender, a.Target))
-		intent, err := domain.NewRangedAttack(a.Defender, domain.PawnID(a.Target), draftID)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		attackAction, err := domain.NewRangedAttackAction(attackID, intent)
-		if err != nil {
-			return RoutineDefenseResult{}, err
-		}
-		// The move already depends on the draft through its prerequisite;
-		// the attack waits for the defender to reach the firing cell.
-		actions = append(actions, draftAction, moveAction, attackAction)
-		dependencies = append(dependencies, domain.ActionDependency{Action: attackID, Requires: moveID})
-	}
-	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
-	if err != nil {
-		return RoutineDefenseResult{}, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineDefenseResult{}, err
-	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineDefenseResult{}, ErrControl
-	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
-		return RoutineDefenseResult{}, err
-	}
-	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
-}
-
-// holdCompromised reads the stored layout and asks the policy whether the
-// live hostiles have crossed its line. A record that is gone or no longer
-// complete cannot say where the line is, so the hold stands on the
-// geometry it was admitted against.
-func (r *RoutineDefensePlanner) holdCompromised(call context.Context, state ControlState, hostileIDs []string, rows map[string]*n.PawnState) (bool, error) {
-	layout, ok, err := r.reviewer.player.journal.LoadDefenseLayout(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
-	if err != nil || !ok || !layout.Complete {
-		return false, err
-	}
-	threats := make([]policy.DefensiveThreatFacts, 0, len(hostileIDs))
-	for _, id := range hostileIDs {
-		threats = append(threats, defensiveThreatFacts(rows[id]))
-	}
-	return policy.HoldCompromised(layout.Firing, layout.Toward, threats), nil
 }
 
 // defensiveThreatFacts reads the lord, distance and position evidence a hostile row

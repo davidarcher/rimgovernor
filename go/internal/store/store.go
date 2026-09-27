@@ -42,7 +42,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 111
+const schemaVersion = 112
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -351,6 +351,9 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		if err = initializeLayoutTidies(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeCombatFights(ctx, tx); err != nil {
+			return err
+		}
 		var entropy [32]byte
 		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
 			return err
@@ -405,6 +408,9 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 		return err
 	}
 	if err = checkLayoutTidySchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkCombatFightsSchema(ctx, tx); err != nil {
 		return err
 	}
 	// A matching version marker alone does not establish the expected tables.

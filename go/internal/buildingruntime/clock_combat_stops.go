@@ -12,9 +12,9 @@ import (
 // combatStopEvents is the armed list a combat window carries (#849):
 // native stops the epoch on the tick one of these happens. Aim warmup,
 // shots and ordinary damage are never armed; stopping on them would keep
-// the clock from running. The fight's decider (#852) may narrow it per
-// step; until then every window arms all of them and the stop re-invokes
-// the current planners.
+// the clock from running. A window arms them only while an admitted fight
+// plan owns the combat (#852, armedCombatStops); the stop then re-invokes
+// the defense planner, whose DecideCombat answers it.
 var combatStopEvents = []k.CombatEvent{
 	k.CombatEvent_COMBAT_EVENT_DOWNED,
 	k.CombatEvent_COMBAT_EVENT_SERIOUS_INJURY,

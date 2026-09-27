@@ -79,7 +79,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !workerEligible(state, state.Progress[1].View(), s.State(), playerWorld(snapshot)) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot)) {
+	if !workerEligible(state, state.Progress[1].View(), s.State(), playerWorld(snapshot)) || workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot), false) {
 		t.Fatal("pending melee did not retain draft")
 	}
 	r, err := s.Run(ctx, plan.ID(), dispatch.Attempt.Action.ID())
@@ -94,7 +94,7 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot)) {
+	if !workerCleanupEligible(state, state.Progress[0].View(), s.State(), playerWorld(snapshot), false) {
 		t.Fatal("completed melee retained draft")
 	}
 	if err = s.Manual(ctx); err != nil {
@@ -166,7 +166,7 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	if err = s.Disable(); err != nil {
 		t.Fatal(err)
 	}
-	if held := s.State(); held.Enabled || workerCleanupEligible(state, state.Progress[0].View(), held, world) {
+	if held := s.State(); held.Enabled || workerCleanupEligible(state, state.Progress[0].View(), held, world, false) {
 		t.Fatal("hold released the held draft", held)
 	}
 	// The resume's drain keeps it too, and the pending order is eligible
@@ -180,14 +180,14 @@ func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
 	}
 	scope := s.State()
 	scope.Snapshot = resumed
-	if workerCleanupEligible(state, state.Progress[0].View(), scope, world) || !workerEligible(state, state.Progress[1].View(), scope, world) {
+	if workerCleanupEligible(state, state.Progress[0].View(), scope, world, false) || !workerEligible(state, state.Progress[1].View(), scope, world) {
 		t.Fatal("resumed scope does not carry the held draft", scope)
 	}
 	// Only a plan that still holds it: a cancelled sibling makes it cleanup.
 	if _, err = journal.Cancel(ctx, plan.ID(), dispatch.Attempt.Action.ID()); err != nil {
 		t.Fatal(err)
 	}
-	if cancelled, err := journal.LoadPlan(ctx, plan.ID()); err != nil || !workerCleanupEligible(cancelled, cancelled.Progress[0].View(), scope, world) {
+	if cancelled, err := journal.LoadPlan(ctx, plan.ID()); err != nil || !workerCleanupEligible(cancelled, cancelled.Progress[0].View(), scope, world, false) {
 		t.Fatal("cancelled plan retained draft", err)
 	}
 	if err = s.Manual(ctx); err != nil {
