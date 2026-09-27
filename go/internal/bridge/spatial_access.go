@@ -14,7 +14,6 @@ const (
 	maxSpatialBlockedCells = 16384
 	maxSpatialTargetCells  = 128
 	maxSpatialPawns        = 32
-	maxSpatialLostCells    = 16
 )
 
 // AccessTarget is one requested target cell for one colonist: native
@@ -26,16 +25,15 @@ type AccessTarget struct {
 	ProjectedSteps                      uint32
 }
 
-// PawnAccess is one mobile colonist's audit row. Lost is the count of cells
-// reachable now but not in the projection (excluding the blocked cells
-// themselves); LostCells lists at most 16 of them. OriginKnown is false when
-// the pawn stands on a blocked cell and no safe exit exists.
+// PawnAccess is one mobile colonist's audit row. LosesAccess is true when
+// some cell reachable now (other than the blocked cells themselves) is not
+// reachable in the projection. OriginKnown is false when the pawn stands on
+// a blocked cell and no safe exit exists.
 type PawnAccess struct {
 	ID              string
 	Position        domain.Cell
 	Current, After  uint32
-	Lost            uint32
-	LostCells       []domain.Cell
+	LosesAccess     bool
 	OriginKnown     bool
 	ProjectedOrigin domain.Cell
 	EgressSteps     uint32
@@ -57,7 +55,7 @@ func (s SpatialAccess) Accepted() bool {
 	}
 	reached := map[domain.Cell]bool{}
 	for _, p := range s.Pawns {
-		if !p.OriginKnown || p.Lost != 0 {
+		if !p.OriginKnown || p.LosesAccess {
 			return false
 		}
 		for _, t := range p.Targets {
@@ -158,11 +156,11 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 		}
 		seen[row.Pawn.GetId()] = true
 		position, pk := protoCell(row.Pawn.Position)
-		if !pk || row.CurrentCells == nil || row.ProjectedCells == nil || row.LostCellCount == nil || row.EgressSteps == nil || len(row.Targets) != len(targets) {
+		if !pk || row.CurrentCells == nil || row.ProjectedCells == nil || row.LosesAccess == nil || row.EgressSteps == nil || len(row.Targets) != len(targets) {
 			return SpatialAccess{}, contract("incomplete spatial access row")
 		}
-		p := PawnAccess{ID: row.Pawn.GetId(), Position: position, Current: row.GetCurrentCells(), After: row.GetProjectedCells(), Lost: row.GetLostCellCount(), EgressSteps: row.GetEgressSteps()}
-		if p.After > p.Current || p.Lost > p.Current || len(row.LostCells) > maxSpatialLostCells || len(row.LostCells) > int(p.Lost) || p.Lost != 0 && len(row.LostCells) == 0 {
+		p := PawnAccess{ID: row.Pawn.GetId(), Position: position, Current: row.GetCurrentCells(), After: row.GetProjectedCells(), LosesAccess: row.GetLosesAccess(), EgressSteps: row.GetEgressSteps()}
+		if p.After > p.Current {
 			return SpatialAccess{}, contract("inconsistent spatial access counts")
 		}
 		if row.ProjectedOrigin != nil {
@@ -176,15 +174,6 @@ func validateSpatialAccess(v *o.SpatialAccessSnapshot, identity *c.Identity, blo
 			}
 		} else if p.After != 0 || !blockedSet[position] {
 			return SpatialAccess{}, contract("missing projected origin")
-		}
-		lostSeen := map[domain.Cell]bool{}
-		for _, raw := range row.LostCells {
-			cell, ok := protoCell(raw)
-			if !ok || lostSeen[cell] || blockedSet[cell] {
-				return SpatialAccess{}, contract("invalid lost cell")
-			}
-			lostSeen[cell] = true
-			p.LostCells = append(p.LostCells, cell)
 		}
 		for i, raw := range row.Targets {
 			cell, ok := protoCell(raw.GetCell())

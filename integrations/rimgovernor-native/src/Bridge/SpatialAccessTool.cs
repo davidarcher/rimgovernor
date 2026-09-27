@@ -110,9 +110,7 @@ namespace HomeBridge.BridgeTools
                         rows.Add(new { pawn = pawn.ThingID, position = BridgeCommon.Pos(pawn.Position),
                             currentCells = before.Count, projectedCells = after.Count,
                             lostCellCount = lost.Count, occupiedByProjection = pawnBlocked,
-                            projectedOrigin = origin.IsValid ? BridgeCommon.Pos(origin) : null, egressSteps,
-                            lostCells = lost.OrderBy(c => c.x).ThenBy(c => c.z).Take(16).Select(BridgeCommon.Pos).ToList(),
-                            targets = reach });
+                            projectedOrigin = origin.IsValid ? BridgeCommon.Pos(origin) : null, egressSteps,                            targets = reach });
                     }
                     if (targetAccess.Values.Any(value => !value)) accepted = false;
                     return new { success = true, accepted, mapId = map.uniqueID, tick = Find.TickManager.TicksGame,

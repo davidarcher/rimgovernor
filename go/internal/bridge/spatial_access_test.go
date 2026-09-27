@@ -23,7 +23,7 @@ var (
 func spatialFixture() *o.SpatialAccessSnapshot {
 	row := func(id string, x, z int32) *o.PawnAccess {
 		return &o.PawnAccess{Pawn: &o.EntityRef{Id: proto.String(id), Position: pbCell(x, z)}, CurrentCells: proto.Uint32(400), ProjectedCells: proto.Uint32(398),
-			LostCellCount: proto.Uint32(0), ProjectedOrigin: pbCell(x, z), EgressSteps: proto.Uint32(0),
+			LosesAccess: proto.Bool(false), ProjectedOrigin: pbCell(x, z), EgressSteps: proto.Uint32(0),
 			Targets: []*o.AccessTarget{
 				{Cell: pbCell(9, 14), NativeReachable: proto.Bool(true), ProjectedReachable: proto.Bool(true), ProjectedSteps: proto.Uint32(13)},
 				{Cell: pbCell(9, 0), NativeReachable: proto.Bool(true), ProjectedReachable: proto.Bool(true), ProjectedSteps: proto.Uint32(27)},
@@ -66,8 +66,7 @@ func TestSpatialAccessBlockedPawnNeedsEgress(t *testing.T) {
 	}
 	fixture.Pawns[0].ProjectedOrigin = nil
 	fixture.Pawns[0].ProjectedCells = proto.Uint32(0)
-	fixture.Pawns[0].LostCellCount = proto.Uint32(398)
-	fixture.Pawns[0].LostCells = []*c.Cell{pbCell(9, 27)}
+	fixture.Pawns[0].LosesAccess = proto.Bool(true)
 	for _, target := range fixture.Pawns[0].Targets {
 		target.ProjectedReachable, target.ProjectedSteps = proto.Bool(false), nil
 	}
@@ -78,19 +77,18 @@ func TestSpatialAccessBlockedPawnNeedsEgress(t *testing.T) {
 }
 func TestSpatialAccessRejectsMalformed(t *testing.T) {
 	edits := map[string]func(*o.SpatialAccessSnapshot){
-		"missing pawn":             func(s *o.SpatialAccessSnapshot) { s.Pawns = s.Pawns[:1] },
-		"unrequested pawn":         func(s *o.SpatialAccessSnapshot) { s.Pawns[1].Pawn.Id = proto.String("Human9") },
-		"duplicate pawn":           func(s *o.SpatialAccessSnapshot) { s.Pawns[1].Pawn.Id = proto.String("Human1") },
-		"target missing":           func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets = s.Pawns[0].Targets[:1] },
-		"target reordered":         func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].Cell = pbCell(9, 0) },
-		"steps without reach":      func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].ProjectedReachable = proto.Bool(false) },
-		"reach without steps":      func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].ProjectedSteps = nil },
-		"native unknown":           func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].NativeReachable = nil },
-		"lost count without cells": func(s *o.SpatialAccessSnapshot) { s.Pawns[0].LostCellCount = proto.Uint32(3) },
-		"more cells than lost":     func(s *o.SpatialAccessSnapshot) { s.Pawns[0].LostCells = []*c.Cell{pbCell(1, 1)} },
-		"projected over current":   func(s *o.SpatialAccessSnapshot) { s.Pawns[0].ProjectedCells = proto.Uint32(401) },
-		"origin on blocked":        func(s *o.SpatialAccessSnapshot) { s.Pawns[0].ProjectedOrigin = pbCell(10, 14) },
-		"egress without block":     func(s *o.SpatialAccessSnapshot) { s.Pawns[0].EgressSteps = proto.Uint32(2) },
+		"missing pawn":           func(s *o.SpatialAccessSnapshot) { s.Pawns = s.Pawns[:1] },
+		"unrequested pawn":       func(s *o.SpatialAccessSnapshot) { s.Pawns[1].Pawn.Id = proto.String("Human9") },
+		"duplicate pawn":         func(s *o.SpatialAccessSnapshot) { s.Pawns[1].Pawn.Id = proto.String("Human1") },
+		"target missing":         func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets = s.Pawns[0].Targets[:1] },
+		"target reordered":       func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].Cell = pbCell(9, 0) },
+		"steps without reach":    func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].ProjectedReachable = proto.Bool(false) },
+		"reach without steps":    func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].ProjectedSteps = nil },
+		"native unknown":         func(s *o.SpatialAccessSnapshot) { s.Pawns[0].Targets[0].NativeReachable = nil },
+		"loses access unknown":   func(s *o.SpatialAccessSnapshot) { s.Pawns[0].LosesAccess = nil },
+		"projected over current": func(s *o.SpatialAccessSnapshot) { s.Pawns[0].ProjectedCells = proto.Uint32(401) },
+		"origin on blocked":      func(s *o.SpatialAccessSnapshot) { s.Pawns[0].ProjectedOrigin = pbCell(10, 14) },
+		"egress without block":   func(s *o.SpatialAccessSnapshot) { s.Pawns[0].EgressSteps = proto.Uint32(2) },
 		"moved origin unblocked": func(s *o.SpatialAccessSnapshot) {
 			s.Pawns[0].ProjectedOrigin = pbCell(9, 26)
 			s.Pawns[0].EgressSteps = proto.Uint32(1)

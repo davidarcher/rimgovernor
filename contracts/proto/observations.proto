@@ -587,7 +587,7 @@ message ResearchRequest { ReadScope scope = 1; optional bool include_locked = 2;
 message ResearchReply { oneof outcome { ResearchSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message AccessTarget { rimgovernor.common.v1.Cell cell = 1; optional bool native_reachable = 2; optional bool projected_reachable = 3; optional uint32 projected_steps = 4; }
-message PawnAccess { EntityRef pawn = 1; optional uint32 current_cells = 2; optional uint32 projected_cells = 3; optional uint32 lost_cell_count = 4; repeated rimgovernor.common.v1.Cell lost_cells = 5; repeated AccessTarget targets = 6; rimgovernor.common.v1.Cell projected_origin = 7; optional uint32 egress_steps = 8; reserved 9; }
+message PawnAccess { EntityRef pawn = 1; optional uint32 current_cells = 2; optional uint32 projected_cells = 3; repeated AccessTarget targets = 6; rimgovernor.common.v1.Cell projected_origin = 7; optional uint32 egress_steps = 8; optional bool loses_access = 10; reserved 4, 5, 9; }
 message SpatialAccessSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnAccess pawns = 2; optional uint32 map_cells = 3; optional uint32 observed_walkable_cells = 4; reserved 5; }
 message SpatialAccessRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell blocked_cells = 2; repeated rimgovernor.common.v1.Cell target_cells = 3; repeated string pawn_ids = 4; }
 message SpatialAccessReply { oneof outcome { SpatialAccessSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
