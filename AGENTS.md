@@ -49,6 +49,11 @@ once acceptance passes, and land immediately.
    GitHub issue with the landing commit. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task
    is done. Rebase or merge by hand only to resolve a conflict it reports.
+   An orchestrator that spawned worktree agents removes each agent's
+   worktree once the agent reports (`git worktree remove <path>`, then
+   `git branch -D <branch>` when the branch holds nothing off `main`);
+   the harness locks a running agent's worktree, so neither the agent
+   nor the lane can remove it.
    The issue closes when the landing meets the acceptance written in its
    body, not when every follow-up you can think of is done: comment the
    follow-ups in one line (or file them as issues) and let the lane close
