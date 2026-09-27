@@ -166,7 +166,9 @@ func (b *Boundary) ObserveBuildingTemperature(ctx context.Context, p executor.Pl
 	if err != nil {
 		return out, err
 	}
-	if tick != domain.Tick(v.Context.GetTick()) || !v.GetCompleteInspection() {
+	// The re-read follows the observation, so a running clock may have
+	// advanced between them; only a read from before it is stale (#755).
+	if tick < domain.Tick(v.Context.GetTick()) || !v.GetCompleteInspection() {
 		return out, executor.ErrEvidence
 	}
 	matches := target.Temperature == wanted.Temperature.Celsius()
