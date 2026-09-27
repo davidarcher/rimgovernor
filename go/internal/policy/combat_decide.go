@@ -50,7 +50,12 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 			// layout) it forms at once.
 			return nil, ask, memory
 		}
-		next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
+		if manhunterPack(view) {
+			// A manhunter pack picks its own tactic (#898).
+			next.Tactic, next.Roles, next.Refusal = TacticManhunter, manhunterFormation(view, geometry, next.Relieved), ""
+		} else {
+			next.Tactic, next.Roles, next.Refusal = formation(view, geometry, next.Relieved)
+		}
 		next.Formed = view.Tick
 	}
 	peel(view, stop, &next)
@@ -141,6 +146,8 @@ type CombatPawnState struct {
 	// Shield is the worn shield's charge, a fraction of max (#866);
 	// unknown without a shield.
 	Shield domain.Fact[float64]
+	// MoveSpeed is the pawn's MoveSpeed stat in cells/s, 0 unknown (#898).
+	MoveSpeed float64
 }
 
 // CombatLayout is the stored, complete defense layout's line.
@@ -434,22 +441,25 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return !ok || HoldCompromised(holdLine(layout, m), layout.Toward, unpeeled(view, stop, m))
 	case TacticPods:
 		return reformPods(view, m)
+	case TacticManhunter:
+		return reformManhunter(view, m)
 	case TacticSquad:
-		down := map[domain.PawnID]bool{}
-		for _, t := range view.Threats {
-			if positive(t.Dead) || positive(t.Downed) {
-				down[domain.PawnID(t.ID)] = true
-			}
+		return squadTargetDown(view, m)
+	}
+	return false
+}
+
+// squadTargetDown reports a role whose target is dead or downed.
+func squadTargetDown(view CombatView, m CombatMemory) bool {
+	down := downPawns(view)
+	for _, t := range view.Threats {
+		if positive(t.Dead) || positive(t.Downed) {
+			down[domain.PawnID(t.ID)] = true
 		}
-		for _, p := range view.Pawns {
-			if p.Dead || p.Downed {
-				down[p.ID] = true
-			}
-		}
-		for _, r := range m.Roles {
-			if down[r.Target] {
-				return true
-			}
+	}
+	for _, r := range m.Roles {
+		if down[r.Target] {
+			return true
 		}
 	}
 	return false

@@ -48,7 +48,9 @@ func peel(view CombatView, stop StopEvent, m *CombatMemory) {
 	if r.Target != "" && view.hostileDown(r.Target) {
 		r.Target, r.Cell = "", r.Home
 	}
-	if r.Target == "" && stop.Kind == StopMeleeContact && gunner && !view.hostileDown(stop.Pawn) {
+	// A peeler never melees an exploder (#898).
+	_, boom := liveExploders(view)[stop.Pawn]
+	if r.Target == "" && stop.Kind == StopMeleeContact && gunner && !boom && !view.hostileDown(stop.Pawn) {
 		r.Target, r.Cell = stop.Pawn, nil
 	}
 }

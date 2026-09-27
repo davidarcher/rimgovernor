@@ -40,7 +40,8 @@ func blockingChoke(view CombatView) (domain.Cell, domain.Cell, bool) {
 	choke, ok := layout.Choke.Value()
 	v, vok := towardVector(layout.Toward)
 	rest, _ := splitTanks(view)
-	if !ok || !vok || len(brawlers(rest)) == 0 {
+	// A manhunter pack with an exploder is never melee-blocked (#898).
+	if !ok || !vok || len(brawlers(rest)) == 0 || manhunterPack(view) && len(liveExploders(view)) > 0 {
 		return domain.Cell{}, domain.Cell{}, false
 	}
 	side := domain.Cell{X: choke.X + chokeAnchorSteps*v.X, Z: choke.Z + chokeAnchorSteps*v.Z}

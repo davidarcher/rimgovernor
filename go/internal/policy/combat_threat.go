@@ -100,7 +100,9 @@ func inRange(from domain.Fact[domain.Cell], reach float64, h CombatPawnState) bo
 // that one lives and stays in range, so the focus is stable across stops.
 // A gunner with no hostile in range keeps the formation's target.
 func focusFire(view CombatView, roles, prior []CombatRole) []CombatRole {
-	ranked := rankThreats(view)
+	// An exploder near our pawns is never shot (#898).
+	near := nearExploders(view)
+	ranked := slices.DeleteFunc(rankThreats(view), func(h CombatPawnState) bool { return near[h.ID] })
 	live := map[domain.PawnID]CombatPawnState{}
 	for _, h := range ranked {
 		live[h.ID] = h
@@ -132,6 +134,9 @@ func focusFire(view CombatView, roles, prior []CombatRole) []CombatRole {
 				out[i].Target = h.ID
 				break
 			}
+		}
+		if near[out[i].Target] {
+			out[i].Target = ""
 		}
 	}
 	return out
