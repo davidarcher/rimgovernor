@@ -40,14 +40,6 @@ func NewRoutineClearancePlanner(reviewer *RoutineReviewer, native RoutineClearan
 	}
 	return &RoutineClearancePlanner{reviewer, native}, nil
 }
-func (r *RoutineClearancePlanner) Step(ctx context.Context) (RoutineClearanceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineClearanceResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineClearanceResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

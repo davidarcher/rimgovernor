@@ -40,14 +40,6 @@ func NewRoutineRescuePlanner(reviewer *RoutineReviewer, native RoutineRescueSour
 	}
 	return &RoutineRescuePlanner{reviewer, native}, nil
 }
-func (r *RoutineRescuePlanner) Step(ctx context.Context) (RoutineRescueResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineRescueResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineRescueResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

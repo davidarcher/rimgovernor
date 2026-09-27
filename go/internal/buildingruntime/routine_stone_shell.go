@@ -46,14 +46,6 @@ func NewRoutineStoneShellPlanner(reviewer *RoutineReviewer, native RoutineStoneS
 	}
 	return &RoutineStoneShellPlanner{reviewer, native}, nil
 }
-func (r *RoutineStoneShellPlanner) Step(ctx context.Context) (RoutineStoneShellResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineStoneShellResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 func stoneShellMethodID(wall string) domain.MethodID {
 	sum := sha256.Sum256([]byte(wall))

@@ -85,13 +85,6 @@ func (b *paceBackoff) Ceiling() uint32 {
 	return b.ceiling
 }
 
-// Reset forgets the ceiling (a new game session).
-func (b *paceBackoff) Reset() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.ceiling, b.stale = 0, false
-}
-
 // worstRate is the fastest the window may run now. Callers hold mu.
 func (b *paceBackoff) worstRate() uint32 {
 	if b.ceiling == 0 {

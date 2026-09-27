@@ -51,14 +51,6 @@ func NewRoutineTidyPlanner(reviewer *RoutineReviewer, native RoutineTidySource) 
 	}
 	return &RoutineTidyPlanner{reviewer, native}, nil
 }
-func (r *RoutineTidyPlanner) Step(ctx context.Context) (RoutineTidyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineTidyResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 func tidyMethodID(item, phase string) domain.MethodID {
 	sum := sha256.Sum256([]byte(item))

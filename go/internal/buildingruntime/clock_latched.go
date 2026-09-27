@@ -151,9 +151,3 @@ func (l *clockLatched) released() {
 	defer l.mu.Unlock()
 	l.deferrals = 0
 }
-
-func (l *clockLatched) len() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return len(l.outcomes)
-}

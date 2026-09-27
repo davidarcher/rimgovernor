@@ -34,14 +34,6 @@ func NewRoutineAnimalContainmentPlanner(reviewer *RoutineReviewer, native Routin
 	}
 	return &RoutineAnimalContainmentPlanner{reviewer: reviewer, native: native}, nil
 }
-func (r *RoutineAnimalContainmentPlanner) Step(ctx context.Context) (RoutineAnimalContainmentResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineAnimalContainmentResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 const (
 	animalShellMethod  domain.MethodID = "pen-shell"

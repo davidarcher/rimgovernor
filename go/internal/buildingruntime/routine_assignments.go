@@ -38,14 +38,6 @@ func NewRoutineWorkPlanner(reviewer *RoutineReviewer) (*RoutineWorkPlanner, erro
 	benches, _ := reviewer.native.(RoutineWorkBenchSource)
 	return &RoutineWorkPlanner{reviewer: reviewer, benches: benches}, nil
 }
-func (r *RoutineWorkPlanner) Step(ctx context.Context) (RoutineWorkResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineWorkResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineWorkResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

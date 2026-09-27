@@ -36,14 +36,6 @@ func NewRoutineHomeCoveragePlanner(reviewer *RoutineReviewer, native RoutineHome
 	}
 	return &RoutineHomeCoveragePlanner{reviewer, native}, nil
 }
-func (r *RoutineHomeCoveragePlanner) Step(ctx context.Context) (RoutineHomeCoverageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineHomeCoverageResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // homeCoverageObservationFacts decodes the same unconditional Upkeep section
 // observation.colonyHomeCoverage does for routine review. Duplicated here for

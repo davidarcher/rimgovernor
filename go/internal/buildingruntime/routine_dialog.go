@@ -41,14 +41,6 @@ func NewRoutineDialogPlanner(reviewer *RoutineReviewer, native RoutineDialogSour
 	}
 	return &RoutineDialogPlanner{reviewer, native, answer}, nil
 }
-func (r *RoutineDialogPlanner) Step(ctx context.Context) (RoutineDialogResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineDialogResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineDialogResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

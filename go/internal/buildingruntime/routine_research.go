@@ -128,14 +128,6 @@ func (r *RoutineResearchPlanner) bench(call, epoch context.Context, arbiter *ste
 	return RoutineResearchResult{Reason: result.Reason, NativeWorkTicks: result.NativeWorkTicks}, nil
 }
 
-func (r *RoutineResearchPlanner) Step(ctx context.Context) (RoutineResearchResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineResearchResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResearchResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

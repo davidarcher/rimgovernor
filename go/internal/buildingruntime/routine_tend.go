@@ -38,14 +38,6 @@ func NewRoutineTendPlanner(reviewer *RoutineReviewer, native RoutineTendSource) 
 	}
 	return &RoutineTendPlanner{reviewer, native}, nil
 }
-func (r *RoutineTendPlanner) Step(ctx context.Context) (RoutineTendResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineTendResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineTendResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

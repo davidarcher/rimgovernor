@@ -108,14 +108,6 @@ func NewRoutineDefenseLayoutPlanner(reviewer *RoutineReviewer, native RoutineDef
 	}
 	return &RoutineDefenseLayoutPlanner{reviewer, native}, nil
 }
-func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseLayoutResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // A tier's method is keyed by tier, repair and attempt: a plan cancelled by
 // an authority discontinuity (a letter pause) or refused natively is retried

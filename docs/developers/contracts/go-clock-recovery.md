@@ -543,7 +543,7 @@ step loop leaves the player gate to the worker and steps again when a worker
 step advances any action (`WorkerConfig.Advanced` nudges it) or a
 `StepInterval` later, without backoff. No admission waits for the stop
 between windows (#244): every routine kind the worker dispatches validates
-its preconditions natively at apply time (`liveDispatchKind`, #242,
+its preconditions natively at apply time (#242,
 action-contracts.md "Apply-time preconditions") and dispatches under the
 running window, so the step that settles a stop reviews and admits in the
 same pass without holding for the worker; the pause-drain hold of #129/#211

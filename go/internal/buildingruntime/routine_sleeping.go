@@ -129,16 +129,6 @@ func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureInitialShelter, definition: "SleepingSpot"}, nil
 }
 
-func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
-	p := r.reviewer.player
-	call, epoch, done, err := p.enter(ctx, false)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 // step is also used by the scheduler already holding the same player gate.
 func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
 	roofingOnly := false

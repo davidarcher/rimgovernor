@@ -62,14 +62,6 @@ func NewRoutineFoodStorageUpkeepPlanner(reviewer *RoutineReviewer, native Routin
 	}
 	return &RoutineFoodStorageUpkeepPlanner{reviewer, native}, nil
 }
-func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFoodStorageUpkeepResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineFoodStorageUpkeepResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // foodStorageObservationFacts decodes the freshly read colony census with
 // the same observation.DecodeFoodSupply the routine review uses, so the

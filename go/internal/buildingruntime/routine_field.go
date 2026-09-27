@@ -38,14 +38,6 @@ func NewRoutineFieldPlanner(reviewer *RoutineReviewer, native FieldNative) (*Rou
 	}
 	return &RoutineFieldPlanner{reviewer: reviewer, native: native}, nil
 }
-func (r *RoutineFieldPlanner) Step(ctx context.Context) (RoutineFieldResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineFieldResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

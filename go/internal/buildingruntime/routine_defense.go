@@ -48,14 +48,6 @@ func NewRoutineDefensePlanner(reviewer *RoutineReviewer, native RoutineDefenseSo
 	}
 	return &RoutineDefensePlanner{reviewer, native}, nil
 }
-func (r *RoutineDefensePlanner) Step(ctx context.Context) (RoutineDefenseResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineDefenseResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

@@ -68,14 +68,6 @@ func NewRoutineShrinePlanner(reviewer *RoutineReviewer, native RoutineShrineSour
 	}
 	return &RoutineShrinePlanner{reviewer, native}, nil
 }
-func (r *RoutineShrinePlanner) Step(ctx context.Context) (RoutineShrineResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineShrineResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (result RoutineShrineResult, err error) {
 	p := r.reviewer.player
 	state := p.session.State()

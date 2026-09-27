@@ -123,15 +123,6 @@ func NewCaravanJourneyTracker(player *Player, native CaravanJourneyNative, journ
 	return &CaravanJourneyTracker{player, native, journal, clock, maxAge}, nil
 }
 
-func (t *CaravanJourneyTracker) Step(ctx context.Context) (CaravanJourneyResult, error) {
-	call, epoch, done, err := t.player.enter(ctx, false)
-	if err != nil {
-		return CaravanJourneyResult{}, err
-	}
-	defer done()
-	return t.step(call, epoch, newStepArbiter())
-}
-
 func (t *CaravanJourneyTracker) step(call, epoch context.Context, arbiter *stepArbiter) (CaravanJourneyResult, error) {
 	active, err := t.journal.ListActiveCaravanTracking(call)
 	if err != nil {

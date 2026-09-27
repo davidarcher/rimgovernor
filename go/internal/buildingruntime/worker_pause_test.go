@@ -48,25 +48,6 @@ func TestWakeSignalCarriesStop(t *testing.T) {
 	}
 }
 
-// Every routine kind is validated natively at apply time and dispatches
-// under a running window (#242, #243, #244); the pause-bound set is empty.
-// A player order the Worker only reconciles is not a live dispatch.
-func TestLiveDispatchKindCoversEveryRoutineKind(t *testing.T) {
-	t.Parallel()
-	for _, kind := range []domain.ActionKind{
-		domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
-		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
-		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ResearchSelectAction, domain.HomeCoverageAction,
-	} {
-		if !liveDispatchKind(kind) {
-			t.Errorf("%s: not dispatched live", kind)
-		}
-	}
-	if liveDispatchKind(domain.MeleeAttackAction) || liveDispatchKind(domain.OwnedDraftAction) {
-		t.Fatal("a combat order is not a routine dispatch")
-	}
-}
-
 // A dispatch held on stale_facts is retried at once, off its backoff,
 // before the game's own work scanner takes the order's target (#288); the
 // clock is not held for it, since every routine kind dispatches under the

@@ -84,14 +84,6 @@ func NewRoutineTradePlanner(reviewer *RoutineReviewer, native RoutineTradeSource
 	}
 	return &RoutineTradePlanner{reviewer, native}, nil
 }
-func (r *RoutineTradePlanner) Step(ctx context.Context) (RoutineTradeResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineTradeResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // tradeMethod is the fixed method id of one caravan's phase attempt.
 func tradeMethod(kind domain.TradeOperationKind, trader string, attempt int) domain.MethodID {

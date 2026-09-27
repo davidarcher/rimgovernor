@@ -49,14 +49,6 @@ func NewRoutineWastePlanner(reviewer *RoutineReviewer, native RoutineWasteSource
 	}
 	return r, nil
 }
-func (r *RoutineWastePlanner) Step(ctx context.Context) (RoutineWasteResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineWasteResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineWasteResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

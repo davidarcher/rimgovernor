@@ -188,15 +188,6 @@ func (g *plannerGroup) WaitUntil(cutoff <-chan struct{}) []string {
 	}
 }
 
-// Wait runs every queued planner and blocks until each returns. It returns
-// the step context's error when that is what cut the wave short; otherwise
-// the isolated failures are left in Failures and Wait returns nil.
-func (g *plannerGroup) Wait() error {
-	g.Start()
-	<-g.all
-	return g.contextError()
-}
-
 func (g *plannerGroup) contextError() error {
 	if err := g.ctx.Err(); err != nil {
 		return errors.Join(append([]error{err}, g.Failures()...)...)

@@ -328,15 +328,6 @@ func NewRoutineStockpilePlanner(reviewer *RoutineReviewer, native RoutineStockpi
 	return &RoutineStockpilePlanner{reviewer, native}, nil
 }
 
-func (r *RoutineStockpilePlanner) Step(ctx context.Context) (RoutineStockpileResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineStockpileResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbiter) (RoutineStockpileResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

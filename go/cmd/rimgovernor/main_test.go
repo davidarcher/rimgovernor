@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,4 +116,8 @@ func TestVersionReportsExplicitBuildingControls(t *testing.T) {
 	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "autonomous play") {
 		t.Fatalf("stdout=%q stderr=%q", &out, &errors)
 	}
+}
+
+func run(args []string, out, errors io.Writer) int {
+	return runContext(context.Background(), args, out, errors)
 }

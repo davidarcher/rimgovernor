@@ -63,15 +63,6 @@ func NewRoutineHospitalPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 	return &RoutineHospitalPlanner{reviewer: reviewer, native: source, building: building}, nil
 }
 
-func (r *RoutineHospitalPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 func hospitalRequest(facts observation.ColonyProjection) policy.HospitalRequest {
 	definitions := make([]policy.BenchDefinition, 0, len(facts.Definitions))
 	for _, d := range facts.Definitions {

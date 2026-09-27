@@ -74,14 +74,6 @@ func NewRoutineSecureSuppliesPlanner(reviewer *RoutineReviewer, native RoutineSe
 	}
 	return &RoutineSecureSuppliesPlanner{reviewer, native}, nil
 }
-func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureSuppliesResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // maxSecureSuppliesHaulAttempts bounds direct hauls of one item per goal
 // episode before SecureSupplies tries its covered-storage fallbacks. Two is
@@ -89,15 +81,6 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 // method, and a second identical refusal means the map, not the hauler, is
 // the problem.
 const maxSecureSuppliesHaulAttempts = 2
-
-func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
-	result, err := r.propose(call, epoch)
-	if err != nil || result.Kind != PlanProposed {
-		return RoutineSecureSuppliesResult{Reason: result.Reason}, err
-	}
-	got, err := commitClaimed(call, arbiter, result.Proposal)
-	return RoutineSecureSuppliesResult(got), err
-}
 
 // propose plans one SecureSupplies method without committing it: a direct
 // haul while the item's haul budget lasts, then the covered-storage and

@@ -32,14 +32,6 @@ func NewRoutineSupplyPlanner(reviewer *RoutineReviewer, native RoutineSupplySour
 	}
 	return &RoutineSupplyPlanner{reviewer, native}, nil
 }
-func (r *RoutineSupplyPlanner) Step(ctx context.Context) (RoutineSupplyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineSupplyResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSupplyResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

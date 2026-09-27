@@ -36,14 +36,6 @@ func NewRoutineHusbandryPlanner(reviewer *RoutineReviewer) (*RoutineHusbandryPla
 	}
 	return &RoutineHusbandryPlanner{reviewer}, nil
 }
-func (r *RoutineHusbandryPlanner) Step(ctx context.Context) (RoutineHusbandryResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineHusbandryResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHusbandryResult, error) {
 	p := r.reviewer.player

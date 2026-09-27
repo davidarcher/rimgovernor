@@ -35,15 +35,6 @@ func NewRoutineAnimalFeedPlanner(reviewer *RoutineReviewer, native RoutineResour
 	return &RoutineAnimalFeedPlanner{reviewer, native, core}, nil
 }
 
-func (r *RoutineAnimalFeedPlanner) Step(ctx context.Context) (RoutineResourceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineResourceResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

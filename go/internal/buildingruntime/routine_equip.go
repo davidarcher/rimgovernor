@@ -39,14 +39,6 @@ func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource
 	}
 	return &RoutineEquipPlanner{reviewer, native}, nil
 }
-func (r *RoutineEquipPlanner) Step(ctx context.Context) (RoutineEquipResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineEquipResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineEquipResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

@@ -704,24 +704,6 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 	return config.MaxBackoff
 }
 
-// liveDispatchKind reports a kind whose native operation validates its own
-// preconditions at apply time and refuses with a named reason (#242,
-// action-contracts.md "Apply-time preconditions"), so the Worker dispatches
-// it under a running window as readily as between windows (#243): a world
-// that moved under the order is a refusal the Worker reconciles, not a
-// wrong effect. Every routine kind the Worker dispatches is one (#244):
-// nothing native gates an admission on a paused map any more, so no
-// admission waits for the stop between windows.
-func liveDispatchKind(kind domain.ActionKind) bool {
-	switch kind {
-	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
-		domain.ProductionBillAction, domain.GrowerCropAction, domain.ClaimBuildingAction, domain.ZoneDeleteAction, domain.ZoneCellEditAction, domain.StockpilePatchAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
-		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ResearchSelectAction, domain.HomeCoverageAction, domain.DeconstructionAction, domain.CutPlantAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction:
-		return true
-	}
-	return false
-}
-
 // workerHeldStale reports a run held before dispatch on facts from another
 // world or generation, or a tick behind what was admitted: the executor's stale_facts
 // refusal, or an emergency hold recorded for the same reason. Such a hold is

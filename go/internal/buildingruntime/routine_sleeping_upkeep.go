@@ -51,15 +51,6 @@ func NewRoutineSleepingUpkeepPlanner(reviewer *RoutineReviewer, native RoutineBu
 	return &RoutineSleepingUpkeepPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 
-func (r *RoutineSleepingUpkeepPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
 // sleepingRequest re-derives the sleeping targets from this step's census
 // against the review's retained use history, so the choice and the build
 // site share one observation.

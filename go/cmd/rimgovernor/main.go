@@ -12,10 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 )
 
-func run(args []string, out, errors io.Writer) int {
-	return runContext(context.Background(), args, out, errors)
-}
-
 func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
 		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --profile PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]   autonomous play\n       rimgovernor serve --observe --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]   observation only, no writes\nSee serve -h for tuning flags; RIMGOVERNOR_ROUTINE_FAMILIES narrows the composed routine families.")

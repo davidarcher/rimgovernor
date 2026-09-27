@@ -35,14 +35,6 @@ func NewRoutineRecoveryPlanner(reviewer *RoutineReviewer) (*RoutineRecoveryPlann
 	}
 	return &RoutineRecoveryPlanner{reviewer}, nil
 }
-func (r *RoutineRecoveryPlanner) Step(ctx context.Context) (RoutineRecoveryResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineRecoveryResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 func recoveryServiceMethod(method policy.RecoveryMethod) (domain.RecoveryMethod, bool) {
 	switch method {

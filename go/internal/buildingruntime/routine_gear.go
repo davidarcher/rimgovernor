@@ -50,14 +50,6 @@ func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) 
 	}
 	return &RoutineGearPlanner{reviewer, native}, nil
 }
-func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineGearResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // gearObservationFacts decodes an already-validated gear census the same way
 // observation.colonyGear does for routine review. It is duplicated here

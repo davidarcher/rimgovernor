@@ -42,14 +42,6 @@ func NewRoutineRepairPlanner(reviewer *RoutineReviewer, native RoutineRepairSour
 	}
 	return &RoutineRepairPlanner{reviewer, native}, nil
 }
-func (r *RoutineRepairPlanner) Step(ctx context.Context) (RoutineRepairResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineRepairResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineRepairResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

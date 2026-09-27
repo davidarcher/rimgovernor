@@ -48,14 +48,6 @@ func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, 
 	}
 	return &RoutineBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
-func (r *RoutineBillPlanner) Step(ctx context.Context) (RoutineBillResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineBillResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBillResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

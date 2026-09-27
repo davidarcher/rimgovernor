@@ -65,45 +65,6 @@ func NewRoutineHaulPlanner(reviewer *RoutineReviewer, native RoutineHaulSource) 
 	}
 	return &RoutineHaulPlanner{reviewer, native}, nil
 }
-func (r *RoutineHaulPlanner) Step(ctx context.Context) (RoutineHaulResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineHaulResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
-
-// step delivers ordinary (non-decaying) MaintainStorage items to whatever
-// legal storage native picks, reusing the exact same item+hauler selection
-// SecureSupplies uses for its own (decaying/vulnerable) item list --
-// policy.SelectSecureSupplies is generic over []UpkeepItem/hauler facts, not
-// coupled to the SecureSupplies goal itself. policy.ReviewUpkeep keeps the
-// two goals' own UpkeepItem selections disjoint (Deterioration == 0 here,
-// > 0 for SecureSupplies), so the two planners never race over the same
-// real-world item.
-func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHaulResult, error) {
-	result, err := r.propose(call, epoch)
-	if err != nil || result.Kind != PlanProposed {
-		return RoutineHaulResult{Reason: result.Reason}, err
-	}
-	return commitClaimed(call, arbiter, result.Proposal)
-}
-
-// commitClaimed is the first-arrival path a migrated planner keeps for its
-// own Step(): claim the proposal's pawns and entities on arbiter and commit
-// at once. The clock step never takes it; there the coordinator ranks the
-// wave's proposals first (#622).
-func commitClaimed(call context.Context, arbiter *stepArbiter, proposal *Proposal) (RoutineHaulResult, error) {
-	if !arbiter.tryClaim(proposal.Claims.Pawns, proposal.Claims.Entities...) {
-		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
-	}
-	plan, reason, err := proposal.commit(call)
-	if err != nil {
-		return RoutineHaulResult{}, err
-	}
-	return RoutineHaulResult{Reason: reason, Plan: plan}, nil
-}
 
 // propose plans one MaintainStorage haul without committing it: every read
 // and selection runs here, and the returned proposal's commit runs the

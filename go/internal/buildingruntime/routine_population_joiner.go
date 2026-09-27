@@ -34,14 +34,6 @@ func NewRoutinePopulationJoinerPlanner(reviewer *RoutineReviewer) (*RoutinePopul
 	}
 	return &RoutinePopulationJoinerPlanner{reviewer}, nil
 }
-func (r *RoutinePopulationJoinerPlanner) Step(ctx context.Context) (RoutinePopulationJoinerResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutinePopulationJoinerResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutinePopulationJoinerResult, error) {
 	p := r.reviewer.player

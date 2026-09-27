@@ -52,15 +52,6 @@ func NewRoutineStorageShelvesPlanner(reviewer *RoutineReviewer, native RoutineSt
 	return &RoutineStorageShelvesPlanner{reviewer: reviewer, native: native}, nil
 }
 
-func (r *RoutineStorageShelvesPlanner) Step(ctx context.Context) (RoutineStorageShelvesResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineStorageShelvesResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch)
-}
-
 // shelfPlanID is world-scoped and epoch-free, so a shelf placed under one
 // goal episode is still found in the next.
 func shelfPlanID(s domain.GenerationSnapshot, zone string, index int) domain.PlanID {

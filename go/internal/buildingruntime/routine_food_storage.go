@@ -30,14 +30,6 @@ func NewRoutineFoodStoragePlanner(reviewer *RoutineReviewer, native FieldNative)
 	}
 	return &RoutineFoodStoragePlanner{reviewer: reviewer, native: native}, nil
 }
-func (r *RoutineFoodStoragePlanner) Step(ctx context.Context) (RoutineFoodStorageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // step furnishes the same starter shell EnsureInitialShelter already built,
 // rather than selecting or building a new room: the player-selected shelter
@@ -276,16 +268,6 @@ func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectang
 		}
 	}
 	return policy.Rectangle{}, false
-}
-
-// foodStorageCells is the first of foodStorageSites, or false when nothing
-// fits.
-func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool) ([]domain.Cell, bool) {
-	sites := foodStorageSites(room, cells, occupied)
-	if len(sites) == 0 {
-		return nil, false
-	}
-	return sites[0], true
 }
 
 const maxFoodStorageSites = 8

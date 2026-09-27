@@ -38,14 +38,6 @@ func NewRoutineNamingPlanner(reviewer *RoutineReviewer, native RoutineNamingSour
 	}
 	return &RoutineNamingPlanner{reviewer, native}, nil
 }
-func (r *RoutineNamingPlanner) Step(ctx context.Context) (RoutineNamingResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineNamingResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineNamingResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

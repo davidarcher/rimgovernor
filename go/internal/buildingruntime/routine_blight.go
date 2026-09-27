@@ -39,14 +39,6 @@ func NewRoutineBlightPlanner(reviewer *RoutineReviewer, native RoutineBlightSour
 	}
 	return &RoutineBlightPlanner{reviewer, native}, nil
 }
-func (r *RoutineBlightPlanner) Step(ctx context.Context) (RoutineBlightResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineBlightResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBlightResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

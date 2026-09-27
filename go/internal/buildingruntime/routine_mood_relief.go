@@ -39,14 +39,6 @@ func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer, native RoutineMoodRe
 	}
 	return &RoutineMoodReliefPlanner{reviewer, native}, nil
 }
-func (r *RoutineMoodReliefPlanner) Step(ctx context.Context) (RoutineMoodReliefResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineMoodReliefResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // moodReliefValue mirrors store's unexported moodFact/moodValue lift for
 // the review's persisted RoutineMoodPawn/RoutineMoodCause pointer fields;

@@ -91,14 +91,6 @@ func NewRoutineResourcePlanner(reviewer *RoutineReviewer, native RoutineResource
 	}
 	return &RoutineResourcePlanner{reviewer, native}, nil
 }
-func (r *RoutineResourcePlanner) Step(ctx context.Context) (RoutineResourceResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineResourceResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // resourceStockFacts decodes the same generic top-level resource census
 // medicalReserveObservationFacts reads (v.Resources), from a freshly read

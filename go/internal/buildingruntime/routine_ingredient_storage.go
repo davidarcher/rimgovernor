@@ -52,15 +52,6 @@ func NewRoutineIngredientStoragePlanner(reviewer *RoutineReviewer, native Routin
 	return &RoutineIngredientStoragePlanner{reviewer: reviewer, native: native}, nil
 }
 
-func (r *RoutineIngredientStoragePlanner) Step(ctx context.Context) (RoutineIngredientStorageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineIngredientStorageResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch)
-}
-
 func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (RoutineIngredientStorageResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

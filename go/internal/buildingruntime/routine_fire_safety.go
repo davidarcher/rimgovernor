@@ -51,15 +51,6 @@ func NewRoutineFireSafetyPlanner(reviewer *RoutineReviewer, native RoutineFireSa
 	return &RoutineFireSafetyPlanner{reviewer, native}, nil
 }
 
-func (r *RoutineFireSafetyPlanner) Step(ctx context.Context) (RoutineFireSafetyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineFireSafetyResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch)
-}
-
 func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFireSafetyResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

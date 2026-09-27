@@ -40,14 +40,6 @@ func NewRoutinePopulationCustodyPlanner(reviewer *RoutineReviewer, native Routin
 	}
 	return &RoutinePopulationCustodyPlanner{reviewer, native}, nil
 }
-func (r *RoutinePopulationCustodyPlanner) Step(ctx context.Context) (RoutinePopulationCustodyResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutinePopulationCustodyResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutinePopulationCustodyResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

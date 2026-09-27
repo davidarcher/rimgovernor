@@ -33,14 +33,6 @@ func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID)
 	}
 	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need}, nil
 }
-func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitionResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineAcquisitionResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineAcquisitionResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()

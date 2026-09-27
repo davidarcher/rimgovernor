@@ -310,12 +310,6 @@ func (q *plannerQueue) combatStopped() {
 // defensePlanner is the catalog name of the routine defense planner.
 const defensePlanner = "defense"
 
-// waitingOn reports the wait recorded for name, for tests and the step row.
-func (q *plannerQueue) waitingOn(name string) (plannerWait, bool) {
-	wait, ok := q.waits[name]
-	return wait, ok
-}
-
 // openWorkOfKinds names the open attempts of the given kinds across
 // plans, in a stable order: the dependency a planner reporting existing
 // work waits on.

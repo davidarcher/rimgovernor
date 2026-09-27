@@ -61,14 +61,6 @@ func NewRoutineMedicalPlanner(reviewer *RoutineReviewer, native RoutineMedicalSo
 	}
 	return &RoutineMedicalPlanner{reviewer, native}, nil
 }
-func (r *RoutineMedicalPlanner) Step(ctx context.Context) (RoutineMedicalResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutineMedicalResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 // medicalOptionalBool and medicalOptionalTicks mirror observation.optional's
 // generic pointer-to-Fact lift for the two medicine-stack fields this

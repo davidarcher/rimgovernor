@@ -1,7 +1,6 @@
 package buildingruntime
 
 import (
-	"context"
 	"strings"
 	"time"
 
@@ -125,9 +124,4 @@ func plannerSelection(reason StepReason, kindOf func(domain.ActionID) (domain.Ac
 		return q.selection(tick, false, false, nil)
 	}
 	return q.selection(tick, true, false, nil)
-}
-
-// Step runs one full scheduling decision; see StepWithReason.
-func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error) {
-	return s.StepWithReason(ctx, StepReason{Cause: StepFull})
 }

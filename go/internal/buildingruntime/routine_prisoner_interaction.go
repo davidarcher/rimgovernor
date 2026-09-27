@@ -44,14 +44,6 @@ func NewRoutinePrisonerInteractionPlanner(reviewer *RoutineReviewer) (*RoutinePr
 	}
 	return r, nil
 }
-func (r *RoutinePrisonerInteractionPlanner) Step(ctx context.Context) (RoutinePrisonerInteractionResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
-	if err != nil {
-		return RoutinePrisonerInteractionResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
-}
 
 func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutinePrisonerInteractionResult, error) {
 	p := r.reviewer.player

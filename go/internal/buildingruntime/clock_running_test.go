@@ -319,9 +319,6 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 	if err != nil || got.Cleaned || !got.Running || got.Unwatched != 1 || !s.WindowRunning() || f.pauses != 0 {
 		t.Fatal(got, err, s.WindowRunning(), f.pauses)
 	}
-	if !liveDispatchKind(domain.BuildingAction) || !liveDispatchKind(domain.HaulAction) || liveDispatchKind(domain.MeleeAttackAction) {
-		t.Fatal("live dispatch kinds")
-	}
 }
 
 // A coupled order (domain.ActionDependency.Coupled) no longer stops the
