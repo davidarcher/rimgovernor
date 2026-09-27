@@ -76,6 +76,8 @@ func siegeMode(view CombatView, m CombatMemory) SiegeMode {
 	switch {
 	case m.SiegeCamp == 0:
 		return SiegeHold
+	case campAsleep(view):
+		return SiegeSneak
 	case view.Tick-m.SiegeCamp > siegeSortieWindow:
 		return SiegeHarass
 	}
@@ -108,7 +110,7 @@ func siegeFormation(view CombatView, mode SiegeMode) []CombatRole {
 		ranged := positive(d.RangedEquipped)
 		role := CombatRole{Pawn: d.ID, Ranged: ranged}
 		switch {
-		case mode == SiegeSortie:
+		case mode == SiegeSortie || mode == SiegeSneak:
 			role.Target = top
 		case !ranged:
 			continue
@@ -137,7 +139,7 @@ func reformSiege(view CombatView, m CombatMemory) bool {
 // (every role but a harasser, outside the sortie): an attack order on a
 // hostile at the camp walks the gunner out to it.
 func siegeHold(m *CombatMemory) {
-	if m.Tactic != TacticSiege || m.SiegeMode == SiegeSortie {
+	if m.Tactic != TacticSiege || m.SiegeMode == SiegeSortie || m.SiegeMode == SiegeSneak {
 		return
 	}
 	for i := range m.Roles {
