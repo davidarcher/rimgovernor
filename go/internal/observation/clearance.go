@@ -28,18 +28,21 @@ type ClearanceChunk = policy.ClearanceChunk
 type ClearanceCensus = policy.ClearanceCensus
 
 type ClearanceSource interface {
-	ReadClearanceTargets(context.Context, *c.Identity) (*o.ClearanceTargetsReply, bridge.Result, error)
+	ReadClearanceTargets(context.Context, *c.Identity, bool) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
 // ObserveClearanceCensus tolerates an explicit unavailable native stub as
 // unknown. Transport, malformed-contract and identity errors remain errors.
-func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[ClearanceCensus], error) {
+// includeSalvage asks native for the out-of-Home salvage evidence (#984);
+// without it every row's Salvage is nil, which remote salvage reads as
+// salvage_unknown, so only callers that never read Salvage pass false.
+func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity, includeSalvage bool) (domain.Fact[ClearanceCensus], error) {
 	unknown := domain.Unknown[ClearanceCensus]()
 	if source == nil || expected.Validate() != nil || !sameColonyContext(expected, expected) {
 		return unknown, ErrContract
 	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
-	reply, _, err := source.ReadClearanceTargets(ctx, id)
+	reply, _, err := source.ReadClearanceTargets(ctx, id, includeSalvage)
 	if errors.Is(err, bridge.ErrUnavailable) {
 		return unknown, nil
 	}

@@ -147,19 +147,6 @@ namespace HomeBridge.BridgeTools
                 });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {
-                    FullMethodName = "rimgovernor.presentation.v1.PresentationMedia/CapturePawn",
-                    Support = Lifecycle.CapabilitySupport.Supported,
-                    Detail = "Single-frame colonist portrait or nearby-map follow PNG capture, async across a draw cycle. Batch-mode or no-camera games return a typed failure. CaptureScreenshot is not implemented."
-                });
-                foreach (var method in new[] { "LeaseVideo", "ReadFrame", "AcknowledgeFrame" })
-                    loaded.Capabilities.Add(new Lifecycle.Capability
-                    {
-                        FullMethodName = "rimgovernor.presentation.v1.PresentationMedia/" + method,
-                        Support = Lifecycle.CapabilitySupport.Supported,
-                        Detail = "Raw (uncompressed RGBA32/BGRA32) in-process video capture shared with the legacy home/video_stream mmap tool. LeaseVideo starts/stops the shared capture (0-15 real seconds); ReadFrame reads the latest captured bytes without extending the lease; AcknowledgeFrame is accept-and-record telemetry only, with no viewer-driven capture throttling yet."
-                    });
-                loaded.Capabilities.Add(new Lifecycle.Capability
-                {
                     FullMethodName = "rimgovernor.observations.v1.Observations/ListPawns",
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Complete bounded map pawn census with exact filters. Available draft controllers expose draft-control CAS and causal claims; other entities, social and additional gear/animal details carry explicit issues."

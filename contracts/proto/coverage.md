@@ -89,7 +89,6 @@ discovered/mapped, not as live source links.
 | `home/render_demand` | PresentationMedia.DemandRendering; PresentationReads.RenderState | Typed | `controller/rimgovernor/bridge_runtime.py:250` |
 | `rimworld/take_screenshot` | PresentationMedia.CaptureScreenshot | Typed | `controller/rimgovernor/bridge_runtime.py:256` |
 | `rimworld/get_camera_state` | PresentationReads.Camera | Typed | `controller/rimgovernor/bridge_runtime.py:252` |
-| `home/pawn_image` | PresentationMedia.CapturePawn | Typed | `controller/rimgovernor/colony_people.py:56` |
 | `rimworld/list_colonists` | PresentationReads.Colonists; Observations.ListPawns | Typed | `controller/rimgovernor/dashboard_controls.py:184` |
 | `rimworld/select_pawn` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:194` |
 | `rimworld/clear_selection` | PlayerPresentation.Apply exact closed captured command | Typed | `controller/rimgovernor/dashboard_controls.py:194` |
@@ -99,7 +98,6 @@ discovered/mapped, not as live source links.
 | `games_kill` | Go controller gamehost process adapter | External host | `controller/rimgovernor/native_trials.py:112` |
 | `rimworld/save_game` | Lifecycle.Save / ReadSave | Typed | `controller/rimgovernor/session_checkpoint.py:48` |
 | `games_stop` | Go controller gamehost process adapter | External host | `controller/rimgovernor/session_checkpoint.py:92` |
-| `home/video_stream` | PresentationMedia.LeaseVideo / ReadFrame / AcknowledgeFrame | Typed | `controller/rimgovernor/video_stream.py:169` |
 | `dynamic-discovery` | Generated capability descriptors and closed read/preview/write branches | Inventory mechanism | `controller/rimgovernor/bridge.py` |
 | `argument-sensitive-dispatch` | Generated capability descriptors and closed read/preview/write branches | Inventory mechanism | `controller/rimgovernor/bridge_game.py` |
 

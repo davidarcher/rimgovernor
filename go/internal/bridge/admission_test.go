@@ -27,7 +27,6 @@ func TestEveryReviewedMethodHasAnAdmissionClass(t *testing.T) {
 		"rimgovernor/operations_execute":       AdmissionControl,
 		"rimgovernor/observations_read_status": AdmissionObservation,
 		"rimgovernor/observations_list_pawns":  AdmissionObservation,
-		"rimgovernor/presentation_read_frame":  AdmissionMedia,
 		"games_status":                         AdmissionControl,
 		"rimgovernor/observations_read_custom": AdmissionObservation,
 		"test/fixture_prepare":                 AdmissionObservation,
@@ -38,8 +37,8 @@ func TestEveryReviewedMethodHasAnAdmissionClass(t *testing.T) {
 	}
 }
 
-// TestAdmissionReservesAControlSlot fills the observation ceiling and the
-// shared remainder, then checks a control call is admitted at once while
+// TestAdmissionReservesAControlSlot fills the observation ceiling (the
+// shared remainder), then checks a control call is admitted at once while
 // further observation waits, and that a freed slot goes to waiting
 // control before waiting observation.
 func TestAdmissionReservesAControlSlot(t *testing.T) {
@@ -52,14 +51,8 @@ func TestAdmissionReservesAControlSlot(t *testing.T) {
 		}
 		admitted++
 	}
-	for i := 0; i < admissionMediaMax; i++ {
-		if _, err := a.acquire(ctx, AdmissionMedia); err != nil {
-			t.Fatal(err)
-		}
-		admitted++
-	}
 	if admitted != MaxConcurrentCalls-admissionControlReserved {
-		t.Fatalf("observation and media hold %d slots, want %d", admitted, MaxConcurrentCalls-admissionControlReserved)
+		t.Fatalf("observation holds %d slots, want %d", admitted, MaxConcurrentCalls-admissionControlReserved)
 	}
 	// The ninth non-control call waits; the eighth slot is control's.
 	waitCtx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)

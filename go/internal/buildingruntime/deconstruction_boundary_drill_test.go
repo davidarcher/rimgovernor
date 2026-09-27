@@ -22,7 +22,7 @@ import (
 // boundary; the clearance census stays empty, as it is for player buildings.
 type drillBoundaryNative struct{ *resourceNative }
 
-func (d *drillBoundaryNative) ReadClearanceTargets(context.Context, *c.Identity) (*n.ClearanceTargetsReply, bridge.Result, error) {
+func (d *drillBoundaryNative) ReadClearanceTargets(context.Context, *c.Identity, bool) (*n.ClearanceTargetsReply, bridge.Result, error) {
 	return &n.ClearanceTargetsReply{Outcome: &n.ClearanceTargetsReply_Observed{Observed: &n.ClearanceTargetsSnapshot{Context: d.reply.GetObserved().Context}}}, bridge.Result{}, nil
 }
 func (d *drillBoundaryNative) ReadAncientShrines(context.Context, *c.Identity) (*n.AncientShrinesReply, bridge.Result, error) {

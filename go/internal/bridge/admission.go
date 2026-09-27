@@ -10,33 +10,28 @@ import (
 // AdmissionClass is the priority a native call is admitted under (#631).
 // The bridge's MaxConcurrentCalls slots are shared by the control path
 // (clock renew and stop, dispatch, authority), bulk observation (bundle and
-// list reads of hundreds of kilobytes) and fallback media (base64 frames
-// when the shared video buffer is unavailable). Without classes a burst of
-// reads or frames takes every slot and the next renew queues behind them;
-// with them one slot is reserved for control, observation and media each
-// have a ceiling below the shared total, and a waiting control call is
+// list reads of hundreds of kilobytes). Without classes a burst of reads
+// takes every slot and the next renew queues behind them; with them one
+// slot is reserved for control, and a waiting control call is
 // admitted before any waiting read whenever a slot frees.
 type AdmissionClass string
 
 const (
 	AdmissionControl     AdmissionClass = "control"
 	AdmissionObservation AdmissionClass = "observation"
-	AdmissionMedia       AdmissionClass = "media"
 	// AdmissionMirror is the clock events long poll: ranked after
-	// observation and before media, one call at a time, and outside the
+	// observation, one call at a time, and outside the
 	// shared slots, so its idle wait never holds one against a command
 	// or a read.
 	AdmissionMirror AdmissionClass = "mirror"
 )
 
 // Slot layout: control may hold any of the MaxConcurrentCalls slots and
-// always has one that no other class can take; observation and media are
-// each capped below the non-reserved remainder so neither can starve the
-// other, and together they never exceed it.
+// always has one that no other class can take; observation may hold
+// the non-reserved remainder.
 const (
 	admissionControlReserved = 1
-	admissionObservationMax  = 5
-	admissionMediaMax        = 2
+	admissionObservationMax  = MaxConcurrentCalls - admissionControlReserved
 	admissionMirrorMax       = 1
 )
 
@@ -74,8 +69,6 @@ func (a *admission) classMax(class AdmissionClass) int {
 	switch class {
 	case AdmissionObservation:
 		return admissionObservationMax
-	case AdmissionMedia:
-		return admissionMediaMax
 	case AdmissionMirror:
 		return admissionMirrorMax
 	default:
@@ -106,7 +99,7 @@ func (a *admission) admits(class AdmissionClass) bool {
 }
 
 // acquire blocks until a slot is admitted for class or ctx ends. A waiting
-// control call is always chosen before waiting observation or media calls;
+// control call is always chosen before waiting observation calls;
 // within a class, waiters are served in arrival order.
 func (a *admission) acquire(ctx context.Context, class AdmissionClass) (admissionOutcome, error) {
 	began := time.Now()
@@ -165,7 +158,7 @@ func (a *admission) removeLocked(w *admissionWaiter) {
 }
 
 // wakeLocked admits every waiter a free slot can take by rank: control,
-// observation, mirror, media, and within a rank in arrival order.
+// observation, mirror, and within a rank in arrival order.
 func (a *admission) wakeLocked() {
 	for progressed := true; progressed; {
 		progressed = false
@@ -198,8 +191,6 @@ func admissionRank(class AdmissionClass) int {
 		return 0
 	case AdmissionMirror:
 		return 2
-	case AdmissionMedia:
-		return 3
 	}
 	return 1
 }
@@ -208,8 +199,7 @@ func admissionRank(class AdmissionClass) int {
 // is admitted under. Every name protoCall's allowlist accepts must be
 // listed (TestEveryReviewedMethodHasAnAdmissionClass); an unlisted name
 // falls to the prefix rule below. Presentation leases and state reads are
-// dashboard traffic and never take the control slot; only the frame
-// transport is media.
+// dashboard traffic and never take the control slot.
 var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/clock_start":                          AdmissionControl,
 	"rimgovernor/clock_renew":                          AdmissionControl,
@@ -271,10 +261,6 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/presentation_notifications":           AdmissionObservation,
 	"rimgovernor/presentation_render_state":            AdmissionObservation,
 	"rimgovernor/presentation_render_demand":           AdmissionObservation,
-	"rimgovernor/presentation_lease_video":             AdmissionObservation,
-	"rimgovernor/presentation_capture_pawn":            AdmissionMedia,
-	"rimgovernor/presentation_read_frame":              AdmissionMedia,
-	"rimgovernor/presentation_acknowledge_frame":       AdmissionMedia,
 }
 
 // admissionClassOf classifies a call by the native tool it reaches (the

@@ -137,11 +137,7 @@ type Discovery struct {
 }
 
 // maxResponseBytes bounds one receipt (envelope, structured content and
-// text combined). It must exceed ProtoBoundary's own 48 MiB
-// MaximumMediaEnvelopeBytes (raw uncompressed video frames go out
-// base64-encoded through that path) plus the receipt's own overhead, or
-// every ReadFrame call fails as "oversized" before the native media bound
-// is ever reached.
+// text combined); the GABP frame cap is 1 MiB above it (gamebackend.go).
 const maxResponseBytes = 50 << 20
 
 type liveSession struct {
@@ -162,8 +158,8 @@ type liveSession struct {
 // flight at once. The GABP connection correlates concurrent requests by id,
 // so calls need not be single-flight; this cap is backpressure against a
 // caller bug flooding the native bridge at once, and the slots are handed
-// out by AdmissionClass (admission.go, #631) so bulk reads and media never
-// hold every one against the control path.
+// out by AdmissionClass (admission.go, #631) so bulk reads never hold every
+// one against the control path.
 const MaxConcurrentCalls = 8
 
 // Client owns a single session. Up to MaxConcurrentCalls calls may be in

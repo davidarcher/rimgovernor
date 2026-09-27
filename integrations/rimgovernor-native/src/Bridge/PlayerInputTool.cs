@@ -152,23 +152,6 @@ namespace HomeBridge.BridgeTools
             finally { if (data != IntPtr.Zero) XFree(data); }
         }
 
-        public static UIntPtr VideoWindow(out IntPtr connection)
-        {
-            var self = Get(); connection = self.display;
-            var root = XDefaultRootWindow(connection);
-            XQueryTree(connection, root, out UIntPtr ignored, out UIntPtr parent, out IntPtr children, out uint count);
-            try
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    var candidate = new UIntPtr(unchecked((ulong)Marshal.ReadIntPtr(children, i * IntPtr.Size).ToInt64()));
-                    if (self.Owns(candidate)) return candidate;
-                }
-            }
-            finally { if (children != IntPtr.Zero) XFree(children); }
-            throw new InvalidOperationException("Private game window is unavailable");
-        }
-
         void AcquirePrivateFocus()
         {
             // Xvfb has no window manager. Explicit handoff focuses only this PID's

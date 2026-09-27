@@ -12,16 +12,13 @@ func TestParseSpeedCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 8 || cases[4].Name != "uncapped" || cases[4].Speed != "Ultrafast" || !cases[4].TestAcceleration || cases[4].BlindTicks != 0 {
+	if len(cases) != 7 || cases[4].Name != "uncapped" || cases[4].Speed != "Ultrafast" || !cases[4].TestAcceleration || cases[4].BlindTicks != 0 {
 		t.Fatalf("unexpected cases %+v", cases)
 	}
-	// The governor-off and viewer rows (#621) are uncapped's speed; only
-	// governor-off is outside the outcome comparison.
+	// The governor-off row (#621) is uncapped's speed and outside the
+	// outcome comparison.
 	if cases[6].Name != "governor-off" || !cases[6].GovernorOff || cases[6].Compared() || !cases[6].TestAcceleration || cases[6].Speed != "Ultrafast" {
 		t.Fatalf("unexpected governor-off case %+v", cases[6])
-	}
-	if cases[7].Name != "viewer" || !cases[7].Viewer || !cases[7].Compared() || !cases[7].TestAcceleration {
-		t.Fatalf("unexpected viewer case %+v", cases[7])
 	}
 	if got := cases[4].ServeArgs(); len(got) != 1 || got[0] != "--clock-test-acceleration" {
 		t.Fatalf("uncapped args %v", got)
@@ -179,7 +176,7 @@ func TestSummarizeStopsLatencySplit(t *testing.T) {
 // an outcome row, each problem naming the row; the comparators accept an
 // empty matrix, so this is what fails an empty run.
 func TestSpeedRowProblems(t *testing.T) {
-	required, err := ParseSpeedCases("Normal,uncapped,governor-off,viewer")
+	required, err := ParseSpeedCases("Normal,uncapped,governor-off,observation-load")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +187,7 @@ func TestSpeedRowProblems(t *testing.T) {
 	})
 	outcomes := []SpeedOutcome{{Case: "Normal", StoredUnits: 100, WallsBuilt: 6}, {Case: "uncapped", StoredUnits: 100, WallsBuilt: 6}}
 	got := SpeedRowProblems(required, outcomes, metrics)
-	want := []string{"uncapped: empty metrics row (ticks_advanced=0 wall_tps=0.0)", "viewer: no metrics row", "viewer: no outcome row"}
+	want := []string{"uncapped: empty metrics row (ticks_advanced=0 wall_tps=0.0)", "observation-load: no metrics row", "observation-load: no outcome row"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v want %v", got, want)
 	}
@@ -211,9 +208,9 @@ func TestSpeedRowProblems(t *testing.T) {
 		{"case": "Normal", "speed": "Normal", "wall_tps": 60.0, "ticks_advanced": uint64(2300)},
 		{"case": "uncapped", "speed": "Ultrafast", "wall_tps": 4000.0, "ticks_advanced": 30000.0},
 		{"case": "governor-off", "speed": "Ultrafast", "wall_tps": 5000.0, "ticks_advanced": 30000.0},
-		{"case": "viewer", "speed": "Ultrafast", "wall_tps": 3500.0, "ticks_advanced": 30000.0},
+		{"case": "observation-load", "speed": "Ultrafast", "wall_tps": 3500.0, "ticks_advanced": 30000.0},
 	})
-	if got := SpeedRowProblems(required, append(outcomes, SpeedOutcome{Case: "viewer"}), full); len(got) != 0 {
+	if got := SpeedRowProblems(required, append(outcomes, SpeedOutcome{Case: "observation-load"}), full); len(got) != 0 {
 		t.Fatal(got)
 	}
 }
@@ -252,19 +249,19 @@ func TestCheckLiveStepCost(t *testing.T) {
 	}
 }
 
-// TestObservationLoadRow pins the #656 row: governed, at the viewer row's
-// speed and acceleration, with the viewer and the extra load, and compared.
+// TestObservationLoadRow pins the #656 row: governed, at the uncapped row's
+// speed and acceleration, with the extra load, and compared.
 func TestObservationLoadRow(t *testing.T) {
-	cases, err := ParseSpeedCases("viewer,observation-load")
+	cases, err := ParseSpeedCases("uncapped,observation-load")
 	if err != nil {
 		t.Fatal(err)
 	}
-	viewer, load := cases[0], cases[1]
-	if !load.ObservationLoad || !load.Viewer || load.GovernorOff || !load.Compared() {
+	uncapped, load := cases[0], cases[1]
+	if !load.ObservationLoad || load.GovernorOff || !load.Compared() {
 		t.Fatalf("observation-load row: %+v", load)
 	}
-	if load.Speed != viewer.Speed || load.TestAcceleration != viewer.TestAcceleration {
-		t.Fatalf("load row must match the viewer row's speed: %+v vs %+v", load, viewer)
+	if load.Speed != uncapped.Speed || load.TestAcceleration != uncapped.TestAcceleration {
+		t.Fatalf("load row must match the uncapped row's speed: %+v vs %+v", load, uncapped)
 	}
 }
 

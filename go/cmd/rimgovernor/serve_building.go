@@ -41,7 +41,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
-	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -756,7 +755,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if raw, ok := client.reads.(*bridge.Client); ok {
 		attention = attentionAcknowledger{raw}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, ColonyStatus: colonyStatus, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, VideoFrames: videoshm.Open, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, ColonyStatus: colonyStatus, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

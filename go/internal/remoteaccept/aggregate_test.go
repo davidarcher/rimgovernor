@@ -337,7 +337,7 @@ func TestNativeAndSuiteFormats(t *testing.T) {
 
 func TestRenderedSkipsAreReportedWithoutFailure(t *testing.T) {
 	f := fixtureRun(t)
-	f.selection.Skipped = []SkippedCase{{Name: "presentation/media", Reason: "rendered"}, {Name: "video/stream", Reason: "rendered"}}
+	f.selection.Skipped = []SkippedCase{{Name: "speedmatrix/observations", Reason: "rendered"}, {Name: "speedmatrix/plain", Reason: "rendered"}}
 	e, err := f.evaluate(t)
 	if err != nil {
 		t.Fatal(err)
@@ -350,9 +350,9 @@ func TestRenderedSkipsAreReportedWithoutFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, skipped := range [][]SkippedCase{
-		{{Name: "video/stream", Reason: "failed"}},
+		{{Name: "speedmatrix/plain", Reason: "failed"}},
 		{{Name: "smoke/dispatch", Reason: "rendered"}},
-		{{Name: "video/stream", Reason: "rendered"}, {Name: "video/stream", Reason: "rendered"}},
+		{{Name: "speedmatrix/plain", Reason: "rendered"}, {Name: "speedmatrix/plain", Reason: "rendered"}},
 	} {
 		f.selection.Skipped = skipped
 		if _, err := f.evaluate(t); err == nil {

@@ -12,7 +12,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Weapon planner](weapon-planner.md)
 - [Native forecast contracts](forecast-contracts.md)
 - [Animal husbandry contracts](husbandry-contracts.md)
-- [Dashboard and video contracts](interface-contracts.md)
+- [Dashboard contracts](interface-contracts.md)
 - [Go player API](go-player-api.md)
 - [Go clock recovery evidence](go-clock-recovery.md)
 - [Medical care contracts](medical-care.md)

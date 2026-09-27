@@ -137,7 +137,6 @@ Sources in this table are under
 | WorldTool.cs / world without show | ReadWorld; WorldTile, Settlement | world_progression |
 | WorldProgressionTool.cs / world_progression | ReadWorldProgression; WorldMap, FactionState, CaravanState, QuestState, CaravanAssembly | world_progression, trade_policy |
 | PlacementPreviewsTool.cs / placement_previews | placement.proto; exact ordered candidate request and evaluated/failure result | placement_previews, construction_preflight |
-| PawnImageTool.cs / pawn_image | presentation.proto; scoped render capture and unavailable | player presentation |
 | BillsTool.cs / bills list and recipes | ReadBills / ReadRecipes; BillStack, BillState, RecipeState, IngredientRequirement (native handler `NativeBillsObservationTools.cs`; recipe ingredient rows carry required counts only, no stock scan; the `bills/census` acceptance case covers it) | colony_skills, gear/medical/resource benches, player inspections |
 | BuildingConfigTool.cs / building_config read | ReadBuildingSettings; BuildingSettings, scoped token; gizmos in presentation | building_config, thermal_control, player inspections |
 | PawnConfigTool.cs / pawn_config read | ReadPawnSettings; PawnSettings, scoped token | pawn_config, medical/work/settings readers |
@@ -151,7 +150,7 @@ accept_quest, acquire_resource, cancel_construction,
 confirm_colony_names, dialog_text, husbandry_config, manage_waste,
 place_building, play_until_event, player_input, recover_service,
 recovery_area, relieve_need, render_demand, upkeep_bed, upkeep_home, upkeep_wall,
-video_stream, zone_cells. Trade preview is operation preview, not a mutation branch
+zone_cells. Trade preview is operation preview, not a mutation branch
 on ReadTradeSheet. These operations reuse exact entity/settings observations or
 their own narrow typed receipts, without an import cycle.
 
@@ -341,6 +340,6 @@ New producer obligations are explicit:
   definition names. Entity and map snapshot production is likewise new adapter
   work backed by actual native facts, not claimed existing wire behavior.
 
-Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and a standing deconstruct designation (no ownership flag). The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination) and, while an allowed unstored chunk has no destination, a free outdoor Home footprint for a dumping stockpile (`dump_sites`). `ClearHomeObstructions` consumes both.
+Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. Salvage evidence on the rows outside Home is read only when the request sets `include_salvage` (#984); the routine review and the planner that execute remote salvage set it, the shelter ruin holds and claims do not. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and a standing deconstruct designation (no ownership flag). The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination) and, while an allowed unstored chunk has no destination, a free outdoor Home footprint for a dumping stockpile (`dump_sites`). `ClearHomeObstructions` consumes both.
 
 Shrines: `GetAncientShrines` reads each ancient-danger room as one unit: sealed state, Home overlap, caskets with hit points and contents, guards once the interior is unfogged, and the perimeter walls that can be deconstructed without a roof-support blocker. No readiness judgement, breach or casket order consumes this census yet (#456).

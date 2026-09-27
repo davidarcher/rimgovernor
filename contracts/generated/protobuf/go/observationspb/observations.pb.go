@@ -1042,11 +1042,15 @@ func (x *ClearanceChunk) GetDestination() bool {
 	return false
 }
 
+// include_salvage asks for salvage evidence on the rows outside Home; a
+// caller that never reads salvage leaves it false and the native read skips
+// the salvage route and storage searches (#984).
 type ClearanceTargetsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Scope          *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	IncludeSalvage bool                   `protobuf:"varint,2,opt,name=include_salvage,json=includeSalvage,proto3" json:"include_salvage,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ClearanceTargetsRequest) Reset() {
@@ -1084,6 +1088,13 @@ func (x *ClearanceTargetsRequest) GetScope() *ReadScope {
 		return x.Scope
 	}
 	return nil
+}
+
+func (x *ClearanceTargetsRequest) GetIncludeSalvage() bool {
+	if x != nil {
+		return x.IncludeSalvage
+	}
+	return false
 }
 
 // dump_sites is a bounded connected footprint of free, outdoor, unzoned,
@@ -33858,9 +33869,10 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_forbiddenB\t\n" +
 	"\a_storedB\x0e\n" +
-	"\f_destination\"W\n" +
+	"\f_destination\"\x80\x01\n" +
 	"\x17ClearanceTargetsRequest\x12<\n" +
-	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xae\x02\n" +
+	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12'\n" +
+	"\x0finclude_salvage\x18\x02 \x01(\bR\x0eincludeSalvage\"\xae\x02\n" +
 	"\x18ClearanceTargetsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12F\n" +
 	"\atargets\x18\x02 \x03(\v2,.rimgovernor.observations.v1.ClearanceTargetR\atargets\x12C\n" +

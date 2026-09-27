@@ -6,7 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
 	"time"
 )
 
@@ -54,16 +53,6 @@ type Config struct {
 	// noteworthy, e.g. an error-level message) and retry once rather than
 	// failing outright. A nil Attention preserves prior behavior.
 	Attention AttentionAcknowledger
-	// VideoStreamPollInterval sets how often the video-stream WebSocket relay
-	// polls for a new frame (ReadFrame, or the shared-memory buffer when
-	// VideoFrames opened it). Zero uses a sane default (~24 Hz).
-	VideoStreamPollInterval time.Duration
-	// VideoFrames, when set, opens the native shared-memory frame buffer named
-	// by the lease's source ID so the relay reads pixels directly instead of
-	// through the base64 ReadFrame round trip. An open failure (controller on
-	// another host, buffer already released) falls back to ReadFrame. Nil
-	// always uses ReadFrame.
-	VideoFrames func(sourceID string) (videoshm.Reader, error)
 	// Pprof mounts net/http/pprof under /debug/pprof/ (see pprof.go); off,
 	// the routes answer 404.
 	Pprof bool

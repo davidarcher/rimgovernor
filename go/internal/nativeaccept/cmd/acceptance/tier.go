@@ -229,7 +229,7 @@ func nightlyOnly(name string) bool {
 func offTier(name string) bool {
 	switch name {
 	case "sustained/colony", "sustained/colony-loud", "sustained/food", "lifecycle/headless-soak",
-		"video/source-spike", "video/matrix", "medical/stable-patient":
+		"medical/stable-patient":
 		return true
 	}
 	return strings.HasPrefix(name, "tools/") || strings.HasPrefix(name, "sustained/matrix-") ||

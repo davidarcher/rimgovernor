@@ -29,7 +29,7 @@ Every row a phase report reads:
 - `timing` on a native call: gate wait, bridge round trip, receipt decode and
   reply decode, and (when the companion carries it) its own
   main-thread queue wait and execute time. `class` is the admission class
-  the call took a bridge slot under (`control`, `observation` or `media`,
+  the call took a bridge slot under (`control`, `observation` or `mirror`,
   #631), `gate_wait_ms` the wait for that slot, `queue_depth` and
   `class_queue_depth` how many calls (of any class, of its own) were
   waiting when it asked, and `native_queue_depth` how many hops were
@@ -340,15 +340,14 @@ Needs a `ThroughputFixture` build; both profiles admit the uncapped case
 window after that, #210); each governed row runs `serve` with the
 flight recorder and the case reduces the recording with `SummarizePhases`
 and `SummarizeStops`. The default matrix (`DefaultSpeedMatrix`)
-is `Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off,viewer`;
-`RIMGOVERNOR_SPEED_MATRIX=uncapped,viewer` in the runner's environment
+is `Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off`;
+`RIMGOVERNOR_SPEED_MATRIX=uncapped,governor-off` in the runner's environment
 narrows a run to the rows named.
-The last two separate the governor's cost from the rest (#621):
+The last one separates the governor's cost from the rest (#621):
 
 | Row | What runs |
 | --- | --- |
 | `governor-off` | The same save and renderer played natively at the uncapped speed with no controller attached: the simulation ceiling. Nothing is submitted, so the row reports `ticks_advanced`, `wall_seconds` and `wall_tps` (`governor_off: true`, zeros for the governor's counters) and is outside the outcome comparison. |
-| `viewer` | The uncapped governed row with one dashboard client attached for the whole run: a render demand, a screen video lease renewed every 10 s and the WebSocket stream drained at the server's default cadence, as the dashboard tile does, plus a second socket on the same source that is never read (a stalled or hidden tab, #631). Its `viewer` block reports `frames`, `bytes`, `frames_per_second`, `connects`, `stalled_connects` and `unavailable` (a game that cannot capture, such as batch mode, answers the lease unsupported and the row records that). Compare its `wall_tps` with `uncapped` for the viewing overhead; the stalled socket must cost neither. |
 
 `result.json` carries, per row under `speed_metrics` (`metrics` is the
 flat cost block every result carries, #297):
@@ -389,15 +388,13 @@ The committed `RimGovernor-tribal8-baseline` colony -- eight tribal
 colonists, the map's wildlife, its loose items and its standing buildings --
 with `test/throughput_prepare` applied on top, staged once and reloaded per
 row. It always runs windowed (`Rendered`), since update intervals are only
-a player's intervals when the game draws and the viewer row's video capture
-needs `Find.Camera`. Three rows, at one clock speed and one tick budget:
-`governor-off` (no controller attached, the ungoverned update-interval
-ceiling; its accounts come off its own tick reads' reply envelopes, since
-nothing records a flight timeline), `uncapped` (the ordinary governed run)
-and `viewer` (the same governed run with one dashboard client streaming
-video). Every row asks for the same speed and the same staged work, so the
-difference between rows is observation and viewing cost, not a different
-workload.
+a player's intervals when the game draws. The rows run at one clock speed
+and one tick budget: `governor-off` (no controller attached, the ungoverned
+update-interval ceiling; its accounts come off its own tick reads' reply
+envelopes, since nothing records a flight timeline), `uncapped` (the
+ordinary governed run), then `observation-load` and `player` (below). Every
+row asks for the same speed and the same staged work, so the difference
+between rows is observation cost, not a different workload.
 
 Each row's `speed_metrics` entry carries the full `observation` and `frames`
 blocks documented above, plus flat headlines for comparing rows:
@@ -416,22 +413,22 @@ world seed, the save and its hash and the fixture hash are the report's own
 ### Recorded baseline
 
 Revision `64a41a9d`, windowed 1280x720 on a 32-thread Windows host, four
-active mods (RimWorld, Harmony, RimBridgeServer, RimGovernor), the three
+active mods (RimWorld, Harmony, RimBridgeServer, RimGovernor), the two
 rows at one clock speed over the same tick budget:
 
-| | governor-off | uncapped | viewer |
-| --- | --- | --- | --- |
-| wall s | 13.3 | 16.3 | 14.2 |
-| hops with a capture account | 7 | 122 | 125 |
-| capture ms / format ms | 0.0 / 0.8 | 224.5 / 20.8 | 169.0 / 18.9 |
-| capture p95 / format p95 ms | 0.00 / 0.51 | 0.79 / 0.83 | 0.50 / 0.56 |
-| queue p95 / exec p95 ms | 84.5 / 0.9 | 81.6 / 183.9 | 80.3 / 150.9 |
-| returned bytes | 1.5 KB | 411 KB | 440 KB |
-| updates (per s) | 208 (15.9) | 319 (17.6) | 276 (18.3) |
-| max update interval ms | 98.4 | **1067.7** | **825.4** |
-| observation share of update wall | 0.003% | 34.6% | 31.6% |
-| intervals >100 / >250 ms | 0 / 0 | 23 / 9 | 27 / 4 |
-| recorder overhead ms | 0.61 | 1.04 | 0.76 |
+| | governor-off | uncapped |
+| --- | --- | --- |
+| wall s | 13.3 | 16.3 |
+| hops with a capture account | 7 | 122 |
+| capture ms / format ms | 0.0 / 0.8 | 224.5 / 20.8 |
+| capture p95 / format p95 ms | 0.00 / 0.51 | 0.79 / 0.83 |
+| queue p95 / exec p95 ms | 84.5 / 0.9 | 81.6 / 183.9 |
+| returned bytes | 1.5 KB | 411 KB |
+| updates (per s) | 208 (15.9) | 319 (17.6) |
+| max update interval ms | 98.4 | **1067.7** |
+| observation share of update wall | 0.003% | 34.6% |
+| intervals >100 / >250 ms | 0 / 0 | 23 / 9 |
+| recorder overhead ms | 0.61 | 1.04 |
 
 Updates run at 16-18/s, not 60, because the row asks for an accelerated
 clock and each update carries roughly a hundred ticks; the intervals are
@@ -439,27 +436,22 @@ still update-to-update wall, so they are directly comparable across rows.
 
 The reported hitch reproduces on this workload, and the account attributes
 it: the ungoverned row never blocks an update past 98 ms and charges
-essentially no observation work to any of them, while both governed rows
-block an update for most of a second with the observation work accounting
-for nearly all of that interval (1067.7 ms of which 1050.7 is observation;
-825.4 of which 762.9). The cost is a small number of very expensive hops,
-not a broad tax: `capture` p95 is under 1 ms while the `emergency` section
-alone spends 199.3 ms (uncapped) and 160.9 ms (viewer) in a single hop, and
-`exec` p95 of 184/151 ms against a `format` sum of ~20 ms places the wall in
-reading the colony rather than in encoding. The viewer row is not
-measurably worse than the plain governed row, so video streaming is not a
-contributor here.
+essentially no observation work to any of them, while the governed row
+blocks an update for most of a second with the observation work accounting
+for nearly all of that interval (1067.7 ms of which 1050.7 is observation).
+The cost is a small number of very expensive hops, not a broad tax:
+`capture` p95 is under 1 ms while the `emergency` section alone spends
+199.3 ms in a single hop, and `exec` p95 of 184 ms against a `format` sum
+of ~20 ms places the wall in reading the colony rather than in encoding.
 
 ### Hitch, load and stale-action evidence (#656)
 
 The same case carries #656's rows and checks; there is no separate runner.
-A fourth row, `observation-load`, is the `viewer` row (same speed,
+The `observation-load` row is the `uncapped` row (same speed,
 acceleration, save, mod set and camera) plus three concurrent readers
-polling `/api/state` every 250 ms and a second, stalled video lease that
-holds its socket and never reads: several readers and a deliberately slow
-consumer beside the controller. Its row adds `readers` (reads, errors,
-read p50/p95/max) and `stalled_viewer`; a load row that made no successful
-read fails. Rows: `governor-off,uncapped,viewer,observation-load,player`.
+polling `/api/state` every 250 ms beside the controller. Its row adds
+`readers` (reads, errors, read p50/p95/max); a load row that made no
+successful read fails. Rows: `governor-off,uncapped,observation-load,player`.
 
 Frame tails come from a cumulative interval histogram the companion keeps
 beside the slow counts (1 ms buckets to 50 ms, 5 ms to 250, 50 ms to 1 s,

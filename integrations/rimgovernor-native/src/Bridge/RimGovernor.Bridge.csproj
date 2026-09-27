@@ -45,8 +45,6 @@
     <Compile Include="../../../../scripts/fixtures/DialogFixture.cs" Condition="'$(DialogFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/NamingFixture.cs" Condition="'$(NamingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FreezeNeedsFixture.cs" Condition="'$(FreezeNeedsFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/VideoSourceFixture.cs" Condition="'$(VideoSourceFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/VideoMatrixFixture.cs" Condition="'$(VideoMatrixFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodObservationFixture.cs" Condition="'$(FoodObservationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/UpkeepFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HomeCoverageFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(HomeCoverageFixture)' == 'true'" />

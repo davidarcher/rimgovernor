@@ -17,11 +17,11 @@ are shown alongside the last successful reading, not in place of it.
 
 The main navigation is Watch, Work, Colony, Governor and Help. Watch leads with
 the spectator "now" panel (below) and combines
-the live game view with the explicit player-control panel (session token,
+the game snapshot with the explicit player-control panel (session token,
 building and temporary-draft submission, control acquire/manual, clock
 review). Work is a read-only feed of the active plan's actions and their
 progress; there is no control here to cancel a step in place. Colony shows
-the current-map colonist roster and portraits. Governor is the developer's
+the current-map colonist roster. Governor is the developer's
 view of what the controller is doing and whether it is healthy (below).
 These are different views of the same controller state.
 
@@ -90,24 +90,6 @@ the panel carries no controls. Without a flight recorder the panel still answers
 from the review's own facts, with the recorder-derived fields empty and the
 pacing reason `unknown`; without routine diagnostics it answers 404 and the
 dashboard hides it.
-
-## Video and simulation are independent
-
-The game may run while video is paused, or the view may remain active while
-the simulation is paused. A viewer lease (`POST /api/presentation/video-lease`)
-requests native capture only while a viewer needs it; pausing video does not
-issue a game-time command.
-
-Live video is a lease → render-demand → short-lived ticket → binary WebSocket
-sequence against the Go controller's own `internal/httpapi` video-stream
-routes (`/api/presentation/video-lease`, `/api/presentation/render-demand`,
-`/api/presentation/video-stream/ticket`, `/api/presentation/video-stream`).
-Frames carry a strictly
-increasing sequence number so the client can drop stale or duplicate frames.
-There is currently no still-image fallback for the main viewport when video
-is unsupported (`GameVideoGo.tsx` shows a status message instead); a
-per-colonist still portrait is available separately via
-`POST /api/presentation/pawn-image`.
 
 ## Viewing does not grant control
 

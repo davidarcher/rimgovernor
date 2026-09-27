@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,19 +17,10 @@ import (
 )
 
 type presentationMediaFake struct {
-	render     *p.RenderReply
-	image      *p.PawnImageReply
-	video      *p.VideoReply
-	frame      *p.FrameReply
-	frames     []*p.FrameReply
-	err        error
-	calls      int
-	frameCalls int
-	ackCalls   int
-	mu         sync.Mutex // the relay acknowledges from its own goroutine
-	seen       proto.Message
-	// frameRequestSource records the source id of the last ReadFrame.
-	frameRequestSource string
+	render *p.RenderReply
+	err    error
+	calls  int
+	seen   proto.Message
 }
 
 func (f *presentationMediaFake) DemandRendering(ctx context.Context, q *p.RenderDemand) (*p.RenderReply, bridge.Result, error) {
@@ -38,58 +28,7 @@ func (f *presentationMediaFake) DemandRendering(ctx context.Context, q *p.Render
 	f.seen = q
 	return f.render, bridge.Result{}, f.err
 }
-func (f *presentationMediaFake) CapturePawn(ctx context.Context, q *p.PawnImageRequest) (*p.PawnImageReply, bridge.Result, error) {
-	f.calls++
-	f.seen = q
-	return f.image, bridge.Result{}, f.err
-}
-func (f *presentationMediaFake) LeaseVideo(ctx context.Context, q *p.VideoLeaseRequest) (*p.VideoReply, bridge.Result, error) {
-	f.calls++
-	f.seen = q
-	return f.video, bridge.Result{}, f.err
-}
-func (f *presentationMediaFake) ReadFrame(ctx context.Context, q *p.FrameRequest) (*p.FrameReply, bridge.Result, error) {
-	f.calls++
-	f.seen = q
-	f.frameCalls++
-	f.frameRequestSource = q.GetSourceId()
-	if len(f.frames) > 0 {
-		next := f.frames[0]
-		if len(f.frames) > 1 {
-			f.frames = f.frames[1:]
-		}
-		return next, bridge.Result{}, f.err
-	}
-	return f.frame, bridge.Result{}, f.err
-}
-func (f *presentationMediaFake) AcknowledgeFrame(ctx context.Context, q *p.FrameAcknowledgement) (*p.FrameAcknowledgementReply, bridge.Result, error) {
-	f.mu.Lock()
-	f.calls++
-	f.seen = q
-	f.ackCalls++
-	f.mu.Unlock()
-	return &p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: q.GetFrame()}}}, bridge.Result{}, f.err
-}
 
-// acks reports AcknowledgeFrame calls so far.
-func (f *presentationMediaFake) acks() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.ackCalls
-}
-
-// awaitAcks waits for at least n AcknowledgeFrame calls: the relay writes a
-// frame before acknowledging it, so a client can read the frame first.
-func awaitAcks(t *testing.T, f *presentationMediaFake, n int) {
-	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for f.acks() < n {
-		if time.Now().After(deadline) {
-			t.Fatalf("expected %d AcknowledgeFrame calls, got %d", n, f.acks())
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-}
 func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string) {
 	t.Helper()
 	db, e := store.Open(context.Background(), storetest.Path(t))
@@ -101,14 +40,6 @@ func presentationMediaAPI(t *testing.T) (*Server, *presentationMediaFake, string
 	observed := &c.ObservationContext{Identity: identity, Tick: proto.Int64(5)}
 	media := &presentationMediaFake{
 		render: &p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: observed, Supported: proto.Bool(true), Suspended: proto.Bool(false), WindowVisible: proto.Bool(true), RemainingLeaseMs: proto.Uint32(5000)}}},
-		image: &p.PawnImageReply{Outcome: &p.PawnImageReply_Image{Image: &p.PawnImage{PawnId: proto.String("p1"), View: p.PawnView_PAWN_VIEW_PORTRAIT.Enum(),
-			Frame: &p.MediaFrame{Width: proto.Uint32(192), Height: proto.Uint32(192), Encoding: p.MediaEncoding_MEDIA_ENCODING_PNG.Enum(),
-				CaptureMethod: p.CaptureMethod_CAPTURE_METHOD_PORTRAIT.Enum(), CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(9), Data: []byte{0x89, 'P', 'N', 'G'}}}}},
-		video: &p.VideoReply{Outcome: &p.VideoReply_State{State: &p.VideoState{Context: observed, Supported: proto.Bool(true), Active: proto.Bool(true), SourceId: proto.String("Local\\RimGovernorVideo-abc"), RemainingLeaseMs: proto.Uint32(8000)}}},
-		frame: &p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
-			Frame: &p.FrameReference{SourceId: proto.String("Local\\RimGovernorVideo-abc"), Sequence: proto.Uint64(1)},
-			Width: proto.Uint32(4), Height: proto.Uint32(1), Encoding: p.MediaEncoding_MEDIA_ENCODING_RGBA32_BOTTOM_UP.Enum(),
-			CaptureMethod: p.CaptureMethod_CAPTURE_METHOD_READ_PIXELS.Enum(), CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(1), Data: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}}}},
 	}
 	f := &playerFixture{journal: db}
 	snapshot := Snapshot{Connected: true, Identity: domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 5})}
@@ -141,32 +72,15 @@ func TestPresentationMediaRenderDemand(t *testing.T) {
 		t.Fatal(f.seen)
 	}
 }
-func TestPresentationMediaCapturePawn(t *testing.T) {
-	s, f, token := presentationMediaAPI(t)
-	out := playerCall(s, "POST", "/api/presentation/pawn-image", `{"pawnId":"p1","view":"portrait"}`, token)
-	if out.Code != 200 || f.calls != 1 {
-		t.Fatal(out.Code, out.Body.String())
-	}
-	var image pawnImageResponseDTO
-	if err := json.Unmarshal(out.Body.Bytes(), &image); err != nil || image.PawnID != "p1" || image.Frame.Width != 192 || image.Frame.Data == "" {
-		t.Fatal(out.Body.String(), err)
-	}
-	request, ok := f.seen.(*p.PawnImageRequest)
-	if !ok || request.GetPawnId() != "p1" || request.GetView() != p.PawnView_PAWN_VIEW_PORTRAIT {
-		t.Fatal(f.seen)
-	}
-}
 func TestPresentationMediaRequiresPlayerToken(t *testing.T) {
 	s, f, _ := presentationMediaAPI(t)
-	for _, path := range []string{"/api/presentation/render-demand", "/api/presentation/pawn-image"} {
-		out := playerCall(s, "POST", path, `{"leaseSeconds":1,"pawnId":"p1","view":"portrait"}`, "")
-		if out.Code != 403 || f.calls != 0 {
-			t.Fatal(path, out.Code, f.calls)
-		}
-		out = playerCall(s, "POST", path, `{"leaseSeconds":1,"pawnId":"p1","view":"portrait"}`, "wrong-token")
-		if out.Code != 403 || f.calls != 0 {
-			t.Fatal(path, out.Code, f.calls)
-		}
+	out := playerCall(s, "POST", "/api/presentation/render-demand", `{"leaseSeconds":1}`, "")
+	if out.Code != 403 || f.calls != 0 {
+		t.Fatal(out.Code, f.calls)
+	}
+	out = playerCall(s, "POST", "/api/presentation/render-demand", `{"leaseSeconds":1}`, "wrong-token")
+	if out.Code != 403 || f.calls != 0 {
+		t.Fatal(out.Code, f.calls)
 	}
 }
 func TestPresentationMediaValidation(t *testing.T) {
@@ -176,10 +90,6 @@ func TestPresentationMediaValidation(t *testing.T) {
 		{"missingLease", "/api/presentation/render-demand", `{}`},
 		{"oversizedLease", "/api/presentation/render-demand", `{"leaseSeconds":31}`},
 		{"unknownField", "/api/presentation/render-demand", `{"leaseSeconds":1,"extra":true}`},
-		{"missingPawnId", "/api/presentation/pawn-image", `{"view":"portrait"}`},
-		{"emptyPawnId", "/api/presentation/pawn-image", `{"pawnId":"","view":"portrait"}`},
-		{"missingView", "/api/presentation/pawn-image", `{"pawnId":"p1"}`},
-		{"unknownView", "/api/presentation/pawn-image", `{"pawnId":"p1","view":"sideways"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, f, token := presentationMediaAPI(t)
@@ -196,7 +106,7 @@ func TestPresentationMediaMethodAndContentType(t *testing.T) {
 	if get.Code != 405 || f.calls != 0 {
 		t.Fatal(get.Code)
 	}
-	out := playerCall(s, "POST", "/api/presentation/pawn-image", `{"pawnId":"p1","view":"follow"}`, token)
+	out := playerCall(s, "POST", "/api/presentation/render-demand", `{"leaseSeconds":1}`, token)
 	if out.Code != 200 {
 		t.Fatal(out.Code, out.Body.String())
 	}

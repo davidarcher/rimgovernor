@@ -305,8 +305,8 @@ type Case struct {
 	// or retired the game on purpose, or touched process-scoped static
 	// state. A suite schedules NoKeep cases last on a worker.
 	NoKeep bool
-	// Rendered opens the windowed profile whatever -headless says: video
-	// capture needs Find.Camera, which batch mode never has. Remote plans skip
+	// Rendered opens the windowed profile whatever -headless says, for
+	// cases that need a drawing game (batch mode never draws). Remote plans skip
 	// these GPU-dependent cases on hosted Windows runners.
 	Rendered bool
 	// NoCheckpoint opts the case out of the runner's checkpoint ring

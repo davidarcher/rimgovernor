@@ -434,3 +434,9 @@ func ProjectColonyThreat(v *o.ColonyFactsSnapshot) ColonyThreat {
 		AdaptationFactor: number(facts.AdaptationFactor), DifficultyThreatScale: number(facts.DifficultyThreatScale),
 	}
 }
+
+// NotRequestedPlanning is the planning section of a colony facts read
+// that did not ask for planning, as the native answers it.
+func NotRequestedPlanning() *o.PlanningSection {
+	return &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum(), Detail: proto.String("Planning was not requested.")}}}
+}

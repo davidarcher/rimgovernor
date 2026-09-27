@@ -286,6 +286,26 @@ func TestFramesServeTheStateFamilies(t *testing.T) {
 	}
 }
 
+// TestFramesServeColonyFactsWithoutPlanning (#984): a colony facts read
+// without planning (acquisition, blight, resource, trade) is served from the
+// frame with the planning section unrequested, never a native hop.
+func TestFramesServeColonyFactsWithoutPlanning(t *testing.T) {
+	client, server, ring := frameClient(t)
+	ring.publish(t, server.snapshot, 0)
+	for range 3 {
+		reply, _, err := client.ReadColonyFacts(context.Background(), pbIdentity(), false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := reply.GetObserved().GetPlanning().GetUnavailable().GetReason(); got != c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED {
+			t.Fatalf("planning section %v, want not requested", got)
+		}
+	}
+	if n := server.calls["rimgovernor/observations_read_colony_facts"].Load(); n != 0 {
+		t.Fatalf("%d native colony facts reads, want 0", n)
+	}
+}
+
 // TestSnapshotFramesSummarize (#858): the native_frame rows fold into the
 // phases report's frame size and cost line.
 func TestSnapshotFramesSummarize(t *testing.T) {

@@ -246,7 +246,7 @@ func TestListTierPrintsTheTier(t *testing.T) {
 
 func TestOffTierCasesAreRegisteredAndGeneratorsResolve(t *testing.T) {
 	for _, name := range []string{"sustained/colony", "sustained/colony-loud", "sustained/food", "lifecycle/headless-soak",
-		"video/source-spike", "video/matrix", "medical/stable-patient", "speedmatrix/plain"} {
+		"medical/stable-patient", "speedmatrix/plain"} {
 		if _, ok := cases.Lookup(name); !ok || !offTier(name) {
 			t.Errorf("%s: registered=%v offTier=%v", name, ok, offTier(name))
 		}

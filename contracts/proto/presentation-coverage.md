@@ -34,8 +34,6 @@ audit's `native-observation-contract-evidence.json` records paths and hashes.
 | `open_letter`, `dismiss_letter` | exact `LetterTarget` branches | SDK `OpenLetterResponse`/`DismissLetterResponse`; `dialog_control.py` requires a clear prior window set and exact fresh window-removal evidence. A close does not acknowledge a stop or resume time. |
 | `home/player_input` take/renew/release/event | `InputLeaseRequest`, `InputState`, `InputEvent`, acknowledgements | `PlayerInputTool.cs:20-26,238-308,338-364`; `dashboard_controls.py:35-176`, `player_input.py`, `native_input_channel.py:10-67`. Source/frame/order, held counts, lease expiry, exact captured scene and mailbox sent/received sequences remain distinct. |
 | `home/render_demand` | separate `RenderState` read and `RenderDemand` lease | `RenderDemandTool.cs:15-55` reports support/suspension/window visibility/remaining lease; visible windows continue rendering. Zero means status, not stop. |
-| `home/video_stream`, dashboard video transport | `VideoLeaseRequest`, `VideoState`, `MediaFrame`, exact frame acknowledgement | `VideoStreamTool.cs:16-84,153-240`, `video_stream.py:78-86,380-417`: source/sequence, size, native pixel format, capture method/time/readback, renderer/process diagnostics; exactly one outstanding frame per viewer. |
-| `home/pawn_image` | `PawnImageRequest` portrait/follow, `PawnImage` | `PawnImageTool.cs:15-34,54-72,126-174`: exact colonist/current-load identity, 192x192 portrait or 640x400 independent follow, PNG bytes, observed tick. A pending capture is bounded and temporarily restores offscreen camera state. |
 | `rimworld/take_screenshot` | `ScreenshotRequest`, `Screenshot` | SDK `ViewCapabilityModule.TakeScreenshot`, `CaptureScreenshotInternal`, `CreateScreenshotResponse`: optional exact clip target/padding and target metadata. Filesystem fileName/path is a transport artifact; screenshot messages are suppressed by the adapter. No arbitrary path request enters this contract. |
 
 `rimworld/get_map_target_info`/cell facts, definition/architect catalogs and ordinary
@@ -134,9 +132,8 @@ scroll, camera, age and duration value must be finite.
   lease of 15 seconds, and one 4096-byte outstanding mailbox message with bounded
   500-ms receipt wait. An unacknowledged prior input is uncertain. No public shared
   memory path is necessary to preserve these semantics.
-- Render demand lease is 1..30 real seconds (read is a separate RPC); video start
-  lease is 1..15 seconds and stop is a separate branch. Pawn capture deadline is
-  4 seconds. UI capture/click/scroll timeout defaults to 2000 ms; the new facade
+- Render demand lease is 1..30 real seconds (read is a separate RPC).
+- UI capture/click/scroll timeout defaults to 2000 ms; the new facade
   must enforce a maximum of 5000 ms. World view watch duration is 1..60 seconds.
 - Media dimensions are 1..3840 by 1..2160. Raw frames contain exactly width*height*4
   bytes with the declared channel order/orientation and a 32-MiB body ceiling.
@@ -146,12 +143,6 @@ scroll, camera, age and duration value must be finite.
   limit does not apply to that envelope. No unbounded base64 field or fabricated
   blank image. Capture/render unavailable is explicit. Pixel reads
   and encoded viewer frames remain distinguished by `MediaEncoding`.
-- Exactly one unacknowledged frame per viewer/source. Ack must match that sequence;
-  old source, duplicate or out-of-order acknowledgement refuses. Existing consumer
-  send/ack waits are 2/3 seconds; its 1024-byte ack cap applies before parse. Optional
-  selection effect latency is 0..2000 ms; display/capture times are Unix ms, and
-  readback is milliseconds. Input and frame ownership are invalidated together
-  when a controlling viewer disconnects.
 - Notifications default limits are 40 letters, 12 messages, 40 alerts; the
   per-section hard ceiling is 256. Existing status reads cap messages at16,
   choices at8, windows at20 and alert targets at8; upstream notifications cap
@@ -172,7 +163,7 @@ scroll, camera, age and duration value must be finite.
    `semantic_details_unavailable` exposes that gap; no `Struct`, `Any`, object map
    or JSON string forwards it. Surface-specific semantic inspectors must use their
    reviewed observation family or add concrete variants before claiming coverage.
-2. SDK selected-object detail truncates at12, and the current video correlation is
+2. SDK selected-object detail truncates at12, and the current selection correlation is
    an integer runtime hash. Neither proves complete exact selection identity. The
    new capture store must retain native references and scoped sequence identity;
    capped old payloads cannot implement `selection_complete=true`. Selection detail
@@ -196,7 +187,7 @@ scroll, camera, age and duration value must be finite.
    stale control use.
 
 Uncovered N01 acceptance: both graphical startup modes, rendered/unavailable/busy
-capture, frame source reset and wrong/late acknowledgements, competing/expired
+capture, wrong/late input acknowledgements, competing/expired
 viewers, held-key/button cleanup, stale load/map/direction/window/selection,
 unknown/disabled UI targets, review-only semantic details, exact dialog/name
 readback, normal camera bounds, byte/count overflow, and no automatic access to

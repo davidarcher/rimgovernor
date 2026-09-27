@@ -20,9 +20,7 @@ import (
 // beating their wall time. "governor-off" (#621) is uncapped native play
 // with no controller attached, the simulation ceiling on the same save and
 // renderer; it builds nothing, so it is outside the outcome comparison.
-// "viewer" is uncapped with one dashboard client streaming video at the
-// default cadence beside the governor, the viewing overhead. "player" (#627)
-// is Ultrafast under player acceleration (any Ultrafast without test acceleration, #875): no test
+// "player" (#627) is Ultrafast under player acceleration (any Ultrafast without test acceleration, #875): no test
 // acceleration, native paces ticks per frame against its frame budget and
 // the controller backs off before its evidence goes stale, the mode a
 // player launch runs.
@@ -32,11 +30,9 @@ type SpeedCase struct {
 	TestAcceleration bool   `json:"test_acceleration"`
 	BlindTicks       uint   `json:"blind_ticks,omitempty"`
 	GovernorOff      bool   `json:"governor_off,omitempty"`
-	Viewer           bool   `json:"viewer,omitempty"`
 	Player           bool   `json:"player,omitempty"`
 	// ObservationLoad (#656) adds ObservationLoadReaders concurrent state
-	// readers and a second, stalled video viewer (a consumer that holds its
-	// socket and never reads) beside the Viewer row's draining one.
+	// readers beside the governor.
 	ObservationLoad bool `json:"observation_load,omitempty"`
 }
 
@@ -45,8 +41,8 @@ type SpeedCase struct {
 func (c SpeedCase) Compared() bool { return !c.GovernorOff }
 
 // DefaultSpeedMatrix is the -speeds default: every native speed plus
-// uncapped, regulated, governor-off and viewer.
-const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off,viewer"
+// uncapped, regulated and governor-off.
+const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off"
 
 // RegulatedBlindTicks is the regulated row's budget: the planning fact
 // tolerance and the combat window already encode this horizon (#583).
@@ -63,9 +59,8 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		"uncapped":         {Name: "uncapped", Speed: "Ultrafast", TestAcceleration: true},
 		"regulated":        {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
 		"governor-off":     {Name: "governor-off", Speed: "Ultrafast", TestAcceleration: true, GovernorOff: true},
-		"viewer":           {Name: "viewer", Speed: "Ultrafast", TestAcceleration: true, Viewer: true},
 		"player":           {Name: "player", Speed: "Ultrafast", Player: true},
-		"observation-load": {Name: "observation-load", Speed: "Ultrafast", TestAcceleration: true, Viewer: true, ObservationLoad: true},
+		"observation-load": {Name: "observation-load", Speed: "Ultrafast", TestAcceleration: true, ObservationLoad: true},
 	}
 	var cases []SpeedCase
 	seen := map[string]bool{}
@@ -76,7 +71,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		}
 		c, ok := known[key]
 		if !ok {
-			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off, viewer, observation-load or player)", strings.TrimSpace(part))
+			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off, observation-load or player)", strings.TrimSpace(part))
 		}
 		if seen[key] {
 			return nil, fmt.Errorf("speed %q listed twice", c.Name)

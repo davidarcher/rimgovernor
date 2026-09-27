@@ -74,7 +74,13 @@ message ClearanceChunk {
   optional bool stored = 5;
   optional bool destination = 6;
 }
-message ClearanceTargetsRequest { ReadScope scope = 1; }
+// include_salvage asks for salvage evidence on the rows outside Home; a
+// caller that never reads salvage leaves it false and the native read skips
+// the salvage route and storage searches (#984).
+message ClearanceTargetsRequest {
+  ReadScope scope = 1;
+  bool include_salvage = 2;
+}
 // dump_sites is a bounded connected footprint of free, outdoor, unzoned,
 // hauler-reachable Home cells near the chunks lacking a destination on which
 // a dumping stockpile could be made; empty when no such chunk exists, no

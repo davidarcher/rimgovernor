@@ -187,18 +187,6 @@ namespace HomeBridge.BridgeTools
             return bytes;
         }
 
-        // MediaFrame replies (base64 PNG bytes) keep a 48 MiB media envelope,
-        // under the controller's 50 MiB GABP frame cap.
-        internal const int MaximumMediaEnvelopeBytes = 48 * 1024 * 1024;
-
-        internal static Dictionary<string, object?> EncodeMedia(IMessage reply, bool compact = false)
-        {
-            var payload = Body(reply, compact, out var field);
-            if (Measure(payload) > MaximumMediaEnvelopeBytes)
-                throw new InvalidOperationException("Media reply exceeds the 48 MiB media envelope limit.");
-            return Envelope(field, payload);
-        }
-
         // Timing is reported beside the payload so the Go sampler can split
         // native main-thread scheduling from tool execution: queueMs is the
         // wait between requesting the main thread and the body starting,
@@ -208,7 +196,7 @@ namespace HomeBridge.BridgeTools
         // class is the admission class the hop ran under and queueDepth how
         // many hops were pending when it was queued (#631). It
         // covers every tool whose single main-thread hop goes through
-        // OnMainThread; multi-hop media captures stay unreported. The
+        // OnMainThread. The
         // caller's trace argument ("<trace_id>/<span_id>", the controller's
         // scheduler step or worker dispatch) is echoed as timing.trace so
         // the phases join the controller's trace.
@@ -216,7 +204,7 @@ namespace HomeBridge.BridgeTools
         internal const string TraceArgument = "trace";
 
         // Hops are ordered by the caller's class argument (control,
-        // observation, media) through MainThreadAdmission, so a queued
+        // observation, mirror) through MainThreadAdmission, so a queued
         // renew or stop runs before the reads queued ahead of it.
         internal static Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
             => RunHop(ctx, body, (reply, hop) => WithTiming(reply, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, hop.Work), cancellationToken);

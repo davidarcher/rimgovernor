@@ -12,11 +12,11 @@ const clearanceTool = "rimgovernor/observations_get_clearance_targets"
 
 // ReadClearanceTargets is read-only and requires no authority. An unsupported
 // native stub returns ErrUnavailable, never a successful empty census.
-func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Identity) (*o.ClearanceTargetsReply, Result, error) {
+func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Identity, includeSalvage bool) (*o.ClearanceTargetsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	request := &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
+	request := &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeSalvage: includeSalvage}
 	reply := &o.ClearanceTargetsReply{}
 	raw, err := client.protoRead(ctx, clearanceTool, request, reply)
 	if err != nil {

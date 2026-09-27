@@ -20,7 +20,7 @@ import (
 )
 
 type DeconstructionNative interface {
-	ReadClearanceTargets(context.Context, *c.Identity) (*n.ClearanceTargetsReply, bridge.Result, error)
+	ReadClearanceTargets(context.Context, *c.Identity, bool) (*n.ClearanceTargetsReply, bridge.Result, error)
 	ReadAncientShrines(context.Context, *c.Identity) (*n.AncientShrinesReply, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*n.ColonyFactsReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
@@ -62,7 +62,7 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 	if value.Drill() {
 		return b.inspectDrill(ctx, target, value, out)
 	}
-	reply, _, err := b.native.ReadClearanceTargets(ctx, boundary.Identity(target.Snapshot))
+	reply, _, err := b.native.ReadClearanceTargets(ctx, boundary.Identity(target.Snapshot), true)
 	if err != nil {
 		return out, err
 	}

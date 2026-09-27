@@ -18,15 +18,9 @@ type PresentationReader interface {
 
 // PresentationMediaWriter is an active native capture, gated behind the player
 // token like other mutations, unlike the free PresentationReader facts above.
-// DemandRendering, CapturePawn and the video streaming trio (LeaseVideo/
-// ReadFrame/AcknowledgeFrame) are in scope; CaptureScreenshot remains an
-// unimplemented follow-up slice.
+// Only DemandRendering is in scope; CaptureScreenshot is unimplemented.
 type PresentationMediaWriter interface {
 	DemandRendering(context.Context, *p.RenderDemand) (*p.RenderReply, bridge.Result, error)
-	CapturePawn(context.Context, *p.PawnImageRequest) (*p.PawnImageReply, bridge.Result, error)
-	LeaseVideo(context.Context, *p.VideoLeaseRequest) (*p.VideoReply, bridge.Result, error)
-	ReadFrame(context.Context, *p.FrameRequest) (*p.FrameReply, bridge.Result, error)
-	AcknowledgeFrame(context.Context, *p.FrameAcknowledgement) (*p.FrameAcknowledgementReply, bridge.Result, error)
 }
 
 // NotificationReader preserves unavailable sections without granting acknowledgement.

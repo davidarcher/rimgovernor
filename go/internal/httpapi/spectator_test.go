@@ -158,7 +158,6 @@ func viewerAPI(t *testing.T) (*Server, *presentationMediaFake, *playerFixture, *
 	observed := &c.ObservationContext{Identity: identity, Tick: proto.Int64(5)}
 	media := &presentationMediaFake{
 		render: &p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: observed, Supported: proto.Bool(true), Suspended: proto.Bool(false), WindowVisible: proto.Bool(true), RemainingLeaseMs: proto.Uint32(5000)}}},
-		video:  &p.VideoReply{Outcome: &p.VideoReply_State{State: &p.VideoState{Context: observed, Supported: proto.Bool(true), Active: proto.Bool(true), SourceId: proto.String("video-abc"), RemainingLeaseMs: proto.Uint32(8000)}}},
 	}
 	fixture := &playerFixture{journal: db}
 	snapshot := Snapshot{Connected: true, Tick: domain.Known(domain.Tick(5)), Identity: domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 5})}
@@ -182,7 +181,7 @@ func viewerAPI(t *testing.T) (*Server, *presentationMediaFake, *playerFixture, *
 
 // A viewer connecting, watching, disconnecting and reconnecting must not change the
 // simulation contract (#632): against the fake native, the whole viewer path
-// — the video lease, the presentation reads and the spectator panel — issues
+// — the render lease, the presentation reads and the spectator panel — issues
 // no control operation (no speed request, no submission) and writes no
 // journal row.
 func TestViewerPathWritesNoJournalRowAndRequestsNoSpeed(t *testing.T) {
@@ -192,7 +191,7 @@ func TestViewerPathWritesNoJournalRowAndRequestsNoSpeed(t *testing.T) {
 	// Connect, watch, disconnect, then reconnect and disconnect again: a
 	// viewer dropping mid-run and coming back is the same no-op twice.
 	for range 2 {
-		if out := playerCall(api, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8}`, token); out.Code != 200 {
+		if out := playerCall(api, "POST", "/api/presentation/render-demand", `{"leaseSeconds":8}`, token); out.Code != 200 {
 			t.Fatal(out.Code, out.Body.String())
 		}
 		for _, route := range []string{"/api/presentation/render-state", "/api/presentation/camera", spectatorNowPath, "/api/state"} {
@@ -200,7 +199,7 @@ func TestViewerPathWritesNoJournalRowAndRequestsNoSpeed(t *testing.T) {
 				t.Fatal(route, out.Code, out.Body.String())
 			}
 		}
-		if out := playerCall(api, "POST", "/api/presentation/video-lease", `{"leaseSeconds":0}`, token); out.Code != 200 {
+		if out := playerCall(api, "POST", "/api/presentation/render-demand", `{"leaseSeconds":0}`, token); out.Code != 200 {
 			t.Fatal(out.Code, out.Body.String())
 		}
 	}

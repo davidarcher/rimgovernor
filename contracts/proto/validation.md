@@ -47,7 +47,7 @@ required. Requested missing sections need explicit unavailability/read issues.
 | Draft cleanup | Exact identity, pawn snapshot, original owner and claim ID. Release only unchanged owned claim; uncertainty is explicit and full normal ledger cannot prevent cleanup. Already-released refers to that same claim. |
 | Receipt/progress | Complete attempt/admission context/original owner; selected outcome and family-correlated evidence. Read progress carries actual context and causal-after-dispatch inspection; complete/absent/unsuccessful require complete inspection. No fabricated effect IDs in previews. |
 | Lifecycle | Save requires exact player context, save name and expected tick with actual pause. Load requires instance/current direction/request ID/name/readiness/deadline and expected player context when replacing a map. ReadLoad/ReadSave require request ID and instance. Completion never means authority restoration. |
-| Player presentation/input | Current trusted player identity/lease and exact server-retained capture for commands. Sequence/frame/scene/selection/window checks apply before effect. Proven refusal and possible-effect uncertainty are distinct. Media has separately bounded bytes/frames/acks. See presentation coverage for exact native input limits. |
+| Player presentation/input | Current trusted player identity/lease and exact server-retained capture for commands. Sequence/frame/scene/selection/window checks apply before effect. Proven refusal and possible-effect uncertainty are distinct. Media has separately bounded bytes. See presentation coverage for exact native input limits. |
 
 Patch and optional-read defaults must be implemented deliberately: absent boolean
 patches do not mean false, absent available counts do not mean zero, omitted

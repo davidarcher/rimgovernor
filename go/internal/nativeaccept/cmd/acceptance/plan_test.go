@@ -256,30 +256,6 @@ func TestNightlyFullSkipsRenderedCases(t *testing.T) {
 	}
 }
 
-func TestRemoteRenderedAreasAreSkipped(t *testing.T) {
-	r := examplePlanRun(t)
-	r.Tier, r.Limits.Shards, r.Limits.Attempts = "land", 4, 1
-	p, err := buildSelection(r, planReference{}, nil, affected.Selection{Cases: []string{"video", "presentation"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, shard := range p.Shards {
-		for _, name := range shard.Cases {
-			c, _ := cases.Lookup(name)
-			if c.Rendered {
-				t.Fatalf("rendered case assigned to shard: %s", name)
-			}
-		}
-	}
-	for _, name := range []string{"presentation/media", "video/feeds", "video/stream"} {
-		i := slices.IndexFunc(p.Cases, func(c plannedCase) bool { return c.Name == name })
-		skipped := slices.IndexFunc(p.Skipped, func(c remoteaccept.SkippedCase) bool { return c.Name == name && c.Reason == "rendered" })
-		if i >= 0 || skipped < 0 {
-			t.Fatalf("rendered case not skipped: %s", name)
-		}
-	}
-}
-
 func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 	r := examplePlanRun(t)
 	for _, mutate := range []func(*planRun){

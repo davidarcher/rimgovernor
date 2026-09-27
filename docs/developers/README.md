@@ -33,5 +33,5 @@ the multi-instance colony directory.
 - [Space and resources](architecture/space-and-resources.md): placement and shared budgets.
 - [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.
 - [Sessions and recovery](architecture/sessions-and-recovery.md): authority, checkpoints and cleanup.
-- [Dashboard](architecture/dashboard.md): presentation, video and input ownership.
+- [Dashboard](architecture/dashboard.md): presentation and input ownership.
 - [World progression](architecture/world-progression.md): caravans, quests and world outcomes.

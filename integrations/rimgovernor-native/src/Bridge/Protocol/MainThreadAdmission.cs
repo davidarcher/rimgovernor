@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     // for every one of them. Every hop is queued here instead and the host
     // is handed one pump per hop; each pump, when the game thread runs it,
     // executes the highest-class hop still pending (control before
-    // observation before the mirror poll (#795) before media, arrival
+    // observation before the mirror poll (#795), arrival
     // order within a class) rather than
     // its own. Pumps equal hops, so every hop runs exactly once; a hop
     // whose caller cancelled while queued is completed cancelled and
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
     internal static class MainThreadAdmission
     {
         internal const string ClassArgument = "class";
-        internal const string Control = "control", Observation = "observation", Mirror = "mirror", Media = "media";
+        internal const string Control = "control", Observation = "observation", Mirror = "mirror";
 
         internal sealed class Hop
         {
@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
 
         private static readonly object Gate = new object();
         // One list per rank, arrival order within it.
-        private static readonly List<Hop>[] Pending = { new List<Hop>(), new List<Hop>(), new List<Hop>(), new List<Hop>() };
+        private static readonly List<Hop>[] Pending = { new List<Hop>(), new List<Hop>(), new List<Hop>() };
 
         // The rank of a caller's class argument: control first. An absent or
         // unknown class is observation, the bulk of typed traffic.
@@ -47,12 +47,11 @@ namespace HomeBridge.BridgeTools
             {
                 case Control: return 0;
                 case Mirror: return 2;
-                case Media: return 3;
                 default: return 1;
             }
         }
 
-        internal static string ClassOf(int rank) => rank == 0 ? Control : rank == 2 ? Mirror : rank == 3 ? Media : Observation;
+        internal static string ClassOf(int rank) => rank == 0 ? Control : rank == 2 ? Mirror : Observation;
 
         // Queues body under rank and hands the host one pump. The returned
         // task completes with the body's reply (or its exception), or

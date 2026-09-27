@@ -479,7 +479,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		if !ok {
 			return store.RoutineReviewResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 		}
-		clearance, err := observation.ObserveClearanceCensus(ctx, source, expected)
+		clearance, err := observation.ObserveClearanceCensus(ctx, source, expected, true)
 		if err != nil {
 			return store.RoutineReviewResult{}, err
 		}

@@ -8,28 +8,25 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// TestPortedLoudLifecycleVideoCases pins the #145 cases' declarations: the
-// Loud ones say why, the lifecycle ones stop the process, the video ones
-// open the windowed profile, and the two that own their process do both.
-func TestPortedLoudLifecycleVideoCases(t *testing.T) {
+// TestPortedLoudLifecycleRenderedCases pins the #145 cases' declarations: the
+// Loud ones say why, the lifecycle ones stop the process, the rendered one
+// opens the windowed profile, and the two that own their process do both.
+func TestPortedLoudLifecycleRenderedCases(t *testing.T) {
 	for name, want := range map[string]struct {
 		quiet    na.QuietMode
 		noKeep   bool
 		rendered bool
 		owned    bool
 	}{
-		"combat/melee":            {quiet: na.Loud},
-		"combat/ranged":           {quiet: na.Loud},
-		"combat/explosive":        {quiet: na.Loud},
-		"authority/disconnect":    {quiet: na.Loud},
-		"lifecycle/shutdown":      {noKeep: true},
-		"lifecycle/runtime-fault": {noKeep: true},
-		"lifecycle/reuse":         {noKeep: true, owned: true},
-		"lifecycle/headless-soak": {noKeep: true, owned: true},
-		"video/stream":            {rendered: true},
-		"video/feeds":             {rendered: true},
-		"video/matrix":            {rendered: true},
-		"video/source-spike":      {rendered: true},
+		"combat/melee":             {quiet: na.Loud},
+		"combat/ranged":            {quiet: na.Loud},
+		"combat/explosive":         {quiet: na.Loud},
+		"authority/disconnect":     {quiet: na.Loud},
+		"lifecycle/shutdown":       {noKeep: true},
+		"lifecycle/runtime-fault":  {noKeep: true},
+		"lifecycle/reuse":          {noKeep: true, owned: true},
+		"lifecycle/headless-soak":  {noKeep: true, owned: true},
+		"speedmatrix/observations": {rendered: true},
 	} {
 		c, ok := cases.Lookup(name)
 		if !ok {

@@ -40,7 +40,7 @@ func recovery() cases.Case {
 	settle := window / 6
 	breachWindow := window * 2 / 3
 	raidWindow := window / 3
-	return campaignCase("campaign/recovery", "Unassisted campaign: an induced wood-floor breach and then a raid, each recovered on the player control path with a dashboard viewer.",
+	return campaignCase("campaign/recovery", "Unassisted campaign: an induced wood-floor breach and then a raid, each recovered on the player control path.",
 		"half a day of settling, up to two days restocking wood and a day around the raid at Ultrafast with three reloads", 60*time.Minute,
 		func(ctx context.Context, s cases.Session) error {
 			c, err := newCampaign(s)

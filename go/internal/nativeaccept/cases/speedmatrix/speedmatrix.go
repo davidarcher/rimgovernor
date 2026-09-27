@@ -2,12 +2,10 @@
 // rimgovernor serve once per clock speed -- Normal, Fast, Superfast,
 // Ultrafast, uncapped (Ultrafast with the acceptance test acceleration,
 // #109) and regulated (#583) -- with an identical game-tick budget, and
-// requires the pawns to achieve the same outcome at every speed. Two rows
-// separate the governor's cost from the rest (#621): governor-off plays the
+// requires the pawns to achieve the same outcome at every speed. One row
+// separates the governor's cost from the rest (#621): governor-off plays the
 // same save uncapped with no controller attached (the simulation ceiling;
-// nothing is built, so it is outside the outcome comparison) and viewer
-// runs the governor with one dashboard client streaming video at the
-// default cadence (the viewing overhead). Every row reports wall TPS
+// nothing is built, so it is outside the outcome comparison). Every row reports wall TPS
 // including pauses; the governed rows report native's own paused account
 // (paused_fraction_native) beside the status-sample ratio and a per-stop
 // latency split.
@@ -144,7 +142,7 @@ func run(p profile) func(ctx context.Context, s cases.Session) error {
 
 func runMatrix(ctx context.Context, s cases.Session, p profile) error {
 	// RIMGOVERNOR_SPEED_MATRIX narrows the rows for a targeted comparison
-	// (a rendered "uncapped,viewer" pair, #631); the default is every row.
+	// (a rendered "uncapped,player" pair, #631); the default is every row.
 	spec := os.Getenv("RIMGOVERNOR_SPEED_MATRIX")
 	if spec == "" {
 		spec = p.speeds
@@ -367,29 +365,13 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	report["root_plan"] = rootPlanID
-	// The viewer row (#621): one dashboard client holding a video lease
-	// and draining the stream for the whole run.
-	var viewer *na.ViewerClient
-	if c.Viewer {
-		viewer = na.StartViewer(ctx, service, token)
-		defer func() {
-			if viewer != nil {
-				report["viewer"] = viewer.Stop()
-			}
-		}()
-	}
-	// The observation-load row (#656): concurrent state readers and a
-	// stalled second viewer, a consumer whose encoder backlog must stay
-	// bounded without holding up control or the draining viewer.
+	// The observation-load row (#656): concurrent state readers.
 	var readers *na.ObservationReaders
-	var stalled *na.ViewerClient
 	if c.ObservationLoad {
 		readers = na.StartObservationReaders(ctx, service, na.ObservationLoadReaders, na.ObservationLoadInterval)
-		stalled = na.StartViewerWith(ctx, service, token, na.ViewerOptions{ID: "observation-load-stalled", Stalled: true})
 		defer func() {
 			if readers != nil {
 				report["readers"] = readers.Stop()
-				report["stalled_viewer"] = stalled.Stop()
 			}
 		}()
 	}
@@ -452,16 +434,10 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	report["plans_inspected"] = planCount
 	journal.Close()
-	var viewerSummary map[string]any
-	if viewer != nil {
-		viewerSummary = viewer.Stop()
-		report["viewer"] = viewerSummary
-		viewer = nil
-	}
-	var readerSummary, stalledSummary map[string]any
+	var readerSummary map[string]any
 	if readers != nil {
-		readerSummary, stalledSummary = readers.Stop(), stalled.Stop()
-		report["readers"], report["stalled_viewer"] = readerSummary, stalledSummary
+		readerSummary = readers.Stop()
+		report["readers"] = readerSummary
 		readers = nil
 	}
 	service.Stop()
@@ -478,11 +454,8 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	for key, value := range observationRow(phases.Observation, phases.Frames) {
 		metrics[key] = value
 	}
-	if viewerSummary != nil {
-		metrics["viewer"] = viewerSummary
-	}
 	if readerSummary != nil {
-		metrics["readers"], metrics["stalled_viewer"] = readerSummary, stalledSummary
+		metrics["readers"] = readerSummary
 		if problems := na.ReaderProblems(readerSummary); len(problems) > 0 {
 			return outcome, fmt.Errorf("observation-load row: %s", strings.Join(problems, "; "))
 		}

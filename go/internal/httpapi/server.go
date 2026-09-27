@@ -24,21 +24,19 @@ import (
 )
 
 type Server struct {
-	player       PlayerBuildings
-	controls     ControlReader
-	playerToken  string
-	config       Config
-	snapshots    SnapshotProvider
-	plans        PlanReader
-	assets       *os.Root
-	telemetry    *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
-	closeOnce    sync.Once
-	closeErr     error
-	videoTickets sync.Map   // hex ticket -> videoTicket; single-use, short-lived
-	videoRelay   videoRelay // one frame reader per leased source, shared by its sockets (#631)
-	chat         *interpreter.Interpreter
-	chatNative   buildingruntime.ChatFactsNative
-	chatJournal  buildingruntime.ChatFactsJournal
+	player      PlayerBuildings
+	controls    ControlReader
+	playerToken string
+	config      Config
+	snapshots   SnapshotProvider
+	plans       PlanReader
+	assets      *os.Root
+	telemetry   *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
+	closeOnce   sync.Once
+	closeErr    error
+	chat        *interpreter.Interpreter
+	chatNative  buildingruntime.ChatFactsNative
+	chatJournal buildingruntime.ChatFactsJournal
 }
 
 // EnableChat wires the guidance chat endpoint (POST /api/chat) into a server
@@ -165,9 +163,6 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.handleLifecycle(w, r) {
-		return
-	}
-	if s.handleVideoStream(w, r) {
 		return
 	}
 	if s.handlePlayer(w, r) {

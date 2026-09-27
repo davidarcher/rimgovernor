@@ -3,7 +3,6 @@ module github.com/davidarcher/RimGovernor/go
 go 1.27.1
 
 require (
-	github.com/coder/websocket v1.8.15
 	github.com/davidarcher/RimGovernor/go/internal/wire v0.0.0
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	golang.org/x/sys v0.47.0

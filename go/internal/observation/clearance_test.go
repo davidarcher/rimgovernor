@@ -15,7 +15,7 @@ type clearanceSource struct {
 	err   error
 }
 
-func (s clearanceSource) ReadClearanceTargets(context.Context, *c.Identity) (*o.ClearanceTargetsReply, bridge.Result, error) {
+func (s clearanceSource) ReadClearanceTargets(context.Context, *c.Identity, bool) (*o.ClearanceTargetsReply, bridge.Result, error) {
 	return s.reply, bridge.Result{}, s.err
 }
 
@@ -29,21 +29,21 @@ func TestClearanceUnknownEmptyAndChanged(t *testing.T) {
 	complete := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}
 	stub := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}
 	for _, source := range []clearanceSource{{reply: stub}, {err: bridge.ErrUnavailable}} {
-		fact, err := ObserveClearanceCensus(context.Background(), source, expected)
+		fact, err := ObserveClearanceCensus(context.Background(), source, expected, true)
 		if _, known := fact.Value(); known || err != nil {
 			t.Fatal(fact, err)
 		}
 	}
-	fact, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected)
+	fact, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected, true)
 	if census, known := fact.Value(); !known || len(census.Targets) != 0 || err != nil {
 		t.Fatal(fact, err)
 	}
 	native.NativeGeneration = proto.Uint64(2)
-	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected); !errors.Is(err, ErrChanged) {
+	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected, true); !errors.Is(err, ErrChanged) {
 		t.Fatal(err)
 	}
 	transport := errors.New("transport failed")
-	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{err: transport}, expected); !errors.Is(err, transport) {
+	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{err: transport}, expected, true); !errors.Is(err, transport) {
 		t.Fatal(err)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 type colonyFactsReader interface {
@@ -60,7 +59,7 @@ func (r *RoutineReviewer) colonyFacts(ctx context.Context, native colonyFactsRea
 func (r *RoutineReviewer) servedColonyFacts(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
 	if v, ok := r.mirroredColony(ctx, identity); ok {
 		if !planning {
-			v.Planning = notRequestedPlanning()
+			v.Planning = bridge.NotRequestedPlanning()
 		}
 		return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, bridge.Result{}, nil
 	}
@@ -87,12 +86,6 @@ func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identi
 	generationValue, _ := expected.NativeGeneration.Value()
 	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generationValue)}
 	return colonyTables(r.mirror, scope, census.colony)
-}
-
-// notRequestedPlanning is the planning section of a colony facts read
-// that did not ask for planning, as the native answers it.
-func notRequestedPlanning() *o.PlanningSection {
-	return &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum(), Detail: proto.String("Planning was not requested.")}}}
 }
 
 // ColonyFacts serves the session's colony facts reads outside the routine

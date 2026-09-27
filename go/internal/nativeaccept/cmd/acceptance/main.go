@@ -129,7 +129,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/tools"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/trade"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/upkeep"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/video"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/wall"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/waste"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/zone"

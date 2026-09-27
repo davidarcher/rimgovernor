@@ -37,7 +37,7 @@ func (n *colonyCountingNative) ReadColonyFacts(_ context.Context, id *c.Identity
 	v := proto.Clone(n.facts).(*o.ColonyFactsSnapshot)
 	v.Context = n.context(id)
 	if !planning {
-		v.Planning = notRequestedPlanning()
+		v.Planning = bridge.NotRequestedPlanning()
 	}
 	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v}}, bridge.Result{}, nil
 }

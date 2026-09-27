@@ -1,4 +1,4 @@
-# Dashboard and video contracts
+# Dashboard contracts
 
 [Documentation](../../README.md)
 
@@ -116,7 +116,7 @@ select a current-map colonist through the stable-ID selector or clear selection.
 The server discovers native schemas and checks both the live roster and a separate
 selection readback. These explicit player operations remain outside model tools.
 
-## Colonist dossiers and follow view
+## Colonist dossiers
 
 The Colony roster opens a stable-ID dossier with native biography, traits, skills,
 health, equipment, needs, thoughts and sampled job history. `jobReport` is the
@@ -128,23 +128,7 @@ changes while a dossier is open, not a complete event log.
 `GET /api/people?session_id=...` reads on demand under the runtime lock, rechecks
 colony/load/map identity after collection and shares a two-second cache. The UI
 polls about every 2.5 seconds only while visible and connected. Background failures
-retain the last readings; a session change clears selection, history and media.
-
-`GET /api/people/{pawn_id}/image?session_id=...&view=portrait|follow` validates the
-installed `home/pawn_image` contract and scopes the response to the same session and
-pawn. Portraits use native worn apparel plus the actual primary weapon's native icon
-when equipped; they refresh every 15 seconds. The optional 640×400 follow view
-renders a 16×10-cell neighborhood around the pawn about once a second. It is a
-snapshot view, not a second WebRTC stream. It does not select/order the pawn, change
-clock ownership or navigate the main camera. The native renderer temporarily uses
-an offscreen target after map draw submission, restoring all changed camera fields
-synchronously before presentation. Culling includes the pawn neighborhood only
-during that draw. Requests have a four-second native deadline and do not queue.
-
-Hidden views stop polling; failed media refreshes retain the last frame. Headless
-sessions report images unavailable. Native refusals are structured responses so a
-stale viewer cannot raise a game attention hold. The HTTP image cache is bounded to
-128 session-scoped entries; portrait/follow reuse lasts 15/1 seconds respectively.
+retain the last readings; a session change clears selection and history.
 
 ## Action follow
 
@@ -152,87 +136,16 @@ Action follow opts into the discovered native `watch` argument for supported rea
 only. Reads, dry runs and unsupported tools do not gain camera behavior. The preference
 resets on load and is unavailable in headless mode. Native follow adds about 1.5 seconds
 of viewing lead; leaving it off retains the fast write path. This frames orders, not
-continuous pawn labor or every inspection. Video pause only stops dashboard capture
-demand. The observed TPS indicator includes controller pauses and resets on load, rewind
+continuous pawn labor or every inspection.
+The observed TPS indicator includes controller pauses and resets on load, rewind
 or stale samples; it does not certify safety.
 
 ## Snapshot capture
 
 The native capture is copied into immutable bytes before publication, so a subsequent
 screenshot cannot truncate an in-flight HTTP response. A failed refresh retains the last
-good frame and reports the delay. Visible game windows render independently of browser
-viewer leases; headless sessions cannot supply video.
-
-## Frame-bound transport
-
-The dashboard leases capture (`POST /api/presentation/video-lease` with a
-`source` of `screen`, `pawn` + `pawnId` or `map`, plus optional size and frame
-rate; the reply echoes the resolved `source` and its `sourceId`), mints a
-short-lived single-use ticket bound to that `sourceId`
-(`POST /api/presentation/video-stream/ticket`, `{sourceId}`; absent means the
-screen) and opens the same-origin `/api/presentation/video-stream` WebSocket.
-One socket carries one source, so each dashboard tile (colony camera, a
-colonist feed, the map overview) owns its own lease, ticket and socket and
-stops only its own source (`leaseSeconds: 0` with `sourceId`; without it, every
-source ends). Each binary message is a 34-byte
-header (sequence, width, height, encoding, capture method, capture time,
-readback cost; little-endian) followed by raw pixels; the client drops stale or
-duplicate sequences and paints the latest frame.
-
-The Go relay reads frames once per source, not once per socket (#631): the
-sockets streaming one source share a reader and each holds a one-frame queue
-that a newer frame replaces, so a socket that is not draining (a hidden tab)
-keeps only the latest frame, never delays another viewer's frames, and is
-closed alone once one of its writes outlasts the server's read timeout. The
-reader ends with the source's last socket or when its lease ends. It reads
-frames from the native shared-memory buffer whenever it runs
-on the game's host: Windows uses a named mapping with a nonblocking mutex,
-Linux a private `/dev/shm/RimGovernorVideo-<id>` mapping with nonblocking file
-locks (`go/internal/videoshm`). The buffer name is the lease's `sourceId`, learned
-from the first `ReadFrame` reply, which also supplies the pixel format the buffer
-header does not carry. `ReadFrame` is then called about once a second only to
-confirm the lease and source; a new lease publishes under a new name with a
-restarted sequence. When the buffer cannot be opened (controller on another host,
-lease already released) every frame goes through `ReadFrame`'s base64 media
-envelope instead. Only `ReadFrame`-delivered frames are acknowledged;
-`AcknowledgeFrame` is telemetry, not backpressure.
-
-A lease names one source (`VideoStart.source`): the presented screen (the
-default), a colonist (`pawn_id`, a second camera following the pawn at ten
-cells of height) or the whole map. Each source has its own buffer, `sourceId`,
-sequence and cadence (`frames_per_second`: screen up to 60, pawn up to 30, map
-up to 10; feeds default to 15 and 4), and `ReadFrame` selects a source by id.
-The screen is one source whatever cadence its viewers declare: it captures at
-the highest cadence its holders asked for and the reply's `framesPerSecond`
-reports it (#631); a rendered feed's cadence and size are part of its
-identity, so differing demands are different sources. No held source means
-no capture at all. Feeds
-render right after the game's own draw pass, with the player camera's culling
-rect widened to cover them only on the frames they are due, and clip the
-silhouette and overlay altitudes so a far player zoom never blanks the pawns
-(their cached far-zoom sprites are still what the game submits). A lease for a
-pawn that is not spawned on the current map, or for any source with no map
-loaded, is refused as `supported: true, active: false` with an `unavailable`
-detail; a running pawn feed ends when its pawn leaves the map, and every
-rendered source ends when the current map changes (a load), so `ReadFrame` on
-the old `sourceId` fails `UNAVAILABLE` and the dashboard tile re-leases and
-follows the new id. Viewers of an identical spec share one source and hold
-it independently by `viewer_id` (the dashboard sends one per tile as
-`viewerId`): a stop or timeout by one viewer leaves the others' feed, and
-the source ends with its last hold. Stopping without `source_id` drops the
-viewer's hold on every source. The
-`video/matrix` acceptance case measures the cost: on the reference machine five
-pawn feeds cost no ticks (60 TPS, p95 frame 33 ms either way) and five pawn
-feeds plus map plus screen held 55 TPS with a 50 ms p95 frame.
-
-Unity captures the full framebuffer after rendering, at most 60 times per second
-and up to 3840×2160. Private Xvfb workers capture their process-owned presented
-window; optional `RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback
-or ReadPixels for comparison. The capture ceiling is not a delivered-fps
-guarantee. Active video leases use a 60 fps render clock without display vsync;
-the last lease ending restores the previous settings. Native lease cleanup
-unlinks the Linux buffer; an open reader sees no further sequence and closes
-its mapping independently.
+good frame and reports the delay. Headless sessions
+cannot supply screenshots.
 
 ## Native gesture admission
 
@@ -247,33 +160,6 @@ are retained. Native eight-second expiry independently releases held input. Clea
 cancels unfinished designations before releasing buttons; browser blur, hidden tabs,
 disconnect, player direction and load changes also release input. No uncertain event
 is retried.
-
-## Viewer lifecycle
-
-Viewer heartbeats renew an eight-second lease. Hidden/paused views close their peer, and
-colony/load changes invalidate it. Native capture releases its resources after lease
-expiry; headless mode never starts it. Connected streaming viewers do not request PNG
-snapshots. Unsupported or stalled streams display the snapshot fallback, retaining the
-last good image. Streaming does not change simulation speed, control ownership or
-cinematic preferences.
-
-## Connection ordering and recovery
-
-Connection IDs scope explicit peer closure, and ordered viewer heartbeat revisions
-prevent a delayed pause from overriding newer playback. Negotiation runs outside the
-frame-sampling lock. The browser reconnects with bounded backoff after a stall or
-transport failure and retains a recent presented-frame sample, even when the closed
-track has already gone black. Hidden/paused views cancel retries. Session changes
-discard retained video from the previous colony.
-
-## Metrics and their limits
-
-The video badge reports browser displayed fps and GPU encoding when active.
-`/api/video/status` reports sampled/skipped frames, native renderer/readback cost,
-per-viewer encoding, and bounded 128-sample capture-to-encoder and capture-to-display
-median/p95. Selection-to-display samples span pointer dispatch through the paint of a
-frame with a changed native selection fingerprint. They establish selection feedback
-latency; they do not establish completion of pawn work. Missing samples stay unavailable.
 
 ## Chat and prepared-profile boundaries
 

@@ -1,7 +1,7 @@
 // Package campaign is the proof of autonomy (#633, epic #613): an
 // unassisted campaign on a declared fixture, seed and mod set, driven
-// through the player control path with one dashboard viewer polling video,
-// where the harness assists only during setup and every later hand is
+// through the player control path, where the harness assists only during
+// setup and every later hand is
 // recorded as an intervention. Two campaigns (campaign/foothold,
 // campaign/recovery) share one shape: launch rimgovernor serve over the tribal8 baseline, watch a
 // tick-measured phase, stop, inject the next disturbance through a fixture
@@ -69,8 +69,7 @@ func serveSpec(prefix string) (cases.ServeSpec, error) {
 
 // campaignCase is the shape every case in the family shares: the baseline
 // save with live needs, quiet storyteller (the disturbances are staged, not
-// drawn), a rendered profile so the viewer captures frames, and a serve
-// process on the player control path.
+// drawn) and a serve process on the player control path.
 func campaignCase(name, scope, reason string, budget time.Duration, run func(context.Context, cases.Session) error) cases.Case {
 	spec, _ := serveSpec("campaign")
 	return cases.Case{
@@ -80,7 +79,6 @@ func campaignCase(name, scope, reason string, budget time.Duration, run func(con
 		Keep:        []string{string(na.LiveNeeds)},
 		Quiet:       na.QuietRequired,
 		Serve:       &spec,
-		Rendered:    true,
 		RequiredOps: []string{"test/defense_setup", "test/hut_shell_fixture"},
 		Reason:      reason,
 		Budget:      budget,
@@ -105,7 +103,7 @@ type campaign struct {
 
 func newCampaign(s cases.Session) (*campaign, error) {
 	c := &campaign{s: s, report: s.Report()}
-	c.report["manifest"] = map[string]any{"fixture": fixtureSave, "mods": []string{modSet}, "seed": na.AsString(s.Identity()["seed"]), "identity": s.Identity(), "control": "player", "viewer": "one dashboard video tile (na.ViewerClient)"}
+	c.report["manifest"] = map[string]any{"fixture": fixtureSave, "mods": []string{modSet}, "seed": na.AsString(s.Identity()["seed"]), "identity": s.Identity(), "control": "player"}
 	c.report["interventions"] = c.interventions
 	c.report["injections"] = c.injections
 	c.report["milestones"] = c.milestones
@@ -177,8 +175,6 @@ type phase struct {
 	Progress []progressRecord
 	// Mode is /api/state's mode when the phase ended.
 	Mode string
-	// Viewer is the viewer's summary, nil when the phase ran none.
-	Viewer map[string]any
 	// Flight is the service's flight recording; Stderr its log's path.
 	Flight []na.FlightRow
 	Stderr string
@@ -211,8 +207,8 @@ type playOptions struct {
 	Watch sustainedfood.WatchConfig
 }
 
-// play launches the service, starts the viewer, watches the phase, then
-// stops both and reattaches the harness. Every launch after the first is
+// play launches the service, watches the phase, then stops it and
+// reattaches the harness. Every launch after the first is
 // the scenario's restart around an injection, not assistance; the
 // authority hand at launch is recorded either way.
 func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*phase, error) {
@@ -226,12 +222,7 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 		return nil, fmt.Errorf("%s: serve: %w", label, err)
 	}
 	p := &phase{Label: label}
-	viewer := na.StartViewerWith(ctx, service, service.Token, na.ViewerOptions{ID: "campaign-viewer"})
 	stop := func() {
-		if viewer != nil {
-			p.Viewer = viewer.Stop()
-			viewer = nil
-		}
 		if keep := service.Stop(); keep != nil {
 			p.Keep = keep
 			c.report["authority_reacquisitions"] = keep
@@ -264,7 +255,7 @@ func (c *campaign) play(ctx context.Context, label string, opts playOptions) (*p
 	}
 	p.Flight, _ = na.ReadFlight(service.FlightPath)
 	p.Stderr = service.StderrPath()
-	row := map[string]any{"label": label, "launch": c.launches, "samples": len(p.Timeline), "window": p.Window, "mode": p.Mode, "viewer": p.Viewer,
+	row := map[string]any{"label": label, "launch": c.launches, "samples": len(p.Timeline), "window": p.Window, "mode": p.Mode,
 		"metrics": sustainedfood.DeriveMetrics(p.Timeline), "colony": sustainedfood.DeriveColonyOutcome(p.Timeline), "progress": p.Progress, "keepalive": p.Keep,
 		"clock": service.Entry()["clock"], "events": report["events"]}
 	if p.Err != nil {

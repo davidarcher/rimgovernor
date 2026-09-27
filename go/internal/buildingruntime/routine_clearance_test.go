@@ -21,7 +21,7 @@ type routineClearanceNative struct {
 	previews []bridge.ZoneTarget
 }
 
-func (n *routineClearanceNative) ReadClearanceTargets(_ context.Context, _ *c.Identity) (*o.ClearanceTargetsReply, bridge.Result, error) {
+func (n *routineClearanceNative) ReadClearanceTargets(_ context.Context, _ *c.Identity, _ bool) (*o.ClearanceTargetsReply, bridge.Result, error) {
 	return &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.rows, Chunks: n.chunks, DumpSites: n.sites}}}, bridge.Result{}, nil
 }
 func (n *routineClearanceNative) PreviewZone(_ context.Context, _ *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {

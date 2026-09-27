@@ -4,12 +4,12 @@
 // wildlife, its loose items and its standing buildings -- with the throughput
 // stage applied on top (a Steel stockpile to haul to and a contiguous wood
 // wall run to build), played through rimgovernor serve in a windowed launch.
-// Three rows, in order: governor-off (native play at the same speed with no
+// The rows, in order: governor-off (native play at the same speed with no
 // controller attached, the ungoverned update-interval ceiling), uncapped (the
-// ordinary governed run) and viewer (the same governed run with one dashboard
-// client streaming video). Every row asks for the same clock speed and the
-// same useful work, so the difference between them is the governor's and the
-// viewer's observation cost, not a different workload.
+// ordinary governed run), observation-load (the same governed run with
+// concurrent state readers) and player. Every row asks for the same clock
+// speed and the same useful work, so the difference between them is the
+// governor's observation cost, not a different workload.
 //
 // The planning window the controller reads over that colony is the nontrivial
 // one the issue asks for: the tribal colony's home area, not a bare debug
@@ -37,22 +37,21 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 
 // observationsProfile is the workload: the same stage size as the plain
 // matrix (so the useful work is the work that matrix already measures) kept
-// in its own save, and the three rows compared.
+// in its own save, and the rows compared.
 var observationsProfile = profile{items: items, segments: segments, ticks: ticks,
-	save: "RimGovernor-observations-stage", speeds: "governor-off,uncapped,viewer,observation-load,player", observations: true}
+	save: "RimGovernor-observations-stage", speeds: "governor-off,uncapped,observation-load,player", observations: true}
 
 func init() {
 	cases.Register(cases.Case{
 		Name: "speedmatrix/observations",
 		Scope: "Observation baseline (#642): the committed tribal8 colony with the throughput stage applied, played rendered " +
-			"governor-off, governed and governed with one viewer at one clock speed and one tick budget; each row reports the " +
+			"governor-off, governed and governed under observation load at one clock speed and one tick budget; each row reports the " +
 			"companion's observation capture/format split, its per-section costs and its update-interval account beside the " +
 			"clock and step phases, with the run's provenance.",
 		Start: cases.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": items, "wallSegments": segments},
 			On: cases.Save{Name: baselineSave, From: cases.CommittedSaves()}},
 		// A windowed launch: update intervals only mean what the issue asks
-		// them to mean when the game is drawing, and the viewer row's video
-		// capture needs Find.Camera.
+		// them to mean when the game is drawing.
 		Rendered: true,
 		Service:  true,
 		Budget:   cases.MaxBudget,
@@ -108,13 +107,12 @@ func (m *matrix) provenance() map[string]any {
 		"stage":       map[string]any{"save": m.p.save, "items": m.p.items, "wall_segments": m.p.segments},
 		// The rows' fixed requirements: the same clock speed and the same
 		// useful work, so only the observation load differs.
-		"fixed":  "every row asks for the same clock speed and the same staged work; rows differ only by the controller and the viewer",
+		"fixed":  "every row asks for the same clock speed and the same staged work; rows differ only by the controller and the observation load",
 		"camera": "the stage save's own camera position, restored by the reload; no row commands the camera",
 		"warmup": "the reload, the needs freeze, the plan submission and the resume precede the measured interval",
 		"measured_interval": "per row: wall_seconds from resume to the tick budget; the frames and observation blocks are " +
 			"differenced over the service's flight recording, which starts when the service attaches",
-		"viewer": "the viewer row holds one dashboard video lease at the default cadence for the whole row; the observation-load row " +
-			"adds a stalled second video lease and concurrent /api/state readers (#656); the other rows hold none",
+		"load":    "the observation-load row adds concurrent /api/state readers (#656); the other rows hold none",
 		"readers": map[string]any{"count": na.ObservationLoadReaders, "interval_ms": na.ObservationLoadInterval.Milliseconds()},
 	}
 	// The mod set the launch activated: the headless profile when the run is

@@ -277,6 +277,13 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	}
 	if v.ColonyFacts != nil {
 		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, true), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: v.ColonyFacts}})
+		// A read without planning is the same facts with the planning
+		// section the native answers it with (#984): without this shape
+		// every non-planning read missed the frame and hopped the game
+		// thread.
+		bare := proto.Clone(v.ColonyFacts).(*o.ColonyFactsSnapshot)
+		bare.Planning = NotRequestedPlanning()
+		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, false), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: bare}})
 	}
 	if v.Population != nil {
 		seed("rimgovernor/observations_read_population", populationRequest(identity), &o.PopulationReply{Outcome: &o.PopulationReply_Observed{Observed: v.Population}})

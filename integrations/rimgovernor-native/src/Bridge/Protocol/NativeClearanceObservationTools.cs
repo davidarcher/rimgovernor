@@ -38,6 +38,7 @@ namespace HomeBridge.BridgeTools
                     // the Home cells (bounded by the grid) and collects the
                     // non-player buildings standing in them.
                     var home = map.areaManager.Home;
+                    var began = Now();
                     var buildings = new Dictionary<int, Building>();
                     var chunks = new Dictionary<int, Thing>();
                     foreach (var cell in home.ActiveCells)
@@ -50,8 +51,11 @@ namespace HomeBridge.BridgeTools
                         }
                     foreach (var b in map.listerThings.AllThings.OfType<Building>())
                         if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
+                    ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count + chunks.Count);
+                    began = Now();
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
-                    var salvageSafety = new EventLootFacts.HaulingSafety(map);
+                    var salvageSafety = parsed.IncludeSalvage ? new EventLootFacts.HaulingSafety(map) : null;
+                    var salvageYields = new Dictionary<ThingDef, (Thing item, long headroom)>();
                     var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                     var undelivered = new List<Thing>();
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
@@ -62,7 +66,14 @@ namespace HomeBridge.BridgeTools
                         snapshot.Chunks.Add(new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination });
                         if (!forbidden && !stored && !destination) undelivered.Add(chunk);
                     }
+                    ObservationWork.Captured("clearanceChunks", Now() - began, snapshot.Chunks.Count, chunks.Count);
+                    began = Now();
                     if (undelivered.Count > 0) snapshot.DumpSites.AddRange(DumpSites(map, home, undelivered, haulers).Select(c => Cell(c.x, c.z)));
+                    ObservationWork.Captured("clearanceDumpSites", Now() - began, snapshot.DumpSites.Count);
+                    long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
+                    began = Now();
+                    var triggers = TempleTriggers(map);
+                    dangerTicks += Now() - began;
                     foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
                         var rect = building.OccupiedRect();
                         if (rect.Any(c => !c.InBounds(map) || c.Fogged(map))) continue;
@@ -74,15 +85,33 @@ namespace HomeBridge.BridgeTools
                             EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
                             Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
                             Deconstructible = true, Class = Classify(building), InHome = rect.All(c => home[c]),
-                            AncientDanger = AncientDanger(map, building, player), Designated = designated
+                            Designated = designated
                         };
+                        var phase = Now();
+                        row.AncientDanger = AncientDanger(map, building, player, triggers);
+                        dangerTicks += Now() - phase;
                         if (building.Faction != null) row.Faction = Id(building.Faction.GetUniqueLoadID());
+                        phase = Now();
                         var blocker = RoofSupportSafety.Blocker(building, out _);
+                        roofTicks += Now() - phase;
                         if (blocker != null) row.RoofBlocker = blocker;
-                        if (!row.InHome) row.Salvage = Salvage(map, building, salvageSafety);
+                        if (!row.InHome && salvageSafety != null) {
+                            phase = Now();
+                            row.Salvage = Salvage(map, building, salvageSafety, salvageYields);
+                            salvageTicks += Now() - phase;
+                            salvageRows++;
+                        }
                         snapshot.Targets.Add(row);
                     }
-                    salvageSafety.Dispose();
+                    salvageSafety?.Dispose();
+                    // #984: per-phase main-thread cost of the target rows; the
+                    // row remainder is fog/footprint checks, designations and
+                    // proto construction.
+                    var targetTicks = Now() - began;
+                    ObservationWork.Captured("clearanceAncientDanger", dangerTicks, snapshot.Targets.Count);
+                    ObservationWork.Captured("clearanceRoofBlocker", roofTicks, snapshot.Targets.Count);
+                    ObservationWork.Captured("clearanceSalvage", salvageTicks, salvageRows);
+                    ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, snapshot.Targets.Count, buildings.Count);
                     var count = (ulong)snapshot.Targets.Count;
                     var reply = new Obs.ClearanceTargetsReply { Observed = snapshot };
                     return ProtoBoundary.Encode(reply);
@@ -100,15 +129,21 @@ namespace HomeBridge.BridgeTools
         // connected footprint of up to dumpSiteCells cells, or nothing when no
         // hauler exists or no cell qualifies. The flood is bounded so a wide
         // Home costs a bounded number of reachability checks.
-        private static Obs.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety)
+        // yields memoizes, per def within one read, the probe item and its storage
+        // headroom: neither depends on the building, so repeat ruins are cheap.
+        private static Obs.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety, Dictionary<ThingDef, (Thing item, long headroom)> yields)
         {
             var safe = !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning() && safety.Safe(building) == true;
             var result = new Obs.SalvageEvidence { Safe = safe, PathLength = Math.Max(0, safety.PathLength), Labor = building.GetStatValue(StatDefOf.WorkToBuild) };
             foreach (var cost in building.def.CostListAdjusted(building.Stuff, false)) {
                 var count = (long)Math.Floor(cost.count * building.def.resourcesFractionWhenDeconstructed);
                 if (count <= 0) continue;
-                var item = ThingMaker.MakeThing(cost.thingDef);
-                var headroom = EventLootFacts.StorageHeadroom(map, item);
+                if (!yields.TryGetValue(cost.thingDef, out var probe)) {
+                    var made = ThingMaker.MakeThing(cost.thingDef);
+                    yields[cost.thingDef] = probe = (made, EventLootFacts.StorageHeadroom(map, made));
+                }
+                var item = probe.item;
+                var headroom = probe.headroom;
                 // A yield nothing stores stays on the ground; only a yield
                 // haulers will carry home needs a safe return route. A source
                 // no hauler reaches reports false (Safe=false, a route hold);
@@ -155,14 +190,20 @@ namespace HomeBridge.BridgeTools
             building.def == ThingDefOf.ShipChunk ? Obs.ClearanceClass.ShipChunk :
             building.def == ThingDefOf.Wall || building is Building_Door ? Obs.ClearanceClass.AncientWallDoor : Obs.ClearanceClass.Other;
 
-        internal static bool AncientDanger(Map map, Building building, Faction player)
+        internal static bool AncientDanger(Map map, Building building, Faction player) => AncientDanger(map, building, player, TempleTriggers(map));
+
+        // TempleTriggers lists the map's ancient-temple approach triggers once so
+        // a census judging many buildings scans AllThings once (#984).
+        internal static List<RectTrigger> TempleTriggers(Map map) =>
+            map.listerThings.AllThings.OfType<RectTrigger>().Where(t => t.destroyIfUnfogged
+                && t.signalTag?.StartsWith("ancientTempleApproached-", StringComparison.Ordinal) == true).ToList();
+
+        internal static bool AncientDanger(Map map, Building building, Faction player, List<RectTrigger> triggers)
         {
             var occupied = building.OccupiedRect();
             // The warning trigger can disappear when a colonist approaches,
             // before the room opens. Retain the room-content check as well.
-            if (map.listerThings.AllThings.OfType<RectTrigger>().Any(t => t.destroyIfUnfogged
-                && t.signalTag?.StartsWith("ancientTempleApproached-", StringComparison.Ordinal) == true
-                && t.Rect.CenterCell.Fogged(map) && occupied.Any(c => t.Rect.Contains(c)))) return true;
+            if (triggers.Any(t => t.Rect.CenterCell.Fogged(map) && occupied.Any(c => t.Rect.Contains(c)))) return true;
             var rooms = new HashSet<Room>();
             foreach (var cell in occupied)
                 foreach (var offset in GenAdj.CardinalDirectionsAndInside) {
@@ -178,6 +219,7 @@ namespace HomeBridge.BridgeTools
             }
             return false;
         }
+        private static long Now() => System.Diagnostics.Stopwatch.GetTimestamp();
         private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Unavailable = new Common.Unavailable { Reason = reason, Detail = detail } });

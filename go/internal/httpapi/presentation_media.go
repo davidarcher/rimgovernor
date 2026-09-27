@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -30,36 +29,14 @@ type RenderStatusDTO struct {
 type renderDemandRequestDTO struct {
 	LeaseSeconds *uint32 `json:"leaseSeconds"`
 }
-type pawnImageRequestDTO struct {
-	PawnID *string `json:"pawnId"`
-	View   *string `json:"view"`
-}
 
-// MediaFrameDTO carries the captured PNG as base64. Callers needing raw bytes
-// decode the data field themselves; this keeps the JSON envelope self-describing.
-type MediaFrameDTO struct {
-	Width          uint32  `json:"width"`
-	Height         uint32  `json:"height"`
-	Encoding       string  `json:"encoding"`
-	CaptureMethod  string  `json:"captureMethod"`
-	CapturedUnixMs int64   `json:"capturedUnixMs"`
-	ReadbackMs     float64 `json:"readbackMs"`
-	Data           string  `json:"data"`
-}
-type pawnImageResponseDTO struct {
-	PawnID string        `json:"pawnId"`
-	View   string        `json:"view"`
-	Frame  MediaFrameDTO `json:"frame"`
-}
-
-// handlePresentationMedia serves the two in-scope PresentationMedia mutations
-// (DemandRendering, CapturePawn) under the same X-RimGovernor-Player gate as
+// handlePresentationMedia serves PresentationMedia.DemandRendering under the same X-RimGovernor-Player gate as
 // other player writes in player.go. RenderState itself stays a free read,
-// exposed by handlePresentation; only an active native capture or a lease
-// change requires the player token.
+// exposed by handlePresentation; only a lease change requires the player
+// token.
 func (s *Server) handlePresentationMedia(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
-	case "/api/presentation/render-demand", "/api/presentation/pawn-image":
+	case "/api/presentation/render-demand":
 	default:
 		return false
 	}
@@ -94,11 +71,7 @@ func (s *Server) handlePresentationMedia(w http.ResponseWriter, r *http.Request)
 		return true
 	}
 	wire := &c.Identity{ColonyId: proto.String(string(identity.Colony)), LoadToken: proto.String(string(identity.Load)), MapId: proto.Int32(int32(identity.Map))}
-	if r.URL.Path == "/api/presentation/render-demand" {
-		s.handleDemandRendering(w, r, ctx, wire)
-		return true
-	}
-	s.handleCapturePawn(w, r, ctx, wire)
+	s.handleDemandRendering(w, r, ctx, wire)
 	return true
 }
 
@@ -142,48 +115,4 @@ func (s *Server) handleDemandRendering(w http.ResponseWriter, r *http.Request, c
 	}
 	status := reply.GetStatus()
 	s.write(w, r, 200, RenderStatusDTO{status.GetSupported(), status.GetSuspended(), status.GetWindowVisible(), status.GetRemainingLeaseMs()})
-}
-
-func (s *Server) handleCapturePawn(w http.ResponseWriter, r *http.Request, ctx context.Context, wire *c.Identity) {
-	var body pawnImageRequestDTO
-	if err := decodeMediaBody(r, &body); err != nil || body.PawnID == nil || *body.PawnID == "" || body.View == nil {
-		s.failure(w, r, 400, "invalid_request", "pawnId and view are required")
-		return
-	}
-	var view p.PawnView
-	switch *body.View {
-	case "portrait":
-		view = p.PawnView_PAWN_VIEW_PORTRAIT
-	case "follow":
-		view = p.PawnView_PAWN_VIEW_FOLLOW
-	default:
-		s.failure(w, r, 400, "invalid_request", "view must be portrait or follow")
-		return
-	}
-	if err := ctx.Err(); err != nil {
-		s.readFailure(w, r, err)
-		return
-	}
-	request := &p.PawnImageRequest{Identity: wire, PawnId: proto.String(*body.PawnID), View: view.Enum()}
-	reply, _, err := s.config.PresentationMedia.CapturePawn(ctx, request)
-	if err == nil {
-		err = ctx.Err()
-	}
-	if err != nil {
-		s.readFailure(w, r, err)
-		return
-	}
-	image := reply.GetImage()
-	frame := image.GetFrame()
-	dto := pawnImageResponseDTO{
-		PawnID: image.GetPawnId(),
-		View:   *body.View,
-		Frame: MediaFrameDTO{
-			Width: frame.GetWidth(), Height: frame.GetHeight(),
-			Encoding: frame.GetEncoding().String(), CaptureMethod: frame.GetCaptureMethod().String(),
-			CapturedUnixMs: frame.GetCapturedUnixMs(), ReadbackMs: frame.GetReadbackMs(),
-			Data: base64.StdEncoding.EncodeToString(frame.GetData()),
-		},
-	}
-	s.write(w, r, 200, dto)
 }

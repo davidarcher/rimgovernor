@@ -40,7 +40,7 @@ Tool discovery is not authorization. Apply these restrictions before evaluating 
 | Lifecycle.Save/Load/ReadSave/ReadLoad | Explicit session lifecycle with exact instance/request ownership and current player direction. Follow lifecycle preconditions; no automatic/model load or process management escape hatch. Completion reads grant no permission to retry uncertain writes. |
 | PresentationReads | Scoped player-facing inspection with appropriate current game/capture identity. Captured targets do not grant input permission. |
 | PlayerPresentation | Authenticated explicit player control only. Input ownership, verified pause/owned-draft cleanup, exact capture and direction checks apply. No adviser access or autonomous fallback to clicks. |
-| PresentationMedia | Authorized viewer/media capability with independent rendering/video/frame leases, exact acknowledgements and byte limits. Media access grants no simulation-write or input authority. |
+| PresentationMedia | Authorized viewer/media capability: render-demand leases and screenshot capture with byte limits. Media access grants no simulation-write or input authority. |
 
 Use [shared rules](README.md) and the family coverage documents for exact validation and uncertainty behavior. A guarded receipt acknowledges only its observed effect; later pawn work requires correlated observation. Missing attempt records do not prove no effect. Returning a successful SDK envelope never overrides a typed refusal, unavailable result or admitted uncertainty.
 
@@ -105,10 +105,8 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/operations_preview` | `rimgovernor.operations.v1.Operations/Preview` | `rimgovernor.operations.v1.PreviewRequest` | `rimgovernor.operations.v1.PreviewReply` |
 | `rimgovernor/operations_release_owned_draft` | `rimgovernor.operations.v1.Operations/ReleaseOwnedDraft` | `rimgovernor.operations.v1.ReleaseOwnedDraftRequest` | `rimgovernor.operations.v1.ReleaseOwnedDraftReply` |
 | `rimgovernor/placement_preview` | `rimgovernor.placement.v1.Placement/Preview` | `rimgovernor.placement.v1.PlacementRequest` | `rimgovernor.placement.v1.PlacementReply` |
-| `rimgovernor/presentation_acknowledge_frame` | `rimgovernor.presentation.v1.PresentationMedia/AcknowledgeFrame` | `rimgovernor.presentation.v1.FrameAcknowledgement` | `rimgovernor.presentation.v1.FrameAcknowledgementReply` |
 | `rimgovernor/presentation_apply` | `rimgovernor.presentation.v1.PlayerPresentation/Apply` | `rimgovernor.presentation.v1.PlayerCommand` | `rimgovernor.presentation.v1.PlayerCommandReply` |
 | `rimgovernor/presentation_camera` | `rimgovernor.presentation.v1.PresentationReads/Camera` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.CameraReply` |
-| `rimgovernor/presentation_capture_pawn` | `rimgovernor.presentation.v1.PresentationMedia/CapturePawn` | `rimgovernor.presentation.v1.PawnImageRequest` | `rimgovernor.presentation.v1.PawnImageReply` |
 | `rimgovernor/presentation_capture_screenshot` | `rimgovernor.presentation.v1.PresentationMedia/CaptureScreenshot` | `rimgovernor.presentation.v1.ScreenshotRequest` | `rimgovernor.presentation.v1.ScreenshotReply` |
 | `rimgovernor/presentation_capture_ui` | `rimgovernor.presentation.v1.PresentationReads/CaptureUi` | `rimgovernor.presentation.v1.UiReadRequest` | `rimgovernor.presentation.v1.UiReply` |
 | `rimgovernor/presentation_colonists` | `rimgovernor.presentation.v1.PresentationReads/Colonists` | `rimgovernor.presentation.v1.ColonistRosterRequest` | `rimgovernor.presentation.v1.ColonistRosterReply` |
@@ -118,12 +116,10 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/presentation_input_state_read` | `rimgovernor.presentation.v1.PresentationReads/InputStateRead` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.InputStateReply` |
 | `rimgovernor/presentation_inspect_tabs` | `rimgovernor.presentation.v1.PresentationReads/InspectTabs` | `rimgovernor.presentation.v1.TabsRequest` | `rimgovernor.presentation.v1.TabsReply` |
 | `rimgovernor/presentation_lease_input` | `rimgovernor.presentation.v1.PlayerPresentation/LeaseInput` | `rimgovernor.presentation.v1.InputLeaseRequest` | `rimgovernor.presentation.v1.InputLeaseReply` |
-| `rimgovernor/presentation_lease_video` | `rimgovernor.presentation.v1.PresentationMedia/LeaseVideo` | `rimgovernor.presentation.v1.VideoLeaseRequest` | `rimgovernor.presentation.v1.VideoReply` |
 | `rimgovernor/presentation_main_tabs` | `rimgovernor.presentation.v1.PresentationReads/MainTabs` | `rimgovernor.presentation.v1.TabsRequest` | `rimgovernor.presentation.v1.TabsReply` |
 | `rimgovernor/presentation_notifications` | `rimgovernor.presentation.v1.PresentationReads/Notifications` | `rimgovernor.presentation.v1.NotificationsRequest` | `rimgovernor.presentation.v1.NotificationsReply` |
 | `rimgovernor/presentation_preview_dialog_text` | `rimgovernor.presentation.v1.PresentationReads/PreviewDialogText` | `rimgovernor.presentation.v1.DialogTextPreviewRequest` | `rimgovernor.presentation.v1.DialogTextPreviewReply` |
 | `rimgovernor/presentation_preview_naming` | `rimgovernor.presentation.v1.PresentationReads/PreviewNaming` | `rimgovernor.presentation.v1.NamingPreviewRequest` | `rimgovernor.presentation.v1.NamingPreviewReply` |
-| `rimgovernor/presentation_read_frame` | `rimgovernor.presentation.v1.PresentationMedia/ReadFrame` | `rimgovernor.presentation.v1.FrameRequest` | `rimgovernor.presentation.v1.FrameReply` |
 | `rimgovernor/presentation_render_state` | `rimgovernor.presentation.v1.PresentationReads/RenderState` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.RenderReply` |
 | `rimgovernor/presentation_screen_targets_read` | `rimgovernor.presentation.v1.PresentationReads/ScreenTargetsRead` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.ScreenTargetsReply` |
 | `rimgovernor/presentation_selection` | `rimgovernor.presentation.v1.PresentationReads/Selection` | `rimgovernor.presentation.v1.ReadRequest` | `rimgovernor.presentation.v1.SelectionReply` |

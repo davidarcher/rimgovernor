@@ -25,10 +25,10 @@ func TestClearanceReadAndUnavailableStub(t *testing.T) {
 			if arg.Tool != clearanceTool {
 				t.Fatal(arg.Tool)
 			}
-			draftTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}})
+			draftTestRequest(t, arg, &o.ClearanceTargetsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeSalvage: true})
 			return pbResult(reply), nil
 		}}, time.Second)
-		got, _, err := client.ReadClearanceTargets(context.Background(), pbIdentity())
+		got, _, err := client.ReadClearanceTargets(context.Background(), pbIdentity(), true)
 		if stub {
 			if !errors.Is(err, ErrUnavailable) {
 				t.Fatal(err)

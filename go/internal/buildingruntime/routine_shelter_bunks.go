@@ -328,7 +328,7 @@ func (r *RoutineBuildingPlanner) shellRuinHolds(call context.Context, s shelterS
 	if !ruins || !ok {
 		return cells, nil
 	}
-	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity)
+	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity, false)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +368,7 @@ func (r *RoutineBuildingPlanner) admitShellClearing(call, epoch context.Context,
 	}
 	snapshot := s.state.Snapshot
 	snapshot.Revision = 1
-	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity)
+	read, err := observation.ObserveClearanceCensus(call, source, s.facts.Identity, false)
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}

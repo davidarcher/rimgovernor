@@ -105,7 +105,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	read, err := observation.ObserveClearanceCensus(call, r.native, expected)
+	read, err := observation.ObserveClearanceCensus(call, r.native, expected, true)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}

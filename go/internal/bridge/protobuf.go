@@ -25,18 +25,9 @@ import (
 
 const maxProtoBytes = 1 << 20
 
-// maxMediaProtoBytes bounds the dedicated media ProtoJSON envelope: a raw
-// 3840x2160 RGBA32 frame base64-encoded is ~42 MiB (presentation.proto,
-// MediaFrame.data). Only the media methods below decode against it.
-const maxMediaProtoBytes = 48 << 20
-
-func payloadLimit(name string) int {
-	switch name {
-	case "rimgovernor/presentation_read_frame", "rimgovernor/presentation_capture_pawn":
-		return maxMediaProtoBytes
-	}
-	return maxProtoBytes
-}
+// maxRecordedProtoBytes bounds a recorded reply decoded back out of a
+// transcript (replywire.go), under the 50 MiB receipt bound.
+const maxRecordedProtoBytes = 48 << 20
 
 var ErrUnavailable = errors.New("native observation unavailable")
 
@@ -238,9 +229,6 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 	return caller.protoCall(ctx, name, request, reply)
 }
 
-// video and frame-acknowledge RPCs are active mutations (lease state, capture
-// telemetry), not free reads, so they are reviewed only in protoCall's allowlist.
-
 // reviewedNativeMethods is protoCall's allowlist: the typed adapters this
 // package exposes. Every entry has an admission class in
 // nativeAdmissionClass (admission.go).
@@ -265,10 +253,6 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/presentation_notifications":           true,
 	"rimgovernor/presentation_render_state":            true,
 	"rimgovernor/presentation_render_demand":           true,
-	"rimgovernor/presentation_capture_pawn":            true,
-	"rimgovernor/presentation_lease_video":             true,
-	"rimgovernor/presentation_read_frame":              true,
-	"rimgovernor/presentation_acknowledge_frame":       true,
 	"rimgovernor/clock_read_events":                    true,
 	"rimgovernor/clock_read_status":                    true,
 	"rimgovernor/clock_read_attempt":                   true,
@@ -372,7 +356,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		return result, err
 	}
 	decodeBegan := time.Now()
-	wire, err := decodeWrapper(result.Structured, payloadLimit(name))
+	wire, err := decodeWrapper(result.Structured, maxProtoBytes)
 	if err != nil {
 		if callErr != nil {
 			return result, callErr
@@ -406,14 +390,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 			typedFailure = r.GetFailure() != nil
 		case *pr.RenderReply:
 			typedFailure = r.GetFailure() != nil
-		case *pr.PawnImageReply:
-			typedFailure = r.GetFailure() != nil
-		case *pr.VideoReply:
-			typedFailure = r.GetFailure() != nil
-		case *pr.FrameReply:
-			typedFailure = r.GetFailure() != nil
-		case *pr.FrameAcknowledgementReply:
-			typedFailure = r.GetRefusal() != nil
 		case *k.EventsReply:
 			typedFailure = r.GetFailure() != nil
 		case *k.StatusReply:

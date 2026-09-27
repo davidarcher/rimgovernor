@@ -25,7 +25,7 @@ Under automation, a tribal colony's first shelter is a circular or oval hut;
 other colonies get a rectangular room, and cramped terrain gets an irregular
 room that fits the ground.
 
-Video can pause while the game runs. Headless sessions have no game images.
+Headless sessions have no game images.
 Viewing a colony does not take control of it.
 
 ## Give a request

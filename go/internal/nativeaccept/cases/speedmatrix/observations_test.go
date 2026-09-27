@@ -18,7 +18,7 @@ func TestObservationRowProblems(t *testing.T) {
 	}
 	bad := []map[string]any{
 		{"case": "uncapped", "frame_interval_samples": uint64(0), "observation_hops": uint64(40)},
-		{"case": "viewer", "frame_interval_samples": uint64(9)},
+		{"case": "observation-load", "frame_interval_samples": uint64(9)},
 	}
 	if problems := observationRowProblems(bad); len(problems) != 2 {
 		t.Fatalf("want two problems, got %v", problems)

@@ -1,7 +1,5 @@
 import {useEffect, useState} from 'react';
 import {readObservation, readPlan, type BuildingAction, type BuildingPlan, type ObservationState, type UnsuccessfulReason} from './observationData';
-import {readPlayerSession} from './playerData';
-import {fetchPresentation, readRoster, type Roster} from './presentationData';
 import './ObservationDashboard.css';
 import PlayerControls from './PlayerControls';
 import PresentationPanel from './PresentationPanel';
@@ -10,8 +8,6 @@ import DevelopmentPanel from './DevelopmentPanel';
 import NowPanel from './NowPanel';
 import FoodPlanPanel from './FoodPlanPanel';
 import ThreatPanel from './ThreatPanel';
-import GameVideoGo, {MapOverviewGo, PawnFeedGo} from './GameVideoGo';
-import PawnPortraitGo from './PawnPortraitGo';
 import PlayerGuide from './PlayerGuide';
 import GovernorPanel from '../governor/GovernorPanel';
 
@@ -29,26 +25,6 @@ function currentView(): View {
   return 'watch';
 }
 
-// A shared player token, used by the video and portrait panels below;
-// PlayerControls independently bootstraps its own copy of the same read.
-function usePlayerToken(sessionId: string): string | null {
-  const [token, setToken] = useState<string | null>(null);
-  useEffect(() => {
-    if (!sessionId) {setToken(null); return;}
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const controller = new AbortController();
-    const poll = async () => {
-      try {
-        const next = await readPlayerSession(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
-        if (!stopped) {setToken(next); timer = setTimeout(() => void poll(), 15000);}
-      } catch { if (!stopped) timer = setTimeout(() => void poll(), 3000); }
-    };
-    void poll();
-    return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [sessionId]);
-  return token;
-}
-
 function WorkPanel({state, plan}: {state: ObservationState | null; plan: BuildingPlan | null}) {
   return <section className="observation-panel" aria-label="Work">
     <h2>Active plan</h2>
@@ -62,36 +38,6 @@ function WorkPanel({state, plan}: {state: ObservationState | null; plan: Buildin
     </>}
     <p className="observation-note">Work here is submitted through Player controls on Watch; this list is a read-only status feed — there is no control to cancel a step in place yet.</p>
   </section>;
-}
-
-// A secondary, portrait-only view of the same roster PresentationPanel already reads;
-// kept separate since PresentationPanel doesn't expose the roster it fetches to its parent.
-function ColonyPortraits({token, active}: {token: string | null; active: boolean}) {
-  const [roster, setRoster] = useState<Roster | null>(null);
-  useEffect(() => {
-    if (!active) return;
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const controller = new AbortController();
-    const poll = async () => {
-      try {
-        const next = await fetchPresentation('colonists', readRoster, AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
-        if (!stopped) setRoster(next);
-      } catch { /* PresentationPanel above already surfaces roster read errors */ }
-      if (!stopped) timer = setTimeout(() => void poll(), 5000);
-    };
-    void poll();
-    return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [active]);
-  if (!token || !roster || roster.colonists.length === 0) return null;
-  const colonists = roster.colonists.filter(c => c.pawnId !== null).slice(0, 24);
-  return <>
-    <section className="observation-panel" aria-label="Colonist feeds"><h2>Colonist feeds</h2><div className="pawn-feed-grid">
-      {colonists.slice(0, 8).map(c => <PawnFeedGo key={c.pawnId} token={token} pawnId={c.pawnId as string} name={c.name ?? (c.pawnId as string)} active={active}/>)}
-    </div></section>
-    <section className="observation-panel" aria-label="Colonist portraits"><h2>Portraits</h2><div className="pawn-portrait-grid">
-      {colonists.map(c => <PawnPortraitGo key={c.pawnId} token={token} pawnId={c.pawnId as string} name={c.name ?? (c.pawnId as string)} active={active}/>)}
-    </div></section>
-  </>;
 }
 
 export default function ObservationDashboard() {
@@ -134,7 +80,6 @@ export default function ObservationDashboard() {
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, []);
-  const token = usePlayerToken(state?.sessionId ?? '');
   const observationFresh = !error && state !== null;
 
   return <main className="observation-shell">
@@ -166,8 +111,6 @@ export default function ObservationDashboard() {
       </dl></section>
       {view === 'watch' && <>
         <NowPanel active/>
-        <section className="observation-panel"><h2>Camera</h2><GameVideoGo token={token} active/></section>
-        <section className="observation-panel"><h2>Map overview</h2><MapOverviewGo token={token} active/></section>
         <PlayerControls observation={state} observationFresh={observationFresh}/>
       </>}
       {view === 'work' && <>
@@ -179,7 +122,6 @@ export default function ObservationDashboard() {
         <FoodPlanPanel active/>
         <PresentationPanel observation={state} observationFresh={observationFresh}/>
         <ThreatPanel active/>
-        <ColonyPortraits token={token} active/>
       </>}
       {view === 'governor' && <GovernorPanel active/>}
     </>}
