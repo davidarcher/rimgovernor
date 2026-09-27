@@ -57,11 +57,11 @@ func TestFailFastNoMethodMethodUnavailableWaits(t *testing.T) {
 		s["development"] = map[string]any{"reason": string(policy.DevelopmentMethodUnavailable), "selected": false, "committed": false, "idle": true}
 		return s
 	}
-	// By default a yielded row counts like any idle review.
+	// By default a method_unavailable row counts like any idle review.
 	f := newFailFast(FailFast{NoMethodReviews: 2}, policy.MaintainResource, "")
 	f.check(yielded(1))
 	if _, failed := f.check(yielded(2)); !failed {
-		t.Fatal("two yielded reviews must fail without the opt-in")
+		t.Fatal("two method_unavailable reviews must fail without the opt-in")
 	}
 	// With the opt-in the ladder's research rung is neutral: it neither
 	// counts nor resets, and the count resumes once the slot is handed.

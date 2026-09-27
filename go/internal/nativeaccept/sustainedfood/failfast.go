@@ -48,11 +48,11 @@ type FailFast struct {
 	RefusalSamples int
 	// MethodUnavailableWaits treats a review whose row reads
 	// method_unavailable as neutral for the no-method count: neither a
-	// slot handed to an idle planner nor a reset. A ladder goal that yields
-	// its slot by design while another rung runs (MaintainResource while
-	// the project gating its bench is unfinished, policy.RoutineNeeds)
-	// reads exactly like a planner that found no method, so the case that
-	// knows the design opts in.
+	// count nor a reset. A goal whose methods are exhausted by design
+	// (MaintainResource while the project gating its bench is unfinished,
+	// policy.RoutineNeeds) returns method_unavailable and waits for the
+	// next review, which reads like a planner that found no method, so the
+	// case that knows the design opts in.
 	MethodUnavailableWaits bool
 	// ParkSamples is how many consecutive samples the watched goal may sit
 	// suspended under an emergency with the live tick unchanged before the
