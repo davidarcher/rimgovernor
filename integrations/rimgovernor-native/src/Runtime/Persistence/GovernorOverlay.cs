@@ -78,6 +78,7 @@ namespace HomeBridge.BridgeTools
 
         public override void MapComponentUpdate()
         {
+            if (!Application.isBatchMode && Find.CurrentMap == map) WidenZoomOut();
             if (!OverlayVisibility.Master || Application.isBatchMode
                 || Find.CurrentMap != map || WorldRendererUtility.WorldSelected) return;
             foreach (var (group, draw) in drawers)
@@ -94,6 +95,18 @@ namespace HomeBridge.BridgeTools
                 foreach (var (mesh, material) in layer.Meshes)
                     Graphics.DrawMesh(mesh, Vector3.zero, Quaternion.identity, material, 0);
             }
+        }
+
+        // Vanilla caps scroll-out at root size 60, well short of a whole map on a
+        // large monitor. Raise the cap so the entire map (plus a margin) fits in
+        // either axis at any aspect ratio; root size is half the visible height.
+        void WidenZoomOut()
+        {
+            var config = Find.CameraDriver?.config;
+            if (config == null) return;
+            var aspect = Math.Max(0.1f, (float)UI.screenWidth / Math.Max(1, UI.screenHeight));
+            var fit = Math.Max(map.Size.z / 2f, map.Size.x / (2f * aspect)) + 8f;
+            if (config.sizeRange.max < fit) config.sizeRange.max = fit;
         }
 
         public override void MapComponentOnGUI()
