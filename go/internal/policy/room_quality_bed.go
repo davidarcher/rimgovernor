@@ -23,13 +23,17 @@ var bedQualityRank = map[string]int{"Awful": 0, "Poor": 1, "Normal": 2, "Good": 
 // replacementBedSizes are the North footprints of the beds the closer builds.
 var replacementBedSizes = map[Resource]domain.Cell{"Bed": {X: 1, Z: 2}, "DoubleBed": {X: 2, Z: 2}, "RoyalBed": {X: 2, Z: 2}}
 
-// bedStuffFactors are the vanilla stuff beauty factor and market value per
-// unit of the stuffs a bed takes; a stuff missing here (a mod's) is never
-// built and scores as unknown.
+// bedStuffFactors are the vanilla stuff beauty factor (stuffProps.statFactors
+// Beauty, 1 when absent; never the item's own statBases Beauty) and the
+// statBases MarketValue per unit of the stuffs a bed takes; a stuff missing
+// here (a mod's) is never built and scores as unknown. Source: RimWorld
+// Data/Core/Defs ThingDefs_Items/Items_Resource_Stuff.xml and
+// ThingDefs_Misc/Various_Stone.xml (blocks inherit MarketValue 0.9 from the
+// abstract StoneBlocksBase).
 var bedStuffFactors = map[Resource]struct{ Beauty, Value float64 }{
-	"WoodLog": {1, 1.2}, "Steel": {1, 1.9}, "Plasteel": {1, 9}, "Uranium": {1, 6},
-	"Silver": {6, 1}, "Gold": {20, 10}, "Jade": {7, 5},
-	"BlocksSandstone": {1, 0.9}, "BlocksGranite": {1, 0.9}, "BlocksLimestone": {1, 0.9}, "BlocksSlate": {1, 0.9}, "BlocksMarble": {1.35, 1},
+	"WoodLog": {1, 1.2}, "Steel": {1, 1.9}, "Plasteel": {1, 9}, "Uranium": {0.5, 6},
+	"Silver": {2, 1}, "Gold": {4, 10}, "Jade": {2.5, 5},
+	"BlocksSandstone": {1.1, 0.9}, "BlocksGranite": {1, 0.9}, "BlocksLimestone": {1, 0.9}, "BlocksSlate": {1.1, 0.9}, "BlocksMarble": {1.35, 0.9},
 }
 
 // bedStuffScore ranks a bed's stuff: beauty factor times market value.

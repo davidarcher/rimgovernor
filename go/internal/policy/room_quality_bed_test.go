@@ -1,10 +1,25 @@
 package policy
 
 import (
+	"math"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
+
+// TestBedStuffScoreUsesStuffFactors pins the stuffProps.statFactors Beauty
+// (not the item's statBases Beauty) times market value from the game XML.
+func TestBedStuffScoreUsesStuffFactors(t *testing.T) {
+	for stuff, want := range map[Resource]float64{
+		"Silver": 2, "Gold": 40, "Jade": 12.5, "Uranium": 3, "Plasteel": 9,
+		"BlocksSandstone": 0.99, "BlocksGranite": 0.9, "BlocksMarble": 1.215,
+	} {
+		got, ok := bedStuffScore(stuff)
+		if !ok || math.Abs(got-want) > 1e-9 {
+			t.Errorf("bedStuffScore(%s) = %v, %v; want %v", stuff, got, ok, want)
+		}
+	}
+}
 
 func replacementBed(id, quality string, owners ...PawnID) SleepingBed {
 	return SleepingBed{ID: id, Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Room: domain.Known("Room_1"), Quality: domain.Known(quality), Owners: owners, Cell: domain.Cell{X: 2, Z: 3}}
