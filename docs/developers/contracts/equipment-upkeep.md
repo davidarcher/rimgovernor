@@ -197,8 +197,11 @@ first winter twelfth; tainted apparel (#468) moves everyone to the worker
 policy and never orders the tainted parka; a stripped twelve-pawn roster
 (#469) is dressed from stored spares, each pawn and each item once, with
 no bill while an offer stands. The soldier loadout (#470, #471) is covered
-by [weapon planner](weapon-planner.md#acceptance). `production/apparel`
-keeps the single-shirt-from-leather path natively.
+by [weapon planner](weapon-planner.md#acceptance). The single
+shirt-from-leather path is a colony snapshot test (#894,
+`buildingruntime/routine_ladder_snapshot_test.go`): with no tailoring bench the
+workshop step builds a HandTailoringBench, and once it stands the gear step
+produces the shirt on it from plain leather.
 
 Finished apparel in valid storage is aggregated by definition, stuff, quality
 and hit-point band in `GearSnapshot.stored_apparel`, bounded to 4096 rows.
@@ -209,11 +212,8 @@ weapon demand joins after colony-wide loose-weapon assignment. Each review admit
 at most one bill and independent pawn orders bounded by free development slots;
 pawn and item identities cannot be claimed twice by open dressing methods.
 
-`acceptance run production/apparel` (issue #233): a colonist in a tattered cloth
-shirt, no tailoring bench and only plain leather for fabric; the service must
-build the bench, raise the shirt bill from the leather and dress the colonist in the product. Fixture
-checks, native scripted pawn outcomes and sustained seasonal campaigns are
-different evidence levels.
+Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns
+are different evidence levels.
 
 Optional `RoutinePolicy.GearSpareTargets` keeps unworn spares by definition.
 These targets bind to `MaintainResource`: its workshop ladder stages missing

@@ -324,30 +324,14 @@ stream client issues no control operation).
 
 ## Late-game material production
 
-`production/deepdrill` and `production/components` run in the full
-tier only. `ProductionLadderFixture` stages their research, power, skilled
-workers and exhausted surface. Deep drilling starts with a built scanner,
-a seeded steel lump and construction funding; fabrication starts with a
-bench, 600 steel and no components. The harness stages a cancelled plan
-from a day earlier so the runway forecast has history immediately.
-Neither fixture supplies a drill or a bill.
-
-Each case gives ordinary pawn production six minutes within an eight-minute
-budget and starts fresh to preserve its baseline. Deep drilling requires
-steel stock above the baseline, depletion of the seeded lump and a drill
-over it. Fabrication requires more components, steel consumption and a
-`MakeComponent` bill. Both fixture operations are declared by the cases;
-`acceptance setup -fixture ProductionLadderFixture` includes their existing
-build registration. Compilation and registration complete the case-writing
-task; the next nightly run proves the native outcome.
-
-`production/drillremoval` (#538) runs in the ordinary tiers: the same fixture's
-`exhausted` scenario adds one colonist drill over barren ground beside the
-seeded lump, the steel deficit admits a `routine-drill-removal-*` plan whose
-drill `Deconstruction` dispatches through Hands, and the audit requires the
-barren drill gone with the scanner and lump untouched. About 30 seconds; rerun
-when `routine_deep_drill.go`, the deconstruction boundary or
-`NativeDeepResources.cs` changes.
+The deep drill, drill removal and component fabrication decisions are
+colony snapshot tests (#894,
+`buildingruntime/routine_ladder_snapshot_test.go`): the deep drill step's
+own read sites the seeded steel lump and picks the depleted drill to
+deconstruct, and the resource step's recorded bench census funds a
+`Make_ComponentIndustrial` bill. The former `production/deepdrill`,
+`production/components` and `production/drillremoval` native cases are
+gone.
 
 ## Isolated food channels
 
@@ -605,8 +589,8 @@ by review alone.
    prepare and the watch; what `Run` learned that the asserts need goes
    through `na.SetCheckpointState` (read back from `Session.Resumed`) or
    `Session.Prior`. That is what lets `-postmortem-only` rerun the asserts
-   over the failed bundle in seconds (#275). `production/ladder` and
-   `research/ladder` are the shape.
+   over the failed bundle in seconds (#275). `production/ladder` is the
+   shape.
 
 ## Keep the game quiet and small
 

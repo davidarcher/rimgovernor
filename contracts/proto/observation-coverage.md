@@ -66,8 +66,8 @@ Random discovery may occur sooner. Missing timing stays unknown. Go preserves an
 absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
 observed empty section establishes no discovered lumps or built scanners.
 `tools/deepresources` checks seeded aggregation, both scanner kinds and a
-yielding drill beside a depleted one, `production/drillremoval` the removal of
-a depleted drill through Hands.
+yielding drill beside a depleted one; a colony snapshot test (#894) selects
+a depleted drill for removal from the deep drill step's recorded read.
 
 ## Required semantic validation
 

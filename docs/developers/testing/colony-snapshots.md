@@ -105,7 +105,10 @@ variable set, each step writes `planner-<goal>-<tick>-<seq>.json`
 searches, dig search, native excavation site reads by purpose and
 dig-or-shell choices; chunk dump sites; animal feed method inputs;
 secure-supplies items, hauler candidates and covered storage searches;
-shrine defender squads and breach readiness requests. Several steps at
+shrine defender squads and breach readiness requests; the resource
+step's bill selections, the workshop bench censuses, the gear step's
+method requests and the research step's census with its needs (#894).
+Several steps at
 one paused tick each keep their own file. Load it with `snapshot.LoadPlanner` and call the
 policy function on the recorded request. Under the acceptance harness the
 recording directory gets `<area>/<case>` appended per case. Commit
@@ -113,14 +116,15 @@ recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.
 
 ## Planner step reads
 
-The building and bill planners decide from their own colony read at step
-time, which carries what the review's read lacks: rooms, the step's own
-definitions (every policy lamp for lighting), fresh benches. With the
+The building, bill, hospital and deep drill planners decide from their
+own colony read at step time, which carries what the review's read lacks:
+rooms, the step's own definitions (every policy lamp for lighting), fresh
+benches, the deep resource census. With the
 recording variable set, each such step also appends its read to the
 serve's stream (`snapshot.Step`, #794, #795): the projection it read,
 Facts included, as a patch against the last review's projection, its site
 cells left to the mirror section when they match. `trim -list` names the
-step reads `step-<building|bill>-<goal>-<tick>-<seq>`, and
+step reads `step-<building|bill|hospital|deepdrill>-<goal>-<tick>-<seq>`, and
 `trim -step <name> <stream> testdata/<name>.json.gz` materialises one
 (a `step-*.json` file recorded before the stream carried them trims as
 before), dropping the site cells unless `-keep-cells` (a lighting or

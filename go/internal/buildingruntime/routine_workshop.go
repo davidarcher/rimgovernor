@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -177,7 +178,9 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		if err != nil {
 			return nil, "", err
 		}
-		choice, err := policy.SelectWorkshopBench(policy.WorkshopRequest{Resource: product, Benches: domain.Known(benches), Hosts: hosts})
+		request := policy.WorkshopRequest{Resource: product, Benches: domain.Known(benches), Hosts: hosts}
+		snap.NoteWorkshop(call, request)
+		choice, err := policy.SelectWorkshopBench(request)
 		if err != nil {
 			return nil, "", err
 		}
@@ -253,7 +256,9 @@ func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state Cont
 	choice := policy.WorkshopChoice{Method: policy.WorkshopUnavailable}
 	resource := r.workshop.resource
 	for _, product := range products {
-		candidate, err := policy.SelectWorkshopBench(policy.WorkshopRequest{Resource: product.resource, Benches: domain.Known(r.workshop.benches), Hosts: product.hosts, Definitions: definitions, Power: generatorAvailable(available), BuilderSkill: policy.BuilderSkill(facts.WorkPawns)})
+		request := policy.WorkshopRequest{Resource: product.resource, Benches: domain.Known(r.workshop.benches), Hosts: product.hosts, Definitions: definitions, Power: generatorAvailable(available), BuilderSkill: policy.BuilderSkill(facts.WorkPawns)}
+		snap.NoteWorkshop(call, request)
+		candidate, err := policy.SelectWorkshopBench(request)
 		if err != nil {
 			return nil, "", err
 		}

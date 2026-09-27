@@ -15,8 +15,6 @@ namespace HomeBridge.BridgeTools
     // reads Masonry, stages the starter hut (FixtureHut) whose south-west
     // corner the controller fixes the colony grid on, and drops wood beside
     // its door; the field the controller then plans is the case's own.
-    // The layout/tidy case (#611) stages the hut at Camp with PrepareTidy and
-    // finishes Stonecutting mid-run with FinishResearch.
     // Audit reads every finished player wall ring and growing zone back
     // with their cells so the case checks both footprints against the grid,
     // and every wall, door, blueprint and frame with its stuff, so the case
@@ -89,36 +87,6 @@ namespace HomeBridge.BridgeTools
             var granite = DefDatabase<ThingDef>.GetNamedSilentFail("BlocksGranite");
             if (granite == null) throw new InvalidOperationException("No stone block def available in this ruleset.");
             return granite;
-        }
-
-        [Tool("test/layout_tidy_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture for layout/tidy (#611): build the fixture hut with wood beside its door at Camp tier (no research finished) so the field family plants its first patch off the grid; the tidy stage finishes Stonecutting later with test/layout_tidy_research.")]
-        public async Task<object> PrepareTidy(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "South-west corner x of the 9x9 hut the controller's starter search chose (required).")] int siteX = -1,
-            [ToolParameter(Description = "South-west corner z of the hut.")] int siteZ = -1,
-            [ToolParameter(Description = "Door cell x on the hut's ring; negative puts the door mid east wall.")] int doorX = -1,
-            [ToolParameter(Description = "Door cell z on the hut's ring.")] int doorZ = -1)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var hut = FixtureHut.Build(map, 9, FixtureHut.Site(siteX, siteZ), FixtureHut.Site(doorX, doorZ));
-                FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 4 * ThingDefOf.WoodLog.stackLimit);
-                return new { success = true, hut = hut.Summary(), hutOrigin = new { x = hut.Origin.x, z = hut.Origin.z }, hutSize = 9,
-                    stonecutting = DefDatabase<ResearchProjectDef>.GetNamed("Stonecutting").IsFinished, tick = Find.TickManager.TicksGame };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/layout_tidy_research", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: finish the named research (default Stonecutting) with its prerequisites on the paused game so the build tier reads Masonry.")]
-        public async Task<object> FinishResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "ResearchProjectDef to finish (default Stonecutting).")] string project = "Stonecutting")
-        {
-            var name = string.IsNullOrEmpty(project) ? "Stonecutting" : project;
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (Find.CurrentMap == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var def = DefDatabase<ResearchProjectDef>.GetNamed(name);
-                Finish(def);
-                return new { success = true, project = name, finished = def.IsFinished, tick = Find.TickManager.TicksGame };
-            }, cancellationToken).ConfigureAwait(false);
         }
 
         // InstantShells (#838): once armed, every player wall, door, autodoor

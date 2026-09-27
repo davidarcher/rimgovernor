@@ -46,6 +46,26 @@ type Planner struct {
 	ShrineSquads [][]policy.ShrineDefenderFacts
 	// ShrineReadiness is every policy.ShrineBreachReadiness request.
 	ShrineReadiness []policy.ShrineReadinessRequest
+	// ResourceMethods is every policy.SelectResourceMethod request: the
+	// fresh bench census and ingredient stock a production bill is chosen
+	// from (#894).
+	ResourceMethods []policy.ResourceMethodRequest
+	// Workshops is every policy.SelectWorkshopBench request: the recipe
+	// catalog and bench census a workshop bench is chosen from.
+	Workshops []policy.WorkshopRequest
+	// GearMethods is every policy.SelectGearMethod request.
+	GearMethods []policy.GearPlanningRequest
+	// Research is every research selection's fresh census.
+	Research []ResearchCall
+}
+
+// ResearchCall is one research selection's inputs: the staged policy
+// (armor rungs applied), the recorded research needs and the native
+// research read without its observation context.
+type ResearchCall struct {
+	Policy policy.RoutinePolicy
+	Needs  []string
+	Read   bridge.ResearchRead
 }
 
 // ExcavationRead is one native excavation site read: what was asked
@@ -87,7 +107,8 @@ func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, fun
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.Choices)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+len(p.CoveredStorage) == 0 {
+		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.Choices)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+len(p.CoveredStorage)+
+			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
 		p.Snapshot, p.Tick = current, tick
@@ -181,6 +202,27 @@ func NoteShrineSquad(ctx context.Context, squad []policy.ShrineDefenderFacts) {
 // NoteShrineReadiness records a shrine breach readiness request.
 func NoteShrineReadiness(ctx context.Context, r policy.ShrineReadinessRequest) {
 	recorder(ctx).add(func(p *Planner) { p.ShrineReadiness = append(p.ShrineReadiness, r) })
+}
+
+// NoteResourceMethod records a production bill selection's request.
+func NoteResourceMethod(ctx context.Context, r policy.ResourceMethodRequest) {
+	recorder(ctx).add(func(p *Planner) { p.ResourceMethods = append(p.ResourceMethods, r) })
+}
+
+// NoteWorkshop records a workshop bench selection's request.
+func NoteWorkshop(ctx context.Context, r policy.WorkshopRequest) {
+	recorder(ctx).add(func(p *Planner) { p.Workshops = append(p.Workshops, r) })
+}
+
+// NoteGearMethod records a gear method selection's request.
+func NoteGearMethod(ctx context.Context, r policy.GearPlanningRequest) {
+	recorder(ctx).add(func(p *Planner) { p.GearMethods = append(p.GearMethods, r) })
+}
+
+// NoteResearch records a research selection's inputs.
+func NoteResearch(ctx context.Context, c ResearchCall) {
+	c.Read.Context = nil
+	recorder(ctx).add(func(p *Planner) { p.Research = append(p.Research, c) })
 }
 
 // RecordPlanner writes p into dir as planner-<goal>-<tick>-<seq>.json,

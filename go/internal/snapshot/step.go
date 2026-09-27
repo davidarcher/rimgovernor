@@ -20,7 +20,7 @@ type Step struct {
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
 	Goal     policy.GoalID
-	// Planner is "building" or "bill".
+	// Planner is "building", "bill", "hospital" or "deepdrill".
 	Planner string
 	// Projection is the step's reading with its Facts; its Zones and
 	// Window are not recorded, as in Routine.

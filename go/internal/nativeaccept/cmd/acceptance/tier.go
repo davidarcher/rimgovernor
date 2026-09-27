@@ -218,11 +218,9 @@ var endToEnd = map[string]bool{
 }
 
 // nightlyOnly excludes slow gameplay proofs from the landing and sampled
-// sets: the end-to-end cases, the long drill cases and the campaign/*
-// family (#633).
+// sets: the end-to-end cases and the campaign/* family (#633).
 func nightlyOnly(name string) bool {
-	return endToEnd[name] || name == "production/deepdrill" || name == "production/components" ||
-		strings.HasPrefix(name, "campaign/")
+	return endToEnd[name] || strings.HasPrefix(name, "campaign/")
 }
 
 // offTier names the cases no tier runs (#739): fixture generators, which

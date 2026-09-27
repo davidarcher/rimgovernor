@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -141,6 +142,8 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineResearchResult{Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.EnsureResearch, state.Snapshot, review.Tick)
+	defer recorded()
 	// The ladder is paced by the colony stage (#630): a Foothold colony
 	// walks its first rungs, a Development colony the whole ladder.
 	staged := r.reviewer.staged()
@@ -201,37 +204,17 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !deficit {
 		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	finished := make([]policy.ResearchProjectID, len(read.Finished))
-	for i, name := range read.Finished {
-		finished[i] = policy.ResearchProjectID(name)
+	inputs := snap.ResearchCall{Policy: policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), Needs: needs, Read: read}
+	snap.NoteResearch(call, inputs)
+	next, reason := researchNext(inputs)
+	if reason != "" {
+		return RoutineResearchResult{Reason: reason}, nil
 	}
-	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject), Finished: finished}
-	for name := range read.Projects {
-		facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
-	}
-	// The goal against the fresh census: the first recorded need the
-	// census lists and has not finished, else the first such ladder rung.
-	target, _ := policy.ResearchGoal(policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), needs, domain.Known(facts))
-	if target == "" {
-		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
-	}
-	if _, ok := read.Projects[target]; !ok {
-		return RoutineResearchResult{Reason: BuildingMethodUnknown}, nil
-	}
-	projects := make(map[policy.ResearchProjectID]policy.ResearchProjectFacts, len(read.Projects))
-	for name, facts := range read.Projects {
-		projects[policy.ResearchProjectID(name)] = facts
-	}
-	queue, err := policy.ResearchPrerequisiteQueue(projects, finished, []policy.ResearchProjectID{policy.ResearchProjectID(target)})
-	if err != nil || len(queue) == 0 {
-		return RoutineResearchResult{Reason: BuildingMethodUnknown}, nil
-	}
-	next := string(queue[0])
 	// A rung locked only for lack of a bench is a building need, not a
 	// selection: native refuses the ResearchIntent until the bench stands
 	// (#254). The ladder's plans are this goal's methods, so an open bench
 	// build reads as existing work above and the selection follows it.
-	if policy.ResearchBenchNeeded(projects[queue[0]]) {
+	if policy.ResearchBenchNeeded(read.Projects[next]) {
 		return r.bench(call, epoch, arbiter)
 	}
 	digestNext := sha256.Sum256([]byte(next))
@@ -265,4 +248,37 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, err
 	}
 	return RoutineResearchResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// researchNext is the project a research step selects from its fresh
+// census: the goal is the first recorded need the census lists and has not
+// finished, else the first such ladder rung, and the step selects the first
+// unfinished prerequisite on the way to it. A non-empty reason is the
+// step's outcome instead.
+func researchNext(in snap.ResearchCall) (string, RoutineBuildingReason) {
+	read := in.Read
+	finished := make([]policy.ResearchProjectID, len(read.Finished))
+	for i, name := range read.Finished {
+		finished[i] = policy.ResearchProjectID(name)
+	}
+	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject), Finished: finished}
+	for name := range read.Projects {
+		facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
+	}
+	target, _ := policy.ResearchGoal(in.Policy, in.Needs, domain.Known(facts))
+	if target == "" {
+		return "", BuildingMethodNoDeficit
+	}
+	if _, ok := read.Projects[target]; !ok {
+		return "", BuildingMethodUnknown
+	}
+	projects := make(map[policy.ResearchProjectID]policy.ResearchProjectFacts, len(read.Projects))
+	for name, facts := range read.Projects {
+		projects[policy.ResearchProjectID(name)] = facts
+	}
+	queue, err := policy.ResearchPrerequisiteQueue(projects, finished, []policy.ResearchProjectID{policy.ResearchProjectID(target)})
+	if err != nil || len(queue) == 0 {
+		return "", BuildingMethodUnknown
+	}
+	return string(queue[0]), ""
 }

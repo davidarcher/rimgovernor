@@ -35,6 +35,30 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	}
 }
 
+func TestPlannerRecordsProductionAndResearchInputs(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(DirEnv, dir)
+	ctx, finish := StartPlanner(context.Background(), policy.MaintainResource)
+	bench := policy.GearBench{ID: "b1"}
+	NoteResourceMethod(ctx, policy.ResourceMethodRequest{Resource: "StoneBlocks", Target: 75, Benches: domain.Known([]policy.GearBench{bench})})
+	NoteWorkshop(ctx, policy.WorkshopRequest{Resource: "StoneBlocks", Power: domain.Known(false)})
+	NoteGearMethod(ctx, policy.GearPlanningRequest{Benches: domain.Known([]policy.GearBench{bench})})
+	NoteResearch(ctx, ResearchCall{Needs: []string{"Stonecutting"}, Read: bridge.ResearchRead{Finished: []string{"Smithing"},
+		Projects: map[string]policy.ResearchProjectFacts{"Stonecutting": {Name: "Stonecutting"}}}})
+	if err := finish(domain.GenerationSnapshot{Colony: "c"}, 9); err != nil {
+		t.Fatal(err)
+	}
+	p, err := LoadPlanner(dir + "/planner-MaintainResource-9-1.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	benches, _ := p.ResourceMethods[0].Benches.Value()
+	if p.ResourceMethods[0].Target != 75 || len(benches) != 1 || p.Workshops[0].Resource != "StoneBlocks" || len(p.GearMethods) != 1 ||
+		p.Research[0].Read.Projects["Stonecutting"].Name != "Stonecutting" || p.Research[0].Needs[0] != "Stonecutting" {
+		t.Fatalf("planner %+v", p)
+	}
+}
+
 func TestPlannerRecordsNothingWhenUnset(t *testing.T) {
 	t.Setenv(DirEnv, "")
 	ctx, finish := StartPlanner(context.Background(), policy.EnsureInitialShelter)

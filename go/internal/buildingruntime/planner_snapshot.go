@@ -23,7 +23,7 @@ func recordedMirror() *mirror.Mirror {
 }
 
 // recordStepRead appends a planner step's own colony read (planner is
-// "building" or "bill") to the serve's snapshot stream for replay
+// "building", "bill", "hospital" or "deepdrill") to the serve's snapshot stream for replay
 // (#794) when snapshot recording is on; a failed write is logged.
 func recordStepRead(planner string, goal policy.GoalID, current domain.GenerationSnapshot, reading observation.ColonyProjection) {
 	dir := os.Getenv(snap.DirEnv)

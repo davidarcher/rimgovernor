@@ -265,6 +265,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, ErrControl
 	}
 	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
+		var recorded func()
+		call, recorded = recordPlannerStep(call, r.goal, state.Snapshot, review.Tick)
+		defer recorded()
 		selection, reason, err := r.prepareWorkshop(call, state, review)
 		if err != nil || reason != "" {
 			return RoutineBuildingResult{Reason: reason}, err

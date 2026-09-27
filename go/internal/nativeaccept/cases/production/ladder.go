@@ -74,7 +74,7 @@ const (
 // the bench standing in the fixture hut, before any bill is placed on it.
 // The bench is proven the service's at the stage boundary: a hit reloads
 // the world and the review rebinds fresh goals, so the journal after it
-// cannot (see research/ladder).
+// cannot.
 const benchStage = "bench-built"
 
 // ladderFailFast keeps the watch's fail-fast on but lets MaintainResource

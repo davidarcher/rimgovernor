@@ -135,7 +135,7 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 }
 
 func TestColonyStableNightlyOnly(t *testing.T) {
-	for _, name := range []string{"sustained/colony-stable", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery"} {
+	for _, name := range []string{"sustained/colony-stable", "campaign/foothold", "campaign/recovery"} {
 		for _, tier := range []string{"nightly", "full", "smoke", "matrix"} {
 			set, err := tierCases(tier, "", "main")
 			if err != nil {

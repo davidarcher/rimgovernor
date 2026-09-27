@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -176,6 +177,8 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineGearResult{Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.MaintainEquipment, state.Snapshot, review.Tick)
+	defer recorded()
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -351,7 +354,9 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 			return RoutineGearResult{}, err
 		}
 	}
-	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, WeaponDemand: weaponDemand})
+	request := policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, WeaponDemand: weaponDemand}
+	snap.NoteGearMethod(call, request)
+	choice, err := policy.SelectGearMethod(request)
 	if err != nil {
 		return RoutineGearResult{}, err
 	}

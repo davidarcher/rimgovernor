@@ -64,10 +64,11 @@ selection receipt, a completed prerequisite, or a zero-length queue with an unre
 capability cannot certify the requested unlock.
 
 Research acceptance: `production/ladder` proves a derived need (Smithing
-finished natively and the gated bench built) and `research/ladder`
-(`acceptance run research/ladder`) proves the default ladder and its bench, both on the
-Core tribal baseline; the research case runs with no target: `test/research_ladder_prepare` seeds
-Stonecutting at 97%, a roofed starter hut with sleeping spots (`scripts/fixtures/FixtureHut.cs`), wood and steel beside its door and no bench, and the live research state must show a research
-bench the service built, Stonecutting finished and Electricity current. Advanced
+finished natively and the gated bench built) on the Core tribal baseline. The default
+ladder and its bench are a colony snapshot test (#894,
+`buildingruntime/routine_ladder_snapshot_test.go`): the research step's recorded census
+with Stonecutting at 97% and no bench selects Stonecutting and owes a bench, the bench
+step admits an indoor research bench, and with Stonecutting finished Electricity is
+next. Advanced
 facility installation, all research projects and sustained colony development
 remain separately uncertified either way.

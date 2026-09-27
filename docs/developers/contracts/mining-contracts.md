@@ -43,10 +43,10 @@ recipe and a suitable bench, staged through the existing workshop prerequisites.
 Each additional component budgets twelve usable steel while retaining the steel
 reserve plus five days of consumption. Prospective ore cannot fund a bill.
 
-The registered nightly cases `production/deepdrill` and `production/components`
-start with research, power, labor and history prepared. They require native stock
-growth backed by drilled-lump depletion or a component bill and steel consumption;
-orders and forecast recovery alone cannot establish production.
+Colony snapshot tests (#894, `buildingruntime/routine_ladder_snapshot_test.go`)
+cover the decisions from recorded step reads: the deep drill step sites the seeded
+steel lump, and the resource step funds a component bill on a standing fabrication
+bench. Native stock growth from either is not certified.
 
 ## Go deep-drill planning
 
@@ -70,7 +70,8 @@ Hands deconstruction path (a drill
 census and designates only while the exact drill (id, definition, cell) is
 still present and depleted. A lump centre moving as it is mined, an unknown
 census or a still yielding seam never triggers removal; yielding and
-already-designated drills keep holding placement (`production/drillremoval`).
+already-designated drills keep holding placement (the drill removal snapshot test,
+#894).
 Plasteel construction costs join runway history; bill consumption without a
 Plasteel quantity stays unknown.
 

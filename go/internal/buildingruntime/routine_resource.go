@@ -14,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -132,6 +133,8 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineResourceResult{Reason: BuildingMethodNoReview}, nil
 	}
+	call, recorded := recordPlannerStep(call, policy.MaintainResource, state.Snapshot, review.Tick)
+	defer recorded()
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -287,7 +290,9 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			runways = review.ResourceRunwayState()
 		}
 	}
-	choice, err := policy.SelectResourceMethod(policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply, Runways: runways, CurrentStock: stock})
+	request := policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply, Runways: runways, CurrentStock: stock}
+	snap.NoteResourceMethod(call, request)
+	choice, err := policy.SelectResourceMethod(request)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

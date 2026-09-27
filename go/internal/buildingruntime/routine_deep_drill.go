@@ -189,6 +189,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		finished.Finished = append(finished.Finished, policy.ResearchProjectID(name))
 	}
 	f.Facts.Research = domain.Known(finished)
+	recordStepRead("deepdrill", policy.MaintainResource, state.Snapshot, f)
 	if result, handled, err := r.removeExhaustedDrill(call, epoch, state, goal, f, started); err != nil || handled {
 		return result, handled, err
 	}

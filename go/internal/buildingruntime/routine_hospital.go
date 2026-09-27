@@ -163,6 +163,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
+	recordStepRead("hospital", policy.MaintainMedicalCare, state.Snapshot, facts)
 	choice, err := policy.SelectHospitalBed(hospitalRequest(facts))
 	if err != nil {
 		return RoutineBuildingResult{}, err
