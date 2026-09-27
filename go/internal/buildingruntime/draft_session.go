@@ -56,10 +56,20 @@ func (s *draftSweep) run(ctx context.Context, retainHeld bool) error {
 	if err != nil {
 		return err
 	}
+	// An open fight (#852) holds its completed drafts outside plan work,
+	// as the worker keeps them (workerCleanupEligible): releasing them on
+	// a resume dropped the fight out of its goal mid-raid (#906).
+	fights := map[domain.PlanID]bool{}
+	if retainHeld {
+		if fights, err = s.journal.OpenCombatFights(ctx); err != nil {
+			return err
+		}
+	}
 	var pending []domain.Progress
 	for _, plan := range plans {
 		for _, p := range plan.Progress {
-			if draftOutstanding(p) && !(retainHeld && workerPlanHoldsDraft(plan, p.View())) {
+			held := workerPlanHoldsDraft(plan, p.View()) || fights[plan.Spec.ID()] && p.View().Stage == domain.Completed
+			if draftOutstanding(p) && !(retainHeld && held) {
 				pending = append(pending, p)
 			}
 		}
