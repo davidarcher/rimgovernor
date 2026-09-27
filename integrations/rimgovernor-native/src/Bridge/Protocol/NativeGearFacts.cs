@@ -17,6 +17,10 @@ namespace HomeBridge.BridgeTools
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
             var result = new Obs.GearSnapshot { Context = context.Clone()};
             ReadClimate(map, result);
+            result.OutdoorTemperatureC = Number(map.mapTemperature.OutdoorTemp);
+            result.FinishedResearch.Add(DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(r => r.IsFinished)
+                .Select(r => Id(r.defName)).OrderBy(n => n, StringComparer.Ordinal));
+            var catalog = Catalog();
             var stored = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
                 .Where(a => a.IsInValidStorage() && !a.IsForbidden(Faction.OfPlayer) && !a.WornByCorpse
                     && (!a.def.useHitPoints || (float)a.HitPoints / a.MaxHitPoints > .5f))
@@ -69,9 +73,87 @@ namespace HomeBridge.BridgeTools
                     if (need.stuff != null) replacement.Stuff = Id(need.stuff);
                     row.ReplacementNeeds.Add(replacement);
                 }
+                row.LoadoutModel = Model(map, pawn, row, catalog);
                 result.Pawns.Add(row);
             }
             return result;
+        }
+
+        // The Go loadout model's catalog is at most 64 unworn options; loose
+        // or stored candidates take up to half, best native gain first.
+        private const int ModelOptions = 64, ModelPhysical = 32;
+
+        // Producible apparel: one recipe per definition whose research is
+        // finished, in stable definition order.
+        private static List<RecipeDef> Catalog() => DefDatabase<RecipeDef>.AllDefsListForReading
+            .Where(r => r.ProducedThingDef != null && r.ProducedThingDef.IsApparel && r.AvailableNow)
+            .GroupBy(r => r.ProducedThingDef).Select(g => g.OrderBy(r => r.defName, StringComparer.Ordinal).First())
+            .OrderBy(r => r.ProducedThingDef.defName, StringComparer.Ordinal).ToList();
+
+        private static Obs.GearLoadoutModel Model(Map map, Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog)
+        {
+            var model = new Obs.GearLoadoutModel { Female = pawn.gender == Gender.Female };
+            if (pawn.story?.traits != null)
+                foreach (var trait in pawn.story.traits.allTraits) model.Traits.Add(new Obs.Trait { DefName = Id(trait.def.defName), Degree = trait.Degree });
+            if (pawn.apparel != null)
+                foreach (var worn in pawn.apparel.WornApparel) {
+                    var option = Physical(worn, "worn");
+                    option.Locked = pawn.apparel.IsLocked(worn) || pawn.outfits?.forcedHandler.AllowedToAutomaticallyDrop(worn) == false;
+                    model.Worn.Add(option);
+                }
+            var things = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToDictionary(a => a.GetUniqueLoadID());
+            foreach (var candidate in row.Candidates.Take(ModelPhysical))
+                if (things.TryGetValue(candidate.Item.Thing.Id, out var apparel))
+                    model.Options.Add(Physical(apparel, apparel.IsInValidStorage() ? "stored" : "loose"));
+            foreach (var recipe in catalog) {
+                if (model.Options.Count >= ModelOptions) break;
+                var def = recipe.ProducedThingDef;
+                if (!def.apparel.CorrectGenderForWearing(pawn.gender) || !def.apparel.developmentalStageFilter.Has(pawn.DevelopmentalStage)
+                    || !ApparelUtility.HasPartsToWear(pawn, def)) continue;
+                // One stuff per definition: the allowed stuff with the most stock.
+                var stuff = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).OrderByDescending(s => map.resourceCounter.GetCount(s))
+                    .ThenBy(s => s.defName, StringComparer.Ordinal).FirstOrDefault() : null;
+                if (def.MadeFromStuff && stuff == null) continue;
+                var option = Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill");
+                var research = new List<ResearchProjectDef>();
+                if (recipe.researchPrerequisite != null) research.Add(recipe.researchPrerequisite);
+                if (recipe.researchPrerequisites != null) research.AddRange(recipe.researchPrerequisites);
+                option.Research.Add(research.Select(r => Id(r.defName)).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList());
+                foreach (var cost in def.CostListAdjusted(stuff, false))
+                    option.Ingredients.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
+                model.Options.Add(option);
+            }
+            return model;
+        }
+
+        private static Obs.GearLoadoutOption Physical(Apparel apparel, string source)
+        {
+            var row = Option(apparel.GetUniqueLoadID(), apparel.def, apparel.Stuff, source);
+            if (apparel.TryGetQuality(out var quality)) row.Quality = (int)quality;
+            if (apparel.def.useHitPoints) row.Condition = Number(Math.Min(1.0, (double)apparel.HitPoints / apparel.MaxHitPoints));
+            row.Tainted = apparel.WornByCorpse;
+            return row;
+        }
+
+        // Normal-quality def x stuff stats before condition; negative stats clamp to zero.
+        private static Obs.GearLoadoutOption Option(string id, ThingDef def, ThingDef? stuff, string source)
+        {
+            double Stat(StatDef stat) => Math.Max(0, Number(def.GetStatValueAbstract(stat, stuff)));
+            var offsets = def.equippedStatOffsets;
+            var row = new Obs.GearLoadoutOption { Id = Id(id), DefName = Id(def.defName), Source = source, Quality = (int)QualityCategory.Normal,
+                Condition = 1, ArmorSharp = Stat(StatDefOf.ArmorRating_Sharp), ArmorBlunt = Stat(StatDefOf.ArmorRating_Blunt),
+                InsulationCold = Stat(StatDefOf.Insulation_Cold), InsulationHeat = Stat(StatDefOf.Insulation_Heat),
+                MarketValue = Stat(StatDefOf.MarketValue),
+                MoveSpeed = offsets == null ? 0 : Number(offsets.GetStatOffsetFromList(StatDefOf.MoveSpeed)),
+                Psychic = offsets != null && offsets.GetStatOffsetFromList(StatDefOf.PsychicSensitivity) < 0,
+                Shield = def.HasComp(typeof(CompShield)),
+                Smokepop = def.Verbs?.Any(v => v.verbClass == typeof(Verb_SmokePop)) == true };
+            if (stuff != null) row.Stuff = Id(stuff.defName);
+            if (def.apparel != null) {
+                row.ApparelLayers.Add(def.apparel.layers.Select(d => Id(d.defName)).Distinct());
+                row.BodyPartGroups.Add(def.apparel.bodyPartGroups.Select(d => Id(d.defName)).Distinct());
+            }
+            return row;
         }
 
         private static void ReadClimate(Map map, Obs.GearSnapshot result)

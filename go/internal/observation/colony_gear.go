@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"slices"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -23,9 +25,90 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		row.Apparel = GearApparelFacts(p.Equipment)
 		row.Policy = ApparelPolicyFacts(p)
 		row.Climate = GearClimateFacts(gear)
+		row.LoadoutModel = GearLoadoutModelFacts(gear, p, row.Policy)
 		result.Pawns = append(result.Pawns, row)
 	}
 	return domain.Known(result)
+}
+
+// GearLoadoutModelFacts maps one pawn's loadout-model inputs. The role is the
+// apparel-policy role (with the model's traits), and unworn options are
+// narrowed to the definitions that role's apparel policy permits, so the
+// model never plans a garment DesiredApparelPolicy would forbid. Unknown when
+// the producer sent no model, role or temperatures, or when the model falls
+// outside the policy's bounds (PlanGearLoadout's Validate): the census then
+// keeps the native deficit path.
+func GearLoadoutModelFacts(gear *o.GearSnapshot, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
+	m := p.GetLoadoutModel()
+	role, known := state.Value()
+	if m == nil || !known || gear.OutdoorTemperatureC == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
+		return domain.Unknown[policy.GearLoadoutInput]()
+	}
+	in := policy.GearLoadoutInput{Role: role.Role, Female: m.GetFemale(), Research: append([]string{}, gear.GetFinishedResearch()...), Ambient: gear.GetOutdoorTemperatureC(), ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
+	traits := []policy.PawnTrait{}
+	for _, t := range m.GetTraits() {
+		traits = append(traits, policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())})
+	}
+	in.Role.Work.Traits = domain.Known(traits)
+	var allowed map[string]bool
+	if len(role.Definitions) > 0 {
+		allowed = map[string]bool{}
+		if desired, ok := policy.RoleApparelPolicy(policy.PawnID(p.GetPawn().GetId()), policy.DeriveGearRole(role.Role), role); ok {
+			for _, d := range desired.Spec().Definitions {
+				allowed[d] = true
+			}
+		}
+	}
+	for _, x := range m.GetWorn() {
+		if option, ok := gearLoadoutOption(x); ok {
+			in.Worn = append(in.Worn, option)
+		}
+	}
+	for _, x := range m.GetOptions() {
+		if option, ok := gearLoadoutOption(x); ok && (allowed == nil || allowed[x.GetDefName()]) {
+			in.Options = append(in.Options, option)
+		}
+	}
+	if in.Validate() != nil {
+		return domain.Unknown[policy.GearLoadoutInput]()
+	}
+	return domain.Known(in)
+}
+
+// gearLoadoutOption maps one native option; false for a garment the model's
+// slots do not name.
+func gearLoadoutOption(x *o.GearLoadoutOption) (policy.GearOption, bool) {
+	slot, ok := gearSlot(x.GetApparelLayers(), x.GetBodyPartGroups())
+	if !ok {
+		return policy.GearOption{}, false
+	}
+	option := policy.GearOption{ID: x.GetId(), Definition: policy.Resource(x.GetDefName()), Stuff: policy.Resource(x.GetStuff()), Quality: int(x.GetQuality()), Slot: slot, Layers: append([]string{}, x.GetApparelLayers()...), Groups: append([]string{}, x.GetBodyPartGroups()...), Source: policy.GearSource(x.GetSource()), Condition: x.GetCondition(), Sharp: x.GetArmorSharp(), Blunt: x.GetArmorBlunt(), Cold: x.GetInsulationCold(), Heat: x.GetInsulationHeat(), MoveSpeed: x.GetMoveSpeed(), Cost: x.GetMarketValue(), Tainted: x.GetTainted(), Locked: x.GetLocked(), Shield: x.GetShield(), Psychic: x.GetPsychic(), Smokepop: x.GetSmokepop(), Research: append([]string{}, x.GetResearch()...)}
+	for _, q := range x.GetIngredients() {
+		option.Ingredients = append(option.Ingredients, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+	}
+	return option, true
+}
+
+// gearSlot is the model slot a garment's native apparel layers and body-part
+// groups fill: belt, headgear (overhead or eye cover), outer (any shell layer,
+// so plate armour's middle+shell is outer), skin torso or legs, then middle
+// torso (a flak vest).
+func gearSlot(layers, groups []string) (policy.GearSlot, bool) {
+	switch {
+	case slices.Contains(layers, "Belt"):
+		return policy.GearBelt, true
+	case slices.Contains(layers, "Overhead"), slices.Contains(layers, "EyeCover"):
+		return policy.GearHeadgear, true
+	case slices.Contains(layers, "Shell"):
+		return policy.GearOuter, true
+	case slices.Contains(layers, "OnSkin") && slices.Contains(groups, "Torso"):
+		return policy.GearSkinTorso, true
+	case slices.Contains(layers, "OnSkin") && slices.Contains(groups, "Legs"):
+		return policy.GearSkinLegs, true
+	case slices.Contains(layers, "Middle"):
+		return policy.GearMiddleTorso, true
+	}
+	return "", false
 }
 
 // GearClimateFacts maps a validated optional seasonal observation. Older

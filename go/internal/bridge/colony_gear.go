@@ -40,6 +40,9 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 			}
 		}
 	}
+	if err := combatIDs(v.FinishedResearch); err != nil || !combatNumber(v.OutdoorTemperatureC, false) {
+		return contract("invalid gear research or outdoor temperature")
+	}
 	people := map[string]bool{}
 	for _, p := range v.Pawns {
 		if p == nil || p.Snapshot == nil || !proto.Equal(p.Snapshot.Context, ctx) {
@@ -98,6 +101,46 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 				return contract("duplicate gear production need")
 			}
 			needs[key] = true
+		}
+		if err := validateGearModel(p.LoadoutModel); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateGearModel checks the loadout model's wire shape: identities, the
+// source vocabulary and finite stats. Policy checks the model's bounds and
+// conflicts when the row is mapped; a model it refuses stays unknown.
+func validateGearModel(m *o.GearLoadoutModel) error {
+	if m == nil {
+		return nil
+	}
+	for _, t := range m.Traits {
+		if t == nil || validID(t.GetDefName()) != nil {
+			return contract("invalid gear model trait")
+		}
+	}
+	for _, list := range [][]*o.GearLoadoutOption{m.Worn, m.Options} {
+		for _, x := range list {
+			if x == nil || validID(x.GetId()) != nil || validID(x.GetDefName()) != nil || x.Stuff != nil && validID(x.GetStuff()) != nil || x.Quality == nil || x.Condition == nil {
+				return contract("invalid gear model option")
+			}
+			switch x.GetSource() {
+			case "worn", "loose", "stored", "bill":
+			default:
+				return contract("invalid gear model option source")
+			}
+			for _, n := range []*float64{x.Condition, x.ArmorSharp, x.ArmorBlunt, x.InsulationCold, x.InsulationHeat, x.MoveSpeed, x.MarketValue} {
+				if !combatNumber(n, false) {
+					return contract("invalid gear model option stat")
+				}
+			}
+			for _, q := range x.Ingredients {
+				if q == nil || validID(q.GetDefName()) != nil || q.GetUnits() <= 0 {
+					return contract("invalid gear model ingredient")
+				}
+			}
 		}
 	}
 	return nil

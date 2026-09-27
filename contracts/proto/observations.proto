@@ -742,7 +742,26 @@ message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1;
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
 message GearReplacementNeed { optional string def_name = 1; optional string stuff = 2; optional string reason = 3; optional double gain = 4; }
 // candidates are every eligible loose item, best gain first (then thing id).
-message GearLoadout { SnapshotRef snapshot = 1; EntityRef pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; reserved 8; optional bool deficit = 9; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; }
+message GearLoadout { SnapshotRef snapshot = 1; EntityRef pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; reserved 8; optional bool deficit = 9; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; GearLoadoutModel loadout_model = 12; }
+// One apparel option the Go loadout model may choose. Stats are the native
+// def x stuff values at Normal quality before condition (quality is applied in
+// Go). id is the thing id for worn/loose/stored items, bill:<def>/<stuff> for a
+// producible definition. source is worn, loose, stored or bill.
+message GearLoadoutOption {
+  optional string id = 1; optional string def_name = 2; optional string stuff = 3; optional int32 quality = 4;
+  optional string source = 5; repeated string apparel_layers = 6; repeated string body_part_groups = 7;
+  optional double condition = 8; optional double armor_sharp = 9; optional double armor_blunt = 10;
+  optional double insulation_cold = 11; optional double insulation_heat = 12; optional double move_speed = 13;
+  optional double market_value = 14; optional bool tainted = 15; optional bool locked = 16; optional bool shield = 17;
+  optional bool psychic = 18; optional bool smokepop = 19;
+  repeated string research = 20; // the producing recipe's research projects (bill options)
+  repeated Quantity ingredients = 21; // the producing recipe's cost for this stuff (bill options)
+}
+// The loadout model's per-pawn inputs: present only when the producer read the
+// whole catalog. worn is every worn garment; options are the eligible loose or
+// stored candidates (best native gain first) and the producible definitions
+// whose recipe research is finished, one stuff each, at most 64 in total.
+message GearLoadoutModel { optional bool female = 1; repeated Trait traits = 2; repeated GearLoadoutOption worn = 3; repeated GearLoadoutOption options = 4; }
 // Temperatures are indexed by native Twelfth (0..11), in degrees Celsius.
 // Absent climate fields retain ambient-only planning for older producers.
 message GearSnapshot {
@@ -754,6 +773,8 @@ message GearSnapshot {
   optional int32 ticks_to_next_twelfth = 6;
   GearWeatherCondition active_weather = 7;
   GearStorage stored_apparel = 8;
+  repeated string finished_research = 9; // finished ResearchProjectDef names, sorted
+  optional double outdoor_temperature_c = 10;
 }
 // Aggregate only usable, untainted, unforbidden apparel in valid storage.
 // hp_band is floor(condition * 10), clamped to 0..9; band 5 is >50%.

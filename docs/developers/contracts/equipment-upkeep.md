@@ -78,9 +78,17 @@ an item. Bench staging uses the equipment goal through the shared workshop ladde
 ## Loadout model
 
 `policy.PlanGearLoadout` consumes a complete, eligible def × stuff × quality
-catalog and worn gear. `GearPawn.LoadoutModel` is optional: until a provider
-supplies the richer census, the existing native deficit, replacement and
-single-item bill path remains active. This pure Go model neither discovers
+catalog and worn gear. The native gear census supplies it per pawn
+(`GearLoadout.loadout_model`, with the snapshot's finished research and
+outdoor temperature): gender, traits, every worn garment, the eligible loose
+or stored candidates and the producible definitions whose recipe research is
+finished (one stuff each, the most stocked), at most 64 unworn options.
+Go derives each option's slot from its apparel layers and body-part groups,
+takes the role from the apparel-policy read and narrows unworn options to
+the definitions that role's apparel policy permits. A census without the
+model, or one the model's bounds refuse (for example two worn garments on
+one slot), leaves `GearPawn.LoadoutModel` unknown and the native deficit,
+replacement and single-item bill path active. This pure Go model neither discovers
 products nor issues orders. Catalog providers resolve native material stats,
 outfit/body/stage eligibility and available production resources before planning.
 Stats are Normal-quality values for the specific material; armor multipliers are
