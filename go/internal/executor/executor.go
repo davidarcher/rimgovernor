@@ -95,8 +95,6 @@ type Executor struct {
 	captureJournal         CaptureJournal
 	haul                   HaulBoundary
 	haulJournal            HaulJournal
-	equip                  EquipBoundary
-	equipJournal           EquipJournal
 	gearReplace            GearReplaceBoundary
 	gearReplaceJournal     GearReplaceJournal
 	moodRelief             MoodReliefBoundary
@@ -302,9 +300,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.HaulAction && e.haul != nil {
 		return e.runHaul(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.EquipAction && e.equip != nil {
-		return e.runEquip(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.GearReplaceAction && e.gearReplace != nil {
 		return e.runGearReplace(ctx, action, progress, authority, generation)

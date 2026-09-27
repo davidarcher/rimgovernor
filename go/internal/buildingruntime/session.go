@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -35,7 +34,6 @@ type SessionConfig struct {
 	Movement        *MovementCapabilities
 	Rescue          *rescue.RescueCapabilities
 	Capture         *capture.CaptureCapabilities
-	Equip           *equip.EquipCapabilities
 	GearReplace     *GearReplaceCapabilities
 	MoodRelief      *MoodReliefCapabilities
 	Trade           *TradeCapabilities
@@ -260,9 +258,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Rescue != nil && (config.Rescue.Native == nil || config.Rescue.Writer == nil)", ErrControl))
 	}
-	if config.Equip != nil && (config.Equip.Native == nil || config.Equip.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Equip != nil && (config.Equip.Native == nil || config.Equip.Writer == nil)", ErrControl))
-	}
 	if config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.GearReplace != nil && (config.GearReplace.Native == nil || config.GearReplace.Writer == nil)", ErrControl))
 	}
@@ -344,15 +339,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableCapture(captureBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Equip != nil {
-		equipBoundary, err := equip.NewEquipBoundary(config.Equip.Native, config.Equip.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableEquip(equipBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

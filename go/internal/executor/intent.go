@@ -58,6 +58,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.CleanAction:               true,
 	domain.OpenCasketAction:          true,
 	domain.TendAction:                true,
+	domain.EquipAction:               true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

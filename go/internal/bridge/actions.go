@@ -70,6 +70,7 @@ func init() {
 	registerIntentKind(domain.CleanAction, cleanAction)
 	registerIntentKind(domain.OpenCasketAction, openCasketAction)
 	registerIntentKind(domain.TendAction, tendAction)
+	registerIntentKind(domain.EquipAction, equipAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

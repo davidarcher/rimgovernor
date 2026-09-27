@@ -48,3 +48,11 @@ func tendAction(action domain.Action) (*o.Action, error) {
 	}
 	return pawnOrderIntent(v.Doctor(), string(v.Patient()), o.PawnOrderKind_PAWN_ORDER_KIND_TEND)
 }
+
+func equipAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.Equip()
+	if !ok {
+		return nil, contract("not an equip action")
+	}
+	return pawnOrderIntent(v.Pawn(), v.Thing(), o.PawnOrderKind_PAWN_ORDER_KIND_EQUIP)
+}

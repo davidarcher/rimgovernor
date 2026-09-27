@@ -16,7 +16,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -105,7 +104,6 @@ type buildingServiceBridge struct {
 	movement          *buildingruntime.MovementCapabilities
 	rescue            *rescue.RescueCapabilities
 	capture           *capture.CaptureCapabilities
-	equip             *equip.EquipCapabilities
 	haul              *haul.HaulCapabilities
 	moodRelief        *buildingruntime.MoodReliefCapabilities
 	moodReliefWorld   moodReliefWorldSource
@@ -203,7 +201,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
 		rescue:            &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		capture:           &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
-		equip:             &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
 		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		moodRelief:        &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
 		gearReplace:       &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
@@ -374,13 +371,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		captureCapabilities = client.capture
 	}
-	var equipCapabilities *equip.EquipCapabilities
-	if config.routineEquipPlans {
-		if client.equip == nil {
-			return errors.New("equip plans require typed capabilities")
-		}
-		equipCapabilities = client.equip
-	}
 	var haulCapabilities *haul.HaulCapabilities
 	if haulExecutorRequired(config) {
 		if client.haul == nil {
@@ -422,7 +412,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Movement:        movementCapabilities,
 		Rescue:          rescueCapabilities,
 		Capture:         captureCapabilities,
-		Equip:           equipCapabilities,
 		Haul:            haulCapabilities,
 		MoodRelief:      moodReliefCapabilities,
 		GearReplace:     gearReplaceCapabilities,

@@ -1,15 +1,8 @@
 package policy
 
 import (
-	"strings"
-	"unicode/utf8"
-
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
-
-// EquipPawnUnavailable mirrors HaulerUnavailable/RescuerUnavailable: the pawn
-// is occupied, mid a conflicting player order, or already equipping.
-const EquipPawnUnavailable Reason = "equip_pawn_unavailable"
 
 // EquipCandidatePawn describes an observed colonist and optional combat facts.
 // Selection is a proposal; native admission rechecks the exact pair.
@@ -80,94 +73,4 @@ func SelectEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) (do
 func distanceSquared(a, b domain.Cell) int64 {
 	dx, dz := int64(a.X-b.X), int64(a.Z-b.Z)
 	return dx*dx + dz*dz
-}
-
-// EquipPawnFacts describes the one already-selected undrafted pawn.
-type EquipPawnFacts struct {
-	Pawn                  domain.PawnID
-	SnapshotToken         string
-	Dead, Downed, Drafted domain.Fact[bool]
-	MentalState           domain.Fact[bool]
-	ExistingJobDef        domain.Fact[string]
-}
-
-type EquipFacts struct {
-	Snapshot              domain.GenerationSnapshot
-	PawnTick, PreviewTick domain.Tick
-	Pawn                  EquipPawnFacts
-	ThingSnapshotToken    string
-	NativeCanTry          domain.Fact[bool]
-}
-
-type EquipRequest struct {
-	Action      domain.Action
-	Progress    domain.Progress
-	Current     domain.GenerationSnapshot
-	MinimumTick domain.Tick
-	Facts       EquipFacts
-}
-
-// EvaluateEquip re-validates one already-selected pawn/weapon pair immediately
-// before dispatch. Admission proves eligibility now; it does not prove the
-// equip job will be issued, accepted or that the pawn ends up holding the
-// weapon (that is observed later).
-func EvaluateEquip(r EquipRequest) DraftDecision {
-	refuse := func(reason Reason) DraftDecision {
-		return DraftDecision{Refused: []Refusal{{Action: r.Action.ID(), Reason: reason}}}
-	}
-	equip, ok := r.Action.Equip()
-	canonical, err := domain.NewEquipAction(r.Action.ID(), equip)
-	if !ok || err != nil || canonical != r.Action {
-		return refuse(NotReady)
-	}
-	v := r.Progress.View()
-	f := r.Facts
-	// The admission anchors on the preview tick, the inspection's one live
-	// read; the pawn row may come from the step's fact cache at an earlier
-	// tick (#306, #323).
-	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PreviewTick < r.MinimumTick {
-		return refuse(StaleFacts)
-	}
-	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
-		return refuse(NotReady)
-	}
-	if f.PreviewTick < v.Tick || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
-		return refuse(StaleFacts)
-	}
-	validToken := func(s string) bool {
-		return len(s) <= 256 && utf8.ValidString(s) && strings.TrimSpace(s) != "" && !strings.ContainsRune(s, 0)
-	}
-	if f.Pawn.Pawn != equip.Pawn() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.ThingSnapshotToken) {
-		return refuse(UnknownFacts)
-	}
-	for _, fact := range []domain.Fact[bool]{f.Pawn.Dead, f.Pawn.Downed, f.Pawn.Drafted, f.Pawn.MentalState} {
-		if _, known := fact.Value(); !known {
-			return refuse(UnknownFacts)
-		}
-	}
-	existingJob, known := f.Pawn.ExistingJobDef.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	dead, _ := f.Pawn.Dead.Value()
-	downed, _ := f.Pawn.Downed.Value()
-	drafted, _ := f.Pawn.Drafted.Value()
-	mental, _ := f.Pawn.MentalState.Value()
-	if dead || downed {
-		return refuse(EquipPawnUnavailable)
-	}
-	if drafted || mental {
-		return refuse(PlayerOrder)
-	}
-	if existingJob == "Equip" {
-		return refuse(EquipPawnUnavailable)
-	}
-	eligible, known := f.NativeCanTry.Value()
-	if !known {
-		return refuse(UnknownFacts)
-	}
-	if !eligible {
-		return refuse(NativeIneligible)
-	}
-	return DraftDecision{Admitted: true}
 }

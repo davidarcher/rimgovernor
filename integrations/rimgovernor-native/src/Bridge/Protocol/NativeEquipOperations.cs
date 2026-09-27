@@ -5,189 +5,65 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
-using Authority = RimGovernor.Protocol.Authority;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Undrafted-or-drafted pawn-target order for PAWN_ORDER_KIND_EQUIP,
-    // Population-*'s equip sub-step. Ports the legacy JSON home/order tool's
-    // (OrderTool.PrepareEquip) FloatMenuOptionProvider_Equip gates, in the
-    // same order, then issues the exact JobDefOf.Equip job a player's
-    // float-menu click would produce. Unlike haul, equip applies no draft
-    // gate at all (OrderTool's own comment: "rescue and equip need no draft
-    // change"), so this checks pawn eligibility but not Drafted. The
-    // weapon target's CAS token reuses NativeSupplyAllow's "allow-" domain,
-    // the same reuse NativeHaulOperations documents: observations_list_supplies
-    // (via NativeSuppliesObservationTools) is the only read path that
-    // discovers loose weapons and already emits that token.
-    internal sealed class NativeEquipRecord
-    {
-        private readonly NativeControlIdentity identity;
-        private readonly Pawn pawn;
-        private readonly Thing weapon;
-        private readonly string jobDef;
-        private readonly int jobId;
-        private readonly Common.ObservationContext admitted;
-        internal NativeEquipRecord(NativeControlIdentity identity, Pawn pawn, Thing weapon, Job job, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.weapon = weapon; jobId = job.loadID; jobDef = job.def?.defName ?? ""; admitted = context.Clone(); }
-
-        internal Receipts.EffectEvidence Evidence(NativePawnSnapshot snapshot, bool issued, bool verified) => new Receipts.EffectEvidence
-        {
-            Job = new Receipts.JobEffect
-            {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
-                TargetA = new Receipts.JobTarget { ThingId = weapon.GetUniqueLoadID() },
-                Issued = issued, Verified = verified,
-                VerifiedReason = verified ? "Exact issued native equip job or immediate equip readback observed." : "Issued job outcome requires observation.",
-                Drafted = false, ResultingSnapshotToken = snapshot.Token,
-            }
-        };
-
-        internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
-        {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
-            try
-            {
-                if (!context.Identity.Equals(admitted.Identity) || context.Tick < admitted.Tick
-                    || NativePawnControlState.Observe(identity, pawn, out var snapshot) != NativePawnControlResult.Ready || snapshot == null)
-                    throw new InvalidOperationException("Current equip pawn context cannot be inspected.");
-                result.CompleteInspection = true;
-                if (ReferenceEquals(pawn.equipment?.Primary, weapon))
-                    result.Completed = new Receipts.CompletedEffect { Evidence = Evidence(snapshot, false, true) };
-                else if (pawn.CurJob != null && pawn.CurJob.loadID == jobId)
-                    result.Pending = new Receipts.PendingEffect { Evidence = Evidence(snapshot, false, true) };
-                else
-                    result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.Interrupted,
-                        Evidence = Evidence(snapshot, false, false),
-                        Detail = "Native equip job is no longer active and the weapon is not equipped." };
-            }
-            catch (Exception error) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Equip inspection unavailable: " + error.GetType().Name }; }
-            return result;
-        }
-    }
-
+    // PawnOrderIntent kind EQUIP (#939): FloatMenuOptionProvider_Equip's
+    // gates in order, then the exact JobDefOf.Equip job a player's float-menu
+    // click would produce. Equip applies no draft gate, so this checks pawn
+    // eligibility but not Drafted. Checked live at apply; a pawn already
+    // holding or walking to the weapon applies again.
     internal static class NativeEquipOperations
     {
-        internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
-            && command.HasKind && command.Kind == Operations.PawnOrderKind.Equip
-            && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
-            && command.Pawn.EntityId != command.Target.EntityId;
-
         internal static bool Eligible(Thing? weapon) => weapon != null && NativeSupplyAllow.Eligible(weapon)
             && weapon.def.IsWeapon && (weapon as ThingWithComps)?.GetComp<CompEquippable>() != null;
 
-        private static bool Prepare(Operations.PawnTargetOrder command, Common.ObservationContext context, out NativeControlIdentity identity,
-            out Pawn? pawn, out Thing? weapon, out NativePawnSnapshot? snapshot, out Common.Failure failure)
+        private static bool Holds(Pawn pawn, Thing weapon) => ReferenceEquals(pawn.equipment?.Primary, weapon);
+        private static bool Running(Pawn pawn, Thing weapon) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Equip && pawn.CurJob.targetA.Thing == weapon;
+
+        private static Common.Failure? Resolve(Operations.PawnOrderIntent intent, Common.ObservationContext context, out Pawn? pawn, out Thing? weapon)
         {
-            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
-            pawn = null; weapon = null; snapshot = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
-            if (!NativePawnControlState.IsReady) return false;
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
-            if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map."); return false; }
-            var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
-            if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
-            if (!snapshot!.Eligible) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn."); return false; }
-            weapon = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
-            if (weapon == null || !Eligible(weapon)) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact equippable weapon is unavailable."); return false; }
-            if (NativeSupplyAllow.Snapshot(weapon, context)?.Token != command.Target.ExpectedSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Weapon snapshot changed; observe before new admission."); return false; }
+            weapon = null;
+            var failure = NativePawnOrderIntent.Pawn(intent, context, out pawn, out var snapshot);
+            if (failure != null) return failure;
+            if (!snapshot!.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
+            var map = ProtoBoundary.LoadedMap(context);
+            weapon = pawn!.equipment?.Primary?.GetUniqueLoadID() == intent.TargetId ? pawn.equipment.Primary
+                : map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.TargetId);
+            if (weapon != null && (Holds(pawn, weapon) || Running(pawn, weapon))) return null;
+            if (weapon == null || !Eligible(weapon)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact equippable weapon is unavailable.");
             if (pawn.equipment == null)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and can carry no weapon."); return false; }
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and can carry no weapon.");
             if (pawn.WorkTagIsDisabled(WorkTags.Violent))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Violent disabled and cannot equip a weapon."); return false; }
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Violent disabled and cannot equip a weapon.");
             if (weapon.def.IsRangedWeapon && pawn.WorkTagIsDisabled(WorkTags.Shooting))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Shooting disabled and cannot equip a ranged weapon."); return false; }
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Shooting disabled and cannot equip a ranged weapon.");
             if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn is incapable of manipulation and cannot pick anything up."); return false; }
-            if (weapon.IsBurning()) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Weapon is on fire."); return false; }
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn is incapable of manipulation and cannot pick anything up.");
+            if (weapon.IsBurning()) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Weapon is on fire.");
             if (!pawn.CanReach(weapon, PathEndMode.ClosestTouch, Danger.Deadly))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the weapon."); return false; }
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the weapon.");
             if (!EquipmentUtility.CanEquip(weapon, pawn, out var cantReason, false))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot equip the weapon: " + (string.IsNullOrEmpty(cantReason) ? "refused" : cantReason)); return false; }
-            return true;
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot equip the weapon: " + (string.IsNullOrEmpty(cantReason) ? "refused" : cantReason));
+            return null;
         }
 
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.PawnOrderIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+
+        internal static Receipts.EffectEvidence Apply(Operations.PawnOrderIntent intent, Common.ObservationContext context)
         {
-            var command = request.Operation.PawnTargetOrder; var pre = request.Precondition;
-            if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn and exact equippable target.");
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            try
-            {
-                if (!Prepare(command, context, out var identity, out var pawn, out var weapon, out var snapshot, out var failure))
-                    return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
-                handle = admission.AdmittedHandle;
-                bool accepted = false; Exception? effectError = null;
-                using (authority.Owned())
-                {
-                    if (!NativePawnControlState.IsReady || !Prepare(command, context, out identity, out pawn, out weapon, out snapshot, out failure))
-                        throw new InvalidOperationException("Equip prerequisites changed after admission.");
-                    guard = authority.Check(pre.ExpectedGeneration);
-                    if (!guard.Success) throw new InvalidOperationException("Equip authority changed before native effect.");
-                    var job = JobMaker.MakeJob(JobDefOf.Equip, weapon);
-                    var record = new NativeEquipRecord(identity, pawn!, weapon!, job, context);
-                    state.Equips.Add(pre.Attempt.Clone(), record);
-                    try { accepted = pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc); }
-                    catch (Exception error) { effectError = error; }
-                    if (NativePawnControlState.Observe(identity, pawn!, out snapshot) != NativePawnControlResult.Ready || snapshot == null)
-                        throw new InvalidOperationException("Native equip readback unavailable.");
-                    var current = pawn!.CurJob;
-                    // Equipping the exact target at the pawn's own feet can complete
-                    // within the same call; either the issued job is still current or
-                    // the weapon is already equipped counts as correlated.
-                    bool correlated = accepted && (ReferenceEquals(pawn.equipment?.Primary, weapon) || (current != null && current.loadID == job.loadID));
-                    evidence = record.Evidence(snapshot, accepted, correlated);
-                    if (effectError != null || !accepted || !correlated) throw new InvalidOperationException("Native equip order requires causal observation.", effectError);
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                return handle == null
-                    ? Refuse(Common.FailureCode.NativeFailure, "Equip validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted equip order requires observation: " + error.GetType().Name) };
-            }
+            var failure = Resolve(intent, context, out var pawn, out var weapon);
+            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            if (Running(pawn!, weapon!)) return NativePawnOrderIntent.Evidence(pawn!, weapon!, pawn!.CurJob, false);
+            var job = JobMaker.MakeJob(JobDefOf.Equip, weapon);
+            if (Holds(pawn!, weapon!)) return NativePawnOrderIntent.Evidence(pawn!, weapon!, job, false);
+            // Equipping a weapon at the pawn's own feet can complete within
+            // the call; the weapon in hand counts as taken.
+            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || !Holds(pawn, weapon!) && (pawn.CurJob == null || pawn.CurJob.loadID != job.loadID))
+                throw new InvalidOperationException("The pawn did not take the equip job.");
+            return NativePawnOrderIntent.Evidence(pawn, weapon!, job, true);
         }
-
-        internal static Operations.PreviewReply Preview(Operations.PawnTargetOrder command, Common.ObservationContext context)
-        {
-            if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an exact pawn and exact equippable target.") };
-            try
-            {
-                if (!Prepare(command, context, out _, out var pawn, out var weapon, out var snapshot, out var failure))
-                    return new Operations.PreviewReply { Failure = failure };
-                return new Operations.PreviewReply
-                {
-                    Evaluated = new Operations.PreviewEvaluation
-                    {
-                        Context = context.Clone(), Accepted = true,
-                        Reason = "Native equip gates (equipment tracker, work tags, reach, manipulation, EquipmentUtility.CanEquip) pass for this pawn and weapon.",
-                        Projected = new Receipts.EffectEvidence
-                        {
-                            Job = new Receipts.JobEffect
-                            {
-                                PawnId = snapshot!.PawnId, JobDef = JobDefOf.Equip.defName, CanTry = true, Issued = false, Verified = false,
-                                TargetA = new Receipts.JobTarget { ThingId = weapon!.GetUniqueLoadID() },
-                            }
-                        }
-                    }
-                };
-            }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Equip preview failed: " + error.GetType().Name) }; }
-        }
-
-        private static Operations.ExecuteReply Refuse(Common.FailureCode code, string detail) => new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(code, detail) };
     }
 }

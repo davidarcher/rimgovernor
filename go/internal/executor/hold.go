@@ -30,7 +30,6 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.InvalidHeld:       domain.HeldInvalidHeld,
 
 	policy.DraftOwnership:             domain.HeldDraftOwnership,
-	policy.EquipPawnUnavailable:       domain.HeldEquipPawnUnavailable,
 	policy.GearReplacePawnUnavailable: domain.HeldGearReplacePawnUnavailable,
 	policy.NativeIneligible:           domain.HeldNativeIneligible,
 	policy.PatientIneligible:          domain.HeldPatientIneligible,

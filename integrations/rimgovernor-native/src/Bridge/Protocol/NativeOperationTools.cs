@@ -25,7 +25,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeGearRecord> Gear = new Dictionary<Common.AttemptKey, NativeGearRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeSubdueRecord> Subdues = new Dictionary<Common.AttemptKey, NativeSubdueRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeArrestRecord> Arrests = new Dictionary<Common.AttemptKey, NativeArrestRecord>();
@@ -101,7 +100,6 @@ namespace HomeBridge.BridgeTools
                 switch (request.Operation.PawnTargetOrder.Kind)
                 {
                     case Operations.PawnOrderKind.Subdue: return NativeSubdueOperations.Execute(state, request, context);
-                    case Operations.PawnOrderKind.Equip: return NativeEquipOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Capture:
                     case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
                     default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.");
@@ -139,7 +137,6 @@ namespace HomeBridge.BridgeTools
                     switch (parsed.Operation.PawnTargetOrder.Kind)
                     {
                         case Operations.PawnOrderKind.Subdue: return ProtoBoundary.Encode(NativeSubdueOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        case Operations.PawnOrderKind.Equip: return ProtoBoundary.Encode(NativeEquipOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Capture:
                         case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.") });
@@ -204,9 +201,6 @@ namespace HomeBridge.BridgeTools
                     NativeMoodReliefRecord relief;
                     if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) });
-                    NativeEquipRecord equip;
-                    if (state.Equips.TryGetValue(parsed.Attempt, out equip))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = equip.Observe(parsed.Attempt, context) });
                     NativeGearRecord gear;
                     if (state.Gear.TryGetValue(parsed.Attempt, out gear))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = gear.Observe(parsed.Attempt, context) });

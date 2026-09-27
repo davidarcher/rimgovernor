@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -158,17 +157,16 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 				t.Fatal(err)
 			}
 			action := plan.Spec.Actions()[0]
-			equip, _ := action.Equip()
 			snapshot := reviewer.player.State().Snapshot
 			snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 			tick := domain.Tick(native.reply.GetObserved().Context.GetTick())
-			if _, err := db.PrepareEquip(ctx, result.Plan, action.ID(), store.EquipAdmission{Snapshot: snapshot, Tick: tick, Pawn: equip.Pawn(), Thing: equip.Thing(), Definition: equip.Definition(), Cell: equip.Cell(), PawnSnapshotToken: "pawn-token", ThingSnapshotToken: "thing-token"}); err != nil {
+			if _, err := db.Prepare(ctx, result.Plan, action.ID(), snapshot, tick); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := db.Dispatch(ctx, result.Plan, action.ID(), snapshot, tick); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := db.Observe(ctx, result.Plan, domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+			if _, err := db.RecordReceipt(ctx, result.Plan, action.ID(), 1, domain.ReceiptAccepted); err != nil {
 				t.Fatal(err)
 			}
 			n.editPawn = func(row *o.PawnState) {
