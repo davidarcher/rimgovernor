@@ -225,16 +225,13 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 	scope.Plan, scope.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	action := plan.Progress[0].Action().ID()
 	tick := goal.Goal.Tick
-	patch, _ := plan.Progress[0].Action().BuildingTemperature()
-	if _, err := db.PrepareBuildingTemperature(context.Background(), plan.Spec.ID(), action, store.BuildingTemperatureAdmission{Snapshot: scope, Tick: tick, Thing: patch.Thing(), SnapshotToken: patch.BeforeToken()}); err != nil {
+	if _, err := db.Prepare(context.Background(), plan.Spec.ID(), action, scope, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Dispatch(context.Background(), plan.Spec.ID(), action, scope, tick); err != nil {
 		t.Fatal(err)
 	}
-	// The worker observes a completion after the supervisor latched the
-	// window under the root scope, not the plan's.
-	if _, err := db.Observe(context.Background(), plan.Spec.ID(), domain.Observation{Action: action, Attempt: 1, Snapshot: root, Tick: tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, root); err != nil {
+	if _, err := db.RecordReceipt(context.Background(), plan.Spec.ID(), action, 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
 	power := n.reply.GetObserved().Development.GetObserved().Power
@@ -320,13 +317,13 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 	snapshot := goal.Goal.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	tick := goal.Goal.Tick
-	if _, err := db.PrepareBuildingTemperature(ctx, plan.Spec.ID(), action, store.BuildingTemperatureAdmission{Snapshot: snapshot, Tick: tick, Thing: "cooler", SnapshotToken: "tok-1"}); err != nil {
+	if _, err := db.Prepare(ctx, plan.Spec.ID(), action, snapshot, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Dispatch(ctx, plan.Spec.ID(), action, snapshot, tick); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Observe(ctx, plan.Spec.ID(), domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+	if _, err := db.RecordReceipt(ctx, plan.Spec.ID(), action, 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
 	// The census still reads the warm target: the same patch is used.

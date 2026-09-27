@@ -288,7 +288,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 |---|---|
 | AcquireResource.source | ListResourceSources.source.snapshot |
 | DesignateIntent.thing_id | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
-| PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
 | CreateZone.expected_map_snapshot_token (optional; the planner's siting census) | GetCells.map_snapshot, bound to exact inspected map/geometry query |

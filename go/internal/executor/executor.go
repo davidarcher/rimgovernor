@@ -87,62 +87,54 @@ type Result struct {
 }
 
 type Executor struct {
-	acquisition                AcquisitionBoundary
-	acquisitionJournal         AcquisitionJournal
-	tend                       TendBoundary
-	tendJournal                TendJournal
-	rescue                     RescueBoundary
-	rescueJournal              RescueJournal
-	capture                    CaptureBoundary
-	captureJournal             CaptureJournal
-	haul                       HaulBoundary
-	haulJournal                HaulJournal
-	equip                      EquipBoundary
-	equipJournal               EquipJournal
-	gearReplace                GearReplaceBoundary
-	gearReplaceJournal         GearReplaceJournal
-	repair                     RepairBoundary
-	repairJournal              RepairJournal
-	openCasket                 OpenCasketBoundary
-	clean                      CleanBoundary
-	cleanJournal               CleanJournal
-	moodRelief                 MoodReliefBoundary
-	moodReliefJournal          MoodReliefJournal
-	buildingTemperature        BuildingTemperatureBoundary
-	buildingTemperatureJournal BuildingTemperatureJournal
-	bedUse                     BedUseBoundary
-	bedUseJournal              BedUseJournal
-	growerCrop                 GrowerCropBoundary
-	growerCropJournal          GrowerCropJournal
-	claimBuilding              ClaimBuildingBoundary
-	claimBuildingJournal       ClaimBuildingJournal
-	trade                      TradeBoundary
-	tradeJournal               TradeJournal
-	wallRemoval                WallRemovalBoundary
-	wallRemovalJournal         WallRemovalJournal
-	mineAcquisition            AcquisitionBoundary
-	mineAcquisitionJournal     MineAcquisitionJournal
-	ranged                     RangedBoundary
-	rangedJournal              RangedJournal
-	movement                   MovementBoundary
-	movementJournal            MovementJournal
-	routineScope               RoutineScope
-	journal                    Journal
-	draftJournal               DraftJournal
-	draft                      DraftBoundary
-	meleeJournal               MeleeJournal
-	melee                      MeleeBoundary
-	boundary                   Boundary
-	clock                      Clock
-	limits                     Limits
-	writer                     chan struct{}
-	mu                         sync.Mutex
-	authority                  Authority
-	generation                 context.Context
-	invalidate                 context.CancelFunc
-	activeAction               domain.ActionID
-	activeCancel               context.CancelFunc
-	stopped                    bool
+	acquisition            AcquisitionBoundary
+	acquisitionJournal     AcquisitionJournal
+	tend                   TendBoundary
+	tendJournal            TendJournal
+	rescue                 RescueBoundary
+	rescueJournal          RescueJournal
+	capture                CaptureBoundary
+	captureJournal         CaptureJournal
+	haul                   HaulBoundary
+	haulJournal            HaulJournal
+	equip                  EquipBoundary
+	equipJournal           EquipJournal
+	gearReplace            GearReplaceBoundary
+	gearReplaceJournal     GearReplaceJournal
+	repair                 RepairBoundary
+	repairJournal          RepairJournal
+	openCasket             OpenCasketBoundary
+	clean                  CleanBoundary
+	cleanJournal           CleanJournal
+	moodRelief             MoodReliefBoundary
+	moodReliefJournal      MoodReliefJournal
+	trade                  TradeBoundary
+	tradeJournal           TradeJournal
+	wallRemoval            WallRemovalBoundary
+	wallRemovalJournal     WallRemovalJournal
+	mineAcquisition        AcquisitionBoundary
+	mineAcquisitionJournal MineAcquisitionJournal
+	ranged                 RangedBoundary
+	rangedJournal          RangedJournal
+	movement               MovementBoundary
+	movementJournal        MovementJournal
+	routineScope           RoutineScope
+	journal                Journal
+	draftJournal           DraftJournal
+	draft                  DraftBoundary
+	meleeJournal           MeleeJournal
+	melee                  MeleeBoundary
+	boundary               Boundary
+	clock                  Clock
+	limits                 Limits
+	writer                 chan struct{}
+	mu                     sync.Mutex
+	authority              Authority
+	generation             context.Context
+	invalidate             context.CancelFunc
+	activeAction           domain.ActionID
+	activeCancel           context.CancelFunc
+	stopped                bool
 }
 
 func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
@@ -340,18 +332,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.MoodReliefAction && e.moodRelief != nil {
 		return e.runMoodRelief(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.BuildingTemperatureAction && e.buildingTemperature != nil {
-		return e.runBuildingTemperature(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.BedUseAction && e.bedUse != nil {
-		return e.runBedUse(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.GrowerCropAction && e.growerCrop != nil {
-		return e.runGrowerCrop(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.ClaimBuildingAction && e.claimBuilding != nil {
-		return e.runClaimBuilding(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)

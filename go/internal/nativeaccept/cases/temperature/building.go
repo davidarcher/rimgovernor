@@ -1,11 +1,10 @@
 // The temperature/building case exercises the SetBuildingTemperature vertical
-// (G01.08) end to end against a live game: an existing player-owned building
-// with a native CompTempControl, the exact rimgovernor/operations_execute
-// PatchBuilding wire contract Go's buildingtemperature.Boundary drives, its
-// CAS/stale-identity refusal, and its observation/replay semantics. Uses a
-// private disposable fixture (test/building_temperature_prepare) since a
-// fresh baseline colony does not reliably start with a temperature-
-// controlled building.
+// (G01.08) through BuildingPatchIntent's target_temperature arm on
+// Actions/Apply (#940): an existing player-owned building with a native
+// CompTempControl, an out-of-range refusal, the real write confirmed by an
+// independent building read, and key replay. Uses a private disposable
+// fixture (test/building_temperature_prepare) since a fresh baseline colony
+// does not reliably start with a temperature-controlled building.
 package temperature
 
 import (
@@ -18,29 +17,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const sessionOwner = "native-building-temperature-acceptance"
-
-// failureCode wires request through operations_execute and returns the
-// failure code, mirroring questfulfillaccept's/the movement case's helper of
-// the same name.
-func failureCode(ctx context.Context, h *na.Harness, label string, request map[string]any) (string, error) {
-	reply, err := h.Wire(ctx, label, "operations_execute", request)
-	if err != nil {
-		return "", err
-	}
-	_, failure, err := na.Outcome(reply, "failure")
-	if err != nil {
-		return "", err
-	}
-	return na.AsString(failure["code"]), nil
-}
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "temperature/building",
-		Scope: "Native SetBuildingTemperature vertical: PatchBuilding target-temperature CAS " +
-			"admission against an exact CompTempControl building, stale-identity refusal, replay idempotency " +
-			"and durable lookup.",
+		Scope: "BuildingPatchIntent target temperature against an exact CompTempControl building: " +
+			"out-of-range refusal, the real write read back, and key replay idempotency.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/building_temperature_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
@@ -59,9 +40,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("building_temperature_prepare: unexpected fixture identifier: %#v", prepared)
 	}
 
-	// target mirrors bridge.ReadBuildingTemperatureTarget's own extraction
-	// from rimgovernor/observations_list_buildings, so the tokens/facts used
-	// below are exactly what the Go boundary itself would compute.
+	// target reads the building row through rimgovernor/observations_list_buildings.
 	target := func(label string) (row map[string]any, err error) {
 		reply, err := h.Wire(ctx, label, "observations_list_buildings", map[string]any{
 			"scope": map[string]any{"expectedIdentity": identity}, "ids": []string{thingID},
@@ -115,170 +94,70 @@ func run(ctx context.Context, s cases.Session) error {
 		newTemperature = beforeTemperature - 5
 	}
 
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
-	if err != nil {
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity); err != nil {
 		return err
 	}
-	grantContext, _ := na.AsMap(grant["context"])
-
-	buildOperation := func(temperature float64, token string) map[string]any {
-		return map[string]any{"patchBuilding": map[string]any{
-			"building":          map[string]any{"entityId": thingID, "expectedSnapshotToken": token},
-			"targetTemperature": temperature,
-		}}
-	}
-	buildRequest := func(actionID, attemptID string, operation map[string]any) map[string]any {
-		return map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
-				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": attemptID},
-			},
-			"operation": operation,
+	apply := func(key string, temperature float64) (map[string]any, error) {
+		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity,
+			"actions": []any{map[string]any{"key": key, "buildingPatch": map[string]any{"thingId": thingID, "targetTemperature": temperature}}}})
+		if err != nil {
+			return nil, err
 		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result: %#v", key, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
 	}
 
-	// Refusal 1: a deliberately stale token must be refused rather than
-	// silently admitted, proving the CAS token is load-bearing.
-	staleRequest := buildRequest("temperature-stale", "1", buildOperation(newTemperature, beforeToken+"-stale"))
-	if code, err := failureCode(ctx, h, "stale-token", staleRequest); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_STALE_IDENTITY" {
-		return fmt.Errorf("stale-token: expected FAILURE_CODE_STALE_IDENTITY, got %q", code)
-	}
-
-	// Preview: accepted, but never mutates the live CompTempControl.
-	previewReply, err := h.Wire(ctx, "preview", "operations_preview", map[string]any{
-		"identity": identity, "operation": buildOperation(newTemperature, beforeToken),
-	})
+	// Refusal: a target outside the game's interface range.
+	outOfRange, err := apply("temperature-out-of-range", 5000)
 	if err != nil {
 		return err
 	}
-	evaluated, ok := na.AsMap(previewReply["evaluated"])
+	if outOfRange["refused"] == nil {
+		return fmt.Errorf("temperature-out-of-range: expected a refusal, got %#v", outOfRange)
+	}
+
+	set, err := apply("temperature-set", newTemperature)
+	if err != nil {
+		return err
+	}
+	applied, ok := na.AsMap(set["applied"])
 	if !ok {
-		return fmt.Errorf("preview: expected an evaluated reply, got %#v", previewReply)
-	}
-	if accepted, _ := na.AsBool(evaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview: expected the temperature patch to be accepted, got %#v", evaluated)
-	}
-	afterPreviewRow, err := target("target-after-preview")
-	if err != nil {
-		return err
-	}
-	afterPreviewTemperature, afterPreviewToken, err := settingsOf(afterPreviewRow)
-	if err != nil {
-		return err
-	}
-	if afterPreviewTemperature != beforeTemperature || afterPreviewToken != beforeToken {
-		return fmt.Errorf("target-after-preview: expected the dry-run preview to leave the building unchanged")
-	}
-
-	// Execute: the real native CompTempControl.targetTemperature write.
-	executeRequest := buildRequest("temperature-set", "1", buildOperation(newTemperature, beforeToken))
-	receiptReply, err := h.Wire(ctx, "execute", "operations_execute", executeRequest)
-	if err != nil {
-		return err
-	}
-	_, receipt, err := na.Outcome(receiptReply, "receipt")
-	if err != nil {
-		return err
-	}
-	applied, ok := na.AsMap(receipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute: expected an applied outcome, got %#v", receipt)
+		return fmt.Errorf("temperature-set: expected an applied result, got %#v", set)
 	}
 	appliedObserved, _ := na.AsMap(applied["observed"])
 	appliedSettings, _ := na.AsMap(appliedObserved["settings"])
-	appliedSnapshot, _ := na.AsMap(appliedSettings["snapshot"])
-	if na.AsString(appliedSnapshot["entityId"]) != thingID || na.AsString(appliedSnapshot["beforeToken"]) != beforeToken {
-		return fmt.Errorf("execute: unexpected applied snapshot: %#v", appliedSnapshot)
-	}
-	afterToken := na.AsString(appliedSnapshot["afterToken"])
-	if afterToken == "" || afterToken == beforeToken {
-		return fmt.Errorf("execute: expected the snapshot token to change, got %#v", appliedSnapshot)
-	}
 	fields := na.AsSlice(appliedSettings["fields"])
 	if len(fields) != 1 {
-		return fmt.Errorf("execute: expected exactly one field result, got %#v", appliedSettings)
+		return fmt.Errorf("temperature-set: expected exactly one field result, got %#v", appliedSettings)
 	}
 	field, _ := na.AsMap(fields[0])
 	if na.AsString(field["field"]) != "SETTINGS_FIELD_TEMPERATURE" || na.AsString(field["outcome"]) != "FIELD_OUTCOME_APPLIED" {
-		return fmt.Errorf("execute: unexpected field result: %#v", field)
+		return fmt.Errorf("temperature-set: unexpected field result: %#v", field)
 	}
-
-	afterExecuteRow, err := target("target-after-execute")
+	afterRow, err := target("target-after")
 	if err != nil {
 		return err
 	}
-	afterExecuteTemperature, afterExecuteToken, err := settingsOf(afterExecuteRow)
+	afterTemperature, afterToken, err := settingsOf(afterRow)
 	if err != nil {
 		return err
 	}
-	if afterExecuteToken != afterToken {
-		return fmt.Errorf("target-after-execute: expected the fresh read token to match the receipt's afterToken")
+	if afterToken == beforeToken {
+		return fmt.Errorf("target-after: expected the settings token to change")
 	}
-	if diff := afterExecuteTemperature - newTemperature; diff > 0.01 || diff < -0.01 {
-		return fmt.Errorf("target-after-execute: expected the native target temperature to change to %v, got %v", newTemperature, afterExecuteTemperature)
+	if diff := afterTemperature - newTemperature; diff > 0.01 || diff < -0.01 {
+		return fmt.Errorf("target-after: expected the native target temperature to change to %v, got %v", newTemperature, afterTemperature)
 	}
-
-	// Observe: durable progress lookup reports the same completed evidence.
-	precondition, _ := na.AsMap(executeRequest["precondition"])
-	attempt := map[string]any{"identity": identity, "attempt": precondition["attempt"]}
-	progressReply, err := h.Wire(ctx, "observe", "receipts_observe_progress", attempt)
+	replay, err := apply("temperature-set", newTemperature)
 	if err != nil {
 		return err
 	}
-	_, progress, err := na.Outcome(progressReply, "progress")
-	if err != nil {
-		return err
-	}
-	if complete, _ := na.AsBool(progress["completeInspection"]); !complete {
-		return fmt.Errorf("observe: expected completeInspection=true, got %#v", progress)
-	}
-	completed, ok := na.AsMap(progress["completed"])
-	if !ok {
-		return fmt.Errorf("observe: expected a completed outcome, got %#v", progress)
-	}
-	completedEvidence, _ := na.AsMap(completed["evidence"])
-	completedSettings, _ := na.AsMap(completedEvidence["settings"])
-	completedSnapshot, _ := na.AsMap(completedSettings["snapshot"])
-	if na.AsString(completedSnapshot["entityId"]) != thingID || na.AsString(completedSnapshot["afterToken"]) != afterToken {
-		return fmt.Errorf("observe: unexpected completed evidence: %#v", completedSettings)
-	}
-
-	// Replay: the exact same attempt returns an identical receipt, and does
-	// not attempt the native write a second time.
-	replayReply, err := h.Wire(ctx, "replay", "operations_execute", executeRequest)
-	if err != nil {
-		return err
-	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(replay, receipt) {
-		return fmt.Errorf("replay: replay of the same attempt returned a different receipt")
-	}
-
-	// Durable lookup: receipts_lookup independently returns the same receipt.
-	lookupReply, err := h.Wire(ctx, "lookup", "receipts_lookup", attempt)
-	if err != nil {
-		return err
-	}
-	_, lookup, err := na.Outcome(lookupReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(lookup, receipt) {
-		return fmt.Errorf("lookup: expected the same receipt as execute, got %#v", lookup)
-	}
-
-	// Refusal 2: a brand-new attempt against the now-stale before-token is
-	// refused rather than silently re-admitted or double-applied.
-	postExecuteRequest := buildRequest("temperature-set-again", "1", buildOperation(beforeTemperature, beforeToken))
-	if code, err := failureCode(ctx, h, "post-execute-retry", postExecuteRequest); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_STALE_IDENTITY" {
-		return fmt.Errorf("post-execute-retry: expected FAILURE_CODE_STALE_IDENTITY, got %q", code)
+	if !na.DeepEqual(replay, set) {
+		return fmt.Errorf("temperature-set: resent key changed its result: %#v then %#v", set, replay)
 	}
 
 	logData, err := os.ReadFile(s.Config().StartupLogPath())

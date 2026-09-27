@@ -21,7 +21,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/store/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/store/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	"github.com/davidarcher/RimGovernor/go/internal/store/core"
@@ -35,7 +34,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 141
+const schemaVersion = 142
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -53,24 +52,23 @@ type Store struct{ db *sql.DB }
 // It is independent of HTTP process sessions and survives controller restarts.
 type ControllerSessionID = core.ControllerSessionID
 type PlanState struct {
-	Retired                       bool
-	Spec                          domain.PlanSpec
-	Progress                      []domain.Progress
-	Admissions                    []ActionAdmission
-	DraftAdmissions               []ActionDraftAdmission
-	AcquisitionAdmissions         []ActionAcquisitionAdmission
-	TendAdmissions                []ActionTendAdmission
-	RescueAdmissions              []ActionRescueAdmission
-	CaptureAdmissions             []ActionCaptureAdmission
-	RangedAdmissions              []ActionRangedAdmission
-	EquipAdmissions               []ActionEquipAdmission
-	GearReplaceAdmissions         []ActionGearReplaceAdmission
-	RepairAdmissions              []ActionRepairAdmission
-	CleanAdmissions               []ActionCleanAdmission
-	MoodReliefAdmissions          []ActionMoodReliefAdmission
-	BuildingTemperatureAdmissions []ActionBuildingTemperatureAdmission
-	MineAcquisitionAdmissions     []ActionMineAcquisitionAdmission
-	WallRemovalAdmissions         []ActionWallRemovalAdmission
+	Retired                   bool
+	Spec                      domain.PlanSpec
+	Progress                  []domain.Progress
+	Admissions                []ActionAdmission
+	DraftAdmissions           []ActionDraftAdmission
+	AcquisitionAdmissions     []ActionAcquisitionAdmission
+	TendAdmissions            []ActionTendAdmission
+	RescueAdmissions          []ActionRescueAdmission
+	CaptureAdmissions         []ActionCaptureAdmission
+	RangedAdmissions          []ActionRangedAdmission
+	EquipAdmissions           []ActionEquipAdmission
+	GearReplaceAdmissions     []ActionGearReplaceAdmission
+	RepairAdmissions          []ActionRepairAdmission
+	CleanAdmissions           []ActionCleanAdmission
+	MoodReliefAdmissions      []ActionMoodReliefAdmission
+	MineAcquisitionAdmissions []ActionMineAcquisitionAdmission
+	WallRemovalAdmissions     []ActionWallRemovalAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -243,7 +241,6 @@ CREATE TABLE gear_replace_admissions(action_id TEXT PRIMARY KEY REFERENCES actio
 CREATE TABLE repair_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clean_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE building_temperature_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mine_acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE wall_removal_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
@@ -313,7 +310,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -672,16 +669,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if moodReliefPresent {
 			state.MoodReliefAdmissions = append(state.MoodReliefAdmissions, ActionMoodReliefAdmission{Action: a.ID(), Admission: moodReliefAdmission})
 		}
-		buildingTemperatureAdmission, buildingTemperaturePresent, e := buildingtemperature.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if buildingtemperature.Kind(a.Kind()) && !buildingTemperaturePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("building temperature progress lacks admission")
-		}
-		if buildingTemperaturePresent {
-			state.BuildingTemperatureAdmissions = append(state.BuildingTemperatureAdmissions, ActionBuildingTemperatureAdmission{Action: a.ID(), Admission: buildingTemperatureAdmission})
-		}
 		wallRemovalAdmission, wallRemovalPresent, e := loadWallRemovalAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -921,14 +908,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			if !matched {
 				return domain.Progress{}, errors.New("clean dispatch lacks current admission")
 			}
-		}
-	}
-	if buildingtemperature.Kind(current.Action().Kind()) {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("building temperature requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !buildingtemperature.GuardDispatch(state.BuildingTemperatureAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("building temperature dispatch lacks current admission")
 		}
 	}
 	if current.Action().Kind() == domain.WallRemovalAction {

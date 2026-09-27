@@ -8,14 +8,10 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/growercrop"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -46,18 +42,6 @@ type SessionConfig struct {
 	Repair         *RepairCapabilities
 	Clean          *CleanCapabilities
 	MoodRelief     *MoodReliefCapabilities
-	// BuildingTemperature backs the refrigeration family's cooler setpoint
-	// patch; the one-shot CAS write shares the placement boundary's lease.
-	BuildingTemperature *buildingtemperature.Capabilities
-	// BedUse backs the hospital family's medical-bed patch, the same
-	// one-shot CAS write shape as BuildingTemperature.
-	BedUse *beduse.Capabilities
-	// GrowerCrop backs the field family's basin re-crop, the same one-shot
-	// CAS write shape as BedUse.
-	GrowerCrop *growercrop.Capabilities
-	// ClaimBuilding backs the shrine family's casket claim (#459), the same
-	// one-shot CAS write shape as GrowerCrop.
-	ClaimBuilding *claimbuilding.Capabilities
 	// OpenCasket backs the shrine family casket opening (#460), a Repair-shaped
 	// pawn order whose opener the melee lock drafts first.
 	OpenCasket      *OpenCasketCapabilities
@@ -302,18 +286,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil)", ErrControl))
 	}
-	if config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperature.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.BuildingTemperature != nil && (config.BuildingTemperature.Native == nil || config.BuildingTemperatur", ErrControl))
-	}
-	if config.BedUse != nil && (config.BedUse.Native == nil || config.BedUse.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.BedUse != nil && (config.BedUse.Native == nil || config.BedUse.Writer == nil)", ErrControl))
-	}
-	if config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil)", ErrControl))
-	}
-	if config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil)", ErrControl))
-	}
 	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil)", ErrControl))
 	}
@@ -355,26 +327,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// typed boundary value, rather than composed into a single value for
 	// executor.New to discover by type assertion — see executor.EnableAcquisition
 	// for why the composed-value approach was unsafe.
-	if config.BuildingTemperature != nil {
-		if err := worker.EnableBuildingTemperature(buildingtemperature.NewBoundary(place, *config.BuildingTemperature)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.BedUse != nil {
-		if err := worker.EnableBedUse(beduse.NewBoundary(place, *config.BedUse)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.GrowerCrop != nil {
-		if err := worker.EnableGrowerCrop(growercrop.NewBoundary(place, *config.GrowerCrop)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.ClaimBuilding != nil {
-		if err := worker.EnableClaimBuilding(claimbuilding.NewBoundary(place, *config.ClaimBuilding)); err != nil {
-			return cleanup(err)
-		}
-	}
 	if config.Acquisition != nil {
 		if err := worker.EnableAcquisition(acquisition.NewAcquisitionBoundary(place, *config.Acquisition)); err != nil {
 			return cleanup(err)

@@ -13,14 +13,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/growercrop"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
@@ -96,37 +92,33 @@ func readMoodReliefLongitude(ctx context.Context, identitySource observation.Sou
 }
 
 type buildingServiceBridge struct {
-	reads               serviceBridge
-	native              boundary.Native
-	authority           buildingruntime.NativeAuthority
-	writes              boundary.BuildingWriter
-	acquisition         *acquisition.AcquisitionCapabilities
-	mineAcquisition     *mineacquisition.MineAcquisitionCapabilities
-	draft               *draft.DraftCapabilities
-	clock               *buildingruntime.ClockCapabilities
-	clockReads          serviceClockReads
-	melee               *melee.MeleeCapabilities
-	ranged              *ranged.RangedCapabilities
-	movement            *buildingruntime.MovementCapabilities
-	tend                *tend.TendCapabilities
-	rescue              *rescue.RescueCapabilities
-	capture             *capture.CaptureCapabilities
-	equip               *equip.EquipCapabilities
-	haul                *haul.HaulCapabilities
-	repair              *buildingruntime.RepairCapabilities
-	clean               *buildingruntime.CleanCapabilities
-	moodRelief          *buildingruntime.MoodReliefCapabilities
-	moodReliefWorld     moodReliefWorldSource
-	gearReplace         *buildingruntime.GearReplaceCapabilities
-	trade               *buildingruntime.TradeCapabilities
-	buildingTemperature *buildingtemperature.Capabilities
-	bedUse              *beduse.Capabilities
-	growerCrop          *growercrop.Capabilities
-	claimBuilding       *claimbuilding.Capabilities
-	openCasket          *buildingruntime.OpenCasketCapabilities
-	wallRemoval         *buildingruntime.WallRemovalCapabilities
-	presentationMedia   *bridge.PresentationMedia
-	lifecycle           lifecycleCapability
+	reads             serviceBridge
+	native            boundary.Native
+	authority         buildingruntime.NativeAuthority
+	writes            boundary.BuildingWriter
+	acquisition       *acquisition.AcquisitionCapabilities
+	mineAcquisition   *mineacquisition.MineAcquisitionCapabilities
+	draft             *draft.DraftCapabilities
+	clock             *buildingruntime.ClockCapabilities
+	clockReads        serviceClockReads
+	melee             *melee.MeleeCapabilities
+	ranged            *ranged.RangedCapabilities
+	movement          *buildingruntime.MovementCapabilities
+	tend              *tend.TendCapabilities
+	rescue            *rescue.RescueCapabilities
+	capture           *capture.CaptureCapabilities
+	equip             *equip.EquipCapabilities
+	haul              *haul.HaulCapabilities
+	repair            *buildingruntime.RepairCapabilities
+	clean             *buildingruntime.CleanCapabilities
+	moodRelief        *buildingruntime.MoodReliefCapabilities
+	moodReliefWorld   moodReliefWorldSource
+	gearReplace       *buildingruntime.GearReplaceCapabilities
+	trade             *buildingruntime.TradeCapabilities
+	openCasket        *buildingruntime.OpenCasketCapabilities
+	wallRemoval       *buildingruntime.WallRemovalCapabilities
+	presentationMedia *bridge.PresentationMedia
+	lifecycle         lifecycleCapability
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -195,22 +187,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	buildingTemperatureControl, err := bridge.NewBuildingTemperatureControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	bedUseControl, err := bridge.NewBedUseControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	growerCropControl, err := bridge.NewGrowerCropControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	claimBuildingControl, err := bridge.NewClaimBuildingControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	wallRemovalWriter, err := bridge.NewWallRemovalWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -231,28 +207,24 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
-		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
-		melee:               &melee.MeleeCapabilities{Writer: actionsWriter},
-		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
-		movement:            &buildingruntime.MovementCapabilities{Writer: actionsWriter},
-		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},
-		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
-		capture:             &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
-		equip:               &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
-		haul:                &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
-		repair:              &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
-		clean:               &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
-		moodRelief:          &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
-		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
-		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
-		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
-		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
-		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
-		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
-		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
-		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
-		presentationMedia:   presentationMedia,
-		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
+		draft:             &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
+		melee:             &melee.MeleeCapabilities{Writer: actionsWriter},
+		ranged:            &ranged.RangedCapabilities{Native: client, Writer: attack},
+		movement:          &buildingruntime.MovementCapabilities{Writer: actionsWriter},
+		tend:              &tend.TendCapabilities{Native: client, Writer: pawnOrder},
+		rescue:            &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
+		capture:           &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
+		equip:             &equip.EquipCapabilities{Native: client, Writer: pawnOrder},
+		haul:              &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
+		repair:            &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
+		clean:             &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
+		moodRelief:        &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
+		gearReplace:       &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
+		trade:             &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
+		openCasket:        &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
+		wallRemoval:       &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
+		presentationMedia: presentationMedia,
+		lifecycle:         lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -474,40 +446,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		tradeCapabilities = client.trade
 	}
-	// The refrigeration family patches cooler targets through the shared
-	// executor.
-	var buildingTemperatureCapabilities *buildingtemperature.Capabilities
-	if config.routineRefrigerationPlans {
-		if client.buildingTemperature == nil {
-			return errors.New("refrigeration plans require typed capabilities")
-		}
-		buildingTemperatureCapabilities = client.buildingTemperature
-	}
-	// The hospital family patches beds medical through the shared executor.
-	var bedUseCapabilities *beduse.Capabilities
-	if config.routineHospitalPlans {
-		if client.bedUse == nil {
-			return errors.New("hospital plans require typed capabilities")
-		}
-		bedUseCapabilities = client.bedUse
-	}
-	// The field family re-crops plant growers through the shared executor.
-	var growerCropCapabilities *growercrop.Capabilities
-	if config.routineFieldPlans {
-		if client.growerCrop == nil {
-			return errors.New("field plans require typed capabilities")
-		}
-		growerCropCapabilities = client.growerCrop
-	}
-	// The shrine family claims empty caskets, and the initial shelter the
-	// ruin walls on its ring (#718), through the shared executor.
-	var claimBuildingCapabilities *claimbuilding.Capabilities
-	if config.routineShrinePlans || config.routineShelterPlans {
-		if client.claimBuilding == nil {
-			return errors.New("shrine and shelter plans require typed claim capabilities")
-		}
-		claimBuildingCapabilities = client.claimBuilding
-	}
 	// The shrine family opens filled caskets through the shared executor (#460).
 	var openCasketCapabilities *buildingruntime.OpenCasketCapabilities
 	if config.routineShrinePlans {
@@ -527,31 +465,27 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		wallRemovalCapabilities = client.wallRemoval
 	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
-		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
-		Executor:            executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
-		Acquisition:         acquisitionCapabilities,
-		MineAcquisition:     mineAcquisitionCapabilities,
-		Draft:               client.draft,
-		Clock:               clockCapabilities,
-		Melee:               meleeCapabilities,
-		Ranged:              rangedCapabilities,
-		Movement:            movementCapabilities,
-		Tend:                tendCapabilities,
-		Rescue:              rescueCapabilities,
-		Capture:             captureCapabilities,
-		Equip:               equipCapabilities,
-		Haul:                haulCapabilities,
-		Repair:              repairCapabilities,
-		Clean:               cleanCapabilities,
-		MoodRelief:          moodReliefCapabilities,
-		GearReplace:         gearReplaceCapabilities,
-		Trade:               tradeCapabilities,
-		BuildingTemperature: buildingTemperatureCapabilities,
-		BedUse:              bedUseCapabilities,
-		GrowerCrop:          growerCropCapabilities,
-		ClaimBuilding:       claimBuildingCapabilities,
-		OpenCasket:          openCasketCapabilities,
-		WallRemoval:         wallRemovalCapabilities,
+		Control:         buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
+		Executor:        executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
+		Acquisition:     acquisitionCapabilities,
+		MineAcquisition: mineAcquisitionCapabilities,
+		Draft:           client.draft,
+		Clock:           clockCapabilities,
+		Melee:           meleeCapabilities,
+		Ranged:          rangedCapabilities,
+		Movement:        movementCapabilities,
+		Tend:            tendCapabilities,
+		Rescue:          rescueCapabilities,
+		Capture:         captureCapabilities,
+		Equip:           equipCapabilities,
+		Haul:            haulCapabilities,
+		Repair:          repairCapabilities,
+		Clean:           cleanCapabilities,
+		MoodRelief:      moodReliefCapabilities,
+		GearReplace:     gearReplaceCapabilities,
+		Trade:           tradeCapabilities,
+		OpenCasket:      openCasketCapabilities,
+		WallRemoval:     wallRemovalCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

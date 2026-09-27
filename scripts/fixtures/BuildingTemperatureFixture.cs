@@ -8,7 +8,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Spawns one unpowered Heater near an
-    // existing colonist so temperatureaccept can exercise the PatchBuilding
+    // existing colonist so temperatureaccept can exercise the BuildingPatchIntent
     // target-temperature CAS path (NativeBuildingTemperature.cs) without
     // depending on native random building generation or an actual power
     // network -- CompTempControl.targetTemperature is settable and readable

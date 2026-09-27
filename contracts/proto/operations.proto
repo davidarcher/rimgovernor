@@ -69,8 +69,8 @@ message Operation {
   reserved 15, 16, 18;
   reserved "delete_zone", "edit_zone_cells", "patch_stockpile";
   // Designations and construction-adjacent orders moved to Actions/Apply (#940).
-  reserved 3, 5, 20, 25, 26, 47, 55, 56, 60, 61;
-  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service", "install_building", "uninstall";
+  reserved 3, 5, 6, 20, 25, 26, 47, 55, 56, 60, 61;
+  reserved "designate_thing", "extend_home", "deconstruct", "release_deconstructions", "clear_cover", "excavate_cell", "manage_waste", "recover_service", "install_building", "uninstall", "patch_building";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -83,7 +83,6 @@ message Operation {
   reserved "travel_caravan", "gift_caravan_silver", "fulfill_quest";
   oneof command {
     AcquireResource acquire_resource = 4;
-    PatchBuilding patch_building = 6;
     // Preview only: the siting read planners run per candidate; zones are
     // created through the create_zone Action arm.
     CreateZone create_zone = 14;
@@ -186,22 +185,6 @@ enum ThingDesignation {
   THING_DESIGNATION_CUT_PLANT = 6;
 }
 enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }
-message PatchBuilding {
-  EntityPrecondition building = 1;
-  optional bool forbidden = 2;
-  optional PowerSetting power = 3;
-  optional float target_temperature = 4;
-  optional bool medical = 5;
-  Assignment owner = 6;
-  optional bool for_prisoners = 7;
-  // plant_def re-crops one exact Building_PlantGrower (SetPlantDefToGrow);
-  // the crop must carry the grower's sow tag and its sow research must be
-  // finished, the game's own gizmo rules.
-  optional string plant_def = 8;
-  // claim takes one exact claimable building (Building.ClaimableBy(player),
-  // then SetFaction(player)) for the player; only true is meaningful (#459).
-  optional bool claim = 9;
-}
 enum MedicalCare {
   MEDICAL_CARE_UNSPECIFIED = 0; MEDICAL_CARE_NO_CARE = 1; MEDICAL_CARE_NO_MEDICINE = 2;
   MEDICAL_CARE_HERBAL_OR_WORSE = 3; MEDICAL_CARE_NORMAL_OR_WORSE = 4; MEDICAL_CARE_BEST = 5;
@@ -398,6 +381,7 @@ message Action {
     WasteIntent waste = 36;
     RecoverIntent recover = 37;
     RelocateIntent relocate = 38;
+    BuildingPatchIntent building_patch = 39;
   }
 }
 // Extend Home over the missing cells of one facility's bounded batch (a
@@ -441,6 +425,15 @@ message DeconstructIntent { optional string target_id = 1; }
 // UNINSTALL_QUEUED. A blueprint or designation already standing for the same
 // order applies again.
 message RelocateIntent { optional string thing_id = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; optional bool uninstall = 4; }
+// One settings change on one exact building: a CompTempControl target,
+// a humanlike bed's medical flag or prisoner use (for_prisoners drops every
+// owner; only setting it is meaningful), a grower's crop under the game's
+// sow rules, or a claim of a claimable building. Native checks it live; an
+// already-applied change applies again.
+message BuildingPatchIntent {
+  optional string thing_id = 1;
+  oneof change { float target_temperature = 2; bool medical = 3; Clear for_prisoners = 4; string plant_def = 5; Clear claim = 6; }
+}
 message RecoverIntent { optional string pawn_id = 1; optional string thing_id = 2; optional ServiceMethod method = 3; }
 message WasteIntent { optional string pawn_id = 1; optional string thing_id = 2; optional bool unwanted = 3; }
 message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }

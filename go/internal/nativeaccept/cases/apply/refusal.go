@@ -88,7 +88,7 @@ func run(ctx context.Context, s cases.Session) error {
 	tokens := map[string]string{}
 	for _, key := range []string{"zoneId", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
 		"pawnId", "pawnWorkToken", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef",
-		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerToken", "growerCrop"} {
+		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
 			return err
 		}
@@ -333,9 +333,8 @@ func run(ctx context.Context, s cases.Session) error {
 	if err := move("destroy-grower", map[string]any{"action": "destroy_thing", "id": tokens["growerId"]}); err != nil {
 		return err
 	}
-	if err := refused("grower-crop", map[string]any{"patchBuilding": map[string]any{
-		"building": map[string]any{"entityId": tokens["growerId"], "expectedSnapshotToken": tokens["growerToken"]}, "plantDef": tokens["growerCrop"],
-	}}, "FAILURE_CODE_NOT_FOUND", "Exact plant grower is unavailable."); err != nil {
+	if err := intentRefused("grower-crop", map[string]any{"buildingPatch": map[string]any{"thingId": tokens["growerId"], "plantDef": tokens["growerCrop"]}},
+		"FAILURE_CODE_NOT_FOUND", "Exact plant grower is unavailable."); err != nil {
 		return err
 	}
 

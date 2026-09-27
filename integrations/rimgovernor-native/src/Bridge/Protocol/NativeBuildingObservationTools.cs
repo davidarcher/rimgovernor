@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
                     w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
                 })
                 : Token(thing, context);
-            // Only the implemented PatchBuilding fields carry a
+            // Only the implemented BuildingPatchIntent arms carry a
             // settings row with their own dedicated CAS snapshot:
             // target_temperature_c (NativeBuildingTemperature), a
             // humanlike bed's medical flag (NativeBedUse), a

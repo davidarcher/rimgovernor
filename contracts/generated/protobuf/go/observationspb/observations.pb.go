@@ -7306,9 +7306,9 @@ type BuildingSettings struct {
 	AssigningCandidates  []*EntityRef           `protobuf:"bytes,15,rep,name=assigning_candidates,json=assigningCandidates,proto3" json:"assigning_candidates,omitempty"`
 	RoomCanBePrisonCell  *bool                  `protobuf:"varint,16,opt,name=room_can_be_prison_cell,json=roomCanBePrisonCell,proto3,oneof" json:"room_can_be_prison_cell,omitempty"`
 	Issues               []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
-	// crop_def_name is a plant grower's current crop beside its own CAS snapshot (PatchBuilding.plant_def).
+	// crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
 	CropDefName *string `protobuf:"bytes,18,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
-	// player_owned is a claimable building's faction reading beside its own CAS snapshot (PatchBuilding.claim, #459).
+	// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim, #459).
 	PlayerOwned   *bool `protobuf:"varint,19,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -13,20 +13,13 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // PatchBuilding's plant_def field only: the crop one exact
-    // Building_PlantGrower sows (Building_PlantGrower.SetPlantDefToGrow,
-    // Assembly-CSharp 1.6). The crop is admitted under the game's own
+    // BuildingPatchIntent's plant_def arm: the crop one exact
+    // Building_PlantGrower sows (SetPlantDefToGrow), under the game's own
     // set-plant gizmo rules -- sowable, carrying the grower's sow tag
-    // (PlantUtility.CanSowOnGrower) and with its sow research finished --
-    // so a definition the gizmo would not list is refused rather than
-    // written. The CAS token covers the current crop; a player change
-    // between observation and admission stales the write.
+    // (PlantUtility.CanSowOnGrower) and with its sow research finished.
     internal static class NativeGrowerCrop
     {
-        internal static bool Valid(Operations.PatchBuilding? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Building) && command.HasPlantDef && !string.IsNullOrEmpty(command.PlantDef)
-            && !command.HasMedical && !command.HasTargetTemperature && !command.HasClaim && !command.HasForbidden && !command.HasPower
-            && command.Owner == null && !command.HasForPrisoners;
+
 
         internal static bool Eligible(Thing thing) => thing is Building_PlantGrower grower && !grower.Destroyed && grower.Spawned
             && ProtoBoundary.IsLoaded(grower.Map);
@@ -66,99 +59,32 @@ namespace HomeBridge.BridgeTools
             return settings;
         }
 
-        private static bool Prepare(Operations.PatchBuilding command, Common.ObservationContext context,
-            out Building_PlantGrower? grower, out ThingDef? plant, out Common.Failure failure)
+        private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_PlantGrower? grower, out ThingDef? plant)
         {
             grower = null; plant = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                "Grower patch requires an exact current crop snapshot and only plant_def. forbidden/power/owner/forPrisoners are not implemented by this adapter.");
-            if (!Valid(command)) return false;
-            var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
-            if (thing == null || !Eligible(thing))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact plant grower is unavailable."); return false; }
+            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || string.IsNullOrEmpty(intent.PlantDef)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A grower patch requires an exact grower and a plant definition.");
+            var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact plant grower is unavailable.");
             grower = (Building_PlantGrower)thing;
-            plant = DefDatabase<ThingDef>.GetNamedSilentFail(command.PlantDef);
-            if (!Sowable(plant, grower))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Plant definition cannot be sown on this grower: it must be sowable, carry the grower's sow tag and have its sow research finished."); return false; }
-            if (Snapshot(grower, context)?.Token != command.Building.ExpectedSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Grower crop snapshot changed; observe before new admission."); return false; }
-            return true;
+            plant = DefDatabase<ThingDef>.GetNamedSilentFail(intent.PlantDef);
+            if (!Sowable(plant, grower)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Plant definition cannot be sown on this grower: it must be sowable, carry the grower's sow tag and have its sow research finished.");
+            return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Operations.PatchBuilding command, string after, bool matches) =>
+        private static Receipts.EffectEvidence Evidence(string id, string after) =>
             new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
-                Snapshot = new Receipts.SnapshotEvidence { EntityId = command.Building.EntityId,
-                    BeforeToken = command.Building.ExpectedSnapshotToken, AfterToken = after },
-                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.GrowerCrop,
-                    Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused } } } };
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = id, AfterToken = after },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.GrowerCrop, Outcome = Receipts.FieldOutcome.Applied } } } };
 
-        private static bool Matches(Building_PlantGrower grower, Operations.PatchBuilding command) =>
-            grower.GetPlantDefToGrow()?.defName == command.PlantDef;
+        internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Operations.PreviewReply Preview(Operations.PatchBuilding command, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.BuildingPatchIntent intent, Common.ObservationContext context)
         {
-            try
-            {
-                if (!Prepare(command, context, out _, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true } };
-            }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Grower crop preview failed: " + error.GetType().Name) }; }
-        }
-
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
-        {
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            var pre = request.Precondition; var command = request.Operation.PatchBuilding;
-            try
-            {
-                if (!Prepare(command, context, out var grower, out var plant, out var failure)) return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
-                handle = admitted.AdmittedHandle;
-                // Track even a readback failure. A setter cannot un-happen.
-                state.BuildingPatches.Add(pre.Attempt.Clone(), command.Clone());
-                using (authority.Owned())
-                {
-                    if (!authority.Check(pre.ExpectedGeneration).Success
-                        || !Prepare(command, context, out var checkedGrower, out _, out failure) || !ReferenceEquals(grower, checkedGrower))
-                        throw new InvalidOperationException("Grower crop admission changed before effect.");
-                    grower!.SetPlantDefToGrow(plant!);
-                    var snapshot = Snapshot(grower, context);
-                    if (snapshot == null || !Matches(grower, command)) throw new InvalidOperationException("Native grower crop requires readback.");
-                    evidence = Evidence(command, snapshot.Token, true);
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
-            }
-            catch (Exception error)
-            {
-                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Grower crop admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted grower crop patch requires observation: " + error.GetType().Name) };
-            }
-        }
-
-        internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Operations.PatchBuilding command)
-        {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false,
-                Unknown = new Receipts.UnknownEffect { Reason = "Exact grower crop is unavailable." } };
-            try
-            {
-                var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Building.EntityId);
-                var snapshot = thing == null ? null : Snapshot(thing, context);
-                if (snapshot == null) return result;
-                var matches = Matches((Building_PlantGrower)thing!, command); var evidence = Evidence(command, snapshot.Token, matches);
-                result.CompleteInspection = true;
-                if (matches) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
-                else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                    Evidence = evidence, Detail = "Current crop differs; do not restore over player changes." };
-            }
-            catch (Exception) { }
-            return result;
+            var failure = Resolve(intent, context, out var grower, out var plant);
+            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            grower!.SetPlantDefToGrow(plant!);
+            if (grower.GetPlantDefToGrow()?.defName != intent.PlantDef) throw new InvalidOperationException("Native grower crop requires readback.");
+            return Evidence(grower.GetUniqueLoadID(), Snapshot(grower, context)!.Token);
         }
     }
 }

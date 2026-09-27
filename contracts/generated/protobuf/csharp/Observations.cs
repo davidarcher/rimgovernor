@@ -39109,7 +39109,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private string cropDefName_;
     /// <summary>
-    /// crop_def_name is a plant grower's current crop beside its own CAS snapshot (PatchBuilding.plant_def).
+    /// crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -39138,7 +39138,7 @@ namespace RimGovernor.Protocol.Observations {
 
     private bool playerOwned_;
     /// <summary>
-    /// player_owned is a claimable building's faction reading beside its own CAS snapshot (PatchBuilding.claim, #459).
+    /// player_owned is a claimable building's faction reading beside its own CAS snapshot (BuildingPatchIntent.claim, #459).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

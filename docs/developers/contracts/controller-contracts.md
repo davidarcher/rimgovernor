@@ -353,7 +353,7 @@ A built basin sows its definition's default crop, so before selecting new sites 
 step ranks every observed grower that can sow (`policy.PlanGrowerCrops`: the available
 edible crops carrying the grower's sow tag by nutrition rate over its fertility, the
 fastest first under urgency) and commits a one-shot `grower_crop` patch
-(PatchBuilding `plant_def`, CAS-gated on the grower's current crop) for a grower not
+(BuildingPatchIntent `plant_def`) for a grower not
 on the winner, once per grower per goal epoch. The `farm/select-*` cases
 assert the traced selection kind/crop, the winner's term breakdown and every loser's
 reason; `farm/select-greenhouse` and `farm/select-hydroponics` stage a lit, heated room under a cold
@@ -783,7 +783,7 @@ for one already the player's, and `claim` for an empty unowned casket. An
 open, guard-free shrine touching Home with a `claim` casket is still the
 goal's target: before any readiness read the planner reads each such
 casket's claim token and admits one method of `claim_building` actions
-(PatchBuilding claim, one per casket; a casket the fresh read already shows
+(BuildingPatchIntent claim, one per casket; a casket the fresh read already shows
 as the player's is skipped). The claim is a one-shot CAS write like a bed's
 medical flag: no pawn, no simulation window, refused natively as the
 action's own unsuccessful outcome. Filled caskets keep the clearance
