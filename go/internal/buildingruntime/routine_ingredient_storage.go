@@ -224,7 +224,12 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	var evaluated policy.Preview
 	accepted := false
 	for _, candidate := range sites {
+		// Recipe ingredients are exact definitions (the census carries no
+		// category), so the working stockpile stays an allow-list.
 		value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, allow, candidate)
+		if err == nil {
+			value, err = value.WithRole(domain.IngredientsPrefix + bench)
+		}
 		if err != nil {
 			return RoutineIngredientStorageResult{}, err
 		}
