@@ -261,6 +261,66 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string) ([]PerimeterS
 	return out, nil
 }
 
+// TierPumpPrefix names the moisture pump sections under the perimeter's
+// prefix: one per pump site, with its conduit run (#954).
+const TierPumpPrefix = TierPerimeterPrefix + "pump-"
+
+// PerimeterPumps is one section per moisture pump site (#954): the pump
+// and the conduit run bringing a transmitter within connector reach,
+// chained over the ring's interior clear of the killbox. A run laid for an
+// earlier pump carries the later ones. Nothing without a transmitter to
+// join: an unpowered pump dries nothing.
+func PerimeterPumps(plan LayoutPlan, pump, conduit string, transmitters []domain.Cell) ([]PerimeterSection, error) {
+	var ring, killbox Rectangle
+	var sites []domain.Cell
+	for _, r := range plan.Reservations {
+		switch r.Kind {
+		case ReservePerimeter:
+			ring = unionRect(ring, r.Area)
+		case ReserveKillbox:
+			killbox = r.Area
+		case ReserveMoisturePump:
+			sites = append(sites, domain.Cell{X: r.Area.X, Z: r.Area.Z})
+		}
+	}
+	if len(sites) == 0 || len(transmitters) == 0 {
+		return nil, nil
+	}
+	inner := pad(ring, -perimeterThick)
+	allowed, carry := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	for _, c := range rectCells(inner) {
+		allowed[c] = !contains(killbox, c)
+	}
+	for _, c := range sites {
+		allowed[c] = false
+	}
+	for _, c := range transmitters {
+		allowed[c], carry[c] = true, true
+	}
+	var out []PerimeterSection
+	for _, site := range sites {
+		chain, ok := defenseSite{}.conduitChain(site, carry, allowed)
+		if !ok {
+			continue
+		}
+		s := PerimeterSection{Name: DefenseTierName(fmt.Sprintf("%s%02d", TierPumpPrefix, len(out)))}
+		b, err := domain.NewBuilding(pump, site, domain.North, "")
+		if err != nil {
+			return nil, err
+		}
+		s.Buildings = append(s.Buildings, b)
+		for _, c := range chain {
+			if b, err = domain.NewBuilding(conduit, c, domain.North, ""); err != nil {
+				return nil, err
+			}
+			s.Buildings = append(s.Buildings, b)
+			carry[c] = true
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
 func unionRect(a, b Rectangle) Rectangle {
 	if a.Width == 0 {
 		return b

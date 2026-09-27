@@ -597,6 +597,8 @@ message DefenseCell {
   // snapshot token ClearCover compares at apply. Absent when the cell is open.
   optional string cover_thing_id = 15; optional string cover_def_name = 16; optional CoverKind cover_kind = 17;
   optional string cover_token = 18; optional bool cover_designated = 19;
+  // The cell's foundation (a Bridge) is designated for removal (#954).
+  optional bool foundation_removal_designated = 20;
 }
 // How the game's own designators would remove a cover thing.
 enum CoverKind { COVER_KIND_UNSPECIFIED = 0; COVER_KIND_PLANT = 1; COVER_KIND_CHUNK = 2; COVER_KIND_MINEABLE = 3; COVER_KIND_BUILDING = 4; }

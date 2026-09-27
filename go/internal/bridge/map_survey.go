@@ -78,6 +78,7 @@ func SurveyCells(v *o.CellsSnapshot) []policy.SurveyCell {
 			Cell:       domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()},
 			Walkable:   row.GetWalkable(),
 			Rock:       rock,
+			Built:      row.GetPlayerEdifice() != "",
 			Footing:    footing,
 			Bridgeable: row.GetBridgeable(),
 			Dries:      row.GetDries(),

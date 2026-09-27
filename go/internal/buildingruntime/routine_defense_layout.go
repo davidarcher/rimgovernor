@@ -266,9 +266,18 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
-		if err = defensePerimeterTiers(&record, read.Projection); err != nil {
+		if _, err = defensePerimeterTiers(&record, read); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
+		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
+	} else if recut, err := defensePerimeterTiers(&record, read); err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	} else if recut {
+		// The plan's perimeter changed (#954): the new cut is built
+		// behind removals of what it no longer wants.
+		clockSchedulerLog("defense-layout: perimeter re-cut, revision %d", record.PerimeterRevision)
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
@@ -315,6 +324,9 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 				return RoutineDefenseLayoutResult{}, err
 			}
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
+		}
+		if tier.Remove {
+			return r.remove(call, epoch, goal, state, read, record, tier, census)
 		}
 		buildings = defenseMissingBuildings(buildings, census)
 		if len(buildings) == 0 {
@@ -497,6 +509,10 @@ type defenseCensus struct {
 	terrain   map[domain.Cell]string
 	conduits  map[domain.Cell]bool
 	consumers map[domain.Cell]policy.PowerSite
+	// cover identifies the removable thing on each cell, unbridging the
+	// cells whose foundation is designated for removal (#954).
+	cover      map[domain.Cell]*bridge.DefenseCover
+	unbridging map[domain.Cell]bool
 }
 
 // standing reports whether the building's cell carries it: a conduit by the
@@ -741,11 +757,15 @@ func defenseCombatKey(ctx context.Context, p *Player, review store.RoutineReview
 
 // defenseTierCensus applies one census to the record: a tier whose
 // buildings all stand is Built; a Built tier that lost a building is
-// re-opened with a fresh retry budget. It reports whether anything changed.
+// re-opened with a fresh retry budget. A removal tier none of whose
+// buildings stands any more is done and leaves the record (#954). It
+// reports whether anything changed.
 func defenseTierCensus(record *store.DefenseLayoutRecord, census *defenseCensus) bool {
-	changed := false
+	gone := len(record.Tiers)
+	record.Tiers = slices.DeleteFunc(record.Tiers, func(t store.DefenseTierRecord) bool { return t.Remove && defenseRemovalGone(t, census) })
+	changed := gone != len(record.Tiers)
 	for _, tier := range record.Tiers {
-		if len(tier.Buildings) == 0 {
+		if len(tier.Buildings) == 0 || tier.Remove {
 			continue
 		}
 		standing := true
@@ -777,7 +797,8 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 		return nil, nil
 	}
 	projection := read.Projection
-	census := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{}}
+	census := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{},
+		cover: map[domain.Cell]*bridge.DefenseCover{}, unbridging: map[domain.Cell]bool{}}
 	// The killbox's tiers share one census rectangle; each perimeter
 	// section is read on its own, the whole ring being past the native
 	// census bound.
@@ -798,6 +819,7 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 		for _, cell := range site.Cells {
 			if !cell.Fogged {
 				census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
+				census.cover[cell.Cell], census.unbridging[cell.Cell] = cell.Cover, cell.Unbridging
 			}
 		}
 	}
@@ -1136,41 +1158,6 @@ const (
 	defenseWallStone = 5
 	defenseDoorStone = 25
 )
-
-// defensePerimeterTiers adds the layout plan's wall sections (#789) to a
-// fresh record, after the killbox's tiers, and marks it anchored.
-func defensePerimeterTiers(record *store.DefenseLayoutRecord, projection observation.ColonyProjection) error {
-	record.Anchored = true
-	plan, known := projection.LayoutPlan.Value()
-	if !known {
-		return nil
-	}
-	sections, err := policy.PerimeterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, defensePerimeterBridge(projection))
-	if err != nil {
-		return err
-	}
-	// A cell a killbox tier already builds on (a firing-line embrasure in
-	// the wall, #868) is that tier's, not the perimeter's.
-	taken := map[domain.Cell]bool{}
-	for _, t := range record.Tiers {
-		for _, b := range t.Buildings {
-			taken[b.Cell] = true
-		}
-	}
-	for _, section := range sections {
-		t := store.DefenseTierRecord{Name: section.Name}
-		for _, b := range section.Buildings {
-			if taken[b.Cell()] {
-				continue
-			}
-			t.Buildings = append(t.Buildings, store.DefenseBuilding{Definition: b.Definition(), Cell: b.Cell(), Rotation: b.Rotation(), Stuff: b.Stuff()})
-		}
-		if len(t.Buildings) > 0 {
-			record.Tiers = append(record.Tiers, t)
-		}
-	}
-	return record.Validate()
-}
 
 // defensePerimeterBridge is what water under the wall takes: a heavy
 // bridge (and a stone wall) once researched, else a plain bridge (and a

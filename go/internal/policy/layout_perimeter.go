@@ -19,7 +19,11 @@ import (
 // killbox behind it with turret slots, and a bent approach lane outside.
 // Gates of 3 doors through the wall's thickness stand along the dry ring. A
 // cover-clear band runs 30 cells out, and the mortar spot is the firm cell
-// farthest from the wall.
+// farthest from the wall. Moisture pump sites inside the wall cover the soft
+// ring cells a pump dries (#954), so a later re-survey straightens the wall.
+// The colony's own buildings read as the ground under them, and a replan
+// keeps the opening while it still opens: the defense layout is anchored
+// on it.
 
 // Reservation kinds A5 adds beside A1's.
 const (
@@ -33,7 +37,13 @@ const (
 	ReserveBridge ReservationKind = "perimeter_bridge"
 	// ReservePerimeterGap marks walkable ring cells nothing can close.
 	ReservePerimeterGap ReservationKind = "perimeter_gap"
+	// ReserveMoisturePump marks a moisture pump site: soft ring cells it
+	// dries lie within pumpRadius (#954).
+	ReserveMoisturePump ReservationKind = "perimeter_pump"
 )
+
+// perimeterKinds are the reservations PlanPerimeter owns.
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveTurret: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true}
 
 const (
 	perimeterThick int32 = 3
@@ -51,6 +61,8 @@ const (
 	// perimeterDetour caps a shoreline detour's wall at this many times
 	// the straight stretch it replaces (#949).
 	perimeterDetour = 1.5
+	// pumpRadiusSq is a moisture pump's reach, 6.9 cells, squared.
+	pumpRadiusSq = 47
 )
 
 // PlanPerimeter adds the wall, gates, killbox, turret slots, approach,
@@ -67,7 +79,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	impassable := func(c domain.Cell) bool {
 		sc, ok := cells[c]
-		return ok && (sc.Rock || !sc.Walkable)
+		return ok && (sc.Rock || !sc.Walkable && !sc.Built)
 	}
 	soft := func(c domain.Cell) bool {
 		sc, ok := cells[c]
@@ -365,8 +377,25 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
+	// The opening already planned stays while it still opens.
 	open, opened := crossing{}, false
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveKillbox {
+			continue
+		}
+		for k, sd := range sides {
+			for p := sd.lo; p <= sd.hi && !opened; p++ {
+				if kb, _ := openingAt(crossing{k, p}); kb == r.Area && opens(crossing{k, p}) {
+					open, opened = crossing{k, p}, true
+				}
+			}
+		}
+	}
+	pinned := opened
 	for x, v := range votes {
+		if pinned {
+			break
+		}
 		o := votes[open]
 		if !opened || v > o || v == o && (length[x] < length[open] || length[x] == length[open] && (x.side < open.side || x.side == open.side && x.pos < open.pos)) {
 			open, opened = x, true
@@ -491,6 +520,74 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 	}
 
+	// Moisture pumps (#954): sites inside the wall, greedily covering the
+	// soft ring cells a pump dries, each within pumpRadiusSq of its pump.
+	dries := map[domain.Cell]bool{}
+	for _, sd := range sides {
+		for p := sd.lo; p <= sd.hi; p++ {
+			for t := int32(0); t < perimeterThick; t++ {
+				if c := sd.cell(p, t); soft(c) && cells[c].Dries {
+					dries[c] = true
+				}
+			}
+		}
+	}
+	// A site already planned stays while it still dries something, the
+	// pump standing there (Built) or not: a re-survey never moves a pump.
+	pumpSite := func(c domain.Cell, kept bool) bool {
+		sc, ok := cells[c]
+		return ok && contains(inner, c) && (sc.Walkable && !sc.Built || kept && sc.Built) && !sc.Rock && sc.Footing == FootingFirm && !built(c) && !contains(killbox, c) && !detour[c] && !shut[c]
+	}
+	pumps := map[domain.Cell]bool{}
+	drying := func(pump domain.Cell) int {
+		n := 0
+		for d := range dries {
+			if squaredDistance(pump, d) <= pumpRadiusSq {
+				n++
+			}
+		}
+		return n
+	}
+	cover := func(pump domain.Cell) {
+		pumps[pump] = true
+		for d := range dries {
+			if squaredDistance(pump, d) <= pumpRadiusSq {
+				delete(dries, d)
+			}
+		}
+	}
+	for _, r := range plan.Reservations {
+		if c := (domain.Cell{X: r.Area.X, Z: r.Area.Z}); r.Kind == ReserveMoisturePump && pumpSite(c, true) && drying(c) > 0 {
+			cover(c)
+		}
+	}
+	candidates := map[domain.Cell]bool{}
+	for c := range dries {
+		for dx := int32(-6); dx <= 6; dx++ {
+			for dz := int32(-6); dz <= 6; dz++ {
+				if n := (domain.Cell{X: c.X + dx, Z: c.Z + dz}); dx*dx+dz*dz <= pumpRadiusSq && pumpSite(n, false) {
+					candidates[n] = true
+				}
+			}
+		}
+	}
+	for len(dries) > 0 {
+		best, most := domain.Cell{}, 0
+		for c := range candidates {
+			if n := drying(c); n > most || n == most && n > 0 && defenseCellLess(c, best) {
+				best, most = c, n
+			}
+		}
+		if most == 0 {
+			break
+		}
+		delete(candidates, best)
+		cover(best)
+	}
+	for _, c := range sortedCells(pumps) {
+		add(ReserveMoisturePump, rectOf(c, c))
+	}
+
 	// Cover-clear band: four strips around the ring.
 	band := pad(outer, perimeterCoverBand)
 	add(ReserveCoverClear, Rectangle{X: band.X, Z: band.Z, Width: band.Width, Height: outer.Z - band.Z})
@@ -505,7 +602,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		for x := inner.X; x < inner.X+inner.Width; x++ {
 			c := domain.Cell{X: x, Z: z}
 			sc, ok := cells[c]
-			if !ok || !sc.Walkable || sc.Rock || sc.Footing != FootingFirm || built(c) || contains(killbox, c) || detour[c] {
+			if !ok || !sc.Walkable || sc.Rock || sc.Footing != FootingFirm || built(c) || contains(killbox, c) || detour[c] || pumps[c] {
 				continue
 			}
 			d := min(x-inner.X, z-inner.Z, inner.X+inner.Width-1-x, inner.Z+inner.Height-1-z)
@@ -520,9 +617,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 
 	kept := plan.Reservations[:0:0]
 	for _, r := range plan.Reservations {
-		switch r.Kind {
-		case ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate, ReserveKillbox, ReserveTurret, ReserveKillboxApproach, ReserveCoverClear, ReserveMortar:
-		default:
+		if !perimeterKinds[r.Kind] {
 			kept = append(kept, r)
 		}
 	}

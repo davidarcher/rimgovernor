@@ -114,6 +114,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.DefenseCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = cell.Fogged(map) };
                 if (row.Fogged) { row.Issues.Add(Issue("terrain", Common.UnavailableReason.NotApplicable, "Fogged cell geometry is unknown.")); snapshot.Cells.Add(row); continue; }
                 row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
+                row.FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null;
                 row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
                 row.HomeArea = map.areaManager.Home[cell];
                 row.BlocksSight = !cell.CanBeSeenOver(map);

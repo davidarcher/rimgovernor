@@ -36,6 +36,10 @@ type DefenseTierRecord struct {
 	// its plan ids) are keyed by both, so a repair never reuses the id of
 	// the plan that built the tier the first time (#331).
 	Reopened int
+	// Remove marks a perimeter tier of buildings the replanned ring no
+	// longer wants (#954): it is built once none of them stands, and then
+	// leaves the record.
+	Remove bool `json:",omitempty"`
 }
 
 // DefenseLayoutRecord is the one layout the colony committed to for one
@@ -82,6 +86,12 @@ type DefenseLayoutRecord struct {
 	// Anchored marks a layout proposed on the layout plan's killbox with
 	// the perimeter's sections (#789); an older record is proposed afresh.
 	Anchored bool `json:",omitempty"`
+	// PerimeterKey digests the perimeter the tiers were last cut from, and
+	// PerimeterRevision counts the times a changed plan or finished
+	// research re-cut them (#954); it names the new tiers so their methods
+	// never reuse an earlier section's plan ids.
+	PerimeterKey      string `json:",omitempty"`
+	PerimeterRevision int    `json:",omitempty"`
 }
 
 // maxDefenseTiers holds the killbox's tiers and the perimeter's sections.
@@ -98,7 +108,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > maxDefenseTiers || len(r.Firing) > 64 || len(r.Retreat) != 0 && len(r.Retreat) != len(r.Firing) || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
-	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 {
+	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 || len(r.PerimeterKey) > 128 || r.PerimeterRevision < 0 {
 		return errors.New("defense layout verification invalid")
 	}
 	if len(r.FuelShortage) > 16 {

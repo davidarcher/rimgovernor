@@ -10,11 +10,15 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 type SurveyCell struct {
 	Cell domain.Cell
 	// Walkable is ground a pawn crosses (deep water is not); Rock is
-	// natural rock a module is mined out of.
-	Walkable, Rock bool
-	// Footing is what the terrain holds; walkable ground short of firm
-	// is soft and carries no module. Bridgeable takes a bridge; Dries turns
-	// firm under a moisture pump (not moving or deep water).
+	// natural rock a module is mined out of. Built is a player edifice on
+	// the cell (a wall, a door): the perimeter plans as though the colony's
+	// own buildings were not there, so a standing wall reads as the ground
+	// under it (#954).
+	Walkable, Rock, Built bool
+	// Footing is what the natural ground holds, under any floor or bridge;
+	// walkable ground short of firm is soft and carries no module.
+	// Bridgeable takes a bridge; Dries turns firm under a moisture pump (not
+	// moving or deep water).
 	Footing           Footing
 	Bridgeable, Dries bool
 	// ThickRoof is overhead mountain: no drop pods, no roof collapse from
@@ -41,7 +45,9 @@ const (
 )
 
 // Soft is walkable ground no module or stone wall stands on.
-func (c SurveyCell) Soft() bool { return c.Walkable && !c.Rock && c.Footing != FootingFirm }
+func (c SurveyCell) Soft() bool {
+	return (c.Walkable || c.Built) && !c.Rock && c.Footing != FootingFirm
+}
 
 // MapSurvey is the whole map, scored once at settle time.
 type MapSurvey struct {

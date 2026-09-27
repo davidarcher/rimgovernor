@@ -12194,8 +12194,10 @@ type DefenseCell struct {
 	CoverKind       *CoverKind `protobuf:"varint,17,opt,name=cover_kind,json=coverKind,proto3,enum=rimgovernor.observations.v1.CoverKind,oneof" json:"cover_kind,omitempty"`
 	CoverToken      *string    `protobuf:"bytes,18,opt,name=cover_token,json=coverToken,proto3,oneof" json:"cover_token,omitempty"`
 	CoverDesignated *bool      `protobuf:"varint,19,opt,name=cover_designated,json=coverDesignated,proto3,oneof" json:"cover_designated,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The cell's foundation (a Bridge) is designated for removal (#954).
+	FoundationRemovalDesignated *bool `protobuf:"varint,20,opt,name=foundation_removal_designated,json=foundationRemovalDesignated,proto3,oneof" json:"foundation_removal_designated,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *DefenseCell) Reset() {
@@ -12357,6 +12359,13 @@ func (x *DefenseCell) GetCoverToken() string {
 func (x *DefenseCell) GetCoverDesignated() bool {
 	if x != nil && x.CoverDesignated != nil {
 		return *x.CoverDesignated
+	}
+	return false
+}
+
+func (x *DefenseCell) GetFoundationRemovalDesignated() bool {
+	if x != nil && x.FoundationRemovalDesignated != nil {
+		return *x.FoundationRemovalDesignated
 	}
 	return false
 }
@@ -35616,7 +35625,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v22.rimgovernor.observations.v1.SpatialAccessSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xb2\b\n" +
+	"\aoutcome\"\x9d\t\n" +
 	"\vDefenseCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06fogged\x18\x02 \x01(\bH\x00R\x06fogged\x88\x01\x01\x12\x1f\n" +
@@ -35641,7 +35650,8 @@ const file_observations_proto_rawDesc = "" +
 	"cover_kind\x18\x11 \x01(\x0e2&.rimgovernor.observations.v1.CoverKindH\x0eR\tcoverKind\x88\x01\x01\x12$\n" +
 	"\vcover_token\x18\x12 \x01(\tH\x0fR\n" +
 	"coverToken\x88\x01\x01\x12.\n" +
-	"\x10cover_designated\x18\x13 \x01(\bH\x10R\x0fcoverDesignated\x88\x01\x01B\t\n" +
+	"\x10cover_designated\x18\x13 \x01(\bH\x10R\x0fcoverDesignated\x88\x01\x01\x12G\n" +
+	"\x1dfoundation_removal_designated\x18\x14 \x01(\bH\x11R\x1bfoundationRemovalDesignated\x88\x01\x01B\t\n" +
 	"\a_foggedB\v\n" +
 	"\t_walkableB\v\n" +
 	"\t_passableB\r\n" +
@@ -35660,7 +35670,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_cover_def_nameB\r\n" +
 	"\v_cover_kindB\x0e\n" +
 	"\f_cover_tokenB\x13\n" +
-	"\x11_cover_designated\"\xdc\x02\n" +
+	"\x11_cover_designatedB \n" +
+	"\x1e_foundation_removal_designated\"\xdc\x02\n" +
 	"\tRaidTrack\x12\x1c\n" +
 	"\alord_id\x18\x01 \x01(\tH\x00R\x06lordId\x88\x01\x01\x12$\n" +
 	"\vfaction_def\x18\x02 \x01(\tH\x01R\n" +

@@ -49,6 +49,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.DeleteZone] = new ZoneDeletionActionHandler(),
             [Operations.Action.IntentOneofCase.ZoneCells] = new ZoneCellsActionHandler(),
             [Operations.Action.IntentOneofCase.Stockpile] = new StockpileActionHandler(),
+            [Operations.Action.IntentOneofCase.RemoveFoundation] = new FoundationRemovalActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

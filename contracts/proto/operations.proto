@@ -271,6 +271,10 @@ message CreateZone { optional string expected_map_snapshot_token = 1; optional Z
 // stockpile whose haul grid disagrees with its cells; a zone already gone
 // applies again.
 message DeleteZoneIntent { optional string zone_id = 1; }
+// Designate the foundation laid on one cell (def_name, a Bridge) for
+// removal (#954). A cell without that foundation, or one already
+// designated, applies again; ordinary construction work lifts it.
+message RemoveFoundationIntent { rimgovernor.common.v1.Cell cell = 1; optional string def_name = 2; }
 enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
 // Add free zoneable cells to one zone, or remove cells of its own. Native
 // checks the zone, every cell and a contiguous result live when it applies;
@@ -406,6 +410,7 @@ message Action {
     DeleteZoneIntent delete_zone = 27;
     ZoneCellsIntent zone_cells = 28;
     StockpileIntent stockpile = 29;
+    RemoveFoundationIntent remove_foundation = 30;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog

@@ -1855,9 +1855,10 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			continue
 		}
 		// Allow, work settings, zones, a building's temperature target, a
-		// bed's medical flag, a bed's owner, a grower's crop and a claim are immediate
+		// bed's medical flag, a bed's owner, a grower's crop, a claim and a
+		// foundation removal's designation are immediate
 		// designations and need no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.SupplyForbidAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedUseAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction || p.Action().Kind() == domain.ClaimBuildingAction || p.Action().Kind() == domain.ZoneDeleteAction || p.Action().Kind() == domain.ZoneCellEditAction || p.Action().Kind() == domain.StockpilePatchAction {
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.SupplyForbidAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedUseAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction || p.Action().Kind() == domain.ClaimBuildingAction || p.Action().Kind() == domain.ZoneDeleteAction || p.Action().Kind() == domain.ZoneCellEditAction || p.Action().Kind() == domain.StockpilePatchAction || p.Action().Kind() == domain.FoundationRemovalAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action

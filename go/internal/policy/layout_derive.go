@@ -41,7 +41,10 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, geysers []PowerGeyser) domain.Fact
 
 // ReplanLayout grows plan for pawns colonists and tombs tomb rooms over a
 // fresh survey: rooms now on no-go ground are dropped, the rest never move.
-// It reports whether the plan changed.
+// With the rooms unchanged the perimeter alone is replanned (#954), which
+// changes the plan when the ground on or near the ring did (ground a
+// moisture pump dried, a mined-out ring cell). It reports whether the plan
+// changed.
 func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, bool) {
 	zones := Zone(s)
 	noGo := map[domain.Cell]bool{}
@@ -67,12 +70,35 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int) (LayoutPlan, b
 	next.Rooms, next.Zones = kept, zones
 	next = Grow(next, pawns, tombs)
 	if !dropped && len(next.Rooms) == before {
-		return plan, false
+		fresh := withoutCore(PlanPerimeter(plan, s))
+		return fresh, !samePerimeter(plan, fresh)
 	}
 	if len(next.Rooms) == 0 {
 		return plan, false
 	}
 	return withoutCore(PlanPerimeter(next, s)), true
+}
+
+// samePerimeter reports whether a and b hold the same perimeter
+// reservations, in any order.
+func samePerimeter(a, b LayoutPlan) bool {
+	count := map[LayoutReservation]int{}
+	for _, r := range a.Reservations {
+		if perimeterKinds[r.Kind] {
+			count[r]++
+		}
+	}
+	for _, r := range b.Reservations {
+		if perimeterKinds[r.Kind] {
+			count[r]--
+		}
+	}
+	for _, n := range count {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // LayoutOutgrown reports fewer bedrooms than colonists.

@@ -37,6 +37,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.ZoneDeleteAction:          true,
 	domain.ZoneCellEditAction:        true,
 	domain.StockpilePatchAction:      true,
+	domain.FoundationRemovalAction:   true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

@@ -273,6 +273,117 @@ func TestPerimeterMarshySoilTakesWood(t *testing.T) {
 	}
 }
 
+var marsh = SurveyCell{Walkable: true, Footing: FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
+
+// Moisture pump sites stand inside the wall on firm ground and cover every
+// soft ring cell that dries; ground that never dries gets none (#954).
+func TestPerimeterPumpsCoverDryingRing(t *testing.T) {
+	ring := plainsRing(t)
+	z0 := ring.Z + ring.Height - 12
+	wet := func(x, z int32) bool { return z >= z0 && z < z0+4 }
+	p, _ := wetPerimeter(t, func(x, z int32) (SurveyCell, bool) { return marsh, wet(x, z) })
+	pumps, light := reservedCells(p, ReserveMoisturePump), reservedCells(p, ReservePerimeterLight)
+	if len(pumps) == 0 || len(light) == 0 {
+		t.Fatal("pumps", pumps, "light", len(light))
+	}
+	inner := pad(ring, -perimeterThick)
+	for c := range pumps {
+		if !contains(inner, c) || wet(c.X, c.Z) {
+			t.Fatal("pump off firm ground inside the wall", c)
+		}
+	}
+	for c := range light {
+		covered := false
+		for pump := range pumps {
+			covered = covered || squaredDistance(c, pump) <= pumpRadiusSq
+		}
+		if !covered {
+			t.Fatal("no pump dries", c)
+		}
+	}
+	// Pumps standing on their sites keep them.
+	s := zoningSurvey(200, func(x, z int32) SurveyCell {
+		if pumps[domain.Cell{X: x, Z: z}] {
+			return SurveyCell{Built: true, Fertility: 1}
+		}
+		if wet(x, z) {
+			return marsh
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	})
+	if again := PlanPerimeter(p, s); !samePerimeter(p, again) {
+		t.Fatal("standing pumps moved", reservedCells(again, ReserveMoisturePump))
+	}
+	// Each pump section is the pump and a conduit run joining the network
+	// cardinally, ending within connector reach of the pump.
+	core := p.Rooms[0].Interior
+	transmitter := domain.Cell{X: core.X, Z: core.Z}
+	if none, _ := PerimeterPumps(p, "MoisturePump", "HiddenConduit", nil); len(none) != 0 {
+		t.Fatal("pumps without a network")
+	}
+	sections, err := PerimeterPumps(p, "MoisturePump", "HiddenConduit", []domain.Cell{transmitter})
+	if err != nil || len(sections) != len(pumps) {
+		t.Fatal("pump sections", len(sections), err)
+	}
+	net := map[domain.Cell]bool{transmitter: true}
+	for _, s := range sections {
+		site := s.Buildings[0]
+		if site.Definition() != "MoisturePump" || !pumps[site.Cell()] {
+			t.Fatal("section without its pump", s.Name)
+		}
+		for _, b := range s.Buildings[1:] {
+			if b.Definition() != "HiddenConduit" {
+				t.Fatal("not a conduit", b)
+			}
+			net[b.Cell()] = true
+		}
+		reach := false
+		for c := range net {
+			reach = reach || chebyshev(c, site.Cell()) <= conduitReach
+		}
+		if !reach {
+			t.Fatal("pump out of reach", site.Cell())
+		}
+	}
+	seen, queue := map[domain.Cell]bool{transmitter: true}, []domain.Cell{transmitter}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		for _, d := range []domain.Cell{{X: 1}, {X: -1}, {Z: 1}, {Z: -1}} {
+			if n := (domain.Cell{X: c.X + d.X, Z: c.Z + d.Z}); net[n] && !seen[n] {
+				seen[n] = true
+				queue = append(queue, n)
+			}
+		}
+	}
+	if len(seen) != len(net) {
+		t.Fatal("conduits off the network", len(net)-len(seen))
+	}
+	river := shallowWater
+	river.Dries = false
+	p, _ = wetPerimeter(t, func(x, z int32) (SurveyCell, bool) { return river, wet(x, z) })
+	if len(reserved(p, ReserveMoisturePump)) != 0 {
+		t.Fatal("pumps by ground that never dries")
+	}
+}
+
+// The ring plans over the colony's own buildings as ground: walls standing
+// on the planned cells change nothing.
+func TestPerimeterReadsBuildingsAsGround(t *testing.T) {
+	open := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} }
+	p := perimeterPlan(t, open)
+	walls := reservedCells(p, ReservePerimeter)
+	s := zoningSurvey(200, func(x, z int32) SurveyCell {
+		if walls[domain.Cell{X: x, Z: z}] {
+			return SurveyCell{Built: true, Fertility: 1}
+		}
+		return open(x, z)
+	})
+	if !samePerimeter(p, PlanPerimeter(p, s)) {
+		t.Fatal("standing walls moved the ring")
+	}
+}
+
 func TestPerimeterDeepWaterSeals(t *testing.T) {
 	ring := plainsRing(t)
 	x0 := ring.X + ring.Width - 6

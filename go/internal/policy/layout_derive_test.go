@@ -3,6 +3,8 @@ package policy
 import (
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestDeriveAndReplanLayoutPlan(t *testing.T) {
@@ -34,6 +36,50 @@ func TestDeriveAndReplanLayoutPlan(t *testing.T) {
 	for i, r := range plan.Rooms {
 		if grown.Rooms[i] != r {
 			t.Fatal("a grown plan moved a room", i)
+		}
+	}
+}
+
+// The perimeter replans when the ground under the ring dries; its own walls
+// standing on the ring change nothing; the opening and rooms stay (#954).
+func TestReplanPerimeterOnDriedGround(t *testing.T) {
+	var ring Rectangle
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	first, _ := DeriveLayoutPlan(s, 3, nil).Value()
+	for _, r := range reserved(first, ReservePerimeter) {
+		ring = unionRect(ring, r)
+	}
+	z0 := ring.Z + ring.Height - 12
+	survey := func(dried bool, walls map[domain.Cell]bool) MapSurvey {
+		return zoningSurvey(200, func(x, z int32) SurveyCell {
+			c := SurveyCell{Walkable: true, Fertility: 1}
+			if z >= z0 && z < z0+4 && !dried {
+				c = marsh
+			}
+			if walls[domain.Cell{X: x, Z: z}] {
+				c.Walkable, c.Built = false, true
+			}
+			return c
+		})
+	}
+	plan, ok := DeriveLayoutPlan(survey(false, nil), 3, nil).Value()
+	if !ok || len(reserved(plan, ReservePerimeterLight)) == 0 || len(reserved(plan, ReserveMoisturePump)) == 0 {
+		t.Fatal("no wooden stretch", ok)
+	}
+	walls := reservedCells(plan, ReservePerimeter)
+	if _, changed := ReplanLayout(plan, survey(false, walls), 3, 1); changed {
+		t.Fatal("standing walls replanned the perimeter")
+	}
+	next, changed := ReplanLayout(plan, survey(true, walls), 3, 1)
+	if !changed || len(reserved(next, ReservePerimeterLight)) != 0 || len(reserved(next, ReserveMoisturePump)) != 0 {
+		t.Fatal("dried ground kept its wooden wall", changed)
+	}
+	if kb, was := reserved(next, ReserveKillbox), reserved(plan, ReserveKillbox); len(kb) != 1 || kb[0] != was[0] {
+		t.Fatal("the opening moved", kb, was)
+	}
+	for i, r := range plan.Rooms {
+		if next.Rooms[i] != r {
+			t.Fatal("a perimeter replan moved a room", i)
 		}
 	}
 }

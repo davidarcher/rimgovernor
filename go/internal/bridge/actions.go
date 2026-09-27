@@ -49,6 +49,7 @@ func init() {
 	registerIntentKind(domain.ZoneDeleteAction, zoneDeleteAction)
 	registerIntentKind(domain.ZoneCellEditAction, zoneCellsAction)
 	registerIntentKind(domain.StockpilePatchAction, stockpileAction)
+	registerIntentKind(domain.FoundationRemovalAction, foundationRemovalAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.
@@ -65,6 +66,20 @@ func movementAction(action domain.Action) (*o.Action, error) {
 		return nil, err
 	}
 	return &o.Action{Intent: &o.Action_Move{Move: &o.MoveIntent{PawnId: proto.String(string(m.Pawn())), Destination: cell}}}, nil
+}
+
+// foundationRemovalAction is the Actions/Apply remove_foundation arm of one
+// foundation_removal (#954).
+func foundationRemovalAction(action domain.Action) (*o.Action, error) {
+	f, ok := action.FoundationRemoval()
+	if !ok {
+		return nil, contract("not a foundation removal action")
+	}
+	if err := validID(f.Definition()); err != nil {
+		return nil, err
+	}
+	return &o.Action{Intent: &o.Action_RemoveFoundation{RemoveFoundation: &o.RemoveFoundationIntent{
+		Cell: &c.Cell{X: proto.Int32(f.Cell().X), Z: proto.Int32(f.Cell().Z)}, DefName: proto.String(f.Definition())}}}, nil
 }
 
 func movementCell(cell *c.Cell) error {

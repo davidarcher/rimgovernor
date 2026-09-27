@@ -96,9 +96,15 @@ namespace HomeBridge.BridgeTools
                     }
                     // Heavy affordance: a wall stands here; marsh, mud and water refuse one (#727).
                     if (fields.Foundation) {
-                        row.SupportsHeavy = cell.GetTerrain(map)?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
+                        // The natural ground, under any bridge or floor: a
+                        // replan sees the footing a bridge stands on, and
+                        // ground a moisture pump dried reads firm (#954).
+                        // Only the map survey asks for this field, so
+                        // SupportsLight is overridden to match.
+                        var terrain = map.terrainGrid.BaseTerrainAt(cell);
+                        row.SupportsHeavy = terrain?.affordances.Contains(TerrainAffordanceDefOf.Heavy) == true;
+                        row.SupportsLight = terrain?.affordances.Contains(TerrainAffordanceDefOf.Light) == true;
                         // Bridges and moisture pumps close a perimeter across soft ground (#949).
-                        var terrain = cell.GetTerrain(map);
                         row.Bridgeable = terrain?.affordances.Contains(TerrainAffordanceDefOf.Bridgeable) == true;
                         row.Dries = terrain?.driesTo != null;
                         // Ore and trees for whole-map zoning (#778).
