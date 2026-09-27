@@ -95,16 +95,18 @@ func StatusRows(in StatusInput) []StatusRow {
 	}
 	if top, ok := topGoal(in.Progress); ok {
 		text := "goal " + string(top.Goal)
-		if top.Method != "" {
-			text += ": " + top.Method
+		if method := statusMethod(top); method != "" {
+			text += ": " + method
 		}
 		if n, known := in.Colonists.Value(); known {
 			text += fmt.Sprintf(" (%d pawns)", n)
 		}
 		severity := StatusInfo
-		if top.Blocked != "" {
+		if top.Blocked.Actionable() {
 			text += " - blocked " + string(top.Blocked)
 			severity = StatusWarning
+		} else if top.Blocked != "" {
+			text += " - " + string(top.Blocked)
 		}
 		rows = append(rows, StatusRow{Key: "goal", Text: text, Severity: severity, Target: goalCell(in.GoalCells, top.Goal)})
 	} else if in.Stage != nil {
@@ -157,17 +159,47 @@ func StatusRows(in StatusInput) []StatusRow {
 	if len(in.Refusals) > 0 {
 		rows = append(rows, StatusRow{Key: "refusal", Text: "refused " + in.Refusals[0].Label, Severity: StatusWarning, Target: refusal})
 	}
-	for _, g := range in.Progress {
-		text := string(g.Goal)
-		if g.Method != "" {
-			text += ": " + g.Method
+	// Detail rows: actionable blocked goals first (warning, with the
+	// reason), then goals being worked, then one dim row naming the goals
+	// held on purpose.
+	var held []string
+	for _, pass := range []int{0, 1} {
+		for _, g := range in.Progress {
+			actionable := g.Blocked.Actionable()
+			if g.Blocked.Held() {
+				if pass == 0 {
+					held = append(held, string(g.Goal))
+				}
+				continue
+			}
+			if actionable != (pass == 0) {
+				continue
+			}
+			text := string(g.Goal)
+			if method := statusMethod(g); method != "" {
+				text += ": " + method
+			}
+			severity := StatusInfo
+			if actionable {
+				text += " - " + string(g.Blocked)
+				severity = StatusWarning
+			}
+			rows = append(rows, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: severity, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
 		}
-		if g.Blocked != "" {
-			text += " - " + string(g.Blocked)
-		}
-		rows = append(rows, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: StatusInfo, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
+	}
+	if len(held) > 0 {
+		rows = append(rows, StatusRow{Key: "goal.held", Text: "held " + joinShort(held), Severity: StatusInfo, Detail: true})
 	}
 	return rows
+}
+
+// statusMethod is the method a strip row names: the "assess" placeholder
+// (no committed method) only once the goal's planner has run and said why.
+func statusMethod(g GoalProgress) string {
+	if g.Method == "assess" && g.Planner == "" {
+		return ""
+	}
+	return g.Method
 }
 
 // goalCell is goal's target cell, unknown when its plans name none.
@@ -179,10 +211,15 @@ func goalCell(cells map[GoalID]domain.Cell, goal GoalID) domain.Fact[domain.Cell
 }
 
 // topGoal is the goal being worked: the first unblocked progress record,
-// else the first.
+// else the first actionable blocked one, else the first.
 func topGoal(progress []GoalProgress) (GoalProgress, bool) {
 	for _, g := range progress {
 		if g.Blocked == "" {
+			return g, true
+		}
+	}
+	for _, g := range progress {
+		if g.Blocked.Actionable() {
 			return g, true
 		}
 	}

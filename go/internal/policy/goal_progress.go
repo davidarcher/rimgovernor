@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 
@@ -35,6 +36,11 @@ type GoalProgress struct {
 	// Observed is the deficit fraction the last review measured, the
 	// evidence a shrinking deficit is compared against.
 	Observed *float64 `json:",omitempty"`
+	// Planner is the goal's planner's latest refusal ("no_space"), empty
+	// while it last admitted, found work or has not run (RecordPlannerReason).
+	// A record with no method reads it as BlockedPlanner, so "no_method"
+	// only means no planner has said why.
+	Planner string `json:",omitempty"`
 }
 
 // BlockedReason says why a goal's expected observable is not advancing. A
@@ -57,7 +63,50 @@ const (
 	// none this review.
 	BlockedNoMethod     BlockedReason = "no_method"
 	blockedPrerequisite string        = "prerequisite:"
+	blockedPlanner      string        = "planner:"
+	blockedHeld         string        = "held:"
+	// Held reasons: the goal is intentionally not worked (HoldProgress).
+	HeldStage       BlockedReason = "held:stage"
+	HeldUnavailable BlockedReason = "held:unavailable"
+	HeldOptIn       BlockedReason = "held:opt-in"
+	HeldCapacity    BlockedReason = "held:capacity"
+	HeldEmergency   BlockedReason = "held:emergency"
 )
+
+// BlockedPlanner blocks on the goal's planner's refusal reason.
+func BlockedPlanner(reason string) BlockedReason {
+	return BlockedReason(blockedPlanner + reason)
+}
+
+// HeldLabor holds a goal whose work type is withheld or unavailable.
+func HeldLabor(w WorkType) BlockedReason {
+	return BlockedReason(blockedHeld + "labor:" + string(w))
+}
+
+// Held reports a goal intentionally not worked: a held: reason or a
+// prerequisite another goal serves first.
+func (r BlockedReason) Held() bool {
+	return strings.HasPrefix(string(r), blockedHeld) || r.Prerequisite() != ""
+}
+
+// Actionable reports a blocked goal someone should look at: blocked and
+// not held.
+func (r BlockedReason) Actionable() bool {
+	return r != "" && !r.Held()
+}
+
+// printableReason bounds a free-text reason suffix to short printable ASCII.
+func printableReason(s string) bool {
+	if s == "" || len(s) > 96 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x21 || s[i] > 0x7e {
+			return false
+		}
+	}
+	return true
+}
 
 // BlockedPrerequisite blocks on another goal that must be served first.
 func BlockedPrerequisite(goal GoalID) BlockedReason {
@@ -76,6 +125,11 @@ func (r BlockedReason) valid() bool {
 	switch r {
 	case "", BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod:
 		return true
+	}
+	for _, prefix := range []string{blockedPlanner, blockedHeld} {
+		if strings.HasPrefix(string(r), prefix) {
+			return printableReason(strings.TrimPrefix(string(r), prefix))
+		}
 	}
 	return r.Prerequisite() != "" && validResource(Resource(r.Prerequisite()))
 }
@@ -191,6 +245,9 @@ func ReviewGoalProgress(previous GoalProgress, goal GoalID, c ProgressContract, 
 		p.LastProgress = now
 	}
 	p.Blocked = blockedReason(e)
+	if p.Blocked == BlockedNoMethod && p.Planner != "" {
+		p.Blocked = BlockedPlanner(p.Planner)
+	}
 	p.NextReview = 0
 	if c.Deadline > 0 {
 		p.NextReview = p.LastProgress + c.Deadline
@@ -304,7 +361,7 @@ func AddProgressCooldown(p GoalProgress, key string, until, now domain.Tick) Goa
 
 // ValidateGoalProgress checks a persisted record against the review tick.
 func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
-	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || len(p.Expected) > 256 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || len(p.Cooldowns) > 64 {
+	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || len(p.Expected) > 256 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || len(p.Cooldowns) > 64 || p.Planner != "" && !printableReason(p.Planner) {
 		return errors.New("invalid goal progress")
 	}
 	if p.Observed != nil && (*p.Observed < 0 || *p.Observed > 1) {
@@ -379,4 +436,70 @@ func WithheldLabor(progress []GoalProgress) LaborProfile {
 		}
 	}
 	return withheld
+}
+
+// PlannerOptOut is the planner reason for a goal whose method this runtime
+// did not enable (the routine building planners' "disabled").
+const PlannerOptOut = "disabled"
+
+// HoldProgress relabels the records with no method whose goal is held on
+// purpose, so "no_method" and planner refusals name only goals someone
+// should look at: an unavailable method, a planner the runtime left
+// disabled, a development row the ranking held (stage, labor, capacity,
+// emergency) or labor withheld for every work type the goal uses.
+func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld LaborProfile, unavailable map[GoalID]bool) []GoalProgress {
+	byGoal := map[GoalID]DevelopmentRow{}
+	for _, row := range rows {
+		byGoal[row.Goal] = row
+	}
+	out := append([]GoalProgress(nil), progress...)
+	for i := range out {
+		p := &out[i]
+		if p.Blocked != BlockedNoMethod && !strings.HasPrefix(string(p.Blocked), blockedPlanner) {
+			continue
+		}
+		if held := heldReason(*p, byGoal, withheld, unavailable); held != "" {
+			p.Blocked = held
+		}
+	}
+	return out
+}
+
+func heldReason(p GoalProgress, rows map[GoalID]DevelopmentRow, withheld LaborProfile, unavailable map[GoalID]bool) BlockedReason {
+	if unavailable[p.Goal] {
+		return HeldUnavailable
+	}
+	if p.Planner == PlannerOptOut {
+		return HeldOptIn
+	}
+	if row, ok := rows[p.Goal]; ok {
+		switch row.Reason {
+		case DevelopmentStage:
+			return HeldStage
+		case DevelopmentMethodUnavailable:
+			return HeldUnavailable
+		case DevelopmentCapacity, DevelopmentOvercommitted:
+			return HeldCapacity
+		case DevelopmentEmergency:
+			return HeldEmergency
+		case DevelopmentLabor, DevelopmentNoWorkers:
+			w := row.Bottleneck
+			if w == "" && len(row.Labor) > 0 {
+				w = row.Labor[0]
+			}
+			if w != "" {
+				return HeldLabor(w)
+			}
+		}
+	}
+	if labor := GoalLabor(p.Goal); len(labor) > 0 && len(withheld) > 0 {
+		all := true
+		for _, w := range labor {
+			all = all && slices.Contains(withheld, w)
+		}
+		if all {
+			return HeldLabor(labor[0])
+		}
+	}
+	return ""
 }

@@ -276,6 +276,8 @@ type ClockSchedulerResult struct {
 	Reason StepReason
 }
 type ClockScheduler struct {
+	// plannerReasons is the last planner refusal filed per goal.
+	plannerReasons      plannerReasonLog
 	player              *Player
 	session             *Session
 	native              ClockWindowNative
@@ -1546,6 +1548,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 // open attempts of those kinds. The plans are read once, only when some
 // planner reported existing work.
 func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionResult, wave *plannerWave, tick int64) {
+	s.recordPlannerReasons(call, wave)
 	var plans []store.PlanState
 	s.queue.ran(sel, wave.finishedNames(), wave.reason, tick, func(kinds []domain.ActionKind) []domain.ActionID {
 		if plans == nil {

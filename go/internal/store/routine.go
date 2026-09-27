@@ -722,6 +722,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
+		unavailable := map[domain.GoalID]bool{}
+		for _, n := range needs.Assessments {
+			unavailable[n.ID] = n.MethodUnavailable
+		}
+		r.Progress = policy.HoldProgress(r.Progress, development.Rows, policy.WithheldLabor(r.Progress), unavailable)
 		r.Development = developmentRecord(development)
 		r.ReadyWork = &ready
 		r.Recovery, err = routineRecovery(ctx, tx, request.Facts, disaster, r.Goals, result.Goals, request.Tick)

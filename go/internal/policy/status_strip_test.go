@@ -27,7 +27,7 @@ func TestStatusRowsSeverityAndOrder(t *testing.T) {
 		{"wood", "wood 40/100", StatusWarning, false},
 		{"emergency", "EMERGENCY ManageSupplySafety", StatusCritical, false},
 		{"refusal", "refused Building no_path", StatusWarning, false},
-		{"goal.MaintainFood", "MaintainFood: hunt - no_target", StatusInfo, true},
+		{"goal.MaintainFood", "MaintainFood: hunt - no_target", StatusWarning, true},
 		{"goal.EnsureShelter", "EnsureShelter: build", StatusInfo, true},
 	}
 	if len(rows) != len(want) {

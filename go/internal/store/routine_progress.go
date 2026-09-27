@@ -200,3 +200,58 @@ func (r RoutineReview) GoalProgress(need domain.GoalID) (policy.GoalProgress, bo
 	}
 	return policy.GoalProgress{}, false
 }
+
+// RecordPlannerReasons files each goal's latest planner refusal on its
+// progress record (GoalProgress.Planner); "" clears it (the planner
+// admitted or found work). A record with no method, or one already naming
+// a planner refusal, is relabelled at once so the strip names the reason
+// before the next review; held records keep their hold. Goals without a
+// record are skipped. It reports whether anything changed.
+func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.GoalID]string) (bool, error) {
+	if len(reasons) == 0 {
+		return false, nil
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	review, err := loadRoutine(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	changed := false
+	for i := range review.Progress {
+		p := &review.Progress[i]
+		reason, ok := reasons[p.Goal]
+		if !ok || p.Planner == reason {
+			continue
+		}
+		p.Planner = reason
+		if p.Blocked == policy.BlockedNoMethod || strings.HasPrefix(string(p.Blocked), "planner:") {
+			switch reason {
+			case "":
+				p.Blocked = policy.BlockedNoMethod
+			case policy.PlannerOptOut:
+				p.Blocked = policy.HeldOptIn
+			default:
+				p.Blocked = policy.BlockedPlanner(reason)
+			}
+		}
+		if err = policy.ValidateGoalProgress(*p, review.Tick); err != nil {
+			return false, fmt.Errorf("%s: %w", p.Goal, err)
+		}
+		changed = true
+	}
+	if !changed {
+		return false, nil
+	}
+	data, err := json.Marshal(review)
+	if err != nil {
+		return false, err
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}
