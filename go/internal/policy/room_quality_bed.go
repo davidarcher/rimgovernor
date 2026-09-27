@@ -133,6 +133,13 @@ func bedSpot(room TidyRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
 	if !ok {
 		return domain.Cell{}, domain.South, false
 	}
+	return freeSpot(room, size)
+}
+
+// freeSpot is the first free anchor (back row first) where a piece of the
+// North size fits the room's floor clear of its furniture and keeps it
+// walkable.
+func freeSpot(room TidyRoom, size domain.Cell) (domain.Cell, domain.Rotation, bool) {
 	in := room.Room.Interior
 	blocked := map[domain.Cell]bool{}
 	for _, p := range room.Pieces {

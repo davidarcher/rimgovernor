@@ -53,6 +53,28 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 	return policy.NextBedReplacement(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
 }
 
+// beautyUpgrade is the next beauty lever (#830): a plant pot or a
+// prettier floor for a bedroom whose weakest stat is beauty.
+func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
+	obs, sk := facts.Facts.Sleeping.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	traits := sleepingTraits(facts)
+	if !sk || !rk || !ck || !census.Colony || traits == nil {
+		return policy.RoomUpgrade{}, false
+	}
+	tier, _ := facts.BuildTier.Value()
+	available := func(def string) bool {
+		v, known := facts.DefinitionAvailable(def).Value()
+		return known && v
+	}
+	floors := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources}
+	for _, d := range facts.Definitions {
+		floors.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs}
+	}
+	return policy.NextBeautyUpgrade(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors)
+}
+
 // removeOldBed deconstructs a replaced bed, once per bed per goal epoch.
 func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, rep policy.BedReplacement) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
@@ -126,32 +148,43 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 	if err := check(); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	building, err := domain.NewBuilding(u.Def, u.Anchor, u.Rot, stuff)
-	if err != nil {
-		return RoutineBuildingResult{}, err
+	cells := u.Cells
+	if len(cells) == 0 {
+		cells = []domain.Cell{u.Anchor}
 	}
-	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
-	if err != nil {
-		return RoutineBuildingResult{}, err
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	var selected []policy.Preview
+	for i, cell := range cells {
+		building, err := domain.NewBuilding(u.Def, cell, u.Rot, stuff)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		preview, _, err := r.native.PreviewBuilding(call, action, snapshot)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		v := preview.Preview
+		if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
+			return RoutineBuildingResult{}, ErrControl
+		}
+		can, ck := v.CanPlace.Value()
+		safe, sk := v.SafeToPlace.Value()
+		if !ck || !can || !sk || !safe {
+			clockSchedulerLog("%s: bedroom upgrade %s %s refused at %d,%d", goal.Goal.ID, u.Room, u.Def, cell.X, cell.Z)
+			continue
+		}
+		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		selected = append(selected, v)
 	}
-	preview, _, err := r.native.PreviewBuilding(call, action, snapshot)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !preview.Stock.Snapshot.Matches(snapshot) {
-		return RoutineBuildingResult{}, ErrControl
-	}
-	can, ck := v.CanPlace.Value()
-	safe, sk := v.SafeToPlace.Value()
-	if !ck || !can || !sk || !safe {
-		clockSchedulerLog("%s: bedroom upgrade %s %s refused at %d,%d", goal.Goal.ID, u.Room, u.Def, u.Anchor.X, u.Anchor.Z)
+	if len(selected) == 0 {
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	clockSchedulerLog("%s: bedroom upgrade %s %s (weakest %s)", goal.Goal.ID, u.Room, u.Def, u.Weakest)
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-	if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Shelter, check: check})
+	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.Goal.ID, u.Room, u.Def, len(selected), u.Weakest)
+	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, check: check})
 }

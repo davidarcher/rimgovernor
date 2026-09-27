@@ -59,7 +59,8 @@ var roomUpgradeSlots = []string{"end_table", "dresser", "lamp"}
 
 // RoomUpgradeDefinitions are the definitions the closer may place; the
 // planning census must read them for availability and stuff.
-var RoomUpgradeDefinitions = []string{"EndTable", "Dresser", "StandingLamp"}
+// The plant pot and floors are the beauty levers (#830).
+var RoomUpgradeDefinitions = append([]string{"EndTable", "Dresser", "StandingLamp", PlantPotDefinition}, DefaultFlooringPolicy().Floors...)
 
 // RoomUpgrade is one PlaceBuilding the closer wants.
 type RoomUpgrade struct {
@@ -69,6 +70,8 @@ type RoomUpgrade struct {
 	Anchor  domain.Cell
 	Rot     domain.Rotation
 	Weakest RoomStat
+	// Cells, when set, places Def at each cell (a floor, #830).
+	Cells []domain.Cell
 }
 
 // NextRoomUpgrade returns the first (by room id) upgrade due, false when
