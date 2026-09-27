@@ -69,7 +69,7 @@ func (e *Executor) EnableMoveBuilding(moveBuilding MoveBuildingBoundary) error {
 func (e *Executor) runMoveBuilding(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context) (Result, error) {
 	result := Result{Progress: p}
 	v := p.View()
-	move, ok := action.MoveBuilding()
+	move, _, ok := action.Relocation()
 	if !ok || p.Action() != action {
 		return result, ErrEvidence
 	}

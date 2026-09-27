@@ -26,6 +26,9 @@ type MoveBuildingAttempt struct {
 	Attempt    *c.AttemptKey
 	Generation uint64
 	Move       domain.MoveBuilding
+	// Uninstall selects the Uninstall operation (#843) on Move's building
+	// at its current placement instead of the reinstall.
+	Uninstall bool
 }
 type MoveBuildingControl struct{ client *Client }
 
@@ -42,7 +45,10 @@ func validMove(m domain.MoveBuilding) error {
 	_, err := domain.NewMoveBuilding(m.Thing(), m.Definition(), m.Cell(), m.Rotation())
 	return err
 }
-func moveBuildingOperation(m domain.MoveBuilding) *op.Operation {
+func moveBuildingOperation(m domain.MoveBuilding, uninstall bool) *op.Operation {
+	if uninstall {
+		return &op.Operation{Command: &op.Operation_Uninstall{Uninstall: &op.Uninstall{Target: &op.EntityPrecondition{EntityId: proto.String(m.Thing())}}}}
+	}
 	return &op.Operation{Command: &op.Operation_InstallBuilding{InstallBuilding: &op.InstallBuilding{
 		PackedOrInner: &op.EntityPrecondition{EntityId: proto.String(m.Thing())},
 		Destination:   &c.Cell{X: proto.Int32(m.Cell().X), Z: proto.Int32(m.Cell().Z)},
@@ -51,17 +57,29 @@ func moveBuildingOperation(m domain.MoveBuilding) *op.Operation {
 
 // moveBuildingEffect checks the installation evidence names this exact move;
 // stage is the one the reply's position requires (0 = any stage but INSTALLED).
-func moveBuildingEffect(v *r.EffectEvidence, m domain.MoveBuilding, stage r.InstallationStage) error {
+// An uninstall (#843) names the building at its current placement and maps
+// the move's stages: QUEUED is UNINSTALL_QUEUED (no blueprint), INSTALLED
+// is PACKED (with the packed item's id).
+func moveBuildingEffect(v *r.EffectEvidence, m domain.MoveBuilding, uninstall bool, stage r.InstallationStage) error {
 	e := v.GetInstallation()
 	if e == nil || e.GetInnerThingId() != m.Thing() || e.GetDefName() != m.Definition() || e.Cell == nil || e.Cell.X == nil || e.Cell.Z == nil ||
 		e.Cell.GetX() != m.Cell().X || e.Cell.GetZ() != m.Cell().Z || e.Rotation == nil || e.GetRotation() != moveRotations[m.Rotation()] || e.Stage == nil {
 		return contract("move building effect mismatch")
 	}
-	if stage == 0 {
-		if e.GetStage() == r.InstallationStage_INSTALLATION_STAGE_INSTALLED {
-			return contract("move building failure reports installation")
+	done, queued := r.InstallationStage_INSTALLATION_STAGE_INSTALLED, r.InstallationStage_INSTALLATION_STAGE_QUEUED
+	if uninstall {
+		done, queued = r.InstallationStage_INSTALLATION_STAGE_PACKED, r.InstallationStage_INSTALLATION_STAGE_UNINSTALL_QUEUED
+	}
+	switch stage {
+	case 0:
+		if e.GetStage() == done {
+			return contract("move building failure reports its outcome")
 		}
 		return nil
+	case r.InstallationStage_INSTALLATION_STAGE_QUEUED:
+		stage = queued
+	case r.InstallationStage_INSTALLATION_STAGE_INSTALLED:
+		stage = done
 	}
 	if e.GetStage() != stage {
 		return contract("move building stage mismatch")
@@ -69,15 +87,18 @@ func moveBuildingEffect(v *r.EffectEvidence, m domain.MoveBuilding, stage r.Inst
 	if stage == r.InstallationStage_INSTALLATION_STAGE_QUEUED && validID(e.GetBlueprintId()) != nil {
 		return contract("queued move building lacks its blueprint")
 	}
+	if stage == r.InstallationStage_INSTALLATION_STAGE_PACKED && validID(e.GetPackedThingId()) != nil {
+		return contract("packed uninstall lacks its packed item")
+	}
 	return nil
 }
 
-func (client *Client) PreviewMoveBuilding(ctx context.Context, identity *c.Identity, m domain.MoveBuilding) (*op.PreviewReply, Result, error) {
+func (client *Client) PreviewMoveBuilding(ctx context.Context, identity *c.Identity, m domain.MoveBuilding, uninstall bool) (*op.PreviewReply, Result, error) {
 	if ValidateIdentity(identity) != nil || validMove(m) != nil {
 		return nil, Result{}, contract("invalid move building preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: moveBuildingOperation(m)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: moveBuildingOperation(m, uninstall)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -88,18 +109,18 @@ func (client *Client) PreviewMoveBuilding(ctx context.Context, identity *c.Ident
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetEvaluated()
-	if v == nil || v.Accepted == nil || !v.GetAccepted() || v.Preparation != nil || buildingContext(v.Context, identity, 0, false) != nil || moveBuildingEffect(v.Projected, m, r.InstallationStage_INSTALLATION_STAGE_PLACEABLE) != nil {
+	if v == nil || v.Accepted == nil || !v.GetAccepted() || v.Preparation != nil || buildingContext(v.Context, identity, 0, false) != nil || moveBuildingEffect(v.Projected, m, uninstall, r.InstallationStage_INSTALLATION_STAGE_PLACEABLE) != nil {
 		return nil, raw, contract("invalid move building preview evidence")
 	}
 	return reply, raw, nil
 }
 
-func (writer *MoveBuildingControl) ApplyMoveBuilding(ctx context.Context, pre *a.WritePrecondition, m domain.MoveBuilding) (*op.ExecuteReply, Result, error) {
+func (writer *MoveBuildingControl) ApplyMoveBuilding(ctx context.Context, pre *a.WritePrecondition, m domain.MoveBuilding, uninstall bool) (*op.ExecuteReply, Result, error) {
 	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validMove(m) != nil {
 		return nil, Result{}, contract("invalid move building execution")
 	}
 	reply := &op.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: moveBuildingOperation(m)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: moveBuildingOperation(m, uninstall)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -113,7 +134,7 @@ func (writer *MoveBuildingControl) ApplyMoveBuilding(ctx context.Context, pre *a
 	if v == nil {
 		return nil, raw, contract("move building receipt missing")
 	}
-	err = moveBuildingReceipt(v, MoveBuildingAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), m})
+	err = moveBuildingReceipt(v, MoveBuildingAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), m, uninstall})
 	return reply, raw, err
 }
 
@@ -129,13 +150,13 @@ func moveBuildingReceipt(v *r.Receipt, w MoveBuildingAttempt) error {
 	}
 	switch out := v.Outcome.(type) {
 	case *r.Receipt_Applied:
-		return moveBuildingEffect(out.Applied.GetObserved(), w.Move, r.InstallationStage_INSTALLATION_STAGE_QUEUED)
+		return moveBuildingEffect(out.Applied.GetObserved(), w.Move, w.Uninstall, r.InstallationStage_INSTALLATION_STAGE_QUEUED)
 	case *r.Receipt_Uncertain:
 		if out.Uncertain == nil {
 			return contract("move building uncertainty missing")
 		}
 		if out.Uncertain.LastObserved != nil {
-			return moveBuildingEffect(out.Uncertain.LastObserved, w.Move, r.InstallationStage_INSTALLATION_STAGE_QUEUED)
+			return moveBuildingEffect(out.Uncertain.LastObserved, w.Move, w.Uninstall, r.InstallationStage_INSTALLATION_STAGE_QUEUED)
 		}
 		return nil
 	default:
@@ -202,19 +223,19 @@ func (client *Client) ObserveMoveBuilding(ctx context.Context, w MoveBuildingAtt
 		if !v.GetCompleteInspection() {
 			return nil, raw, contract("incomplete move building completion")
 		}
-		err = moveBuildingEffect(out.Completed.GetEvidence(), w.Move, r.InstallationStage_INSTALLATION_STAGE_INSTALLED)
+		err = moveBuildingEffect(out.Completed.GetEvidence(), w.Move, w.Uninstall, r.InstallationStage_INSTALLATION_STAGE_INSTALLED)
 	case *r.Progress_Unsuccessful:
 		if !v.GetCompleteInspection() || out.Unsuccessful.GetReason() != r.UnsuccessfulReason_UNSUCCESSFUL_REASON_OUTCOME_NOT_ACHIEVED {
 			return nil, raw, contract("unverified move building failure")
 		}
-		err = moveBuildingEffect(out.Unsuccessful.GetEvidence(), w.Move, 0)
+		err = moveBuildingEffect(out.Unsuccessful.GetEvidence(), w.Move, w.Uninstall, 0)
 	case *r.Progress_Pending:
 		// The reinstall blueprint stands: the move waits on ordinary
 		// construction work, which waits on the piece's reservation.
 		if !v.GetCompleteInspection() {
 			return nil, raw, contract("incomplete move building pending")
 		}
-		err = moveBuildingEffect(out.Pending.GetEvidence(), w.Move, r.InstallationStage_INSTALLATION_STAGE_QUEUED)
+		err = moveBuildingEffect(out.Pending.GetEvidence(), w.Move, w.Uninstall, r.InstallationStage_INSTALLATION_STAGE_QUEUED)
 	default:
 		err = contract("unsupported move building progress")
 	}

@@ -34,7 +34,7 @@ func validateMoveBuildingAdmission(a domain.Action, p domain.Progress, admission
 	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Tick < 0 {
 		return errors.New("admission plan or tick mismatch")
 	}
-	move, ok := a.MoveBuilding()
+	move, _, ok := a.Relocation()
 	if !ok || move.Thing() != admission.Thing || admission.Snapshot.Native == 0 {
 		return errors.New("invalid move building admission")
 	}

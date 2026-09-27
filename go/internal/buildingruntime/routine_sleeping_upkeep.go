@@ -288,6 +288,12 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if clockDebug() {
 		clockSchedulerLog("sleeping: choice=%+v", choice)
 	}
+	// A couple's double bed comes before any other bed change (#843).
+	if choice.Method != policy.SleepingUnknown {
+		if result, due, err := r.coupleBed(call, epoch, state, review, goal, reading); due || err != nil {
+			return result, err
+		}
+	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
@@ -338,6 +344,10 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	case policy.SleepingUnavailable:
 		return RoutineBuildingResult{Reason: BuildingSleepingUnavailable}, nil
 	case policy.SleepingBuild:
+		// A stored bed is reinstalled before a new one is built (#843).
+		if result, due, err := r.reinstallStoredBed(call, epoch, state, goal, reading, choice); due || err != nil {
+			return result, err
+		}
 		return r.building.step(call, epoch, arbiter)
 	}
 	// Assign: one pawn, one bed, once per goal epoch. A method that already

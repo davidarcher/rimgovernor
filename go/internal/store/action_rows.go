@@ -61,8 +61,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			variant = sql.NullString{String: "drill", Valid: true}
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,stuff) VALUES(?,?,?,'deconstruction',?,?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z, variant)
-	} else if move, ok := a.MoveBuilding(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,rotation) VALUES(?,?,?,'move_building',?,?,?,?,?)", a.ID(), plan, ordinal, move.Thing(), move.Definition(), move.Cell().X, move.Cell().Z, move.Rotation())
+	} else if move, _, ok := a.Relocation(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,rotation) VALUES(?,?,?,?,?,?,?,?,?)", a.ID(), plan, ordinal, a.Kind(), move.Thing(), move.Definition(), move.Cell().X, move.Cell().Z, move.Rotation())
 	} else if cut, ok := a.CutPlant(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'cut_plant',?,?,?,?)", a.ID(), plan, ordinal, cut.Plant(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
 	} else if clear, ok := a.CoverClearance(); ok {
@@ -520,10 +520,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewCoverClearanceAction(id, c)
 		return a, ordinal, err
 	}
-	if kind == "move_building" && target.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && !pawn.Valid && !draftAction.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+	if (kind == "move_building" || kind == "uninstall_building") && target.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && !pawn.Valid && !draftAction.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		m, err := domain.NewMoveBuilding(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, domain.Rotation(rotation.String))
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if kind == "uninstall_building" {
+			a, err := domain.NewUninstallBuildingAction(id, m)
+			return a, ordinal, err
 		}
 		a, err := domain.NewMoveBuildingAction(id, m)
 		return a, ordinal, err

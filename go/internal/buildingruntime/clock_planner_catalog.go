@@ -385,7 +385,7 @@ var plannerCatalog = []plannerEntry{
 			out.Hospital = &method
 			return method.Reason, nil
 		}},
-	{name: "sleepingUpkeep", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedAssignAction}, sections: sectionsBuilding,
+	{name: "sleepingUpkeep", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedAssignAction, domain.MoveBuildingAction, domain.UninstallBuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SleepingUpkeep != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.SleepingUpkeep.step(ctx, epoch, arbiter)

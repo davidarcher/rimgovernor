@@ -55,3 +55,37 @@ func TestMoveBuildingActionRoundTripsAndPrepares(t *testing.T) {
 		t.Fatal(state, err)
 	}
 }
+
+func TestUninstallBuildingActionRoundTripsAndPrepares(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "uninstall-building.db")
+	s := open(t, path)
+	value, _ := domain.NewMoveBuilding("Thing_Bed7", "Bed", domain.Cell{X: 5, Z: 9}, domain.East)
+	a, _ := domain.NewUninstallBuildingAction("uninstall-1", value)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.CreatePlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
+	v := MoveBuildingAdmission{Snapshot: snapshot, Tick: 12, Thing: "Thing_Bed7"}
+	if _, err := s.Dispatch(ctx, "plan", "uninstall-1", v.Snapshot, v.Tick); err == nil {
+		t.Fatal("dispatch without admission accepted")
+	}
+	if _, err := s.PrepareMoveBuilding(ctx, "plan", "uninstall-1", v); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, "plan", "uninstall-1", v.Snapshot, v.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s = open(t, path)
+	state, err := s.LoadPlan(ctx, "plan")
+	if err != nil || state.Spec.Actions()[0] != a || state.Spec.Actions()[0].Kind() != domain.UninstallBuildingAction || len(state.MoveBuildingAdmissions) != 1 {
+		t.Fatal(state, err)
+	}
+}

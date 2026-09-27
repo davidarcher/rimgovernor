@@ -380,7 +380,7 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.DeconstructionAction && e.deconstruction != nil {
 		return e.runDeconstruction(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.MoveBuildingAction && e.moveBuilding != nil {
+	if (action.Kind() == domain.MoveBuildingAction || action.Kind() == domain.UninstallBuildingAction) && e.moveBuilding != nil {
 		return e.runMoveBuilding(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.CutPlantAction && e.cutPlant != nil {

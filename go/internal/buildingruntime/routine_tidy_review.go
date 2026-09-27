@@ -192,7 +192,7 @@ func tidyBusy(definitions []string, plans []store.PlanState, current domain.Gene
 	busy := false
 	routineOpenActions(plans, current, player, func(a domain.Action) {
 		switch a.Kind() {
-		case domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction, domain.ZoneDeleteAction, domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.MoveBuildingAction:
+		case domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction, domain.ZoneDeleteAction, domain.WallRemovalAction, domain.ExcavationAction, domain.DeconstructionAction, domain.MoveBuildingAction, domain.UninstallBuildingAction:
 			busy = true
 		}
 	})

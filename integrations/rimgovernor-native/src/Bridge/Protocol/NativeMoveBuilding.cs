@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
 
         private static Rot4 Rotation(Operations.InstallBuilding command) => new Rot4((int)command.Rotation - 1);
 
-        private static Building? Find(Map map, string id) => map.listerThings.AllThings.OfType<Building>()
+        internal static Building? Find(Map map, string id) => map.listerThings.AllThings.OfType<Building>()
             .FirstOrDefault(b => b.GetUniqueLoadID() == id);
 
         // Packed: the exact spawned MinifiedThing named by its own id or its
@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
 
         // Mover: someone with construction enabled must be able to reach
         // the piece now; whether it is free is the game's reservation, later.
-        private static bool Mover(Pawn p, Thing piece) => p.workSettings?.Initialized == true
+        internal static bool Mover(Pawn p, Thing piece) => p.workSettings?.Initialized == true
             && p.workSettings.GetPriority(WorkTypeDefOf.Construction) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
             && !p.Downed && !p.InMentalState && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
             && p.CanReach(piece, PathEndMode.ClosestTouch, Danger.None);

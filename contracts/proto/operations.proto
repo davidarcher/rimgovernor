@@ -108,6 +108,7 @@ message Operation {
     SetApparelPolicy set_apparel_policy = 58;
     SetDrugPolicy set_drug_policy = 59;
     ClearCover clear_cover = 60;
+    Uninstall uninstall = 61;
   }
   // Why the controller issues this operation, one short ASCII line such as
   // "Hunting: food runway 3d" (#822). Native keeps it with the jobs the
@@ -132,6 +133,13 @@ message PlaceBuilding { rimgovernor.placement.v1.PlacementCandidate placement = 
 message ExcavateCell { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; optional string expected_snapshot_token = 3; }
 message CancelConstruction { EntityPrecondition target = 1; optional string expected_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string expected_stuff = 4; }
 message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
+// Designates one exact installed, minifiable, player-owned building for
+// vanilla Uninstall (#843). No snapshot token: native re-evaluates every rule
+// at apply and adopts an existing Uninstall designation on the building.
+// Evidence is the InstallationEffect: PLACEABLE at preview, UNINSTALL_QUEUED
+// while the designation stands, PACKED once the building is minified.
+// Native does not haul; vanilla hauling moves the packed item to storage.
+message Uninstall { EntityPrecondition target = 1; }
 message AcquireResource { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
 // Withdraws one exact plant-harvest designation this controller placed and
 // nobody took (#291): the source, resource and cell of the AcquireResource

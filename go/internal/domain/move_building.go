@@ -48,3 +48,32 @@ func NewMoveBuildingAction(id ActionID, move MoveBuilding) (Action, error) {
 func (a Action) MoveBuilding() (MoveBuilding, bool) {
 	return a.moveBuilding, a.kind == MoveBuildingAction
 }
+
+const UninstallBuildingAction ActionKind = "uninstall_building"
+
+// UninstallBuilding packs one exact installed player building (#843)
+// through the game's Uninstall designation: ordinary work minifies it where
+// it stands and vanilla hauling takes the packed item to storage. Its value
+// is the building's current placement (MoveBuilding's shape), which the
+// native effect echoes; the uninstall waits on the building's reservation
+// like a move. Completion is the building observed packed.
+type UninstallBuilding = MoveBuilding
+
+func NewUninstallBuildingAction(id ActionID, building UninstallBuilding) (Action, error) {
+	a, err := NewMoveBuildingAction(id, building)
+	if err != nil {
+		return Action{}, err
+	}
+	a.kind = UninstallBuildingAction
+	return a, nil
+}
+func (a Action) UninstallBuilding() (UninstallBuilding, bool) {
+	return a.moveBuilding, a.kind == UninstallBuildingAction
+}
+
+// Relocation is the building of a move or an uninstall: the two kinds share
+// the executor, admission and bridge plumbing and differ only in the
+// operation and the stages it reports.
+func (a Action) Relocation() (building MoveBuilding, uninstall, ok bool) {
+	return a.moveBuilding, a.kind == UninstallBuildingAction, a.kind == MoveBuildingAction || a.kind == UninstallBuildingAction
+}

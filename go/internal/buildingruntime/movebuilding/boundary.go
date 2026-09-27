@@ -20,13 +20,13 @@ import (
 )
 
 type Native interface {
-	PreviewMoveBuilding(context.Context, *c.Identity, domain.MoveBuilding) (*op.PreviewReply, bridge.Result, error)
+	PreviewMoveBuilding(context.Context, *c.Identity, domain.MoveBuilding, bool) (*op.PreviewReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	LookupMoveBuilding(context.Context, bridge.MoveBuildingAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveMoveBuilding(context.Context, bridge.MoveBuildingAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type Writer interface {
-	ApplyMoveBuilding(context.Context, *a.WritePrecondition, domain.MoveBuilding) (*op.ExecuteReply, bridge.Result, error)
+	ApplyMoveBuilding(context.Context, *a.WritePrecondition, domain.MoveBuilding, bool) (*op.ExecuteReply, bridge.Result, error)
 }
 type Capabilities struct {
 	Native Native
@@ -47,11 +47,11 @@ func NewBoundary(base *boundary.Boundary, move Capabilities) *Boundary {
 // refusal holds the action for the next inspection.
 func (b *Boundary) InspectMoveBuilding(ctx context.Context, target executor.Target) (executor.MoveBuildingInspection, error) {
 	out := executor.MoveBuildingInspection{StartedAt: b.Clock.Now()}
-	move, ok := target.Action.MoveBuilding()
+	move, uninstall, ok := target.Action.Relocation()
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	preview, _, err := b.move.Native.PreviewMoveBuilding(ctx, boundary.Identity(target.Snapshot), move)
+	preview, _, err := b.move.Native.PreviewMoveBuilding(ctx, boundary.Identity(target.Snapshot), move, uninstall)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil {
 		if refused.Value.GetCode() == c.FailureCode_FAILURE_CODE_NOT_FOUND {
@@ -86,12 +86,12 @@ func (b *Boundary) InspectMoveBuilding(ctx context.Context, target executor.Targ
 	return out, err
 }
 func (b *Boundary) attempt(p executor.Placement) bridge.MoveBuildingAttempt {
-	move, _ := p.Action.MoveBuilding()
-	return bridge.MoveBuildingAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Move: move}
+	move, uninstall, _ := p.Action.Relocation()
+	return bridge.MoveBuildingAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), Move: move, Uninstall: uninstall}
 }
 func (b *Boundary) ApplyMoveBuilding(ctx context.Context, request executor.MoveBuildingDispatch) (executor.Receipt, error) {
 	p := request.Attempt
-	move, ok := p.Action.MoveBuilding()
+	move, uninstall, ok := p.Action.Relocation()
 	return b.DispatchWrite(ctx, p,
 		func() error {
 			if !ok {
@@ -100,7 +100,7 @@ func (b *Boundary) ApplyMoveBuilding(ctx context.Context, request executor.MoveB
 			return nil
 		},
 		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
-			return b.move.Writer.ApplyMoveBuilding(ctx, pre, move)
+			return b.move.Writer.ApplyMoveBuilding(ctx, pre, move, uninstall)
 		},
 	)
 }

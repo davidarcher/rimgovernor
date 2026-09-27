@@ -128,7 +128,7 @@ message ConstructionEffect {
   repeated string cancelled_frame_ids = 12;
   repeated string wiped_thing_ids = 13;
 }
-enum InstallationStage { INSTALLATION_STAGE_UNSPECIFIED = 0; INSTALLATION_STAGE_PACKED = 1; INSTALLATION_STAGE_PLACEABLE = 2; INSTALLATION_STAGE_QUEUED = 3; INSTALLATION_STAGE_INSTALLED = 4; INSTALLATION_STAGE_UNVERIFIED = 5; }
+enum InstallationStage { INSTALLATION_STAGE_UNSPECIFIED = 0; INSTALLATION_STAGE_PACKED = 1; INSTALLATION_STAGE_PLACEABLE = 2; INSTALLATION_STAGE_QUEUED = 3; INSTALLATION_STAGE_INSTALLED = 4; INSTALLATION_STAGE_UNVERIFIED = 5; INSTALLATION_STAGE_UNINSTALL_QUEUED = 6; }
 message InstallationEffect { optional string inner_thing_id = 1; optional string packed_thing_id = 2; optional string blueprint_id = 3; optional string def_name = 4; optional string stuff = 5; rimgovernor.common.v1.Cell cell = 6; optional rimgovernor.placement.v1.Rotation rotation = 7; optional InstallationStage stage = 8; }
 message DesignationEffect { optional string thing_id = 1; optional string designation_def = 2; optional bool present = 3; optional string resource_def = 4; rimgovernor.common.v1.Cell cell = 5; }
 enum SettingsField {

@@ -39,6 +39,8 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CutPlants = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         // InstallBuilding admissions (NativeMoveBuilding, #808), observed by the queued installation.
         internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Moves = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
+        // Uninstall admissions (NativeUninstallBuilding, #843), observed by the uninstall designation.
+        internal readonly Dictionary<Common.AttemptKey, Receipts.InstallationEffect> Uninstalls = new Dictionary<Common.AttemptKey, Receipts.InstallationEffect>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CoverClearances = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
@@ -148,6 +150,8 @@ namespace HomeBridge.BridgeTools
                     : NativeSupplyAllow.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ClearCover)
                 return NativeClearCover.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Uninstall)
+                return NativeUninstallBuilding.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
                 return NativeMoveBuilding.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
@@ -315,6 +319,8 @@ namespace HomeBridge.BridgeTools
                         : NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ClearCover)
                     return ProtoBoundary.Encode(NativeClearCover.Preview(parsed.Operation.ClearCover, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Uninstall)
+                    return ProtoBoundary.Encode(NativeUninstallBuilding.Preview(parsed.Operation.Uninstall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.InstallBuilding)
                     return ProtoBoundary.Encode(NativeMoveBuilding.Preview(parsed.Operation.InstallBuilding, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
@@ -463,6 +469,9 @@ namespace HomeBridge.BridgeTools
                     Receipts.DesignationEffect cut;
                     if (state.CutPlants.TryGetValue(parsed.Attempt, out cut))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCutPlant.Observe(parsed.Attempt, context, cut) }));
+                    Receipts.InstallationEffect uninstall;
+                    if (state.Uninstalls.TryGetValue(parsed.Attempt, out uninstall))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeUninstallBuilding.Observe(parsed.Attempt, context, uninstall) }));
                     Receipts.InstallationEffect move;
                     if (state.Moves.TryGetValue(parsed.Attempt, out move))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeMoveBuilding.Observe(parsed.Attempt, context, move) }));

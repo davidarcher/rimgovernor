@@ -81,12 +81,13 @@ func (ConstructionStage) EnumDescriptor() ([]byte, []int) {
 type InstallationStage int32
 
 const (
-	InstallationStage_INSTALLATION_STAGE_UNSPECIFIED InstallationStage = 0
-	InstallationStage_INSTALLATION_STAGE_PACKED      InstallationStage = 1
-	InstallationStage_INSTALLATION_STAGE_PLACEABLE   InstallationStage = 2
-	InstallationStage_INSTALLATION_STAGE_QUEUED      InstallationStage = 3
-	InstallationStage_INSTALLATION_STAGE_INSTALLED   InstallationStage = 4
-	InstallationStage_INSTALLATION_STAGE_UNVERIFIED  InstallationStage = 5
+	InstallationStage_INSTALLATION_STAGE_UNSPECIFIED      InstallationStage = 0
+	InstallationStage_INSTALLATION_STAGE_PACKED           InstallationStage = 1
+	InstallationStage_INSTALLATION_STAGE_PLACEABLE        InstallationStage = 2
+	InstallationStage_INSTALLATION_STAGE_QUEUED           InstallationStage = 3
+	InstallationStage_INSTALLATION_STAGE_INSTALLED        InstallationStage = 4
+	InstallationStage_INSTALLATION_STAGE_UNVERIFIED       InstallationStage = 5
+	InstallationStage_INSTALLATION_STAGE_UNINSTALL_QUEUED InstallationStage = 6
 )
 
 // Enum value maps for InstallationStage.
@@ -98,14 +99,16 @@ var (
 		3: "INSTALLATION_STAGE_QUEUED",
 		4: "INSTALLATION_STAGE_INSTALLED",
 		5: "INSTALLATION_STAGE_UNVERIFIED",
+		6: "INSTALLATION_STAGE_UNINSTALL_QUEUED",
 	}
 	InstallationStage_value = map[string]int32{
-		"INSTALLATION_STAGE_UNSPECIFIED": 0,
-		"INSTALLATION_STAGE_PACKED":      1,
-		"INSTALLATION_STAGE_PLACEABLE":   2,
-		"INSTALLATION_STAGE_QUEUED":      3,
-		"INSTALLATION_STAGE_INSTALLED":   4,
-		"INSTALLATION_STAGE_UNVERIFIED":  5,
+		"INSTALLATION_STAGE_UNSPECIFIED":      0,
+		"INSTALLATION_STAGE_PACKED":           1,
+		"INSTALLATION_STAGE_PLACEABLE":        2,
+		"INSTALLATION_STAGE_QUEUED":           3,
+		"INSTALLATION_STAGE_INSTALLED":        4,
+		"INSTALLATION_STAGE_UNVERIFIED":       5,
+		"INSTALLATION_STAGE_UNINSTALL_QUEUED": 6,
 	}
 )
 
@@ -5302,14 +5305,15 @@ const file_receipts_proto_rawDesc = "" +
 	"\x1cCONSTRUCTION_STAGE_BLUEPRINT\x10\x01\x12\x1c\n" +
 	"\x18CONSTRUCTION_STAGE_FRAME\x10\x02\x12\x1f\n" +
 	"\x1bCONSTRUCTION_STAGE_BUILDING\x10\x03\x12 \n" +
-	"\x1cCONSTRUCTION_STAGE_CANCELLED\x10\x04*\xdc\x01\n" +
+	"\x1cCONSTRUCTION_STAGE_CANCELLED\x10\x04*\x85\x02\n" +
 	"\x11InstallationStage\x12\"\n" +
 	"\x1eINSTALLATION_STAGE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19INSTALLATION_STAGE_PACKED\x10\x01\x12 \n" +
 	"\x1cINSTALLATION_STAGE_PLACEABLE\x10\x02\x12\x1d\n" +
 	"\x19INSTALLATION_STAGE_QUEUED\x10\x03\x12 \n" +
 	"\x1cINSTALLATION_STAGE_INSTALLED\x10\x04\x12!\n" +
-	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05*\xcf\x05\n" +
+	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05\x12'\n" +
+	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\xcf\x05\n" +
 	"\rSettingsField\x12\x1e\n" +
 	"\x1aSETTINGS_FIELD_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SETTINGS_FIELD_FORBIDDEN\x10\x01\x12\x18\n" +

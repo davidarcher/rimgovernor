@@ -107,7 +107,7 @@ func routineProgress(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 // goal declares no profile (a startup goal): who could take it.
 func actionLabor(action domain.Action) policy.LaborProfile {
 	switch action.Kind() {
-	case domain.BuildingAction, domain.DeconstructionAction, domain.WallRemovalAction, domain.RepairAction, domain.MoveBuildingAction:
+	case domain.BuildingAction, domain.DeconstructionAction, domain.WallRemovalAction, domain.RepairAction, domain.MoveBuildingAction, domain.UninstallBuildingAction:
 		return policy.LaborProfile{policy.WorkConstruction}
 	case domain.HaulAction:
 		return policy.LaborProfile{policy.WorkHauling}
