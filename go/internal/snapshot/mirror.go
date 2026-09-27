@@ -24,7 +24,8 @@ import (
 // table and on a scope change, else the rows that changed since the
 // section's last table and the keys it dropped (no line when nothing
 // changed, unless a binding names the version). Keys and rows are Encode's
-// JSON of the mirror's K and R. Any mirror section is recorded this way,
+// JSON of the mirror's K and R; planning_cells rides as a wire CellGrid in
+// "Grid" instead (grid.go). Any mirror section is recorded this way,
 // whatever its type, as soon as it is a mirror section (#773's pawns, gear,
 // acquisition and upkeep included).
 //
@@ -72,6 +73,9 @@ type sectionFrame struct {
 	Key     bool                 `json:",omitempty"`
 	Upserts [][2]json.RawMessage `json:",omitempty"`
 	Removed []json.RawMessage    `json:",omitempty"`
+	// Grid holds planning_cells as a wire CellGrid in place of Upserts and
+	// Removed (grid.go).
+	Grid []byte `json:",omitempty"`
 }
 
 // recSection is a mirror section as a stream holds it, writing or
@@ -85,6 +89,8 @@ type recSection struct {
 	// field caches the bound field built at version.
 	field      any
 	fieldBuilt bool
+	// grid is planning_cells as a grid, when its last line was one.
+	grid *heldGrid
 	// colony caches the decoded colony facts on the root colony section.
 	colony *colonyDecoded
 }
@@ -111,7 +117,19 @@ func recordSection(dir string, p mirror.Published) {
 	}
 	held := rec.sections[p.Section]
 	frame := sectionFrame{Name: p.Section, Version: p.Version, AsOf: p.AsOf, Scope: p.Scope}
-	if held == nil || held.scope != p.Scope {
+	var grid *heldGrid
+	if p.Section == string(facts.PlanningCells) {
+		var base *heldGrid
+		if held != nil && held.scope == p.Scope {
+			base = held.grid
+		}
+		if data, next, ok := gridFrame(base, p.Rows, rows); ok {
+			frame.Grid, frame.Key, grid = data, base == nil || base.rect != next.rect, next
+		}
+	}
+	if grid != nil {
+		// The grid holds the rows.
+	} else if held == nil || held.scope != p.Scope {
 		frame.Key = true
 		for _, k := range sortedKeys(rows) {
 			frame.Upserts = append(frame.Upserts, [2]json.RawMessage{keys[k], rows[k]})
@@ -128,7 +146,7 @@ func recordSection(dir string, p mirror.Published) {
 			}
 		}
 	}
-	if !frame.Key && len(frame.Upserts) == 0 && len(frame.Removed) == 0 && !bound(p.Section) {
+	if !frame.Key && frame.Grid == nil && len(frame.Upserts) == 0 && len(frame.Removed) == 0 && !bound(p.Section) {
 		// Nothing changed and no line names the version: the stream keeps
 		// the section as it was.
 		return
@@ -137,7 +155,7 @@ func recordSection(dir string, p mirror.Published) {
 		delete(rec.sections, p.Section)
 		return
 	}
-	rec.sections[p.Section] = &recSection{scope: p.Scope, version: p.Version, asOf: p.AsOf, keys: keys, rows: rows}
+	rec.sections[p.Section] = &recSection{scope: p.Scope, version: p.Version, asOf: p.AsOf, keys: keys, rows: rows, grid: grid}
 }
 
 // encodeRows is a map[K]R's keys and rows as Encode's compact JSON, by
@@ -183,6 +201,9 @@ func sortedKeys(m map[string]json.RawMessage) []string {
 
 // apply lays a section line over the held section (a replay).
 func (s *recSection) apply(f sectionFrame) (*recSection, error) {
+	if f.Grid != nil {
+		return s.applyGrid(f)
+	}
 	next := &recSection{scope: f.Scope, version: f.Version, asOf: f.AsOf, keys: map[string]json.RawMessage{}, rows: map[string]json.RawMessage{}}
 	if !f.Key {
 		if s == nil {

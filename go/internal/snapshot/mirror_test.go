@@ -102,6 +102,9 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		if err = json.Unmarshal(lines.Bytes(), &line); err != nil {
 			t.Fatal(err)
 		}
+		if line.Section != nil && line.Section.Name == name && (line.Section.Grid == nil || len(line.Section.Upserts) > 0) {
+			t.Error("planning cells not recorded as a grid at", line.Tick)
+		}
 		if line.Mirror[name] != 0 {
 			elided++
 		}

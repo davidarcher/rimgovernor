@@ -28,8 +28,17 @@ func (rec *streamWriter) keySections() {
 	for _, name := range names {
 		s := rec.sections[name]
 		frame := sectionFrame{Name: name, Version: s.version, AsOf: s.asOf, Scope: s.scope, Key: true}
+		if s.grid != nil {
+			if data, next, ok := encodeGrid(&heldGrid{rect: s.grid.rect, cols: s.grid.cols}, true, nil, nil, s.rows); ok {
+				frame.Grid, s.grid = data, next
+			} else {
+				s.grid = nil
+			}
+		}
 		for _, k := range sortedKeys(s.rows) {
-			frame.Upserts = append(frame.Upserts, [2]json.RawMessage{s.keys[k], s.rows[k]})
+			if frame.Grid == nil {
+				frame.Upserts = append(frame.Upserts, [2]json.RawMessage{s.keys[k], s.rows[k]})
+			}
 		}
 		if err := rec.append(streamLine{Tick: domain.Tick(s.asOf.Tick), Section: &frame}); err != nil {
 			delete(rec.sections, name)
