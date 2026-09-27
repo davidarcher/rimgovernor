@@ -359,15 +359,17 @@ namespace HomeBridge.BridgeTools
                         // holds once on evidence it cannot see instead of every
                         // read that crosses the row refusing for the life of the
                         // process -- which disabled authority on each poll, and
-                        // no first routine review ever persisted (#661).
-                        if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical))
+                        // no first routine review ever persisted (#661). A row
+                        // written under an older contract that no longer
+                        // parses is the same loss.
+                        if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical)
+                            || !TryParseStoredEvent(canonical, out var observed))
                         {
                             page.Gap = true;
                             page.LostCount = checked(page.LostCount + 1);
                             previous = Convert.ToInt64(row["cursor"]);
                             continue;
                         }
-                        var observed = Clock.Event.Parser.ParseJson(canonical);
                         if (!ValidStoredEvent(observed) || observed.Cursor <= previous
                             || observed.Cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
                         // Native's own clock on both sides: the unobserved age of
@@ -382,6 +384,11 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception) { return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
             }
+        }
+        private static bool TryParseStoredEvent(string canonical, out Clock.Event observed)
+        {
+            try { observed = Clock.Event.Parser.ParseJson(canonical); return true; }
+            catch (Google.Protobuf.InvalidProtocolBufferException) { observed = new Clock.Event(); return false; }
         }
         private static ulong _publishedGeneration;
         private static void OnAuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong previous)
