@@ -28,7 +28,7 @@ discovered/mapped, not as live source links.
 | `home/relieve_need` | Operations.Preview / Execute: RelieveNeed | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/medical_operations` | Observations.ReadMedicalCatalog | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/caravan` | Actions.Apply: FormCaravanIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
-| `home/manage_waste` | Operations.Preview / Execute: ManageWaste | Typed | `controller/rimgovernor/bridge_game.py:15` |
+| `home/manage_waste` | Actions.Apply: WasteIntent | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/gear_upkeep` | Operations.Preview / Execute: ImproveGear; Observations.ReadGear | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/population` | Actions.Apply PrisonerInteractionIntent; Observations.ReadPopulation | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/acquire_resource` | Operations.Preview / Execute: AcquireResource | Typed | `controller/rimgovernor/bridge_game.py:15` |

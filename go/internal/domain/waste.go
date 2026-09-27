@@ -3,15 +3,9 @@ package domain
 import "errors"
 
 // Waste is explicit intent to have one pawn haul or bury one specific exposed
-// native waste item (filth, junk, corpse). The pawn is not drafted; native
-// eligibility, current job state and whether the item still exists are
-// established at inspection, not here. Cell mirrors Clean's Cell field: the
-// generic waste census (policy.WasteItem) carries no exact-ID lookup RPC, so
-// the item's CAS token must be resolved by scanning its cell's things instead.
-// UnwantedIDs/BuryIDs are always empty for an autopilot-selected item: no
-// Go autopilot goal yet carries player-declared unwanted/bury lists, so
-// native's own ManageWaste/manage_waste eligibility owns the haul-or-bury
-// destination choice unassisted.
+// native waste item (spoiled, a rotting corpse). The pawn is not drafted;
+// native checks eligibility, the item and the haul-or-bury destination live
+// when the WasteIntent applies. Cell is the census position the planner saw.
 type Waste struct {
 	pawn   PawnID
 	target string

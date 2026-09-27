@@ -49,7 +49,6 @@ type SessionConfig struct {
 	GearReplace     *GearReplaceCapabilities
 	Repair          *RepairCapabilities
 	Clean           *CleanCapabilities
-	Waste           *WasteCapabilities
 	MoodRelief      *MoodReliefCapabilities
 	RecoveryService *RecoveryServiceCapabilities
 	// BuildingTemperature backs the refrigeration family's cooler setpoint
@@ -308,9 +307,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Clean != nil && (config.Clean.Native == nil || config.Clean.Writer == nil)", ErrControl))
 	}
-	if config.Waste != nil && (config.Waste.Native == nil || config.Waste.Writer == nil) {
-		return cleanup(fmt.Errorf("%w: NewSession: config.Waste != nil && (config.Waste.Native == nil || config.Waste.Writer == nil)", ErrControl))
-	}
 	if config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.MoodRelief != nil && (config.MoodRelief.Native == nil || config.MoodRelief.Writer == nil)", ErrControl))
 	}
@@ -489,15 +485,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableClean(cleanBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Waste != nil {
-		wasteBoundary, err := NewWasteBoundary(config.Waste.Native, config.Waste.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableWaste(wasteBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

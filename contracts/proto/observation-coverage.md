@@ -298,7 +298,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | BedAssignIntent.pawn_id/bed_id/expected_previous_bed | ListPawns.pawn and owned bed; ListBuildings.building |
 | RemoveWall.wall/expected_site_snapshot_token | ListWallUpgradeSites.target.snapshot and site.snapshot, exact geometry below |
 | RecoverService.target/pawn | ReadRecovery.building.snapshot; ListPawns.pawn.snapshot |
-| ManageWaste.target/pawn | ReadWaste.thing.snapshot; ListPawns.pawn.snapshot |
 | RelieveNeed.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | ImproveGear.pawn/target/loadout | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
 | HusbandryIntent.animal_id/target_id | ReadHusbandry.pawn (same animal ID), allowed area and master IDs |

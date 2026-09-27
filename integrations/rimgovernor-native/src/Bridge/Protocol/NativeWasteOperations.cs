@@ -15,85 +15,15 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Typed dispatch for MaintainWaste's exact-item haul/burial order. Reuses
-    // the same real native hauling WorkGiver scan the legacy JSON
-    // home/manage_waste tool (HomeWasteTools.Haul) issues, so an order here
-    // is exactly the job a player's float-menu click would produce. The
-    // waste target's CAS token is self-computed and self-checked the same
-    // way NativeRecoveryOperations does for buildings: no per-item lookup RPC
-    // exposes it (WasteItem.Snapshot is declared in observations.proto but
-    // ReadWaste has no native implementation), so a caller obtains the token
-    // via bridge.ReadWasteTarget's rimgovernor/observations_get_cells read
-    // with Things requested (NativeObservationTools.CellThingRow computes the
-    // identical Token(...) hash for the item's cell), not the legacy
-    // home/waste_state JSON tool.
-    internal sealed class NativeWasteRecord
-    {
-        private readonly NativeControlIdentity identity;
-        private readonly Pawn pawn;
-        private readonly Thing target;
-        private readonly string jobDef;
-        private readonly int jobId;
-        private readonly string trackingId;
-        private readonly Common.ObservationContext admitted;
-        internal NativeWasteRecord(NativeControlIdentity identity, Pawn pawn, Thing target, Job job, string trackingId, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.target = target; jobId = job.loadID; jobDef = job.def?.defName ?? ""; this.trackingId = trackingId; admitted = context.Clone(); }
-
-        // Issued describes only whether THIS call just issued a new job; Progress
-        // always reports Issued=false, matching the haul/recovery evidence contract.
-        internal Receipts.EffectEvidence Evidence(NativePawnSnapshot snapshot, bool issued, bool verified) => new Receipts.EffectEvidence
-        {
-            Job = new Receipts.JobEffect
-            {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
-                TargetA = new Receipts.JobTarget { ThingId = target.GetUniqueLoadID() },
-                Issued = issued, Verified = verified,
-                VerifiedReason = verified ? "Exact issued native waste job and quantity ledger observed." : "Issued job outcome requires observation.",
-                Drafted = false, ResultingSnapshotToken = snapshot.Token,
-            }
-        };
-
-        internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
-        {
-            var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
-            try
-            {
-                if (!context.Identity.Equals(admitted.Identity) || context.Tick < admitted.Tick
-                    || NativePawnControlState.Observe(identity, pawn, out var snapshot) != NativePawnControlResult.Ready || snapshot == null)
-                    throw new InvalidOperationException("Current waste pawn context cannot be inspected.");
-                var record = HaulTracking.Lookup(trackingId);
-                if (record == null)
-                {
-                    result.Unknown = new Receipts.UnknownEffect { Reason = "The exact waste haul tracking record is no longer observable; absence does not prove delivery." };
-                }
-                else if (record.Complete)
-                {
-                    result.CompleteInspection = true;
-                    result.Completed = new Receipts.CompletedEffect { Evidence = Evidence(snapshot, false, true) };
-                }
-                else if (record.Blocker != null)
-                {
-                    result.CompleteInspection = true;
-                    result.Unsuccessful = new Receipts.UnsuccessfulEffect
-                    { Reason = Receipts.UnsuccessfulReason.Interrupted, Evidence = Evidence(snapshot, false, false), Detail = record.Blocker };
-                }
-                else
-                {
-                    result.CompleteInspection = true;
-                    result.Pending = new Receipts.PendingEffect { Evidence = Evidence(snapshot, false, true) };
-                }
-            }
-            catch (Exception error) { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Waste inspection unavailable: " + error.GetType().Name }; }
-            return result;
-        }
-    }
-
+    // WasteIntent on Actions/Apply (#940): order one undrafted colonist to
+    // haul one exposed waste item (spoiled, a rotting corpse, or one the
+    // caller declares unwanted) to a separated dirty outdoor stockpile or an
+    // empty grave, with the job the game's own Hauling WorkGiver builds.
+    // Native checks the pawn, the item's protection and the destination
+    // live; a pawn already hauling the item applies again. Applied means
+    // ordered, not delivered; the next waste census reads where it is.
     internal static class NativeWasteOperations
     {
-        internal static bool Valid(Operations.ManageWaste? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Target) && NativeDraftProtocol.ValidEntity(command.Pawn)
-            && command.Pawn.EntityId != command.Target.EntityId && command.UnwantedIds.Count <= 256 && command.BuryIds.Count <= 256;
-
         private static HashSet<string> Set(IEnumerable<string> ids) => new HashSet<string>(ids, StringComparer.Ordinal);
 
         // Ports HomeWasteTools.Protection.
@@ -187,125 +117,68 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static bool Prepare(Operations.ManageWaste command, Common.ObservationContext context, out NativeControlIdentity identity,
-            out Pawn? pawn, out Thing? thing, out NativePawnSnapshot? snapshot, out Common.Failure failure)
+        private static bool Hauling(Pawn pawn, Thing thing) =>
+            pawn.carryTracker?.CarriedThing == thing || pawn.CurJob != null && pawn.CurJob.targetA.Thing == thing
+                && (pawn.CurJob.def == JobDefOf.HaulToCell || pawn.CurJob.def == JobDefOf.HaulToContainer);
+
+        private static Common.Failure? Resolve(Operations.WasteIntent? intent, Common.ObservationContext context, out Pawn? pawn, out Thing? thing)
         {
-            identity = new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken);
-            pawn = null; thing = null; snapshot = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste order requires an exact pawn, exact target and bounded unwanted/bury lists.");
-            if (!Valid(command)) return false;
-            failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
-            if (!NativePawnControlState.IsReady) return false;
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
-            if (pawn == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map."); return false; }
-            var check = NativePawnControlState.Check(identity, pawn, command.Pawn.ExpectedSnapshotToken, out snapshot);
-            if (check != NativePawnControlResult.Ready) { failure = NativeDraftProtocol.Failure(check, context); return false; }
-            if (snapshot!.Drafted || !snapshot.Eligible)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an eligible undrafted pawn."); return false; }
-            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
-            if (thing == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact waste item is unavailable."); return false; }
-            if (Token(context.Identity, thing) != command.Target.ExpectedSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste target snapshot changed; observe before new admission."); return false; }
-            bool burialRequested = Set(command.BuryIds).Contains(command.Target.EntityId);
-            var protection = Protection(thing, burialRequested);
-            var kind = burialRequested && thing is Corpse ? "corpse" : Kind(thing, Set(command.UnwantedIds));
-            if (protection != null || kind == null)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Item is protected or not eligible waste: " + (protection ?? "not eligible waste")); return false; }
-            if (!burialRequested && Stored(thing))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Already relocated; no further haul needed."); return false; }
-            return true;
+            pawn = null; thing = null;
+            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ThingId) || intent.PawnId == intent.ThingId)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an exact pawn id and item id.");
+            if (!NativePawnControlState.IsReady)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            var map = ProtoBoundary.LoadedMap(context);
+            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
+            var foundPawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == intent.PawnId);
+            if (foundPawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
+            var control = NativePawnControlState.Observe(identity, foundPawn, out var observed);
+            if (control != NativePawnControlResult.Ready || observed == null) return NativeDraftProtocol.Failure(control, context);
+            if (observed.Drafted || !observed.Eligible)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste haul requires an eligible undrafted pawn.");
+            var carried = foundPawn.carryTracker?.CarriedThing;
+            var foundThing = carried != null && carried.GetUniqueLoadID() == intent.ThingId ? carried
+                : map.listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == intent.ThingId);
+            if (foundThing == null || foundThing.Destroyed) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact waste item is unavailable.");
+            pawn = foundPawn; thing = foundThing;
+            if (Hauling(pawn, thing)) return null;
+            var unwanted = intent.Unwanted ? Set(new[] { intent.ThingId }) : Set(new string[0]);
+            var protection = Protection(thing, false);
+            if (protection != null || Kind(thing, unwanted) == null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Item is protected or not eligible waste: " + (protection ?? "not eligible waste"));
+            if (Stored(thing)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Already relocated; no further haul needed.");
+            if (FindJob(pawn, thing, false) == null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No native hauling job with an eligible separated storage or burial destination is available.");
+            return null;
         }
 
-        internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
+        private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing thing, Job job, bool issued) => new Receipts.EffectEvidence
         {
-            var command = request.Operation.ManageWaste; var pre = request.Precondition;
-            if (!Valid(command))
-                return Refuse(Common.FailureCode.InvalidRequest, "Waste order requires an exact pawn, exact target and bounded unwanted/bury lists.");
-            bool burialRequested = Set(command.BuryIds).Contains(command.Target.EntityId);
-            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
-            try
+            Job = new Receipts.JobEffect
             {
-                if (!Prepare(command, context, out var identity, out var pawn, out var thing, out var snapshot, out var failure))
-                    return new Operations.ExecuteReply { Failure = failure };
-                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-                    return Refuse(Common.FailureCode.AuthorityRequired, "Current native authority is required.");
-                var guard = authority.Check(pre.ExpectedGeneration);
-                context.NativeGeneration = guard.Snapshot.Generation;
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                var result = FindJob(pawn!, thing!, burialRequested);
-                if (result == null) return Refuse(Common.FailureCode.NativeFailure, "No native hauling job with an eligible separated storage or burial destination is available.");
-                guard = authority.Check(pre.ExpectedGeneration);
-                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
-                if (!Prepare(command, context, out identity, out pawn, out thing, out snapshot, out failure))
-                    return Refuse(Common.FailureCode.OwnerConflict, "Pawn or target snapshot changed before admission.");
-                var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
-                if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.DecidedReply;
-                handle = admission.AdmittedHandle;
-                bool accepted = false; Exception? effectError = null;
-                using (authority.Owned())
-                {
-                    if (!NativePawnControlState.IsReady || !Prepare(command, context, out identity, out pawn, out thing, out snapshot, out failure))
-                        throw new InvalidOperationException("Waste prerequisites changed after admission.");
-                    guard = authority.Check(pre.ExpectedGeneration);
-                    if (!guard.Success) throw new InvalidOperationException("Waste authority changed before native effect.");
-                    var job = FindJob(pawn!, thing!, burialRequested);
-                    if (job == null) throw new InvalidOperationException("No native waste job is available after admission.");
-                    var trackingId = HaulTracking.Begin(thing!, pawn!);
-                    if (trackingId == null) throw new InvalidOperationException("Native haul quantity tracking is unavailable.");
-                    var record = new NativeWasteRecord(identity, pawn!, thing!, job, trackingId, context);
-                    state.Waste.Add(pre.Attempt.Clone(), record);
-                    try { accepted = pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc); }
-                    catch (Exception error) { effectError = error; }
-                    if (NativePawnControlState.Observe(identity, pawn!, out snapshot) != NativePawnControlResult.Ready || snapshot == null)
-                        throw new InvalidOperationException("Native waste readback unavailable.");
-                    var current = pawn!.CurJob;
-                    bool correlated = accepted && current != null && current.loadID == job.loadID;
-                    HaulTracking.Accept(trackingId, correlated);
-                    evidence = record.Evidence(snapshot, accepted, correlated);
-                    if (effectError != null || !accepted || !correlated) throw new InvalidOperationException("Native waste order requires causal observation.", effectError);
-                }
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
+                PawnId = pawn.GetUniqueLoadID(), JobId = job.loadID, JobDef = job.def?.defName ?? "",
+                TargetA = new Receipts.JobTarget { ThingId = thing.GetUniqueLoadID() },
+                CanTry = true, Issued = issued, Verified = true, Drafted = false,
             }
-            catch (Exception error)
-            {
-                return handle == null
-                    ? Refuse(Common.FailureCode.NativeFailure, "Waste validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted waste order requires observation: " + error.GetType().Name) };
-            }
-        }
+        };
 
-        internal static Operations.PreviewReply Preview(Operations.ManageWaste command, Common.ObservationContext context)
+        internal static Common.Failure? Validate(Operations.WasteIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+
+        internal static Receipts.EffectEvidence Apply(Operations.WasteIntent? intent, Common.ObservationContext context)
         {
-            if (!Valid(command))
-                return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Waste order requires an exact pawn, exact target and bounded unwanted/bury lists.") };
-            try
-            {
-                bool burialRequested = Set(command.BuryIds).Contains(command.Target.EntityId);
-                if (!Prepare(command, context, out _, out var pawn, out var thing, out var snapshot, out var failure))
-                    return new Operations.PreviewReply { Failure = failure };
-                var result = FindJob(pawn!, thing!, burialRequested);
-                var accepted = result != null;
-                var jobDef = accepted ? (result!.def?.defName ?? "HaulToCell") : "HaulToCell";
-                return new Operations.PreviewReply
-                {
-                    Evaluated = new Operations.PreviewEvaluation
-                    {
-                        Context = context.Clone(), Accepted = accepted,
-                        Reason = accepted ? "Exact native hauling WorkGiver produced a job for this waste target." : "No native hauling job with an eligible separated storage or burial destination is available.",
-                        Projected = new Receipts.EffectEvidence
-                        {
-                            Job = new Receipts.JobEffect
-                            {
-                                PawnId = snapshot!.PawnId, JobDef = jobDef, CanTry = accepted, Issued = false, Verified = false,
-                                TargetA = new Receipts.JobTarget { ThingId = thing!.GetUniqueLoadID() },
-                            }
-                        }
-                    }
-                };
-            }
-            catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Waste preview failed: " + error.GetType().Name) }; }
+            var failure = Resolve(intent, context, out var pawn, out var thing);
+            if (failure != null) throw new InvalidOperationException(failure.Detail);
+            if (Hauling(pawn!, thing!)) return Evidence(pawn!, thing!, pawn!.CurJob, false);
+            var job = FindJob(pawn!, thing!, false) ?? throw new InvalidOperationException("No native waste job is available.");
+            if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)
+                throw new InvalidOperationException("The pawn did not take the waste job.");
+            return Evidence(pawn, thing!, job, true);
         }
+    }
 
-        private static Operations.ExecuteReply Refuse(Common.FailureCode code, string detail) => new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(code, detail) };
+    internal sealed class WasteActionHandler : IActionHandler
+    {
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeWasteOperations.Validate(action.Waste, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeWasteOperations.Apply(action.Waste, context);
     }
 }

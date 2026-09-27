@@ -1210,8 +1210,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainWaste, 3, wasteRecovered)
 	if !positive(wasteRecovered) {
 		addGoal(MaintainWaste, 3)
-		// MaintainWaste now has a composed dispatch method (WasteAction,
-		// waste_admissions, WasteBoundary, RoutineWastePlanner); availability
+		// MaintainWaste dispatches a WasteIntent (RoutineWastePlanner);
+		// availability
 		// is config-only, gated below through AvailableMethods like
 		// MaintainResource/EnsureResearch.
 	}

@@ -117,7 +117,6 @@ type buildingServiceBridge struct {
 	haul                *haul.HaulCapabilities
 	repair              *buildingruntime.RepairCapabilities
 	clean               *buildingruntime.CleanCapabilities
-	waste               *buildingruntime.WasteCapabilities
 	moodRelief          *buildingruntime.MoodReliefCapabilities
 	moodReliefWorld     moodReliefWorldSource
 	gearReplace         *buildingruntime.GearReplaceCapabilities
@@ -195,10 +194,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	wasteWriter, err := bridge.NewWasteWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	moodReliefWriter, err := bridge.NewMoodReliefWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -259,7 +254,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		haul:                &haul.HaulCapabilities{Native: client, Writer: actionsWriter},
 		repair:              &buildingruntime.RepairCapabilities{Native: client, Writer: pawnOrder},
 		clean:               &buildingruntime.CleanCapabilities{Native: client, Writer: pawnOrder},
-		waste:               &buildingruntime.WasteCapabilities{Native: client, Writer: wasteWriter},
 		moodRelief:          &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
@@ -471,13 +465,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		cleanCapabilities = client.clean
 	}
-	var wasteCapabilities *buildingruntime.WasteCapabilities
-	if config.routineWastePlans {
-		if client.waste == nil {
-			return errors.New("waste plans require typed waste capabilities")
-		}
-		wasteCapabilities = client.waste
-	}
 	var moodReliefCapabilities *buildingruntime.MoodReliefCapabilities
 	if config.routineMoodPlans {
 		if client.moodRelief == nil {
@@ -587,7 +574,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Haul:                haulCapabilities,
 		Repair:              repairCapabilities,
 		Clean:               cleanCapabilities,
-		Waste:               wasteCapabilities,
 		MoveBuilding:        moveBuildingCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,

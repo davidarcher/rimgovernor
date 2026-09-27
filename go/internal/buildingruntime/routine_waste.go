@@ -15,9 +15,7 @@ import (
 )
 
 // RoutineWasteSource reuses the generic colony read for the waste census
-// (already carries each item's cell, unlike the exact-ID CAS lookup this
-// census lacks -- see bridge.ReadWasteTarget's doc comment) and the existing
-// tend pawn read for hauler eligibility: dead, downed, drafted and mental
+// and the existing tend pawn read for hauler eligibility: dead, downed, drafted and mental
 // state only (waste, unlike cleaning, gates on none of Cleaning's work
 // setting or health facts). No new native call is introduced for this slice.
 type RoutineWasteSource interface {

@@ -32,7 +32,7 @@ type MoodReliefEvidence struct {
 	Pawn                  domain.PawnID
 }
 
-// MoodReliefBoundary is optionally composed, like WasteBoundary: the pawn
+// MoodReliefBoundary is optionally composed, like CleanBoundary: the pawn
 // is not drafted, so this family attaches without a hard NewWithMoodRelief
 // ctor.
 type MoodReliefBoundary interface {

@@ -35,7 +35,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 138
+const schemaVersion = 139
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -67,7 +67,6 @@ type PlanState struct {
 	GearReplaceAdmissions         []ActionGearReplaceAdmission
 	RepairAdmissions              []ActionRepairAdmission
 	CleanAdmissions               []ActionCleanAdmission
-	WasteAdmissions               []ActionWasteAdmission
 	MoodReliefAdmissions          []ActionMoodReliefAdmission
 	RecoveryServiceAdmissions     []ActionRecoveryServiceAdmission
 	BuildingTemperatureAdmissions []ActionBuildingTemperatureAdmission
@@ -245,7 +244,6 @@ CREATE TABLE equip_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id),
 CREATE TABLE gear_replace_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE repair_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clean_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE waste_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE recovery_service_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE building_temperature_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -678,16 +676,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if cleanPresent {
 			state.CleanAdmissions = append(state.CleanAdmissions, ActionCleanAdmission{Action: a.ID(), Admission: cleanAdmission})
 		}
-		wasteAdmission, wastePresent, e := loadWasteAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.WasteAction && !wastePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("waste progress lacks admission")
-		}
-		if wastePresent {
-			state.WasteAdmissions = append(state.WasteAdmissions, ActionWasteAdmission{Action: a.ID(), Admission: wasteAdmission})
-		}
 		moodReliefAdmission, moodReliefPresent, e := loadMoodReliefAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -964,22 +952,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 			if !matched {
 				return domain.Progress{}, errors.New("clean dispatch lacks current admission")
-			}
-		}
-	}
-	if current.Action().Kind() == domain.WasteAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("waste requires typed preparation")
-		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.WasteAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("waste dispatch lacks current admission")
 			}
 		}
 	}
