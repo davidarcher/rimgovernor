@@ -38,10 +38,35 @@ type clockLatched struct {
 	// (hauls the game keeps refusing) cannot park the clock for the sum
 	// of their holds. A step that is not deferred resets it (released).
 	deferrals int
+	// queued is every action, of any kind, that the last undispatched
+	// call saw pending or prepared. One of them found at a later stage
+	// is the Worker's progress: the holds restart, so a plan the Worker
+	// is dispatching step by step keeps the clock stopped until its last
+	// action is out instead of losing the window after three steps spent
+	// on other plans' work (a 32-wall shell went out over ~19,000 ticks
+	// of a running window). An action that vanished (a replaced plan) is
+	// not progress, so planner churn cannot park the clock.
+	queued map[domain.ActionID]bool
 }
 
 func newClockLatched() *clockLatched {
-	return &clockLatched{outcomes: map[domain.ActionID]clockLatchedOutcome{}, waiting: map[domain.ActionID]int{}}
+	return &clockLatched{outcomes: map[domain.ActionID]clockLatchedOutcome{}, waiting: map[domain.ActionID]int{}, queued: map[domain.ActionID]bool{}}
+}
+
+// progressed records the queued set and reports whether an action the
+// previous call saw queued has since moved on.
+func (l *clockLatched) progressed(items []clockWorkItem) bool {
+	moved := false
+	queued := map[domain.ActionID]bool{}
+	for _, item := range items {
+		if item.Stage == domain.Pending || item.Stage == domain.Prepared {
+			queued[item.Action] = true
+		} else if l.queued[item.Action] {
+			moved = true
+		}
+	}
+	l.queued = queued
+	return moved
 }
 
 // undispatched reports, in order, the watched-kind actions still pending
@@ -55,6 +80,10 @@ func newClockLatched() *clockLatched {
 func (l *clockLatched) undispatched(items []clockWorkItem) []domain.ActionID {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.progressed(items) {
+		l.deferrals = 0
+		clear(l.waiting)
+	}
 	var waiting []domain.ActionID
 	seen := map[domain.ActionID]bool{}
 	dispatched := false

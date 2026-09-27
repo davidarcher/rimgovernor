@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -200,6 +201,36 @@ func TestClockSchedulerDefersAdmissionOnAnUnreconciledLatchedOutcome(t *testing.
 	}
 }
 
+// A shell of many walls dispatched a budget at a time keeps the clock
+// stopped while the Worker makes progress: each action moved out of the
+// queued stages restarts the holds, so the window is admitted only after
+// the last wall is out (or after clockLatchedHoldMax steps of no
+// progress), not three steps into the plan.
+func TestClockLatchedHoldsWhileWorkerProgresses(t *testing.T) {
+	t.Parallel()
+	l := newClockLatched()
+	walls := make([]clockWorkItem, 40)
+	for i := range walls {
+		walls[i] = clockWorkItem{Action: domain.ActionID(fmt.Sprintf("wall-%02d", i)), Kind: domain.BuildingAction, Stage: domain.Pending}
+	}
+	// Earlier steps spent the run on other plans' queued work.
+	for i := 0; i < clockLatchedHoldMax; i++ {
+		l.undispatched(walls)
+	}
+	if got := l.undispatched(walls); len(got) != 0 {
+		t.Fatal("no progress: the bound holds", got)
+	}
+	for done := 0; done < len(walls); done += 9 {
+		for i := done; i < min(done+9, len(walls)); i++ {
+			walls[i].Stage = domain.Completed
+		}
+		got := l.undispatched(walls)
+		if left := max(len(walls)-done-9, 0); len(got) != left {
+			t.Fatal(done, left, len(got))
+		}
+	}
+}
+
 // Queued watched-kind work with nothing of its kind dispatched defers the
 // admission for the Worker's dispatch, at most clockLatchedHoldMax steps
 // per action over its life; a dispatched peer or a settled stage ends it,
@@ -221,11 +252,12 @@ func TestClockSchedulerDefersAdmissionForUndispatchedWork(t *testing.T) {
 	if got := s.latched.undispatched(queued); len(got) != 0 {
 		t.Fatal("hold must be bounded", got)
 	}
-	// Leaving the queued stages forgets the count; a dispatched peer of
-	// the watched kind means the window has something to watch. The run
-	// of deferrals is bounded across every action too: it ends with a
-	// step that was not deferred (released), not by itself.
-	if got := s.latched.undispatched([]clockWorkItem{{Action: "wall", Kind: domain.BuildingAction, Stage: domain.Dispatched, Attempt: 1}}); len(got) != 0 {
+	// A dispatched peer of the watched kind means the window has
+	// something to watch. The run of deferrals is bounded across every
+	// action too: it ends with a step that was not deferred (released) or
+	// with the Worker's progress, not by itself; a queued action that
+	// vanishes is not progress.
+	if got := s.latched.undispatched([]clockWorkItem{{Action: "other", Kind: domain.BuildingAction, Stage: domain.Dispatched, Attempt: 1}}); len(got) != 0 {
 		t.Fatal(got)
 	}
 	if got := s.latched.undispatched(queued); len(got) != 0 {
