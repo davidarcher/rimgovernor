@@ -767,6 +767,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				if err != nil {
 					return nil, err
 				}
+				if stockNative, ok := reads.(buildingruntime.RoutineRawFoodStockSource); ok {
+					if config.RawFoodStock, err = buildingruntime.NewRoutineRawFoodStockPlanner(reviewer, stockNative); err != nil {
+						return nil, err
+					}
+				}
 			}
 			if lighting {
 				config.Lighting, err = buildingruntime.NewRoutineLightingPlanner(reviewer, source)
@@ -806,6 +811,11 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				config.BasicComfort, err = buildingruntime.NewRoutineBasicComfortPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
+				}
+				if shelfNative, ok := reads.(buildingruntime.RoutineMealShelfSource); ok {
+					if config.MealShelf, err = buildingruntime.NewRoutineMealShelfPlanner(reviewer, shelfNative); err != nil {
+						return nil, err
+					}
 				}
 			}
 			if workshop {
