@@ -21,7 +21,7 @@ import (
 // cells, as it does for a definition that does not deteriorate outdoors.
 type fullSteelStorageNative struct {
 	*resourceNative
-	previews []bridge.ZoneTarget
+	previews []domain.ZoneCreate
 	// advance moves the preview read past the projection tick, as a clock
 	// left running during planning does.
 	advance int64
@@ -31,7 +31,7 @@ func (n *fullSteelStorageNative) ReadResourceSources(_ context.Context, _ *c.Ide
 	return nil, policy.ResourceStorage{Resource: policy.Resource(resource), StackLimit: 75, Haulers: 2, Candidates: []domain.Cell{{X: 3, Z: 3}, {X: 3, Z: 4}}}, bridge.Result{}, nil
 }
 
-func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
+func (n *fullSteelStorageNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
 	n.previews = append(n.previews, target)
 	read := proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext)
 	read.Tick = proto.Int64(read.GetTick() + n.advance)
@@ -107,7 +107,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if len(native.previews) != 1 || len(native.previews[0].Zone.Cells()) != 1 {
+	if len(native.previews) != 1 || len(native.previews[0].Cells()) != 1 {
 		t.Fatal(native.previews)
 	}
 }

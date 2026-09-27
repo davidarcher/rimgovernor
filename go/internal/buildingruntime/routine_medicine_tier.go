@@ -70,7 +70,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 		if !arbiter.tryClaim([]domain.PawnID{w.Pawn()}) {
 			continue
 		}
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%d/%s/%s/%s", goal.Goal.ID, goal.Goal.Epoch, expected.Tick, w.Pawn(), w.BeforeToken(), w.MedicalCare())))
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%d/%s/%s", goal.Goal.ID, goal.Goal.Epoch, expected.Tick, w.Pawn(), w.MedicalCare())))
 		method := domain.MethodID(fmt.Sprintf("medicine-tier-%x", digest[:16]))
 		for _, previous := range goal.Methods {
 			if previous.Method == method {

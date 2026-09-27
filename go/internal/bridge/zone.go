@@ -9,13 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ZoneTarget is a planner's siting preview of one zone under the map's
-// zone census token.
-type ZoneTarget struct {
-	Zone  domain.ZoneCreate
-	Token string
-}
-
 func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
 	cells := &op.CellList{}
 	for _, cell := range zone.Cells() {
@@ -102,23 +95,15 @@ func filterSelectors(rows []domain.FilterSelector) []*op.FilterSelector {
 	}
 	return out
 }
-func zoneOperation(target ZoneTarget) *op.Operation {
-	command := ZoneConfiguration(target.Zone)
-	command.ExpectedMapSnapshotToken = proto.String(target.Token)
-	return &op.Operation{Command: &op.Operation_CreateZone{CreateZone: command}}
-}
-func validZone(target ZoneTarget) error {
-	if _, err := domain.ReconstructZone(target.Zone); err != nil {
-		return err
-	}
-	return validID(target.Token)
-}
-func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, target ZoneTarget) (*op.PreviewReply, Result, error) {
-	if ValidateIdentity(identity) != nil || validZone(target) != nil {
+
+// PreviewZone is a planner's siting preview of one zone; native checks the
+// ground live, so no map census token rides along (#992).
+func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, zone domain.ZoneCreate) (*op.PreviewReply, Result, error) {
+	if _, err := domain.ReconstructZone(zone); ValidateIdentity(identity) != nil || err != nil {
 		return nil, Result{}, contract("invalid zone preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: zoneOperation(target)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: &op.Operation{Command: &op.Operation_CreateZone{CreateZone: ZoneConfiguration(zone)}}}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -130,7 +115,7 @@ func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, tar
 	}
 	// Accepted false is native refusing the ground itself (a littered or
 	// occupied cell), an evaluation the caller moves past to its next
-	// candidate; a stale snapshot or bad configuration arrives as a failure.
+	// candidate; a bad configuration arrives as a failure.
 	v := reply.GetEvaluated()
 	if v == nil || v.Accepted == nil || v.Preparation != nil || buildingContext(v.Context, identity, 0, false) != nil || v.Projected != nil {
 		return nil, raw, contract("invalid zone preview evidence")

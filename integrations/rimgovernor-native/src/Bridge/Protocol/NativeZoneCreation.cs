@@ -49,12 +49,9 @@ namespace HomeBridge.BridgeTools
                 default: return null;
             }
         }
-        // The map snapshot token is optional: a planner's siting preview
-        // sends it, the create_zone Action arm does not.
         internal static bool Valid(Operations.CreateZone? command)
         {
-            if (command == null || command.HasExpectedMapSnapshotToken && !ProtoBoundary.IsIdentifier(command.ExpectedMapSnapshotToken)
-                || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0 || command.Cells.ExplicitCells.Cells.Count > 256) return false;
+            if (command == null || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0 || command.Cells.ExplicitCells.Cells.Count > 256) return false;
             var cells = command.Cells.ExplicitCells.Cells;
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
             if (command.Type == Operations.ZoneType.Fishing)
@@ -166,8 +163,6 @@ namespace HomeBridge.BridgeTools
             }
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             ground = false;
-            if (command.HasExpectedMapSnapshotToken && MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "the map's zone census changed since it was read")); return false; }
             return true;
         }
         // OutdoorSafe projects the desired filter onto a scratch stockpile and

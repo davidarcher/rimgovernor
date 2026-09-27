@@ -148,10 +148,9 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 		return "", nil
 	}
 	facts := reading.Projection
-	token, tk := facts.ZoneMapToken.Value()
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
-	if !tk || !rk || !sk {
+	if !rk || !sk {
 		return "", nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
@@ -209,7 +208,7 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 		if value, err = value.WithRole(role); err != nil {
 			return "", err
 		}
-		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), value)
 		var refused *bridge.NativeFailure
 		if errors.As(err, &refused) {
 			continue

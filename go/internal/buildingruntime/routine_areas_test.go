@@ -41,7 +41,7 @@ func TestAreaPlannerManualDoesNotReadOrPlan(t *testing.T) {
 	}
 }
 
-func TestAreaPlannerFreshRestrictionAndStaleCASAfterRestart(t *testing.T) {
+func TestAreaPlannerFreshRestriction(t *testing.T) {
 	r, journal, _, _, native := routineFixture(t)
 	composedRoutineFacts(t, native)
 	r.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: native}}
@@ -68,21 +68,5 @@ func TestAreaPlannerFreshRestrictionAndStaleCASAfterRestart(t *testing.T) {
 	w, ok := plan.Spec.Actions()[0].WorkAssignment()
 	if !ok || !w.AreaClear() || w.BeforeToken() != "before-work" {
 		t.Fatal(w)
-	}
-	// A freshly constructed planner has no in-memory area ownership. A saved
-	// native settings edit must cancel the old CAS and admit the correction again.
-	native.pawnReply.GetObserved().Pawns[0].Settings.Snapshot.Token = proto.String("renewed-work")
-	r, err = NewRoutineReviewer(r.player, r.native, r.clock, r.policy, r.maxAge)
-	if err != nil {
-		t.Fatal(err)
-	}
-	planner, _ = NewRoutineRecoveryPlanner(r)
-	second, err := planner.Step(ctx)
-	if err != nil || second.Reason != BuildingMethodAdmitted || second.Plan == first.Plan {
-		t.Fatal(second, err)
-	}
-	plan, err = journal.LoadPlan(ctx, first.Plan)
-	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled {
-		t.Fatal(plan, err)
 	}
 }

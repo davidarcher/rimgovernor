@@ -122,9 +122,7 @@ func TestWorkPlannerCollapsesRanksInCheckboxMode(t *testing.T) {
 
 // A pending work assignment whose premise moved is cancelled by the next
 // planner step instead of gating re-planning forever (#305): the armed
-// shooter's Hunting proposal is dropped once the pawn disarms, and a
-// still-wanted proposal whose settings token moved is re-planned against
-// the fresh token.
+// shooter's Hunting proposal is dropped once the pawn disarms.
 func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := routineFixture(t)
@@ -219,23 +217,6 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork || stage(second.Plan) != domain.Pending {
 		t.Fatal(next, err)
-	}
-	// The settings token moved under the pending proposal (the player edited
-	// the pawn): the write could never dispatch, so it is cancelled and
-	// re-planned against the current token.
-	row.Settings.Snapshot.Token = proto.String("after-edit")
-	if _, err = r.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	third, err := planner.Step(ctx)
-	if err != nil || third.Reason != BuildingMethodAdmitted || third.Plan == second.Plan {
-		t.Fatal(third, err)
-	}
-	if stage(second.Plan) != domain.Cancelled {
-		t.Fatal(stage(second.Plan))
-	}
-	if token, values := settings(third.Plan); token != "after-edit" || len(values) != 2 || values["Construction"] == 0 || values["Hunting"] == 0 {
-		t.Fatal(token, values)
 	}
 }
 

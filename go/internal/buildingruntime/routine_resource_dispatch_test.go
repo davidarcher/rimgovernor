@@ -47,7 +47,7 @@ func (n *resourceNative) PreviewAcquisition(context.Context, *c.Identity, bridge
 	return nil, bridge.Result{}, errors.New("no acquisition in this fixture")
 }
 
-func (n *resourceNative) PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
+func (n *resourceNative) PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("no zone in this fixture")
 }
 

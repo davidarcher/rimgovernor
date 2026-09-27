@@ -164,10 +164,6 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	projection := read.Projection
 	item := proposal.Item
 	method := tidyMethodID(item.ID, "create")
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		return RoutineTidyResult{Reason: BuildingMethodUnknown}, nil
-	}
 	// A create bound in any epoch is this item's own earlier create, not
 	// a fresh one to admit: the re-site outlives an epoch turnover (#611).
 	if _, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method); err == nil {
@@ -193,7 +189,7 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
-	reply, refused, err := previewZone(call, r.native, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	reply, refused, err := previewZone(call, r.native, boundary.Identity(snapshot), value)
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}

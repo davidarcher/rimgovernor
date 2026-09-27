@@ -18,13 +18,13 @@ type routineClearanceNative struct {
 	rows     []*o.ClearanceTarget
 	chunks   []*o.ClearanceChunk
 	sites    []*c.Cell
-	previews []bridge.ZoneTarget
+	previews []domain.ZoneCreate
 }
 
 func (n *routineClearanceNative) ReadClearanceTargets(_ context.Context, _ *c.Identity, _ bool) (*o.ClearanceTargetsReply, bridge.Result, error) {
 	return &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: &o.ClearanceTargetsSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.rows, Chunks: n.chunks, DumpSites: n.sites}}}, bridge.Result{}, nil
 }
-func (n *routineClearanceNative) PreviewZone(_ context.Context, _ *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
+func (n *routineClearanceNative) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
 	n.previews = append(n.previews, target)
 	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
@@ -158,7 +158,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 	if allow := allowOf(zone); len(allow) != 2 || allow[0] != "ChunkGranite" || allow[1] != "ChunkSlagSteel" {
 		t.Fatal(allow)
 	}
-	if len(source.previews) != 1 || source.previews[0].Token != "zone-map" {
+	if len(source.previews) != 1 {
 		t.Fatal(source.previews)
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {

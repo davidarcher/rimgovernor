@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -106,10 +105,6 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if storage, known := projection.Facts.FoodStorage.Value(); known && storage {
 		return RoutineFoodStorageResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		return RoutineFoodStorageResult{Reason: BuildingMethodUnknown}, nil
-	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
@@ -190,7 +185,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		if err != nil {
 			return RoutineFoodStorageResult{}, err
 		}
-		reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), value)
 		if err != nil {
 			return RoutineFoodStorageResult{}, err
 		}

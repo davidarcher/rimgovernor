@@ -104,7 +104,7 @@ func TestZoneIntentActions(t *testing.T) {
 	}
 	zone, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", []domain.Cell{{X: 0, Z: 0}})
 	za, _ := domain.NewZoneCreateAction("z", zone)
-	if got, err = IntentAction("k", za); err != nil || got.GetCreateZone().ExpectedMapSnapshotToken != nil || got.GetCreateZone().GetGrowing().GetPlantDef() != "Plant_Rice" {
+	if got, err = IntentAction("k", za); err != nil || got.GetCreateZone().GetGrowing().GetPlantDef() != "Plant_Rice" {
 		t.Fatal(got, err)
 	}
 }

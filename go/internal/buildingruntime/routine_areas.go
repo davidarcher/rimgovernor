@@ -89,10 +89,7 @@ func cancelStaleAreaActions(ctx context.Context, journal *store.Store, plan stor
 			candidate = policy.AllowedAreaChange{Pawn: policy.PawnID(work.Pawn()), Area: work.Area()}
 			current := false
 			for _, worker := range workers {
-				token, known := worker.SnapshotToken.Value()
-				if worker.ID == candidate.Pawn && known && token == work.BeforeToken() {
-					current = true
-				}
+				current = current || worker.ID == candidate.Pawn
 			}
 			if !current {
 				candidate.Pawn = ""

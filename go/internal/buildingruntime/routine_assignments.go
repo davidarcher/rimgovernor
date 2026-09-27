@@ -75,8 +75,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	// Open work no longer gates the fresh decision outright: an undispatched
-	// action whose premise moved (the pawn's settings token, or what the
-	// policy now wants for the pawn) is cancelled below so the goal can
+	// action whose premise moved (what the policy now wants for the pawn) is cancelled below so the goal can
 	// re-plan instead of holding the stale plan forever (#305).
 	var open []store.PlanState
 	for _, method := range goal.Methods {
@@ -292,8 +291,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 
 // cancelStaleWorkActions cancels every undispatched work assignment on the
 // plan whose premise no longer holds against the fresh decision: the pawn's
-// settings token or manual mode moved (the write rests on a stale read),
-// the write forever), the pawn dropped out of the decision, or the policy
+// manual mode moved, the pawn dropped out of the decision, or the policy
 // now wants a different priority for a work type the action sets. A pending
 // action the fresh decision still agrees with stays open.
 func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan store.PlanState, fresh []domain.WorkAssignment) error {
@@ -325,7 +323,7 @@ func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan stor
 
 func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.WorkAssignment) bool {
 	now, ok := wanted[w.Pawn()]
-	if !ok || now.BeforeToken() != w.BeforeToken() || now.Manual() != w.Manual() {
+	if !ok || now.Manual() != w.Manual() {
 		return true
 	}
 	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) || w.DrugPolicy() != now.DrugPolicy() {

@@ -43,7 +43,7 @@ type RoutineSecureSuppliesSource interface {
 	observation.ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
-	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
 
@@ -423,11 +423,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
 		return PlanResult{}, nil
 	}
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		return PlanResult{}, nil
-	}
-	if general, err := r.generalStore(call, epoch, state, goal, projection, token, started); err != nil || general.Kind != "" {
+	if general, err := r.generalStore(call, epoch, state, goal, projection, started); err != nil || general.Kind != "" {
 		return general, err
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
@@ -452,7 +448,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
-	value, cells, v, err := previewCoveredStorageSites(call, r.native, boundary.Identity(snapshot), token, item.Definition, sites, goal.Goal.ID)
+	value, cells, v, err := previewCoveredStorageSites(call, r.native, boundary.Identity(snapshot), item.Definition, sites, goal.Goal.ID)
 	if err != nil {
 		return PlanResult{}, err
 	}
@@ -487,7 +483,7 @@ const generalStoreMethod = domain.MethodID(secureSuppliesZonePrefix + "general")
 // benches and kitchen pull from it. A zero result means it does not apply
 // (no completed shell, already proposed, or native refused the interior)
 // and the 2x2 covered-storage search runs instead.
-func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, token string, started time.Time) (PlanResult, error) {
+func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time) (PlanResult, error) {
 	p := r.reviewer.player
 	var cells []domain.Cell
 	for _, method := range goal.Methods {
@@ -526,7 +522,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
-	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), value)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) {
 		clockSchedulerLog("%s: general store refused code=%v detail=%q", goal.Goal.ID, refused.Value.GetCode(), refused.Value.GetDetail())
@@ -584,7 +580,7 @@ func shellInterior(spec domain.PlanSpec) []domain.Cell {
 
 // zonePreviewer is the one native read previewCoveredStorageSites needs.
 type zonePreviewer interface {
-	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 }
 
 // previewCoveredStorageSites previews the census-legal patches nearest the
@@ -594,7 +590,7 @@ type zonePreviewer interface {
 // patch's verdict at this tick, not a failed read: it is logged and the next
 // patch is tried. A nil evaluation with a nil error means every previewed
 // patch was refused; any other error is the read's own failure.
-func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, identity *c.Identity, token, definition string, sites []policy.Rectangle, goal domain.GoalID) (domain.ZoneCreate, []domain.Cell, *op.PreviewEvaluation, error) {
+func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, identity *c.Identity, definition string, sites []policy.Rectangle, goal domain.GoalID) (domain.ZoneCreate, []domain.Cell, *op.PreviewEvaluation, error) {
 	for i, site := range sites {
 		if i >= maxSecureSuppliesZoneSites {
 			break
@@ -612,7 +608,7 @@ func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, ident
 		if err != nil {
 			return domain.ZoneCreate{}, nil, nil, err
 		}
-		reply, _, err := native.PreviewZone(ctx, identity, bridge.ZoneTarget{Zone: value, Token: token})
+		reply, _, err := native.PreviewZone(ctx, identity, value)
 		var refused *bridge.NativeFailure
 		if errors.As(err, &refused) {
 			clockSchedulerLog("%s: covered storage site (%d,%d) refused code=%v detail=%q", goal, site.X, site.Z, refused.Value.GetCode(), refused.Value.GetDetail())

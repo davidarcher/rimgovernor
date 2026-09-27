@@ -46,7 +46,6 @@ type ColonyProjection struct {
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
 	ButcheringBenches   domain.Fact[[]CookingBench]
 	FoodAtRiskNutrition domain.Fact[float64]
-	ZoneMapToken        domain.Fact[string]
 	CropClimate         policy.CropClimate
 
 	PendingHunts domain.Fact[int]

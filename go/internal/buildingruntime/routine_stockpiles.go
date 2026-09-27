@@ -482,10 +482,9 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, edits []policy.StockpileEdit) (RoutineStockpileResult, error) {
 	p := r.reviewer.player
 	native, ok := r.native.(interface {
-		PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 	})
-	token, tk := projection.ZoneMapToken.Value()
-	if !ok || !tk {
+	if !ok {
 		return RoutineStockpileResult{Reason: BuildingMethodUnknown}, nil
 	}
 	tick := projection.Identity.Tick
@@ -515,7 +514,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		if err != nil {
 			return RoutineStockpileResult{}, err
 		}
-		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), value)
 		var refused *bridge.NativeFailure
 		if errors.As(err, &refused) {
 			clockSchedulerLog("Stockpiles: create %s refused code=%v detail=%q", e.Role, refused.Value.GetCode(), refused.Value.GetDetail())

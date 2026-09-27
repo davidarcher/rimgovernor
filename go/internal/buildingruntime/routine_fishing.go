@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -57,8 +56,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 	census, ck := p.FoodChannels.Value()
 	water, wk := census.FishableWater.Value()
 	researched, rk := water.FishingResearched.Value()
-	token, tk := p.ZoneMapToken.Value()
-	if !pk || !ck || !wk || !rk || !researched || !tk {
+	if !pk || !ck || !wk || !rk || !researched {
 		return RoutineFieldResult{}, false, nil
 	}
 	for _, entry := range plan.Portfolio {
@@ -92,7 +90,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			reply, refused, err := previewZone(call, r.native, boundary.Identity(state.Snapshot), bridge.ZoneTarget{Zone: zone, Token: token})
+			reply, refused, err := previewZone(call, r.native, boundary.Identity(state.Snapshot), zone)
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}

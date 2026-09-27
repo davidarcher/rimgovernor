@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -80,7 +79,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 
 func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Context, goal store.GoalState, observed *o.ColonyFactsSnapshot, cell domain.Cell, method domain.MethodID, id domain.PlanID, actionID domain.ActionID) (RoutineFoodStorageUpkeepResult, error) {
 	native, ok := r.native.(interface {
-		PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 	})
 	if !ok {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
@@ -114,15 +113,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 	if _, err = boundary.Context(v.Context, state.Snapshot); err != nil || v.Context.GetTick() < observed.Context.GetTick() {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseZone: err != nil || v.Context.GetTick() < observed.Context.GetTick()", ErrControl)
 	}
-	zonesNative, _ := r.native.(observation.ZonesNative)
-	zones, err := observation.ReadZoneSection(ctx, zonesNative, boundary.Identity(state.Snapshot))
-	if err != nil {
-		return RoutineFoodStorageUpkeepResult{}, err
-	}
-	if zones.Value.MapSnapshot == nil {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
-	}
-	reply, _, err := native.PreviewZone(ctx, boundary.Identity(state.Snapshot), bridge.ZoneTarget{Zone: zone, Token: zones.Value.MapSnapshot.GetToken()})
+	reply, _, err := native.PreviewZone(ctx, boundary.Identity(state.Snapshot), zone)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

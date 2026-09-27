@@ -27,7 +27,7 @@ type RoutineFieldResult struct {
 }
 
 type FieldNative interface {
-	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 }
 
 func NewRoutineFieldPlanner(reviewer *RoutineReviewer, native FieldNative) (*RoutineFieldPlanner, error) {
@@ -133,11 +133,6 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		clockSchedulerLog("Fields: zone map token unknown")
-		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, nil
-	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
 		return RoutineFieldResult{}, err
@@ -218,7 +213,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, coverage, len(zones), selection.Explain())
-		return r.firebreaks(call, epoch, state, goal, projection, read, wait, token, BuildingMethodUnknown)
+		return r.firebreaks(call, epoch, state, goal, projection, read, wait, BuildingMethodUnknown)
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
 	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
@@ -231,21 +226,21 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 			break
 		}
 		attempts++
-		result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate, token)
+		result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate)
 		if err != nil || tried {
 			return result, err
 		}
 		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Reason)
 	}
-	return r.firebreaks(call, epoch, state, goal, projection, read, wait, token, BuildingMethodRefused)
+	return r.firebreaks(call, epoch, state, goal, projection, read, wait, BuildingMethodRefused)
 }
 
 // firebreaks floors the plan's firebreaks beside planted fields (#790) once
 // the step has no field to lay; reason is the step's result otherwise.
-func (r *RoutineFieldPlanner) firebreaks(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, token string, reason RoutineBuildingReason) (RoutineFieldResult, error) {
+func (r *RoutineFieldPlanner) firebreaks(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, reason RoutineBuildingReason) (RoutineFieldResult, error) {
 	if candidate, ok := firebreakCandidate(projection); ok {
 		clockSchedulerLog("Fields: firebreak %s cells=%d", candidate.Buildings[0].Definition, candidate.Cells)
-		if result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate, token); err != nil || tried {
+		if result, tried, err := r.enact(call, epoch, state, goal, projection, read, wait, candidate); err != nil || tried {
 			return result, err
 		}
 	}
@@ -263,7 +258,7 @@ const (
 // enact previews and admits one candidate. tried reports whether the
 // candidate reached admission (admitted or refused by the store); a candidate
 // the game refuses to place is not tried so the caller can move on.
-func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate, token string) (RoutineFieldResult, bool, error) {
+func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, candidate policy.SiteTypeCandidate) (RoutineFieldResult, bool, error) {
 	p := r.reviewer.player
 	crop := candidate.Crop
 	hash := sha256.New()
@@ -356,7 +351,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			reply, refused, err := previewZone(call, r.native, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+			reply, refused, err := previewZone(call, r.native, boundary.Identity(snapshot), value)
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}

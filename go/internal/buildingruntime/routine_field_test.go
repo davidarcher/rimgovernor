@@ -19,7 +19,7 @@ type fieldTestNative struct {
 	*routineNative
 }
 
-func (n *fieldTestNative) PreviewZone(ctx context.Context, id *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
+func (n *fieldTestNative) PreviewZone(ctx context.Context, id *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
 	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
 }
 func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {

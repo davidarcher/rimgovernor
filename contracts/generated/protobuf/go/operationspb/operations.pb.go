@@ -3769,18 +3769,17 @@ func (x *FishingSettings) GetPopulationFloor() float64 {
 }
 
 type CreateZone struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	ExpectedMapSnapshotToken *string                `protobuf:"bytes,1,opt,name=expected_map_snapshot_token,json=expectedMapSnapshotToken,proto3,oneof" json:"expected_map_snapshot_token,omitempty"`
-	Type                     *ZoneType              `protobuf:"varint,2,opt,name=type,proto3,enum=rimgovernor.operations.v1.ZoneType,oneof" json:"type,omitempty"`
-	Label                    *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
-	Cells                    *Cells                 `protobuf:"bytes,4,opt,name=cells,proto3" json:"cells,omitempty"`
-	Stockpile                *StockpileSettings     `protobuf:"bytes,5,opt,name=stockpile,proto3" json:"stockpile,omitempty"`
-	Growing                  *GrowingSettings       `protobuf:"bytes,6,opt,name=growing,proto3" json:"growing,omitempty"`
-	RequireCoveredEmpty      *bool                  `protobuf:"varint,7,opt,name=require_covered_empty,json=requireCoveredEmpty,proto3,oneof" json:"require_covered_empty,omitempty"`
-	Fishing                  *FishingSettings       `protobuf:"bytes,8,opt,name=fishing,proto3" json:"fishing,omitempty"`
-	ExtendZoneId             *string                `protobuf:"bytes,9,opt,name=extend_zone_id,json=extendZoneId,proto3,oneof" json:"extend_zone_id,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Type                *ZoneType              `protobuf:"varint,2,opt,name=type,proto3,enum=rimgovernor.operations.v1.ZoneType,oneof" json:"type,omitempty"`
+	Label               *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Cells               *Cells                 `protobuf:"bytes,4,opt,name=cells,proto3" json:"cells,omitempty"`
+	Stockpile           *StockpileSettings     `protobuf:"bytes,5,opt,name=stockpile,proto3" json:"stockpile,omitempty"`
+	Growing             *GrowingSettings       `protobuf:"bytes,6,opt,name=growing,proto3" json:"growing,omitempty"`
+	RequireCoveredEmpty *bool                  `protobuf:"varint,7,opt,name=require_covered_empty,json=requireCoveredEmpty,proto3,oneof" json:"require_covered_empty,omitempty"`
+	Fishing             *FishingSettings       `protobuf:"bytes,8,opt,name=fishing,proto3" json:"fishing,omitempty"`
+	ExtendZoneId        *string                `protobuf:"bytes,9,opt,name=extend_zone_id,json=extendZoneId,proto3,oneof" json:"extend_zone_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateZone) Reset() {
@@ -3811,13 +3810,6 @@ func (x *CreateZone) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateZone.ProtoReflect.Descriptor instead.
 func (*CreateZone) Descriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *CreateZone) GetExpectedMapSnapshotToken() string {
-	if x != nil && x.ExpectedMapSnapshotToken != nil {
-		return *x.ExpectedMapSnapshotToken
-	}
-	return ""
 }
 
 func (x *CreateZone) GetType() ZoneType {
@@ -5683,8 +5675,7 @@ type Action_Husbandry struct {
 }
 
 type Action_CreateZone struct {
-	// Create one zone (expected_map_snapshot_token is not sent: native
-	// checks the ground live when it applies). A zone whose cells and
+	// Create one zone (native checks the ground live when it applies). A zone whose cells and
 	// configuration already equal the request, or a fishing zone already
 	// extended over them, applies again; applied evidence names the zone.
 	CreateZone *CreateZone `protobuf:"bytes,26,opt,name=create_zone,json=createZone,proto3,oneof"`
@@ -8013,23 +8004,21 @@ const file_operations_proto_rawDesc = "" +
 	"_allow_cut\"V\n" +
 	"\x0fFishingSettings\x12.\n" +
 	"\x10population_floor\x18\x01 \x01(\x01H\x00R\x0fpopulationFloor\x88\x01\x01B\x13\n" +
-	"\x11_population_floor\"\xfd\x04\n" +
+	"\x11_population_floor\"\xbc\x04\n" +
 	"\n" +
-	"CreateZone\x12B\n" +
-	"\x1bexpected_map_snapshot_token\x18\x01 \x01(\tH\x00R\x18expectedMapSnapshotToken\x88\x01\x01\x12<\n" +
-	"\x04type\x18\x02 \x01(\x0e2#.rimgovernor.operations.v1.ZoneTypeH\x01R\x04type\x88\x01\x01\x12\x19\n" +
-	"\x05label\x18\x03 \x01(\tH\x02R\x05label\x88\x01\x01\x126\n" +
+	"CreateZone\x12<\n" +
+	"\x04type\x18\x02 \x01(\x0e2#.rimgovernor.operations.v1.ZoneTypeH\x00R\x04type\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\x03 \x01(\tH\x01R\x05label\x88\x01\x01\x126\n" +
 	"\x05cells\x18\x04 \x01(\v2 .rimgovernor.operations.v1.CellsR\x05cells\x12J\n" +
 	"\tstockpile\x18\x05 \x01(\v2,.rimgovernor.operations.v1.StockpileSettingsR\tstockpile\x12D\n" +
 	"\agrowing\x18\x06 \x01(\v2*.rimgovernor.operations.v1.GrowingSettingsR\agrowing\x127\n" +
-	"\x15require_covered_empty\x18\a \x01(\bH\x03R\x13requireCoveredEmpty\x88\x01\x01\x12D\n" +
+	"\x15require_covered_empty\x18\a \x01(\bH\x02R\x13requireCoveredEmpty\x88\x01\x01\x12D\n" +
 	"\afishing\x18\b \x01(\v2*.rimgovernor.operations.v1.FishingSettingsR\afishing\x12)\n" +
-	"\x0eextend_zone_id\x18\t \x01(\tH\x04R\fextendZoneId\x88\x01\x01B\x1e\n" +
-	"\x1c_expected_map_snapshot_tokenB\a\n" +
+	"\x0eextend_zone_id\x18\t \x01(\tH\x03R\fextendZoneId\x88\x01\x01B\a\n" +
 	"\x05_typeB\b\n" +
 	"\x06_labelB\x18\n" +
 	"\x16_require_covered_emptyB\x11\n" +
-	"\x0f_extend_zone_id\"<\n" +
+	"\x0f_extend_zone_idJ\x04\b\x01\x10\x02R\x1bexpected_map_snapshot_token\"<\n" +
 	"\x10DeleteZoneIntent\x12\x1c\n" +
 	"\azone_id\x18\x01 \x01(\tH\x00R\x06zoneId\x88\x01\x01B\n" +
 	"\n" +

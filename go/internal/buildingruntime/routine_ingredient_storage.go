@@ -183,10 +183,6 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	projection := read.Projection
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodUnknown}, nil
-	}
 	rooms, known := projection.Rooms.Value()
 	if !known {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodUnknown}, nil
@@ -238,7 +234,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		if action, err = domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value); err != nil {
 			return RoutineIngredientStorageResult{}, err
 		}
-		preview, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		preview, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), value)
 		if err != nil {
 			return RoutineIngredientStorageResult{}, err
 		}

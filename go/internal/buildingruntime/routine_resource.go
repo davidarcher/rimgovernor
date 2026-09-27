@@ -50,7 +50,7 @@ type RoutineResourceSource interface {
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error)
-	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineResourcePlanner struct {
 	reviewer *RoutineReviewer
@@ -690,10 +690,6 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 		return RoutineResourceResult{}, err
 	}
 	projection := reading.Projection
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
-	}
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -701,7 +697,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), value)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

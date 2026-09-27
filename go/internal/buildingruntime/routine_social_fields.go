@@ -54,10 +54,6 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 	if !policy.BrewingFinished(projection.Facts.Research) {
 		return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
 	}
-	token, known := projection.ZoneMapToken.Value()
-	if !known {
-		return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
-	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
 		return RoutineFieldResult{}, err
@@ -86,7 +82,7 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 				if sites.Cells == 0 {
 					continue
 				}
-				result, tried, err := r.enact(call, epoch, state, goal, projection, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: crop, Sites: sites, Cells: sites.Cells}, token)
+				result, tried, err := r.enact(call, epoch, state, goal, projection, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: crop, Sites: sites, Cells: sites.Cells})
 				if tried || err != nil {
 					return result, err
 				}

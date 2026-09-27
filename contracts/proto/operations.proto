@@ -234,7 +234,7 @@ enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1;
 message StockpileSettings { optional StoragePriority priority = 1; optional FilterPreset preset = 2; FilterPatch filter = 3; }
 message GrowingSettings { optional string plant_def = 1; optional bool allow_sow = 2; optional bool allow_cut = 3; }
 message FishingSettings { optional double population_floor = 1; }
-message CreateZone { optional string expected_map_snapshot_token = 1; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; FishingSettings fishing = 8; optional string extend_zone_id = 9; }
+message CreateZone { reserved 1; reserved "expected_map_snapshot_token"; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; FishingSettings fishing = 8; optional string extend_zone_id = 9; }
 // Delete one zone. Native refuses a zone holding a phantom cell or a
 // stockpile whose haul grid disagrees with its cells; a zone already gone
 // applies again.
@@ -364,8 +364,7 @@ message Action {
     WorkSettingsIntent work_settings = 23;
     ProductionBillIntent production_bill = 24;
     HusbandryIntent husbandry = 25;
-    // Create one zone (expected_map_snapshot_token is not sent: native
-    // checks the ground live when it applies). A zone whose cells and
+    // Create one zone (native checks the ground live when it applies). A zone whose cells and
     // configuration already equal the request, or a fishing zone already
     // extended over them, applies again; applied evidence names the zone.
     CreateZone create_zone = 26;

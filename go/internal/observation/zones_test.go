@@ -28,14 +28,13 @@ func TestPoliciesUseZonesNotAggregateZoneFields(t *testing.T) {
 	}
 	_, storageKnown := p.Facts.FoodStorage.Value()
 	_, growingKnown := p.Facts.GrowingCells.Value()
-	_, tokenKnown := p.ZoneMapToken.Value()
-	if storageKnown || growingKnown || len(p.Farms) > 0 || tokenKnown {
+	if storageKnown || growingKnown || len(p.Farms) > 0 {
 		t.Fatal("aggregate supplied zone policy facts")
 	}
 	farm := &o.FarmFacts{ZoneId: proto.String("Zone_1"), Crop: proto.String("Rice"), UsableCells: proto.Uint32(20), GrowingCells: proto.Uint32(10), EdibleCrop: proto.Bool(true)}
 	p.Definitions = []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}}
-	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{{Id: farm.ZoneId, Farm: farm, FoodStorage: proto.Bool(false)}, {Id: proto.String("Zone_2"), FoodStorage: proto.Bool(true)}}, MapSnapshot: &o.SnapshotRef{Token: proto.String("zone-map")}})
-	if p.Facts.FoodStorage != domain.Known(true) || p.Facts.GrowingCells != domain.Known(int64(10)) || len(p.Farms) != 1 || p.Farms[0].ID != "Zone_1" || p.ZoneMapToken != domain.Known("zone-map") {
+	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{{Id: farm.ZoneId, Farm: farm, FoodStorage: proto.Bool(false)}, {Id: proto.String("Zone_2"), FoodStorage: proto.Bool(true)}}})
+	if p.Facts.FoodStorage != domain.Known(true) || p.Facts.GrowingCells != domain.Known(int64(10)) || len(p.Farms) != 1 || p.Farms[0].ID != "Zone_1" {
 		t.Fatal(p)
 	}
 	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{}})

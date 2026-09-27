@@ -64,11 +64,7 @@ func (r *RoutineAnimalFeedPlanner) planHay(call, epoch context.Context, state Co
 	if !ok {
 		return RoutineResourceResult{}, false, nil
 	}
-	token, tk := p.ZoneMapToken.Value()
-	if !tk {
-		return RoutineResourceResult{}, false, nil
-	}
 	fields := &RoutineFieldPlanner{reviewer: r.reviewer, native: r.native}
-	result, tried, err := fields.enact(call, epoch, state, goal, p, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: plan.Crop, Needed: plan.Needed, Sites: plan.Sites, Cells: plan.Sites.Cells}, token)
+	result, tried, err := fields.enact(call, epoch, state, goal, p, read, 0, policy.SiteTypeCandidate{Kind: policy.SiteOutdoor, Crop: plan.Crop, Needed: plan.Needed, Sites: plan.Sites, Cells: plan.Sites.Cells})
 	return RoutineResourceResult{Reason: result.Reason, Plan: result.Plan}, tried, err
 }

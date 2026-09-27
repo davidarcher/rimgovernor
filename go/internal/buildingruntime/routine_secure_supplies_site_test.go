@@ -22,8 +22,8 @@ type siteZonePreviewer struct {
 
 var errSiteTransport = errors.New("transport")
 
-func (n *siteZonePreviewer) PreviewZone(_ context.Context, _ *c.Identity, target bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
-	origin := target.Zone.Cells()[0]
+func (n *siteZonePreviewer) PreviewZone(_ context.Context, _ *c.Identity, target domain.ZoneCreate) (*op.PreviewReply, bridge.Result, error) {
+	origin := target.Cells()[0]
 	n.previewed = append(n.previewed, origin)
 	switch err := n.verdicts[origin]; {
 	case err == nil:
@@ -53,7 +53,7 @@ func TestCoveredStorageSitesSkipARefusedPatchForTheNext(t *testing.T) {
 	t.Parallel()
 	first, second := domain.Cell{X: 134, Z: 130}, domain.Cell{X: 136, Z: 130}
 	native := &siteZonePreviewer{verdicts: map[domain.Cell]error{first: refusedSite()}}
-	value, cells, v, err := previewCoveredStorageSites(context.Background(), native, &c.Identity{}, "zone-token", "MedicineHerbal", coveredSites(first, second), "goal")
+	value, cells, v, err := previewCoveredStorageSites(context.Background(), native, &c.Identity{}, "MedicineHerbal", coveredSites(first, second), "goal")
 	if err != nil || v == nil || !v.GetAccepted() {
 		t.Fatal(v, err)
 	}
@@ -79,7 +79,7 @@ func TestCoveredStorageSitesReportNoSiteWhenEveryPatchIsRefused(t *testing.T) {
 		verdicts[o] = refusedSite()
 	}
 	native := &siteZonePreviewer{verdicts: verdicts}
-	_, cells, v, err := previewCoveredStorageSites(context.Background(), native, &c.Identity{}, "zone-token", "MedicineHerbal", coveredSites(origins...), "goal")
+	_, cells, v, err := previewCoveredStorageSites(context.Background(), native, &c.Identity{}, "MedicineHerbal", coveredSites(origins...), "goal")
 	if err != nil || v != nil || cells != nil {
 		t.Fatal(cells, v, err)
 	}
@@ -95,7 +95,7 @@ func TestCoveredStorageSitesReturnATransportFailure(t *testing.T) {
 	t.Parallel()
 	first, second := domain.Cell{X: 134, Z: 130}, domain.Cell{X: 136, Z: 130}
 	native := &siteZonePreviewer{verdicts: map[domain.Cell]error{first: errSiteTransport}}
-	_, _, v, err := previewCoveredStorageSites(context.Background(), native, &c.Identity{}, "zone-token", "MedicineHerbal", coveredSites(first, second), "goal")
+	_, _, v, err := previewCoveredStorageSites(context.Background(), native, &c.Identity{}, "MedicineHerbal", coveredSites(first, second), "goal")
 	if !errors.Is(err, errSiteTransport) || v != nil || len(native.previewed) != 1 {
 		t.Fatal(v, err, native.previewed)
 	}

@@ -122,7 +122,7 @@ internal static class NativeAttemptLedgerProbe
         var ledger=new NativeAttemptLedger(Identity());
         var request=Request();
         request.Operation=new Operations.Operation { CreateZone=new Operations.CreateZone
-            { ExpectedMapSnapshotToken="catalog",Type=Operations.ZoneType.Unspecified,
+            { Label="catalog",Type=Operations.ZoneType.Unspecified,
               Cells=new Operations.Cells { ExplicitCells=new Operations.CellList() } } };
         request.Operation.CreateZone.Cells.ExplicitCells.Cells.Add(new Common.Cell { X=0,Z=0 });
         request.Operation.CreateZone.Cells.ExplicitCells.Cells.Add(new Common.Cell { X=1,Z=1 });
@@ -132,8 +132,8 @@ internal static class NativeAttemptLedgerProbe
         Check(ledger.Inspect(Method,reordered).Kind==Kind.InFlight,"field wire order does not alter typed identity");
         var changed=request.Clone(); changed.Operation.CreateZone.ClearType();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"zero versus absent conflicts");
-        changed=request.Clone(); changed.Operation.CreateZone.ClearExpectedMapSnapshotToken();
-        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"original token precondition preserved");
+        changed=request.Clone(); changed.Operation.CreateZone.ClearLabel();
+        Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"optional string presence preserved");
         changed=request.Clone(); changed.Operation.CreateZone.Cells.ExplicitCells.Cells[0].ClearX();
         Refuses(ledger,changed,Common.FailureCode.AttemptConflict,"repeated nested zero presence preserved");
         changed=request.Clone();

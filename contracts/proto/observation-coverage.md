@@ -290,7 +290,6 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | DesignateIntent.thing_id | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
-| CreateZone.expected_map_snapshot_token (optional; the planner's siting census) | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZoneIntent/ZoneCellsIntent.zone_id, StockpileIntent.target_id | ListZones.zone.id; ListBuildings storage row id |
 | HomeIntent.target_id | ReadColonyFacts.upkeep.home_coverage.target.id |
 | BedAssignIntent.pawn_id/bed_id/expected_previous_bed | ListPawns.pawn and owned bed; ListBuildings.building |

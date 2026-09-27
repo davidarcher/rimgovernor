@@ -208,25 +208,15 @@ func run(ctx context.Context, s cases.Session) error {
 	stockpileBody := map[string]any{"priority": "STORAGE_PRIORITY_IMPORTANT", "preset": "FILTER_PRESET_NOTHING",
 		"filter": map[string]any{"allow": []map[string]any{{"thingDef": "Steel"}, {"thingDef": "WoodLog"}},
 			"hitPointsMin": 0.5, "hitPointsMax": 1, "qualityMin": "Normal", "qualityMax": "Legendary"}}
-	create := func(token string) map[string]any {
-		intent := map[string]any{
+	create := func() map[string]any {
+		return map[string]any{
 			"label":     "RimGovernor supplies storage",
 			"type":      "ZONE_TYPE_STOCKPILE",
 			"cells":     map[string]any{"explicitCells": map[string]any{"cells": cells}},
 			"stockpile": stockpileBody,
 		}
-		if token != "" {
-			intent["expectedMapSnapshotToken"] = token
-		}
-		return intent
 	}
-	// A census token, when sent, still pins the map the planner sited on.
-	if err := refused("create-stale-token", "zone-create-stale", "createZone",
-		create("zone-stale-00000000000000000000000000000000000000000000000000000000000000"), "the map's zone census changed since it was read",
-		"FAILURE_CODE_INVALID_REQUEST"); err != nil {
-		return err
-	}
-	createEffect, err := applied("apply-create", "zone-create", "createZone", create(""))
+	createEffect, err := applied("apply-create", "zone-create", "createZone", create())
 	if err != nil {
 		return err
 	}
@@ -250,7 +240,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	// A resend (a lost reply's new attempt) finds the zone standing and
 	// applies again with the same identity instead of a second zone.
-	if resent, err := applied("resend-create", "zone-create-resend", "createZone", create("")); err != nil {
+	if resent, err := applied("resend-create", "zone-create-resend", "createZone", create()); err != nil {
 		return err
 	} else if na.AsString(resent["zoneId"]) != zoneID {
 		return fmt.Errorf("resend-create: expected the standing zone %s, got %#v", zoneID, resent)

@@ -70,10 +70,6 @@ func applyZones(p *ColonyProjection, read bridge.ZonesRead) {
 		}
 	}
 	p.Facts.FoodStorage = domain.Known(storage)
-	p.ZoneMapToken = domain.Unknown[string]()
-	if read.MapSnapshot != nil {
-		p.ZoneMapToken = domain.Known(read.MapSnapshot.GetToken())
-	}
 	zoneProduction(farms, &p.Facts)
 	p.FieldCrops = colonyFieldCrops(farms, p.Definitions)
 	p.FoodFields = colonyFoodFields(farms, p.Definitions)

@@ -83,7 +83,6 @@ func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 // violation; a failure outcome or a missing verdict still rejects (#223).
 func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 	zone, _ := domain.NewFilteredStockpileZone(domain.FoodFilter(), domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
-	target := ZoneTarget{Zone: zone, Token: "zone-abc"}
 	valid := &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: pbContext(), Accepted: proto.Bool(true)}}}
 	for _, test := range []struct {
 		name     string
@@ -109,7 +108,7 @@ func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 				return pbResult(reply), nil
 			}}
 			client := testClient(t, s, testBudget)
-			got, _, err := client.PreviewZone(context.Background(), pbIdentity(), target)
+			got, _, err := client.PreviewZone(context.Background(), pbIdentity(), zone)
 			if !test.ok {
 				if !errors.Is(err, ErrContract) && !errors.Is(err, ErrRefused) {
 					t.Fatal("expected rejection", err)
