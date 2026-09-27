@@ -55,8 +55,8 @@ func zoneOn(projection *observation.ColonyProjection, id string, stocked bool, c
 
 // A snapshot over recorded colony facts (#936): with no cold spot and the
 // colony eating 3+ meals a day, the meal stockpile is one cell of the one
-// meal it cooks beside the table, off the chairs. A legacy role-less 2x2
-// meal shelf is adopted, retargeted to that meal, then shrunk to one cell;
+// meal it cooks beside the table, off the chairs. A 2x2 meal shelf of
+// the role is retargeted to that meal, then shrunk to one cell;
 // under 3 meals a day the role retires and the zone goes.
 func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	t.Parallel()
@@ -80,13 +80,13 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 		t.Fatal("meal cell far from the table", c)
 	}
 
-	legacy := []domain.Cell{{X: 11, Z: 11}, {X: 11, Z: 12}, {X: 12, Z: 11}, {X: 12, Z: 12}}
-	zoneOn(projection, "Zone_7", false, legacy...)
-	zoneOn(projection, "Zone_7", true, legacy[0])
-	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Filter: mealShelfFilter(), Priority: domain.CriticalPriority}}
+	shelf := []domain.Cell{{X: 11, Z: 11}, {X: 11, Z: 12}, {X: 12, Z: 11}, {X: 12, Z: 12}}
+	zoneOn(projection, "Zone_7", false, shelf...)
+	zoneOn(projection, "Zone_7", true, shelf[0])
+	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: mealShelfFilter(), Priority: domain.CriticalPriority}}
 	review = policy.PlanStockpileMaintenance(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool]()))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileRetarget || review.Edits[0].Filter != simple || review.Edits[0].Zone != "Zone_7" {
-		t.Fatalf("legacy shelf not retargeted: %+v", review)
+		t.Fatalf("shelf not retargeted: %+v", review)
 	}
 	patches := map[string]store.AppliedStockpile{"Zone_7": {Target: "Zone_7", Kind: domain.StorageZoneTarget, Filter: simple, Priority: domain.CriticalPriority, Role: "meals:Room_4"}}
 	review = policy.PlanStockpileMaintenance(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool]()))
@@ -94,13 +94,13 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 		t.Fatalf("shelf not shrunk to one cell: %+v", review)
 	}
 	for _, removed := range review.Edits[0].Cells {
-		if removed == legacy[0] {
+		if removed == shelf[0] {
 			t.Fatal("shrink dropped the stocked cell")
 		}
 	}
 
 	few, _ := mealSpotColony(1.6)
-	zoneOn(few, "Zone_7", false, legacy...)
+	zoneOn(few, "Zone_7", false, shelf...)
 	review = policy.PlanStockpileMaintenance(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool]()))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileDelete || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("under 3 meals a day the shelf stays: %+v", review)

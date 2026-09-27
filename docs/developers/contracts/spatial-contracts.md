@@ -345,9 +345,7 @@ plant food (never rotten) in the standing planned freezer, nearest its door
 into the kitchen. RimWorld renumbers rooms, so a room counts as served when
 any zone of the role's prefix has a cell in it; a zone of the prefix with no
 cell in the site's room is deleted (the site moved), and one larger than the
-site shrinks to it, keeping its stocked cells. The role-less Critical meal
-shelves and raw-food stocks made before #917 are adopted as
-`meals:legacy` / `rawfood:legacy`.
+site shrinks to it, keeping its stocked cells.
 
 The v2 plan (#936) puts the dining room against the freezer's free side
 wall with a door between them; a dining room with no freezer door gets a
