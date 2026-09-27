@@ -76,13 +76,3 @@ func (client *Client) ReadStep(ctx context.Context, request StepRequest) (*o.Bun
 	}
 	return v, raw, unavailableStatus
 }
-
-// RoutinePawnIDs are the colonists a step's emergency census lists
-// completely, the roster ReadRoutinePawns reads; nil when it does not.
-func RoutinePawnIDs(v *o.BundleSnapshot) []string {
-	emergency, err := BundleEmergency(v)
-	if err != nil {
-		return nil
-	}
-	return routinePawnIDs(emergency)
-}

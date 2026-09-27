@@ -1703,7 +1703,7 @@ func (s *ClockScheduler) stepReviews(reason StepReason) bool {
 }
 
 // factsScope is the store scope an observation context establishes: the
-// load token and native generation FactCache keys its rows by.
+// load token and native generation.
 func factsScope(context *c.ObservationContext) facts.Scope {
 	return facts.Scope{Load: context.GetIdentity().GetLoadToken(), Generation: context.GetNativeGeneration()}
 }

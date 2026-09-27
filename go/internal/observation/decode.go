@@ -7,7 +7,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 func contextIdentity(context *c.ObservationContext) (Identity, error) {
@@ -71,26 +70,5 @@ func DecodeTick(reply *l.TickReply) (Identity, error) {
 		return Identity{}, bridge.ErrRefused
 	default:
 		return Identity{}, fmt.Errorf("%w: tick outcome", ErrContract)
-	}
-}
-func DecodeStatus(reply *o.StatusReply) (Status, error) {
-	if reply == nil {
-		return Status{}, fmt.Errorf("%w: missing status", ErrContract)
-	}
-	switch value := reply.Outcome.(type) {
-	case *o.StatusReply_Observed:
-		if value.Observed == nil {
-			return Status{}, fmt.Errorf("%w: missing status snapshot", ErrContract)
-		}
-		if _, err := contextIdentity(value.Observed.Context); err != nil {
-			return Status{}, err
-		}
-		return Status{Availability: GameLoaded}, nil
-	case *o.StatusReply_Unavailable:
-		return Status{}, bridge.ErrUnavailable
-	case *o.StatusReply_Failure:
-		return Status{}, bridge.ErrRefused
-	default:
-		return Status{}, fmt.Errorf("%w: status outcome", ErrContract)
 	}
 }

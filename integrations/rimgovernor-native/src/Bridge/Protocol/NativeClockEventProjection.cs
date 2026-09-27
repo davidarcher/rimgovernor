@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        // Fact family names as the FactCache spells them (Go bridge.FactFamily).
+        // Fact family names as Go spells them (bridge.FactFamily).
         internal static Clock.FactFamily Family(string name)
         {
             switch (name)

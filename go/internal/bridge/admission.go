@@ -307,18 +307,3 @@ func admissionClassOf(nativeTool string) AdmissionClass {
 	}
 	return AdmissionControl
 }
-
-type admissionClassKey struct{}
-
-// WithAdmissionClass overrides the class a call is admitted under, for a
-// caller whose use of a method differs from its default (a dashboard read
-// of a control-classed status, say). Most callers never need it: the
-// method's class in nativeAdmissionClass applies.
-func WithAdmissionClass(ctx context.Context, class AdmissionClass) context.Context {
-	return context.WithValue(ctx, admissionClassKey{}, class)
-}
-
-func admissionClassFrom(ctx context.Context) (AdmissionClass, bool) {
-	class, ok := ctx.Value(admissionClassKey{}).(AdmissionClass)
-	return class, ok
-}

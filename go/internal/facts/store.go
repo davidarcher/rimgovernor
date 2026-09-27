@@ -2,8 +2,7 @@
 // colony state a scheduler step planned against, held per section with the
 // tick each section describes, so a later step can ask what is held and
 // how old it is instead of reconstituting everything from a fresh bundle.
-// It stands beside bridge.FactCache (a wire-byte memo keyed by request)
-// and reuses its families for tick tolerance and invalidation.
+// It reuses bridge.FactFamily for tick tolerance and invalidation.
 package facts
 
 import (
@@ -139,8 +138,8 @@ type Held[T any] struct {
 	Stale    Staleness
 }
 
-// Scope is the (load, native generation) a held section belongs to, the
-// same rule bridge.FactCache applies: a change empties the store.
+// Scope is the (load, native generation) a held section belongs to: a
+// change empties the store.
 type Scope struct {
 	Load       string
 	Generation uint64
@@ -382,8 +381,7 @@ func (s *Store) ResyncDue(section Section) bool {
 	return due
 }
 
-// InvalidateFamily drops every section of the named families, as
-// bridge.FactCache.InvalidateFamilies drops their rows.
+// InvalidateFamily drops every section of the named families.
 func (s *Store) InvalidateFamily(families ...bridge.FactFamily) {
 	if s == nil || len(families) == 0 {
 		return

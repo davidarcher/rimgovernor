@@ -16,7 +16,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 )
@@ -97,12 +96,6 @@ func TestTickSnapshotAndFreshness(t *testing.T) {
 	if paused, known := snapshot.Status.Paused.Value(); !known || paused {
 		t.Fatal("pause fact lost")
 	}
-	if _, known := snapshot.Status.Speed.Value(); known {
-		t.Fatal("speed invented")
-	}
-	if _, known := snapshot.Status.ForcePaused.Value(); known {
-		t.Fatal("force pause invented")
-	}
 	for _, change := range []func(*Snapshot){func(s *Snapshot) { s.ObservedAt = now.Add(time.Second) }, func(s *Snapshot) { s.StartedAt = now.Add(-time.Hour) }, func(s *Snapshot) { s.After.Load = "other" }, func(s *Snapshot) { s.After.Tick = 9 }} {
 		bad := snapshot
 		change(&bad)
@@ -128,9 +121,6 @@ func TestObservationUnavailableAndFailureRetainReceipt(t *testing.T) {
 	reading, err := Observe(context.Background(), s, testkit.NewManualClock(time.Now()))
 	if !errors.Is(err, bridge.ErrUnavailable) || len(reading.Receipt.Envelope) == 0 {
 		t.Fatal("lost failure receipt")
-	}
-	if _, err := DecodeStatus(&o.StatusReply{Outcome: &o.StatusReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}); !errors.Is(err, bridge.ErrUnavailable) {
-		t.Fatal(err)
 	}
 }
 func TestMain(m *testing.M) {

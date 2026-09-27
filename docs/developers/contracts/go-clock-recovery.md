@@ -413,120 +413,24 @@ stale facts (`stale`), summarised as `stale_holds` and reported by
 `elapsed_ms`, `critical_wave_ms`, `native_work_ticks`).
 The step itself has no polling loop; autonomous play attaches ClockWorker.
 
-Every native observation a step issues (the bundle, the routine census and each
-composed planner's own reads) goes through one `bridge.StepReadCache` attached to
-the step's context and dropped at step exit. The first read of a
-`(method, request)` pair crosses the bridge; identical reads later in the step,
-or concurrent with the first, are served from it. Only `lifecycle_read_identity`,
-`lifecycle_read_tick` and `observations_*` replies carrying an
-`ObservationContext` are memoized, keyed
-to that reply's (load token, tick, native generation): a reply from another
-scope, or any write through the step's context, discards every row. Clock,
-authority, presentation, receipt and preview reads are never cached, nor are
-refusals or unavailability. A hit is decoded into a fresh reply, so the typed
-adapters and the context guards validate it as they would a
-native reply. Observations are not bracketed by identity reads: each reply's
-own `ObservationContext` is validated against the identity the step read on
-entry. That entry read is `bridge.ReadStep` (#858): the scope
-`lifecycle_read_tick` reports, the owned clock status, and the emergency
-census from the newest snapshot stream frame; every state family comes from
-frames, never a GABP read. The
-event poll carries the scope and the events page after the review's
-cursor; the renewal's carries the scope and the clock status. The bundle
-itself is never memoized (its clock sections are live controller state), but
-its tick and emergency sections are seeded into the step cache under the keys
-`lifecycle_read_tick` and the emergency `observations_read_status` use, so the
-routine census and the planners read them without another round trip and the
-parent files them under the `identity` and `emergency` families. A step
-expected to review (`bundleRequest`: a reviewer is configured, no window
-runs, and the cause selects the planners, a timer only with the full step
-due) asks the same bundle for the routine census's families (issue #180):
-the planning colony facts, the population, the research page and the pawn
-detail of the emergency section's colonists, each seeded under the exact key
-its dedicated read builds (`colonyFactsRequest`, `populationRequest`,
-`researchRequest`, `pawnDetailsRequest` over the census's ids in order),
-so the review costs no census round trip and the parent files them under
-`colony`, `pawns` and `research`. The families are best effort on both
-sides: the native omits one it cannot read, and all of them when they push
-the reply past the envelope; an omitted family's read then goes natively,
-exactly as before, and a bundle that carries a family the request did not
-ask for, or one whose context differs from the bundle's, is a contract
-failure. Each continuous family rides with a field mask (#360:
-`colonist_pawn_fields`, `population_fields`, `research_fields`, the
-CellFields pattern; `bundleMasks`): an absent mask keeps the family
-whole, a present one keeps only the sub-blocks it includes, and the
-scheduler sends each mask empty on every review step, the same whatever
-planners the step selects, because the review decodes every block
-regardless. The native clears the excluded blocks (gear detail,
-inventory, capacities, surgery bills, backstory, traits, relations; owned
-beds, nutrition, supported interactions; research unlocks, costs,
-facilities) from the bundle's copy only; the dedicated reads stay whole,
-and an older native answers whole. A steady planning step is thus the
-bundle, the admission bundle and the window start. The routine
-reviewer, its acquisition and containment planners and the caravan tracker
-take their scope through `lifecycle_read_tick` when the source offers it
-(`stepScope`), so the review after a stop crosses the bridge for no identity
-read; the full `lifecycle_read_identity` stays the fallback for a source
-without the tick read. A step that
-ran planners re-reads the bundle, scoped to the identity it observed, before
-admission. The clock trace (`serve --debug`) logs the step's hit/miss/coalesced/
-parent-hit/invalidation counts and the flight recorder reports hits per method
-(the `cached` column of `rimgovernor phases`).
-
-Across steps the scheduler keeps one `bridge.FactCache`, the parent of every
-step cache. Each cacheable method belongs to a fact family
-(`bridge.FactFamilyOf`) with a tick tolerance (`FactFamily.TickTolerance`,
-#243): `definitions` (recipes) and `world` (world tile and settlements)
-survive any tick advance; `research` serves 60000 ticks (a day) past its
-read, `colony` and `rooms` 2500 (an hour), `pawns` and `emergency` 250; the
-`identity` family is the tick itself, so it serves the same tick only and
-every step's bundle seeds it afresh. Once a step's first native reply (the
-bundle, always native) has anchored its (load, generation, tick) scope, a
-step miss is served from the parent when the row was read under the same
-load and generation and its family is still fresh at the anchor tick (never
-from a later tick than the anchor: a rewind is a new world), so a timer
-step under a stopped clock costs one round trip, and a step under a running
-clock keeps the facts it read a moment ago. A row the parent serves may
-therefore sit behind the anchor by its family's tolerance, and the readers
-accept that lag: a routine read's boundary (`observation.cachedColonyBoundary`,
-#306) takes a reply within its family's tolerance behind the step's
-expected tick or within the planning tolerance ahead of it, and a pawn-order
-admission anchors on its preview tick, the inspection's one live read,
-tolerating a pawn row within the planning tolerance behind it and a target
-read (filth, haul stacks, a bed, a repair structure, a waste item, a gear
-census) within its family's tolerance behind the pawn read; every
-pawn-order family admits this way since #323, and a draft-owned attack or
-move anchors its draft's completion tick on the same preview. Within the
-step a later native
-reply of the same load and generation ahead of the anchor within its
-family's tolerance joins the scope and is filed at its own tick; one past
-the tolerance discards the step's rows and re-anchors, as a new generation
-does. Rows are dropped by any write through a step
-context (all), by a reply from another (load, generation) scope (all), and
-by the typed events `PollEvents` commits: `AuthorityChanged`, `EpochStarted`
-and a stop drop everything; an `OperationOutcome` drops the families its
-operation kind changes (construction: `colony`, `rooms`, `pawns`; an attempt
-the scheduler did not arm drops everything); `ObservationInvalidated` drops
-the families it names. The decoded store (`facts.Store`) takes the same
-discards, except that a narrowed `ObservationInvalidated` (#359) keeps every
-value and marks instead (`facts.Store.Apply`): the ids on the family's
-entity sections, the rectangle on a cell section whose held region it
-intersects (a disjoint planning window stays fresh), the whole section when
-the narrowing does not fit its shape; a marked section no longer reads as
-fresh, and a whole-family mention of the same family on the page drops it
-after all. The routine status API reports each section's marks as `stale`.
-The step's `clock_step` row carries `parent_hits`,
-which `rimgovernor phases` reports as parent hits/step.
-The worker's step runs under a child of the same parent and takes the
-loaded world it reconciles against from the parent's `identity` row
-(`FactCache.Context`, whatever tick it was read at) when one is held, so a
-worker step costs no `lifecycle_read_tick` of its own while the scheduler
-keeps seeding it; serving it fixes no step scope, and an empty parent (no
-clock control, a write, a scope change) falls back to the native read.
-The read-state poll behind the HTTP snapshot (`-refresh`, 3 s) serves its
-tick the same way when the row was stored within one refresh interval
-(`FactCache.Context` reports `StoredAt`), so a stalled scheduler never
-passes off an old tick as current; otherwise it reads natively.
+Every state read a step issues (the bundle, the routine census and each
+composed planner's own reads) is served from the newest snapshot frame
+(#858, `bridge/frames.go`) past the client's last write; only parameterized
+reads no frame carries and the tick read cross GABP. The frame stream is the
+only cross-step memo of wire replies. Each read family (`bridge.FactFamily`)
+keeps a tick tolerance (`FactFamily.TickTolerance`, #243): `definitions` and
+`world` survive any tick advance; `research` serves 60000 ticks, `colony` and
+`rooms` 2500, `pawns` and `emergency` 250, `identity` the same tick only.
+Readers accept a reply that far behind their anchor: a routine read's
+boundary (`observation.cachedColonyBoundary`, #306) and a pawn-order
+admission anchored on its preview tick (#323). The decoded store
+(`facts.Store`) drops sections on a write, a scope change, `AuthorityChanged`,
+`EpochStarted`, a stop and the families an `OperationOutcome` changes; a
+narrowed `ObservationInvalidated` (#359) marks instead (`facts.Store.Apply`):
+the ids on the family's entity sections, the rectangle on an intersecting
+cell section, the whole section when the narrowing does not fit its shape.
+A marked section no longer reads as fresh; the routine status API reports
+the marks as `stale`.
 
 Beside the cache the scheduler keeps one `facts.Store` (`go/internal/facts`,
 #354): decoded state per section (`colony`, `planning_cells`, `population`,

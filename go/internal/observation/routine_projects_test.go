@@ -99,7 +99,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			case "unrequested":
 				s.extra.GetObserved().Planning.GetObserved().Definitions[0].Definition.DefName = proto.String("Door")
 			}
-			out, err := ObserveRoutine(ctx, s, clock, expected, time.Second, names...)
+			out, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, names...)
 			if phase != "supplement" && phase != "default-only" {
 				if err == nil {
 					t.Fatal("unsafe extra read accepted")
@@ -147,11 +147,11 @@ func TestRoutineProjectDefinitionsPoolAcrossPlanners(t *testing.T) {
 	s.extra.GetObserved().Planning.GetObserved().Definitions = definitions
 	ctx := WithDefinitionPool(context.Background(), NewDefinitionPool())
 	clock := testkit.NewManualClock(time.Now())
-	first, err := ObserveRoutine(ctx, s, clock, expected, time.Second, "Wall", "HospitalBed")
+	first, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, "Wall", "HospitalBed")
 	if err != nil || !reflect.DeepEqual(s.requested, []string{"HospitalBed"}) {
 		t.Fatal(err, s.requested)
 	}
-	second, err := ObserveRoutine(ctx, s, clock, expected, time.Second, "Hopper")
+	second, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, "Hopper")
 	if err != nil || !reflect.DeepEqual(s.requested, []string{"Hopper", "HospitalBed"}) {
 		t.Fatal(err, s.requested)
 	}
@@ -168,7 +168,12 @@ func TestRoutineProjectDefinitionsPoolAcrossPlanners(t *testing.T) {
 		t.Fatal(names(first), names(second))
 	}
 	// A later planner wanting the first name again reads the pooled union.
-	if _, err := ObserveRoutine(ctx, s, clock, expected, time.Second, "HospitalBed"); err != nil || !reflect.DeepEqual(s.requested, []string{"Hopper", "HospitalBed"}) {
+	if _, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, "HospitalBed"); err != nil || !reflect.DeepEqual(s.requested, []string{"Hopper", "HospitalBed"}) {
 		t.Fatal(err, s.requested)
 	}
+}
+
+// observeRoutineUnowned reads the routine census with no construction claims.
+func observeRoutineUnowned(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, definitions ...string) (RoutineReading, error) {
+	return ObserveRoutineOwned(ctx, source, clock, expected, maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 }

@@ -544,9 +544,6 @@ func (c *Client) operation(ctx context.Context, class AdmissionClass, run func(c
 	// is a trace of its own, so its request, reply and decode rows share
 	// one id instead of each minting a single-row trace (#298).
 	ctx, _ = telemetry.EnsureTrace(ctx)
-	if override, ok := admissionClassFrom(ctx); ok {
-		class = override
-	}
 	timing := &callTiming{began: time.Now()}
 	admitted, err := c.gate.acquire(ctx, class)
 	if err != nil {

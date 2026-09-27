@@ -565,7 +565,7 @@ namespace HomeBridge.BridgeTools
             "NeutralEvent", "PositiveEvent", "HistoricalEvent", "NegativeEvent", "NegativeHealthEvent", "SituationResolved" };
 
         /// Facts that change under a running epoch without a controller write
-        /// or a stop, and that the controller's cross-step FactCache would
+        /// or a stop, and that the controller's decoded fact store would
         /// otherwise keep serving: a research project finishing changes the
         /// research and definitions families (recipes and buildables it
         /// unlocks); a faction relation or goodwill move changes the world

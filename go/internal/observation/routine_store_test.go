@@ -101,7 +101,7 @@ func TestRoutineReadingServesFreshSections(t *testing.T) {
 			facts.Put(store, scope, facts.Population, facts.Held[bridge.PrisonerCensus]{Value: population, AsOf: phase.populationAsOf, Complete: true, Source: "rimgovernor/observations_read_population"})
 			source := &countingSource{researchSource: &researchSource{projectSource: &projectSource{colonySource: &colonySource{reply: base}}, read: read}}
 			ctx := WithRoutineStore(context.Background(), RoutineStore{Store: store, MaxAge: phase.maxAge})
-			out, err := ObserveRoutine(ctx, source, testkit.NewManualClock(time.Now()), expected, time.Second)
+			out, err := observeRoutineUnowned(ctx, source, testkit.NewManualClock(time.Now()), expected, time.Second)
 			if err != nil {
 				t.Fatal(err)
 			}

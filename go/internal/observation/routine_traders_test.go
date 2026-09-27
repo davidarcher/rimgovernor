@@ -47,7 +47,7 @@ func TestRoutineTraderFactsCarryTravelling(t *testing.T) {
 		{ID: "Thing_Human2", Kind: "Caravan_Neolithic", Faction: "Faction_1", CanTrade: true, GoodsStacks: 4},
 	}}
 	source := &traderSource{projectSource: &projectSource{colonySource: &colonySource{reply: base}}, read: read}
-	out, err := ObserveRoutine(context.Background(), source, testkit.NewManualClock(time.Now()), expected, time.Second)
+	out, err := observeRoutineUnowned(context.Background(), source, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -31,15 +31,6 @@ type ClearanceSource interface {
 	ReadClearanceTargets(context.Context, *c.Identity) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
-// ObserveClearance is the building half of ObserveClearanceCensus.
-func ObserveClearance(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[[]ClearanceTarget], error) {
-	census, err := ObserveClearanceCensus(ctx, source, expected)
-	if v, known := census.Value(); known {
-		return domain.Known(v.Targets), err
-	}
-	return domain.Unknown[[]ClearanceTarget](), err
-}
-
 // ObserveClearanceCensus tolerates an explicit unavailable native stub as
 // unknown. Transport, malformed-contract and identity errors remain errors.
 func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[ClearanceCensus], error) {

@@ -106,9 +106,6 @@ func NewReplay(rows []TranscriptRow) (*Replay, error) {
 	return r, nil
 }
 
-// GameID is the recorded session's game id.
-func (r *Replay) GameID() string { return r.gameID }
-
 // Open connects a Client to the replay; timeout is the Client's per-call
 // bound, as ProcessConfig.Timeout. Reconnect and Reattach on the Client
 // connect to the same replay and continue the transcript.

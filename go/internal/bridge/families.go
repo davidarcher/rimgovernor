@@ -37,8 +37,7 @@ const FactTickUnbounded int64 = -1
 // stock and rooms on the scale of an hour; pawns and the emergency census
 // (positions, health, hostiles) within minutes. The identity family's
 // payload is the tick itself, so an older row is a wrong fact by
-// definition: it serves the same tick only, and every step's bundle seeds
-// it afresh (FactCache.Context serves the last one held regardless).
+// definition: it serves the same tick only.
 const (
 	FactTickToleranceIdentity  int64 = 0
 	FactTickToleranceResearch  int64 = 60000

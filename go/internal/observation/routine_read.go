@@ -262,9 +262,6 @@ func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) err
 	return nil
 }
 
-func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, definitions ...string) (RoutineReading, error) {
-	return ObserveRoutineOwned(ctx, source, clock, expected, maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
-}
 func ObserveRoutineOwned(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoutineReading, error) {
 	return observeRoutine(ctx, source, clock, expected, maxAge, claims, false, definitions...)
 }

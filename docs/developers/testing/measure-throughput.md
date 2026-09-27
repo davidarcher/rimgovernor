@@ -39,11 +39,10 @@ Every row a phase report reads:
   went and of the update intervals its frame recorder measured. Additive and
   optional -- a recording written against a companion that predates them
   carries neither, which the report shows as unknown, never as zero work.
-- `native_cache_hit`: a read the scheduler's per-step read cache served
-  without a round trip.
+- `native_frame_hit`: a read the snapshot frame stream served without a
+  round trip (#858).
 - `clock_step`: one row per `ClockScheduler.Step` with the round trips it
-  still issued by tool, the step cache and cross-step `FactCache` parent
-  hits, the reason the step ran, whether a clock stop woke it and the
+  still issued by tool, the reason the step ran, whether a clock stop woke it and the
   stop-to-step latency (#112), the wall-sized window it sized (#126), and
   its budgets against what it used: `budget` (wall, native ticks, reads),
   `critical_wave_ms`, `missed_cutoff` and `held_by` (#623).
@@ -180,10 +179,8 @@ Steps (`steps`, from `clock_step` rows):
 | `steps` | `ClockScheduler.Step` calls that ran (held steps publish too). |
 | `reads`, `max_reads`, `tools` | Native round trips the steps issued; the report shows the mean and max per step and the split by tool. A rising reads/step means a planner lost its cache. A steady step is one bundle; a reviewing step is the bundle (carrying the census families, #180), the admission bundle and the window start. |
 | `schema_fetches` | Describe (`games_tool_detail`) round trips the step paid for a tool's first call, counted apart from `reads` (#180): a session's startup cost, not a step's. |
-| `cache_hits` | Reads served by the per-step read cache (same tool and arguments within one step). |
 | `gate_wait_ms` | Wall the step waited on the player gate before it could run (#593); the usual holder is the Worker's dispatch step, so a large value is a slow dispatch, not a slow planner. Absent when the step entered at once. |
 | `journal_ms`, `max_journal_ms` | Wall the step's own obligation reads spent in the journal (attempt and epoch catalogs, review, current plan, active catalog), summed over the steps and the slowest step's (#634). It is bounded by the attempt tail maintenance keeps (`clockHistoryTail`, ~14 ms in-memory), not by the save's retired history; a value growing over a long save means a catalog read stopped using its index. |
-| `parent_hits` | Reads served by the cross-step `FactCache` from the previous step's facts; `> 0` with a lower reads/step is the evidence that the cache is working. |
 | `windows`, `window_ticks`, `max_window_ticks`, `max_window_target_secs` | The wall-sized colony windows (#126): how many ticks each window was budgeted and the wall target it was sized to. |
 | `reasons` | Steps by cause: `timer` (the cadence fired with nothing captured; planners run only when one is due on the queue, #625), `wake` (committed journal evidence — latched outcomes, an invalidated family, an authority change — shortcut the backoff), `settled` (the previous step reconciled or cleaned an epoch, so every planner re-plans), `full` (every planner ran, including the `FullStepEvery` promotion of a timer step). A healthy running clock is mostly `wake`; mostly `timer` means the poll loop is not seeing events. |
 | `sections`, `waiting` | On a subset step's `clock_step` row (#625): the census sections the step's planners declare and read at cadence (absent when every planner ran), and the planners skipped because each still waits on the open work it reported. A wake that lists few `sections` and a falling reads/step is the routing working. |

@@ -53,7 +53,7 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 
 	// A source without a research read leaves the fact unknown; the generic
 	// resource census still projects the shared stock rows.
-	out, err := ObserveRoutine(ctx, newSource(), clock, expected, time.Second)
+	out, err := observeRoutineUnowned(ctx, newSource(), clock, expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	}
 
 	read := bridge.ResearchRead{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), CurrentProject: "Electricity", Finished: []string{"Stonecutting"}, Projects: map[string]policy.ResearchProjectFacts{"Stonecutting": {}, "Electricity": {}, "Batteries": {}}}
-	out, err = ObserveRoutine(ctx, &researchSource{projectSource: newSource(), read: read}, clock, expected, time.Second)
+	out, err = observeRoutineUnowned(ctx, &researchSource{projectSource: newSource(), read: read}, clock, expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,10 +85,10 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	// A research snapshot from a different colony boundary invalidates the reading.
 	changed := bridge.ResearchRead{Context: proto.Clone(read.Context).(*c.ObservationContext), Projects: read.Projects}
 	changed.Context.Identity.ColonyId = proto.String("other")
-	if _, err = ObserveRoutine(ctx, &researchSource{projectSource: newSource(), read: changed}, clock, expected, time.Second); err == nil {
+	if _, err = observeRoutineUnowned(ctx, &researchSource{projectSource: newSource(), read: changed}, clock, expected, time.Second); err == nil {
 		t.Fatal("changed colony accepted")
 	}
-	if _, err = ObserveRoutine(ctx, &researchSource{projectSource: newSource(), err: context.DeadlineExceeded}, clock, expected, time.Second); err == nil {
+	if _, err = observeRoutineUnowned(ctx, &researchSource{projectSource: newSource(), err: context.DeadlineExceeded}, clock, expected, time.Second); err == nil {
 		t.Fatal("failed research read accepted")
 	}
 }

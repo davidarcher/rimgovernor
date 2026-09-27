@@ -342,9 +342,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	var recordCtx map[string]any
 	var requestRow uint64
 	class := admissionClassOf(name)
-	if override, ok := admissionClassFrom(ctx); ok {
-		class = override
-	}
 	result, err := caller.operation(ctx, class, func(ctx context.Context, live *liveSession) (Result, error) {
 		// Nothing before games_call_tool reaches native: a failure here is
 		// proof the write was never issued (domain.ErrWriteUnsent).

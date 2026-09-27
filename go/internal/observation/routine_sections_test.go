@@ -43,7 +43,7 @@ func TestRoutineReadingSections(t *testing.T) {
 	read := bridge.ResearchRead{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), CurrentProject: "Electricity", Projects: map[string]policy.ResearchProjectFacts{"Electricity": {}}}
 	read.Context.Tick = proto.Int64(tick + 7)
 	source := &researchSource{projectSource: &projectSource{colonySource: &colonySource{reply: base}}, read: read}
-	out, err := ObserveRoutine(context.Background(), source, testkit.NewManualClock(time.Now()), expected, time.Second)
+	out, err := observeRoutineUnowned(context.Background(), source, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
 	cells := []policy.SiteCell{{Cell: domain.Cell{X: 1, Z: 2}, Walkable: domain.Known(true)}}
 	source := &windowSource{window: facts.Held[PlanningCells]{Value: PlanningCells{Region: policy.Rectangle{X: 0, Z: 0, Width: 23, Height: 23}, Cells: cells}, AsOf: tick - 5, Complete: true, Source: "rimgovernor/observations_get_cells"}}
 	ctx := WithPlanningWindow(context.Background(), source)
-	out, err := ObserveRoutine(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
+	out, err := observeRoutineUnowned(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,11 +147,11 @@ func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
 	}
 	// A source that fails the read fails the observation.
 	source.err = bridge.ErrUnavailable
-	if _, err := ObserveRoutine(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second); !errors.Is(err, bridge.ErrUnavailable) {
+	if _, err := observeRoutineUnowned(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second); !errors.Is(err, bridge.ErrUnavailable) {
 		t.Fatal(err)
 	}
 	// Without a source the window is empty and the section unfiled.
-	out, err = ObserveRoutine(context.Background(), &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
+	out, err = observeRoutineUnowned(context.Background(), &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil || out.Projection.Cells != nil || out.Sections.PlanningCells.Source != "" {
 		t.Fatalf("%+v %v", out.Sections.PlanningCells, err)
 	}

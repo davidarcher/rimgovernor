@@ -52,25 +52,11 @@ type Availability string
 
 const (
 	GameLoaded Availability = "game_loaded"
-	NoMap      Availability = "no_map"
-	NoGame     Availability = "no_game"
-)
-
-type Speed string
-
-const (
-	Paused    Speed = "Paused"
-	Normal    Speed = "Normal"
-	Fast      Speed = "Fast"
-	Superfast Speed = "Superfast"
-	Ultrafast Speed = "Ultrafast"
 )
 
 type Status struct {
 	Availability Availability
 	Paused       domain.Fact[bool]
-	ForcePaused  domain.Fact[bool]
-	Speed        domain.Fact[Speed]
 }
 
 // Snapshot is one tick observation. Before and After are the identity the

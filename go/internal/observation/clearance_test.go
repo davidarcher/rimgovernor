@@ -29,21 +29,21 @@ func TestClearanceUnknownEmptyAndChanged(t *testing.T) {
 	complete := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Observed{Observed: snapshot}}
 	stub := &o.ClearanceTargetsReply{Outcome: &o.ClearanceTargetsReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}
 	for _, source := range []clearanceSource{{reply: stub}, {err: bridge.ErrUnavailable}} {
-		fact, err := ObserveClearance(context.Background(), source, expected)
+		fact, err := ObserveClearanceCensus(context.Background(), source, expected)
 		if _, known := fact.Value(); known || err != nil {
 			t.Fatal(fact, err)
 		}
 	}
-	fact, err := ObserveClearance(context.Background(), clearanceSource{reply: complete}, expected)
-	if rows, known := fact.Value(); !known || len(rows) != 0 || err != nil {
+	fact, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected)
+	if census, known := fact.Value(); !known || len(census.Targets) != 0 || err != nil {
 		t.Fatal(fact, err)
 	}
 	native.NativeGeneration = proto.Uint64(2)
-	if _, err := ObserveClearance(context.Background(), clearanceSource{reply: complete}, expected); !errors.Is(err, ErrChanged) {
+	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{reply: complete}, expected); !errors.Is(err, ErrChanged) {
 		t.Fatal(err)
 	}
 	transport := errors.New("transport failed")
-	if _, err := ObserveClearance(context.Background(), clearanceSource{err: transport}, expected); !errors.Is(err, transport) {
+	if _, err := ObserveClearanceCensus(context.Background(), clearanceSource{err: transport}, expected); !errors.Is(err, transport) {
 		t.Fatal(err)
 	}
 }
