@@ -25,7 +25,9 @@ import (
 // section's last table and the keys it dropped (no line when nothing
 // changed, unless a binding names the version). Keys and rows are Encode's
 // JSON of the mirror's K and R; planning_cells rides as a wire CellGrid in
-// "Grid" instead (grid.go). Any mirror section is recorded this way,
+// "Grid" instead (grid.go). "Format" names the form: FormatRows (1) or
+// FormatGrid (2); a line without it is the legacy row form, and any other
+// value fails the load. Any mirror section is recorded this way,
 // whatever its type, as soon as it is a mirror section (#773's pawns, gear,
 // acquisition and upkeep included).
 //
@@ -65,8 +67,21 @@ func cellCoord(row any, axis string) int64 {
 }
 
 // sectionFrame is one mirror table as a stream line records it.
+// Section line formats (Format). A line with no Format is the legacy row
+// form, as every stream before the field held; any other value is a load
+// error, never a guess.
+const (
+	// FormatRows: the rows in Upserts and Removed.
+	FormatRows = 1
+	// FormatGrid: planning_cells as a wire CellGrid in Grid (grid.go).
+	FormatGrid = 2
+)
+
 type sectionFrame struct {
-	Name    string
+	Name string
+	// Format is the line's form: FormatRows, FormatGrid, or 0 (absent) for
+	// a legacy row line.
+	Format  int `json:",omitempty"`
 	Version uint64
 	AsOf    mirror.Watermark
 	Scope   mirror.Scope
@@ -151,6 +166,7 @@ func recordSection(dir string, p mirror.Published) {
 		// the section as it was.
 		return
 	}
+	frame.stamp()
 	if err := rec.append(streamLine{Tick: domain.Tick(p.AsOf.Tick), Section: &frame}); err != nil {
 		delete(rec.sections, p.Section)
 		return
@@ -199,10 +215,28 @@ func sortedKeys(m map[string]json.RawMessage) []string {
 	return out
 }
 
+// stamp sets the line's Format from the form it holds.
+func (f *sectionFrame) stamp() {
+	f.Format = FormatRows
+	if f.Grid != nil {
+		f.Format = FormatGrid
+	}
+}
+
 // apply lays a section line over the held section (a replay).
 func (s *recSection) apply(f sectionFrame) (*recSection, error) {
-	if f.Grid != nil {
+	switch f.Format {
+	case FormatGrid:
+		if f.Grid == nil {
+			return nil, fmt.Errorf("snapshot: section %s line is Format %d with no Grid", f.Name, f.Format)
+		}
 		return s.applyGrid(f)
+	case 0, FormatRows:
+		if f.Grid != nil {
+			return nil, fmt.Errorf("snapshot: section %s line is Format %d with a Grid", f.Name, f.Format)
+		}
+	default:
+		return nil, fmt.Errorf("snapshot: section %s line has unknown Format %d", f.Name, f.Format)
 	}
 	next := &recSection{scope: f.Scope, version: f.Version, asOf: f.AsOf, keys: map[string]json.RawMessage{}, rows: map[string]json.RawMessage{}}
 	if !f.Key {

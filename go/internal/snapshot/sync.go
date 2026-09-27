@@ -40,6 +40,7 @@ func (rec *streamWriter) keySections() {
 				frame.Upserts = append(frame.Upserts, [2]json.RawMessage{s.keys[k], s.rows[k]})
 			}
 		}
+		frame.stamp()
 		if err := rec.append(streamLine{Tick: domain.Tick(s.asOf.Tick), Section: &frame}); err != nil {
 			delete(rec.sections, name)
 		}
