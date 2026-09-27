@@ -54,7 +54,7 @@ func TestIngredientStorageCellsStaysInsideTheWorkshopRoom(t *testing.T) {
 		{ID: "workshop", Role: domain.Known(policy.RoomRoleWorkshop), Cells: roomCells},
 	}
 	bounds := policy.Bounds{Width: 40, Height: 40}
-	sites, err := ingredientStorageSites(rooms, bounds, cells, nil)
+	sites, err := ingredientStorageSites(rooms, domain.Unknown[domain.Cell](), bounds, cells, nil)
 	if err != nil || len(sites) == 0 || len(sites[0]) != 4 {
 		t.Fatal(sites, err)
 	}
@@ -82,12 +82,38 @@ func TestIngredientStorageCellsStaysInsideTheWorkshopRoom(t *testing.T) {
 	}
 	// A reservation on the centre pushes the site aside; no workshop room means
 	// no site.
-	shifted, err := ingredientStorageSites(rooms, bounds, cells, got)
+	shifted, err := ingredientStorageSites(rooms, domain.Unknown[domain.Cell](), bounds, cells, got)
 	if err != nil || len(shifted) == 0 || len(shifted[0]) != 4 || shifted[0][0] == got[0] {
 		t.Fatal(shifted, err)
 	}
-	if none, err := ingredientStorageSites(rooms[:1], bounds, cells, nil); err != nil || none != nil {
+	if none, err := ingredientStorageSites(rooms[:1], domain.Unknown[domain.Cell](), bounds, cells, nil); err != nil || none != nil {
 		t.Fatal(none, err)
+	}
+}
+
+func TestIngredientStorageSitesBesideTheConsumingBench(t *testing.T) {
+	t.Parallel()
+	var cells []policy.SiteCell
+	var roomCells []domain.Cell
+	for x := int32(0); x < 20; x++ {
+		for z := int32(0); z < 20; z++ {
+			cell := domain.Cell{X: x, Z: z}
+			cells = append(cells, policy.SiteCell{Cell: cell, Roofed: domain.Known(true), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)})
+			if x >= 2 && x < 18 && z >= 2 && z < 18 {
+				roomCells = append(roomCells, cell)
+			}
+		}
+	}
+	rooms := []policy.Room{{ID: "workshop", Role: domain.Known(policy.RoomRoleWorkshop), Cells: roomCells}}
+	stove := domain.Cell{X: 16, Z: 3}
+	sites, err := ingredientStorageSites(rooms, domain.Known(stove), policy.Bounds{Width: 20, Height: 20}, cells, []domain.Cell{stove})
+	if err != nil || len(sites) == 0 {
+		t.Fatal(sites, err)
+	}
+	for _, c := range sites[0] {
+		if d := max(c.X-stove.X, stove.X-c.X, c.Z-stove.Z, stove.Z-c.Z); d > 2 {
+			t.Fatal("site must stand beside the stove, not the room centroid", sites[0])
+		}
 	}
 }
 

@@ -18,8 +18,8 @@ import (
 // RoutineIngredientStoragePlanner is the ingredient-storage rung of the
 // production ladder (issue #4 M4): once a bench hosts an available recipe for
 // a MaintainResource deficit, it places one allow-listed stockpile for that
-// recipe's ingredients on the nearest free roofed 2x2 patch inside the room
-// the native census reports as the Workshop, so hauling brings the inputs to
+// recipe's ingredients on the free roofed 2x2 patch nearest that bench by
+// walking distance inside the bench's own room (#723), so hauling brings the inputs to
 // the bench instead of leaving them wherever they dropped. The bill itself
 // stays with RoutineResourcePlanner; the zone is a second method under the
 // same goal and never waits on the bill's open work.
@@ -206,7 +206,13 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
-	sites, err := ingredientStorageSites(rooms.Rooms, projection.Bounds, projection.Cells, layoutProtected(projection, protected))
+	benchCell := domain.Unknown[domain.Cell]()
+	for _, b := range benches {
+		if b.ID == bench {
+			benchCell = b.Cell
+		}
+	}
+	sites, err := ingredientStorageSites(rooms.Rooms, benchCell, projection.Bounds, projection.Cells, layoutProtected(projection, protected))
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
@@ -231,6 +237,9 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 			value, err = value.WithRole(domain.IngredientsPrefix + bench)
 		}
 		if err != nil {
+			return RoutineIngredientStorageResult{}, err
+		}
+		if value, err = value.WithRole("ingredients:" + bench); err != nil {
 			return RoutineIngredientStorageResult{}, err
 		}
 		if action, err = domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value); err != nil {
@@ -334,53 +343,79 @@ func containsProduct(products []policy.Resource, resource policy.Resource) bool 
 	return false
 }
 
-// ingredientStorageSites is the bounded list of free roofed 2x2 patches
-// inside the first room the census reports in the Workshop role, nearest
-// that room's centroid first. Nil when no room holds the role or nothing
-// fits.
-func ingredientStorageSites(rooms []policy.Room, bounds policy.Bounds, cells []policy.SiteCell, protected []domain.Cell) ([][]domain.Cell, error) {
-	for _, room := range rooms {
-		role, known := room.Role.Value()
-		if !known || role != policy.RoomRoleWorkshop || len(room.Cells) == 0 {
-			continue
-		}
-		inside := make(map[domain.Cell]bool, len(room.Cells))
-		var sumX, sumZ int64
-		for _, cell := range room.Cells {
-			inside[cell] = true
-			sumX += int64(cell.X)
-			sumZ += int64(cell.Z)
-		}
-		anchor := domain.Cell{X: int32(sumX / int64(len(room.Cells))), Z: int32(sumZ / int64(len(room.Cells)))}
-		var scoped []policy.SiteCell
-		for _, cell := range cells {
-			if inside[cell.Cell] {
-				scoped = append(scoped, cell)
+// ingredientStorageSites is the bounded list of free roofed 2x2 patches for
+// the consuming bench's ingredients (#723): inside the room that holds the
+// bench (the first Workshop room when the bench's cell is unobserved or
+// outdoors), nearest the bench first by walking distance, not the room's
+// centroid. Nil when no room qualifies or nothing fits.
+func ingredientStorageSites(rooms []policy.Room, bench domain.Fact[domain.Cell], bounds policy.Bounds, cells []policy.SiteCell, protected []domain.Cell) ([][]domain.Cell, error) {
+	at, benchKnown := bench.Value()
+	var chosen *policy.Room
+	if benchKnown {
+		for i := range rooms {
+			for _, cell := range rooms[i].Cells {
+				if cell == at {
+					chosen = &rooms[i]
+				}
 			}
 		}
-		if len(scoped) == 0 {
-			return nil, nil
+	}
+	if chosen == nil {
+		for i, room := range rooms {
+			if role, known := room.Role.Value(); known && role == policy.RoomRoleWorkshop && len(room.Cells) > 0 {
+				chosen = &rooms[i]
+				break
+			}
 		}
-		sites, err := policy.CoveredStorageSites(policy.CoveredStorageRequest{Bounds: bounds, Anchor: anchor, Cells: scoped, Protected: protected})
+	}
+	if chosen == nil || len(chosen.Cells) == 0 {
+		return nil, nil
+	}
+	inside := make(map[domain.Cell]bool, len(chosen.Cells))
+	var sumX, sumZ int64
+	for _, cell := range chosen.Cells {
+		inside[cell] = true
+		sumX += int64(cell.X)
+		sumZ += int64(cell.Z)
+	}
+	anchor := domain.Cell{X: int32(sumX / int64(len(chosen.Cells))), Z: int32(sumZ / int64(len(chosen.Cells)))}
+	if benchKnown && inside[at] {
+		anchor = at
+	}
+	var scoped []policy.SiteCell
+	for _, cell := range cells {
+		if inside[cell.Cell] {
+			scoped = append(scoped, cell)
+		}
+	}
+	if len(scoped) == 0 {
+		return nil, nil
+	}
+	sites, err := policy.CoveredStorageSites(policy.CoveredStorageRequest{Bounds: bounds, Anchor: anchor, Cells: scoped, Protected: protected})
+	if err != nil {
+		return nil, err
+	}
+	if len(sites) == 0 {
+		return nil, nil
+	}
+	if benchKnown && inside[at] {
+		costs, err := policy.HaulCosts(cells, []policy.HaulConsumer{{Cells: []domain.Cell{at}, Weight: 1}})
 		if err != nil {
 			return nil, err
 		}
-		if len(sites) == 0 {
-			return nil, nil
-		}
-		out := make([][]domain.Cell, 0, len(sites))
-		for _, site := range sites {
-			var block []domain.Cell
-			for x := site.X; x < site.X+site.Width; x++ {
-				for z := site.Z; z < site.Z+site.Height; z++ {
-					block = append(block, domain.Cell{X: x, Z: z})
-				}
-			}
-			out = append(out, block)
-		}
-		return out, nil
+		sites = policy.RankSitesByHaul(sites, costs)
 	}
-	return nil, nil
+	out := make([][]domain.Cell, 0, len(sites))
+	for _, site := range sites {
+		var block []domain.Cell
+		for x := site.X; x < site.X+site.Width; x++ {
+			for z := site.Z; z < site.Z+site.Height; z++ {
+				block = append(block, domain.Cell{X: x, Z: z})
+			}
+		}
+		out = append(out, block)
+	}
+	return out, nil
 }
 
 // ingredientStorageFailed reports a zone plan whose every action ended

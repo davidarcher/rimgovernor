@@ -81,6 +81,9 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 			return nil, raw, err
 		}
 		bench := policy.GearBench{ID: stack.Bench.GetId(), Bills: domain.Known(bills), Recipes: domain.Known(recipes)}
+		if at := stack.Bench.GetPosition(); at != nil {
+			bench.Cell = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
+		}
 		out = append(out, GearBenchRead{Token: stack.Snapshot.GetToken(), Bench: bench})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Bench.ID < out[j].Bench.ID })

@@ -525,6 +525,9 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	if err != nil {
 		return PlanResult{}, nil
 	}
+	if value, err = value.WithRole("general"); err != nil {
+		return PlanResult{}, err
+	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, generalStoreMethod)))
 	id := domain.PlanID(fmt.Sprintf("routine-general-store-%x", digest[:16]))
 	snapshot := state.Snapshot
@@ -712,6 +715,9 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	}
 	sites, err := policy.SupplyRoomEnclosureSites(policy.SupplyRoomEnclosureRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: layoutProtected(projection, protected)})
 	if err != nil {
+		return PlanResult{}, err
+	}
+	if sites, err = benchCentralSites(call, r.native, boundary.Identity(state.Snapshot), projection.Cells, sites); err != nil {
 		return PlanResult{}, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, supplyRoomShellMethod)))
