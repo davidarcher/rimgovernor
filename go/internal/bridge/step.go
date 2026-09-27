@@ -73,6 +73,15 @@ func (client *Client) ReadStep(ctx context.Context, request StepRequest) (*o.Bun
 		default:
 			return nil, emergencyRaw, contract("emergency status outcome missing")
 		}
+		// A drop-pod raid's raiders are in no census row until the pods
+		// open; the stream's arrival rows carry it (#908).
+		if client.frames != nil {
+			combat := &o.BundleSnapshot{}
+			if _, err := client.frameReadKey(ctx, combatFrameMethod, readCacheKey{method: combatFrameMethod}, identity, true, combat); err != nil {
+				return nil, emergencyRaw, err
+			}
+			v.CombatEvents = podArrivals(combat.CombatEvents)
+		}
 	}
 	return v, raw, unavailableStatus
 }

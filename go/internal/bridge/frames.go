@@ -317,7 +317,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 	seed(combatFrameMethod, nil, combatFrame(v))
 	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
 		ColonistPawns: v.ColonistPawns, BuiltBuildings: v.BuiltBuildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
-		ProjectDefinitions: v.ProjectDefinitions, Rooms: v.Rooms})
+		ProjectDefinitions: v.ProjectDefinitions, Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
 }
 
 // frameDefinitionMethod keys one project definition row in a frame's
@@ -399,6 +399,7 @@ func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, identity); err != nil {
 			return RoutineFrame{}, err
 		}
+		podsPending(&out.Emergency, v.CombatEvents)
 	}
 	if v.Population != nil {
 		population, err := decodePopulation(v.Population)
@@ -439,12 +440,40 @@ func DecodeRoutineFrame(v *o.BundleSnapshot) (RoutineFrame, error) {
 }
 
 // BundleEmergency decodes a step snapshot's emergency section into the
-// observation ReadEmergency returns.
+// observation ReadEmergency returns, with the step's pending drop pods.
 func BundleEmergency(v *o.BundleSnapshot) (EmergencyObservation, error) {
 	if v == nil || v.Emergency == nil {
 		return EmergencyObservation{}, contract("emergency section missing")
 	}
-	return DecodeEmergencyStatus(v.Emergency, v.Context.GetIdentity())
+	out, err := DecodeEmergencyStatus(v.Emergency, v.Context.GetIdentity())
+	if err != nil {
+		return EmergencyObservation{}, err
+	}
+	podsPending(&out, v.CombatEvents)
+	return out, nil
+}
+
+// podArrivals are the drop-pod arrival rows among a frame's combat events
+// (#870): what the routine frame and the clock's step carry of them.
+func podArrivals(events []*mp.CombatEventRow) []*mp.CombatEventRow {
+	var out []*mp.CombatEventRow
+	for _, row := range events {
+		if DropPodArrival(row) {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+// podsPending sets e's PodsOpen to the latest open tick of a drop-pod
+// arrival among events whose pods are still closed at e's census tick
+// (#908): its raiders are in their pods, not in the census.
+func podsPending(e *EmergencyObservation, events []*mp.CombatEventRow) {
+	for _, row := range events {
+		if open := int64(row.GetOpenTick()); DropPodArrival(row) && open >= e.Context.GetTick() && domain.Tick(open) > e.Facts.PodsOpen {
+			e.Facts.PodsOpen = domain.Tick(open)
+		}
+	}
 }
 
 // routinePawnIDs lists the colonists the routine census reads pawn detail
@@ -665,6 +694,7 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		if err != nil {
 			return Combat{}, err
 		}
+		podsPending(&emergency, v.CombatEvents)
 		out.Emergency = emergency
 	}
 	if v.CombatDetail != nil {

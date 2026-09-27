@@ -15,6 +15,11 @@ func EmergencyNeeds(snapshot EmergencySnapshot, current domain.GenerationSnapsho
 			threats++
 		}
 	}
+	// Raiders still in their pods are a threat no census row names yet
+	// (#908).
+	if snapshot.PodsPending() {
+		threats++
+	}
 	// Patients are counted from the census, not the holds: a colonist who
 	// only needs tending is the tend planner's patient although the
 	// emergency no longer holds dispatch for them (#66).

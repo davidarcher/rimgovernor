@@ -414,8 +414,8 @@ func TestCombatReplayLabChoke(t *testing.T) {
 // evacuee cell is outside the landing room (moved there once drafted, #911), two
 // riflemen take the doorway flanks (standable per the
 // geometry read) and the landing door is held open. Not asserted:
-// drafting before the open tick (the served clock only starts at the
-// open, #908) and a strike (no raider fled, looted or went down in the
+// drafting before the open tick (the recording predates #908 and starts
+// at the open) and a strike (no raider fled, looted or went down in the
 // recording, and four against four never waits).
 func TestCombatReplayLabPods(t *testing.T) {
 	t.Parallel()

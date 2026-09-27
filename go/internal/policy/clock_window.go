@@ -85,6 +85,20 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			hold(ClockWindowUnsafe)
 		}
 	}
+	if f.Emergency.PodsPending() {
+		// A drop-pod raid on its way down (#908): with the fight's plan
+		// the window is a combat one with nothing to acknowledge until the
+		// pods open (the watcher stops on the raiders then); without it
+		// the raid must not auto-advance.
+		switch {
+		case !combatKnown:
+			hold(ClockWindowUnknown)
+		case combatPlan:
+			combat = true
+		default:
+			hold(ClockWindowUnsafe)
+		}
+	}
 	check := func(fact domain.Fact[bool], want bool, reason ClockWindowReason) {
 		value, known := fact.Value()
 		if !known {

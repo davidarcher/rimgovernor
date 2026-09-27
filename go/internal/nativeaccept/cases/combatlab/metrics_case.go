@@ -91,7 +91,7 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	var staged Staged
 	var err error
 	if probe, _ := Build(name, 0, 0); probe.Arrival != "" {
-		staged, err = stageToPodsOpen(ctx, s, name)
+		staged, err = stagePods(ctx, s, name)
 	} else {
 		staged, err = Stage(ctx, s.Harness(), name)
 	}
@@ -172,13 +172,13 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	return nil
 }
 
-// stageToPodsOpen stages a drop-pod fixture and runs the game to the
-// arrival's open tick. The native records combat events once a frame
-// capture has hooked them (a served game's stream is open long before a
-// raid), so one frame is captured before staging. The served clock admits
-// no window while the raiders are still in their pods (no hostile in the
-// census, #908), so the run starts at the open.
-func stageToPodsOpen(ctx context.Context, s cases.Session, name string) (Staged, error) {
+// stagePods stages a drop-pod fixture and checks its arrival row is in
+// the frame. The native records combat events once a frame capture has
+// hooked them (a served game's stream is open long before a raid), so one
+// frame is captured before staging. The served run starts with the
+// raiders still in their pods: the pending arrival is the threat the
+// fight forms on (#908).
+func stagePods(ctx context.Context, s cases.Session, name string) (Staged, error) {
 	identity, err := typedIdentity(s.Identity())
 	if err != nil {
 		return Staged{}, err
@@ -204,14 +204,11 @@ func stageToPodsOpen(ctx context.Context, s cases.Session, name string) (Staged,
 		return staged, err
 	}
 	for _, row := range state.Events {
-		if bridge.DropPodArrival(row) {
-			if wait := int(row.GetOpenTick()) - tick; wait > 0 {
-				_, _, err = Tick(ctx, s.Harness(), wait)
-			}
-			return staged, err
+		if bridge.DropPodArrival(row) && int(row.GetOpenTick()) > tick {
+			return staged, nil
 		}
 	}
-	return staged, fmt.Errorf("%s: no drop-pod arrival row in %d frame events", name, len(state.Events))
+	return staged, fmt.Errorf("%s: no pending drop-pod arrival row in %d frame events", name, len(state.Events))
 }
 
 // serveUntil polls the service's state until the game tick reaches until,

@@ -308,7 +308,9 @@ func combatFrameInputs(combat bridge.Combat) (combatInputs, RoutineBuildingReaso
 	}
 	var in combatInputs
 	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
-	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) {
+	// Raiders still in their pods (#908) are a fight with no hostile yet:
+	// the pods tactic drafts the nearest armed before the open (#891).
+	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
 		return combatInputs{}, BuildingMethodUsed, nil
 	}
 	in.rows = map[string]*n.PawnState{}

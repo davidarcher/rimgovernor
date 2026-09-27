@@ -138,6 +138,10 @@ type EmergencyFacts struct {
 	ColonistsComplete domain.Fact[bool]
 	Colonists         []EmergencyPawn
 	Threats           []EmergencyThreat
+	// PodsOpen is the open tick of the newest drop-pod arrival (#870) still
+	// closed at the census tick, zero with none (#908): its raiders are in
+	// their pods, so no census row names them yet.
+	PodsOpen domain.Tick
 }
 
 // EmergencySnapshot owns its inputs and carries no mutation or authority API.
@@ -208,6 +212,14 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 		facts.Threats[i].Cells = append([]domain.Cell(nil), facts.Threats[i].Cells...)
 	}
 	return EmergencySnapshot{current: current, tick: tick, facts: facts, valid: true}, nil
+}
+
+// PodsPending reports a drop-pod raid on its way down (#908): an arrival
+// whose pods have not opened by the census tick. It is a threat for the
+// ActiveCombat goal and a combat window with nothing to acknowledge until
+// the open, so the fight forms on the arrival.
+func (s EmergencySnapshot) PodsPending() bool {
+	return s.valid && s.facts.PodsOpen > 0 && s.facts.PodsOpen >= s.tick
 }
 
 // EvaluateEmergency clears only known complete, current facts. It does not decide
