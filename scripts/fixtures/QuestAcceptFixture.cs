@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Builds one minimal not-yet-accepted
     // quest (no QuestGen node graph) carrying a two-option QuestPart_Choice
     // reward with no rewards attached to either option, so
-    // NativeQuestOperations.Prepare's reward-choice branch is exercised
+    // NativeQuestOperations.Resolve's reward-choice branch is exercised
     // honestly without needing any concrete reward content. The quest
     // deliberately carries no QuestPart_RequirementsToAccept part, so
     // Quest.RequiresAccepter is false -- the same "requires an accepter"

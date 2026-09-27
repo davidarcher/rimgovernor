@@ -142,7 +142,6 @@ type buildingServiceBridge struct {
 	gearReplace         *buildingruntime.GearReplaceCapabilities
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	husbandry           *buildingruntime.HusbandryCapabilities
-	questAccept         *buildingruntime.QuestAcceptCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
@@ -269,10 +268,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	questAcceptWriter, err := bridge.NewQuestAcceptWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -358,7 +353,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
-		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
@@ -700,13 +694,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		husbandryCapabilities = client.husbandry
 	}
-	var questAcceptCapabilities *buildingruntime.QuestAcceptCapabilities
-	if config.routinePopulationJoinerPlans {
-		if client.questAccept == nil {
-			return errors.New("population joiner plans require typed capabilities")
-		}
-		questAcceptCapabilities = client.questAccept
-	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
 	if config.routineTradePlans {
 		if client.trade == nil {
@@ -842,7 +829,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,
 		Husbandry:           husbandryCapabilities,
-		QuestAccept:         questAcceptCapabilities,
 		CaravanDeparture:    caravanDepartureCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,

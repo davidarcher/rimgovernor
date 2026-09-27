@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -54,76 +53,5 @@ func TestJoinerDefenseTiersFromStoredRecord(t *testing.T) {
 	snapshot.Load = "reload"
 	if tiers, err := routineJoinerDefenseTiers(ctx, journal, snapshot); err != nil || tiers != domain.Unknown[int]() {
 		t.Fatal("stale load defense must be unknown", tiers, err)
-	}
-}
-
-// A quest accept native refused (the offer expired before dispatch) is
-// cancelled so the method closes; one still awaiting its dispatch is left
-// alone (#717).
-func TestCancelRefusedQuestAcceptsSettlesTheRefusedAccept(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	journal, err := store.Open(ctx, filepath.Join(t.TempDir(), "joiner.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer journal.Close()
-	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0))}
-	g, err := domain.NewGoal("population", domain.AutopilotGoal, 2, snapshot, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = journal.CreateGoal(ctx, g); err != nil {
-		t.Fatal(err)
-	}
-	state, err := journal.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id := domain.PlanID("refused")
-	accept, err := domain.NewQuestAccept("Quest_0", "", 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	action, err := domain.NewQuestAcceptAction(domain.ActionID(id+"-0"), accept)
-	if err != nil {
-		t.Fatal(err)
-	}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if state, err = journal.CommitGoalMethod(ctx, g.ID, state.Revision, "joiner-Quest_0-0", plan); err != nil {
-		t.Fatal(err)
-	}
-	stage := func() domain.Stage {
-		t.Helper()
-		plan, err := journal.LoadPlan(ctx, id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return plan.Progress[0].View().Stage
-	}
-	if err = cancelRefusedQuestAccepts(ctx, journal, state); err != nil || stage() != domain.Pending {
-		t.Fatalf("undispatched accept: stage %s err %v, want pending", stage(), err)
-	}
-	target := snapshot
-	target.Plan, target.Revision, target.Native = "refused", 1, 2
-	admission := store.QuestAcceptAdmission{Snapshot: target, Tick: 20, Quest: "Quest_0", RewardChoice: 0, QuestSnapshotToken: "quest-cas"}
-	if _, err = journal.PrepareQuestAccept(ctx, id, "refused-0", admission); err != nil {
-		t.Fatal(err)
-	}
-	p, err := journal.Dispatch(ctx, id, "refused-0", target, 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = journal.RecordReceipt(ctx, id, "refused-0", p.View().Attempt, domain.ReceiptRefused); err != nil {
-		t.Fatal(err)
-	}
-	if err = cancelRefusedQuestAccepts(ctx, journal, state); err != nil {
-		t.Fatal(err)
-	}
-	if got := stage(); got != domain.Cancelled {
-		t.Fatalf("refused accept stage = %s, want cancelled", got)
 	}
 }

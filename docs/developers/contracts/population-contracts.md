@@ -41,8 +41,8 @@ The `population-joiner` routine family (on in the autonomous default; selected b
 `RIMGOVERNOR_ROUTINE_FAMILIES` like every other family) lets the same
 goal answer joiner quests from population capacity. The routine review reads the
 visible quest census and accepts a not-yet-accepted `ThreatReward_*_Joiner` offer
-(a refugee chased by a threat; the native `CanAcceptQuest` verdict is re-read at
-dispatch) through `AcceptQuest` only when the player has set a population policy
+(a refugee chased by a threat; native checks `CanAcceptQuest` when it applies
+the `AcceptQuestIntent`) only when the player has set a population policy
 and living admitted colonists plus guests and prisoners are below its maximum, the
 food runway is at or above its reserve days and an unowned humanlike, non-medical,
 non-prisoner bed reads back. Without a policy, or without room, the offer is left

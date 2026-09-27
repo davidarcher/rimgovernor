@@ -16,7 +16,8 @@ and Hands. Caravan manifests reserve native cargo costs through assembly, even
 after cancellation or an uncertain write, until loaded departure is observed.
 Native scope checks reject old colony/load/map arguments. Route actions retain
 exact caravan membership and wait for world arrival or living home-map return.
-Quest acceptance validates native eligibility and an explicit reward choice;
+Quest acceptance is an `AcceptQuestIntent` on Actions/Apply: native validates
+eligibility and the explicit reward choice when it applies;
 the acceptance action does not claim the quest objective is complete. Each
 visible quest row carries `script_def`, the root QuestScriptDef name, so a
 reader can tell a joiner offer (`ThreatReward_*_Joiner`) from a trade request

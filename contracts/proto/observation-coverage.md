@@ -313,7 +313,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | FormCaravan.catalog/pawns/cargo | ReadCaravanCatalog.snapshot; pawn IDs; cargo_groups.group_id |
 | TravelCaravan/GiftCaravanSilver/FulfillQuest.caravan | ReadWorldProgression.caravan.snapshot |
 | GiftCaravanSilver.faction | ReadWorldProgression.faction.snapshot or ReadWorld.settlement.faction_snapshot |
-| AcceptQuest/FulfillQuest.quest | ReadWorldProgression.quest.snapshot; exact eligible accepter/reward choice |
+| FulfillQuest.quest | ReadWorldProgression.quest.snapshot |
 | ReleaseOwnedDraft | ListPawns.draft_claim.owned claim_id/Owner and pawn_snapshot; known unowned differs from unavailable |
 
 PlaceBuilding uses its placement preview and write authority precondition; it has

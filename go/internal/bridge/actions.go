@@ -39,6 +39,7 @@ func init() {
 	registerIntentKind(domain.NamingConfirmationAction, namingAction)
 	registerIntentKind(domain.DialogAnswerAction, dialogAction)
 	registerIntentKind(domain.PrisonerInteractionAction, prisonerInteractionAction)
+	registerIntentKind(domain.QuestAcceptAction, questAcceptAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

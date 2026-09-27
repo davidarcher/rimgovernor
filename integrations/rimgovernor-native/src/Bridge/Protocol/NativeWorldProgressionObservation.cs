@@ -189,8 +189,7 @@ namespace HomeBridge.BridgeTools
                     State = q.State.ToString(), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
-                    // NativeQuestOperations.Execute (AcceptQuest) re-checks this exact
-                    // token as its acceptance CAS; a stale read cannot admit a stale write.
+                    // FulfillQuest re-checks this exact token as its CAS.
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)

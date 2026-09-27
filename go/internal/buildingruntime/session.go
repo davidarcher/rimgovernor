@@ -96,7 +96,6 @@ type SessionConfig struct {
 	Husbandry        *HusbandryCapabilities
 	HomeCoverage     *HomeCoverageCapabilities
 	WallRemoval      *WallRemovalCapabilities
-	QuestAccept      *QuestAcceptCapabilities
 	CaravanDeparture *CaravanDepartureCapabilities
 	MineAcquisition  *mineacquisition.MineAcquisitionCapabilities
 	Excavation       *excavation.ExcavationCapabilities
@@ -408,9 +407,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.QuestAccept != nil && (config.QuestAccept.Native == nil || config.QuestAccept.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.CaravanDeparture != nil && (config.CaravanDeparture.Native == nil || config.CaravanDeparture.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -689,15 +685,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableWallRemoval(wallRemovalBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.QuestAccept != nil {
-		questAcceptBoundary, err := NewQuestAcceptBoundary(config.QuestAccept.Native, config.QuestAccept.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableQuestAccept(questAcceptBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

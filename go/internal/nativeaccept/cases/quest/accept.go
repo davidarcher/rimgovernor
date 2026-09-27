@@ -1,17 +1,17 @@
-// The quest/accept case exercises the AcceptQuest vertical (G01.07f) end
-// to end against a live game: a real not-yet-accepted quest carrying a
-// two-option native reward-choice part, native acceptance (an actual
-// Quest.Accept settings write and its QuestPart_Choice.Choose call)
-// invoked through the same rimgovernor/operations_execute wire contract
-// Go's buildingruntime.QuestAcceptBoundary drives, and its observation/
-// replay semantics. Uses a private disposable fixture
-// (test/quest_accept_prepare) since a minimal quest with an exact
-// reward-choice shape cannot be produced deterministically through native
-// random quest generation. The fixture quest carries no native
-// QuestPart_RequirementsToAccept part (the vanilla mechanism that needs an
-// accepter, QuestPart_RequirementsToAcceptColonistWithTitle, requires a
-// held Royalty title), so this harness instead exercises the "this quest
-// does not accept an accepter" refusal branch by supplying one anyway.
+// The quest/accept case exercises the AcceptQuestIntent arm of
+// Actions/Apply (#942) end to end against a live game: a real
+// not-yet-accepted quest carrying a two-option native reward-choice part,
+// native acceptance (an actual Quest.Accept settings write and its
+// QuestPart_Choice.Choose call) through the same rimgovernor/operations_apply
+// wire contract Go's quest accept boundary drives, and its replay semantics.
+// Uses a private disposable fixture (test/quest_accept_prepare) since a
+// minimal quest with an exact reward-choice shape cannot be produced
+// deterministically through native random quest generation. The fixture
+// quest carries no native QuestPart_RequirementsToAccept part (the vanilla
+// mechanism that needs an accepter,
+// QuestPart_RequirementsToAcceptColonistWithTitle, requires a held Royalty
+// title), so this harness instead exercises the "this quest does not accept
+// an accepter" refusal branch by supplying one anyway.
 package quest
 
 import (
@@ -24,14 +24,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-const acceptOwner = "native-quest-accept-acceptance"
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "quest/accept",
-		Scope: "Native AcceptQuest vertical: an actual Quest.Accept settings write and " +
-			"QuestPart_Choice reward selection, exact CAS/stale-token refusal, an accepter-not-required " +
-			"refusal, replay idempotency and a post-acceptance stale-identity refusal.",
+		Scope: "Native AcceptQuestIntent: an actual Quest.Accept settings write and " +
+			"QuestPart_Choice reward selection, out-of-range reward and accepter-not-required " +
+			"refusals, replay idempotency and an already-accepted quest applied again.",
 		Start:  cases.Fixture{On: cases.LabStart(), Op: "test/quest_accept_prepare"},
 		Quiet:  na.QuietRequired,
 		Budget: 5 * time.Minute,
@@ -54,17 +52,13 @@ func runAccept(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("quest_accept_prepare: unexpected fixture identifiers: %#v", prepared)
 	}
 
-	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
-	if err != nil {
+	if _, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity); err != nil {
 		return err
 	}
-	grantContext, _ := na.AsMap(grant["context"])
 
 	// target reads the world-progression census for the fixture's exact
-	// quest, mirroring bridge.ReadQuestAcceptTarget's own extraction from
-	// the same census (NativeWorldProgressionObservation.cs's Quests()), so
-	// the token and facts used below are exactly what the Go boundary
-	// itself would compute from this call.
+	// quest (NativeWorldProgressionObservation.cs's Quests()), the census
+	// the joiner planner chooses offers from.
 	target := func(label string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_world_progression", map[string]any{
 			"scope": map[string]any{"expectedIdentity": identity}, "includeStorage": false,
@@ -102,179 +96,102 @@ func runAccept(ctx context.Context, s cases.Session) error {
 	if canAccept, _ := na.AsBool(questRow["canAccept"]); !canAccept {
 		return fmt.Errorf("target-before: expected the fixture quest to be acceptable, got %#v", questRow)
 	}
-	questSnapshot, _ := na.AsMap(questRow["snapshot"])
-	questToken := na.AsString(questSnapshot["token"])
-	if questToken == "" {
-		return fmt.Errorf("target-before: missing quest snapshot token: %#v", questRow)
-	}
-
-	buildOperation := func(qToken, accepterPawn string, rewardChoice int) map[string]any {
-		op := map[string]any{"quest": map[string]any{"entityId": questID, "expectedSnapshotToken": qToken}, "rewardChoice": rewardChoice}
+	apply := func(label, key, accepterPawn string, rewardChoice int) (map[string]any, error) {
+		intent := map[string]any{"questId": questID, "rewardChoice": rewardChoice}
 		if accepterPawn != "" {
-			op["accepterPawnId"] = accepterPawn
+			intent["accepterPawnId"] = accepterPawn
 		}
-		return map[string]any{"acceptQuest": op}
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{
+			map[string]any{"key": key, "acceptQuest": intent},
+		}})
+		if err != nil {
+			return nil, err
+		}
+		results := na.AsSlice(reply["results"])
+		if len(results) != 1 {
+			return nil, fmt.Errorf("%s: expected one result, got %#v", label, reply)
+		}
+		result, _ := na.AsMap(results[0])
+		return result, nil
 	}
-	buildRequest := func(actionID, attemptID string, operation map[string]any) map[string]any {
-		return map[string]any{
-			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": grantContext["nativeGeneration"],
-				"attempt": map[string]any{"controllerSessionId": acceptOwner, "actionId": actionID, "attemptId": attemptID},
-			},
-			"operation": operation,
+	refused := func(label, key, accepterPawn string, rewardChoice int, code string) error {
+		result, err := apply(label, key, accepterPawn, rewardChoice)
+		if err != nil {
+			return err
 		}
+		refusal, _ := na.AsMap(result["refused"])
+		if refusal == nil || na.AsString(refusal["code"]) != code || na.AsString(refusal["reason"]) == "" {
+			return fmt.Errorf("%s: expected a %s refusal with a reason, got %#v", label, code, result)
+		}
+		return nil
+	}
+	acceptedQuest := func(label string, result map[string]any) error {
+		receipt, _ := na.AsMap(result["applied"])
+		applied, _ := na.AsMap(receipt["applied"])
+		observed, _ := na.AsMap(applied["observed"])
+		quest, _ := na.AsMap(observed["quest"])
+		if na.AsString(quest["questId"]) != questID {
+			return fmt.Errorf("%s: expected an applied receipt for the quest, got %#v", label, result)
+		}
+		if accepted, _ := na.AsBool(quest["accepted"]); !accepted {
+			return fmt.Errorf("%s: expected the quest to be accepted, got %#v", label, quest)
+		}
+		return nil
 	}
 
-	// Refusal 1: an obviously stale token is refused rather than silently
-	// admitted, the same CAS enforcement every other vertical proves.
-	staleTokenRequest := buildRequest("quest-accept-stale", "1", buildOperation("quest-cas-stale-00000000000000000000000000000000000000000000000000000000000000", "", 0))
-	if code, err := failureCode(ctx, h, "stale-token", staleTokenRequest); err != nil {
+	// Refusal 1: a reward option outside the quest's single choice part.
+	if err := refused("reward-out-of-range", "quest-accept-reward", "", 5, "FAILURE_CODE_INVALID_REQUEST"); err != nil {
 		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("stale-token: expected FAILURE_CODE_INVALID_REQUEST, got %q", code)
 	}
-
 	// Refusal 2: this quest does not require an accepter; supplying one
 	// anyway is refused rather than silently ignored.
-	unwantedAccepterRequest := buildRequest("quest-accept-unwanted-accepter", "1", buildOperation(questToken, pawnIDs[0], 0))
-	if code, err := failureCode(ctx, h, "unwanted-accepter", unwantedAccepterRequest); err != nil {
+	if err := refused("unwanted-accepter", "quest-accept-unwanted-accepter", pawnIDs[0], 0, "FAILURE_CODE_INVALID_REQUEST"); err != nil {
 		return err
-	} else if code != "FAILURE_CODE_INVALID_REQUEST" {
-		return fmt.Errorf("unwanted-accepter: expected FAILURE_CODE_INVALID_REQUEST, got %q", code)
+	}
+	if row, err := target("target-after-refusals"); err != nil {
+		return err
+	} else if na.AsString(row["state"]) != "QUEST_STATE_NOT_YET_ACCEPTED" && na.AsString(row["state"]) != "NotYetAccepted" {
+		return fmt.Errorf("target-after-refusals: a refused intent changed the quest: %#v", row)
 	}
 
-	// Preview: accepted, but never mutates the live quest.
-	previewReply, err := h.Wire(ctx, "preview", "operations_preview", map[string]any{
-		"identity": identity, "operation": buildOperation(questToken, "", 0),
-	})
-	if err != nil {
-		return err
-	}
-	evaluated, ok := na.AsMap(previewReply["evaluated"])
-	if !ok {
-		return fmt.Errorf("preview: expected an evaluated reply, got %#v", previewReply)
-	}
-	if accepted, _ := na.AsBool(evaluated["accepted"]); !accepted {
-		return fmt.Errorf("preview: expected the quest acceptance to be accepted, got %#v", evaluated)
-	}
-	projected, _ := na.AsMap(evaluated["projected"])
-	projectedQuest, _ := na.AsMap(projected["quest"])
-	if na.AsString(projectedQuest["questId"]) != questID {
-		return fmt.Errorf("preview: unexpected projected quest id: %#v", projectedQuest)
-	}
-	if acceptedAlready, _ := na.AsBool(projectedQuest["accepted"]); acceptedAlready {
-		return fmt.Errorf("preview: expected the dry-run projection to report unaccepted")
-	}
-	afterPreviewRow, err := target("target-after-preview")
-	if err != nil {
-		return err
-	}
-	if na.AsString(afterPreviewRow["state"]) != "QUEST_STATE_NOT_YET_ACCEPTED" && na.AsString(afterPreviewRow["state"]) != "NotYetAccepted" {
-		return fmt.Errorf("target-after-preview: expected the quest to survive a dry-run preview: %#v", afterPreviewRow)
-	}
-
-	// Execute: the real native Quest.Accept settings write and its
+	// Apply: the real native Quest.Accept settings write and its
 	// QuestPart_Choice.Choose call.
-	acceptRequest := buildRequest("quest-accept", "1", buildOperation(questToken, "", 0))
-	receiptReply, err := h.Wire(ctx, "execute", "operations_execute", acceptRequest)
+	result, err := apply("apply", "quest-accept", "", 0)
 	if err != nil {
 		return err
 	}
-	_, receipt, err := na.Outcome(receiptReply, "receipt")
-	if err != nil {
+	if err = acceptedQuest("apply", result); err != nil {
 		return err
 	}
-	applied, ok := na.AsMap(receipt["applied"])
-	if !ok {
-		return fmt.Errorf("execute: expected an applied outcome, got %#v", receipt)
-	}
-	appliedObserved, _ := na.AsMap(applied["observed"])
-	appliedQuest, _ := na.AsMap(appliedObserved["quest"])
-	if na.AsString(appliedQuest["questId"]) != questID {
-		return fmt.Errorf("execute: unexpected applied quest id: %#v", appliedQuest)
-	}
-	if accepted, _ := na.AsBool(appliedQuest["accepted"]); !accepted {
-		return fmt.Errorf("execute: expected the quest to be accepted, got %#v", appliedQuest)
-	}
-	appliedSnapshot, _ := na.AsMap(appliedQuest["snapshot"])
-	if na.AsString(appliedSnapshot["beforeToken"]) != questToken {
-		return fmt.Errorf("execute: unexpected beforeToken: %#v", appliedSnapshot)
-	}
-
-	questRowAccepted, err := target("target-after-execute")
+	questRowAccepted, err := target("target-after-apply")
 	if err != nil {
 		return err
 	}
 	if na.AsString(questRowAccepted["state"]) == "QUEST_STATE_NOT_YET_ACCEPTED" || na.AsString(questRowAccepted["state"]) == "NotYetAccepted" {
-		return fmt.Errorf("target-after-execute: expected the quest to have left NotYetAccepted, got %#v", questRowAccepted)
+		return fmt.Errorf("target-after-apply: expected the quest to have left NotYetAccepted, got %#v", questRowAccepted)
 	}
 	if canAccept, _ := na.AsBool(questRowAccepted["canAccept"]); canAccept {
-		return fmt.Errorf("target-after-execute: expected canAccept=false for an already-accepted quest, got %#v", questRowAccepted)
+		return fmt.Errorf("target-after-apply: expected canAccept=false for an already-accepted quest, got %#v", questRowAccepted)
 	}
 
-	// Observe: durable progress lookup reports the same completed evidence.
-	precondition, _ := na.AsMap(acceptRequest["precondition"])
-	attempt := map[string]any{"identity": identity, "attempt": precondition["attempt"]}
-	progressReply, err := h.Wire(ctx, "observe", "receipts_observe_progress", attempt)
+	// Replay: the same key returns the identical result without a second
+	// native write.
+	replay, err := apply("replay", "quest-accept", "", 0)
 	if err != nil {
 		return err
 	}
-	_, progress, err := na.Outcome(progressReply, "progress")
-	if err != nil {
-		return err
-	}
-	if complete, _ := na.AsBool(progress["completeInspection"]); !complete {
-		return fmt.Errorf("observe: expected completeInspection=true, got %#v", progress)
-	}
-	completed, ok := na.AsMap(progress["completed"])
-	if !ok {
-		return fmt.Errorf("observe: expected a completed outcome, got %#v", progress)
-	}
-	completedEvidence, _ := na.AsMap(completed["evidence"])
-	completedQuest, _ := na.AsMap(completedEvidence["quest"])
-	if na.AsString(completedQuest["questId"]) != questID {
-		return fmt.Errorf("observe: unexpected completed quest id: %#v", completedQuest)
-	}
-	if accepted, _ := na.AsBool(completedQuest["accepted"]); !accepted {
-		return fmt.Errorf("observe: expected accepted=true, got %#v", completedQuest)
+	if !na.DeepEqual(replay, result) {
+		return fmt.Errorf("replay: the same key returned a different result: %#v", replay)
 	}
 
-	// Replay: the exact same attempt returns an identical receipt, and does
-	// not attempt the native settings write a second time.
-	replayReply, err := h.Wire(ctx, "replay", "operations_execute", acceptRequest)
+	// A fresh key against the accepted quest is applied again: the intent
+	// already holds, so a resend after a lost reply cannot fail it.
+	again, err := apply("apply-again", "quest-accept-again", "", 0)
 	if err != nil {
 		return err
 	}
-	_, replay, err := na.Outcome(replayReply, "receipt")
-	if err != nil {
+	if err = acceptedQuest("apply-again", again); err != nil {
 		return err
-	}
-	if !na.DeepEqual(replay, receipt) {
-		return fmt.Errorf("replay: replay of the same attempt returned a different receipt")
-	}
-
-	// Durable lookup: receipts_lookup independently returns the same receipt.
-	lookupReply, err := h.Wire(ctx, "lookup", "receipts_lookup", attempt)
-	if err != nil {
-		return err
-	}
-	_, lookup, err := na.Outcome(lookupReply, "receipt")
-	if err != nil {
-		return err
-	}
-	if !na.DeepEqual(lookup, receipt) {
-		return fmt.Errorf("lookup: expected the same receipt as execute, got %#v", lookup)
-	}
-
-	// Refusal 3: a brand-new attempt against the now-accepted quest is
-	// refused as not found rather than silently re-admitted or
-	// double-accepted (NativeQuestOperations.Prepare requires
-	// State==NotYetAccepted).
-	postAcceptRequest := buildRequest("quest-accept-again", "1", buildOperation(questToken, "", 0))
-	if code, err := failureCode(ctx, h, "post-acceptance-retry", postAcceptRequest); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_NOT_FOUND" {
-		return fmt.Errorf("post-acceptance-retry: expected FAILURE_CODE_NOT_FOUND, got %q", code)
 	}
 
 	logData, err := os.ReadFile(s.Config().StartupLogPath())
@@ -282,19 +199,4 @@ func runAccept(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), s.Config().Headless)
-}
-
-// failureCode wires request through operations_execute and returns the
-// failure code, mirroring questfulfillaccept's/the movement case's helper of
-// the same name.
-func failureCode(ctx context.Context, h *na.Harness, label string, request map[string]any) (string, error) {
-	reply, err := h.Wire(ctx, label, "operations_execute", request)
-	if err != nil {
-		return "", err
-	}
-	_, failure, err := na.Outcome(reply, "failure")
-	if err != nil {
-		return "", err
-	}
-	return na.AsString(failure["code"]), nil
 }

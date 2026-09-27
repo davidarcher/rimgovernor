@@ -68,6 +68,9 @@ message Operation {
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
+  // Quest acceptance moved to Actions/Apply (AcceptQuestIntent, #942).
+  reserved 44;
+  reserved "accept_quest";
   oneof command {
     InstallBuilding install_building = 3;
     AcquireResource acquire_resource = 4;
@@ -94,7 +97,6 @@ message Operation {
     FormCaravan form_caravan = 41;
     TravelCaravan travel_caravan = 42;
     GiftCaravanSilver gift_caravan_silver = 43;
-    AcceptQuest accept_quest = 44;
     FulfillQuest fulfill_quest = 45;
     ExcavateCell excavate_cell = 47;
     TameAnimal tame_animal = 48;
@@ -366,7 +368,6 @@ message FormCaravan { optional string expected_catalog_token = 1; repeated strin
 enum TravelKind { TRAVEL_KIND_UNSPECIFIED = 0; TRAVEL_KIND_MOVE = 1; TRAVEL_KIND_VISIT = 2; TRAVEL_KIND_RETURN_HOME = 3; TRAVEL_KIND_STOP = 4; }
 message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind = 2; optional int32 destination_tile = 3; }
 message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
-message AcceptQuest { EntityPrecondition quest = 1; optional string accepter_pawn_id = 2; optional int32 reward_choice = 3; }
 message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
 
 // Safe cleanup may run after authority revocation, only for an unchanged native
@@ -432,6 +433,7 @@ message Action {
     NamingIntent naming = 17;
     DialogIntent dialog = 18;
     PrisonerInteractionIntent prisoner = 19;
+    AcceptQuestIntent accept_quest = 20;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
@@ -458,6 +460,15 @@ message ResearchIntent { optional string project_def = 1; }
 // colonist; tainted apparel is always excluded and forced or locked apparel
 // is released. A pawn already on a matching policy is applied again.
 message ApparelPolicyIntent { optional string pawn_id = 1; optional string name = 2; repeated string allowed_defs = 3; optional float min_hit_points = 4; optional float max_hit_points = 5; optional int32 min_quality = 6; optional int32 max_quality = 7; }
+// Accept one visible quest offer, choosing reward option reward_choice of its
+// single choice part (-1 when it has none) and, when the quest requires one,
+// naming the accepting colonist. Native checks the game's own acceptance
+// rules when it applies; a quest already accepted is applied again.
+message AcceptQuestIntent {
+  optional string quest_id = 1;
+  optional string accepter_pawn_id = 2;
+  optional int32 reward_choice = 3;
+}
 // Put a drafted pawn on a melee attack on a hostile target (a pawn or a
 // census-listed hostile building), or with subdue on a blunt containment
 // attack on an aggressive colonist. Native validates both pawns live and

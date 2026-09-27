@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
     // Two CAS tokens, both self-computed, matching bridge/quest_fulfill.go
     // exactly:
     //   quest.expected_snapshot_token -- NativeQuestOperations.Token(quest),
-    //     the same token AcceptQuest already uses and
+    //     the token
     //     NativeWorldProgressionObservation.Quests() already reports, so no
     //     dedicated candidate read is needed for it.
     //   caravan.expected_snapshot_token -- CaravanToken(id, tile, moving,

@@ -324,9 +324,20 @@ func runFulfill(ctx context.Context, s cases.Session) error {
 	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
-// failureCode wires request through operations_execute and returns the failure
-// code, mirroring guardedconstructionaccept's/the movement case's helper of the
-// same name.
+// failureCode wires request through operations_execute and returns the
+// failure code.
+func failureCode(ctx context.Context, h *na.Harness, label string, request map[string]any) (string, error) {
+	reply, err := h.Wire(ctx, label, "operations_execute", request)
+	if err != nil {
+		return "", err
+	}
+	_, failure, err := na.Outcome(reply, "failure")
+	if err != nil {
+		return "", err
+	}
+	return na.AsString(failure["code"]), nil
+}
+
 // caravanToken reproduces NativeQuestFulfillOperations.CaravanToken/Go's
 // unexported questFulfillCaravanToken exactly (same joined-string SHA256
 // hex, lowercase booleans, ordinally sorted pawn ids), from a world-
