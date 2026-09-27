@@ -11,13 +11,8 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 		return validateUnavailable(s.Unavailable)
 	case *o.FoodChannelsSection_Observed:
 		f := s.Observed
-		if f == nil || colonyCounts(f.Completeness, 1, 1) != nil || f.Completeness.GetFiltered() != 0 {
+		if f == nil || colonyCounts(f.Completeness, 1) != nil || f.Completeness.GetFiltered() != 0 {
 			return contract("incomplete food channels")
-		}
-		for _, n := range []int{len(f.Gatherable), len(f.EggLayer), len(f.PasteDispenser), len(f.Forage), len(f.Grazing), len(f.Slaughter)} {
-			if n > 256 {
-				return contract("food channels exceed bound")
-			}
 		}
 		width := min(v.Center.GetX()+22, int32(v.MapSize.GetWidth())-1) - max(v.Center.GetX()-22, 0) + 1
 		height := min(v.Center.GetZ()+22, int32(v.MapSize.GetHeight())-1) - max(v.Center.GetZ()-22, 0) + 1
@@ -87,16 +82,13 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 			if !combatNumber(water.ResearchLeadDays, true) {
 				return contract("invalid fishing research lead")
 			}
-			if len(water.Regions) > 256 {
-				return contract("fishable regions exceed bound")
-			}
 			roots := map[[2]int32]bool{}
 			for _, row := range water.Regions {
 				if row == nil || !colonyCell(row.Root, v.MapSize) || !combatNumber(row.Population, true) || !combatNumber(row.MaxPopulation, true) || row.Population != nil && row.MaxPopulation != nil && row.GetPopulation() > row.GetMaxPopulation() || row.CellCount != nil && (row.GetCellCount() == 0 || row.GetCellCount() > v.MapSize.GetWidth()*v.MapSize.GetHeight()) {
 					return contract("invalid fishable region")
 				}
 				root := [2]int32{row.Root.GetX(), row.Root.GetZ()}
-				if !combatNumber(row.NutritionPerFish, false) || !combatNumber(row.FishPerBatch, false) || !combatNumber(row.WorkTicksPerBatch, false) || !combatNumber(row.PawnFishWorkCapacity, true) || row.GetConcurrentFishers() > 256 || len(row.ProposedCells) > 256 {
+				if !combatNumber(row.NutritionPerFish, false) || !combatNumber(row.FishPerBatch, false) || !combatNumber(row.WorkTicksPerBatch, false) || !combatNumber(row.PawnFishWorkCapacity, true) || row.GetConcurrentFishers() > 256 {
 					return contract("invalid fishing rates or footprint")
 				}
 				seenCells := map[[2]int32]bool{}

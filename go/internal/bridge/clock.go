@@ -418,11 +418,8 @@ func clockStatus(s *k.Status, identity *c.Identity) error {
 		return contract("missing clock epoch")
 	}
 	page := s.EvidenceCompleteness
-	if page == nil || page.Complete == nil || (page.GetComplete() && page.NextCursor != nil) {
+	if page == nil || page.Complete == nil {
 		return contract("clock evidence completeness required")
-	}
-	if page.NextCursor != nil && validID(page.GetNextCursor()) != nil {
-		return contract("clock evidence cursor")
 	}
 	for _, v := range s.BaselineAlerts {
 		if v == nil || validID(v.GetKey()) != nil || !diagnostic(v.Label) || !diagnostic(v.Priority) {

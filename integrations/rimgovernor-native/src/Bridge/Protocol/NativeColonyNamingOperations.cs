@@ -70,9 +70,9 @@ namespace HomeBridge.BridgeTools
                     return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                         "Naming window or suggestions changed; inspect again.") };
                 var accepted = ValidatesNatively(dialog, command);
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = accepted,
-                    Reason = accepted ? "" : "Native naming validation refused the suggestions." } });
+                    Reason = accepted ? "" : "Native naming validation refused the suggestions." } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Naming preview failed: " + error.GetType().Name) }; }
         }
@@ -115,13 +115,13 @@ namespace HomeBridge.BridgeTools
                         WindowId = command.WindowId, FactionName = Faction.OfPlayer.Name, SettlementName = checkedSettlement.Name, Confirmed = confirmed } };
                     if (!confirmed) throw new InvalidOperationException("Naming confirmation did not verify after native callbacks.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Naming admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted naming requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted naming requires observation: " + error.GetType().Name) };
             }
         }
 

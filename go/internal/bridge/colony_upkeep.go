@@ -24,11 +24,6 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	if v.Rooms != nil {
 		counts["rooms"] = 1
 	}
-	for _, n := range counts {
-		if n > 256 {
-			return contract("upkeep census exceeds bound")
-		}
-	}
 	for _, issue := range v.Issues {
 		if counts[issue.GetField()] != 0 {
 			return contract("unavailable upkeep section contains rows")
@@ -75,9 +70,6 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	seen = map[string]bool{}
 	finite := func(p *float64) bool { return p == nil || !math.IsNaN(*p) && !math.IsInf(*p, 0) }
 	ids := func(values []string) bool {
-		if len(values) > 256 {
-			return false
-		}
 		found := map[string]bool{}
 		for _, id := range values {
 			if validID(id) != nil || found[id] {
@@ -100,7 +92,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || len(row.ReachableStoredFeed) > 256 || !ids(row.ReachableBenchIds) || len(row.ReachableStorage) > 256 || len(row.StorageCandidates) > 256 {
+		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || !ids(row.ReachableBenchIds) {
 			return contract("invalid upkeep animal")
 		}
 		for _, zone := range row.ReachableStorage {
@@ -117,9 +109,6 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		a := p.AnimalState
 		// Training rows carry MaintainHerd's training deficit: one per
 		// trainable def, each with its own facts.
-		if len(a.Training) > 64 {
-			return contract("invalid upkeep animal training")
-		}
 		trainables := map[string]bool{}
 		for _, entry := range a.Training {
 			if entry == nil || validID(entry.GetDefName()) != nil || trainables[entry.GetDefName()] || !proto.Equal(entry, &o.TrainingEntry{DefName: entry.DefName, Learned: entry.Learned, Wanted: entry.Wanted, Available: entry.Available}) {
@@ -157,17 +146,17 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 				return err
 			}
 		} else {
-			if h.Revision == nil || h.GetRevision() < 0 || colonyCounts(h.Completeness, len(h.Targets), 256) != nil {
+			if h.Revision == nil || h.GetRevision() < 0 || colonyCounts(h.Completeness, len(h.Targets)) != nil {
 				return contract("invalid Home coverage census")
 			}
 			seen := map[string]bool{}
 			for _, row := range h.Targets {
-				if row == nil || validID(row.GetId()) != nil || seen[row.GetId()] || row.Snapshot != nil || row.ShapeToken != nil && validID(row.GetShapeToken()) != nil || !diagnostic(row.Blocker) || row.MissingCells != nil && row.GetMissingCells() > 256 || row.ExcludedCells != nil && (row.GetExcludedCells() > 256 || row.MissingCells != nil && row.GetExcludedCells() > row.GetMissingCells()) || len(row.Cells) > 256 {
+				if row == nil || validID(row.GetId()) != nil || seen[row.GetId()] || row.Snapshot != nil || row.ShapeToken != nil && validID(row.GetShapeToken()) != nil || !diagnostic(row.Blocker) || row.ExcludedCells != nil && row.MissingCells != nil && row.GetExcludedCells() > row.GetMissingCells() {
 					return contract("invalid Home coverage target")
 				}
 				seen[row.GetId()] = true
 				if g := row.ExtentGeometry; g != nil {
-					if row.GetBlocker() != "" || len(g.EnclosedInterior)+len(g.Corridor)+len(g.Zone) > 65536 {
+					if row.GetBlocker() != "" {
 						return contract("invalid complete Home extent geometry")
 					}
 					geometryCells := map[[2]int32]bool{}
@@ -228,12 +217,12 @@ func validTitle(t *o.RoyalTitleFacts) bool {
 	if t == nil {
 		return true
 	}
-	if t.DefName == nil || validID(t.GetDefName()) != nil || t.Seniority != nil && t.GetSeniority() < 0 || t.BedroomMinArea != nil && t.GetBedroomMinArea() < 0 || t.BedroomMinImpressiveness != nil && t.GetBedroomMinImpressiveness() < 0 || len(t.BedroomThings) > 16 ||
+	if t.DefName == nil || validID(t.GetDefName()) != nil || t.Seniority != nil && t.GetSeniority() < 0 || t.BedroomMinArea != nil && t.GetBedroomMinArea() < 0 || t.BedroomMinImpressiveness != nil && t.GetBedroomMinImpressiveness() < 0 ||
 		!proto.Equal(t, &o.RoyalTitleFacts{DefName: t.DefName, Seniority: t.Seniority, BedroomMinArea: t.BedroomMinArea, BedroomMinImpressiveness: t.BedroomMinImpressiveness, BedroomFloored: t.BedroomFloored, BedroomThings: t.BedroomThings}) {
 		return false
 	}
 	for _, req := range t.BedroomThings {
-		if req == nil || len(req.AnyOf) == 0 || len(req.AnyOf) > 16 || req.Count == nil || req.GetCount() < 1 || !proto.Equal(req, &o.BedroomThingRequirement{AnyOf: req.AnyOf, Count: req.Count}) {
+		if req == nil || len(req.AnyOf) == 0 || req.Count == nil || req.GetCount() < 1 || !proto.Equal(req, &o.BedroomThingRequirement{AnyOf: req.AnyOf, Count: req.Count}) {
 			return false
 		}
 		seen := map[string]bool{}
@@ -247,21 +236,20 @@ func validTitle(t *o.RoyalTitleFacts) bool {
 	return true
 }
 
-// validateUpkeepRooms checks the upkeep room census: at most 256 unique
-// rooms with finite quality stats, a non-negative space and wealth, and bed
+// validateUpkeepRooms checks the upkeep room census: unique rooms with finite quality stats, a non-negative space and wealth, and bed
 // ids unique across the whole census.
 func validateUpkeepRooms(section *o.UpkeepRoomsSection) error {
 	f := section.GetObserved()
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Rooms), 256) != nil || !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms, Completeness: f.Completeness}) {
+	if colonyCounts(f.Completeness, len(f.Rooms)) != nil || !proto.Equal(f, &o.UpkeepRoomsFacts{Rooms: f.Rooms, Completeness: f.Completeness}) {
 		return contract("invalid room quality census")
 	}
 	rooms := map[string]bool{}
 	beds := map[string]bool{}
 	for _, r := range f.Rooms {
-		if r == nil || validID(r.GetRoomId()) != nil || rooms[r.GetRoomId()] || r.Role != nil && validID(r.GetRole()) != nil || len(r.BedIds) > 256 ||
+		if r == nil || validID(r.GetRoomId()) != nil || rooms[r.GetRoomId()] || r.Role != nil && validID(r.GetRole()) != nil ||
 			!proto.Equal(r, &o.UpkeepRoom{RoomId: r.RoomId, Role: r.Role, CellCount: r.CellCount, BedIds: r.BedIds, Impressiveness: r.Impressiveness, Wealth: r.Wealth, Beauty: r.Beauty, Space: r.Space, Cleanliness: r.Cleanliness}) {
 			return contract("invalid room quality row")
 		}
@@ -293,7 +281,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Facilities), 256) != nil || len(f.PawnIds) > 32 || len(f.Traffic) > 5*128 { // the busiest 128 cells per traffic layer (#817)
+	if colonyCounts(f.Completeness, len(f.Facilities)) != nil || len(f.PawnIds) > 32 || len(f.Traffic) > 5*128 { // the busiest 128 cells per traffic layer (#817)
 		return contract("invalid routes census")
 	}
 	if !proto.Equal(f, &o.RoutesFacts{Facilities: f.Facilities, PawnIds: f.PawnIds, Traffic: f.Traffic, TrafficSamples: f.TrafficSamples, TrafficSinceTick: f.TrafficSinceTick, Completeness: f.Completeness}) || f.TrafficSinceTick != nil && f.GetTrafficSinceTick() < 0 {
@@ -308,7 +296,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	}
 	seen := map[string]bool{}
 	for _, row := range f.Facilities {
-		if row == nil || !entity(row.Facility, seen) || row.Kind == nil || validID(row.GetKind()) != nil || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || len(row.Breaches) > 16 || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, RoomId: row.RoomId, Travel: row.Travel, Breaches: row.Breaches}) {
+		if row == nil || !entity(row.Facility, seen) || row.Kind == nil || validID(row.GetKind()) != nil || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, RoomId: row.RoomId, Travel: row.Travel, Breaches: row.Breaches}) {
 			return contract("invalid routes facility")
 		}
 		travelled := map[string]bool{}
@@ -353,7 +341,7 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(f.Completeness, len(f.Rooms), 256) != nil || len(f.Terrains) > 256 {
+	if colonyCounts(f.Completeness, len(f.Rooms)) != nil {
 		return contract("invalid flooring census")
 	}
 	terrains := map[string]bool{}
@@ -373,16 +361,11 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	}
 	rooms := map[string]bool{}
 	cells := map[[2]int32]bool{}
-	total := 0
 	for _, room := range f.Rooms {
 		if room == nil || validID(room.GetRoomId()) != nil || rooms[room.GetRoomId()] || room.Role != nil && validID(room.GetRole()) != nil || !proto.Equal(room, &o.FloorRoom{RoomId: room.RoomId, Role: room.Role, Cells: room.Cells}) {
 			return contract("invalid flooring room")
 		}
 		rooms[room.GetRoomId()] = true
-		total += len(room.Cells)
-		if total > 4096 {
-			return contract("flooring census exceeds bound")
-		}
 		for _, cell := range room.Cells {
 			if cell == nil || !colonyCell(cell.Cell, size) || cell.Terrain == nil || !terrains[cell.GetTerrain()] || cell.Pending != nil && validID(cell.GetPending()) != nil || !proto.Equal(cell, &o.FloorCell{Cell: cell.Cell, Terrain: cell.Terrain, Pending: cell.Pending}) {
 				return contract("invalid flooring cell")
@@ -405,7 +388,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	if l == nil {
 		return validateUnavailable(section.GetUnavailable())
 	}
-	if colonyCounts(l.Completeness, len(l.WorkCells)+len(l.Lamps), 512) != nil || len(l.WorkCells) > 256 || len(l.Lamps) > 256 {
+	if colonyCounts(l.Completeness, len(l.WorkCells)+len(l.Lamps)) != nil {
 		return contract("invalid lighting census")
 	}
 	benches := map[string]bool{}
@@ -427,7 +410,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 			return contract("invalid lamp glow radius")
 		}
 		s := b.Service
-		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, Fuel: s.Fuel, TargetFuel: s.TargetFuel, OutOfFuel: s.OutOfFuel, BrokenDown: s.BrokenDown, AllowedFuelDefs: s.AllowedFuelDefs}) || len(s.AllowedFuelDefs) > 256 {
+		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, Fuel: s.Fuel, TargetFuel: s.TargetFuel, OutOfFuel: s.OutOfFuel, BrokenDown: s.BrokenDown, AllowedFuelDefs: s.AllowedFuelDefs}) {
 			return contract("unsupported lamp service detail")
 		}
 		for _, def := range s.AllowedFuelDefs {

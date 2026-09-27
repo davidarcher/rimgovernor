@@ -42,36 +42,34 @@ namespace RimGovernor.Protocol.Common {
             "dGV4dEIHCgVfY29kZUIJCgdfZGV0YWlsIncKC1VuYXZhaWxhYmxlEj0KBnJl",
             "YXNvbhgBIAEoDjIoLnJpbWdvdmVybm9yLmNvbW1vbi52MS5VbmF2YWlsYWJs",
             "ZVJlYXNvbkgAiAEBEhMKBmRldGFpbBgCIAEoCUgBiAEBQgkKB19yZWFzb25C",
-            "CQoHX2RldGFpbCJLCgtQYWdlUmVxdWVzdBISCgVsaW1pdBgBIAEoDUgAiAEB",
-            "EhMKBmN1cnNvchgCIAEoCUgBiAEBQggKBl9saW1pdEIJCgdfY3Vyc29yIlgK",
-            "CFBhZ2VJbmZvEhUKCGNvbXBsZXRlGAEgASgISACIAQESGAoLbmV4dF9jdXJz",
-            "b3IYAiABKAlIAYgBAUILCglfY29tcGxldGVCDgoMX25leHRfY3Vyc29yKnoK",
-            "C0NvcnBzZUNsYXNzEhwKGENPUlBTRV9DTEFTU19VTlNQRUNJRklFRBAAEhkK",
-            "FUNPUlBTRV9DTEFTU19DT0xPTklTVBABEhkKFUNPUlBTRV9DTEFTU19TVFJB",
-            "TkdFUhACEhcKE0NPUlBTRV9DTEFTU19BTklNQUwQAyr4AwoLRmFpbHVyZUNv",
-            "ZGUSHAoYRkFJTFVSRV9DT0RFX1VOU1BFQ0lGSUVEEAASIAocRkFJTFVSRV9D",
-            "T0RFX0lOVkFMSURfUkVRVUVTVBABEhwKGEZBSUxVUkVfQ09ERV9VTkFWQUlM",
-            "QUJMRRACEh8KG0ZBSUxVUkVfQ09ERV9TVEFMRV9JREVOVElUWRADEiEKHUZB",
-            "SUxVUkVfQ09ERV9TVEFMRV9HRU5FUkFUSU9OEAQSIwofRkFJTFVSRV9DT0RF",
-            "X0FVVEhPUklUWV9SRVFVSVJFRBAFEh4KGkZBSUxVUkVfQ09ERV9MRUFTRV9F",
-            "WFBJUkVEEAYSHwobRkFJTFVSRV9DT0RFX09XTkVSX0NPTkZMSUNUEAcSIQod",
-            "RkFJTFVSRV9DT0RFX0FUVEVNUFRfQ09ORkxJQ1QQCBIjCh9GQUlMVVJFX0NP",
-            "REVfQ0FQQUNJVFlfRVhIQVVTVEVEEAkSGgoWRkFJTFVSRV9DT0RFX05PVF9G",
-            "T1VORBAKEhwKGEZBSUxVUkVfQ09ERV9VTlNVUFBPUlRFRBALEh8KG0ZBSUxV",
-            "UkVfQ09ERV9OQVRJVkVfRkFJTFVSRRAMEhoKFkZBSUxVUkVfQ09ERV9DQU5D",
-            "RUxMRUQQDRIiCh5GQUlMVVJFX0NPREVfREVBRExJTkVfRVhDRUVERUQQDiqp",
-            "AwoRVW5hdmFpbGFibGVSZWFzb24SIgoeVU5BVkFJTEFCTEVfUkVBU09OX1VO",
-            "U1BFQ0lGSUVEEAASIQodVU5BVkFJTEFCTEVfUkVBU09OX05PVF9MT0FERUQQ",
-            "ARIjCh9VTkFWQUlMQUJMRV9SRUFTT05fTk9UX09CU0VSVkVEEAISIgoeVU5B",
-            "VkFJTEFCTEVfUkVBU09OX1VOU1VQUE9SVEVEEAMSIgoeVU5BVkFJTEFCTEVf",
-            "UkVBU09OX1JFQURfRkFJTEVEEAQSHAoYVU5BVkFJTEFCTEVfUkVBU09OX1NU",
-            "QUxFEAUSJQohVU5BVkFJTEFCTEVfUkVBU09OX0xJTUlUX0VYQ0VFREVEEAYS",
-            "JAogVU5BVkFJTEFCTEVfUkVBU09OX05PVF9SRVFVRVNURUQQBxIlCiFVTkFW",
-            "QUlMQUJMRV9SRUFTT05fTk9UX0FQUExJQ0FCTEUQCBIdChlVTkFWQUlMQUJM",
-            "RV9SRUFTT05fSElEREVOEAkSLworVU5BVkFJTEFCTEVfUkVBU09OX05BVElW",
-            "RV9DT01QT05FTlRfTUlTU0lORxAKQmVaRWdpdGh1Yi5jb20vZGF2aWRhcmNo",
-            "ZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9jb21tb25wYjtjb21t",
-            "b25wYqoCG1JpbUdvdmVybm9yLlByb3RvY29sLkNvbW1vbmIGcHJvdG8z"));
+            "CQoHX2RldGFpbCI0CghQYWdlSW5mbxIVCghjb21wbGV0ZRgBIAEoCEgAiAEB",
+            "QgsKCV9jb21wbGV0ZUoECAIQAyp6CgtDb3Jwc2VDbGFzcxIcChhDT1JQU0Vf",
+            "Q0xBU1NfVU5TUEVDSUZJRUQQABIZChVDT1JQU0VfQ0xBU1NfQ09MT05JU1QQ",
+            "ARIZChVDT1JQU0VfQ0xBU1NfU1RSQU5HRVIQAhIXChNDT1JQU0VfQ0xBU1Nf",
+            "QU5JTUFMEAMq+AMKC0ZhaWx1cmVDb2RlEhwKGEZBSUxVUkVfQ09ERV9VTlNQ",
+            "RUNJRklFRBAAEiAKHEZBSUxVUkVfQ09ERV9JTlZBTElEX1JFUVVFU1QQARIc",
+            "ChhGQUlMVVJFX0NPREVfVU5BVkFJTEFCTEUQAhIfChtGQUlMVVJFX0NPREVf",
+            "U1RBTEVfSURFTlRJVFkQAxIhCh1GQUlMVVJFX0NPREVfU1RBTEVfR0VORVJB",
+            "VElPThAEEiMKH0ZBSUxVUkVfQ09ERV9BVVRIT1JJVFlfUkVRVUlSRUQQBRIe",
+            "ChpGQUlMVVJFX0NPREVfTEVBU0VfRVhQSVJFRBAGEh8KG0ZBSUxVUkVfQ09E",
+            "RV9PV05FUl9DT05GTElDVBAHEiEKHUZBSUxVUkVfQ09ERV9BVFRFTVBUX0NP",
+            "TkZMSUNUEAgSIwofRkFJTFVSRV9DT0RFX0NBUEFDSVRZX0VYSEFVU1RFRBAJ",
+            "EhoKFkZBSUxVUkVfQ09ERV9OT1RfRk9VTkQQChIcChhGQUlMVVJFX0NPREVf",
+            "VU5TVVBQT1JURUQQCxIfChtGQUlMVVJFX0NPREVfTkFUSVZFX0ZBSUxVUkUQ",
+            "DBIaChZGQUlMVVJFX0NPREVfQ0FOQ0VMTEVEEA0SIgoeRkFJTFVSRV9DT0RF",
+            "X0RFQURMSU5FX0VYQ0VFREVEEA4qqQMKEVVuYXZhaWxhYmxlUmVhc29uEiIK",
+            "HlVOQVZBSUxBQkxFX1JFQVNPTl9VTlNQRUNJRklFRBAAEiEKHVVOQVZBSUxB",
+            "QkxFX1JFQVNPTl9OT1RfTE9BREVEEAESIwofVU5BVkFJTEFCTEVfUkVBU09O",
+            "X05PVF9PQlNFUlZFRBACEiIKHlVOQVZBSUxBQkxFX1JFQVNPTl9VTlNVUFBP",
+            "UlRFRBADEiIKHlVOQVZBSUxBQkxFX1JFQVNPTl9SRUFEX0ZBSUxFRBAEEhwK",
+            "GFVOQVZBSUxBQkxFX1JFQVNPTl9TVEFMRRAFEiUKIVVOQVZBSUxBQkxFX1JF",
+            "QVNPTl9MSU1JVF9FWENFRURFRBAGEiQKIFVOQVZBSUxBQkxFX1JFQVNPTl9O",
+            "T1RfUkVRVUVTVEVEEAcSJQohVU5BVkFJTEFCTEVfUkVBU09OX05PVF9BUFBM",
+            "SUNBQkxFEAgSHQoZVU5BVkFJTEFCTEVfUkVBU09OX0hJRERFThAJEi8KK1VO",
+            "QVZBSUxBQkxFX1JFQVNPTl9OQVRJVkVfQ09NUE9ORU5UX01JU1NJTkcQCkJl",
+            "WkVnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVybm9yL2dvL2ludGVy",
+            "bmFsL3dpcmUvY29tbW9ucGI7Y29tbW9ucGKqAhtSaW1Hb3Zlcm5vci5Qcm90",
+            "b2NvbC5Db21tb25iBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.CorpseClass), typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -81,8 +79,7 @@ namespace RimGovernor.Protocol.Common {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Cell), global::RimGovernor.Protocol.Common.Cell.Parser, new[]{ "X", "Z" }, new[]{ "X", "Z" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Failure), global::RimGovernor.Protocol.Common.Failure.Parser, new[]{ "Code", "Detail", "ObservedContext" }, new[]{ "Code", "Detail" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.Unavailable), global::RimGovernor.Protocol.Common.Unavailable.Parser, new[]{ "Reason", "Detail" }, new[]{ "Reason", "Detail" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.PageRequest), global::RimGovernor.Protocol.Common.PageRequest.Parser, new[]{ "Limit", "Cursor" }, new[]{ "Limit", "Cursor" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.PageInfo), global::RimGovernor.Protocol.Common.PageInfo.Parser, new[]{ "Complete", "NextCursor" }, new[]{ "Complete", "NextCursor" }, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Common.PageInfo), global::RimGovernor.Protocol.Common.PageInfo.Parser, new[]{ "Complete" }, new[]{ "Complete" }, null, null, null)
           }));
     }
     #endregion
@@ -1937,274 +1934,8 @@ namespace RimGovernor.Protocol.Common {
   }
 
   /// <summary>
-  /// Pagination is scoped to an observation context, not an arbitrary map position.
+  /// Observation lists are complete in one reply; there is no paging.
   /// </summary>
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class PageRequest : pb::IMessage<PageRequest>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<PageRequest> _parser = new pb::MessageParser<PageRequest>(() => new PageRequest());
-    private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<PageRequest> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[6]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PageRequest() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PageRequest(PageRequest other) : this() {
-      _hasBits0 = other._hasBits0;
-      limit_ = other.limit_;
-      cursor_ = other.cursor_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PageRequest Clone() {
-      return new PageRequest(this);
-    }
-
-    /// <summary>Field number for the "limit" field.</summary>
-    public const int LimitFieldNumber = 1;
-    private readonly static uint LimitDefaultValue = 0;
-
-    private uint limit_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint Limit {
-      get { if ((_hasBits0 & 1) != 0) { return limit_; } else { return LimitDefaultValue; } }
-      set {
-        _hasBits0 |= 1;
-        limit_ = value;
-      }
-    }
-    /// <summary>Gets whether the "limit" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasLimit {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "limit" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearLimit() {
-      _hasBits0 &= ~1;
-    }
-
-    /// <summary>Field number for the "cursor" field.</summary>
-    public const int CursorFieldNumber = 2;
-    private readonly static string CursorDefaultValue = "";
-
-    private string cursor_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string Cursor {
-      get { return cursor_ ?? CursorDefaultValue; }
-      set {
-        cursor_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "cursor" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasCursor {
-      get { return cursor_ != null; }
-    }
-    /// <summary>Clears the value of the "cursor" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearCursor() {
-      cursor_ = null;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as PageRequest);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(PageRequest other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (Limit != other.Limit) return false;
-      if (Cursor != other.Cursor) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (HasLimit) hash ^= Limit.GetHashCode();
-      if (HasCursor) hash ^= Cursor.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (HasLimit) {
-        output.WriteRawTag(8);
-        output.WriteUInt32(Limit);
-      }
-      if (HasCursor) {
-        output.WriteRawTag(18);
-        output.WriteString(Cursor);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasLimit) {
-        output.WriteRawTag(8);
-        output.WriteUInt32(Limit);
-      }
-      if (HasCursor) {
-        output.WriteRawTag(18);
-        output.WriteString(Cursor);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (HasLimit) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Limit);
-      }
-      if (HasCursor) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(Cursor);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(PageRequest other) {
-      if (other == null) {
-        return;
-      }
-      if (other.HasLimit) {
-        Limit = other.Limit;
-      }
-      if (other.HasCursor) {
-        Cursor = other.Cursor;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 8: {
-            Limit = input.ReadUInt32();
-            break;
-          }
-          case 18: {
-            Cursor = input.ReadString();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 8: {
-            Limit = input.ReadUInt32();
-            break;
-          }
-          case 18: {
-            Cursor = input.ReadString();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PageInfo : pb::IMessage<PageInfo>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -2221,7 +1952,7 @@ namespace RimGovernor.Protocol.Common {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[7]; }
+      get { return global::RimGovernor.Protocol.Common.CommonReflection.Descriptor.MessageTypes[6]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2243,7 +1974,6 @@ namespace RimGovernor.Protocol.Common {
     public PageInfo(PageInfo other) : this() {
       _hasBits0 = other._hasBits0;
       complete_ = other.complete_;
-      nextCursor_ = other.nextCursor_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -2280,32 +2010,6 @@ namespace RimGovernor.Protocol.Common {
       _hasBits0 &= ~1;
     }
 
-    /// <summary>Field number for the "next_cursor" field.</summary>
-    public const int NextCursorFieldNumber = 2;
-    private readonly static string NextCursorDefaultValue = "";
-
-    private string nextCursor_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string NextCursor {
-      get { return nextCursor_ ?? NextCursorDefaultValue; }
-      set {
-        nextCursor_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "next_cursor" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasNextCursor {
-      get { return nextCursor_ != null; }
-    }
-    /// <summary>Clears the value of the "next_cursor" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearNextCursor() {
-      nextCursor_ = null;
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -2322,7 +2026,6 @@ namespace RimGovernor.Protocol.Common {
         return true;
       }
       if (Complete != other.Complete) return false;
-      if (NextCursor != other.NextCursor) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -2331,7 +2034,6 @@ namespace RimGovernor.Protocol.Common {
     public override int GetHashCode() {
       int hash = 1;
       if (HasComplete) hash ^= Complete.GetHashCode();
-      if (HasNextCursor) hash ^= NextCursor.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2354,10 +2056,6 @@ namespace RimGovernor.Protocol.Common {
         output.WriteRawTag(8);
         output.WriteBool(Complete);
       }
-      if (HasNextCursor) {
-        output.WriteRawTag(18);
-        output.WriteString(NextCursor);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2372,10 +2070,6 @@ namespace RimGovernor.Protocol.Common {
         output.WriteRawTag(8);
         output.WriteBool(Complete);
       }
-      if (HasNextCursor) {
-        output.WriteRawTag(18);
-        output.WriteString(NextCursor);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2388,9 +2082,6 @@ namespace RimGovernor.Protocol.Common {
       int size = 0;
       if (HasComplete) {
         size += 1 + 1;
-      }
-      if (HasNextCursor) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(NextCursor);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2406,9 +2097,6 @@ namespace RimGovernor.Protocol.Common {
       }
       if (other.HasComplete) {
         Complete = other.Complete;
-      }
-      if (other.HasNextCursor) {
-        NextCursor = other.NextCursor;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -2433,10 +2121,6 @@ namespace RimGovernor.Protocol.Common {
             Complete = input.ReadBool();
             break;
           }
-          case 18: {
-            NextCursor = input.ReadString();
-            break;
-          }
         }
       }
     #endif
@@ -2458,10 +2142,6 @@ namespace RimGovernor.Protocol.Common {
             break;
           case 8: {
             Complete = input.ReadBool();
-            break;
-          }
-          case 18: {
-            NextCursor = input.ReadString();
             break;
           }
         }

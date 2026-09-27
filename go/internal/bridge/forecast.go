@@ -3,13 +3,13 @@ package bridge
 import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 
 func ValidateForecast(v *o.ForecastFacts, human *o.FoodSupplyFacts) error {
-	if v == nil || len(v.AnimalIds) > 256 || len(v.Crops) > 256 || len(v.Patients) > 256 {
+	if v == nil {
 		return contract("forecast exceeds bound")
 	}
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if err := colonyCounts(v.Completeness, 1+len(v.AnimalIds)+len(v.Crops)+len(v.Patients), 769); err != nil {
+	if err := colonyCounts(v.Completeness, 1+len(v.AnimalIds)+len(v.Crops)+len(v.Patients)); err != nil {
 		return err
 	}
 	if v.Completeness.GetFiltered() != 0 {

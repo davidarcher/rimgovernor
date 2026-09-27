@@ -180,13 +180,13 @@ namespace HomeBridge.BridgeTools
                     evidence = record.Evidence(snapshot, accepted, correlated);
                     if (effectError != null || !accepted || !correlated) throw new InvalidOperationException("Native tend order requires causal observation.", effectError);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Tend validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted tend order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted tend order requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -198,7 +198,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command, context, out _, out var pawn, out var patient, out var job, out var snapshot, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply
+                return new Operations.PreviewReply
                 {
                     Evaluated = new Operations.PreviewEvaluation
                     {
@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                     }
-                });
+                };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Tend preview failed: " + error.GetType().Name) }; }
         }

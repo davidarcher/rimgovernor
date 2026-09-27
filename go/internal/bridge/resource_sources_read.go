@@ -11,8 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const resourceSourceLimit = 64
-
 // ResourceSourceRow is one native ResourceSource row exactly as
 // policy.SelectResourceSources needs it. A "mine" row now carries its exact
 // Cell and a CAS snapshot Token (NativeResourceSourcesTool.Project populates
@@ -79,7 +77,7 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 		return nil, policy.ResourceStorage{}, raw, contract("resource sources definition mismatch")
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || len(snapshot.Sources) > resourceSourceLimit {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return nil, policy.ResourceStorage{}, raw, contract("incomplete resource sources census")
 	}
 	storage, err := decodeResourceStorage(snapshot.Storage, resource)
@@ -162,9 +160,6 @@ func decodeResourceStorage(storage *o.StorageCapacity, resource string) (policy.
 	}
 	if storage.StackLimit == nil || storage.GetStackLimit() <= 0 {
 		return policy.ResourceStorage{}, contract("invalid resource storage stack limit")
-	}
-	if len(storage.Haulers) > 4096 || len(storage.Candidates) > 4096 {
-		return policy.ResourceStorage{}, contract("resource storage collection exceeds bound")
 	}
 	for _, hauler := range storage.Haulers {
 		if hauler == nil || validID(hauler.GetId()) != nil {

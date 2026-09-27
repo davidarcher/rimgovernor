@@ -50,8 +50,6 @@ namespace HomeBridge.BridgeTools
                         }
                     foreach (var b in map.listerThings.AllThings.OfType<Building>())
                         if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
-                    Require(buildings.Count <= 8192, "Non-player clearance buildings exceed 8192.");
-                    Require(chunks.Count <= 256, "Chunk stacks in Home exceed 256.");
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
                     var salvageSafety = new EventLootFacts.HaulingSafety(map);
                     var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
@@ -67,12 +65,10 @@ namespace HomeBridge.BridgeTools
                     if (undelivered.Count > 0) snapshot.DumpSites.AddRange(DumpSites(map, home, undelivered, haulers).Select(c => Cell(c.x, c.z)));
                     foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
                         var rect = building.OccupiedRect();
-                        Require(rect.Area > 0 && rect.Area <= 4096, "Building footprint exceeds 4096 cells.");
                         if (rect.Any(c => !c.InBounds(map) || c.Fogged(map))) continue;
                         // OfPlayerSilentFail was checked above: the native method
                         // cannot reach its missing-player Log.Error/pause branch.
                         if (!building.DeconstructibleBy(player)) continue;
-                        Require(snapshot.Targets.Count < 4096, "Clearance census exceeds 4096 rows; no sample returned.");
                         var designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null;
                         var row = new Obs.ClearanceTarget {
                             EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),

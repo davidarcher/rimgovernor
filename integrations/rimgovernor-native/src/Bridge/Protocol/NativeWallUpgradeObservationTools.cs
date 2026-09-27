@@ -34,12 +34,10 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeWallUpgradeObservationTools
     {
         internal const string ToolName = "rimgovernor/observations_list_wall_upgrade_sites";
-        private const int MaxRows = 256;
-        private const int MaxWalls = 8192;
 
         public NativeWallUpgradeObservationTools() { WallUpgradeSafety.Install(); }
 
-        [Tool(ToolName, Title = "Read typed wall upgrade sites", Description = "Bounded stone-shell replacement geometry: with target_id, every admissible replacement normal of that colonist wall (enclosed roofed interior, exterior backup cells, colonist side supports, corner access) with stone material costs; without it, completed permanent walls whose backups remain, naming the next backup to clear. No designation or work is admitted.")]
+        [Tool(ToolName, Title = "Read typed wall upgrade sites", Description = "Complete stone-shell replacement geometry: with target_id, every admissible replacement normal of that colonist wall (enclosed roofed interior, exterior backup cells, colonist side supports, corner access) with stone material costs; without it, completed permanent walls whose backups remain, naming the next backup to clear. No designation or work is admitted.")]
         [ToolResponse("payload", "string", "Official ProtoJSON WallUpgradeSitesReply.", Always = true)]
         public async Task<object> ListSites(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON WallUpgradeSitesRequest string in raw transport value.")] object? request = null)
@@ -54,7 +52,6 @@ namespace HomeBridge.BridgeTools
                     if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
                         return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map structure trackers are unavailable.") });
                     var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
-                    Require(walls.Count <= MaxWalls, "Colonist wall census exceeds " + MaxWalls + " walls.");
                     var rows = new List<Obs.WallUpgradeSite>();
                     if (parsed.HasTargetId)
                     {
@@ -71,13 +68,10 @@ namespace HomeBridge.BridgeTools
                             foreach (var normal in WallUpgradeSafety.Directions.Where(n => !WallUpgradeSafety.Corner(n)))
                                 if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                     }
-                    var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : MaxRows;
-                    Require(rows.Count <= limit, "Wall upgrade site census exceeds the page limit; sites are never sampled.");
                     var snapshot = new Obs.WallUpgradeSnapshot { Context = context, Completeness = Complete(rows.Count) };
                     snapshot.Sites.AddRange(rows);
-                    return Encode(new Obs.WallUpgradeSitesReply { Observed = snapshot });
+                    return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Observed = snapshot });
                 }
-                catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Wall, room or roof facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -87,9 +81,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.WallUpgradeSitesRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional target id and page limit 1..256 are required; cursors are unsupported.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional target id are required.");
             return request?.Scope?.ExpectedIdentity != null
-                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= MaxRows) && (!request.Page.HasCursor || request.Page.Cursor.Length == 0))
                 && (!request.HasTargetId || ProtoBoundary.IsIdentifier(request.TargetId));
         }
 
@@ -202,18 +195,11 @@ namespace HomeBridge.BridgeTools
                     option.Costs.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
                 options.Add(option);
             }
-            Require(options.Count <= MaxRows, "Stone material catalog exceeds bound.");
             return options;
         }
 
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
-        private static object Encode(IMessage reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private static void Require(bool condition, string message) { if (!condition) throw new ReadLimit(message); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

@@ -23,7 +23,7 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 	if v == nil || !proto.Equal(v.Context, colony.Context) || !proto.Equal(v, &o.RecoverySnapshot{Context: v.Context, RoofHazard: v.RoofHazard, Areas: v.Areas, Restrictions: v.Restrictions, Buildings: v.Buildings, Completeness: v.Completeness}) {
 		return contract("invalid recovery context or outcome")
 	}
-	if err := colonyCounts(v.Completeness, len(v.Buildings)+len(v.Areas)+len(v.Restrictions), 256); err != nil {
+	if err := colonyCounts(v.Completeness, len(v.Buildings)+len(v.Areas)+len(v.Restrictions)); err != nil {
 		return err
 	}
 	seen := map[string]bool{}
@@ -42,7 +42,7 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 			return contract("invalid recovery hit points")
 		}
 		s := b.Service
-		if s == nil || !proto.Equal(s, &o.BuildingServiceState{BrokenDown: s.BrokenDown, Fuel: s.Fuel, TargetFuel: s.TargetFuel, AllowedFuelDefs: s.AllowedFuelDefs, Issues: s.Issues}) || !combatNumber(s.Fuel, true) || !combatNumber(s.TargetFuel, true) || len(s.AllowedFuelDefs) > 256 {
+		if s == nil || !proto.Equal(s, &o.BuildingServiceState{BrokenDown: s.BrokenDown, Fuel: s.Fuel, TargetFuel: s.TargetFuel, AllowedFuelDefs: s.AllowedFuelDefs, Issues: s.Issues}) || !combatNumber(s.Fuel, true) || !combatNumber(s.TargetFuel, true) {
 			return contract("invalid recovery service")
 		}
 		defs := map[string]bool{}
@@ -70,7 +70,7 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 			return contract("invalid recovery area")
 		}
 		seen[a.GetId()] = true
-		if err := colonyCounts(a.Completeness, len(a.Cells), 4096); err != nil {
+		if err := colonyCounts(a.Completeness, len(a.Cells)); err != nil {
 			return err
 		}
 		cells := map[[2]int32]bool{}

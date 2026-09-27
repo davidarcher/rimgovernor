@@ -11,7 +11,7 @@ func validateDeepResources(v *o.ColonyFactsSnapshot) error {
 		return validateUnavailable(s.Unavailable)
 	case *o.DeepResourcesSection_Observed:
 		f := s.Observed
-		if f == nil || len(f.Lumps) > 256 || len(f.GroundScanners)+len(f.LongRangeScanners)+len(f.Drills) > 256 {
+		if f == nil {
 			return contract("deep resource census exceeds bound")
 		}
 		centres := map[[2]int32]bool{}

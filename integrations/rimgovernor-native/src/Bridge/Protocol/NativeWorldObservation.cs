@@ -120,9 +120,7 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a nonnegative settlement_radius are required.");
             return request?.Scope?.ExpectedIdentity != null
-                && (!request.HasSettlementRadius || request.SettlementRadius >= 0)
-                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
-                    && (!request.Page.HasCursor || request.Page.Cursor.Length == 0));
+                && (!request.HasSettlementRadius || request.SettlementRadius >= 0);
         }
     }
 }

@@ -14,9 +14,6 @@ func validateMealRecipe(r *o.RecipeState) error {
 	if r.NutrientEfficiency != nil && r.GetNutrientEfficiency() <= 0 || r.GetWorkPerNutrition() < 0 {
 		return contract("invalid meal recipe measure")
 	}
-	if len(r.Skills) > 64 {
-		return contract("meal recipe skill bound")
-	}
 	seen := map[string]bool{}
 	for _, s := range r.Skills {
 		if s == nil || validID(s.GetDefName()) != nil || seen[s.GetDefName()] || s.Minimum == nil || s.GetMinimum() < 0 || s.GetMinimum() > 20 {
@@ -27,7 +24,7 @@ func validateMealRecipe(r *o.RecipeState) error {
 	if r.IngredientClasses == nil {
 		return nil
 	}
-	if len(r.IngredientClasses.Slots) == 0 || len(r.IngredientClasses.Slots) > 64 {
+	if len(r.IngredientClasses.Slots) == 0 {
 		return contract("invalid meal ingredient slots")
 	}
 	for _, slot := range r.IngredientClasses.Slots {

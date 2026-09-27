@@ -9,8 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const wallUpgradeSitePageLimit = 64
-
 // WallMaterial is one candidate stone stuff RoutineStoneShellPlanner may
 // build the backups and permanent replacement from, and its per-wall cost.
 type WallMaterial struct {
@@ -67,7 +65,7 @@ func (client *Client) ReadWallUpgradeSites(ctx context.Context, identity *c.Iden
 	if targetID != "" && validID(targetID) != nil {
 		return WallUpgradeSites{}, Result{}, contract("invalid wall upgrade target identity")
 	}
-	request := &o.WallUpgradeSitesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: &c.PageRequest{Limit: proto.Uint32(wallUpgradeSitePageLimit)}}
+	request := &o.WallUpgradeSitesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 	if targetID != "" {
 		request.TargetId = proto.String(targetID)
 	}

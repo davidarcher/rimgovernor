@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
         {
             row.Issues.Clear();
             var set=pawn.health.hediffSet;
-            var all=set.hediffs.ToList(); Require(all.Count);
+            var all=set.hediffs.ToList(); 
             row.Pain=Number(set.PainTotal);
             row.LifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening);
             row.BloodLoss=Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity));
@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
             else if(pawn.Dead) row.Issues.Add(Issue("capacities",Common.UnavailableReason.NotApplicable,"Capacities are not evaluated for dead pawns."));
             else if(pawn.health.capacities==null) row.Issues.Add(Missing("capacities"));
             else {
-                var defs=DefDatabase<PawnCapacityDef>.AllDefsListForReading; Require(defs.Count);
+                var defs=DefDatabase<PawnCapacityDef>.AllDefsListForReading; 
                 foreach(var def in defs) row.Capacities.Add(new Obs.Capacity {DefName=Id(def.defName),Level=Number(pawn.health.capacities.GetLevel(def))});
             }
             var visible=all.Where(h=>!visibleOnly || h.Visible).ToList();
@@ -172,7 +172,6 @@ namespace HomeBridge.BridgeTools
             if(!NativeBundleMasks.SurgeryBills(fields)) {}
             else if(bills==null) row.Issues.Add(Missing("surgery_bills"));
             else {
-                Require(bills.Count);
                 foreach(var bill in bills) {
                     var b=new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),Suspended=bill.suspended};
                     if(bill is Bill_Medical medical && medical.Part!=null) {
@@ -203,18 +202,18 @@ namespace HomeBridge.BridgeTools
                 row.Issues.Add(Missing("equipped"));row.Issues.Add(Missing("primary_id"));row.Issues.Add(Missing("armed"));
             }
             else {
-                var list=pawn.equipment.AllEquipmentListForReading; Require(list.Count);
+                var list=pawn.equipment.AllEquipmentListForReading; 
                 foreach(var thing in list) row.Equipped.Add(Gear(thing,detail));
                 row.Armed=pawn.equipment.Primary!=null;
                 if(pawn.equipment.Primary!=null) row.PrimaryId=Id(pawn.equipment.Primary.GetUniqueLoadID());
                 else row.Issues.Add(Issue("primary_id",Common.UnavailableReason.NotApplicable,"No equipped primary weapon."));
             }
             if(pawn.apparel==null) row.Issues.Add(Missing("apparel"));
-            else {Require(pawn.apparel.WornApparel.Count);foreach(var thing in pawn.apparel.WornApparel) row.Apparel.Add(Gear(thing,detail));}
+            else {foreach(var thing in pawn.apparel.WornApparel) row.Apparel.Add(Gear(thing,detail));}
             if(!inventory) {}
             else if(pawn.inventory?.innerContainer==null) {row.Issues.Add(Missing("inventory_weapons"));row.Issues.Add(Missing("inventory_item_count"));}
             else {
-                var list=pawn.inventory.innerContainer; Require(list.Count);row.InventoryItemCount=checked((uint)list.Count);
+                var list=pawn.inventory.innerContainer; row.InventoryItemCount=checked((uint)list.Count);
                 for(var i=0;i<list.Count;i++) if(list[i].def.IsWeapon) row.InventoryWeapons.Add(Gear(list[i],detail));
             }
             if(!inventory) {}
@@ -251,8 +250,7 @@ namespace HomeBridge.BridgeTools
                 row.ConditionFraction=Number((double)thing.HitPoints/thing.MaxHitPoints);
             }
             if(thing.def.apparel!=null) {
-                Require(thing.def.apparel.bodyPartGroups.Count);
-                if(detail) {Require(thing.def.apparel.layers.Count);row.ApparelLayers.Add(thing.def.apparel.layers.Select(d=>Id(d.defName)));}
+                if(detail) {row.ApparelLayers.Add(thing.def.apparel.layers.Select(d=>Id(d.defName)));}
                 row.BodyPartGroups.Add(thing.def.apparel.bodyPartGroups.Select(d=>Id(d.defName)));
             }
             return row;
@@ -282,11 +280,10 @@ namespace HomeBridge.BridgeTools
                 } else row.Issues.Add(Issue("adulthood",Common.UnavailableReason.NotApplicable,"No adulthood backstory."));
                 if(!traits) {}
                 else if(pawn.story.traits==null) row.Issues.Add(Missing("traits"));
-                else {Require(pawn.story.traits.allTraits.Count);foreach(var trait in pawn.story.traits.allTraits) row.Traits.Add(new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree});}
+                else {foreach(var trait in pawn.story.traits.allTraits) row.Traits.Add(new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree});}
             }
             if(pawn.skills==null) row.Issues.Add(Missing("skills"));
             else {
-                Require(pawn.skills.skills.Count);
                 foreach(var skill in pawn.skills.skills) {
                     var definition=DefinitionLabel(skill.def.defName,skill.def.skillLabel);
                     if(!definition.HasLabel) row.Issues.Add(Issue("skills.definition.label",Common.UnavailableReason.NotApplicable,"Native skill supplies no label."));
@@ -295,7 +292,7 @@ namespace HomeBridge.BridgeTools
             }
             var tags=pawn.CombinedDisabledWorkTags;
             foreach(WorkTags tag in Enum.GetValues(typeof(WorkTags))) if(tag!=WorkTags.None && ((int)tag&((int)tag-1))==0 && (tags&tag)!=0) row.DisabledWorkTags.Add(tag.ToString());
-            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading; Require(defs.Count);
+            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading; 
             foreach(var def in defs) if(pawn.WorkTypeIsDisabled(def)) row.IncapableWorkTypes.Add(Id(def.defName));
             row.Issues.Add(Unsupported("incapable_sources","Individual incapability sources are not projected."));
             if(backstory) {
@@ -334,7 +331,7 @@ namespace HomeBridge.BridgeTools
             else row.Issues.Add(Missing("manual_work_priorities"));
             // GetPriority can initialize an unreadable tracker; never read it then.
             if(pawn.workSettings?.Initialized!=true || !row.WorkApplies) { row.Issues.Add(Missing("work"));return; }
-            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;Require(defs.Count);
+            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;
             foreach(var def in defs) row.Work.Add(new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)});
         }
 
@@ -375,7 +372,7 @@ namespace HomeBridge.BridgeTools
             if(pawn.ageTracker!=null) row.AgeYears=Number(pawn.ageTracker.AgeBiologicalYearsFloat); else row.Issues.Add(Missing("age_years"));
             if(pawn.training==null) row.Issues.Add(Missing("training"));
             else {
-                var defs=DefDatabase<TrainableDef>.AllDefsListForReading;Require(defs.Count);
+                var defs=DefDatabase<TrainableDef>.AllDefsListForReading;
                 foreach(var def in defs) {
                     var report=pawn.training.CanAssignToTrain(def,out var visible);
                     var item=new Obs.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible};

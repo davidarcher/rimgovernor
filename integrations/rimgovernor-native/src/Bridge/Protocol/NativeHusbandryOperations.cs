@@ -369,8 +369,8 @@ namespace HomeBridge.BridgeTools
                     return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Husbandry preview implements the animal training, designation and settings commands only.") };
                 if (!Prepare(operation, kind, context, out var animal, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true, Projected = Projected(operation, kind, animal!) } });
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                    Context = context.Clone(), Accepted = true, Projected = Projected(operation, kind, animal!) } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Husbandry preview failed: " + error.GetType().Name) }; }
         }
@@ -420,13 +420,13 @@ namespace HomeBridge.BridgeTools
                     evidence = Projected(operation, kind, animal);
                     if (!Holds(animal, record)) throw new InvalidOperationException("Native husbandry readback did not apply.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Husbandry validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted husbandry order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted husbandry order requires observation: " + error.GetType().Name) };
             }
         }
 

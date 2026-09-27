@@ -35,7 +35,7 @@ func TestTemperatureRoomsTypedRead(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), request); err != nil {
 			t.Fatal(err)
 		}
-		want := &o.ListRoomsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeOutdoors: proto.Bool(false), IncludeBoundary: proto.Bool(false), IncludeCells: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+		want := &o.ListRoomsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, IncludeOutdoors: proto.Bool(false), IncludeBoundary: proto.Bool(false), IncludeCells: proto.Bool(true)}
 		if !proto.Equal(request, want) {
 			t.Fatal(request)
 		}

@@ -9,7 +9,7 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 	if v == nil {
 		return nil
 	}
-	if buildingUnknown(v) != nil || validID(v.GetToken()) != nil || v.Child == nil || v.Slave == nil || v.IncapableOfViolence == nil || v.Drafted == nil || len(v.Definitions) > 512 || len(v.AllowedDefs) > 512 || len(v.Work) > 256 {
+	if buildingUnknown(v) != nil || validID(v.GetToken()) != nil || v.Child == nil || v.Slave == nil || v.IncapableOfViolence == nil || v.Drafted == nil {
 		return contract("invalid apparel policy census")
 	}
 	if validID(v.GetName()) != nil || v.MinHitPoints == nil || v.MaxHitPoints == nil || math.IsNaN(float64(v.GetMinHitPoints())) || math.IsNaN(float64(v.GetMaxHitPoints())) || v.GetMinHitPoints() < 0 || v.GetMaxHitPoints() > 1 || v.GetMinHitPoints() > v.GetMaxHitPoints() || v.MinQuality == nil || v.MaxQuality == nil || v.GetMinQuality() < 0 || v.GetMaxQuality() > 6 || v.GetMinQuality() > v.GetMaxQuality() || v.ExcludesTainted == nil {
@@ -35,9 +35,6 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 			return contract("invalid apparel work role")
 		}
 		seen[w.GetDefName()] = true
-	}
-	if len(v.Skills) > 64 {
-		return contract("invalid apparel skill census")
 	}
 	seen = map[string]bool{}
 	for _, s := range v.Skills {

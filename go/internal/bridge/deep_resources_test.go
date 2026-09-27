@@ -13,8 +13,6 @@ func TestDeepResourcesRejectsMalformedCensus(t *testing.T) {
 		name   string
 		change func(*o.DeepResourcesFacts)
 	}{
-		{"lump bound", func(f *o.DeepResourcesFacts) { f.Lumps = make([]*o.DeepResourceLump, 257) }},
-		{"scanner bound", func(f *o.DeepResourcesFacts) { f.GroundScanners = make([]*o.MineralScannerState, 257) }},
 		{"missing count", func(f *o.DeepResourcesFacts) { f.Lumps[0].Count = nil }},
 		{"zero cells", func(f *o.DeepResourcesFacts) { f.Lumps[0].CellCount = proto.Uint32(0) }},
 		{"impossible count", func(f *o.DeepResourcesFacts) { f.Lumps[0].Count = proto.Int64(200000) }},
@@ -23,7 +21,6 @@ func TestDeepResourcesRejectsMalformedCensus(t *testing.T) {
 		{"duplicate scanner", func(f *o.DeepResourcesFacts) { f.LongRangeScanners = f.GroundScanners }},
 		{"negative timing", func(f *o.DeepResourcesFacts) { f.GroundScanners[0].TicksToNextFind = proto.Int64(-1) }},
 		{"unbuilt", func(f *o.DeepResourcesFacts) { f.GroundScanners[0].Built = proto.Bool(false) }},
-		{"drill bound", func(f *o.DeepResourcesFacts) { f.Drills = append(f.Drills, make([]*o.DeepDrillState, 256)...) }},
 		{"drill shares scanner id", func(f *o.DeepResourcesFacts) { f.Drills[0].BuildingId = proto.String("scanner") }},
 		{"drill off map", func(f *o.DeepResourcesFacts) { f.Drills[0].Position.X = proto.Int32(-1) }},
 		{"drill unknown depletion", func(f *o.DeepResourcesFacts) { f.Drills[0].Depleted = nil }},

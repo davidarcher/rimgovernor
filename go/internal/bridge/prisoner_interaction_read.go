@@ -77,7 +77,7 @@ func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identit
 		return PrisonerTarget{}, raw, ErrUnavailable
 	}
 	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return PrisonerTarget{}, raw, ErrUnavailable
 	}
 	var row *o.PopulationPerson
@@ -159,7 +159,7 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 		return PrisonerCensus{}, raw, ErrUnavailable
 	}
 	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return PrisonerCensus{}, raw, ErrUnavailable
 	}
 	seen := map[string]bool{}

@@ -26,15 +26,15 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
                 plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, int limit)
+        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood)
         {
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
-            // The candidate pool is the nearest bounded set; pending yield below covers all designations.
+            // The candidate pool is every eligible plant within 35 cells; pending yield below covers all designations.
             // Medicine-yielding wild plants (healroot) join trees and food so MaintainMedicalReserves can harvest.
             // YieldNow rounds randomly, so one sample per plant decides both eligibility and the row: a plant
             // whose sample is zero (below harvest growth, or a fractional yield rounded down) is not a source.
             var selected = plants.Where(p => p.Position.DistanceTo(center) <= 35 && (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef) || p.def.plant.harvestedThingDef.IsMedicine) && Eligible(p))
-                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(Math.Max(0, limit - 2))
+                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber)
                 .Select(p => (plant: p, yield: p.YieldNow())).Where(s => s.yield > 0).ToArray();
             foreach (var (plant, yield) in selected)
             {
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
             result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));
-            NativeHuntAcquisition.Read(result, map, center, limit);
+            NativeHuntAcquisition.Read(result, map, center);
             result.PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow());
         }
         internal const string Kind = "Plant acquisition";
@@ -144,12 +144,12 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
                     if (evidence.Acquisition.Designated) throw new InvalidOperationException("Harvest designation survived cancellation.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Acquisition cancellation failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted cancellation requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted cancellation requires observation: " + error.GetType().Name) };
             }
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
@@ -180,12 +180,12 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
                     if (!evidence.Acquisition.Designated) throw new InvalidOperationException("Native acquisition designation was not observed.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Acquisition admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted acquisition requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted acquisition requires observation: " + error.GetType().Name) };
             }
         }
     }

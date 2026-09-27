@@ -18,14 +18,10 @@ type ZonesRead struct {
 	MapSnapshot *o.SnapshotRef
 }
 
-// zoneSectionRequest is one page of the zone census read, shared with the
-// bundle's zones family (#593).
-func zoneSectionRequest(identity *c.Identity, cursor string) *o.ListZonesRequest {
-	q := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: &c.PageRequest{Limit: proto.Uint32(16)}}
-	if cursor != "" {
-		q.Page.Cursor = proto.String(cursor)
-	}
-	return q
+// zoneSectionRequest is the zone census read, shared with the bundle's zones
+// family (#593).
+func zoneSectionRequest(identity *c.Identity) *o.ListZonesRequest {
+	return &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 }
 
 // ReadZoneSection reads the whole census. A failure never silently
@@ -34,54 +30,35 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity)
 	if err := ValidateIdentity(identity); err != nil {
 		return ZonesRead{}, Result{}, err
 	}
-	out := ZonesRead{}
-	cursor := ""
-	seen := map[string]bool{}
-	var raw Result
-	for page := 0; page < 256; page++ {
-		q := zoneSectionRequest(identity, cursor)
-		reply := &o.ListZonesReply{}
-		var err error
-		raw, err = client.protoRead(ctx, "rimgovernor/observations_list_zones", q, reply)
-		if err != nil {
-			return ZonesRead{}, raw, err
-		}
-		if err := buildingUnknown(reply); err != nil {
-			return ZonesRead{}, raw, err
-		}
-		if f := reply.GetFailure(); f != nil {
-			return ZonesRead{}, raw, failure(f, raw)
-		}
-		if u := reply.GetUnavailable(); u != nil {
-			return ZonesRead{}, raw, unavailable(u, raw)
-		}
-		v := reply.GetObserved()
-		if err := validateZonePage(v, identity); err != nil {
-			return ZonesRead{}, raw, err
-		}
-		if page == 0 {
-			out = ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.MapSnapshot}
-		} else if !proto.Equal(out.Context, v.Context) || !proto.Equal(out.MapSnapshot, v.MapSnapshot) {
-			return ZonesRead{}, raw, contract("zone census changed during pagination")
-		}
-		for _, row := range v.Zones {
-			if seen[row.GetId()] {
-				return ZonesRead{}, raw, contract("duplicate zone across pages")
-			}
-			seen[row.GetId()] = true
-			out.Rows = append(out.Rows, row)
-		}
-		next := v.Completeness.Page.GetNextCursor()
-		if next == "" {
-			sort.Slice(out.Rows, func(i, j int) bool { return out.Rows[i].GetId() < out.Rows[j].GetId() })
-			return out, raw, nil
-		}
-		if next == cursor {
-			return ZonesRead{}, raw, contract("zone cursor did not advance")
-		}
-		cursor = next
+	reply := &o.ListZonesReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_zones", zoneSectionRequest(identity), reply)
+	if err != nil {
+		return ZonesRead{}, raw, err
 	}
-	return ZonesRead{}, raw, contract("zone census exceeds page bound")
+	if err := buildingUnknown(reply); err != nil {
+		return ZonesRead{}, raw, err
+	}
+	if f := reply.GetFailure(); f != nil {
+		return ZonesRead{}, raw, failure(f, raw)
+	}
+	if u := reply.GetUnavailable(); u != nil {
+		return ZonesRead{}, raw, unavailable(u, raw)
+	}
+	v := reply.GetObserved()
+	if err := validateZonePage(v, identity); err != nil {
+		return ZonesRead{}, raw, err
+	}
+	out := ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.MapSnapshot}
+	seen := map[string]bool{}
+	for _, row := range v.Zones {
+		if seen[row.GetId()] {
+			return ZonesRead{}, raw, contract("duplicate zone")
+		}
+		seen[row.GetId()] = true
+		out.Rows = append(out.Rows, row)
+	}
+	sort.Slice(out.Rows, func(i, j int) bool { return out.Rows[i].GetId() < out.Rows[j].GetId() })
+	return out, raw, nil
 }
 
 func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
@@ -95,11 +72,8 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
 		return contract("zone identity mismatch")
 	}
 	counts := v.Completeness
-	if counts == nil || counts.Page == nil || counts.Page.Complete == nil || counts.GetUnreadable() != 0 || counts.Returned == nil || counts.GetReturned() != uint64(len(v.Zones)) || counts.GetMatched() != uint64(len(v.Zones)) || len(v.Zones) > 16 || counts.Page.GetComplete() != (counts.Page.GetNextCursor() == "") {
+	if counts == nil || counts.Page == nil || counts.Page.Complete == nil || counts.GetUnreadable() != 0 || counts.Returned == nil || counts.GetReturned() != uint64(len(v.Zones)) || counts.GetMatched() != uint64(len(v.Zones)) || !counts.Page.GetComplete() {
 		return contract("incomplete zone census")
-	}
-	if counts.Page.GetNextCursor() != "" && len(v.Zones) == 0 {
-		return contract("empty zone page with cursor")
 	}
 	if snapshot := v.MapSnapshot; snapshot != nil && (!proto.Equal(snapshot.Context, v.Context) || snapshot.GetEntityId() == "" || validID(snapshot.GetToken()) != nil) {
 		return contract("invalid zone map snapshot")

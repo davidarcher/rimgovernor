@@ -10,7 +10,7 @@ func validateEventLoot(v *o.ColonyFactsSnapshot) error {
 	case *o.LootSection_Unavailable:
 		return validateUnavailable(section.Unavailable)
 	case *o.LootSection_Observed:
-		if section.Observed == nil || len(section.Observed.Items) > 4096 {
+		if section.Observed == nil {
 			return contract("invalid event loot census")
 		}
 		seen := map[string]bool{}

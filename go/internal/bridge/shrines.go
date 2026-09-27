@@ -8,13 +8,6 @@ import (
 )
 
 const shrinesTool = "rimgovernor/observations_get_ancient_shrines"
-const (
-	shrineLimit        = 64
-	shrineCasketLimit  = 32
-	shrineGuardLimit   = 256
-	shrineBreachLimit  = 64
-	shrineRoomMaxWidth = 256
-)
 
 // ReadAncientShrines is read-only and requires no authority. An unsupported
 // native stub returns ErrUnavailable, never a successful empty census.
@@ -53,7 +46,7 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 	}
 	n := uint64(len(v.Shrines))
 	p := v.Completeness
-	if n > shrineLimit || p == nil || p.Page == nil || !p.Page.GetComplete() || p.Page.GetNextCursor() != "" || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
+	if p == nil || p.Page == nil || !p.Page.GetComplete() || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
 		return contract("incomplete shrine census")
 	}
 	seen := map[string]bool{}
@@ -62,11 +55,8 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 			return contract("invalid shrine")
 		}
 		seen[row.GetShrineId()] = true
-		if err := validRectangle(row.Room, shrineRoomMaxWidth); err != nil {
+		if err := validRectangle(row.Room, 4096); err != nil {
 			return contract("invalid shrine room")
-		}
-		if len(row.Caskets) > shrineCasketLimit || len(row.Guards) > shrineGuardLimit || len(row.BreachWalls) > shrineBreachLimit || len(row.Occupants) > shrineGuardLimit {
-			return contract("shrine rows exceed the bound")
 		}
 		if !row.GetGuardsKnown() && len(row.Guards) != 0 {
 			return contract("guards reported while unknown")

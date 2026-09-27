@@ -23,11 +23,10 @@ namespace HomeBridge.BridgeTools
     // where a raid will actually path.
     public sealed class NativeDefenseObservationTools
     {
-        internal const int MaximumSiteCells = 2048;
         internal const int MaximumLineCells = 64;
 
         [Tool("rimgovernor/observations_read_defense_site", Title = "Read defense site census",
-            Description = "Official DefenseSiteRequest ProtoJSON. Inclusive rectangle of at most 2048 cells: terrain, traversal, native cover fill and the cover thing's clearance identity, sight blocking, edifice ownership, natural rock, doors, home area and ground reachability to a map edge without opening doors; plus the session's observed hostile arrivals. Unavailable instead of truncation.")]
+            Description = "Official DefenseSiteRequest ProtoJSON. Inclusive rectangle of any size: terrain, traversal, native cover fill and the cover thing's clearance identity, sight blocking, edifice ownership, natural rock, doors, home area and ground reachability to a map edge without opening doors; plus the session's observed hostile arrivals. Unavailable instead of truncation.")]
         [ToolResponse("payload", "string", "Official observations DefenseSiteReply ProtoJSON.", Always = true)]
         public async Task<object> ReadDefenseSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a DefenseSiteRequest ProtoJSON string.")] object? request = null)
@@ -41,15 +40,14 @@ namespace HomeBridge.BridgeTools
                     var cells = Region(parsed.Region);
                     if (cells.Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.DefenseSiteReply {
                         Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region is outside the current map.") });
-                    return Encode(new Obs.DefenseSiteReply { Observed = Site(map, parsed.Region, cells, context) });
+                    return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Observed = Site(map, parsed.Region, cells, context) });
                 }
-                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
         [Tool("rimgovernor/observations_read_lines_of_fire", Title = "Read lines of fire",
-            Description = "Official LinesOfFireRequest ProtoJSON. Native line of sight and CoverUtility block chance for every (firing, approach) cell pair; at most 64 cells on each side. Unavailable instead of truncation.")]
+            Description = "Official LinesOfFireRequest ProtoJSON. Native line of sight and CoverUtility block chance for every (firing, approach) cell pair; at most 64 request cells on each side.")]
         [ToolResponse("payload", "string", "Official observations LinesOfFireReply ProtoJSON.", Always = true)]
         public async Task<object> ReadLinesOfFire(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a LinesOfFireRequest ProtoJSON string.")] object? request = null)
@@ -63,9 +61,8 @@ namespace HomeBridge.BridgeTools
                     var firing = parsed.FiringCells.Select(Native).ToList(); var approach = parsed.ApproachCells.Select(Native).ToList();
                     if (firing.Concat(approach).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.LinesOfFireReply {
                         Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return Encode(new Obs.LinesOfFireReply { Observed = Lines(map, firing, approach, context) });
+                    return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Observed = Lines(map, firing, approach, context) });
                 }
-                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native lines of fire could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -95,7 +92,7 @@ namespace HomeBridge.BridgeTools
             var min = region?.Minimum; var max = region?.Maximum;
             if (!HasCell(min) || !HasCell(max) || max!.X < min!.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
             var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;
-            if (width * height > MaximumSiteCells) throw new ReadLimit("Region exceeds the 2048-cell defense site bound.");
+            if (width > 1000 || height > 1000) throw new ArgumentException("Rectangle sides exceed any map size.");
             var result = new List<IntVec3>((int)(width * height));
             for (long z = min.Z; z <= max.Z; z++) for (long x = min.X; x <= max.X; x++) result.Add(new IntVec3((int)x, 0, (int)z));
             return result;
@@ -171,10 +168,5 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
         private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
-        private static object Encode(IMessage reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

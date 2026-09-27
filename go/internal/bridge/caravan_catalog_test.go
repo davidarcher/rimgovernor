@@ -39,7 +39,7 @@ func TestReadCaravanCatalogAcceptsValidObservation(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if q.GetDestination() != 42 || q.Page.GetLimit() != 256 {
+		if q.GetDestination() != 42 {
 			t.Fatal(q)
 		}
 		return pbResult(&o.CaravanCatalogReply{Outcome: &o.CaravanCatalogReply_Observed{Observed: catalog}}), nil

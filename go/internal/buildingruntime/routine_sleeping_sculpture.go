@@ -47,9 +47,6 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	if len(benches) > 256 {
-		return RoutineBuildingResult{}, false, ErrControl
-	}
 	rows := make([]policy.GearBench, 0, len(benches))
 	tokens := map[string]string{}
 	for _, b := range benches {

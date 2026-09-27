@@ -47,7 +47,7 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	if schedule {
 		allowed.Schedule = s.Schedule
 	}
-	if !proto.Equal(s, allowed) || len(s.Work) > 256 || len(s.Schedule) > 24 {
+	if !proto.Equal(s, allowed) || len(s.Schedule) > 24 {
 		return contract("unrequested settings detail")
 	}
 	if s.Snapshot != nil && (validID(s.Snapshot.GetEntityId()) != nil || validID(s.Snapshot.GetToken()) != nil) {
@@ -58,9 +58,6 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 			return contract("invalid food policy identity")
 		}
 		for _, defs := range [][]string{food.AllowedDefs, food.EligibleDefs} {
-			if len(defs) > 65536 {
-				return contract("food definitions exceed bound")
-			}
 			seen := map[string]bool{}
 			for _, def := range defs {
 				if validID(def) != nil || seen[def] {

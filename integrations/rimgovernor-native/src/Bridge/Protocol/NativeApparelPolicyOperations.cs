@@ -57,8 +57,8 @@ namespace HomeBridge.BridgeTools
             return sameName.Count <= 1;
         }
         internal static Operations.PreviewReply Preview(Operations.SetApparelPolicy c, Common.ObservationContext context) =>
-            NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                Context = context.Clone(), Accepted = Prepare(c, context, out _), Reason = "Apparel policy definition and CAS checks." } });
+            new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                Context = context.Clone(), Accepted = Prepare(c, context, out _), Reason = "Apparel policy definition and CAS checks." } };
         private static bool Matches(Pawn p, Operations.SetApparelPolicy c)
         {
             var v = p.outfits?.CurrentApparelPolicy;
@@ -98,10 +98,10 @@ namespace HomeBridge.BridgeTools
                     }
                     evidence = Evidence(p, c); if (!Matches(p, c)) throw new InvalidOperationException("Apparel filter readback differs.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             } catch (Exception e) {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Apparel admission failed: " + e.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Observe apparel policy: " + e.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Observe apparel policy: " + e.GetType().Name) };
             }
         }
         internal static Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context, Operations.SetApparelPolicy c)

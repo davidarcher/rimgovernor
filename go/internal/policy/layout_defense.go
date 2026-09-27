@@ -33,7 +33,7 @@ type PerimeterSection struct {
 }
 
 // LayoutKillbox reads the plan's killbox opening: the anchor, the census
-// region around it (inside bounds, at most defenseMaxCells) and the home
+// region around it (inside bounds) and the home
 // cell deep in the killbox. ok is false while the plan has no opening.
 func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rectangle, home domain.Cell, ok bool) {
 	var killbox Rectangle
@@ -95,13 +95,8 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 	for _, a := range append(approaches, rectOf(k.Entry, k.Entry)) {
 		cover = unionRect(cover, a)
 	}
-	for margin := int32(3); margin >= 0; margin-- {
-		region = clipRect(pad(cover, margin), Rectangle{Width: bounds.Width, Height: bounds.Height})
-		if int64(region.Width)*int64(region.Height) <= defenseMaxCells {
-			break
-		}
-	}
-	if region.Width == 0 || int64(region.Width)*int64(region.Height) > defenseMaxCells || !contains(region, home) {
+	region = clipRect(pad(cover, 3), Rectangle{Width: bounds.Width, Height: bounds.Height})
+	if region.Width == 0 || !contains(region, home) {
 		return DefenseKillbox{}, Rectangle{}, domain.Cell{}, false
 	}
 	// Only the wall near the opening matters to the funnel.

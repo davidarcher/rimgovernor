@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
                         if(verified) record.Confirm(after!);
                         var adopted=after==null?null:new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,after.Drafted,after.Token,false,verified,after.Claim?.ClaimId)};
                         if(!verified) return Uncertain(state,admission,pre.Attempt,context,adopted,"Admitted draft adoption requires observation: "+adoptCompleted);
-                        return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,admission,pre.Attempt,context,adopted!)};
+                        return new Operations.ExecuteReply {Receipt=state.Ledger.FinishApplied(admission, adopted!)};
                     }
                     if(command.Drafted && before.Drafted) {
                         var unchanged=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out after);
@@ -113,10 +113,7 @@ namespace HomeBridge.BridgeTools
                             throw new InvalidOperationException("Owned draft changed after admission.");
                         record.Confirm(after);
                         var unchangedEvidence=new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,true,after.Token,false,true,after.Claim!.ClaimId)};
-                        var candidate=new Receipts.Receipt {Attempt=pre.Attempt,AdmittedContext=context,
-                            NoChange=new Receipts.NoChange {Observed=unchangedEvidence,Detail="The exact current claim already owns this draft."}};
-                        if(!NativeOperationEnvelope.Fits(new Operations.ExecuteReply {Receipt=candidate})) throw new InvalidOperationException("Draft receipt cannot be encoded.");
-                        return new Operations.ExecuteReply {Receipt=state.Ledger.FinishNoChange(admission,unchangedEvidence,candidate.NoChange.Detail)};
+                        return new Operations.ExecuteReply {Receipt=state.Ledger.FinishNoChange(admission,unchangedEvidence,"The exact current claim already owns this draft.")};
                     }
                     NativeDraftClaimTicket? claim=null;NativeDraftReleaseTicket? release=null;
                     var prepared=command.Drafted
@@ -144,7 +141,7 @@ namespace HomeBridge.BridgeTools
                     command.Drafted?after.Claim?.ClaimId:before.Claim?.ClaimId);
                 var evidence=job==null?null:new Receipts.EffectEvidence {Job=job};
                 if(effectError!=null || !verified) return Uncertain(state,admission,pre.Attempt,context,evidence,"Admitted draft requires observation: "+(effectError?.GetType().Name??"unverified"));
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,admission,pre.Attempt,context,evidence!)};
+                return new Operations.ExecuteReply {Receipt=state.Ledger.FinishApplied(admission, evidence!)};
             }
             catch(Exception error) {
                 var evidence=after==null?null:new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,after.Drafted,after.Token,issued,false,after.Claim?.ClaimId)};
@@ -163,9 +160,9 @@ namespace HomeBridge.BridgeTools
                 // claim carries once Authority.Owner was removed (mirrors ExpectedClaimId on
                 // ReleaseOwnedDraftRequest). Flagged as an interpretive, unconfirmed choice.
                 if(command.HasExpectedDraftOwner && snapshot.Claim?.ClaimId!=command.ExpectedDraftOwner) accepted=false;
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply {Evaluated=new Operations.PreviewEvaluation {
+                return new Operations.PreviewReply {Evaluated=new Operations.PreviewEvaluation {
                     Context=context.Clone(),Accepted=accepted,Reason=accepted?"Execution still requires current matching authority.":"Native pawn eligibility or draft claim does not match.",
-                    Projected=new Receipts.EffectEvidence {Job=new Receipts.JobEffect {PawnId=snapshot.PawnId,Drafted=command.Drafted,CanTry=accepted,Issued=false,Verified=false}}}});
+                    Projected=new Receipts.EffectEvidence {Job=new Receipts.JobEffect {PawnId=snapshot.PawnId,Drafted=command.Drafted,CanTry=accepted,Issued=false,Verified=false}}}};
             }
             catch(Exception error) {return new Operations.PreviewReply {Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Draft preview failed: "+error.GetType().Name)};}
         }
@@ -222,8 +219,8 @@ namespace HomeBridge.BridgeTools
         {
             var result=new Operations.DraftRelease {Request=request.Clone(),Context=context.Clone(),
                 Observed=NativeDraftProtocol.Effect(snapshot.PawnId,snapshot.Drafted,snapshot.Token,issued,true,request.ExpectedClaimId)};
-            if(snapshot.Drafted || snapshot.Claim!=null || !NativeOperationEnvelope.Fits(new Operations.ReleaseOwnedDraftReply {Released=result}))
-                throw new InvalidOperationException("Cleanup readback is not a complete encodable undraft.");
+            if(snapshot.Drafted || snapshot.Claim!=null)
+                throw new InvalidOperationException("Cleanup readback is not a complete undraft.");
             return result;
         }
         private static Operations.ReleaseOwnedDraftReply ReleaseUncertain(Operations.ReleaseOwnedDraftRequest request,Common.ObservationContext context,string detail) =>
@@ -267,6 +264,6 @@ namespace HomeBridge.BridgeTools
         private static Operations.ExecuteReply Refuse(Common.FailureCode code,string detail)=>new Operations.ExecuteReply {Failure=ProtoBoundary.Fail(code,detail)};
         private static Operations.ExecuteReply Uncertain(NativeOperationState state,NativeAttemptLedger.Admission admission,Common.AttemptKey attempt,
             Common.ObservationContext context,Receipts.EffectEvidence? evidence,string detail)=>new Operations.ExecuteReply {
-                Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,admission,attempt,context,evidence,detail)};
+                Receipt=state.Ledger.FinishUncertain(admission, evidence,detail)};
     }
 }

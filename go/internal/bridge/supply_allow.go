@@ -47,7 +47,7 @@ func (client *Client) ReadFoodReserveSupplies(ctx context.Context, identity *c.I
 		return SupplyRead{}, Result{}, err
 	}
 	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}, Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+		Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {
@@ -66,7 +66,7 @@ func (client *Client) readSupplyAccess(ctx context.Context, identity *c.Identity
 		return SupplyRead{}, Result{}, contract("invalid supply scope")
 	}
 	point := &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: proto.String("haulable"), Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid), Region: &o.Rectangle{Minimum: point, Maximum: proto.Clone(point).(*c.Cell)}}, Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: proto.String("haulable"), Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid), Region: &o.Rectangle{Minimum: point, Maximum: proto.Clone(point).(*c.Cell)}}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {
@@ -89,7 +89,7 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 		return SupplyRead{}, contract("invalid supply reply")
 	}
 	v := reply.GetObserved()
-	if v == nil || buildingContext(v.Context, identity, 0, false) != nil || len(v.Stocks) > 256 {
+	if v == nil || buildingContext(v.Context, identity, 0, false) != nil {
 		return SupplyRead{}, contract("supply census unavailable")
 	}
 	complete, err := emergencyCompleteness(v.Completeness, len(v.Stocks))
@@ -99,7 +99,7 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 	out := SupplyRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []SupplyTarget{}}
 	seen := map[string]bool{}
 	for _, stock := range v.Stocks {
-		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() < 0 || stock.GetForbidden() > stock.GetUnits() || !forbid && stock.GetForbidden() != stock.GetUnits() || len(stock.Items) > 256 {
+		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() < 0 || stock.GetForbidden() > stock.GetUnits() || !forbid && stock.GetForbidden() != stock.GetUnits() {
 			return SupplyRead{}, contract("invalid forbidden supply stock")
 		}
 		complete, err = emergencyCompleteness(stock.ItemsCompleteness, len(stock.Items))
@@ -115,9 +115,6 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 				return SupplyRead{}, contract("supply cell mismatch")
 			}
 			seen[item.GetId()] = true
-			if len(seen) > 256 {
-				return SupplyRead{}, contract("supply item census exceeds bound")
-			}
 			// Native issues distinguish ineligible items from an incomplete census.
 			if item.Snapshot == nil {
 				continue
@@ -136,9 +133,6 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 				}
 			}
 			out.Targets = append(out.Targets, SupplyTarget{supply, item.Snapshot.GetToken()})
-			if len(out.Targets) > 256 {
-				return SupplyRead{}, contract("supply targets exceed bound")
-			}
 		}
 	}
 	return out, nil

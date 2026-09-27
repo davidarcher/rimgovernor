@@ -79,7 +79,7 @@ func (b *DraftBoundary) pawnRead(ctx context.Context, pawn string, current domai
 		return nil, nil, err
 	}
 	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || len(v.Pawns) != 1 {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || len(v.Pawns) != 1 {
 		return nil, nil, fmt.Errorf("%w: pawn %s read incomplete (%d rows)", executor.ErrHeld, pawn, len(v.Pawns))
 	}
 	row := v.Pawns[0]

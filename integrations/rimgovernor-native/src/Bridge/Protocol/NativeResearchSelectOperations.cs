@@ -61,8 +61,8 @@ namespace HomeBridge.BridgeTools
                 if (!Prepare(command, context, ProtoBoundary.LoadedMap(context), out var def, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 var reason = Refusal(def);
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = reason.Length == 0, Reason = reason } });
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                    Context = context.Clone(), Accepted = reason.Length == 0, Reason = reason } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Research selection preview failed: " + error.GetType().Name) }; }
         }
@@ -98,13 +98,13 @@ namespace HomeBridge.BridgeTools
                     evidence = Evidence(previous, before, NativeResearchObservationTools.CurrentToken(context, map), current);
                     if (current != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Research selection admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted research selection requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted research selection requires observation: " + error.GetType().Name) };
             }
         }
 

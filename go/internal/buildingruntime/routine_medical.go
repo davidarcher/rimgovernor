@@ -232,9 +232,6 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
-	if len(census) > 256 {
-		return RoutineMedicalResult{}, ErrControl
-	}
 	benches := make([]policy.GearBench, 0, len(census))
 	tokens := map[string]string{}
 	for _, row := range census {

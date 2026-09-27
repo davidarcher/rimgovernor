@@ -51,8 +51,7 @@ the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
 `Protocol/NativeConstructionHookSet.cs` verifies each required live patch before
-admission. `Protocol/NativeOperationEnvelope.cs` checks receipt size before
-immutable finalization; unrepresentable evidence produces bounded uncertainty.
+admission. Receipts finalize through the attempt ledger without a size check.
 `Protocol/NativeAttemptLedger.cs` owns the unsaved per-load attempt ledger, replay
 and uncertainty. Receipt admission is distinct from observed pawn completion.
 

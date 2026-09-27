@@ -10,11 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Native bounds of the two defense-layout reads: one site census answers at
-// most this many cells, and one lines-of-fire read
-// takes at most this many cells on each side.
+// Native bounds of the two defense-layout reads: one lines-of-fire read takes at most this many cells on each side.
 const (
-	maxDefenseSiteCells  = 2048
 	maxLinesOfFireCells  = 64
 	maxDefenseSiteExtent = 4096
 )
@@ -116,8 +113,7 @@ type LinesOfFire struct {
 	Lines   []LineOfFire
 }
 
-// ReadDefenseSite reads one inclusive rectangle of at most 2048 cells. Callers
-// tile larger regions; the read never samples or truncates.
+// ReadDefenseSite reads one inclusive rectangle; the read never samples or truncates.
 func (client *Client) ReadDefenseSite(ctx context.Context, identity *c.Identity, region CellRect) (DefenseSite, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return DefenseSite{}, Result{}, err
@@ -196,9 +192,6 @@ func (client *Client) ReadLinesOfFire(ctx context.Context, identity *c.Identity,
 func validateDefenseRegion(region CellRect) error {
 	if region.Min.X < 0 || region.Min.Z < 0 || region.Max.X < region.Min.X || region.Max.Z < region.Min.Z || region.Max.X >= maxDefenseSiteExtent || region.Max.Z >= maxDefenseSiteExtent {
 		return contract("invalid defense site region")
-	}
-	if region.Cells() > maxDefenseSiteCells {
-		return contract("defense site region exceeds %d cells", maxDefenseSiteCells)
 	}
 	return nil
 }

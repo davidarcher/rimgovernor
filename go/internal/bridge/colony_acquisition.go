@@ -10,7 +10,7 @@ import (
 // hunt of one unit of something edible, or of a recognised pest (#247),
 // which is inedible with no nutrition.
 func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
-	if v.GetPendingHunts() > 65536 || len(v.Acquisition) > 256 {
+	if v.GetPendingHunts() > 65536 {
 		return contract("acquisition census exceeds bound")
 	}
 	seen := map[string]bool{}

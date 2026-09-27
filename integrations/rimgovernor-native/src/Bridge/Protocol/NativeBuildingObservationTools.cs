@@ -18,8 +18,8 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_list_buildings";
 
-        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
+        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unsupported facts are explicit.", Always = true)]
         public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
         {
@@ -28,8 +28,7 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = error });
-                try { return Encode(Read(map, parsed, context)); }
-                catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
+                return ProtoBoundary.Encode(Read(map, parsed, context));
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -44,37 +43,13 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
                     return new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
                 var source = Source(map, parsed.HasCategory && parsed.Category == "all");
-                var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
-                var seed = QuerySeed(parsed);
+                var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.BuildingsSnapshot { Context = context,
                     NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
-                var rows = new Dictionary<string, Obs.BuildingState>();
-                var listed = matched;
-                var afterCursor = listed;
-                if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
-                {
-                    if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                        return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Building cursor is stale or does not match this query.") };
-                    afterCursor = listed.Where(t => string.CompareOrdinal(Id(t.GetUniqueLoadID()), after) > 0).ToList();
-                }
-                var page = afterCursor.Take(Limit(parsed)).ToList();
-                Require(page.Count <= 256, "Matched building collection exceeds page limit; narrow filters.");
-                var truncated = afterCursor.Count > page.Count;
-                snapshot.Completeness = Complete(page.Count, source.Count - matched.Count);
-                snapshot.Completeness.Page.Complete = !truncated;
-                if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
-                var cells = 0;
-                foreach (var thing in page)
-                {
-                    var id = Id(thing.GetUniqueLoadID());
-                    if (!rows.TryGetValue(id, out var row)) { row = Row(thing, context); }
-                    cells = checked(cells + row.OccupiedCells.Count);
-                    Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
-                    snapshot.Buildings.Add(row);
-                }
+                snapshot.Completeness = Complete(matched.Count, source.Count - matched.Count);
+                foreach (var thing in matched) snapshot.Buildings.Add(Row(thing, context));
                 return new Obs.ListBuildingsReply { Observed = snapshot };
             }
-            catch (ReadLimit errorLimit) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
             catch (Exception) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
         }
 
@@ -114,10 +89,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.ListBuildingsRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, exact bounded identifiers, supported filters and page limit1..256 are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, exact bounded identifiers, supported filters are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (request.Page != null && (request.Page.HasLimit && (request.Page.Limit < 1 || request.Page.Limit > 256)
-                || request.Page.HasCursor && request.Page.Cursor.Length > 4096)) return false;
             if (!Identifiers(request.Ids) || !Identifiers(request.DefNames) || request.Statuses.Count > 5
                 || request.Statuses.Distinct(StringComparer.Ordinal).Count() != request.Statuses.Count
                 || request.Statuses.Any(s => s != "all" && s != "built" && s != "blueprint" && s != "frame" && s != "pending")) return false;
@@ -189,7 +162,6 @@ namespace HomeBridge.BridgeTools
             if (thing.Faction != null) row.FactionId = Id(thing.Faction.GetUniqueLoadID());
             else row.Issues.Add(Issue("faction_id", Common.UnavailableReason.NotApplicable, "Unowned native thing."));
             var rectangle = thing.OccupiedRect();
-            Require((long)rectangle.Width * rectangle.Height <= 4096, "Building footprint exceeds 4096 cells.");
             foreach (var cell in rectangle.Cells)
             {
                 if (!cell.InBounds(thing.Map)) throw new InvalidOperationException("Building geometry is outside its map.");
@@ -250,7 +222,6 @@ namespace HomeBridge.BridgeTools
                 row.WorkLeft = row.TotalWork; row.PercentComplete = 0;
             }
             var costs = construction.TotalMaterialCost() ?? throw new InvalidOperationException("Cost list unavailable.");
-            Require(costs.Count <= 256, "Construction costs exceed 256 rows.");
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var complete = true;
             foreach (var cost in costs)
@@ -268,19 +239,12 @@ namespace HomeBridge.BridgeTools
             row.Issues.Add(Issue("completable_ever", Common.UnavailableReason.Unsupported, "Completion eligibility is not evaluated."));
             return row;
         }
-
-        private static string QuerySeed(Obs.ListBuildingsRequest request) => string.Join("",
-            request.PlayerOnly, request.Category??"", request.DamagedBelowFraction,
-            string.Join(",", request.Statuses.OrderBy(s=>s,StringComparer.Ordinal)),
-            string.Join(",", request.DefNames.OrderBy(s=>s,StringComparer.Ordinal)),
-            string.Join(",", request.Ids.OrderBy(s=>s,StringComparer.Ordinal)),
-            request.Region == null ? "" : request.Region.Minimum.X+","+request.Region.Minimum.Z+"-"+request.Region.Maximum.X+","+request.Region.Maximum.Z);
+
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256
             && values.All(ProtoBoundary.IsIdentifier) && values.Distinct(StringComparer.Ordinal).Count() == values.Count();
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
         private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
-        private static int Limit(Obs.ListBuildingsRequest request) => request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
         private static string Status(Thing thing) => thing is Blueprint ? "blueprint" : thing is Frame ? "frame" : "built";
         private static Thing InstallTarget(Blueprint_Install install)
         {
@@ -296,11 +260,5 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
-        internal static object Encode(Obs.ListBuildingsReply reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

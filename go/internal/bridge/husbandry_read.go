@@ -70,7 +70,7 @@ func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Ident
 		return HusbandryTarget{}, raw, ErrUnavailable
 	}
 	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return HusbandryTarget{}, raw, ErrUnavailable
 	}
 	var row *o.HusbandryAnimal

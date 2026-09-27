@@ -231,9 +231,9 @@ namespace HomeBridge.BridgeTools
                     bool correlated=record.Capture(after);evidence=record.Evidence(after,accepted,correlated);
                     if(effectError!=null || !accepted || !correlated)throw new InvalidOperationException("Attack job requires causal observation.",effectError);
                 }
-                return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence!)};
+                return new Operations.ExecuteReply {Receipt=state.Ledger.FinishApplied(handle, evidence!)};
             }catch(Exception error){return handle==null?Refuse(Common.FailureCode.NativeFailure,"Attack validation failed: "+error.GetType().Name)
-                :new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence,"Admitted attack requires observation: "+error.GetType().Name)};}
+                :new Operations.ExecuteReply {Receipt=state.Ledger.FinishUncertain(handle, evidence,"Admitted attack requires observation: "+error.GetType().Name)};}
         }
         internal static Operations.PreviewReply Preview(Operations.AttackTarget command,Common.ObservationContext context)
         {
@@ -245,10 +245,10 @@ namespace HomeBridge.BridgeTools
                 bool legal=definition!=null;
                 definition??=Ranged(command,pawn!)?JobDefOf.AttackStatic:JobDefOf.AttackMelee;
                 bool accepted=legal && snapshot!.Eligible && snapshot.Drafted && snapshot.Claim!=null;
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply {Evaluated=new Operations.PreviewEvaluation {Context=context.Clone(),Accepted=accepted,
+                return new Operations.PreviewReply {Evaluated=new Operations.PreviewEvaluation {Context=context.Clone(),Accepted=accepted,
                     Reason=accepted?"Native attack predicates hold; execution requires matching current authority.":legal?"An eligible attacker with existing native draft claim is required.":"Native attack weapon, reach, target or requested combat predicates refuse this order.",
                     Projected=new Receipts.EffectEvidence {Job=new Receipts.JobEffect {PawnId=snapshot!.PawnId,JobDef=definition.defName,
-                        TargetA=new Receipts.JobTarget {ThingId=command.Target.EntityId},CanTry=accepted,Issued=false,Verified=false}}}});
+                        TargetA=new Receipts.JobTarget {ThingId=command.Target.EntityId},CanTry=accepted,Issued=false,Verified=false}}}};
             }catch(Exception error){return new Operations.PreviewReply {Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Attack preview failed: "+error.GetType().Name)};}
         }
         private static Operations.ExecuteReply Refuse(Common.FailureCode code,string detail)=>new Operations.ExecuteReply {Failure=ProtoBoundary.Fail(code,detail)};

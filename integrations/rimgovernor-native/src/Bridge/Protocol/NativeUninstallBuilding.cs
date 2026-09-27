@@ -53,9 +53,9 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!Prepare(command, context, out var building, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true,
-                    Projected = new Receipts.EffectEvidence { Installation = Effect(building!, Receipts.InstallationStage.Placeable) } } });
+                    Projected = new Receipts.EffectEvidence { Installation = Effect(building!, Receipts.InstallationStage.Placeable) } } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Uninstall preview failed: " + error.GetType().Name) }; }
         }
@@ -89,13 +89,13 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Installation = Effect(building, Receipts.InstallationStage.UninstallQueued) };
                     state.Uninstalls.Add(pre.Attempt.Clone(), evidence.Installation.Clone());
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Uninstall admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted Uninstall requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted Uninstall requires observation: " + error.GetType().Name) };
             }
         }
 

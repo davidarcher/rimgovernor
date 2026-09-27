@@ -198,11 +198,11 @@ namespace HomeBridge.BridgeTools
                     if (blocker != null) throw new InvalidOperationException(blocker);
                     evidence = new Receipts.EffectEvidence { Wall = record.Evidence() };
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Wall removal write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Wall removal write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Wall removal failed: " + error.GetType().Name) };
             }
         }
@@ -235,11 +235,11 @@ namespace HomeBridge.BridgeTools
                 int released;
                 using (authority.Owned()) released = WallUpgradeSafety.ReleaseAll();
                 var evidence = new Receipts.EffectEvidence { Wall = new Receipts.WallEffect { ReleasedCount = released, DemolitionObserved = false } };
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, null!, "Wall release interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, null!, "Wall release interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Wall release failed: " + error.GetType().Name) };
             }
         }

@@ -168,13 +168,13 @@ namespace HomeBridge.BridgeTools
                     evidence = record.Evidence(after, accepted, correlated);
                     if (!accepted || !correlated) throw new InvalidOperationException("Arrest job requires causal observation.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Arrest failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Arrest dispatch interrupted: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Arrest dispatch interrupted: " + error.GetType().Name) };
             }
         }
     }

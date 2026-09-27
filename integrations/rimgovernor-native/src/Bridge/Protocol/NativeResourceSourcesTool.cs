@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
     // still calls directly. This adapter reuses that class's exact eligibility,
     // designation and safety logic (ResourceAcquisitionTools.Eligible/
     // Designated/MiningBlocker) so both the old and new surfaces agree on what
-    // counts as a reachable, safe source, but reports only the bounded typed
+    // counts as a reachable, safe source, but reports the complete typed
     // ResourceSource rows the new ResourceSourcesSnapshot contract wants.
     // Storage capacity is now populated (Storage below), porting
     // ResourceAcquisitionTools.Storage's exact hauler/capacity/candidate scan
@@ -32,9 +32,8 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeResourceSourcesTool
     {
         private const string ToolName = "rimgovernor/observations_list_resource_sources";
-        private const int SourceLimit = 64;
 
-        [Tool(ToolName, Title = "Read reachable native resource sources", Description = "Up to 64 visible, safely reachable native mining or mature wild-plant sources for one exact output resource definition. Yields are estimates; only ordinary pawn labor produces actual stock. Extraction-development detail is not yet implemented by this adapter.")]
+        [Tool(ToolName, Title = "Read reachable native resource sources", Description = "Every visible, safely reachable native mining or mature wild-plant sources for one exact output resource definition. Yields are estimates; only ordinary pawn labor produces actual stock. Extraction-development detail is not yet implemented by this adapter.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ResourceSourcesReply.", Always = true)]
         public async Task<object> ListResourceSources(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ResourceSourcesRequest string in raw transport value.")] object? request = null)
@@ -44,8 +43,7 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Failure = error });
-                try { return Encode(Read(map, parsed, context)); }
-                catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
+                return ProtoBoundary.Encode(Read(map, parsed, context));
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -62,7 +60,6 @@ namespace HomeBridge.BridgeTools
                 var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
                 double Distance(Thing t) => map.mapPawns.FreeColonistsSpawned.Min(p => p.Position.DistanceTo(t.Position));
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
-                Require(ordered.Count <= SourceLimit, "Reachable resource source collection exceeds the read bound; narrow the query.");
                 var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
                     Storage = Storage(map, definition),
                     Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
@@ -70,7 +67,6 @@ namespace HomeBridge.BridgeTools
                 foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
                 return new Obs.ResourceSourcesReply { Observed = snapshot };
             }
-            catch (ReadLimit errorLimit) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
             catch (Exception) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
         }
 
@@ -79,11 +75,6 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope and an exact resource definition are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             if (!request.HasResource || !ProtoBoundary.IsIdentifier(request.Resource)) return false;
-            if (request.Page != null && request.Page.HasCursor && request.Page.Cursor.Length != 0)
-            {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Paginated resource source reads are not supported by this adapter.");
-                return false;
-            }
             if (request.IncludeDevelopment)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Extraction-development detail is not implemented by this read adapter.");
@@ -130,8 +121,7 @@ namespace HomeBridge.BridgeTools
             var candidates = haulers.Count == 0 || !knownBorder ? new List<IntVec3>() : GenRadial.RadialCellsAround(haulers[0].Position, 20, true)
                 .Where(c => c.InBounds(map) && Accessible(c) && Protected(c) && map.zoneManager.ZoneAt(c) == null
                     && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
-                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item))
-                .Take(8).ToList();
+                    && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)).ToList();
             var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
             result.Haulers.AddRange(haulers.Select(p => new Obs.EntityRef { Id = p.GetUniqueLoadID(), DefName = p.def.defName,
                 MapId = map.uniqueID, Position = new Common.Cell { X = p.Position.x, Z = p.Position.z } }));
@@ -164,11 +154,5 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static object Encode(Obs.ResourceSourcesReply reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

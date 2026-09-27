@@ -118,9 +118,9 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!Prepare(command, context, out var piece, out var building, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true,
-                    Projected = new Receipts.EffectEvidence { Installation = Effect(building!, command, Receipts.InstallationStage.Placeable, null) } } });
+                    Projected = new Receipts.EffectEvidence { Installation = Effect(building!, command, Receipts.InstallationStage.Placeable, null) } } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Move building preview failed: " + error.GetType().Name) }; }
         }
@@ -157,13 +157,13 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Installation = Effect(building!, command, Receipts.InstallationStage.Queued, blueprint.GetUniqueLoadID()) };
                     state.Moves.Add(pre.Attempt.Clone(), evidence.Installation.Clone());
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Move building admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted InstallBuilding requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted InstallBuilding requires observation: " + error.GetType().Name) };
             }
         }
 

@@ -173,7 +173,7 @@ func validAcquisitionAttempt(w AcquisitionAttempt) error {
 // placement counts. Positive expected yield is never effect evidence.
 func ValidateAcquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisition) error {
 	d := v.GetAcquisition()
-	if d == nil || buildingUnknown(v) != nil || d.GetSourceId() != acquisition.Thing() || d.GetResourceDef() != acquisition.Definition() || d.Cell == nil || d.Cell.X == nil || d.Cell.Z == nil || d.Cell.GetX() != acquisition.Cell().X || d.Cell.GetZ() != acquisition.Cell().Z || d.Designated == nil || d.LaborFinished == nil || d.ProducedUnits == nil || d.OutputComplete == nil || d.OutputObserved == nil || d.GetProducedUnits() < 0 || len(d.Outputs) > 256 || len(d.GetPendingReason()) > 512 {
+	if d == nil || buildingUnknown(v) != nil || d.GetSourceId() != acquisition.Thing() || d.GetResourceDef() != acquisition.Definition() || d.Cell == nil || d.Cell.X == nil || d.Cell.Z == nil || d.Cell.GetX() != acquisition.Cell().X || d.Cell.GetZ() != acquisition.Cell().Z || d.Designated == nil || d.LaborFinished == nil || d.ProducedUnits == nil || d.OutputComplete == nil || d.OutputObserved == nil || d.GetProducedUnits() < 0 || len(d.GetPendingReason()) > 512 {
 		return contract("acquisition effect mismatch")
 	}
 	var units int64

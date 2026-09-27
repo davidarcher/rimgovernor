@@ -61,7 +61,7 @@ func (client *Client) ReadMineAcquisition(ctx context.Context, identity *c.Ident
 		return AcquisitionRead{}, raw, contract("resource sources definition mismatch")
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || len(snapshot.Sources) > resourceSourceLimit {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return AcquisitionRead{}, raw, contract("incomplete resource sources census")
 	}
 	out := AcquisitionRead{Context: proto.Clone(snapshot.Context).(*c.ObservationContext), Targets: []AcquisitionTarget{}}

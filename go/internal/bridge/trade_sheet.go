@@ -9,17 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// tradeSheetPageLimit is the per-request row cap ReadTradeSheet asks for, and
-// tradeSheetMaximumPages bounds how many such pages it will follow before
-// refusing. A real trader's inventory is a few hundred rows; these bounds keep
-// one read finite without ever silently returning a partial sheet, which
-// economic selection must never act on (see policy.SelectTrade).
-const (
-	tradeSheetPageLimit    = 512
-	tradeSheetMaximumPages = 16
-	tradeSheetMaximumRows  = tradeSheetPageLimit * tradeSheetMaximumPages
-)
-
 // TradeSheetRow is one validated trade sheet line: the native line id
 // SetTradeLines addresses, the definition it trades, both sides' current
 // counts, both prices and the eligibility flags economic selection reads. It
@@ -88,92 +77,66 @@ func (client *Client) ReadTradeSheet(ctx context.Context, identity *c.Identity) 
 	identity = proto.Clone(identity).(*c.Identity)
 	var out TradeSheetRead
 	seen := map[string]bool{}
-	cursor := ""
-	var raw Result
-	for page := 0; page < tradeSheetMaximumPages; page++ {
-		request := &o.TradeSheetRequest{
-			Scope:              &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-			IncludeUntradeable: proto.Bool(true),
-			OnlyChanged:        proto.Bool(false),
-			Page:               &c.PageRequest{Limit: proto.Uint32(tradeSheetPageLimit)},
-		}
-		if cursor != "" {
-			request.Page.Cursor = proto.String(cursor)
-		}
-		reply := &o.TradeSheetReply{}
-		var err error
-		raw, err = client.protoRead(ctx, "rimgovernor/observations_read_trade_sheet", request, reply)
-		if err != nil {
-			return TradeSheetRead{}, raw, err
-		}
-		if err = buildingUnknown(reply); err != nil {
-			return TradeSheetRead{}, raw, err
-		}
-		var sheet *o.TradeSheet
-		switch v := reply.Outcome.(type) {
-		case *o.TradeSheetReply_Failure:
-			return TradeSheetRead{}, raw, failure(v.Failure, raw)
-		case *o.TradeSheetReply_Unavailable:
-			return TradeSheetRead{}, raw, unavailable(v.Unavailable, raw)
-		case *o.TradeSheetReply_Observed:
-			sheet = v.Observed
-		default:
-			return TradeSheetRead{}, raw, contract("trade sheet outcome missing")
-		}
-		header, next, err := tradeSheetPage(sheet, identity, seen, &out.Rows)
-		if err != nil {
-			return TradeSheetRead{}, raw, err
-		}
-		if page == 0 {
-			out.Context, out.SessionID = header.Context, header.SessionID
-			out.Trader, out.Negotiator, out.GiftMode, out.CanTradeNow = header.Trader, header.Negotiator, header.GiftMode, header.CanTradeNow
-			out.Balance, out.BalanceKnown = header.Balance, header.BalanceKnown
-			out.ColonyCanAfford, out.TraderHasSilver, out.DealSignature = header.ColonyCanAfford, header.TraderHasSilver, header.DealSignature
-		} else if header.SessionID != out.SessionID ||
-			header.Trader != out.Trader || header.Negotiator != out.Negotiator ||
-			header.DealSignature != out.DealSignature || header.Context.GetTick() != out.Context.GetTick() {
-			// A sheet that moved mid-pagination is a different economic
-			// picture, not a continuation of this one.
-			return TradeSheetRead{}, raw, contract("trade sheet changed during pagination")
-		}
-		if next == "" {
-			return out, raw, ctx.Err()
-		}
-		cursor = next
+	request := &o.TradeSheetRequest{
+		Scope:              &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
+		IncludeUntradeable: proto.Bool(true),
+		OnlyChanged:        proto.Bool(false),
 	}
-	return TradeSheetRead{}, raw, contract("trade sheet exceeds pagination bound")
+	reply := &o.TradeSheetReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_trade_sheet", request, reply)
+	if err != nil {
+		return TradeSheetRead{}, raw, err
+	}
+	if err = buildingUnknown(reply); err != nil {
+		return TradeSheetRead{}, raw, err
+	}
+	var sheet *o.TradeSheet
+	switch v := reply.Outcome.(type) {
+	case *o.TradeSheetReply_Failure:
+		return TradeSheetRead{}, raw, failure(v.Failure, raw)
+	case *o.TradeSheetReply_Unavailable:
+		return TradeSheetRead{}, raw, unavailable(v.Unavailable, raw)
+	case *o.TradeSheetReply_Observed:
+		sheet = v.Observed
+	default:
+		return TradeSheetRead{}, raw, contract("trade sheet outcome missing")
+	}
+	header, err := tradeSheetPage(sheet, identity, seen, &out.Rows)
+	if err != nil {
+		return TradeSheetRead{}, raw, err
+	}
+	out.Context, out.SessionID = header.Context, header.SessionID
+	out.Trader, out.Negotiator, out.GiftMode, out.CanTradeNow = header.Trader, header.Negotiator, header.GiftMode, header.CanTradeNow
+	out.Balance, out.BalanceKnown = header.Balance, header.BalanceKnown
+	out.ColonyCanAfford, out.TraderHasSilver, out.DealSignature = header.ColonyCanAfford, header.TraderHasSilver, header.DealSignature
+	return out, raw, ctx.Err()
 }
 
-// tradeSheetPage validates one page's header and appends its rows. next is the
-// cursor to follow, or "" when this page completed the census.
-func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool, rows *[]TradeSheetRow) (TradeSheetRead, string, error) {
+// tradeSheetPage validates the sheet's header and appends its rows.
+func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool, rows *[]TradeSheetRow) (TradeSheetRead, error) {
 	if v == nil || v.Snapshot == nil {
-		return TradeSheetRead{}, "", contract("trade sheet snapshot missing")
+		return TradeSheetRead{}, contract("trade sheet snapshot missing")
 	}
 	if err := ValidateContext(v.Snapshot.Context); err != nil {
-		return TradeSheetRead{}, "", err
+		return TradeSheetRead{}, err
 	}
 	if !sameIdentity(v.Snapshot.Context.Identity, identity) || validID(v.GetSessionId()) != nil {
-		return TradeSheetRead{}, "", contract("trade sheet world or token mismatch")
+		return TradeSheetRead{}, contract("trade sheet world or token mismatch")
 	}
 	if !diagnostic(v.DealSignature) {
-		return TradeSheetRead{}, "", contract("trade sheet deal signature invalid")
+		return TradeSheetRead{}, contract("trade sheet deal signature invalid")
 	}
 	counts := v.Completeness
 	if counts == nil || counts.Page == nil || counts.Returned == nil || counts.GetReturned() != uint64(len(v.Lines)) {
-		return TradeSheetRead{}, "", contract("trade sheet completeness missing")
+		return TradeSheetRead{}, contract("trade sheet completeness missing")
 	}
 	// Python treats any filtered-away or unreadable row as making the whole
 	// sheet unusable for an economic decision; so does this.
 	if counts.Filtered == nil || counts.GetFiltered() != 0 || counts.Unreadable == nil || counts.GetUnreadable() != 0 {
-		return TradeSheetRead{}, "", contract("trade sheet omitted rows")
+		return TradeSheetRead{}, contract("trade sheet omitted rows")
 	}
-	next := counts.Page.GetNextCursor()
-	if next == "" && !counts.Page.GetComplete() {
-		return TradeSheetRead{}, "", contract("incomplete trade sheet page")
-	}
-	if len(*rows)+len(v.Lines) > tradeSheetMaximumRows {
-		return TradeSheetRead{}, "", contract("trade sheet rows exceed bound")
+	if !counts.Page.GetComplete() {
+		return TradeSheetRead{}, contract("incomplete trade sheet")
 	}
 	header := TradeSheetRead{
 		Context: v.Snapshot.Context, SessionID: v.GetSessionId(),
@@ -185,15 +148,15 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 	for _, line := range v.Lines {
 		row, err := tradeSheetRow(line)
 		if err != nil {
-			return TradeSheetRead{}, "", err
+			return TradeSheetRead{}, err
 		}
 		if seen[row.LineID] {
-			return TradeSheetRead{}, "", contract("duplicate trade sheet line id")
+			return TradeSheetRead{}, contract("duplicate trade sheet line id")
 		}
 		seen[row.LineID] = true
 		*rows = append(*rows, row)
 	}
-	return header, next, nil
+	return header, nil
 }
 
 func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {

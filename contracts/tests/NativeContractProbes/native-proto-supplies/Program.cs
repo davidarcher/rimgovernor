@@ -141,7 +141,7 @@ internal static class NativeProtoSuppliesProbe
             Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
         }
         var reply = Wire("ListSuppliesReply", "{\"observed\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":\"2147483648\",\"ours\":\"0\",\"holdersCompleteness\":{\"page\":{\"complete\":false}},\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}");
-        var envelope = tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { reply })!;
+        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
         var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK preserves ProtoJSON string");
@@ -150,9 +150,6 @@ internal static class NativeProtoSuppliesProbe
         Check((long)Get(row, "Units") == 2147483648L, "64-bit quantities roundtrip");
         Check((bool)Get(row, "HasOurs") && (long)Get(row, "Ours") == 0, "Known zero usable stock retained");
         Check(!(bool)Get(row, "HasCarried") && !(bool)Get(row, "HasInContainer"), "Unrequested held stock remains unknown");
-        var oversized = Wire("ListSuppliesReply", "{\"unavailable\":{\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}");
-        try { tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { oversized }); throw new Exception("Oversized reply accepted"); }
-        catch (TargetInvocationException error) { Check(error.InnerException!.GetType().Name == "ReadLimit", "Oversize cannot truncate success"); }
 
         // ==================== N01.03: Project()-level fixtures ====================
         // Real Census.Add()/Walk() traversal depends on Verse.FogGrid's NativeBitArray field,

@@ -170,13 +170,13 @@ namespace HomeBridge.BridgeTools
                         throw new InvalidOperationException("Native OpenCasket order requires causal observation.", effectError);
                     }
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "OpenCasket validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Admitted OpenCasket order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence!, "Admitted OpenCasket order requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (failure.Code != Common.FailureCode.InvalidRequest)
                         return new Operations.PreviewReply { Failure = failure };
-                    return NativeOperationEnvelope.Preview(new Operations.PreviewReply
+                    return new Operations.PreviewReply
                     {
                         Evaluated = new Operations.PreviewEvaluation
                         {
@@ -204,9 +204,9 @@ namespace HomeBridge.BridgeTools
                                 }
                             }
                         }
-                    });
+                    };
                 }
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply
+                return new Operations.PreviewReply
                 {
                     Evaluated = new Operations.PreviewEvaluation
                     {
@@ -221,7 +221,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                     }
-                });
+                };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "OpenCasket preview failed: " + error.GetType().Name) }; }
         }

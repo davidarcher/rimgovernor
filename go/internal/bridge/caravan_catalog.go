@@ -33,7 +33,7 @@ func (client *Client) ReadCaravanCatalog(ctx context.Context, identity *c.Identi
 	if destination < 0 {
 		return CaravanCatalogRead{}, Result{}, contract("invalid caravan catalog destination")
 	}
-	request := &o.CaravanCatalogRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Destination: proto.Int32(destination), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := &o.CaravanCatalogRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Destination: proto.Int32(destination)}
 	reply := &o.CaravanCatalogReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_caravan_catalog", request, reply)
 	if err != nil {
@@ -71,9 +71,6 @@ func caravanCargoGroupValid(group *o.CargoGroup) bool {
 	if group.RotDays != nil && (!finiteNonnegative(group.GetRotDays()) || !group.GetPerishable()) {
 		return false
 	}
-	if len(group.EaterIds) > 256 {
-		return false
-	}
 	seen := make(map[string]bool, len(group.EaterIds))
 	for _, eater := range group.EaterIds {
 		if validID(eater) != nil || seen[eater] {
@@ -95,11 +92,8 @@ func caravanCatalogSelected(v *o.CaravanCatalog, identity *c.Identity, destinati
 		return CaravanCatalogRead{}, contract("caravan catalog world or token mismatch")
 	}
 	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return CaravanCatalogRead{}, contract("incomplete caravan catalog page")
-	}
-	if len(v.CargoGroups) > 256 {
-		return CaravanCatalogRead{}, contract("caravan catalog cargo groups exceed bound")
 	}
 	// Group ids are unique; definitions are not: RimWorld splits one def
 	// into several transferables when stacks differ by quality, stuff,
@@ -110,9 +104,6 @@ func caravanCatalogSelected(v *o.CaravanCatalog, identity *c.Identity, destinati
 			return CaravanCatalogRead{}, contract("invalid caravan cargo group")
 		}
 		seenGroups[group.GetGroupId()] = true
-	}
-	if len(v.Routes) > 4096 {
-		return CaravanCatalogRead{}, contract("caravan catalog routes exceed bound")
 	}
 	seenRoutes := map[int32]bool{}
 	requestedSeen := false

@@ -12,10 +12,9 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeGearFacts
     {
-        internal static Obs.GearSnapshot Read(Map map, Common.ObservationContext context, int limit)
+        internal static Obs.GearSnapshot Read(Map map, Common.ObservationContext context)
         {
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-            Require(people.Count, limit);
             var result = new Obs.GearSnapshot { Context = context.Clone(), Completeness = Complete(people.Count) };
             ReadClimate(map, result);
             var stored = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
@@ -25,7 +24,6 @@ namespace HomeBridge.BridgeTools
                     Quality = a.TryGetQuality(out var q) ? (int)q : 2,
                     Band = a.def.useHitPoints ? Math.Min(9, (int)(10f * a.HitPoints / a.MaxHitPoints)) : 9 })
                 .OrderBy(g => g.Key.Def).ThenBy(g => g.Key.Stuff).ThenBy(g => g.Key.Quality).ThenBy(g => g.Key.Band).ToList();
-            Require(stored.Count, 4096);
             result.StoredApparel = new Obs.GearStorage { Completeness = Complete(stored.Count) };
             foreach (var group in stored)
                 result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
@@ -47,12 +45,9 @@ namespace HomeBridge.BridgeTools
                 if (refusal != null) row.Blocker = Text(refusal);
                 if (NativePawnControlState.Observe(identity, pawn, out var control) == NativePawnControlResult.Ready && control != null)
                     row.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = control.PawnId, Token = control.Token };
-                var omitted = 0;
                 if (refusal == null) {
-                    // Every eligible loose item is offered, best by gain,
-                    // up to the census limit; beyond it the rest count as
-                    // filtered, never as unmatched (issue #769: a smaller
-                    // bound offered every pawn the same few shirts).
+                    // Every eligible loose item is offered, best gain first
+                    // (issue #769: a bound offered every pawn the same few shirts).
                     // Candidates are apparel only: they feed the wear order
                     // (NativeGearOperations, JobDefOf.Wear), which looks its
                     // target up among loose apparel. Loose weapons are the
@@ -65,18 +60,16 @@ namespace HomeBridge.BridgeTools
                         var gain = GearUpkeepTools.Gain(pawn, apparel);
                         if (gain >= .05f) candidates.Add(new KeyValuePair<Thing, float>(apparel, gain));
                     }
-                    omitted = Math.Max(0, candidates.Count - limit);
-                    foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber).Take(limit))
+                    foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber))
                         row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
                 }
                 var needs = GearUpkeepTools.ProductionNeeds(pawn);
-                Require(needs.Count, limit);
                 foreach (var need in needs) {
                     var replacement = new Obs.GearReplacementNeed { DefName = Id(need.defName), Reason = Text(need.reason) };
                     if (need.stuff != null) replacement.Stuff = Id(need.stuff);
                     row.ReplacementNeeds.Add(replacement);
                 }
-                row.Completeness = Complete(row.Candidates.Count, omitted);
+                row.Completeness = Complete(row.Candidates.Count);
                 result.Pawns.Add(row);
             }
             return result;
@@ -117,7 +110,6 @@ namespace HomeBridge.BridgeTools
             var result = new Obs.PawnEquipment();
             if (pawn.equipment == null) result.Issues.Add(Issue("equipped", Common.UnavailableReason.ReadFailed, "No equipment tracker."));
             else {
-                Require(pawn.equipment.AllEquipmentListForReading.Count);
                 foreach (var thing in pawn.equipment.AllEquipmentListForReading) result.Equipped.Add(Gear(thing));
                 result.Armed = pawn.equipment.Primary != null;
                 if (pawn.equipment.Primary != null) result.PrimaryId = Id(pawn.equipment.Primary.GetUniqueLoadID());
@@ -125,7 +117,6 @@ namespace HomeBridge.BridgeTools
             }
             if (pawn.apparel == null) result.Issues.Add(Issue("apparel", Common.UnavailableReason.ReadFailed, "No apparel tracker."));
             else {
-                Require(pawn.apparel.WornApparel.Count);
                 foreach (var apparel in pawn.apparel.WornApparel) {
                     var item = Gear(apparel);
                     item.Forced = !pawn.outfits.forcedHandler.AllowedToAutomaticallyDrop(apparel);
@@ -194,7 +185,6 @@ namespace HomeBridge.BridgeTools
                 row.ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints);
             }
             if (thing.def.apparel != null) {
-                Require(thing.def.apparel.layers.Count); Require(thing.def.apparel.bodyPartGroups.Count);
                 row.ApparelLayers.Add(thing.def.apparel.layers.Select(d => Id(d.defName)));
                 row.BodyPartGroups.Add(thing.def.apparel.bodyPartGroups.Select(d => Id(d.defName)));
             }

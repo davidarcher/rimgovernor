@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeResearchObservationTools
     {
         private const string ToolName = "rimgovernor/observations_read_research";
-        [Tool(ToolName, Title = "Read typed research", Description = "Bounded research projects, native requirement gates and optional bench/researcher capability. Reads existing progress and slots without initializing saved research state. No research selection or UI changes.")]
+        [Tool(ToolName, Title = "Read typed research", Description = "Complete research projects, native requirement gates and optional bench/researcher capability. Reads existing progress and slots without initializing saved research state. No research selection or UI changes.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ResearchReply; no invented CAS snapshot or frozen cursor.", Always = true)]
         public async Task<object> ReadResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ResearchRequest string.")] object? request = null)
@@ -35,10 +35,8 @@ namespace HomeBridge.BridgeTools
                     var player = Faction.OfPlayerSilentFail;
                     if (manager == null || player?.def == null)
                         return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Research manager or player faction is unavailable.") });
-                    return Encode(new Obs.ResearchReply { Observed = Read(parsed, context, map, manager, player) });
+                    return ProtoBoundary.Encode(new Obs.ResearchReply { Observed = Read(parsed, context, map, manager, player) });
                 }
-                catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, e.Message) }); }
-                catch (StaleCursor) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, "Research cursor is stale or does not match this query.") }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Research state or required native eligibility facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -65,10 +63,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.ResearchRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity and page limit 1..256 required; cursor must fit the caller's current filters.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required; name_contains must be an identifier.");
             return request?.Scope?.ExpectedIdentity != null
-                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
-                    && (!request.Page.HasCursor || request.Page.Cursor.Length <= 4096))
                 && (!request.HasNameContains || request.NameContains.Length == 0 || ProtoBoundary.IsIdentifier(request.NameContains));
         }
 
@@ -115,7 +111,6 @@ namespace HomeBridge.BridgeTools
                 if (field == null || field.FieldType != typeof(List<ResearchManager.KnowledgeCategoryProject>)) throw new InvalidOperationException();
                 var slots = (List<ResearchManager.KnowledgeCategoryProject>?)field.GetValue(manager);
                 var categories = DefDatabase<KnowledgeCategoryDef>.AllDefsListForReading;
-                Bound(categories.Count);
                 foreach (var category in categories.OrderBy(d => d.defName, StringComparer.Ordinal))
                 {
                     var matches = slots?.Where(s => s.category == category).ToList();
@@ -128,7 +123,6 @@ namespace HomeBridge.BridgeTools
                 if (slots != null && slots.Any(s => s == null || !categories.Contains(s.category))) throw new InvalidOperationException();
             }
             var definitions = DefDatabase<ResearchProjectDef>.AllDefsListForReading;
-            if (definitions.Count > 65536) throw new ReadLimit("Research definition census exceeds 65536.");
             var filtered = 0;
             var built = new List<Obs.ResearchProject>();
             foreach (var def in definitions.OrderBy(d => d.defName, StringComparer.Ordinal))
@@ -145,7 +139,7 @@ namespace HomeBridge.BridgeTools
                 if (!finished && !row.CanStart && !request.IncludeLocked) { filtered++; continue; }
                 if (request.IncludeUnlocks && NativeBundleMasks.Unlocks(fields))
                 {
-                    var unlocks = def.UnlockedDefs; Bound(unlocks.Count);
+                    var unlocks = def.UnlockedDefs; 
                     foreach (var unlocked in unlocks)
                     {
                         var item = new Obs.ResearchUnlock { DefName = Id(unlocked.defName), NativeType = Id(unlocked.GetType().Name) };
@@ -156,22 +150,8 @@ namespace HomeBridge.BridgeTools
                 }
                 built.Add(row);
             }
-            var seed = QuerySeed(request);
-            var afterCursor = built;
-            if (request.Page != null && request.Page.HasCursor && request.Page.Cursor.Length != 0)
-            {
-                if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, request.Page.Cursor, out var after))
-                    throw new StaleCursor();
-                afterCursor = built.Where(p => string.CompareOrdinal(p.Project.DefName, after) > 0).ToList();
-            }
-            var limit = request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
-            var page = afterCursor.Take(limit).ToList();
-            if (page.Count > 256) throw new ReadLimit("Matched research projects exceed page limit; narrow filters.");
-            var truncated = afterCursor.Count > page.Count;
-            snapshot.Projects.Add(page);
-            snapshot.Completeness = Complete(page.Count, filtered);
-            snapshot.Completeness.Page.Complete = !truncated;
-            if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Project.DefName);
+            snapshot.Projects.Add(built);
+            snapshot.Completeness = Complete(built.Count, filtered);
             if (request.IncludeCapability) Capability(snapshot, map);
             snapshot.Snapshot = Token(context, snapshot, points);
             return snapshot;
@@ -202,7 +182,6 @@ namespace HomeBridge.BridgeTools
                 row.HiddenPrerequisites.Add(Id(prerequisite.defName));
                 if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row.LockReasons.Add("hidden_prerequisite:" + Id(prerequisite.defName));
             }
-            Bound(row.Prerequisites.Count); Bound(row.HiddenPrerequisites.Count);
             var applied = manager.GetTechprints(def); var needed = def.TechprintCount;
             if (applied < 0 || needed < 0) throw new InvalidOperationException();
             if (costs) { row.TechprintsApplied = (uint)applied; row.TechprintsNeeded = (uint)needed; }
@@ -213,7 +192,6 @@ namespace HomeBridge.BridgeTools
             // work at: the lock is reported whenever none stands (#254).
             if (!def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
             if (facilities) foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
-            Bound(row.RequiredFacilities.Count);
             if (!def.PlayerMechanitorRequirementMet) row.LockReasons.Add("mechanitor");
             if (!def.AnalyzedThingsRequirementsMet) row.LockReasons.Add("analysis");
             if (!def.InspectionRequirementsMet) row.LockReasons.Add("inspection");
@@ -222,25 +200,24 @@ namespace HomeBridge.BridgeTools
             // plus the bench: a selectable project nobody can research is not
             // available to the controller.
             row.CanStart = row.LockReasons.Count == 0; row.Available = row.CanStart;
-            Bound(row.LockReasons.Count);
             return row;
         }
 
         private static void Capability(Obs.ResearchSnapshot snapshot, Map map)
         {
-            var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_ResearchBench>().ToList(); Bound(benches.Count);
+            var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_ResearchBench>().ToList(); 
             foreach (var bench in benches)
             {
                 var row = new Obs.ResearchBench { Building = NativeBuildingObservationTools.Project(bench) };
                 var affected = bench.GetComp<CompAffectedByFacilities>();
                 if (affected != null)
                 {
-                    var facilities = affected.LinkedFacilitiesListForReading; Bound(facilities.Count);
+                    var facilities = affected.LinkedFacilitiesListForReading; 
                     foreach (var facility in facilities) row.Facilities.Add(new Obs.ResearchFacility { Definition = Definition(facility.def), Active = affected.IsFacilityActive(facility) });
                 }
                 snapshot.Benches.Add(row);
             }
-            var pawns = map.mapPawns.FreeColonistsSpawned; Bound(pawns.Count);
+            var pawns = map.mapPawns.FreeColonistsSpawned; 
             if (WorkTypeDefOf.Research == null || SkillDefOf.Intellectual == null) throw new InvalidOperationException();
             foreach (var pawn in pawns)
             {
@@ -256,21 +233,15 @@ namespace HomeBridge.BridgeTools
                 snapshot.Researchers.Add(row);
             }
         }
-        internal static object Encode(Obs.ResearchReply reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
-        private static void Bound(int count) { if (count > 256) throw new ReadLimit("Research child collection exceeds 256."); }
         // The token the controller's select boundary carries: the reply the Go
-        // bridge's ReadResearch requests (locked and finished included, one
-        // 256-row page), recomputed statelessly so a select CAS compares
+        // bridge's ReadResearch requests (locked and finished included, complete), recomputed statelessly so a select CAS compares
         // against exactly what the planner observed.
         internal static string CurrentToken(Common.ObservationContext context, Map map)
         {
             var manager = Find.ResearchManager; var player = Faction.OfPlayerSilentFail;
             if (manager == null || player?.def == null) throw new InvalidOperationException("Research manager unavailable.");
-            var request = new Obs.ResearchRequest { IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } };
+            var request = new Obs.ResearchRequest { IncludeLocked = true, IncludeFinished = true };
             return Read(request, context, map, manager, player).Snapshot.Token;
         }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
@@ -283,8 +254,6 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
-        private static string QuerySeed(Obs.ResearchRequest request) => string.Join("",
-            request.IncludeLocked, request.IncludeFinished, request.IncludeUnlocks, request.IncludeCapability, request.NameContains ?? "");
         // Stateless hash over the fields this reply actually returned; recomputed
         // fresh each call, same pattern as NativeObservationSnapshot's other tokens.
         private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot, IDictionary<string, double> points)
@@ -294,7 +263,5 @@ namespace HomeBridge.BridgeTools
                 foreach (var project in snapshot.Projects.OrderBy(p => p.Project.DefName, StringComparer.Ordinal))
                 { w.Write(project.Project.DefName); w.Write(points[project.Project.DefName]); w.Write(project.Finished); w.Write(project.Current); }
             });
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
-        private sealed class StaleCursor : Exception { }
     }
 }

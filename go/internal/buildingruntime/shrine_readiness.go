@@ -24,8 +24,7 @@ type shrineReadinessNative interface {
 }
 
 // shrineTrapWindow is the half-width of the defense-site window read around
-// a breach wall's outside cell: one policy trap radius plus a cell, well
-// under the read's 2048-cell bound.
+// a breach wall's outside cell: one policy trap radius plus a cell.
 const shrineTrapWindow = 13
 
 // ShrineReadinessReport is one shrine's breach judgement with the reading

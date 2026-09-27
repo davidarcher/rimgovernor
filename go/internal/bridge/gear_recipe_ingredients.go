@@ -35,9 +35,6 @@ import (
 // validateColonyProduction), so wiring GearProduce still needs that read
 // added first, on top of this translation.
 func GearRecipeIngredients(rows []*o.IngredientRequirement) domain.Fact[[][]policy.Amount] {
-	if len(rows) > 256 {
-		return domain.Unknown[[][]policy.Amount]()
-	}
 	slots := make([][]policy.Amount, 0, len(rows))
 	for _, row := range rows {
 		slot, known := gearIngredientSlot(row)
@@ -57,7 +54,7 @@ func gearIngredientSlot(row *o.IngredientRequirement) ([]policy.Amount, bool) {
 		return gearIngredientAlternatives(row)
 	}
 	names := row.GetAllowedDefNames()
-	if len(names) == 0 || len(names) > 256 {
+	if len(names) == 0 {
 		return nil, false
 	}
 	required := row.GetRequired()
@@ -83,9 +80,6 @@ func gearIngredientSlot(row *o.IngredientRequirement) ([]policy.Amount, bool) {
 // otherwise unrecoverable) into one alternative per material. Every listed
 // alternative must be a whole positive count over an allowed definition.
 func gearIngredientAlternatives(row *o.IngredientRequirement) ([]policy.Amount, bool) {
-	if len(row.Alternatives) > 256 {
-		return nil, false
-	}
 	allowed := map[string]bool{}
 	for _, name := range row.GetAllowedDefNames() {
 		allowed[name] = true

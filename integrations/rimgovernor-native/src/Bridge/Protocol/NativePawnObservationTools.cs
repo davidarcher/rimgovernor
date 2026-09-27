@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativePawnObservationTools
     {
         [Tool("rimgovernor/observations_list_pawns", Title = "Read map pawns",
-            Description = "Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. Page limit1..256 is a whole-query bound, no cursors or truncation.")]
+            Description = "Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. The list is complete.")]
         [ToolResponse("payload", "string", "Official observations ListPawnsReply ProtoJSON.", Always = true)]
         public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a ListPawnsRequest ProtoJSON string.")] object? request = null)
@@ -36,7 +36,6 @@ namespace HomeBridge.BridgeTools
                     if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
                         return new Obs.ListPawnsReply { Failure = invalid };
                     try { return new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }; }
-                    catch (ReadLimit error) { return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }; }
                     catch (Exception error) { return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
                         PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
                 }, cancellationToken).ConfigureAwait(false);
@@ -65,7 +64,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { return false; }
         }
 
-        // On the main thread. A stale cursor is a ReadLimit, as the tool reports it.
+        // On the main thread.
         private static Obs.PawnSnapshot Read(Map map, Obs.ListPawnsRequest parsed, Common.ObservationContext context, Obs.PawnFields? fields = null)
         {
             var source = map.mapPawns.AllPawnsSpawned.ToList();
@@ -84,20 +83,8 @@ namespace HomeBridge.BridgeTools
                 if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
             }
             var ordered = selected.OrderBy(p => p.Value.Pawn.Id, StringComparer.Ordinal).ToList();
-            var seed = QuerySeed(parsed.Filter);
-            var afterCursor = ordered;
-            if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0) {
-                if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                    throw new ReadLimit("Pawn cursor is stale or does not match this query.");
-                afterCursor = ordered.Where(p => string.CompareOrdinal(p.Value.Pawn.Id, after) > 0).ToList();
-            }
-            var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : 256;
-            var page = afterCursor.Take(limit).ToList();
-            Require(page.Count, 256);
-            var truncated = afterCursor.Count > page.Count;
+            var page = ordered;
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count) };
-            result.Completeness.Page.Complete = !truncated;
-            if (truncated) result.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Value.Pawn.Id);
             var details = NativePawnDetails.Defaults(parsed.Details);
             var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
             // The tend detail is pairwise across the page, so it runs once over
@@ -119,10 +106,9 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.ListPawnsRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, unique exact IDs, finite nonnegative distance and page limit1..256 without cursor are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, unique exact IDs, finite nonnegative distance are required.");
             if (request?.Scope?.ExpectedIdentity == null) return false;
-            var page=request.Page; var filter=request.Filter;
-            if (page != null && (page.HasLimit && (page.Limit<1 || page.Limit>256) || page.HasCursor && page.Cursor.Length>4096)) return false;
+            var filter=request.Filter;
             if (filter == null) return true;
             return filter.Ids.Count<=256 && filter.Ids.All(ProtoBoundary.IsIdentifier)
                 && filter.Ids.Distinct(StringComparer.Ordinal).Count()==filter.Ids.Count
@@ -179,10 +165,6 @@ namespace HomeBridge.BridgeTools
             }
             return row;
         }
-        private static string QuerySeed(Obs.PawnFilter? f) => f==null ? "" : string.Join("",
-            f.IncludeDead, f.Colonist, f.Prisoner, f.Animal, f.Humanlike, f.Mechanoid, f.Tame, f.Wild, f.Hostile, f.Downed, f.Drafted,
-            f.NameContains??"", f.WithinColonistDistance,
-            string.Join(",", f.Ids.OrderBy(i=>i,StringComparer.Ordinal)));
         internal static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
             => NativeObservationSnapshot.Snapshot("pawn-state", context, row.Pawn.Id, w => {
                 w.Write(row.Dead); w.Write(row.Downed); w.Write(row.Drafted); w.Write(row.InBed); w.Write(row.Hostile);
@@ -205,10 +187,6 @@ namespace HomeBridge.BridgeTools
         internal static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable {Reason=reason,Detail=detail};
         internal static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue {Field=field,Unavailable=Unavailable(reason,detail)};
         internal static Obs.Completeness Complete(int count,int filtered=0)=>new Obs.Completeness {Page=new Common.PageInfo {Complete=true},Matched=(ulong)count,Returned=(ulong)count,Filtered=(ulong)filtered,Unreadable=0};
-        internal static void Require(int count,int limit=256) { if(count>limit) throw new ReadLimit("Complete native pawn collection exceeds the requested bound; frozen paging is unavailable."); }
-        internal static object Encode(Obs.ListPawnsReply reply) {
-            return ProtoBoundary.Encode(reply);
-        }
         internal sealed class ReadLimit:Exception { internal ReadLimit(string message):base(message) {} }
     }
 }

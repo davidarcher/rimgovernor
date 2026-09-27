@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
                 if (routePrep != null) caravanPrep.Route = routePrep;
                 var evaluation = new Operations.PreviewEvaluation
                 { Context = context.Clone(), Accepted = true, Projected = new Receipts.EffectEvidence { Caravan = effect }, Caravan = caravanPrep };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = evaluation });
+                return new Operations.PreviewReply { Evaluated = evaluation };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Caravan travel preview failed: " + error.GetType().Name) }; }
         }
@@ -186,13 +186,13 @@ namespace HomeBridge.BridgeTools
                     if (command.Kind == Operations.TravelKind.Stop ? !effect.Stopped : !effect.PathStarted)
                         throw new InvalidOperationException("Native caravan travel readback did not apply.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Caravan travel validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted caravan travel requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted caravan travel requires observation: " + error.GetType().Name) };
             }
         }
 

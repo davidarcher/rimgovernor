@@ -120,13 +120,13 @@ namespace HomeBridge.BridgeTools
                         effect.Results.Add(result);
                     }
                 }
-                if (effect.Results.Any(r => r.Applied)) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                if (effect.Results.Any(r => r.Applied)) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
                 return new Operations.ExecuteReply { Receipt = state.Ledger.FinishNoChange(handle, evidence, "Every combat order was refused; see each result's reason.") };
             }
             catch (Exception error)
             {
                 return handle == null ? Refuse(Common.FailureCode.NativeFailure, "Combat orders validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted combat orders require observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted combat orders require observation: " + error.GetType().Name) };
             }
         }
 

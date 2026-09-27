@@ -65,9 +65,6 @@ const (
 // When no shared stock covers them at all, the method is kibble production
 // (AnimalFeedFallbackResource) sized by the same missing nutrition.
 func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64) (AnimalFeedMethod, error) {
-	if len(targets) > 256 || len(stocks) > 4096 || len(have) > 4096 {
-		return AnimalFeedMethod{}, errors.New("animal feed inputs exceed bound")
-	}
 	if len(targets) == 0 {
 		return AnimalFeedMethod{Reason: AnimalFeedNoDeficit}, nil
 	}
@@ -79,7 +76,7 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	var storage [][]AnimalFeedStorage
 	first := true
 	for _, t := range targets {
-		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) || len(t.ReachableBenches) > 256 || !validAnimalFeedStorage(t.ReachableStorage, t.StorageCandidates) {
+		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) || !validAnimalFeedStorage(t.ReachableStorage, t.StorageCandidates) {
 			return AnimalFeedMethod{}, errors.New("invalid animal feed target")
 		}
 		for _, bench := range t.ReachableBenches {
@@ -158,11 +155,8 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 // validAnimalFeedStorage bounds and checks one animal's reachable storage
 // rows and candidate footprint.
 func validAnimalFeedStorage(storage []AnimalFeedStorage, candidates []domain.Cell) bool {
-	if len(storage) > 256 || len(candidates) > 256 {
-		return false
-	}
 	for _, row := range storage {
-		if !foodID(row.Zone) || len(row.Accepts) > 256 {
+		if !foodID(row.Zone) {
 			return false
 		}
 		for _, def := range row.Accepts {

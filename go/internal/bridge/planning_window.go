@@ -101,7 +101,7 @@ func planningBandRequest(identity *c.Identity, band policy.Rectangle) *o.GetCell
 // cellsBandRequest is one compact rectangle read of the given fields.
 func cellsBandRequest(identity *c.Identity, band policy.Rectangle, fields *o.CellFields) *o.GetCellsRequest {
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}
-	return &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: fields, Compact: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
+	return &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: fields, Compact: proto.Bool(true)}
 }
 
 func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle) (*o.CellsSnapshot, Result, error) {
@@ -168,7 +168,7 @@ func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *
 	if v == nil || !proto.Equal(v.Context, ctx) || !proto.Equal(v.MapSize, size) || v.Region == nil || !colonyCell(v.Region.Minimum, size) || !colonyCell(v.Region.Maximum, size) || v.Region.Minimum.GetX() > v.Region.Maximum.GetX() || v.Region.Minimum.GetZ() > v.Region.Maximum.GetZ() {
 		return contract("invalid planning cell scope")
 	}
-	if err := colonyCounts(v.Completeness, len(v.Cells), planningWindowPage); err != nil {
+	if err := colonyCounts(v.Completeness, len(v.Cells)); err != nil {
 		return err
 	}
 	area := uint64(v.Region.Maximum.GetX()-v.Region.Minimum.GetX()+1) * uint64(v.Region.Maximum.GetZ()-v.Region.Minimum.GetZ()+1)

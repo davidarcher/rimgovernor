@@ -174,7 +174,7 @@ type WorldProgressionRead struct {
 // worldProgressionRequest is the census read, shared with the bundle's
 // world progression family (#593).
 func worldProgressionRequest(identity *c.Identity, includeStorage bool) *o.WorldProgressionRequest {
-	return &o.WorldProgressionRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeStorage: proto.Bool(includeStorage), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	return &o.WorldProgressionRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeStorage: proto.Bool(includeStorage)}
 }
 
 func (client *Client) ReadWorldProgression(ctx context.Context, identity *c.Identity, includeStorage bool) (WorldProgressionRead, Result, error) {
@@ -214,16 +214,13 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		return WorldProgressionRead{}, contract("world progression world mismatch")
 	}
 	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return WorldProgressionRead{}, contract("incomplete world progression page")
-	}
-	if len(v.Maps) > 256 {
-		return WorldProgressionRead{}, contract("world progression maps exceed bound")
 	}
 	maps := make([]WorldMap, len(v.Maps))
 	seenMapPawns := map[string]bool{}
 	for i, row := range v.Maps {
-		if row == nil || row.Id == nil || row.Tile == nil || row.GetTile() < 0 || row.Home == nil || len(row.Pawns) > 256 {
+		if row == nil || row.Id == nil || row.Tile == nil || row.GetTile() < 0 || row.Home == nil {
 			return WorldProgressionRead{}, contract("invalid world progression map")
 		}
 		pawnIDs := make([]string, len(row.Pawns))
@@ -244,9 +241,6 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		}
 		maps[i] = WorldMap{ID: row.GetId(), Tile: row.GetTile(), Home: row.GetHome(), PawnIDs: pawnIDs}
 	}
-	if len(v.Caravans) > 256 {
-		return WorldProgressionRead{}, contract("world progression caravans exceed bound")
-	}
 	seen := map[string]bool{}
 	rows := make([]CaravanJourney, len(v.Caravans))
 	for i, row := range v.Caravans {
@@ -254,7 +248,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("invalid or duplicate world progression caravan")
 		}
 		seen[row.Caravan.GetId()] = true
-		if row.Tile == nil || row.GetTile() < 0 || len(row.Pawns) > 64 {
+		if row.Tile == nil || row.GetTile() < 0 {
 			return WorldProgressionRead{}, contract("invalid world progression caravan tile or crew")
 		}
 		pawnIDs := make([]string, len(row.Pawns))
@@ -275,9 +269,6 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			pawns[j] = fact
 		}
-		if len(row.Inventory) > 4096 {
-			return WorldProgressionRead{}, contract("world progression caravan inventory exceeds bound")
-		}
 		var silver int32
 		inventory := make(map[string]int64, len(row.Inventory))
 		seenDefs := map[string]bool{}
@@ -293,9 +284,6 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 				}
 				silver = int32(item.GetUnits())
 			}
-		}
-		if len(row.HomeRoutes) > 64 {
-			return WorldProgressionRead{}, contract("world progression caravan home routes exceed bound")
 		}
 		routes := make([]WorldRouteFact, len(row.HomeRoutes))
 		for k, route := range row.HomeRoutes {
@@ -320,13 +308,10 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		}
 		rows[i] = journey
 	}
-	if len(v.Quests) > 256 {
-		return WorldProgressionRead{}, contract("world progression quests exceed bound")
-	}
 	seenQuests := map[string]bool{}
 	quests := make([]QuestOffer, len(v.Quests))
 	for i, row := range v.Quests {
-		if row == nil || validID(row.GetId()) != nil || seenQuests[row.GetId()] || row.State == nil || row.RequiresAccepter == nil || row.CanAccept == nil || len(row.EligiblePawns) > 64 || len(row.Rewards) > 256 || len(row.TradeRequests) > 16 {
+		if row == nil || validID(row.GetId()) != nil || seenQuests[row.GetId()] || row.State == nil || row.RequiresAccepter == nil || row.CanAccept == nil {
 			return WorldProgressionRead{}, contract("invalid or duplicate world progression quest")
 		}
 		seenQuests[row.GetId()] = true

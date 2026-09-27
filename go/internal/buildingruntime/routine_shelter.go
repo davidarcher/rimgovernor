@@ -634,9 +634,6 @@ func squaredDistance(a, b domain.Cell) int64 {
 
 // Every preview in a paused project must agree on each shared stock value.
 func mergeRoutineStock(stock *policy.StockObservation, next policy.StockObservation, first bool) error {
-	if len(next.Values) > 256 {
-		return ErrControl
-	}
 	if first {
 		stock.NativeConstruction = next.NativeConstruction
 	} else {
@@ -660,9 +657,6 @@ func mergeRoutineStock(stock *policy.StockObservation, next policy.StockObservat
 			stock.Values = append(stock.Values, v)
 			values[v.Resource] = v.Available
 		}
-	}
-	if len(stock.Values) > 256 {
-		return ErrControl
 	}
 	return nil
 }

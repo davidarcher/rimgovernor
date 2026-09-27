@@ -28,7 +28,7 @@ func (client *Client) ReadMapBounds(ctx context.Context, identity *c.Identity, a
 		return MapBounds{}, Result{}, contract("negative bounds anchor")
 	}
 	cell := &c.Cell{X: proto.Int32(anchor.X), Z: proto.Int32(anchor.Z)}
-	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{cell}}}, Fields: mapBoundsFields(), Page: &c.PageRequest{Limit: proto.Uint32(1)}}
+	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{cell}}}, Fields: mapBoundsFields()}
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {
@@ -76,7 +76,7 @@ func validateMapBounds(snapshot *o.CellsSnapshot, identity *c.Identity, anchor *
 		}
 	}
 	completeness := snapshot.Completeness
-	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Page.GetNextCursor() != "" || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
+	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
 		return MapBounds{}, contract("incomplete map bounds observation")
 	}
 	if completeness.SnapshotToken != nil {

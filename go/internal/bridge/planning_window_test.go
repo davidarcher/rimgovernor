@@ -95,7 +95,7 @@ func TestReadPlanningWindowDecodesOnePageWindow(t *testing.T) {
 		calls++
 		request := decodeCellsRequest(t, arg)
 		want := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(10), Z: proto.Int32(20)}, Maximum: &c.Cell{X: proto.Int32(13), Z: proto.Int32(22)}}
-		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || !proto.Equal(request.GetRectangle(), want) || request.Page.GetLimit() != 12 || !proto.Equal(request.Fields, planningWindowFields()) {
+		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || !proto.Equal(request.GetRectangle(), want) || !proto.Equal(request.Fields, planningWindowFields()) {
 			t.Fatal("query differs", request)
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(request, func(x, z int32) bool { return x == 13 && z == 22 })}}), nil

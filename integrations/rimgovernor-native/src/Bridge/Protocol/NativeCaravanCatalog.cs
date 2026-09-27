@@ -265,10 +265,8 @@ namespace HomeBridge.BridgeTools
 
         private static bool Validate(Obs.CaravanCatalogRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, a nonnegative destination tile and page1..256 are required.");
-            return request?.Scope?.ExpectedIdentity != null && request.HasDestination && request.Destination >= 0
-                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
-                    && (!request.Page.HasCursor || request.Page.Cursor.Length == 0));
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a nonnegative destination tile are required.");
+            return request?.Scope?.ExpectedIdentity != null && request.HasDestination && request.Destination >= 0;
         }
     }
 }

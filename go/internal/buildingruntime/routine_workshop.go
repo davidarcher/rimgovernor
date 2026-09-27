@@ -166,9 +166,6 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	if err != nil {
 		return nil, "", err
 	}
-	if len(census) > 256 {
-		return nil, "", ErrControl
-	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
 		benches = append(benches, row.Bench)

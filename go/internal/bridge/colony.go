@@ -67,19 +67,16 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 // bundle seeds its colony_facts section under the planning form of it
 // (planning, no definitions).
 func colonyFactsRequest(identity *c.Identity, planning bool, definitions []string) *o.ColonyFactsRequest {
-	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), RequestedDefinitionNames: append([]string(nil), definitions...), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), RequestedDefinitionNames: append([]string(nil), definitions...)}
 }
 
-func colonyCounts(v *o.Completeness, count, limit int) error {
-	if count > limit || v == nil || v.Page == nil || v.Page.Complete == nil || !v.Page.GetComplete() || v.Page.GetNextCursor() != "" || v.Matched == nil || v.Returned == nil || v.Filtered == nil || v.Unreadable == nil || v.GetMatched() != uint64(count) || v.GetReturned() != uint64(count) || v.GetUnreadable() != 0 || v.GetFiltered() > math.MaxUint64-uint64(count) {
+func colonyCounts(v *o.Completeness, count int) error {
+	if v == nil || v.Page == nil || v.Page.Complete == nil || !v.Page.GetComplete() || v.Matched == nil || v.Returned == nil || v.Filtered == nil || v.Unreadable == nil || v.GetMatched() != uint64(count) || v.GetReturned() != uint64(count) || v.GetUnreadable() != 0 || v.GetFiltered() > math.MaxUint64-uint64(count) {
 		return contract("incomplete colony census")
 	}
 	return nil
 }
 func colonyQuantities(rows []*o.Quantity) error {
-	if len(rows) > 256 {
-		return contract("colony quantities exceed bound")
-	}
 	seen := map[string]bool{}
 	for _, row := range rows {
 		if row == nil || validID(row.GetDefName()) != nil || seen[row.GetDefName()] || row.Units != nil && row.GetUnits() < 0 {
@@ -105,7 +102,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if err := colonyCounts(v.Completeness, 1, 1); err != nil {
+	if err := colonyCounts(v.Completeness, 1); err != nil {
 		return err
 	}
 	if v.Completeness.GetFiltered() != 0 {
@@ -152,9 +149,6 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	}
 	if err := validateFoodChannels(v); err != nil {
 		return err
-	}
-	if len(v.ForbiddenSupplies) > 256 {
-		return contract("forbidden supplies exceed bound")
 	}
 	seen := map[string]bool{}
 	for _, row := range v.ForbiddenSupplies {
@@ -283,7 +277,7 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 			return err
 		}
 	}
-	if err := colonyCounts(p.Completeness, len(p.Definitions), 256); err != nil {
+	if err := colonyCounts(p.Completeness, len(p.Definitions)); err != nil {
 		return err
 	}
 	seen := map[string]bool{}
@@ -298,7 +292,7 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 		if err := colonyQuantities(d.Costs); err != nil {
 			return err
 		}
-		if !presentationText(d.Definition.Label, 4096) || d.Stuff != nil && validID(d.GetStuff()) != nil || d.Size != nil && !colonySize(d.Size) || d.ConstructionSkill != nil && (d.GetConstructionSkill() < 0 || d.GetConstructionSkill() > 20) || len(d.ResearchPrerequisites) > 256 {
+		if !presentationText(d.Definition.Label, 4096) || d.Stuff != nil && validID(d.GetStuff()) != nil || d.Size != nil && !colonySize(d.Size) || d.ConstructionSkill != nil && (d.GetConstructionSkill() < 0 || d.GetConstructionSkill() > 20) {
 			return contract("invalid planning definition facts")
 		}
 		for _, name := range d.ResearchPrerequisites {
@@ -321,7 +315,7 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 		if !combatNumber(d.Flammability, true) || d.PathCost != nil && (d.GetPathCost() < 0 || d.GetPathCost() > 10000) {
 			return contract("invalid planning definition floor facts")
 		}
-		if len(d.SowTags) > 32 || d.SowTag != nil && validID(d.GetSowTag()) != nil {
+		if d.SowTag != nil && validID(d.GetSowTag()) != nil {
 			return contract("invalid planning definition sow tags")
 		}
 		for _, tag := range d.SowTags {
@@ -354,7 +348,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 	if !combatNumber(e.OutdoorTemperatureC, false) {
 		return contract("invalid environment temperature")
 	}
-	if err := colonyCounts(e.Completeness, len(e.Lights)+len(e.Growers)+len(e.Rooms)+len(e.Networks), 1024); err != nil {
+	if err := colonyCounts(e.Completeness, len(e.Lights)+len(e.Growers)+len(e.Rooms)+len(e.Networks)); err != nil {
 		return err
 	}
 	optionalID := func(v *string) bool { return v == nil || validID(*v) == nil }
@@ -362,9 +356,6 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		return ref != nil && validID(ref.GetId()) == nil && validID(ref.GetDefName()) == nil && colonyCell(ref.Position, size)
 	}
 	cells := func(rows []*c.Cell) bool {
-		if len(rows) > 256 {
-			return false
-		}
 		for _, row := range rows {
 			if !colonyCell(row, size) {
 				return false
@@ -439,7 +430,7 @@ func validateColonyThreat(v *o.ThreatSection) error {
 		if facts == nil {
 			return contract("missing threat facts")
 		}
-		if err := colonyCounts(facts.Completeness, 1, 1); err != nil {
+		if err := colonyCounts(facts.Completeness, 1); err != nil {
 			return err
 		}
 		if err := pawnsIssues(facts.Issues, facts.ProtoReflect()); err != nil {

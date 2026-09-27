@@ -214,8 +214,6 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.SheetToolName, request!, Obs.TradeSheetRequest.Parser, out var parsed, out var failure)
                 || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradeSheetReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length > 0)
-                return ProtoBoundary.Encode(new Obs.TradeSheetReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The trade sheet is a single page; cursors are not issued.") });
             return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var context, out failure))

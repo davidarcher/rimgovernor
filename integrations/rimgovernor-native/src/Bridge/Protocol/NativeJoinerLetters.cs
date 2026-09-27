@@ -78,8 +78,8 @@ namespace HomeBridge.BridgeTools
         {
             if (!Prepare(command, out _, out _, out _)) return new Operations.PreviewReply {
                 Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Joiner letter changed or expired; inspect again.") };
-            return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                Context = context.Clone(), Accepted = true } });
+            return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                Context = context.Clone(), Accepted = true } };
         }
 
         private static Receipts.EffectEvidence Evidence(NativeJoinerLetterRecord record) => new Receipts.EffectEvidence {
@@ -122,12 +122,12 @@ namespace HomeBridge.BridgeTools
                     evidence = Evidence(record);
                     if (!evidence.Dialog.Closed || !evidence.Dialog.Joined) throw new InvalidOperationException("Joiner did not arrive.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Joiner letter validation failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Joiner answer requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Joiner answer requires observation: " + error.GetType().Name) };
             }
         }
 

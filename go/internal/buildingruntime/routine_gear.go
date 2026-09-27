@@ -341,9 +341,6 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoutineGearResult{}, err
 		}
-		if len(census) > 256 {
-			return RoutineGearResult{}, ErrControl
-		}
 		benches := make([]policy.GearBench, 0, len(census))
 		for _, row := range census {
 			benches = append(benches, row.Bench)

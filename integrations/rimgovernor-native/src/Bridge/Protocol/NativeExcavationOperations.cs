@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
                     state.Excavation.Add(pre.Attempt.Clone(), done);
                     evidence = new Receipts.EffectEvidence { Excavation = done.Evidence() };
                     if (!evidence.Excavation.Cleared) throw new InvalidOperationException("Cleared excavation cell was not observed.");
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                    return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
                 }
                 var adopted = ExcavationTools.Designated(cell, map);
                 var record = new NativeExcavationRecord(map, cell, rock!.def.defName, adopted);
@@ -231,11 +231,11 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Excavation = record.Evidence() };
                     if (!evidence.Excavation.Designated) throw new InvalidOperationException("Excavation designation was not observed.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Excavation write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Excavation write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Excavation failed: " + error.GetType().Name) };
             }
         }

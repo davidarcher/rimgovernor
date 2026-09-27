@@ -101,8 +101,8 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command!, out var quest, out _, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true, Projected = Evidence(command!, quest!, Token(quest!)) } });
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                    Context = context.Clone(), Accepted = true, Projected = Evidence(command!, quest!, Token(quest!)) } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Quest acceptance preview failed: " + error.GetType().Name) }; }
         }
@@ -136,13 +136,13 @@ namespace HomeBridge.BridgeTools
                     evidence = Evidence(command, quest, after);
                     if (quest.State == QuestState.NotYetAccepted) throw new InvalidOperationException("Native quest acceptance readback did not apply.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Quest acceptance validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted quest acceptance requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted quest acceptance requires observation: " + error.GetType().Name) };
             }
         }
 

@@ -42,7 +42,7 @@ func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (Emerge
 // emergencyRequest is the status read ReadEmergency issues; a bundle's
 // emergency section is seeded into the step cache under the same request.
 func emergencyRequest(id *c.Identity) *o.StatusRequest {
-	return &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(id).(*c.Identity)}, Colonists: proto.Bool(true), Threats: proto.Bool(true), ColonistDetail: proto.Bool(false), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	return &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(id).(*c.Identity)}, Colonists: proto.Bool(true), Threats: proto.Bool(true), ColonistDetail: proto.Bool(false)}
 }
 
 // DecodeEmergencyStatus shares live boundary validation with captured replay.
@@ -67,9 +67,6 @@ func emergencyBool(v *bool) domain.Fact[bool] {
 }
 func emergencyCompleteness(v *o.Completeness, rows int) (domain.Fact[bool], error) {
 	unknown := domain.Unknown[bool]()
-	if rows > 256 {
-		return unknown, contract("emergency census exceeds limit")
-	}
 	if v == nil {
 		return unknown, nil
 	}
@@ -81,9 +78,6 @@ func emergencyCompleteness(v *o.Completeness, rows int) (domain.Fact[bool], erro
 	}
 	if !diagnostic(v.SnapshotToken) {
 		return unknown, contract("invalid snapshot token")
-	}
-	if v.Page != nil && !diagnostic(v.Page.NextCursor) {
-		return unknown, contract("invalid page cursor")
 	}
 	countsKnown := v.Matched != nil && v.Returned != nil && v.Filtered != nil && v.Unreadable != nil
 	if countsKnown {
@@ -101,9 +95,6 @@ func emergencyCompleteness(v *o.Completeness, rows int) (domain.Fact[bool], erro
 	if v.Page == nil || v.Page.Complete == nil {
 		return unknown, nil
 	}
-	if v.Page.GetComplete() && v.Page.GetNextCursor() != "" {
-		return unknown, contract("complete emergency census has next cursor")
-	}
 	if !v.Page.GetComplete() {
 		return domain.Known(false), nil
 	}
@@ -113,9 +104,6 @@ func emergencyCompleteness(v *o.Completeness, rows int) (domain.Fact[bool], erro
 	return domain.Known(v.GetFiltered() == 0 && v.GetUnreadable() == 0), nil
 }
 func emergencyIssues(issues []*o.ReadIssue, present func(string) bool) error {
-	if len(issues) > 256 {
-		return contract("too many emergency read issues")
-	}
 	for _, issue := range issues {
 		if issue == nil || issue.Field == nil || validID(issue.GetField()) != nil {
 			return contract("invalid emergency read issue")

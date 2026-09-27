@@ -45,9 +45,6 @@ func combatNumber(v *float64, nonnegative bool) bool {
 	return v == nil || !math.IsNaN(*v) && !math.IsInf(*v, 0) && (!nonnegative || *v >= 0)
 }
 func combatIDs(values []string) error {
-	if len(values) > 256 {
-		return contract("combat detail list too large")
-	}
 	seen := map[string]bool{}
 	for _, id := range values {
 		if validID(id) != nil || seen[id] {
@@ -86,9 +83,6 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 		if h.BedId != nil && validID(h.GetBedId()) != nil {
 			return contract("invalid combat bed")
 		}
-		if len(h.Capacities) > 256 || len(h.Hediffs) > 256 || len(h.SurgeryBills) > 256 {
-			return contract("combat health list too large")
-		}
 		seen := map[string]bool{}
 		for _, v := range h.Capacities {
 			if v == nil || validID(v.GetDefName()) != nil || seen[v.GetDefName()] || !combatNumber(v.Level, true) {
@@ -125,7 +119,7 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			if v.Page == nil || v.Page.Complete == nil || v.GetReturned() > uint64(len(h.Hediffs)) || v.Returned != nil && v.GetReturned() != uint64(len(h.Hediffs)) {
 				return contract("invalid hediff completeness")
 			}
-			if v.Page.GetComplete() && (v.Page.GetNextCursor() != "" || v.Matched != nil && v.GetMatched() != uint64(len(h.Hediffs)) || v.Unreadable != nil && v.GetUnreadable() != 0) {
+			if v.Page.GetComplete() && (v.Matched != nil && v.GetMatched() != uint64(len(h.Hediffs)) || v.Unreadable != nil && v.GetUnreadable() != 0) {
 				return contract("contradictory hediff completeness")
 			}
 			if v.SnapshotToken != nil && validID(v.GetSnapshotToken()) != nil {
@@ -155,9 +149,6 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			}
 		}
 		for _, list := range [][]*o.GearItem{e.Equipped, e.Apparel, e.InventoryWeapons} {
-			if len(list) > 256 {
-				return contract("equipment list too large")
-			}
 			seen := map[string]bool{}
 			for _, g := range list {
 				if g == nil {
@@ -219,9 +210,6 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 					return err
 				}
 			}
-		}
-		if len(b.Skills) > 256 || len(b.Traits) > 256 {
-			return contract("biography list too large")
 		}
 		seen := map[string]bool{}
 		for _, v := range b.Skills {

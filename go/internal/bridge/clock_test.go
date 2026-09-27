@@ -152,7 +152,7 @@ func TestClockStatusPreservesStoppedOriginAndUnknownFacts(t *testing.T) {
 	if s.SuppressedInjuries[0].Before.InjuryCount != nil {
 		t.Fatal("unknown health fabricated")
 	}
-	for name, edit := range map[string]func(*k.Status){"missing state": func(s *k.Status) { s.State = nil }, "wrong identity": func(s *k.Status) { s.Context.Identity.LoadToken = proto.String("other") }, "negative cursor": func(s *k.Status) { s.NewestCursor = proto.Int64(-1) }, "missing pause": func(s *k.Status) { s.ActualPaused = nil }, "deadline": func(s *k.Status) { s.GetRunning().Epoch.TickDeadline = proto.Int64(12) }, "missing epoch": func(s *k.Status) { s.GetRunning().Epoch = nil }, "unknown enum": func(s *k.Status) { s.ObservedSpeed = k.ObservedSpeed(99).Enum() }, "false complete": func(s *k.Status) { s.EvidenceCompleteness.NextCursor = proto.String("more") }} {
+	for name, edit := range map[string]func(*k.Status){"missing state": func(s *k.Status) { s.State = nil }, "wrong identity": func(s *k.Status) { s.Context.Identity.LoadToken = proto.String("other") }, "negative cursor": func(s *k.Status) { s.NewestCursor = proto.Int64(-1) }, "missing pause": func(s *k.Status) { s.ActualPaused = nil }, "deadline": func(s *k.Status) { s.GetRunning().Epoch.TickDeadline = proto.Int64(12) }, "missing epoch": func(s *k.Status) { s.GetRunning().Epoch = nil }, "unknown enum": func(s *k.Status) { s.ObservedSpeed = k.ObservedSpeed(99).Enum() }, "unknown complete": func(s *k.Status) { s.EvidenceCompleteness.Complete = nil }} {
 		t.Run(name, func(t *testing.T) {
 			s := clockTestStatus()
 			edit(s)

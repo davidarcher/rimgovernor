@@ -2,7 +2,6 @@ package bridge
 
 import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"math"
 	"slices"
@@ -12,7 +11,7 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v, &o.UpkeepFacts{Comfort: v.Comfort, Completeness: v.Completeness, Issues: v.Issues, Items: v.Items, Structures: v.Structures, Fires: v.Fires, Filth: v.Filth, Animals: v.Animals, People: v.People, Beds: v.Beds, HomeCoverage: v.HomeCoverage, Lighting: v.Lighting, WildAnimals: v.WildAnimals, Flooring: v.Flooring, Routes: v.Routes, Rooms: v.Rooms}) {
 		return contract("unsupported upkeep projection")
 	}
-	if err := colonyCounts(v.Completeness, 1, 1); err != nil {
+	if err := colonyCounts(v.Completeness, 1); err != nil {
 		return err
 	}
 	if err := pawnsIssues(v.Issues, v.ProtoReflect()); err != nil {
@@ -22,11 +21,8 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	if comfort == nil {
 		return validateUnavailable(v.GetComfort().GetUnavailable())
 	}
-	if err := colonyCounts(comfort.Completeness, len(comfort.People), 256); err != nil {
+	if err := colonyCounts(comfort.Completeness, len(comfort.People)); err != nil {
 		return err
-	}
-	if len(comfort.Surfaces) > 256 || len(comfort.Dining) > 256 || len(comfort.Recreation) > 256 {
-		return contract("comfort facilities exceed bound")
 	}
 	people := map[string]bool{}
 	for _, id := range comfort.People {
@@ -37,7 +33,7 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	}
 	surfaces := map[string]bool{}
 	for _, surface := range comfort.Surfaces {
-		if surface == nil || validID(surface.GetId()) != nil || surfaces[surface.GetId()] || len(surface.Adjacent) > 4096 || surface.RoomId != nil && validID(surface.GetRoomId()) != nil {
+		if surface == nil || validID(surface.GetId()) != nil || surfaces[surface.GetId()] || surface.RoomId != nil && validID(surface.GetRoomId()) != nil {
 			return contract("invalid dining surface")
 		}
 		surfaces[surface.GetId()] = true
@@ -58,9 +54,6 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 			}
 			seen[f.GetId()] = true
 			for _, ids := range [][]string{f.AccessibleTo, f.Users} {
-				if len(ids) > 256 {
-					return contract("comfort access exceeds bound")
-				}
 				found := map[string]bool{}
 				for _, id := range ids {
 					if !people[id] || found[id] {
@@ -80,11 +73,7 @@ func validateRecreationCensus(v *o.ComfortFacts, people map[string]bool) error {
 		return nil
 	}
 	bad := func() error { return contract("invalid recreation kind census") }
-	if len(j.Kinds) > 16 || len(j.Pawns) > 256 || len(j.Pawns)*len(j.Kinds) > 2048 || len(j.Methods) > 4 {
-		return bad()
-	}
-	encoded, err := protojson.Marshal(j)
-	if err != nil || len(encoded) > 64*1024 {
+	if len(j.Kinds) > 16 || len(j.Methods) > 4 {
 		return bad()
 	}
 	kinds := map[string]bool{}

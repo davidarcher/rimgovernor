@@ -14,11 +14,8 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 	if v.ShortCircuitTick != nil && v.GetShortCircuitTick() < 0 {
 		return contract("invalid short circuit tick")
 	}
-	if err := colonyCounts(v.Completeness, len(v.Power)+len(v.Furniture), 256); err != nil {
+	if err := colonyCounts(v.Completeness, len(v.Power)+len(v.Furniture)); err != nil {
 		return err
-	}
-	if len(v.Networks) > 256 || len(v.Geysers) > 256 {
-		return contract("power network census exceeds bound")
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Power {
@@ -34,9 +31,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		if !proto.Equal(b, &o.BuildingState{Building: ref, Service: b.Service, Settings: b.Settings, OccupiedCells: b.OccupiedCells}) {
 			return contract("unsupported power building detail")
 		}
-		if len(b.OccupiedCells) > 4096 {
-			return contract("power footprint exceeds bound")
-		}
 		occupied := map[[2]int32]bool{}
 		for _, cell := range b.OccupiedCells {
 			key := [2]int32{cell.GetX(), cell.GetZ()}
@@ -51,9 +45,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		s := b.Service
 		if s == nil || !proto.Equal(s, &o.BuildingServiceState{Connected: s.Connected, PowerOn: s.PowerOn, PowerOutputW: s.PowerOutputW, SwitchedOn: s.SwitchedOn, PowerNetId: s.PowerNetId, Fuel: s.Fuel, TargetFuel: s.TargetFuel, OutOfFuel: s.OutOfFuel, BrokenDown: s.BrokenDown, AllowedFuelDefs: s.AllowedFuelDefs}) {
 			return contract("unsupported power service detail")
-		}
-		if len(s.AllowedFuelDefs) > 256 {
-			return contract("power fuel definitions exceed bound")
 		}
 		for _, def := range s.AllowedFuelDefs {
 			if validID(def) != nil {
@@ -142,9 +133,6 @@ func powerEntity(ref *o.EntityRef, identity *c.Identity, size *o.MapSize) bool {
 }
 
 func validateColonyEnvironment(v *o.ColonyFactsSnapshot) error {
-	if len(v.Environment) > 256 {
-		return contract("environment census exceeds bound")
-	}
 	seen := map[string]bool{}
 	for _, row := range v.Environment {
 		if row == nil || validID(row.GetId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetId()] {

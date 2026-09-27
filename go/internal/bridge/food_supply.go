@@ -5,13 +5,13 @@ import o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 // Food completeness counts consumer and stock rows together. Repeated eater IDs
 // are explicit native eligibility, never a default of "every consumer".
 func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
-	if v == nil || len(v.Consumers) > 256 || len(v.Stocks) > 4096 {
+	if v == nil {
 		return contract("food supply exceeds bound")
 	}
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if err := colonyCounts(v.Completeness, len(v.Consumers)+len(v.Stocks), 4352); err != nil {
+	if err := colonyCounts(v.Completeness, len(v.Consumers)+len(v.Stocks)); err != nil {
 		return err
 	}
 	if v.Completeness.GetFiltered() != 0 {
@@ -67,7 +67,7 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		}
 	}
 	if larder := v.Larder; larder != nil {
-		if !combatNumber(&larder.RawMeatNutrition, true) || !combatNumber(&larder.CookDemandNutrition, true) || len(larder.Corpses) > 4096 || len(larder.ColdSites) > 256 {
+		if !combatNumber(&larder.RawMeatNutrition, true) || !combatNumber(&larder.CookDemandNutrition, true) {
 			return contract("invalid food larder")
 		}
 		seen := map[string]bool{}

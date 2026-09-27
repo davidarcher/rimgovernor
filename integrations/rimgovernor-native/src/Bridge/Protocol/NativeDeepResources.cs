@@ -12,7 +12,6 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeDeepResources
     {
-        private const int Limit = 256;
         private static readonly FieldInfo? Progress = BridgeCommon.PrivateInstanceField(typeof(CompScanner), "daysWorkingSinceLastFinding");
         private static readonly FieldInfo? Speed = BridgeCommon.PrivateInstanceField(typeof(CompScanner), "lastUserSpeed");
         private static readonly FieldInfo? LastScan = BridgeCommon.PrivateInstanceField(typeof(CompScanner), "lastScanTick");
@@ -27,7 +26,6 @@ namespace HomeBridge.BridgeTools
                 foreach (var start in map.AllCells) {
                     var def = map.deepResourceGrid.ThingDefAt(start);
                     if (def == null || map.deepResourceGrid.CountAt(start) <= 0 || !seen.Add(start)) continue;
-                    if (facts.Lumps.Count == Limit) return Unavailable(Common.UnavailableReason.LimitExceeded);
                     var cells = new List<IntVec3> { start };
                     long count = 0, x = 0, z = 0;
                     for (var i = 0; i < cells.Count; i++) {
@@ -47,8 +45,6 @@ namespace HomeBridge.BridgeTools
                 }
                 foreach (var building in map.listerBuildings.allBuildingsColonist.OrderBy(b => b.thingIDNumber)) {
                     if (building.Spawned && building.TryGetComp<CompDeepDrill>() != null) {
-                        if (facts.GroundScanners.Count + facts.LongRangeScanners.Count + facts.Drills.Count == Limit)
-                            return Unavailable(Common.UnavailableReason.LimitExceeded);
                         var drill = new Obs.DeepDrillState { BuildingId = building.GetUniqueLoadID(), DefName = building.def.defName,
                             Position = Cell(building.Position), Powered = building.GetComp<CompPowerTrader>()?.PowerOn ?? false,
                             Designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null };
@@ -62,8 +58,6 @@ namespace HomeBridge.BridgeTools
                     }
                     foreach (var scanner in building.AllComps.OfType<CompScanner>()) {
                         if (!(scanner is CompDeepScanner) && !(scanner is CompLongRangeMineralScanner)) continue;
-                        if (facts.GroundScanners.Count + facts.LongRangeScanners.Count == Limit)
-                            return Unavailable(Common.UnavailableReason.LimitExceeded);
                         var row = new Obs.MineralScannerState { BuildingId = building.GetUniqueLoadID(), DefName = building.def.defName,
                             Position = Cell(building.Position), Built = true, Powered = building.GetComp<CompPowerTrader>()?.PowerOn ?? false };
                         if (LastScan?.GetValue(scanner) is float last && !float.IsNaN(last) && !float.IsInfinity(last))

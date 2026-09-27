@@ -100,8 +100,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!Prepare(command, context, out _, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true } });
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                    Context = context.Clone(), Accepted = true } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Grower crop preview failed: " + error.GetType().Name) }; }
         }
@@ -133,12 +133,12 @@ namespace HomeBridge.BridgeTools
                     if (snapshot == null || !Matches(grower, command)) throw new InvalidOperationException("Native grower crop requires readback.");
                     evidence = Evidence(command, snapshot.Token, true);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Grower crop admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted grower crop patch requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted grower crop patch requires observation: " + error.GetType().Name) };
             }
         }
 

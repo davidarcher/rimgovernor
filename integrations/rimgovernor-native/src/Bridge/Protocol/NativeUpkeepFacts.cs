@@ -35,7 +35,6 @@ namespace HomeBridge.BridgeTools
                     && (map.areaManager.Home[t.Position] || t.IsInValidStorage() || t.def.IsMedicine
                         || t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff) > 0f
                         || (t.TryGetComp<CompRottable>()?.Active ?? false))).OrderBy(t => t.thingIDNumber).ToList();
-                Require(rows.Count, 256);
                 var values = rows.Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     var value = new Obs.UpkeepItem {
@@ -54,7 +53,6 @@ namespace HomeBridge.BridgeTools
                 // Non-damageable markers (including sleeping spots) have a
                 // native -1 sentinel and cannot be repair targets.
                 var rows = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
-                Require(rows.Count, 256);
                 var values = rows.Select(b => new Obs.UpkeepStructure {
                     Building = new Obs.BuildingState { Building = Ref(b), HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints },
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c]), Flammability = Number(b.GetStatValue(StatDefOf.Flammability)),
@@ -66,7 +64,6 @@ namespace HomeBridge.BridgeTools
             });
             Read("fires", result, () => {
                 var rows = things.OfType<Fire>().OrderBy(f => f.thingIDNumber).ToList();
-                Require(rows.Count, 256);
                 var values = rows.Select(f => new Obs.FireState { Fire = Ref(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
                 result.Fires.AddRange(values);
             });
@@ -76,7 +73,6 @@ namespace HomeBridge.BridgeTools
                 // ever target (upkeep orders require the home area), and a
                 // whole-map census exceeded the bound on every real map.
                 var rows = things.OfType<Filth>().Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
-                Require(rows.Count, 256);
                 var values = rows.Select(f => {
                     var value = new Obs.FilthState { Filth = Ref(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
                     var room = f.GetRoom();
@@ -92,7 +88,6 @@ namespace HomeBridge.BridgeTools
             Read("home_coverage", result, () => {
                 var state = HomeCoverage.State(map);
                 var targets = HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal).ToList();
-                Require(targets.Count, 256);
                 var facts = new Obs.HomeCoverageFacts { Revision = state.Revision };
                 foreach (var target in targets) {
                     var full = HomeCoverage.FullScope(map, target);
@@ -100,7 +95,6 @@ namespace HomeBridge.BridgeTools
                         facts.Targets.Add(new Obs.HomeCoverageTarget { Id = Id(target), Blocker = "Bounded visible native facility geometry unavailable" });
                         continue;
                     }
-                    Require(full.Count, 65536);
                     var cells = HomeCoverageGeometry.Batch(full, c => map.areaManager.Home[c]).OrderBy(c => c.x).ThenBy(c => c.z).ToList();
                     var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
                     // Retained wire field: autonomous Home has no exclusions.
@@ -134,7 +128,6 @@ namespace HomeBridge.BridgeTools
                     && (b is Building_WorkTable || b is Building_ResearchBench)).OrderBy(b => b.thingIDNumber).ToList();
                 var lamps = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.TryGetComp<CompGlower>() != null)
                     .OrderBy(b => b.thingIDNumber).ToList();
-                Require(benches.Count, 256); Require(lamps.Count, 256);
                 var facts = new Obs.LightingFacts();
                 foreach (var b in benches) {
                     var cell = b.InteractionCell;
@@ -160,7 +153,7 @@ namespace HomeBridge.BridgeTools
                     if (fuel != null) {
                         service.Fuel = Number(fuel.Fuel); service.TargetFuel = Number(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
                         var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
-                        Require(defs.Count, 256); service.AllowedFuelDefs.Add(defs);
+                        service.AllowedFuelDefs.Add(defs);
                     }
                     var row = new Obs.LampState { Building = new Obs.BuildingState { Building = Ref(b), Service = service },
                         GlowRadius = Number(glower.Props.glowRadius), Lit = glower.Glows };
@@ -180,10 +173,8 @@ namespace HomeBridge.BridgeTools
                 // the planner never doubles an open order.
                 var rooms = map.regionGrid.AllRooms.Where(r => r.ProperRoom && !r.PsychologicallyOutdoors && !r.TouchesMapEdge
                     && !r.Fogged && r.Cells.Any(c => map.areaManager.Home[c])).OrderBy(r => r.ID).ToList();
-                Require(rooms.Count, 256);
                 var facts = new Obs.FlooringFacts();
                 var terrains = new System.Collections.Generic.SortedDictionary<string, TerrainDef>(StringComparer.Ordinal);
-                var cells = 0;
                 foreach (var r in rooms) {
                     var row = new Obs.FloorRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
                     if (r.Role != null) row.Role = Id(r.Role.defName);
@@ -195,8 +186,6 @@ namespace HomeBridge.BridgeTools
                         if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
                         row.Cells.Add(cell);
                     }
-                    cells += row.Cells.Count;
-                    Require(cells, 4096);
                     facts.Rooms.Add(row);
                 }
                 // The traffic tier scores the routes census's most-travelled
@@ -224,7 +213,6 @@ namespace HomeBridge.BridgeTools
                 // lists breach candidates: player wall cells on its room's
                 // border whose outer neighbour some colonist can stand on.
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
-                Require(people.Count, 32);
                 var player = Faction.OfPlayerSilentFail;
                 var facilities = new System.Collections.Generic.List<(Thing thing, string kind, IntVec3 cell)>();
                 foreach (var b in things.OfType<Building_Bed>().Where(b => b.Faction == player && b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
@@ -237,7 +225,6 @@ namespace HomeBridge.BridgeTools
                     facilities.Add((b, "dining", b.Position));
                 foreach (var b in things.OfType<Building_Turret>().Where(b => b.Faction == player).OrderBy(b => b.thingIDNumber))
                     facilities.Add((b, "defense", b.Position));
-                Require(facilities.Count, 128);
                 var facts = new Obs.RoutesFacts();
                 facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
                 var measured = 0;
@@ -327,7 +314,6 @@ namespace HomeBridge.BridgeTools
                     facts.Facilities.Add(Facility(Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode));
                 }
                 var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
-                Require(facilities.Count + stockpiles.Count, 128);
                 foreach (var zone in stockpiles)
                 {
                     var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
@@ -357,7 +343,6 @@ namespace HomeBridge.BridgeTools
             });
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
-                Require(people.Count, 256);
                 var values = people.Select(p => new Obs.UpkeepPerson {
                     Pawn = new Obs.PawnState { Pawn = Ref(p) }, OwnedBedId = p.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                     ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
@@ -369,7 +354,6 @@ namespace HomeBridge.BridgeTools
             Read("beds", result, () => {
                 var beds = things.OfType<Building_Bed>().Where(b => b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber).ToList();
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
-                Require(beds.Count, 256); Require(people.Count, 256);
                 var values = beds.Select(b => {
                     var row = new Obs.UpkeepBed { Bed = Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
                         Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
@@ -379,7 +363,7 @@ namespace HomeBridge.BridgeTools
                     if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     if (b.TryGetQuality(out var quality)) row.Quality = quality.ToString(); if (b.Stuff != null) row.Stuff = b.Stuff.defName;
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
-                    Require(owners.Count, 256); row.Owners.AddRange(owners);
+                    row.Owners.AddRange(owners);
                     row.Users.AddRange(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())));
                     row.AccessibleTo.AddRange(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)).Select(p => Id(p.GetUniqueLoadID())));
                     return row;
@@ -395,7 +379,6 @@ namespace HomeBridge.BridgeTools
                 var rooms = new Dictionary<int, Room>();
                 foreach (var b in colonistBeds) { var r = b.GetRoom(); if (r != null) rooms[r.ID] = r; }
                 foreach (var r in map.regionGrid.AllRooms.Where(r => !r.Fogged && (r.Role?.defName == "DiningRoom" || r.Role?.defName == "RecRoom"))) rooms[r.ID] = r;
-                Require(rooms.Count, 256);
                 var facts = new Obs.UpkeepRoomsFacts();
                 foreach (var r in rooms.Values.OrderBy(r => r.ID)) {
                     var row = new Obs.UpkeepRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), CellCount = checked((uint)r.CellCount),
@@ -404,7 +387,6 @@ namespace HomeBridge.BridgeTools
                             Impressiveness = Number(r.GetStat(RoomStatDefOf.Impressiveness)) };
                     if (r.Role != null) row.Role = Id(r.Role.defName);
                     var beds = colonistBeds.Where(b => b.GetRoom() == r).Select(b => Id(b.GetUniqueLoadID())).ToList();
-                    Require(beds.Count, 256);
                     row.BedIds.AddRange(beds);
                     facts.Rooms.Add(row);
                 }
@@ -414,7 +396,6 @@ namespace HomeBridge.BridgeTools
             Read("animals", result, () => {
                 var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();
-                Require(animals.Count, 256);
                 var food = things.Where(t => t.def.category == ThingCategory.Item
                     && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
                     && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow).ToList();
@@ -463,7 +444,6 @@ namespace HomeBridge.BridgeTools
                         && p.CanReach(t, PathEndMode.Touch, Danger.None)
                         && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                             || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])).OrderBy(t => t.thingIDNumber).ToList();
-                    Require(reachable.Count, 256);
                     foreach (var item in reachable) {
                         var rot = item.TryGetComp<CompRottable>();
                         var stock = new Obs.FoodStock { Item = Ref(item), Count = item.stackCount, HolderId = "",
@@ -478,7 +458,6 @@ namespace HomeBridge.BridgeTools
                     var reachableBenches = benches.Where(b => p.CanReach(b, PathEndMode.Touch, Danger.None)
                         && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                             || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position])).ToList();
-                    Require(reachableBenches.Count, 256);
                     value.ReachableBenchIds.AddRange(reachableBenches.Select(b => Id(b.GetUniqueLoadID())));
                     // Feed made elsewhere still feeds the animal once hauled
                     // into a stockpile it can reach: name those zones with
@@ -491,10 +470,8 @@ namespace HomeBridge.BridgeTools
                         if (!zone.Cells.Any(AnimalReach)) continue;
                         var storage = new Obs.AnimalFeedStorage { ZoneId = Id(zone.GetUniqueLoadID()) };
                         storage.Accepts.AddRange(feedDefs.Where(d => p.RaceProps.CanEverEat(d) && zone.settings.filter.Allows(d)).Select(d => Id(d.defName)));
-                        Require(storage.Accepts.Count, 256);
                         value.ReachableStorage.Add(storage);
                     }
-                    Require(value.ReachableStorage.Count, 256);
                     value.StorageCandidates.AddRange(FeedStorageCandidates(map, p, haulers, Allowed).Select(Cell));
                     return value;
                 }).ToList();
@@ -507,7 +484,6 @@ namespace HomeBridge.BridgeTools
             Read("wild_animals", result, () => {
                 var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
                     .OrderBy(p => p.thingIDNumber).ToList();
-                Require(wild.Count, 256);
                 result.WildAnimals.AddRange(wild.Select(p => {
                     var state = new Obs.AnimalState {
                         Tameable = NativeHusbandryOperations.Tameable(p),
@@ -570,7 +546,6 @@ namespace HomeBridge.BridgeTools
                 .Where(r => (r.def == PawnRelationDefOf.Lover || r.def == PawnRelationDefOf.Spouse || r.def == PawnRelationDefOf.Fiance)
                     && r.otherPawn != null && !r.otherPawn.Dead && r.otherPawn.Spawned && r.otherPawn.Map == p.Map)
                 .Select(r => r.otherPawn).Distinct().OrderBy(o => o.thingIDNumber).ToList();
-            Require(partners.Count, 256);
             row.PartnerIds.AddRange(partners.Select(o => Id(o.GetUniqueLoadID())));
             row.BedSharingAllowed = partners.Count == 0 ? IdeoUtility.DoerWillingToDo(HistoryEventDefOf.SharedBed, p) : partners.All(o => BedUtility.WillingToShareBed(p, o));
             if (!ModsConfig.RoyaltyActive) return;
@@ -607,7 +582,6 @@ namespace HomeBridge.BridgeTools
         private static void Read(string field, Obs.UpkeepFacts result, Action read)
         {
             try { read(); }
-            catch (ReadLimit) { result.Issues.Add(Issue(field, Common.UnavailableReason.LimitExceeded, "Complete upkeep census exceeds 256 rows.")); }
             catch (Exception) { result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete native upkeep section is unavailable.")); }
         }
     }

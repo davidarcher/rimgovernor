@@ -97,8 +97,8 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true } });
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                    Context = context.Clone(), Accepted = true } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Claim preview failed: " + error.GetType().Name) }; }
         }
@@ -130,12 +130,12 @@ namespace HomeBridge.BridgeTools
                     if (snapshot == null || !PlayerOwned(building)) throw new InvalidOperationException("Native claim requires readback.");
                     evidence = Evidence(command, snapshot.Token, true);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Claim admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted claim requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted claim requires observation: " + error.GetType().Name) };
             }
         }
 

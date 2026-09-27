@@ -37,8 +37,8 @@ not harvestable instances. Acquisition retains ownership of plant instances.
 Fishing is absent without Odyssey. With Odyssey, each fish-bearing water body
 has one row for its visible passable water cells, body-wide population/capacity,
 whether any such cell belongs to a fishing zone, and reachability from the colony
-anchor. The section also reports Fishing research. Each collection is bounded
-by the requested page limit, at most 256; no per-cell fishing payload is emitted.
+anchor. The section also reports Fishing research. Every collection is
+complete; no per-cell fishing payload is emitted.
 `tools/foodchannels` checks lab berry-bush forage and a cow's milk fullness.
 
 ## Deep resources and mineral scanners
@@ -47,8 +47,8 @@ by the requested page limit, at most 256; no per-cell fishing payload is emitted
 aggregated into eight-connected lumps of the same definition. Each row reports
 total remaining units, cell count and the member nearest its centroid (ties x,z).
 Depleted cells disappear; touching discoveries of the same definition merge.
-The census is capped at 256 lumps and 256 built player scanners plus drills total.
-Oversize or failed reads return section-unavailable, never partial known-empty facts.
+The census returns every lump, scanner and drill.
+Failed reads return section-unavailable, never partial known-empty facts.
 
 Drill rows (`DeepDrillState`) cover every spawned colonist deep drill: powered
 state, the native next deposit under the drill (`resource`, `remaining`, absent
@@ -80,22 +80,16 @@ a depleted drill through Hands.
   path. Omitted unrequested detail is not an empty observed section. Known-empty
   collections have explicit complete metadata and zero counts. The helper section
   oneofs preserve whole-section failure independently of sibling facts.
-- Page limit defaults to 256 and must be 1..256. Each nested non-cell repeated
-  collection is bounded to 256; geometry across the reply is at most 4096 cells.
-  A larger exact entity/geometry returns LIMIT_EXCEEDED, or is exposed through a
-  dedicated stable page before it can be considered complete. No sampled geometry,
+- There is no paging. Every list, nested collection and geometry is returned
+  complete; reads carry no count caps. No sampled geometry,
   stock count, candidate, or diagnostic target can claim completeness.
-- A whole serialized reply has no size cap; a bounded collection that overflows returns explicit unavailable,
-  never success containing silently removed fields. Text follows common bounds.
+- A whole serialized reply has no size cap and never silently removes fields. Text follows common bounds.
   Stock/count quantities are nonnegative; trade transfer/minimum/maximum counts
   are signed (negative sells). Ratios and all measurements are finite. Units are named
   on facts; a percentage/fraction conversion is an adapter responsibility.
 - Completeness is scoped to the exact query. `matched`, `returned`, `filtered`, and
   `unreadable` have distinct meanings. `complete=true` requires every matched row,
-  no unreadable required facts, and no next cursor. Multi-page results bind the
-  query and context to an opaque snapshot token; stale cursors are rejected.
-  For multi-collection snapshots the cursor must cover the complete combined
-  snapshot, not independently advancing nested collections without a common scope.
+  and no unreadable required facts.
 - `SnapshotRef` binds context, exact entity ID, and an opaque token for settings
   CAS. Tokens never mean permission or completed effects. Bill-stack tokens bind
   the bench and ordered stack, not only a bill index; trade tokens bind the session
@@ -129,7 +123,7 @@ Sources in this table are under
 | ResearchTool.cs / research without set | ReadResearch; ResearchSnapshot, ResearchProject, Researcher, ResearchSlot | research_control, research_intent, development |
 | ColonyFactsTool.cs / colony_facts | ReadColonyFacts; concrete composition described below | colony_controller, food_forecast, colony_upkeep, development |
 | SpatialAccessTool.cs / spatial_access; NativeSpatialAccessTool.cs / observations_read_spatial_access | ReadSpatialAccess; PawnAccess and AccessTarget (proto port registered for the defense layout access audit) | spatial, spatial_site, construction_preflight, defense layout (B06c) |
-| NativeDefenseObservationTools.cs / observations_read_defense_site | ReadDefenseSite; DefenseCell cover fill, the cover thing's clearance identity/kind/token, sight blocking, natural rock, door, home area and native map-edge reachability over at most 2048 cells; snapshot cover_threshold and RaidTrack rows from RaidArrivalState (session-scoped hostile lord spawns and trails) | defense layout (B06c), raider cover clearance (#581) |
+| NativeDefenseObservationTools.cs / observations_read_defense_site | ReadDefenseSite; DefenseCell cover fill, the cover thing's clearance identity/kind/token, sight blocking, natural rock, door, home area and native map-edge reachability over the requested region (sides at most 1000); snapshot cover_threshold and RaidTrack rows from RaidArrivalState (session-scoped hostile lord spawns and trails) | defense layout (B06c), raider cover clearance (#581) |
 | NativeDefenseObservationTools.cs / observations_read_lines_of_fire | ReadLinesOfFire; native GenSight line of sight and CoverUtility block chance per (firing, approach) pair, at most 64×64 | defense layout, defensive positioning (B06c) |
 | RoofSupportTool.cs / roof_support | ReadRoofSupport; exact target, RoofSupportCell | wall/room upkeep and roof safety |
 | ExcavationTool.cs / read_excavation_site | ReadExcavationSite; ExcavationCell per requested cell (fogged = unknown), site-level ExcavationSupport after counterfactual removal, worker/access evidence | staged room/corridor excavation (B06f) |
@@ -223,7 +217,7 @@ their own narrow typed receipts, without an import cycle.
   `environment` section issue withholds the census; row counts are bounded and
   a lit cell count never exceeds the room's cells.
 - The current colony upkeep projection includes independent complete visible item,
-  structure, fire and filth censuses, each bounded to 256 rows. A section issue
+  structure, fire and filth censuses, each returning every row. A section issue
   requires no rows and prevents recovery; missing required row fields remain
   unknown. Item deterioration uses the native base rate, so covered items still
   need valid storage. Home flags limit fire, repair and cleaning needs. Native
@@ -268,11 +262,7 @@ not permission to substitute generic payloads:
    unavailable until its adapter is verified. Hediff identity is scoped to a health
    snapshot plus definition and body-part index; no stable ID is invented. Duplicate
    indistinguishable conditions remain ambiguous and cannot authorize an exact write.
-3. Cursors bind a frozen snapshot, context, query and collection. A collection may
-   span pages of at most 256 rows; snapshots may not be mixed. Expired/capacity-limited
-   collections are explicitly unavailable. No continuation reads changed live data.
-   Storage/TTL tuning belongs to native implementation. Oversized single-entity
-   geometry must be unavailable or fetched completely through bounded exact pages.
+3. Observation lists are complete in one reply; there are no cursors or pages.
 4. Reads must not mutate game or bookkeeping state. Move identity/progress
    initialization and hook setup to lifecycle; move haul/wall completion updates
    into native event hooks before implementing these readers.
@@ -342,7 +332,7 @@ New producer obligations are explicit:
   power/spare power and work types. ResourceAcquisitionTool.cs:83-89 and
   MiningState.cs supply pending/current drill IDs, recovered units, target,
   missing/depleted state. ExtractionDevelopment now carries these concrete facts;
-  existing native eight-site/40-deposit caps need explicit paging.
+  the reads return every site and deposit.
 - WallUpgradeTool.cs:232-262 provides wall anchor/normal/left/right supports and
   backup cells, plus allowed replacement material costs. Site snapshots must also
   expose original/support/backups/replacement BuildingState (old/new stuff and

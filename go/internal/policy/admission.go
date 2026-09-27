@@ -153,7 +153,7 @@ func NewInput(r Request) (Input, error) {
 	if r.CurrentTick < 0 {
 		return Input{}, errors.New("negative current tick")
 	}
-	if len(r.Candidates) > 256 || len(r.Held) > 256 || len(r.Stock.Values) > 256 {
+	if len(r.Candidates) > 256 || len(r.Held) > 256 {
 		return Input{}, errors.New("admission collection exceeds 256 rows")
 	}
 	if b, known := r.Bounds.Value(); known && (b.Width <= 0 || b.Height <= 0) {

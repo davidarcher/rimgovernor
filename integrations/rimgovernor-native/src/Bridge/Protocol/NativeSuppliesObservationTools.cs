@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeSuppliesObservationTools
     {
         private const string ToolName = "rimgovernor/observations_list_supplies";
-        [Tool(ToolName, Title = "Read typed supply census", Description = "Complete bounded stock by exact native definition. Defaults haulable/ours/includeHeld. Units retain all ownership buckets; ours selects definitions with usable units. Excludes worn gear, orbital stock and delivered construction resources.")]
+        [Tool(ToolName, Title = "Read typed supply census", Description = "Complete stock by exact native definition. Defaults haulable/ours/includeHeld. Units retain all ownership buckets; ours selects definitions with usable units. Excludes worn gear, orbital stock and delivered construction resources.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListSuppliesReply. No sampled item/holder/corpse collections or invented CAS snapshots.", Always = true)]
         public async Task<object> ListSupplies(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListSuppliesRequest string in raw transport value.")] object? request = null)
@@ -39,25 +39,8 @@ namespace HomeBridge.BridgeTools
                     var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
                     var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                     var selected = groups.Where(g => Ownership(filter) == "all" || g.Any(e => e.Ours)).ToList();
-                    var seed = QuerySeed(filter);
-                    var afterCursor = selected;
-                    string? lastKey = null;
-                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
-                    {
-                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                            return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Supplies cursor is stale or does not match this query.") });
-                        afterCursor = selected.Where(g => string.CompareOrdinal(g.Key, after) > 0).ToList();
-                    }
-                    var limit = Limit(parsed);
-                    var page = afterCursor.Take(limit).ToList();
-                    Require(page.Count <= 256, "Matched definition collection exceeds the maximum page row bound.");
-                    var truncated = afterCursor.Count > page.Count;
-                    if (page.Count > 0) lastKey = page[page.Count - 1].Key;
-                    var completeness = Complete(page.Count, groups.Count - selected.Count);
-                    completeness.Page.Complete = !truncated;
-                    if (truncated) completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, lastKey!);
-                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = completeness };
-                    foreach (var group in page)
+                    var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count, groups.Count - selected.Count) };
+                    foreach (var group in selected)
                     {
                         var entriesForDefinition = group.ToList();
                         var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
@@ -72,19 +55,16 @@ namespace HomeBridge.BridgeTools
                             row.Issues.Remove(row.Issues.Single(issue => issue.Field == "items.snapshot"));
                         snapshot.Stocks.Add(row);
                     }
-                    return Encode(new Obs.ListSuppliesReply { Observed = snapshot });
+                    return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Observed = snapshot });
                 }
-                catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Stock or holder facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
         internal static bool Validate(Obs.ListSuppliesRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, supported exact stock filters and page limit1..256 are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, supported exact stock filters are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (request.Page != null && (request.Page.HasLimit && (request.Page.Limit < 1 || request.Page.Limit > 256)
-                || request.Page.HasCursor && request.Page.Cursor.Length > 4096)) return false;
             var filter = request.Filter;
             if (filter == null) return true;
             if (filter.DefNames.Count > 256 || filter.DefNames.Any(d => !ProtoBoundary.IsIdentifier(d))
@@ -119,7 +99,6 @@ namespace HomeBridge.BridgeTools
             private readonly HashSet<Thing> things = new HashSet<Thing>();
             private readonly HashSet<IThingHolder> holders = new HashSet<IThingHolder>();
             private readonly HashSet<ThingOwner> owners = new HashSet<ThingOwner>();
-            private int visited;
             internal Census(Map map, Faction player, Obs.StockFilter filter) { this.map = map; this.player = player; this.filter = filter; }
             internal List<StockEntry> Read()
             {
@@ -135,7 +114,6 @@ namespace HomeBridge.BridgeTools
             }
             private void Add(Thing thing, Holder? holder, IntVec3 position)
             {
-                Require(++visited <= 65536, "Stock traversal exceeds 65536 things/holders.");
                 if (thing == null || thing.Destroyed || thing.def == null || !things.Add(thing)) throw new InvalidOperationException("Invalid or duplicate native stock thing.");
                 if (!MatchesCategory(thing.def, Category(filter), holder != null)) return;
                 if (filter.Corpses && !(thing is Corpse)) return;
@@ -158,7 +136,7 @@ namespace HomeBridge.BridgeTools
             }
             private void Walk(IThingHolder holder, Thing root, Holder? inherited, int depth)
             {
-                Require(depth <= 16 && ++visited <= 65536, "Stock holder traversal exceeds bounded depth or count.");
+                if (depth > 16) throw new InvalidOperationException("Stock holder nesting exceeds 16 levels.");
                 if (!holders.Add(holder)) return;
                 if (holder is Frame || holder is Blueprint) return; // Delivered construction material is spent stock.
                 if (holder is Pawn pawn)
@@ -212,14 +190,6 @@ namespace HomeBridge.BridgeTools
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
 
-        // ItemBound caps the per-definition item, holder and corpse collections a
-        // stock row lists. The counts (units, ours_unforbidden, ...) always cover
-        // every entry: a map strewn with several hundred stone chunks still
-        // answers a MaintainResource census (#231); only the listed entities are
-        // a prefix, and items_completeness says so (page.complete=false,
-        // matched=total, returned=listed) for the readers that need each one.
-        internal const int ItemBound = 256;
-
         internal static Obs.ResourceStock Project(List<StockEntry> entries, HashSet<Thing> reserved, bool includeHeld)
         {
             var first = entries[0].Thing.def;
@@ -250,7 +220,6 @@ namespace HomeBridge.BridgeTools
                     if (entry.InStockpile) row.InStockpile += units;
                     if (entry.Ours && reserved.Contains(entry.Thing)) row.Reserved += units;
                 }
-                if (row.Items.Count >= ItemBound) continue;
                 row.Items.Add(Entity(entry.Thing, entry.Position));
                 if (entry.Thing.def.IsWeapon) {
                     var weapon = new Obs.GearItem { Thing = Entity(entry.Thing, entry.Position) };
@@ -269,23 +238,12 @@ namespace HomeBridge.BridgeTools
                     row.Corpses.Add(detail);
                 }
             }
-            var listed = row.Items.Count == entries.Count;
             row.ItemsCompleteness = Complete(row.Items.Count);
-            row.ItemsCompleteness.Matched = (ulong)entries.Count;
-            row.ItemsCompleteness.Page.Complete = listed;
             row.HoldersCompleteness = includeHeld ? Complete(row.Holders.Count) : new Obs.Completeness { Page = new Common.PageInfo { Complete = false } };
-            if (includeHeld) row.HoldersCompleteness.Page.Complete = listed;
             row.CorpsesCompleteness = Complete(row.Corpses.Count);
-            row.CorpsesCompleteness.Page.Complete = listed;
             row.Issues.Add(Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow."));
             return row;
         }
-
-        // Cursor is scoped to this exact query shape; a saved page cannot silently resume under a changed filter.
-        private static string QuerySeed(Obs.StockFilter filter) => string.Join("",
-            Category(filter), Ownership(filter), IncludeHeld(filter), filter.ForbiddenOnly, filter.ExcludeChunks, filter.Corpses,
-            string.Join(",", filter.DefNames.OrderBy(d => d, StringComparer.Ordinal)),
-            filter.Region == null ? "" : filter.Region.Minimum.X + "," + filter.Region.Minimum.Z + "-" + filter.Region.Maximum.X + "," + filter.Region.Maximum.Z);
 
         // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token
         // over the same identity-bearing fields the row already exposes (holder + kind + position).
@@ -303,18 +261,11 @@ namespace HomeBridge.BridgeTools
         private static string Category(Obs.StockFilter filter) => filter.HasCategory ? filter.Category : "haulable";
         private static string Ownership(Obs.StockFilter filter) => filter.HasOwnership ? filter.Ownership : "ours";
         private static bool IncludeHeld(Obs.StockFilter filter) => !filter.HasIncludeHeld || filter.IncludeHeld;
-        private static int Limit(Obs.ListSuppliesRequest request) => request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
         private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
         private static Obs.Completeness Complete(int count, int filtered = 0) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
-        internal static object Encode(Obs.ListSuppliesReply reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private static void Require(bool condition, string message) { if (!condition) throw new ReadLimit(message); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

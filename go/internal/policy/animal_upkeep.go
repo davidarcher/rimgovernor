@@ -116,7 +116,7 @@ type AnimalUpkeepReview struct {
 func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory, p AnimalUpkeepPolicy) (AnimalUpkeepReview, error) {
 	r := AnimalUpkeepReview{History: AnimalUpkeepHistory{Containment: previous.Containment, Feed: append([]PawnID{}, previous.Feed...)}}
 	invalid := errors.New("invalid animal upkeep facts or history")
-	if !foodNumber(p.FeedMinimumDays) || !foodNumber(p.FeedTargetDays) || p.FeedTargetDays <= p.FeedMinimumDays || len(v.DirectedHerds) > 256 {
+	if !foodNumber(p.FeedMinimumDays) || !foodNumber(p.FeedTargetDays) || p.FeedTargetDays <= p.FeedMinimumDays {
 		return r, invalid
 	}
 	if err := previous.Validate(); err != nil {
@@ -137,9 +137,6 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	if !known {
 		return r, nil
 	}
-	if len(animals) > 256 {
-		return r, invalid
-	}
 	seen := map[PawnID]bool{}
 	containment := []PawnID{}
 	eligible := []PawnID{}
@@ -149,7 +146,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	candidates := map[PawnID][]domain.Cell{}
 	containmentKnown, feedKnown := true, true
 	for _, animal := range animals {
-		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || len(animal.ReachableBenches) > 256 || !validAnimalFeedStorage(animal.ReachableStorage, animal.StorageCandidates) {
+		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || !validAnimalFeedStorage(animal.ReachableStorage, animal.StorageCandidates) {
 			return r, invalid
 		}
 		for _, bench := range animal.ReachableBenches {
@@ -292,9 +289,6 @@ const maxAnimalContainmentHerd = 8
 // an attempted marker without a fresh observation. Native pen eligibility,
 // footprint legality and construction admission remain the building family's.
 func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable domain.Fact[bool], shell AnimalContainmentShellStage, markerAttempted bool) (AnimalContainmentMethod, error) {
-	if len(animals) > 256 {
-		return AnimalContainmentMethod{}, errors.New("animal containment census exceeds bound")
-	}
 	seen := map[PawnID]bool{}
 	var rows []UpkeepAnimal
 	allSuitable := true

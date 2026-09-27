@@ -54,7 +54,6 @@ func (client *Client) ReadWorld(ctx context.Context, identity *c.Identity, tile 
 	identity = proto.Clone(identity).(*c.Identity)
 	request := &o.WorldRequest{
 		Scope: &o.ReadScope{ExpectedIdentity: identity}, Tile: proto.Int32(tile), SettlementRadius: proto.Float64(settlementRadius),
-		Page: &c.PageRequest{Limit: proto.Uint32(256)},
 	}
 	reply := &o.WorldReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_world", request, reply)
@@ -88,11 +87,8 @@ func worldSelected(v *o.WorldSnapshot, identity *c.Identity) (WorldRead, error) 
 		return WorldRead{}, contract("world identity mismatch")
 	}
 	counts := v.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return WorldRead{}, contract("incomplete world page")
-	}
-	if len(v.Settlements) > 256 {
-		return WorldRead{}, contract("world settlements exceed bound")
 	}
 	seen := map[string]bool{}
 	rows := make([]SettlementFact, len(v.Settlements))

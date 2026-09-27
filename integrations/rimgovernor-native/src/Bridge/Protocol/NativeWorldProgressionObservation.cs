@@ -254,10 +254,8 @@ namespace HomeBridge.BridgeTools
 
         private static bool Validate(Obs.WorldProgressionRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and page1..256 are required.");
-            return request?.Scope?.ExpectedIdentity != null
-                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
-                    && (!request.Page.HasCursor || request.Page.Cursor.Length == 0));
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity are required.");
+            return request?.Scope?.ExpectedIdentity != null;
         }
     }
 }

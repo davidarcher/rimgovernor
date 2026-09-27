@@ -32,7 +32,7 @@ func (client *Client) ReadFilthTarget(ctx context.Context, identity *c.Identity,
 		return FilthTarget{}, Result{}, contract("invalid filth target identity")
 	}
 	point := &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}
-	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{point}}}, Fields: filthFields(), Page: &c.PageRequest{Limit: proto.Uint32(1)}}
+	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{point}}}, Fields: filthFields()}
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {
@@ -56,7 +56,7 @@ func validateFilthTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 		return FilthTarget{}, contract("invalid filth cells context")
 	}
 	completeness := snapshot.Completeness
-	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Page.GetNextCursor() != "" || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
+	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
 		return FilthTarget{}, contract("incomplete filth cells observation")
 	}
 	if !proto.Equal(snapshot.AppliedFields, filthFields()) {
@@ -66,9 +66,6 @@ func validateFilthTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 		return FilthTarget{}, contract("filth cell differs")
 	}
 	things := snapshot.Cells[0].Things
-	if len(things) > 256 {
-		return FilthTarget{}, contract("filth cell exceeds thing bound")
-	}
 	var found *o.CellThing
 	for _, thing := range things {
 		if thing == nil || thing.Thing == nil {

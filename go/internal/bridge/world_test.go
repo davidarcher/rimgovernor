@@ -85,7 +85,7 @@ func TestReadWorldAcceptsValidObservation(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if q.GetTile() != 42 || q.GetSettlementRadius() != 0 || q.Page.GetLimit() != 256 {
+		if q.GetTile() != 42 || q.GetSettlementRadius() != 0 {
 			t.Fatal(q)
 		}
 		return pbResult(&o.WorldReply{Outcome: &o.WorldReply_Observed{Observed: snapshot}}), nil

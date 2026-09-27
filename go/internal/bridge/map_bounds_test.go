@@ -35,7 +35,7 @@ func TestReadMapBoundsFixedSDKQuery(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), request); err != nil {
 			t.Fatal(err)
 		}
-		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || request.Page.GetLimit() != 1 || request.Page.Cursor != nil || !proto.Equal(request.Fields, mapBoundsFields()) || request.GetRectangle() != nil || len(request.GetExactCells().GetCells()) != 1 || !proto.Equal(request.GetExactCells().Cells[0], boundsSnapshot().Cells[0].Cell) {
+		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || !proto.Equal(request.Fields, mapBoundsFields()) || request.GetRectangle() != nil || len(request.GetExactCells().GetCells()) != 1 || !proto.Equal(request.GetExactCells().Cells[0], boundsSnapshot().Cells[0].Cell) {
 			t.Fatal("query differs", request)
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: boundsSnapshot()}}), nil
@@ -52,7 +52,7 @@ func TestMapBoundsRequiresExactCompleteKnownFacts(t *testing.T) {
 		"anchor outside": func(s *o.CellsSnapshot) { s.MapSize.Width = proto.Uint32(2) }, "stale": func(s *o.CellsSnapshot) { s.Context.Identity.LoadToken = proto.String("other") }, "missing context": func(s *o.CellsSnapshot) { s.Context = nil },
 		"cell omitted": func(s *o.CellsSnapshot) { s.Cells = nil }, "wrong cell": func(s *o.CellsSnapshot) { s.Cells[0].Cell.X = proto.Int32(4) }, "missing coordinate": func(s *o.CellsSnapshot) { s.Cells[0].Cell.Z = nil }, "duplicate row": func(s *o.CellsSnapshot) { s.Cells = append(s.Cells, s.Cells[0]) }, "unrequested fact": func(s *o.CellsSnapshot) { s.Cells[0].Fogged = proto.Bool(false) },
 		"missing applied": func(s *o.CellsSnapshot) { s.AppliedFields = nil }, "unspecified applied": func(s *o.CellsSnapshot) { s.AppliedFields.Roof = nil }, "different applied": func(s *o.CellsSnapshot) { s.AppliedFields.Roof = proto.Bool(true) },
-		"incomplete": func(s *o.CellsSnapshot) { s.Completeness.Page.Complete = proto.Bool(false) }, "unknown complete": func(s *o.CellsSnapshot) { s.Completeness.Page.Complete = nil }, "unreadable": func(s *o.CellsSnapshot) { s.Completeness.Unreadable = proto.Uint64(1) }, "filtered": func(s *o.CellsSnapshot) { s.Completeness.Filtered = proto.Uint64(1) }, "wrong count": func(s *o.CellsSnapshot) { s.Completeness.Matched = proto.Uint64(2) }, "unknown count": func(s *o.CellsSnapshot) { s.Completeness.Returned = nil }, "cursor": func(s *o.CellsSnapshot) { s.Completeness.Page.NextCursor = proto.String("next") },
+		"incomplete": func(s *o.CellsSnapshot) { s.Completeness.Page.Complete = proto.Bool(false) }, "unknown complete": func(s *o.CellsSnapshot) { s.Completeness.Page.Complete = nil }, "unreadable": func(s *o.CellsSnapshot) { s.Completeness.Unreadable = proto.Uint64(1) }, "filtered": func(s *o.CellsSnapshot) { s.Completeness.Filtered = proto.Uint64(1) }, "wrong count": func(s *o.CellsSnapshot) { s.Completeness.Matched = proto.Uint64(2) }, "unknown count": func(s *o.CellsSnapshot) { s.Completeness.Returned = nil },
 		"region": func(s *o.CellsSnapshot) {
 			s.Region = &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(0)}, Maximum: &c.Cell{X: proto.Int32(19), Z: proto.Int32(29)}}
 		},

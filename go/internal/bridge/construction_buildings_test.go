@@ -33,7 +33,7 @@ func TestConstructionBuildingsExactQueryAndPartialMissingResult(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		want := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Ids: []string{"wall", "missing"}, Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(2)}}
+		want := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Ids: []string{"wall", "missing"}, Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial")}
 		if !proto.Equal(q, want) {
 			t.Fatal(q)
 		}
@@ -66,7 +66,6 @@ func TestConstructionBuildingsRejectMalformedEvidence(t *testing.T) {
 		"stuff":      func(v *o.BuildingsSnapshot) { v.Buildings[0].Stuff = proto.String("") },
 		"unreadable": func(v *o.BuildingsSnapshot) { v.Completeness.Unreadable = proto.Uint64(1) },
 		"page":       func(v *o.BuildingsSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
-		"cursor":     func(v *o.BuildingsSnapshot) { v.Completeness.Page.NextCursor = proto.String("next") },
 		"count":      func(v *o.BuildingsSnapshot) { v.Completeness.Matched = proto.Uint64(2) },
 	}
 	for name, change := range changes {
@@ -104,7 +103,7 @@ func TestConstructionBuildingsColonyQueryFiltersPlayerBuilt(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if len(q.Ids) != 0 || !q.GetPlayerOnly() || q.GetCategory() != "artificial" || len(q.Statuses) != 1 || q.Statuses[0] != "built" || q.Page.GetLimit() != 256 {
+		if len(q.Ids) != 0 || !q.GetPlayerOnly() || q.GetCategory() != "artificial" || len(q.Statuses) != 1 || q.Statuses[0] != "built" {
 			t.Fatal(q)
 		}
 		return pbResult(&o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: constructionTestSnapshot()}}), nil

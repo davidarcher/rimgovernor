@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
             var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
-                Colonists = true, Threats = true, ColonistDetail = false, Page = new Common.PageRequest { Limit = 256 } };
+                Colonists = true, Threats = true, ColonistDetail = false };
             var statusBegan = Now();
             var statusRead = NativeObservationTools.TryStatus(map, status, context, out var emergency, out _);
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
@@ -107,7 +107,6 @@ namespace HomeBridge.BridgeTools
                 Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
                 Filter = new Obs.PawnFilter { IncludeDead = true },
                 Details = new Obs.PawnDetails { Needs = false, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true },
-                Page = new Common.PageRequest { Limit = (uint)ids.Count },
             };
             pawns.Filter.Ids.AddRange(ids);
             if (!NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) return;
@@ -150,7 +149,7 @@ namespace HomeBridge.BridgeTools
             if (request.HasColonyFacts && request.ColonyFacts)
             {
                 var began = Now();
-                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true, Page = new Common.PageRequest { Limit = 256 } }, context, out var colony);
+                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony);
                 ObservationWork.Captured("colonyFacts", Now() - began, read ? colony!.Resources.Count : 0);
                 if (read) { observed.ColonyFacts = colony; }
             }
@@ -164,7 +163,7 @@ namespace HomeBridge.BridgeTools
             if (request.HasResearch && request.Research)
             {
                 var began = Now();
-                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } }, context, out var research);
+                var read = NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true }, context, out var research);
                 ObservationWork.Captured("research", Now() - began, read ? research!.Projects.Count : 0);
                 if (read) { observed.Research = research; }
             }
@@ -175,7 +174,6 @@ namespace HomeBridge.BridgeTools
                     Scope = Scope(),
                     Filter = new Obs.PawnFilter { IncludeDead = true },
                     Details = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true },
-                    Page = new Common.PageRequest { Limit = (uint)observed.Emergency.Colonists.Pawns.Count },
                 };
                 foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);
                 var began = Now();
@@ -196,13 +194,13 @@ namespace HomeBridge.BridgeTools
             if (request.HasBuildings && request.Buildings)
             {
                 var began = Now();
-                var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial", Page = new Common.PageRequest { Limit = 256 } }, context).Observed;
+                var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" }, context).Observed;
                 ObservationWork.Captured("buildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
                 if (buildings != null) { observed.Buildings = buildings; }
             }
             if (request.HasBuiltBuildings && request.BuiltBuildings)
             {
-                var built = new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial", Page = new Common.PageRequest { Limit = 256 } };
+                var built = new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial" };
                 built.Statuses.Add("built");
                 var began = Now();
                 var buildings = NativeBuildingObservationTools.Read(map, built, context).Observed;
@@ -212,14 +210,14 @@ namespace HomeBridge.BridgeTools
             if (request.HasBills && request.Bills)
             {
                 var began = Now();
-                var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope(), Page = new Common.PageRequest { Limit = 256 } }, context).Observed;
+                var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context).Observed;
                 ObservationWork.Captured("bills", Now() - began, bills != null ? bills.Benches.Count : 0);
                 if (bills != null) { observed.Bills = bills; }
             }
             if (request.HasZones && request.Zones)
             {
                 var began = Now();
-                var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope(), Page = new Common.PageRequest { Limit = 16 } }, context).Observed;
+                var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context).Observed;
                 ObservationWork.Captured("zones", Now() - began, zones != null ? zones.Zones.Count : 0);
                 if (zones != null) { observed.Zones = zones; }
             }
@@ -248,11 +246,10 @@ namespace HomeBridge.BridgeTools
             {
                 var width = (long)window.Region.Maximum.X - window.Region.Minimum.X + 1;
                 var height = (long)window.Region.Maximum.Z - window.Region.Minimum.Z + 1;
-                if (width >= 1 && height >= 1 && width * height <= 65536)
+                if (width >= 1 && height >= 1)
                 {
                     var cells = new Obs.GetCellsRequest { Scope = Scope(), Rectangle = window.Region.Clone(), Compact = true,
-                        Fields = new Obs.CellFields { Terrain = false, Roof = true, Visibility = true, Traversal = true, Zone = true, Areas = false, Things = false, Designations = false, Room = true, Growth = true },
-                        Page = new Common.PageRequest { Limit = (uint)(width * height) } };
+                        Fields = new Obs.CellFields { Terrain = false, Roof = true, Visibility = true, Traversal = true, Zone = true, Areas = false, Things = false, Designations = false, Room = true, Growth = true } };
                     if (NativeObservationTools.ValidateCells(cells, out _))
                     {
                         var began = Now();

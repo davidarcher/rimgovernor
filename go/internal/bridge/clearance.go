@@ -9,8 +9,6 @@ import (
 )
 
 const clearanceTool = "rimgovernor/observations_get_clearance_targets"
-const clearanceLimit = 256
-const clearanceDumpLimit = 64
 
 // ReadClearanceTargets is read-only and requires no authority. An unsupported
 // native stub returns ErrUnavailable, never a successful empty census.
@@ -49,9 +47,6 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 	if v == nil || buildingUnknown(v) != nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return contract("invalid clearance context")
 	}
-	if len(v.Chunks) > clearanceLimit || len(v.DumpSites) > clearanceDumpLimit {
-		return contract("clearance chunk census exceeds bound")
-	}
 	chunks := map[string]bool{}
 	for _, row := range v.Chunks {
 		if row == nil || validID(row.GetEntityId()) != nil || validID(row.GetDefName()) != nil || chunks[row.GetEntityId()] || row.Cell == nil || row.Cell.X == nil || row.Cell.Z == nil || row.Cell.GetX() < 0 || row.Cell.GetZ() < 0 || row.Forbidden == nil || row.Stored == nil || row.Destination == nil || (row.GetStored() && row.GetDestination()) {
@@ -68,7 +63,7 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 	}
 	n := uint64(len(v.Targets))
 	p := v.Completeness
-	if n > 4096 || p == nil || p.Page == nil || !p.Page.GetComplete() || p.Page.GetNextCursor() != "" || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
+	if p == nil || p.Page == nil || !p.Page.GetComplete() || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
 		return contract("incomplete clearance census")
 	}
 	seen := map[string]bool{}
@@ -79,7 +74,7 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 		seen[row.GetEntityId()] = true
 		if s := row.Salvage; s != nil {
 			finite := func(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) && n >= 0 && n <= 1e12 }
-			if !finite(s.PathLength) || !finite(s.Labor) || len(s.Yields) > 256 {
+			if !finite(s.PathLength) || !finite(s.Labor) {
 				return contract("invalid salvage costs")
 			}
 			yields := map[string]bool{}
@@ -100,7 +95,7 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 			return contract("unknown clearance class")
 		}
 		rect := row.Occupied
-		if rect == nil || rect.Minimum == nil || rect.Maximum == nil || rect.Minimum.X == nil || rect.Minimum.Z == nil || rect.Maximum.X == nil || rect.Maximum.Z == nil || rect.Minimum.GetX() < 0 || rect.Minimum.GetZ() < 0 || rect.Maximum.GetX() < rect.Minimum.GetX() || rect.Maximum.GetZ() < rect.Minimum.GetZ() || int64(rect.Maximum.GetX())-int64(rect.Minimum.GetX()) >= 4096 || int64(rect.Maximum.GetZ())-int64(rect.Minimum.GetZ()) >= 4096 || (int64(rect.Maximum.GetX())-int64(rect.Minimum.GetX())+1)*(int64(rect.Maximum.GetZ())-int64(rect.Minimum.GetZ())+1) > 4096 {
+		if rect == nil || rect.Minimum == nil || rect.Maximum == nil || rect.Minimum.X == nil || rect.Minimum.Z == nil || rect.Maximum.X == nil || rect.Maximum.Z == nil || rect.Minimum.GetX() < 0 || rect.Minimum.GetZ() < 0 || rect.Maximum.GetX() < rect.Minimum.GetX() || rect.Maximum.GetZ() < rect.Minimum.GetZ() || int64(rect.Maximum.GetX())-int64(rect.Minimum.GetX()) >= 4096 || int64(rect.Maximum.GetZ())-int64(rect.Minimum.GetZ()) >= 4096 {
 			return contract("invalid clearance occupied rectangle")
 		}
 	}

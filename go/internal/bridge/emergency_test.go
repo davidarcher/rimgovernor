@@ -39,7 +39,7 @@ func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 			t.Fatal(e)
 		}
 		q := &o.StatusRequest{}
-		if e := protojson.Unmarshal([]byte(outer.Request), q); e != nil || q.Colonists == nil || !q.GetColonists() || q.Threats == nil || !q.GetThreats() || q.ColonistDetail == nil || q.GetColonistDetail() || q.PredatorRadius != nil || q.Page.GetLimit() != 256 || !proto.Equal(q.Scope.ExpectedIdentity, pbIdentity()) {
+		if e := protojson.Unmarshal([]byte(outer.Request), q); e != nil || q.Colonists == nil || !q.GetColonists() || q.Threats == nil || !q.GetThreats() || q.ColonistDetail == nil || q.GetColonistDetail() || q.PredatorRadius != nil || !proto.Equal(q.Scope.ExpectedIdentity, pbIdentity()) {
 			t.Fatal(q, e)
 		}
 		return pbResult(&o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: original}}), nil

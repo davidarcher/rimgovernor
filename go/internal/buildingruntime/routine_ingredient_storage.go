@@ -133,9 +133,6 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
-	if len(census) > 256 {
-		return RoutineIngredientStorageResult{}, ErrControl
-	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
 		benches = append(benches, row.Bench)

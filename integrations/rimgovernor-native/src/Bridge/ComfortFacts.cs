@@ -68,15 +68,12 @@ namespace HomeBridge.BridgeTools
             var play = buildings.Where(b => b.def.building.joyKind != null && !b.IsBurning()
                 && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)).ToList();
             var surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).ToList();
-            if (people.Count > 256 || seats.Count > 256 || play.Count > 256 || surfaces.Count > 256)
-                throw new InvalidOperationException("Comfort census exceeds its complete-read bound.");
             var result = new Obs.ComfortFacts { Completeness = Complete(people.Count) };
             result.People.Add(people.Select(p => Id(p.GetUniqueLoadID())));
             foreach (var b in surfaces) {
                 var adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()
                     .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
                     .OrderBy(c => c.z).ThenBy(c => c.x).ToList();
-                if (adjacent.Count > 4096) throw new InvalidOperationException("Dining adjacency exceeds bound.");
                 var row = new Obs.ComfortSurface { Id = Id(b.GetUniqueLoadID()) };
                 if (HostRoom(b) is string surfaceRoom) row.RoomId = surfaceRoom;
                 row.Adjacent.Add(adjacent.Select(Cell)); result.Surfaces.Add(row);
@@ -91,8 +88,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var b in play) {
                 var watchCells = UsesWatchCells(b.def)
-                    ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).Take(4097).ToList() : null;
-                if (watchCells?.Count > 4096) throw new InvalidOperationException("Recreation watch geometry exceeds bound.");
+                    ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).ToList() : null;
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
                 if (HostRoom(b) is string playRoom) row.RoomId = playRoom;
                 row.AccessibleTo.Add(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
@@ -108,15 +104,13 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // Keep the optional matrix small. No truncated matrix may masquerade as complete.
-        // Captured unbounded; BoundJoy applies the size bound on the encoder.
+        // The whole joy tolerance matrix; an unreadable tolerance drops it rather than cut it.
         private static Obs.RecreationCensus? ReadJoy(System.Collections.Generic.List<Pawn> people,
             System.Collections.Generic.List<Building> play)
         {
             var kinds = play.Select(b => b.def.building.joyKind).Distinct()
                 .OrderBy(k => k.defName, StringComparer.Ordinal).ToList();
             var pawns = people.Where(p => p.needs?.joy != null).ToList();
-            if (kinds.Count > 16 || pawns.Count * kinds.Count > 2048) return null;
             var result = new Obs.RecreationCensus();
             result.Kinds.Add(kinds.Select(k => Id(k.defName)));
             foreach (var p in pawns) {
@@ -137,16 +131,6 @@ namespace HomeBridge.BridgeTools
                     PowerW = Math.Max(0, def.GetCompProperties<CompProperties_Power>()?.PowerConsumption ?? 0) });
             }
             return result;
-        }
-
-        // The 64 KiB joy bound, applied off the game thread by the encoder
-        // (#683) since it formats: an oversized matrix is dropped, never cut.
-        internal static void BoundJoy(Obs.ComfortFacts? facts)
-        {
-            if (facts?.Joy == null) return;
-            try { if (Encoding.UTF8.GetByteCount(ProtoBoundary.Format(facts.Joy, compact: true)) <= 64 * 1024) return; }
-            catch (Exception) { }
-            facts.Joy = null;
         }
     }
 }

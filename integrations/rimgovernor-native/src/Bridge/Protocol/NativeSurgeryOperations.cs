@@ -226,13 +226,13 @@ namespace HomeBridge.BridgeTools
                     state.Surgeries.Add(pre.Attempt.Clone(), record);
                     evidence = record.Evidence(health, true);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Surgery validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted surgery requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted surgery requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -249,7 +249,7 @@ namespace HomeBridge.BridgeTools
                 if (!Prepare(command, context, requireExpected, out _, out var pawn, out var recipe, out var part, out var health, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 var accepted = Eligible(pawn!, recipe!, part, ProtoBoundary.LoadedMap(context), out var reason);
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply
+                return new Operations.PreviewReply
                 {
                     Evaluated = new Operations.PreviewEvaluation
                     {
@@ -265,7 +265,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                     }
-                });
+                };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Surgery preview failed: " + error.GetType().Name) }; }
         }

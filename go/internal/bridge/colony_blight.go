@@ -9,9 +9,6 @@ import (
 // distinct plants on this map with a cut snapshot read under this context,
 // and no rows at all under a blighted_plants issue.
 func validateColonyBlight(v *o.ColonyFactsSnapshot) error {
-	if len(v.BlightedPlants) > 64 {
-		return contract("blighted plant census exceeds bound")
-	}
 	seen := map[string]bool{}
 	for _, row := range v.BlightedPlants {
 		plant := row.GetPlant()

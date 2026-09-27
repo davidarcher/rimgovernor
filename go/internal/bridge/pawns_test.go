@@ -36,7 +36,7 @@ func TestPawnsFixedReadPreservesUnknown(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		expected := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.PawnFilter{Ids: []string{"pawn-1", "absent"}, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(false), Equipment: proto.Bool(false), Biography: proto.Bool(false), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(2)}}
+		expected := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.PawnFilter{Ids: []string{"pawn-1", "absent"}, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(false), Equipment: proto.Bool(false), Biography: proto.Bool(false), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}}
 		if !proto.Equal(q, expected) {
 			t.Fatal(q)
 		}
@@ -77,7 +77,6 @@ func TestPawnsMalformedEvidence(t *testing.T) {
 		"partial":       func(v *o.PawnSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },
 		"count":         func(v *o.PawnSnapshot) { v.Completeness.Matched = proto.Uint64(10) },
 		"unreadable":    func(v *o.PawnSnapshot) { v.Completeness.Unreadable = proto.Uint64(1) },
-		"cursor":        func(v *o.PawnSnapshot) { v.Completeness.Page.NextCursor = proto.String("next") },
 		"unknown count": func(v *o.PawnSnapshot) { v.Completeness.Filtered = nil },
 		"map":           func(v *o.PawnSnapshot) { v.Pawns[0].Pawn.MapId = proto.Int32(1) },
 		"nan":           func(v *o.PawnSnapshot) { v.Pawns[0].NearestColonistDistance = proto.Float64(math.NaN()) },

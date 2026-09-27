@@ -52,7 +52,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	rows, known := sources.Value()
 	need, nk := deficit.Value()
 	outstanding, pk := pending.Value()
-	if !known || !nk || !pk || !foodNumber(need) || !foodNumber(outstanding) || len(rows) > 256 {
+	if !known || !nk || !pk || !foodNumber(need) || !foodNumber(outstanding) {
 		return nil, errors.New("acquisition facts unavailable")
 	}
 	slots := 0

@@ -75,7 +75,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 // (validated, in the caller's order); the bundle seeds its colonist_pawns
 // section under the routine form of it (ReadRoutinePawns).
 func pawnDetailsRequest(identity *c.Identity, ids []string, want pawnDetails) *o.ListPawnsRequest {
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(want.Combat), Equipment: proto.Bool(want.Combat), Biography: proto.Bool(want.Combat), Settings: proto.Bool(want.Care), Social: proto.Bool(want.Social), Animals: proto.Bool(want.Combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(want.Combat), Equipment: proto.Bool(want.Combat), Biography: proto.Bool(want.Combat), Settings: proto.Bool(want.Care), Social: proto.Bool(want.Social), Animals: proto.Bool(want.Combat)}}
 	if want.Work {
 		request.Details.Work = proto.Bool(true)
 		request.Details.Needs = proto.Bool(true)
@@ -109,7 +109,7 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 	counts := v.Completeness
 	// ListPawns counts matched query rows; filtered counts excluded source rows.
 	// Those excluded rows are not unreadable members of the exact-ID result.
-	if len(v.Pawns) > len(requested) || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
+	if len(v.Pawns) > len(requested) || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
 		return contract("incomplete pawn query")
 	}
 	if counts.SnapshotToken != nil {
@@ -266,13 +266,7 @@ func pawnsRef(v *o.SnapshotRef, id string, ctx *c.ObservationContext) error {
 // rows, since native groups social memories by the other pawn too);
 // relations are only bounded here.
 func pawnsSocial(v *o.PawnSocial) error {
-	if len(v.Relations) > 256 {
-		return contract("pawn relations exceed bound")
-	}
 	for _, rows := range [][]*o.Thought{v.Memories, v.Situational} {
-		if len(rows) > 256 {
-			return contract("pawn thoughts exceed bound")
-		}
 		for _, t := range rows {
 			if t == nil || validID(t.GetDefName()) != nil || !presentationText(t.Label, 4096) {
 				return contract("invalid pawn thought")
@@ -322,9 +316,6 @@ func pawnsTendDoctor(row *o.PawnState, requested map[string]bool) error {
 }
 
 func pawnsIssues(issues []*o.ReadIssue, message protoreflect.Message) error {
-	if len(issues) > 256 {
-		return contract("too many pawn issues")
-	}
 	seen := map[string]bool{}
 	for _, issue := range issues {
 		if issue == nil || validID(issue.GetField()) != nil || seen[issue.GetField()] {

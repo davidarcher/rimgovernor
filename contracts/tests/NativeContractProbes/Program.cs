@@ -45,10 +45,8 @@ internal static class NativeContractProbesDispatcher
 
 #if HAVE_HARMONY
                 case "native-authority-hooks": NativeAuthorityHooksProbe.Invoke(); return 0;
-                case "native-operation-envelope": NativeOperationEnvelopeProbe.Invoke(); return 0;
 #else
                 case "native-authority-hooks":
-                case "native-operation-envelope":
                     Console.Error.WriteLine(probe + " requires $(HarmonyAssembly) to be supplied at build time; not available in this build.");
                     return 1;
 #endif
@@ -112,7 +110,7 @@ internal static class NativeContractProbesDispatcher
             "native-attempt-ledger", "native-construction-causality", "native-observation-work",
             "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
             "native-authority-hooks",
-            "native-operation-envelope", "native-proto-boundary", "native-combat-causality",
+            "native-proto-boundary", "native-combat-causality",
             "native-combat-operations", "native-draft-operations", "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",

@@ -26,14 +26,14 @@ namespace HomeBridge.BridgeTools
             "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker"
         };
 
-        [Tool(ToolName, Title = "Read typed routine colony facts", Description = "Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.")]
+        [Tool(ToolName, Title = "Read typed routine colony facts", Description = "Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.")]
         [ToolResponse("payload", "string", "Official ColonyFactsReply ProtoJSON.", Always = true)]
         public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw ColonyFactsRequest ProtoJSON string.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.ColonyFactsRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = failure });
-            // Read on the game thread; bound, delta (#773) and format on an
+            // Read on the game thread; delta (#773) and format on an
             // encoder worker (#644), since the delta digests the whole reply.
             var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
             if (lease == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
@@ -44,7 +44,6 @@ namespace HomeBridge.BridgeTools
                     if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
                         return new Obs.ColonyFactsReply { Failure = invalid };
                     try { return new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) }; }
-                    catch (ReadLimit e) { return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }; }
                     catch (Exception) { return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }; }
                 }, cancellationToken).ConfigureAwait(false);
                 var owned = lease; lease = null;
@@ -56,18 +55,8 @@ namespace HomeBridge.BridgeTools
         private static Dictionary<string, object?> EncodeFacts(Obs.ColonyFactsReply reply, Obs.ColonyFactsRequest parsed)
         {
             if (reply.Observed == null) return ProtoBoundary.Encode(reply);
-            try
-            {
-                Bound(reply.Observed);
-                return ProtoBoundary.Encode(reply, compact: true);
-            }
-            catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }); }
-            catch (Exception) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }); }
+            return ProtoBoundary.Encode(reply, compact: true);
         }
-
-        // Encoder-side bounds of a captured snapshot (#683): the comfort joy
-        // matrix keeps its own 64 KiB bound.
-        internal static void Bound(Obs.ColonyFactsSnapshot? snapshot) => ComfortFacts.BoundJoy(snapshot?.Upkeep?.Observed?.Comfort?.Observed);
 
         // The colony facts as a bundle section (issue #180): the same facts the
         // tool answers, or false for any read failure the bundle then omits.
@@ -80,10 +69,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, page1..256 and unique native definition names required; definitions require planning.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and unique native definition names required; definitions require planning.");
             return request?.Scope?.ExpectedIdentity != null
-                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
-                    && (!request.Page.HasCursor || request.Page.Cursor.Length == 0))
                 && request.RequestedDefinitionNames.Count <= 256
                 && (request.Planning || request.RequestedDefinitionNames.Count == 0)
                 && request.RequestedDefinitionNames.All(ProtoBoundary.IsIdentifier)
@@ -94,8 +81,6 @@ namespace HomeBridge.BridgeTools
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction unavailable.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).ToList();
-            var limit = request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
-            Bound(people.Count, limit);
             if (people.Count == 0) throw new InvalidOperationException("No colony anchor.");
             var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
             var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
@@ -109,7 +94,6 @@ namespace HomeBridge.BridgeTools
             var items = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
                 && !t.IsForbidden(player) && reachable(t)).ToList();
             var stock = items.GroupBy(t => t.def).OrderBy(g => g.Key.defName, StringComparer.Ordinal).ToList();
-            Bound(stock.Count, limit);
             var beds = things.OfType<Building_Bed>().Where(b => b.Faction == player && !b.ForPrisoners && !b.Medical
                 && !b.IsForbidden(player) && reachable(b)).ToList();
             var indoorBeds = beds.Where(b => b.GetRoom() != null && b.GetRoom().ProperRoom
@@ -132,8 +116,8 @@ namespace HomeBridge.BridgeTools
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
                 Upkeep = ReadComfort(map),
                 Threat = ReadThreat(map, people.Count),
-                Development = new Obs.DevelopmentSection { Observed = ReadPower(map, limit) },
-                FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood, limit),
+                Development = new Obs.DevelopmentSection { Observed = ReadPower(map) },
+                FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood),
                 DeepResources = NativeDeepResources.Read(map)
             };
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
@@ -145,11 +129,10 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var group in stock) result.Resources.Add(new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) });
             var forbidden = StartingSupplyFacts.Forbidden(things, center, reachable);
-            Bound(forbidden.Count, limit);
             foreach (var t in forbidden)
                 result.ForbiddenSupplies.Add(new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = map.uniqueID, Position = Cell(t.Position) });
             result.EventLoot = EventLootFacts.Read(map, things, reachable);
-            ReadProduction(result, map, people, things, reachable, humanFood, limit);
+            ReadProduction(result, map, people, things, reachable, humanFood);
             var naming = ColonyNamingTools.Pending();
             if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID,
                 FactionName = ColonyNamingTools.Name(naming, "curName"), SettlementName = ColonyNamingTools.Name(naming, "curSecondName") };
@@ -157,15 +140,13 @@ namespace HomeBridge.BridgeTools
                 result.Issues.Add(Issue("naming", Common.UnavailableReason.Unsupported, "Naming window census is unavailable or obstructed by another paused dialog."));
             else result.Issues.Add(Issue("naming", Common.UnavailableReason.NotApplicable, "No pending colony naming dialog."));
             var joiners = NativeJoinerLetters.Snapshot();
-            Bound(joiners.Count, limit);
             result.JoinerLetters.AddRange(joiners);
             var dialog = ChoiceDialogTools.Pending();
             if (dialog != null) result.Dialog = ChoiceDialogTools.Snapshot(dialog);
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
-            Bound(conditions.Count, limit);
             foreach (var condition in conditions) result.Environment.Add(EnvironmentCondition(condition));
-            result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
+            result.Recovery = NativeRecoveryFacts.Read(map, context);
             result.Waste = HomeWasteTools.Project(map, context);
             foreach (var field in new[] { "policy_resources", "food_corpses" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
@@ -176,7 +157,7 @@ namespace HomeBridge.BridgeTools
                 SowingNow = new[] { "Plant_Rice", "Plant_Potato", "Plant_Corn" }.Select(DefDatabase<ThingDef>.GetNamedSilentFail).Any(d => d != null && PlantUtility.GrowthSeasonNow(map,d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
             catch (Exception) { result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
-            try { NativePlantAcquisition.Read(result, map, center, humanFood, limit); }
+            try { NativePlantAcquisition.Read(result, map, center, humanFood); }
             catch (Exception) {
                 result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
                 foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })
@@ -184,7 +165,7 @@ namespace HomeBridge.BridgeTools
             }
             try { NativeCutPlant.Read(result, map, center); }
             catch (Exception) { result.BlightedPlants.Clear(); result.Issues.Add(Issue("blighted_plants", Common.UnavailableReason.ReadFailed, "Complete blighted plant census is unavailable.")); }
-            result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
+            result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             return result;
         }
@@ -237,7 +218,7 @@ namespace HomeBridge.BridgeTools
             return new Obs.UpkeepSection { Observed = result };
         }
 
-        private static Obs.DevelopmentFacts ReadPower(Map map, int limit)
+        private static Obs.DevelopmentFacts ReadPower(Map map)
         {
             // Traders (consumers and generators) and batteries share one census so
             // Go's power topology sees every network member that matters for
@@ -251,7 +232,6 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(b => b.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
-            Bound(traders.Count + batteries.Count + conduits.Count + nets.Count + geysers.Count, limit);
             var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
             // Archived letters survive dismissal and saves. Use the game's own
             // translated label rather than matching English message prose.
@@ -321,7 +301,6 @@ namespace HomeBridge.BridgeTools
             if (fuel == null) return;
             service.Fuel = Finite(fuel.Fuel); service.TargetFuel = Finite(fuel.TargetFuelLevel); service.OutOfFuel = !fuel.HasFuel;
             var defs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal).ToList();
-            Bound(defs.Count, 256);
             service.AllowedFuelDefs.Add(defs);
         }
 
@@ -331,24 +310,21 @@ namespace HomeBridge.BridgeTools
                     DefName = building.def.defName, Position = Cell(building.Position) },
                 Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
             var occupied = building.OccupiedRect().Cells.ToList();
-            Bound(occupied.Count, 4096);
             foreach (var cell in occupied) state.OccupiedCells.Add(Cell(cell));
             return state;
         }
 
         private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
-            List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood, int limit)
+            List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood)
         {
             var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer && reachable(b)
                 && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
-            Bound(benches.Count, limit);
             foreach (var bench in benches) {
                 var row = new Obs.CookingFacts { Bench = new Obs.EntityRef { Id = bench.GetUniqueLoadID(), DefName = bench.def.defName,
                     MapId = map.uniqueID, Position = Cell(bench.Position), Snapshot = NativeProductionBills.Snapshot(bench,bench,result.Context) },
                     Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
                         && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
-                Bound(recipes.Count, limit); Bound(bench.BillStack.Bills.Count, limit);
                 foreach (var recipe in recipes) {
                     row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                     var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
@@ -366,7 +342,7 @@ namespace HomeBridge.BridgeTools
                 result.Cooking.Add(row);
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
-                if(result.Butchering.Count>=limit)throw new ReadLimit("Butcher census bound.");var giver=(IBillGiver)bench;
+                var giver=(IBillGiver)bench;
                 var row=new Obs.ButcheringFacts{Bench=new Obs.EntityRef{Id=bench.GetUniqueLoadID(),DefName=bench.def.defName,MapId=map.uniqueID,Position=Cell(bench.Position),Snapshot=NativeProductionBills.Snapshot(bench,giver,result.Context)},Usable=NativeProductionBills.Usable(bench)};
                 HumanFoodFacts.Fill(row,bench);
                 foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
@@ -378,18 +354,16 @@ namespace HomeBridge.BridgeTools
 
         }
 
-        private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context, int limit)
+        private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
             var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
-            Bound(names.Length, limit);
             var result = new Obs.PlanningFacts { Completeness = Complete(names.Length) };
-            try { result.Gear = NativeGearFacts.Read(map, context, limit); }
+            try { result.Gear = NativeGearFacts.Read(map, context); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             var demand = people.Sum(p => p.needs?.food == null ? 0f : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
-            Bound(animals.Count, limit);
             foreach (var name in names.OrderBy(n => n, StringComparer.Ordinal)) {
                 var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = name } };
                 result.Definitions.Add(row);
@@ -417,7 +391,7 @@ namespace HomeBridge.BridgeTools
                     row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "No native allowed material for the definition."));
                 } else {
                     if (stuff != null) row.Stuff = stuff.defName;
-                    var costs = def.CostListAdjusted(stuff, false); Bound(costs.Count, 256);
+                    var costs = def.CostListAdjusted(stuff, false); 
                     foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
                     if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
                 }
@@ -456,8 +430,7 @@ namespace HomeBridge.BridgeTools
             // census below.
             var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
             var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
-            try { result.Environment = Environment(map, min, max, limit); }
-            catch (ReadLimit) { throw; }
+            try { result.Environment = Environment(map, min, max); }
             catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
             return result;
         }
@@ -473,7 +446,7 @@ namespace HomeBridge.BridgeTools
             row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
             row.ConstructionSkill = def.constructionSkillPrerequisite;
             row.Size = new Obs.MapSize { Width = 1, Height = 1 };
-            var costs = def.CostListAdjusted(null, false); Bound(costs.Count, 256);
+            var costs = def.CostListAdjusted(null, false); 
             foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
             row.Cleanliness = Finite(def.GetStatValueAbstract(StatDefOf.Cleanliness));
             row.PathCost = def.pathCost;
@@ -487,7 +460,7 @@ namespace HomeBridge.BridgeTools
         // never plants where the game would not grow.
         // The native sun lamp class is internal; its def names the class and carries the growth radius as specialDisplayRadius.
         private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
-        private static Obs.ControlledEnvironment Environment(Map map, IntVec3 min, IntVec3 max, int limit)
+        private static Obs.ControlledEnvironment Environment(Map map, IntVec3 min, IntVec3 max)
         {
             var result = new Obs.ControlledEnvironment { OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp), Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
             bool Inside(IntVec3 c) => c.x >= min.x && c.x <= max.x && c.z >= min.z && c.z <= max.z;
@@ -495,7 +468,6 @@ namespace HomeBridge.BridgeTools
             var rooms = new Dictionary<int, Room>();
             void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
             var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Inside(b.Position)).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-            Bound(buildings.Count(b => IsSunLamp(b) || b is Building_PlantGrower), limit);
             foreach (var building in buildings) {
                 var power = building.TryGetComp<CompPowerTrader>();
                 var room = building.GetRoom();
@@ -525,7 +497,6 @@ namespace HomeBridge.BridgeTools
                 var c = new IntVec3(x, 0, z);
                 if (!c.Fogged(map)) Note(c.GetRoom(map));
             }
-            Bound(rooms.Count, limit);
             foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
                 var row = new Obs.GrowRoom { RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
                     OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
@@ -535,7 +506,6 @@ namespace HomeBridge.BridgeTools
                 result.Rooms.Add(row);
             }
             var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
-            Bound(nets.Count, limit);
             foreach (var net in nets.OrderBy(n => n.GetHashCode())) {
                 var row = new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), HasActiveSource = net.HasActivePowerSource };
                 double generation = 0, solar = 0, wind = 0, consumption = 0;
@@ -561,10 +531,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
-        private static void Bound(int count, int limit) { if (count > limit) throw new ReadLimit("Complete collection exceeds requested bound; frozen paging is unavailable."); }
         private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
         {
-            Bound(source.animalIds.Count, 256); Bound(source.crops.Count, 256); Bound(source.patients.Count, 256);
             var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
                 Completeness = Complete(1 + source.animalIds.Count + source.crops.Count + source.patients.Count) };
             result.AnimalIds.Add(source.animalIds);
@@ -594,7 +562,6 @@ namespace HomeBridge.BridgeTools
         }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {
-            Bound(source.consumers.Count, 256); Bound(source.stocks.Count, 4096);
             var result = new Obs.FoodSupplyFacts { Completeness = Complete(source.consumers.Count + source.stocks.Count) };
             if (source.larder != null) {
                 result.Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition) };
@@ -630,6 +597,5 @@ namespace HomeBridge.BridgeTools
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Common.Unavailable Unsupported(string detail) => Unavailable(Common.UnavailableReason.Unsupported, detail);
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

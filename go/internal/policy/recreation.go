@@ -34,7 +34,7 @@ func (v ComfortObservation) validateJoy() error {
 		return nil
 	}
 	bad := func() error { return errors.New("invalid recreation kind census") }
-	if len(j.Kinds) > 16 || len(j.Pawns) > 256 || len(j.Pawns)*len(j.Kinds) > 2048 || len(j.Methods) > 4 {
+	if len(j.Kinds) > 16 || len(j.Methods) > 4 {
 		return bad()
 	}
 	kinds := map[string]bool{}

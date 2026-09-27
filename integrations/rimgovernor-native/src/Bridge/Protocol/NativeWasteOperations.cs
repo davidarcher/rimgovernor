@@ -264,13 +264,13 @@ namespace HomeBridge.BridgeTools
                     evidence = record.Evidence(snapshot, accepted, correlated);
                     if (effectError != null || !accepted || !correlated) throw new InvalidOperationException("Native waste order requires causal observation.", effectError);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Waste validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted waste order requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted waste order requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -286,7 +286,7 @@ namespace HomeBridge.BridgeTools
                 var result = FindJob(pawn!, thing!, burialRequested);
                 var accepted = result != null;
                 var jobDef = accepted ? (result!.def?.defName ?? "HaulToCell") : "HaulToCell";
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply
+                return new Operations.PreviewReply
                 {
                     Evaluated = new Operations.PreviewEvaluation
                     {
@@ -301,7 +301,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                     }
-                });
+                };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Waste preview failed: " + error.GetType().Name) }; }
         }

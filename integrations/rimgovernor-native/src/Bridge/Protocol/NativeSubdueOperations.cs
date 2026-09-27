@@ -139,10 +139,10 @@ namespace HomeBridge.BridgeTools
                     bool correlated = record.Capture(before!, after); evidence = record.Evidence(after, accepted, correlated);
                     if (!accepted || !correlated) throw new InvalidOperationException("Subdue dispatch unverified.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence!) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence!) };
             } catch (Exception error) {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Subdue failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Subdue dispatch interrupted: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Subdue dispatch interrupted: " + error.GetType().Name) };
             }
         }
     }

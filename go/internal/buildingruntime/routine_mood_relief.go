@@ -214,7 +214,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineMoodReliefResult{}, ErrControl
 		}
 		counts := observed.Completeness
-		if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != 1 || counts.GetReturned() != 1 || len(observed.Pawns) != 1 {
+		if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != 1 || counts.GetReturned() != 1 || len(observed.Pawns) != 1 {
 			return RoutineMoodReliefResult{}, ErrControl
 		}
 		row := observed.Pawns[0]

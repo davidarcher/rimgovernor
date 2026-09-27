@@ -104,7 +104,7 @@ func (b *RangedAttackBoundary) InspectRanged(ctx context.Context, target executo
 	// #327).
 	counts := observed.Completeness
 	rows := uint64(len(observed.Pawns))
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || rows < 1 || rows > 2 || counts.GetMatched() != rows || counts.GetReturned() != rows {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || rows < 1 || rows > 2 || counts.GetMatched() != rows || counts.GetReturned() != rows {
 		return out, executor.ErrHeld
 	}
 	var pawn, opponent *n.PawnState

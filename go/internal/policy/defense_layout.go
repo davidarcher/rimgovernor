@@ -137,7 +137,6 @@ const (
 	defenseCorridorLength = 6
 	defenseMaxWidth       = 12
 	defenseMaxDefenders   = 8
-	defenseMaxCells       = 2048
 )
 
 var directions = [4]domain.Cell{{X: 0, Z: 1}, {X: 1, Z: 0}, {X: 0, Z: -1}, {X: -1, Z: 0}}
@@ -190,10 +189,10 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 		return defenseSite{}, errors.New("invalid defense bounds")
 	}
 	reg := r.Region
-	if reg.Width <= 0 || reg.Height <= 0 || reg.X < 0 || reg.Z < 0 || reg.X+reg.Width > r.Bounds.Width || reg.Z+reg.Height > r.Bounds.Height || int64(reg.Width)*int64(reg.Height) > defenseMaxCells {
+	if reg.Width <= 0 || reg.Height <= 0 || reg.X < 0 || reg.Z < 0 || reg.X+reg.Width > r.Bounds.Width || reg.Z+reg.Height > r.Bounds.Height {
 		return defenseSite{}, errors.New("invalid defense region")
 	}
-	if len(r.Cells) > defenseMaxCells || len(r.Protected) > 65536 || len(r.Entrances) > 64 || len(r.Lines) > 4096 {
+	if len(r.Protected) > 65536 || len(r.Entrances) > 64 || len(r.Lines) > 4096 {
 		return defenseSite{}, errors.New("defense census too large")
 	}
 	if r.Defenders < 0 || r.Defenders > defenseMaxDefenders {

@@ -27,7 +27,7 @@ func TestDefenseKillboxRegionFromThePlan(t *testing.T) {
 		{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 60, Z: 50, Width: 39, Height: 3}},
 	}}
 	k, region, home, ok := defenseKillbox(observation.ColonyProjection{Bounds: bounds, LayoutPlan: domain.Known(plan)})
-	if !ok || k.Entry != (domain.Cell{X: 100, Z: 50}) || k.Toward != domain.North || region.Cells() > 2048 || home != (domain.Cell{X: 100, Z: 58}) {
+	if !ok || k.Entry != (domain.Cell{X: 100, Z: 50}) || k.Toward != domain.North || region.Min.X < 0 || region.Min.Z < 0 || region.Max.X >= 250 || region.Max.Z >= 250 || region.Cells() == 0 || home != (domain.Cell{X: 100, Z: 58}) {
 		t.Fatalf("%+v %+v %v %v", k, region, home, ok)
 	}
 }

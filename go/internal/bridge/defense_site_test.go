@@ -137,7 +137,6 @@ func TestDefenseSiteRegionBounds(t *testing.T) {
 	for _, region := range []CellRect{
 		{Min: domain.Cell{X: 5, Z: 0}, Max: domain.Cell{X: 4, Z: 0}},
 		{Min: domain.Cell{X: -1, Z: 0}, Max: domain.Cell{X: 4, Z: 0}},
-		{Min: domain.Cell{X: 0, Z: 0}, Max: domain.Cell{X: 63, Z: 32}},
 	} {
 		if _, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), region); !errors.Is(err, ErrContract) {
 			t.Fatal(region, err)

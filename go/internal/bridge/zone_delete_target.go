@@ -33,7 +33,7 @@ func (client *Client) ReadZoneDeleteTarget(ctx context.Context, identity *c.Iden
 	if validID(zone) != nil {
 		return ZoneDeleteTarget{}, Result{}, contract("invalid zone delete target identity")
 	}
-	request := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: []string{zone}, Page: &c.PageRequest{Limit: proto.Uint32(1)}}
+	request := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: []string{zone}}
 	reply := &o.ListZonesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_zones", request, reply)
 	if err != nil {
@@ -55,7 +55,7 @@ func (client *Client) ReadZoneDeleteTarget(ctx context.Context, identity *c.Iden
 		return ZoneDeleteTarget{}, raw, contract("zone read outcome missing")
 	}
 	v := reply.GetObserved()
-	if v.Completeness.Page.GetNextCursor() != "" || len(v.Zones) > 1 {
+	if len(v.Zones) > 1 {
 		return ZoneDeleteTarget{}, raw, contract("zone delete target ambiguous")
 	}
 	out := ZoneDeleteTarget{Context: v.Context, Zone: zone}

@@ -17,15 +17,11 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeZoneObservationTools
     {
         private const string ToolName = "rimgovernor/observations_list_zones";
-        // Grid-consistency and contiguity require a full map cell scan per zone
-        // (mirroring NativeZoneRecord.Evidence()'s own phantom-cell detection);
-        // bounding the page keeps that O(zones * map cells) cost small. The
-        // guarded-operations CAS flow (ReadZoneEditTarget) only ever asks for
-        // one zone by exact id, well under this limit.
-        private const int MaxPage = 16;
+        // A caller names at most this many zones by exact id (input bound).
+        private const int MaxIds = 16;
 
         [Tool(ToolName, Title = "Read typed zones", Description = "Read exact zone identity, type, bounds and per-zone CAS snapshot tokens. Cells are included only when requested. No filter contents, stored resources, anomalies or crop-plant counts yet.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ListZonesReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
+        [ToolResponse("payload", "string", "Official ProtoJSON ListZonesReply. Unsupported facts are explicit.", Always = true)]
         public async Task<object> ListZones(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListZonesRequest string in raw transport value.")] object? request = null)
         {
@@ -34,8 +30,7 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ListZonesReply { Failure = error });
-                try { return Encode(Read(map, parsed, context)); }
-                catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
+                return ProtoBoundary.Encode(Read(map, parsed, context));
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -48,35 +43,19 @@ namespace HomeBridge.BridgeTools
                 var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
                 var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                 var filtered = source.Count - matched.Count;
-                var seed = QuerySeed(parsed);
-                var afterCursor = matched;
-                if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
-                {
-                    if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                        return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Zone cursor is stale or does not match this query.") };
-                    afterCursor = matched.Where(z => string.CompareOrdinal(Id(z.GetUniqueLoadID()), after) > 0).ToList();
-                }
-                var page = afterCursor.Take(Limit(parsed)).ToList();
-                Require(page.Count <= MaxPage, "Matched zone collection exceeds page limit; narrow filters.");
-                var truncated = afterCursor.Count > page.Count;
-                var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(page.Count, filtered),
+                var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(matched.Count, filtered),
                     MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
-                snapshot.Completeness.Page.Complete = !truncated;
-                if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
-                foreach (var zone in page) snapshot.Zones.Add(Project(zone, map, context, parsed));
+                foreach (var zone in matched) snapshot.Zones.Add(Project(zone, map, context, parsed));
                 return new Obs.ListZonesReply { Observed = snapshot };
             }
-            catch (ReadLimit errorLimit) { return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
             catch (Exception) { return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Zone facts could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.ListZonesRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, exact bounded identifiers, supported filters and page limit1..16 are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, exact bounded identifiers, supported filters are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (request.Page != null && (request.Page.HasLimit && (request.Page.Limit < 1 || request.Page.Limit > MaxPage)
-                || request.Page.HasCursor && request.Page.Cursor.Length > 4096)) return false;
-            if (request.Ids.Count > MaxPage || !request.Ids.All(ProtoBoundary.IsIdentifier)
+            if (request.Ids.Count > MaxIds || !request.Ids.All(ProtoBoundary.IsIdentifier)
                 || request.Ids.Distinct(StringComparer.Ordinal).Count() != request.Ids.Count) return false;
             if (request.HasNameContains && (request.NameContains.Length == 0 || request.NameContains.Length > 256)) return false;
             if (request.Region != null && (!CellPresent(request.Region.Minimum) || !CellPresent(request.Region.Maximum)
@@ -124,7 +103,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.ZoneState Project(Zone zone, Map map, Common.ObservationContext context, Obs.ListZonesRequest request)
         {
             var cells = zone.Cells;
-            Require(cells.Count <= 4096, "Zone cell list exceeds 4096 cells.");
             var minX = cells.Min(c => c.x); var maxX = cells.Max(c => c.x);
             var minZ = cells.Min(c => c.z); var maxZ = cells.Max(c => c.z);
             var row = new Obs.ZoneState { Id = Id(zone.GetUniqueLoadID()), Label = PlacementPreviewOperation.Diagnostic(zone.label ?? ""),
@@ -202,21 +180,10 @@ namespace HomeBridge.BridgeTools
             return reached.Count == selected.Count;
         }
 
-        private static string QuerySeed(Obs.ListZonesRequest request) => string.Join("",
-            request.NameContains ?? "", request.IncludeCells, request.IncludeContents, request.IncludeFilter,
-            string.Join(",", request.Ids.OrderBy(s=>s,StringComparer.Ordinal)),
-            request.Region == null ? "" : request.Region.Minimum.X+","+request.Region.Minimum.Z+"-"+request.Region.Maximum.X+","+request.Region.Maximum.Z);
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
-        private static int Limit(Obs.ListZonesRequest request) => request.Page?.HasLimit == true ? (int)request.Page.Limit : MaxPage;
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
-        internal static object Encode(Obs.ListZonesReply reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

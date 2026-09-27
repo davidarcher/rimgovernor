@@ -30,7 +30,6 @@ func TestRecreationCensusBoundary(t *testing.T) {
 		func(v *o.ComfortFacts) { v.Joy.Methods[0].PowerW = math.Inf(1) },
 		func(v *o.ComfortFacts) { v.Joy.Methods[0].Definition = "invented" },
 		func(v *o.ComfortFacts) { v.Joy.Kinds = []string{"missing"} },
-		func(v *o.ComfortFacts) { v.Joy.Pawns = make([]*o.JoyTolerance, 257) },
 		func(v *o.ComfortFacts) { v.Joy.Kinds = make([]string, 17) },
 		func(v *o.ComfortFacts) { v.Joy.Kinds = make([]string, 16); v.Joy.Pawns = make([]*o.JoyTolerance, 129) },
 	} {

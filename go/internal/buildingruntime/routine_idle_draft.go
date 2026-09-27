@@ -69,7 +69,7 @@ func (r *RoutineReviewer) idleDrafts(ctx context.Context, state ControlState, ti
 		return nil, ErrControl
 	}
 	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
 		return nil, nil
 	}
 	var candidates []domain.PawnID

@@ -150,7 +150,7 @@ namespace HomeBridge.BridgeTools
                 var projected = new Receipts.EffectEvidence { Caravan = new Receipts.CaravanEffect { DestinationTile = command.DestinationTile, AssemblyStarted = true } };
                 projected.Caravan.PawnIds.Add(command.PawnIds);
                 var evaluation = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true, Projected = projected, Caravan = caravanPrep };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = evaluation });
+                return new Operations.PreviewReply { Evaluated = evaluation };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Caravan formation preview failed: " + error.GetType().Name) }; }
         }
@@ -235,13 +235,13 @@ namespace HomeBridge.BridgeTools
                     if (formError != null) throw new InvalidOperationException("Native caravan formation raised an exception.", formError);
                     if (!accepted || caravan == null) throw new InvalidOperationException("Native caravan formation readback did not apply.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Caravan formation validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted caravan formation requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted caravan formation requires observation: " + error.GetType().Name) };
             }
         }
 

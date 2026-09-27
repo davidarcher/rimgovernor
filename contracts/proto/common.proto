@@ -76,12 +76,8 @@ message Unavailable {
   optional string detail = 2;
 }
 
-// Pagination is scoped to an observation context, not an arbitrary map position.
-message PageRequest {
-  optional uint32 limit = 1;
-  optional string cursor = 2;
-}
+// Observation lists are complete in one reply; there is no paging.
 message PageInfo {
   optional bool complete = 1;
-  optional string next_cursor = 2;
+  reserved 2;
 }

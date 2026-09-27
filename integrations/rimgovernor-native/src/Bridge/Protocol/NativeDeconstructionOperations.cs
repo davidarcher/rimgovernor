@@ -182,11 +182,11 @@ namespace HomeBridge.BridgeTools
                     if (record.Designation == null) throw new InvalidOperationException("Native designation was not created.");
                     evidence = record.Evidence(context);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Deconstruction interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Deconstruction interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Deconstruction failed: " + error.GetType().Name) };
             }
         }
@@ -216,11 +216,11 @@ namespace HomeBridge.BridgeTools
                 int count;
                 using (authority.Owned()) count = ReleaseAll();
                 var evidence = new Receipts.EffectEvidence { ReleaseDeconstructions = new Receipts.ReleaseDeconstructionsEffect { ReleasedCount = count } };
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, null!, "Deconstruction release interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, null!, "Deconstruction release interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Deconstruction release failed: " + error.GetType().Name) };
             }
         }

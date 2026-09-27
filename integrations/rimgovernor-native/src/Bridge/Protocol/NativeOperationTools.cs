@@ -263,8 +263,7 @@ namespace HomeBridge.BridgeTools
                     var record = NativeConstructionTracking.Register(plan, placed, observed);
                     state.Construction.Add(precondition.Attempt.Clone(), record);
                     if (!record.Matches(placed)) throw new InvalidOperationException("Placed object did not match admitted construction.");
-                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, admission.AdmittedHandle,
-                        precondition.Attempt, context, new Receipts.EffectEvidence { Construction = record.Effect }) };
+                    return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(admission.AdmittedHandle, new Receipts.EffectEvidence { Construction = record.Effect }) };
                 }
             }
             catch (Exception error)
@@ -273,8 +272,7 @@ namespace HomeBridge.BridgeTools
                     ? new Receipts.EffectEvidence { Construction = record.Effect.Clone() }
                     : observed.CancelledFrameIds.Count > 0 || observed.WipedThingIds.Count > 0
                         ? new Receipts.EffectEvidence { Construction = observed } : null;
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, admission.AdmittedHandle,
-                    precondition.Attempt, context, lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(admission.AdmittedHandle, lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -392,10 +390,10 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 var accepted = NativeConstructionPlan.Prepare(ProtoBoundary.LoadedMap(context), parsed.Operation.PlaceBuilding.Placement, context, out _, out var preview, out var rejected);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = rejected });
-                return ProtoBoundary.Encode(NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
+                return ProtoBoundary.Encode(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
                 {
                     Context = context, Accepted = accepted, Reason = rejected?.Detail ?? "", Placement = preview
-                } }));
+                } });
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -436,143 +434,143 @@ namespace HomeBridge.BridgeTools
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
                     Receipts.DesignationEffect allowed;
                     NativeProductionRecord bill;
-                    if (state.Bills.TryGetValue(parsed.Attempt, out bill)) return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = bill.Observe(parsed.Attempt, context) }));
+                    if (state.Bills.TryGetValue(parsed.Attempt, out bill)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = bill.Observe(parsed.Attempt, context) });
                     NativeZoneRecord zone;
-                    if (state.Zones.TryGetValue(parsed.Attempt, out zone)) return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = zone.Observe(parsed.Attempt, context) }));
+                    if (state.Zones.TryGetValue(parsed.Attempt, out zone)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = zone.Observe(parsed.Attempt, context) });
                     INativeAcquisitionRecord acquisition;
                     if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) });
                     Operations.PatchPawn work;
                     if (state.WorkSettings.TryGetValue(parsed.Attempt, out work))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeWorkSettings.Observe(parsed.Attempt, context, work) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeWorkSettings.Observe(parsed.Attempt, context, work) });
                     if (state.AllowedSupplies.TryGetValue(parsed.Attempt, out allowed))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeSupplyAllow.Observe(parsed.Attempt, context, allowed) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeSupplyAllow.Observe(parsed.Attempt, context, allowed) });
                     Receipts.DesignationEffect cut;
                     if (state.CutPlants.TryGetValue(parsed.Attempt, out cut))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCutPlant.Observe(parsed.Attempt, context, cut) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCutPlant.Observe(parsed.Attempt, context, cut) });
                     Receipts.InstallationEffect uninstall;
                     if (state.Uninstalls.TryGetValue(parsed.Attempt, out uninstall))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeUninstallBuilding.Observe(parsed.Attempt, context, uninstall) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeUninstallBuilding.Observe(parsed.Attempt, context, uninstall) });
                     Receipts.InstallationEffect move;
                     if (state.Moves.TryGetValue(parsed.Attempt, out move))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeMoveBuilding.Observe(parsed.Attempt, context, move) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeMoveBuilding.Observe(parsed.Attempt, context, move) });
                     Receipts.DesignationEffect cover;
                     if (state.CoverClearances.TryGetValue(parsed.Attempt, out cover))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeClearCover.Observe(parsed.Attempt, context, cover) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeClearCover.Observe(parsed.Attempt, context, cover) });
                     Operations.PatchBuilding buildingPatch;
                     if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical || buildingPatch.HasForPrisoners
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical || buildingPatch.HasForPrisoners
                             ? NativeBedUse.Observe(parsed.Attempt, context, buildingPatch)
                             : buildingPatch.HasPlantDef
                                 ? NativeGrowerCrop.Observe(parsed.Attempt, context, buildingPatch)
                                 : buildingPatch.HasClaim
                                     ? NativeClaimBuilding.Observe(parsed.Attempt, context, buildingPatch)
-                                    : NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingPatch) }));
+                                    : NativeBuildingTemperature.Observe(parsed.Attempt, context, buildingPatch) });
                     NativeCombatRecord combat;
                     if (state.Combat.TryGetValue(parsed.Attempt, out combat))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) });
                     NativeDraftRecord draft;
                     if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) });
                     NativeCustodyRecord custody;
                     if (state.Custody.TryGetValue(parsed.Attempt, out custody))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = custody.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = custody.Observe(parsed.Attempt, context) });
                     NativeRecoveryServiceRecord recovery;
                     if (state.RecoveryServices.TryGetValue(parsed.Attempt, out recovery))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = recovery.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = recovery.Observe(parsed.Attempt, context) });
                     NativeMoodReliefRecord relief;
                     if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) });
                     NativeHusbandryRecord husbandry;
                     if (state.Husbandry.TryGetValue(parsed.Attempt, out husbandry))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeHusbandryOperations.Observe(parsed.Attempt, context, husbandry) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeHusbandryOperations.Observe(parsed.Attempt, context, husbandry) });
                     NativePrisonerInteractionRecord prisonerInteraction;
                     if (state.PrisonerInteractions.TryGetValue(parsed.Attempt, out prisonerInteraction))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativePrisonerInteractionOperations.Observe(parsed.Attempt, context, prisonerInteraction) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativePrisonerInteractionOperations.Observe(parsed.Attempt, context, prisonerInteraction) });
                     NativeWasteRecord waste;
                     if (state.Waste.TryGetValue(parsed.Attempt, out waste))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = waste.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = waste.Observe(parsed.Attempt, context) });
                     NativeEquipRecord equip;
                     if (state.Equips.TryGetValue(parsed.Attempt, out equip))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = equip.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = equip.Observe(parsed.Attempt, context) });
                     NativeGearRecord gear;
                     if (state.Gear.TryGetValue(parsed.Attempt, out gear))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = gear.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = gear.Observe(parsed.Attempt, context) });
                     NativeCleanRecord clean;
                     if (state.Cleans.TryGetValue(parsed.Attempt, out clean))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = clean.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = clean.Observe(parsed.Attempt, context) });
                     NativeRepairRecord repair;
                     if (state.Repairs.TryGetValue(parsed.Attempt, out repair))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = repair.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = repair.Observe(parsed.Attempt, context) });
                     NativeOpenCasketRecord openCasket;
                     if (state.OpenCaskets.TryGetValue(parsed.Attempt, out openCasket))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = openCasket.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = openCasket.Observe(parsed.Attempt, context) });
                     NativeTendRecord tend;
                     if (state.Tends.TryGetValue(parsed.Attempt, out tend))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) });
                     NativeCaravanRecord caravan;
                     if (state.Caravans.TryGetValue(parsed.Attempt, out caravan))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCaravanOperations.Observe(parsed.Attempt, context, caravan) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCaravanOperations.Observe(parsed.Attempt, context, caravan) });
                     NativeQuestRecord quest;
                     if (state.Quests.TryGetValue(parsed.Attempt, out quest))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeQuestOperations.Observe(parsed.Attempt, context, quest) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeQuestOperations.Observe(parsed.Attempt, context, quest) });
                     NativeSettlementGiftRecord settlementGift;
                     if (state.SettlementGifts.TryGetValue(parsed.Attempt, out settlementGift))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeSettlementGiftOperations.Observe(parsed.Attempt, context, settlementGift) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeSettlementGiftOperations.Observe(parsed.Attempt, context, settlementGift) });
                     NativeQuestFulfillRecord questFulfill;
                     if (state.QuestFulfills.TryGetValue(parsed.Attempt, out questFulfill))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeQuestFulfillOperations.Observe(parsed.Attempt, context, questFulfill) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeQuestFulfillOperations.Observe(parsed.Attempt, context, questFulfill) });
                     if (state.DrugPolicies.TryGetValue(parsed.Attempt, out var drugPolicy))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeDrugPolicyOperations.Observe(parsed.Attempt, context, drugPolicy) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeDrugPolicyOperations.Observe(parsed.Attempt, context, drugPolicy) });
                     NativeSurgeryRecord surgery;
                     if (state.Surgeries.TryGetValue(parsed.Attempt, out surgery))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = surgery.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = surgery.Observe(parsed.Attempt, context) });
                     NativeCaravanTravelRecord caravanTravel;
                     if (state.CaravanTravels.TryGetValue(parsed.Attempt, out caravanTravel))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCaravanTravel.Observe(parsed.Attempt, context, caravanTravel) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCaravanTravel.Observe(parsed.Attempt, context, caravanTravel) });
                     NativeNamingRecord naming;
                     if (state.Naming.TryGetValue(parsed.Attempt, out naming))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeColonyNamingOperations.Observe(parsed.Attempt, context, naming) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeColonyNamingOperations.Observe(parsed.Attempt, context, naming) });
                     if (state.JoinerLetters.TryGetValue(parsed.Attempt, out var joinerLetter))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeJoinerLetters.Observe(parsed.Attempt, context, joinerLetter) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeJoinerLetters.Observe(parsed.Attempt, context, joinerLetter) });
                     if (state.ApparelPolicies.TryGetValue(parsed.Attempt, out var apparelPolicy))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeApparelPolicyOperations.Observe(parsed.Attempt, context, apparelPolicy) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeApparelPolicyOperations.Observe(parsed.Attempt, context, apparelPolicy) });
                     NativeDialogRecord dialog;
                     if (state.Dialogs.TryGetValue(parsed.Attempt, out dialog))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeChoiceDialogOperations.Observe(parsed.Attempt, context, dialog) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeChoiceDialogOperations.Observe(parsed.Attempt, context, dialog) });
                     NativeResearchSelectRecord researchSelect;
                     if (state.ResearchSelections.TryGetValue(parsed.Attempt, out researchSelect))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeResearchSelectOperations.Observe(parsed.Attempt, context, researchSelect) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeResearchSelectOperations.Observe(parsed.Attempt, context, researchSelect) });
                     NativeBedAssignRecord bedAssign;
                     if (state.BedAssignments.TryGetValue(parsed.Attempt, out bedAssign))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = bedAssign.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = bedAssign.Observe(parsed.Attempt, context) });
                     NativeExcavationRecord excavation;
                     if (state.Excavation.TryGetValue(parsed.Attempt, out excavation))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) });
                     if (state.Deconstructions.TryGetValue(parsed.Attempt, out var deconstruction))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = deconstruction.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = deconstruction.Observe(parsed.Attempt, context) });
                     NativeWallRemovalRecord wallRemoval;
                     if (state.Subdues.TryGetValue(parsed.Attempt, out var subdue))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = subdue.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = subdue.Observe(parsed.Attempt, context) });
                     if (state.Arrests.TryGetValue(parsed.Attempt, out var arrest))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) });
                     if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) });
                     NativeZoneEditRecord zoneEdit;
                     if (state.ZoneEdits.TryGetValue(parsed.Attempt, out zoneEdit))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = zoneEdit.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = zoneEdit.Observe(parsed.Attempt, context) });
                     NativeStockpilePatchRecord stockpilePatch;
                     if (state.StockpilePatches.TryGetValue(parsed.Attempt, out stockpilePatch))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = stockpilePatch.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = stockpilePatch.Observe(parsed.Attempt, context) });
                     NativeHomeCoverageRecord homeCoverage;
                     if (state.HomeCoverage.TryGetValue(parsed.Attempt, out homeCoverage))
-                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = homeCoverage.Observe(parsed.Attempt, context) }));
+                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = homeCoverage.Observe(parsed.Attempt, context) });
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)
                     : new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                         Unknown = new Receipts.UnknownEffect { Reason = "No tracked construction effect is available for this attempt." } };
-                return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = progress }));
+                return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = progress });
             }, cancellationToken).ConfigureAwait(false);
         }
 

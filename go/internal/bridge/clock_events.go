@@ -260,7 +260,7 @@ func clockOperationOutcome(v *k.OperationOutcome) error {
 	return nil
 }
 func clockEventCompleteness(page *c.PageInfo) error {
-	if page == nil || page.Complete == nil || (page.GetComplete() && page.NextCursor != nil) || (page.NextCursor != nil && validID(page.GetNextCursor()) != nil) {
+	if page == nil || page.Complete == nil {
 		return contract("clock collection completeness required")
 	}
 	return nil

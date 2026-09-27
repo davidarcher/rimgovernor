@@ -259,9 +259,6 @@ func buildingEvidence(evidence *r.EffectEvidence, candidate *p.PlacementCandidat
 		return contract("construction blocker invalid")
 	}
 	for _, ids := range [][]string{v.CancelledFrameIds, v.WipedThingIds} {
-		if len(ids) > 4096 {
-			return contract("construction effects limit")
-		}
 		seen := map[string]bool{}
 		for _, id := range ids {
 			if validID(id) != nil || seen[id] {

@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeRecoveryFacts
     {
         // Pure census: reading recovery never acquires or repairs area leases.
-        internal static Obs.RecoveryReply Read(Map map, Common.ObservationContext context, int limit)
+        internal static Obs.RecoveryReply Read(Map map, Common.ObservationContext context)
         {
             try {
                 var conditions = new List<GameCondition>();
@@ -21,7 +21,6 @@ namespace HomeBridge.BridgeTools
                 var areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Where(a => a.TrueCount > 0
                     && a.ActiveCells.All(c => c.Roofed(map) && !c.Fogged(map))).OrderBy(a => a.ID).ToList();
                 var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                if (buildings.Count + areas.Count + pawns.Count > limit) throw new InvalidOperationException("Recovery census exceeds bound.");
                 var result = new Obs.RecoverySnapshot { Context = context, RoofHazard = conditions.Any(c => c is GameCondition_ToxicFallout),
                     Completeness = Complete(buildings.Count + areas.Count + pawns.Count) };
                 foreach (var building in buildings) {

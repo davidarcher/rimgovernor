@@ -28,7 +28,7 @@ func (client *Client) ReadClaimBuildingTarget(ctx context.Context, identity *c.I
 	if validID(thing) != nil {
 		return ClaimBuildingTarget{}, Result{}, contract("invalid claim building target identity")
 	}
-	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: []string{thing}, Statuses: []string{"built"}, PlayerOnly: proto.Bool(false), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(1)}}
+	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: []string{thing}, Statuses: []string{"built"}, PlayerOnly: proto.Bool(false), Category: proto.String("artificial")}
 	reply := &o.ListBuildingsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_buildings", request, reply)
 	if err != nil {

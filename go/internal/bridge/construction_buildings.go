@@ -16,7 +16,7 @@ func constructionBuildingsRequest(identity *c.Identity, ids []string) *o.ListBui
 	if limit == 0 {
 		limit = 256
 	}
-	return &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: append([]string{}, ids...), Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(uint32(limit))}}
+	return &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: append([]string{}, ids...), Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial")}
 }
 
 // ReadConstructionBuildings requests built artificial player-faction buildings.
@@ -72,7 +72,7 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 		requested[id] = true
 	}
 	counts := v.Completeness
-	if (len(ids) > 0 && len(v.Buildings) > len(ids)) || len(v.Buildings) > 256 || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Buildings)) || counts.GetReturned() != uint64(len(v.Buildings)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
+	if (len(ids) > 0 && len(v.Buildings) > len(ids)) || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Buildings)) || counts.GetReturned() != uint64(len(v.Buildings)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
 		return contract("incomplete building query")
 	}
 	seen := map[string]bool{}

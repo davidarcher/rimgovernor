@@ -31,7 +31,7 @@ type ResearchRead struct {
 // researchRequest is the exact request ReadResearch issues, the key the
 // bundle seeds its research section under.
 func researchRequest(identity *c.Identity) *o.ResearchRequest {
-	return &o.ResearchRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeLocked: proto.Bool(true), IncludeFinished: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	return &o.ResearchRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeLocked: proto.Bool(true), IncludeFinished: proto.Bool(true)}
 }
 
 func (client *Client) ReadResearch(ctx context.Context, identity *c.Identity) (ResearchRead, Result, error) {
@@ -67,9 +67,6 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity) (Research
 	if v.Snapshot == nil || validID(v.Snapshot.GetToken()) != nil {
 		return ResearchRead{}, contract("invalid research snapshot token")
 	}
-	if len(v.Projects) > 4096 || len(v.Benches) > 256 || len(v.Researchers) > 256 {
-		return ResearchRead{}, contract("research snapshot exceeds bound")
-	}
 	out := ResearchRead{Context: v.Context, SnapshotToken: v.Snapshot.GetToken(), Projects: map[string]policy.ResearchProjectFacts{}}
 	current := ""
 	for _, row := range v.Projects {
@@ -98,9 +95,6 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity) (Research
 		facts.HiddenPrerequisites = domain.Known(toProjectIDs(row.GetHiddenPrerequisites()))
 		// The census computes lock_reasons from the same predicates as the
 		// native CanStartNow; an absent list is a project that can start.
-		if len(row.GetLockReasons()) > 256 {
-			return ResearchRead{}, contract("research lock reasons exceed bound")
-		}
 		facts.RequiredBuilding = row.GetRequiredBuilding()
 		facts.LockReasons = append([]string(nil), row.GetLockReasons()...)
 		out.Projects[name] = facts

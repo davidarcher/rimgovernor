@@ -106,11 +106,11 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command!, out var caravan, out var settlement, out _, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
                 {
                     Context = context.Clone(), Accepted = true,
                     Projected = new Receipts.EffectEvidence { Trade = new Receipts.TradeEffect { FactionId = settlement!.Faction!.GetUniqueLoadID() } },
-                } });
+                } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Settlement gift preview failed: " + error.GetType().Name) }; }
         }
@@ -172,13 +172,13 @@ namespace HomeBridge.BridgeTools
                     }
                     finally { try { TradeSession.Close(); } catch (Exception) { } }
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence!) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence!) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Settlement gift validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted settlement gift requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted settlement gift requires observation: " + error.GetType().Name) };
             }
         }
 

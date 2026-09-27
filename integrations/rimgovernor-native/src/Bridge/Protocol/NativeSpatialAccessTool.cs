@@ -25,7 +25,6 @@ namespace HomeBridge.BridgeTools
         internal const int MaximumBlockedCells = 16384;
         internal const int MaximumTargetCells = 128;
         internal const int MaximumPawns = 32;
-        internal const int MaximumLostCells = 16;
         internal const long MaximumMapCells = 262144;
 
         [Tool("rimgovernor/observations_read_spatial_access", Title = "Read projected colony access",
@@ -48,7 +47,7 @@ namespace HomeBridge.BridgeTools
                     var targets = parsed.TargetCells.Select(Native).ToList();
                     if (blocked.Concat(targets).Any(c => !c.InBounds(map))) return ProtoBoundary.Encode(new Obs.SpatialAccessReply {
                         Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map.") });
-                    return Encode(new Obs.SpatialAccessReply { Observed = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context) });
+                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Observed = Audit(map, blocked, targets, parsed.PawnIds.ToList(), context) });
                 }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.") }); }
@@ -130,7 +129,7 @@ namespace HomeBridge.BridgeTools
                     Completeness = Complete(targets.Count),
                 };
                 if (origin.IsValid) row.ProjectedOrigin = Cell(origin);
-                foreach (var c in lost.Take(MaximumLostCells)) row.LostCells.Add(Cell(c));
+                foreach (var c in lost) row.LostCells.Add(Cell(c));
                 foreach (var c in targets)
                 {
                     var projected = after.Contains(c);
@@ -147,10 +146,6 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
-        private static object Encode(IMessage reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

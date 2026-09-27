@@ -8,16 +8,12 @@ import (
 	"math"
 )
 
-// gearCandidateBound is the census limit NativeGearFacts carries
-// candidates up to (the colony facts collection limit).
-const gearCandidateBound = 256
-
 func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v.Context, ctx) {
 		return contract("gear census context mismatch")
 	}
 	if stored := v.StoredApparel; stored != nil {
-		if err := colonyCounts(stored.Completeness, len(stored.Rows), 4096); err != nil {
+		if err := colonyCounts(stored.Completeness, len(stored.Rows)); err != nil {
 			return err
 		}
 		if stored.Completeness.GetFiltered() != 0 {
@@ -50,7 +46,7 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 			}
 		}
 	}
-	if err := colonyCounts(v.Completeness, len(v.Pawns), 256); err != nil {
+	if err := colonyCounts(v.Completeness, len(v.Pawns)); err != nil {
 		return err
 	}
 	if v.Completeness.GetFiltered() != 0 {
@@ -87,15 +83,11 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if err := combatDetails(&o.PawnState{Equipment: p.Equipment}, ctx); err != nil {
 			return err
 		}
-		if err := colonyCounts(p.Completeness, len(p.Candidates), 256); err != nil {
+		if err := colonyCounts(p.Completeness, len(p.Candidates)); err != nil {
 			return err
 		}
-		// A loadout carries every eligible candidate up to
-		// gearCandidateBound; further items count as filtered only once the
-		// bound is full, so a short census with omissions stays a contract
-		// error.
-		if p.Completeness.GetFiltered() != 0 && len(p.Candidates) < gearCandidateBound || len(p.ReplacementNeeds) > 256 {
-			return contract("incomplete gear candidates or oversized needs")
+		if p.Completeness.GetFiltered() != 0 {
+			return contract("filtered gear candidates")
 		}
 		candidates := []*o.GearItem{}
 		for _, candidate := range p.Candidates {

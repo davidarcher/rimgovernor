@@ -120,11 +120,11 @@ func frameShaped(method string, request proto.Message) bool {
 	case *o.ResearchRequest:
 		return proto.Equal(v, researchRequest(id))
 	case *o.ListBuildingsRequest:
-		return proto.Equal(v, buildingsListRequest(id, "")) || proto.Equal(v, constructionBuildingsRequest(id, nil))
+		return proto.Equal(v, buildingsListRequest(id)) || proto.Equal(v, constructionBuildingsRequest(id, nil))
 	case *o.BillsRequest:
-		return proto.Equal(v, billsListRequest(id, ""))
+		return proto.Equal(v, billsListRequest(id))
 	case *o.ListZonesRequest:
-		return proto.Equal(v, zoneSectionRequest(id, ""))
+		return proto.Equal(v, zoneSectionRequest(id))
 	case *o.TradersRequest:
 		return proto.Equal(v, tradersRequest(id))
 	case *o.WorldProgressionRequest:
@@ -321,16 +321,16 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, window *o
 		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
 	}
 	if v.Buildings != nil {
-		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity, ""), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
+		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
 	}
 	if v.BuiltBuildings != nil {
 		seed("rimgovernor/observations_list_buildings", constructionBuildingsRequest(identity, nil), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.BuiltBuildings}})
 	}
 	if v.Bills != nil {
-		seed("rimgovernor/observations_read_bills", billsListRequest(identity, ""), &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: v.Bills}})
+		seed("rimgovernor/observations_read_bills", billsListRequest(identity), &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: v.Bills}})
 	}
 	if v.Zones != nil {
-		seed("rimgovernor/observations_list_zones", zoneSectionRequest(identity, ""), &o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: v.Zones}})
+		seed("rimgovernor/observations_list_zones", zoneSectionRequest(identity), &o.ListZonesReply{Outcome: &o.ListZonesReply_Observed{Observed: v.Zones}})
 	}
 	if v.Traders != nil {
 		seed("rimgovernor/observations_list_traders", tradersRequest(identity), &o.TradersReply{Outcome: &o.TradersReply_Observed{Observed: v.Traders}})

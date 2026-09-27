@@ -200,13 +200,13 @@ namespace HomeBridge.BridgeTools
                     if (pawn!.ownership!.OwnedBed != bed) throw new InvalidOperationException("Native bed assignment did not take effect.");
                     evidence = new Receipts.EffectEvidence { Bed = Evidence(pawn, bed!, command, true) };
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Bed assignment failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted bed assignment requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted bed assignment requires observation: " + error.GetType().Name) };
             }
         }
     }

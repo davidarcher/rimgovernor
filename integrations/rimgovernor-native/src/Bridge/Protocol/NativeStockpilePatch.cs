@@ -174,12 +174,12 @@ namespace HomeBridge.BridgeTools
                     NativeStockpileSettings.Apply(settings.filter, resolved, StockpileFilter.ParentFilter(target), StockpileFilter.StorableDefs(target));
                     evidence = record.Evidence(context);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Stockpile patch admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence!, "Patched storage requires inspection: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence!, "Patched storage requires inspection: " + error.GetType().Name) };
             }
         }
     }

@@ -8,9 +8,6 @@ import (
 )
 
 func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
-	if len(v.Farms) > 256 || len(v.Cooking) > 256 || len(v.Butchering) > 256 {
-		return contract("production census exceeds bound")
-	}
 	for _, issue := range v.Issues {
 		if issue.GetField() == "farms" && len(v.Farms) != 0 || issue.GetField() == "cooking" && len(v.Cooking) != 0 || issue.GetField() == "butchering" && len(v.Butchering) != 0 {
 			return contract("unavailable production census contains rows")
@@ -41,12 +38,12 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		if b == nil {
 			return contract("nil butcher bench")
 		}
-		if len(b.HumanButchers) > 256 || len(b.HumanStorageCells) > 6 || !combatNumber(b.HumanCorpseNutrition, true) {
+		if len(b.HumanStorageCells) > 6 || !combatNumber(b.HumanCorpseNutrition, true) {
 			return contract("invalid human butchery census")
 		}
 		workers := map[string]bool{}
 		for _, worker := range b.HumanButchers {
-			if worker == nil || validID(worker.PawnId) != nil || workers[worker.PawnId] || len(worker.Traits) > 256 {
+			if worker == nil || validID(worker.PawnId) != nil || workers[worker.PawnId] {
 				return contract("invalid human butcher")
 			}
 			workers[worker.PawnId] = true
@@ -77,7 +74,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 				return contract("bill stack snapshot mismatch")
 			}
 		}
-		if len(bench.Recipes) > 256 || len(bench.Bills) > 15 || len(bench.Production) > 256 {
+		if len(bench.Bills) > 15 {
 			return contract("bill census exceeds bound")
 		}
 		recipes := map[string]bool{}
@@ -99,7 +96,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 				return contract("invalid bill worker")
 			}
 			if filter := bill.IngredientFilter; filter != nil {
-				if len(filter.AllowedDefNames) > 65536 || !proto.Equal(filter, &o.StockpileFilter{AllowedDefNames: filter.AllowedDefNames}) {
+				if !proto.Equal(filter, &o.StockpileFilter{AllowedDefNames: filter.AllowedDefNames}) {
 					return contract("invalid bill filter")
 				}
 				seen := map[string]bool{}
@@ -124,7 +121,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		}
 		produced := map[string]bool{}
 		for _, production := range bench.Production {
-			if production == nil || validID(production.GetRecipe()) != nil || !recipes[production.GetRecipe()] || produced[production.GetRecipe()] || production.Available == nil || len(production.Products) > 256 {
+			if production == nil || validID(production.GetRecipe()) != nil || !recipes[production.GetRecipe()] || produced[production.GetRecipe()] || production.Available == nil {
 				return contract("invalid food recipe output")
 			}
 			produced[production.GetRecipe()] = true

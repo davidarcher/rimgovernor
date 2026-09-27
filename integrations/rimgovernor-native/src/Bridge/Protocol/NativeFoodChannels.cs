@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
         private static readonly PropertyInfo? EggActive = typeof(CompEggLayer).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? EggStopped = typeof(CompEggLayer).GetProperty("ProgressStoppedBecauseUnfertilized", BindingFlags.Instance | BindingFlags.NonPublic);
 
-        internal static Obs.FoodChannelsSection Read(Map map, IntVec3 center, List<Pawn> workers, Func<ThingDef, bool> humanFood, int limit)
+        internal static Obs.FoodChannelsSection Read(Map map, IntVec3 center, List<Pawn> workers, Func<ThingDef, bool> humanFood)
         {
             try
             {
@@ -155,7 +155,6 @@ namespace HomeBridge.BridgeTools
                             Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))) };
                         var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
                         if (fish.Count > 0 && fish.All(humanFood)) row.NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition)));
-                        Bound(fishers.Count, 256);
                         row.ConcurrentFishers = (uint)fishers.Count;
                         if (fishers.Count > 0)
                         {
@@ -186,21 +185,17 @@ namespace HomeBridge.BridgeTools
                         if (zones.Count == 0 && row.ProposedCells.Count < fishers.Count) row.Reachable = false;
                         water.Regions.Add(row);
                     }
-                    Bound(water.Regions.Count, limit);
                     result.FishableWater = water;
                 }
-                foreach (var count in new[] { result.Gatherable.Count, result.EggLayer.Count, result.PasteDispenser.Count, result.Forage.Count, result.Grazing.Count, result.Slaughter.Count }) Bound(count, limit);
                 result.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = 1, Returned = 1, Filtered = 0, Unreadable = 0 };
                 return new Obs.FoodChannelsSection { Observed = result };
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return new Obs.FoodChannelsSection { Unavailable = new Common.Unavailable { Reason = e is OverflowException ? Common.UnavailableReason.LimitExceeded : Common.UnavailableReason.ReadFailed,
+                return new Obs.FoodChannelsSection { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
                     Detail = "Food source census unavailable." } };
             }
         }
-
-        private static void Bound(int count, int limit) { if (count > limit) throw new OverflowException(); }
         private static double Finite(double value) { if (double.IsNaN(value) || double.IsInfinity(value)) throw new InvalidOperationException(); return value; }
     }
 }

@@ -34,7 +34,7 @@ func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
 		return domain.Unknown[[]policy.WasteItem]()
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return domain.Unknown[[]policy.WasteItem]()
 	}
 	items := make([]policy.WasteItem, 0, len(snapshot.Items))

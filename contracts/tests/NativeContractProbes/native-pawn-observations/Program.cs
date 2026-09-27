@@ -267,9 +267,6 @@ internal static class NativePawnObservationsProbe
         foreach(var field in new[]{"health","biography","social","animal_state"})
             Check(corpseIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NotRequested"),"corpse detail explicitly disables blocked-path section "+field);
 
-        var require=tools.GetMethod("Require",Flags)!;
-        require.Invoke(null,new object[]{256,256});
-        Check(Throws(()=>require.Invoke(null,new object[]{257,256}),"ReadLimit"),"collection overflow fails instead of sampling");
         var number=tools.GetMethod("Number",Flags)!;
         Check((double)number.Invoke(null,new object[]{0d})! == 0,"observed zero retained");
         Check(Throws(()=>number.Invoke(null,new object[]{double.NaN}),"InvalidOperationException"),"nonfinite native fact fails");
@@ -277,8 +274,6 @@ internal static class NativePawnObservationsProbe
         var complete=tools.GetMethod("Complete",Flags)!.Invoke(null,new object[]{0,7})!;
         Check((ulong)Get(complete,"Returned")==0&&(ulong)Get(complete,"Matched")==0&&(ulong)Get(complete,"Filtered")==7&&(ulong)Get(complete,"Unreadable")==0,"known empty exact-query completeness");
         Check((bool)Get(Get(complete,"Page"),"Complete"),"known empty page complete");
-        var huge=Wire("ListPawnsReply","{\"observed\":{\"pawns\":[{\"pawn\":{\"label\":\""+new string('x',1024*1024)+"\"}}]}}");
-        Check(Throws(()=>tools.GetMethod("Encode",Flags)!.Invoke(null,new[]{huge}),"ReadLimit"),"whole reply byte overflow fails");
         var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimBridgeServer.dll")).First(File.Exists));
         var binder=server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
         foreach(var value in new object?[]{"{}",new Dictionary<string,object>(),new List<object>(),null,17,true}) {

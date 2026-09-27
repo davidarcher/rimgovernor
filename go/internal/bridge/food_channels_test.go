@@ -16,7 +16,6 @@ func TestFoodChannelsRejectsMalformedCensus(t *testing.T) {
 	}{
 		{"missing completeness", func(f *o.FoodChannelsFacts) { f.Completeness = nil }},
 		{"filtered", func(f *o.FoodChannelsFacts) { f.Completeness.Filtered = proto.Uint64(1) }},
-		{"animal bound", func(f *o.FoodChannelsFacts) { f.EggLayer = make([]*o.EggLayerAnimal, 257) }},
 		{"negative fullness", func(f *o.FoodChannelsFacts) { f.Gatherable[0].Fullness = proto.Float64(-0.1) }},
 		{"negative production", func(f *o.FoodChannelsFacts) { f.Gatherable[0].NutritionPerDay = proto.Float64(-1) }},
 		{"invalid work", func(f *o.FoodChannelsFacts) { f.Gatherable[0].WorkPerDay = proto.Float64(math.Inf(1)) }},

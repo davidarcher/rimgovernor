@@ -290,7 +290,6 @@ namespace HomeBridge.BridgeTools
                     }
                     result.MaxProbeTickGap = s.MaxProbeTickGap; result.ProbeCount = checked((ulong)s.ProbeCount);
                     if (s.ForcePauseSinceMs != 0) { result.ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)); result.ForcePauseKind = Text(s.ForcePauseKind); }
-                    if (s.BaselineAlerts.Count > 256 || s.SuppressedInjuries.Count > 256) throw new InvalidOperationException("Clock evidence exceeds bounded collection");
                     foreach (var row in s.BaselineAlerts) result.BaselineAlerts.Add(NativeClockEventProjection.Alert(row));
                     // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
                     result.EvidenceCompleteness = new Common.PageInfo { Complete = s.SuppressedInjuries.Count == 0 };
@@ -435,7 +434,6 @@ namespace HomeBridge.BridgeTools
                     PauseVerified = typed.StopPauseVerified, RequestedSpeed = WireSpeed(s.RequestedSpeed), ActualSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed),
                     LongEventPending = LongEventHandler.AnyEventNowOrWaiting };
                 var windows = ForcePausingWindows();
-                if (windows.Count > 256) throw new InvalidOperationException("Clock pause evidence exceeds window bound");
                 if (windows.Any(window => !ProtoBoundary.IsIdentifier(window))) throw new InvalidOperationException("Invalid pause window identity");
                 result.Stopped.Pause.ForcePausingWindowIds.Add(windows);
                 if (kind == "dialog_pause")

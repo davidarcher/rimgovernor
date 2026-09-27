@@ -203,7 +203,7 @@ func validZoneAttempt(w ZoneAttempt) error {
 }
 func ZoneMatches(v *r.EffectEvidence, zone domain.ZoneCreate, token string) (bool, error) {
 	d := v.GetZone()
-	if d == nil || buildingUnknown(v) != nil || d.Snapshot == nil || validID(d.GetZoneId()) != nil || d.Snapshot.GetEntityId() != d.GetZoneId() || d.Snapshot.GetBeforeToken() != token || d.Present == nil || d.ListedCellCount == nil || d.GridCellCount == nil || d.PhantomCellCount == nil || d.ChangedCells == nil || d.GetListedCellCount() != int32(len(d.Cells)) || len(d.Cells) > 256 || d.GetGridCellCount() < 0 || d.GetPhantomCellCount() < 0 || d.GetPhantomCellCount() > d.GetListedCellCount() || d.GetChangedCells() < 0 {
+	if d == nil || buildingUnknown(v) != nil || d.Snapshot == nil || validID(d.GetZoneId()) != nil || d.Snapshot.GetEntityId() != d.GetZoneId() || d.Snapshot.GetBeforeToken() != token || d.Present == nil || d.ListedCellCount == nil || d.GridCellCount == nil || d.PhantomCellCount == nil || d.ChangedCells == nil || d.GetListedCellCount() != int32(len(d.Cells)) || d.GetGridCellCount() < 0 || d.GetPhantomCellCount() < 0 || d.GetPhantomCellCount() > d.GetListedCellCount() || d.GetChangedCells() < 0 {
 		return false, contract("invalid zone readback")
 	}
 	seen := map[domain.Cell]bool{}

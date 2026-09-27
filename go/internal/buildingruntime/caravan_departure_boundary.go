@@ -226,7 +226,7 @@ func (b *CaravanDepartureBoundary) InspectCaravanDeparture(ctx context.Context, 
 		return out, err
 	}
 	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(crew)) || counts.GetReturned() != uint64(len(crew)) || len(observed.Pawns) != len(crew) {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(crew)) || counts.GetReturned() != uint64(len(crew)) || len(observed.Pawns) != len(crew) {
 		return out, executor.ErrHeld
 	}
 	crewSet := make(map[domain.PawnID]bool, len(crew))

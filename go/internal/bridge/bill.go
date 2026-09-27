@@ -159,7 +159,7 @@ func validBillAttempt(w BillAttempt) error {
 }
 func ValidateBillEffect(v *r.EffectEvidence, bill domain.ProductionBill) error {
 	d := v.GetBill()
-	if d == nil || buildingUnknown(v) != nil || validBill(bill) != nil || d.Stack == nil || d.Stack.GetEntityId() != bill.Bench() || d.Stack.GetBeforeToken() != bill.BeforeToken() || validID(d.GetBillId()) != nil || d.GetRecipeDef() != bill.Recipe() || d.Present == nil || d.Index == nil || d.ConfigurationMatches == nil || d.Iterations == nil || d.GetIterations() > 1 || d.OutputComplete == nil || d.OutputObserved == nil || len(d.OrderedBillIds) > 15 || len(d.Outputs) > 256 {
+	if d == nil || buildingUnknown(v) != nil || validBill(bill) != nil || d.Stack == nil || d.Stack.GetEntityId() != bill.Bench() || d.Stack.GetBeforeToken() != bill.BeforeToken() || validID(d.GetBillId()) != nil || d.GetRecipeDef() != bill.Recipe() || d.Present == nil || d.Index == nil || d.ConfigurationMatches == nil || d.Iterations == nil || d.GetIterations() > 1 || d.OutputComplete == nil || d.OutputObserved == nil || len(d.OrderedBillIds) > 15 {
 		return contract("invalid production evidence")
 	}
 	ids := map[string]bool{}

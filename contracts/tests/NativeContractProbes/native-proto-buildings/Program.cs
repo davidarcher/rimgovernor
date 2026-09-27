@@ -63,7 +63,7 @@ internal static class NativeProtoBuildingsProbe
             Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
         }
         var reply = Wire("ListBuildingsReply", "{\"observed\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{\"page\":{\"complete\":true},\"matched\":\"1\",\"returned\":\"1\",\"unreadable\":\"0\"},\"networksCompleteness\":{\"page\":{\"complete\":false}}}}");
-        var envelope = tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { reply })!;
+        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.Invoke(null, new object[] { reply, false })!;
         var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
         var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
         Check(normalized.Count == 1 && normalized["payload"] is string, "SDK retains sole ProtoJSON payload");
@@ -73,9 +73,6 @@ internal static class NativeProtoBuildingsProbe
         Check(Get(Get(row, "Building"), "Snapshot") == null, "No fabricated CAS snapshot");
         var networks = Get(snapshot, "NetworksCompleteness");
         Check(!(bool)Get(Get(networks, "Page"), "Complete") && !(bool)Get(networks, "HasMatched"), "Unimplemented networks remain incomplete and unknown count");
-        var oversized = Wire("ListBuildingsReply", "{\"observed\":{\"buildings\":[{\"inspectText\":\"" + new string('x', 1024 * 1024) + "\"}]}}");
-        try { tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { oversized }); throw new Exception("Oversized reply accepted"); }
-        catch (TargetInvocationException error) { Check(error.InnerException!.GetType().Name == "ReadLimit", "Oversize cannot produce truncated success"); }
         Console.WriteLine(checks + " compiled building boundary assertions passed; no gameplay assertions.");
         return 0;
     }

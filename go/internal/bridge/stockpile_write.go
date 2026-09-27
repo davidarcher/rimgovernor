@@ -132,7 +132,7 @@ func StockpileWriteEvidence(v *r.EffectEvidence, action domain.Action) error {
 		return nil
 	}
 	z := v.GetZone()
-	if z == nil || z.Snapshot == nil || z.GetZoneId() != target || z.Snapshot.GetEntityId() != target || z.Snapshot.GetBeforeToken() != before || z.Present == nil || len(z.Cells) > 4096 {
+	if z == nil || z.Snapshot == nil || z.GetZoneId() != target || z.Snapshot.GetEntityId() != target || z.Snapshot.GetBeforeToken() != before || z.Present == nil {
 		return contract("invalid stockpile zone readback")
 	}
 	return nil
@@ -255,7 +255,7 @@ func (client *Client) ReadStorageBuildingTarget(ctx context.Context, identity *c
 	if validID(thing) != nil {
 		return StorageBuildingTarget{}, Result{}, contract("invalid storage building identity")
 	}
-	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: []string{thing}, Statuses: []string{"built"}, Page: &c.PageRequest{Limit: proto.Uint32(1)}}
+	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: []string{thing}, Statuses: []string{"built"}}
 	reply := &o.ListBuildingsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_buildings", request, reply)
 	if err != nil {

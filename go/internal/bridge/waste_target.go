@@ -35,7 +35,7 @@ func (client *Client) ReadWasteTarget(ctx context.Context, identity *c.Identity,
 		return WasteTarget{}, Result{}, contract("invalid waste target identity")
 	}
 	point := &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}
-	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{point}}}, Fields: wasteTargetFields(), Page: &c.PageRequest{Limit: proto.Uint32(1)}}
+	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_ExactCells{ExactCells: &o.CellSelection{Cells: []*c.Cell{point}}}, Fields: wasteTargetFields()}
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {
@@ -59,7 +59,7 @@ func validateWasteTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 		return WasteTarget{}, contract("invalid waste target cells context")
 	}
 	completeness := snapshot.Completeness
-	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Page.GetNextCursor() != "" || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
+	if completeness == nil || completeness.Page == nil || completeness.Page.Complete == nil || !completeness.Page.GetComplete() || completeness.Matched == nil || completeness.GetMatched() != 1 || completeness.Returned == nil || completeness.GetReturned() != 1 || completeness.Filtered == nil || completeness.GetFiltered() != 0 || completeness.Unreadable == nil || completeness.GetUnreadable() != 0 {
 		return WasteTarget{}, contract("incomplete waste target cells observation")
 	}
 	if !proto.Equal(snapshot.AppliedFields, wasteTargetFields()) {
@@ -69,9 +69,6 @@ func validateWasteTarget(snapshot *o.CellsSnapshot, identity *c.Identity, cell *
 		return WasteTarget{}, contract("waste target cell differs")
 	}
 	things := snapshot.Cells[0].Things
-	if len(things) > 256 {
-		return WasteTarget{}, contract("waste target cell exceeds thing bound")
-	}
 	var found *o.CellThing
 	for _, thing := range things {
 		if thing == nil || thing.Thing == nil {

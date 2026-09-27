@@ -51,9 +51,9 @@ namespace HomeBridge.BridgeTools
                     return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                         "Choice dialog or option changed; inspect again.") };
                 var accepted = ChoiceDialogTools.Answerable(dialog, option);
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = accepted,
-                    Reason = accepted ? "" : ChoiceDialogTools.Unanswerable(dialog, option) } });
+                    Reason = accepted ? "" : ChoiceDialogTools.Unanswerable(dialog, option) } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Dialog preview failed: " + error.GetType().Name) }; }
         }
@@ -100,13 +100,13 @@ namespace HomeBridge.BridgeTools
                     if (!evidence.Dialog.Closed && !evidence.Dialog.Advanced)
                         throw new InvalidOperationException("The activated option neither closed nor advanced the dialog.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Dialog admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted dialog answer requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted dialog answer requires observation: " + error.GetType().Name) };
             }
         }
 

@@ -54,7 +54,7 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if !q.GetIncludeStorage() || q.Page.GetLimit() != 256 {
+		if !q.GetIncludeStorage() {
 			t.Fatal(q)
 		}
 		return pbResult(&o.WorldProgressionReply{Outcome: &o.WorldProgressionReply_Observed{Observed: snapshot}}), nil

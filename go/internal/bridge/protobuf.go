@@ -162,9 +162,6 @@ func (caller *Client) Status(ctx context.Context, identity *c.Identity) (*o.Stat
 		if v.Colonists != nil || v.Threats != nil {
 			err = contract("unrequested status section")
 		}
-		if len(v.Issues) > 256 {
-			err = contract("too many status issues")
-		}
 		for _, issue := range v.Issues {
 			if issue == nil || validID(issue.GetField()) != nil {
 				err = contract("invalid read issue")

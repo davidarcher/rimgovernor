@@ -259,9 +259,6 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	if len(census) > 256 {
-		return RoutineResourceResult{}, ErrControl
-	}
 	allowed := map[string]bool{}
 	for _, id := range benchFilter {
 		allowed[id] = true
@@ -802,9 +799,6 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
 }
 
-// maxSupplyStockNames is bridge.ReadSupplyStock's query bound.
-const maxSupplyStockNames = 256
-
 // recipeIngredientNames lists, sorted, every ingredient alternative of the
 // census recipes that produce product ("" for all recipes), for one
 // ReadSupplyStock funding read. Category filters (any meat, any hay) make a
@@ -837,8 +831,5 @@ func recipeIngredientNames(census []bridge.GearBenchRead, product policy.Resourc
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if len(names) > maxSupplyStockNames {
-		names = names[:maxSupplyStockNames]
-	}
 	return names
 }

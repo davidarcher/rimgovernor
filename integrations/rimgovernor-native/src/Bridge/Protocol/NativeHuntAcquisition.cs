@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
             // census read, which move every tick under a running clock.
             Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
                 prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
-        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, int limit)
+        internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center)
         {
             result.PendingHunts = (uint)Pending(map);
             // Food prey within 100 cells of the colony (the hunter rule's own
@@ -192,8 +192,7 @@ namespace HomeBridge.BridgeTools
             // pass it over and only the pest goal takes it.
             var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 100 && Eligible(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
-                .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
-                .Take(Math.Max(0, limit - result.Acquisition.Count));
+                .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber));
             foreach (var prey in candidates) result.Acquisition.Add(new Obs.AcquisitionFacts {
                 Source = new Obs.EntityRef { Id = prey.GetUniqueLoadID(), DefName = prey.def.defName, MapId = map.uniqueID,
                     Position = new Common.Cell { X = prey.Position.x, Z = prey.Position.z }, Snapshot = Snapshot(prey, result.Context) },
@@ -242,12 +241,12 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
                     if (evidence.Acquisition.Designated) throw new InvalidOperationException("Hunt designation survived cancellation.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunt cancellation failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted hunt cancellation requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted hunt cancellation requires observation: " + error.GetType().Name) };
             }
         }
         // Prepare is the apply-time precondition list for hunt
@@ -308,11 +307,11 @@ namespace HomeBridge.BridgeTools
                     evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
                     if (!evidence.Acquisition.Designated) throw new InvalidOperationException("Hunt designation was not observed.");
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
-                if (handle != null) return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Hunting write interrupted: " + error.GetType().Name) };
+                if (handle != null) return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Hunting write interrupted: " + error.GetType().Name) };
                 return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunting failed: " + error.GetType().Name) };
             }
         }

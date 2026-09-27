@@ -37,8 +37,7 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
-                try { return Encode(new Obs.PopulationReply { Observed = Population(map, parsed, context) }); }
-                catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
+                try { return ProtoBoundary.Encode(new Obs.PopulationReply { Observed = Population(map, parsed, context) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native population facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -58,10 +57,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope and page 1..256 without cursor are required.");
-            if (request?.Scope?.ExpectedIdentity == null) return false;
-            var page = request.Page;
-            return page == null || (!page.HasLimit || page.Limit >= 1 && page.Limit <= 256) && (!page.HasCursor || page.Cursor.Length == 0);
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope is required.");
+            return request?.Scope?.ExpectedIdentity != null;
         }
 
         private static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context, Obs.PopulationFields? fields = null)
@@ -69,8 +66,6 @@ namespace HomeBridge.BridgeTools
             bool bed = NativeBundleMasks.OwnedBed(fields), nutrition = NativeBundleMasks.Nutrition(fields);
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).OrderBy(p => p.thingIDNumber).ToList();
-            var limit = request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
-            if (people.Count > limit) throw new ReadLimit("Complete population census exceeds the requested bound; paging is unavailable.");
             var snapshot = new Obs.PopulationSnapshot { Context = context };
             foreach (var p in people)
             {
@@ -108,10 +103,5 @@ namespace HomeBridge.BridgeTools
         private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.Completeness Complete(int count) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = 0, Unreadable = 0 };
-        private static object Encode(Obs.PopulationReply reply)
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

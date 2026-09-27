@@ -24,7 +24,6 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeShrineObservationTools
     {
         private const string ToolName = "rimgovernor/observations_get_ancient_shrines";
-        private const int ShrineLimit = 64, CasketLimit = 32, GuardLimit = 256, BreachLimit = 64, RoomWidthLimit = 256;
 
         [Tool(ToolName, Title = "Read ancient shrines", Description = "Complete bounded census of ancient cryptosleep casket groups: room rectangle, sealed state, Home overlap, visible caskets with hit points and contents, hostile guards once unfogged, and deconstructible breach walls. Read-only; admits nothing.")]
         [ToolResponse("payload", "string", "Official ProtoJSON AncientShrinesReply.", Always = true)]
@@ -47,12 +46,10 @@ namespace HomeBridge.BridgeTools
                         if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<Building_AncientCryptosleepCasket>();
                         list.Add(casket);
                     }
-                    Require(groups.Count <= ShrineLimit, "Casket groups exceed " + ShrineLimit + ".");
                     var snapshot = new Obs.AncientShrinesSnapshot { Context = context };
                     var home = map.areaManager.Home;
                     foreach (var pair in groups.OrderBy(p => p.Key)) {
                         var caskets = pair.Value.OrderBy(c => c.thingIDNumber).ToList();
-                        Require(caskets.Count <= CasketLimit, "Caskets in one shrine exceed " + CasketLimit + ".");
                         var fogged = caskets.Any(c => c.Position.Fogged(map));
                         var rooms = new HashSet<Room>();
                         foreach (var casket in caskets)
@@ -60,7 +57,6 @@ namespace HomeBridge.BridgeTools
                         var cells = rooms.Count > 0 ? rooms.SelectMany(r => r.Cells).ToList() : caskets.Select(c => c.Position).ToList();
                         var rect = CellRect.FromCellList(cells);
                         if (rooms.Count == 0) rect = rect.ExpandedBy(2).ClipInsideMap(map);
-                        Require(rect.Width <= RoomWidthLimit && rect.Height <= RoomWidthLimit, "Shrine room exceeds the bounded rectangle.");
                         var sealedRoom = rooms.Count > 0 && fogged && rooms.All(r => r.OpenRoofCount == 0);
                         var row = new Obs.AncientShrine {
                             ShrineId = Id(pair.Key >= 0 ? "AncientShrineGroup_" + pair.Key : caskets[0].GetUniqueLoadID()),
@@ -83,13 +79,11 @@ namespace HomeBridge.BridgeTools
                                 if (!seen.Add(thing.thingIDNumber)) continue;
                                 var guard = Guard(thing, player);
                                 if (guard == null) continue;
-                                Require(row.Guards.Count < GuardLimit, "Shrine guards exceed " + GuardLimit + ".");
                                 row.Guards.Add(guard);
                             }
                             foreach (var thing in things) {
                                 var occupant = Occupant(thing, player);
                                 if (occupant == null || row.Occupants.Any(o => o.EntityId == occupant.EntityId)) continue;
-                                Require(row.Occupants.Count < GuardLimit, "Shrine occupants exceed " + GuardLimit + ".");
                                 row.Occupants.Add(occupant);
                             }
                         }
@@ -106,7 +100,6 @@ namespace HomeBridge.BridgeTools
                                     if (near.InBounds(map) && !inside.Contains(near) && near.Walkable(map) && !near.Fogged(map)) { outside = near; break; }
                                 }
                                 if (outside == null) continue;
-                                Require(row.BreachWalls.Count < BreachLimit, "Shrine breach walls exceed " + BreachLimit + ".");
                                 row.BreachWalls.Add(new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) });
                             }
                         }
@@ -117,7 +110,6 @@ namespace HomeBridge.BridgeTools
                     var reply = new Obs.AncientShrinesReply { Observed = snapshot };
                     return ProtoBoundary.Encode(reply);
                 }
-                catch (ReadLimit limit) { return Missing(Common.UnavailableReason.LimitExceeded, limit.Message); }
                 catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Shrine facts could not be read completely."); }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -165,7 +157,5 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static object Missing(Common.UnavailableReason reason, string detail) => ProtoBoundary.Encode(new Obs.AncientShrinesReply { Unavailable = new Common.Unavailable { Reason = reason, Detail = detail } });
-        private static void Require(bool condition, string message) { if (!condition) throw new ReadLimit(message); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }

@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
         private static string Id(string id)
         { if (!ProtoBoundary.IsIdentifier(id)) throw new InvalidOperationException("Invalid clock evidence identity"); return id; }
         private static IEnumerable<Dictionary<string, object?>> Rows(Dictionary<string, object?> row, string key)
-        { var values = ((IEnumerable)Required(row, key)).Cast<Dictionary<string, object?>>().ToList(); if (values.Count > 256) throw new InvalidOperationException("Clock event collection exceeds256"); return values; }
+        { var values = ((IEnumerable)Required(row, key)).Cast<Dictionary<string, object?>>().ToList(); return values; }
         internal static Clock.Alert Alert(Dictionary<string, object?> row)
         {
             var result = new Clock.Alert { Key = Id(String(row, "alertKey")), Label = String(row, "label") };

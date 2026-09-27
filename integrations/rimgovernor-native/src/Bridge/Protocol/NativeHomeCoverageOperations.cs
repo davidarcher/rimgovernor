@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
             var evaluation = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = accepted,
                 Projected = new Receipts.EffectEvidence { Home = Projected(command, missing) } };
             if (!accepted) evaluation.Reason = failure.Detail;
-            return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = evaluation });
+            return new Operations.PreviewReply { Evaluated = evaluation };
         }
 
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
@@ -152,12 +152,12 @@ namespace HomeBridge.BridgeTools
                     record.Revision = HomeCoverage.State(map!).Revision;
                     evidence = new Receipts.EffectEvidence { Home = record.Evidence(cells) };
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Home extension admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Home extension requires inspection: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Home extension requires inspection: " + error.GetType().Name) };
             }
         }
     }

@@ -168,8 +168,8 @@ namespace HomeBridge.BridgeTools {
      giver!.BillStack.AddBill(bill);record.Capture();
      evidence=new Receipts.EffectEvidence{Bill=record.Evidence(context)};
     }
-    return new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence)};
-   }catch(Exception error){return handle==null?new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Bill admission failed: "+error.GetType().Name)}:new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Uncertain(state.Ledger,handle,pre.Attempt,context,evidence,"Production needs inspection: "+error.GetType().Name)};}
+    return new Operations.ExecuteReply{Receipt=state.Ledger.FinishApplied(handle, evidence)};
+   }catch(Exception error){return handle==null?new Operations.ExecuteReply{Failure=ProtoBoundary.Fail(Common.FailureCode.NativeFailure,"Bill admission failed: "+error.GetType().Name)}:new Operations.ExecuteReply{Receipt=state.Ledger.FinishUncertain(handle, evidence,"Production needs inspection: "+error.GetType().Name)};}
   }
  }
 }

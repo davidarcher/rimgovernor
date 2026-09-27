@@ -15,7 +15,7 @@ func (client *Client) ReadTemperatureRooms(ctx context.Context, identity *c.Iden
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	request := &o.ListRoomsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeOutdoors: proto.Bool(false), IncludeBoundary: proto.Bool(false), IncludeCells: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := &o.ListRoomsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeOutdoors: proto.Bool(false), IncludeBoundary: proto.Bool(false), IncludeCells: proto.Bool(true)}
 	reply := &o.ListRoomsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_rooms", request, reply)
 	if err != nil {
@@ -46,7 +46,7 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, identity *c.Identity) error {
 	if err := buildingUnknown(v); err != nil {
 		return err
 	}
-	if err := colonyCounts(v.Completeness, len(v.Rooms), 256); err != nil {
+	if err := colonyCounts(v.Completeness, len(v.Rooms)); err != nil {
 		return err
 	}
 	size := &o.MapSize{Width: proto.Uint32(4096), Height: proto.Uint32(4096)}
@@ -62,10 +62,10 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, identity *c.Identity) error {
 		if err := pawnsIssues(room.Issues, room.ProtoReflect()); err != nil {
 			return err
 		}
-		if err := colonyCounts(room.CellsCompleteness, len(room.Cells), 4096); err != nil {
+		if err := colonyCounts(room.CellsCompleteness, len(room.Cells)); err != nil {
 			return err
 		}
-		if err := colonyCounts(room.ContentsCompleteness, len(room.Contents), 256); err != nil {
+		if err := colonyCounts(room.ContentsCompleteness, len(room.Contents)); err != nil {
 			return err
 		}
 		if err := colonyQuantities(room.Contents); err != nil {
@@ -89,11 +89,8 @@ func ValidateTemperatureRooms(v *o.RoomsSnapshot, identity *c.Identity) error {
 			cells[key], local[key] = true, true
 			minX, minZ, maxX, maxZ = min(minX, key[0]), min(minZ, key[1]), max(maxX, key[0]), max(maxZ, key[1])
 		}
-		if len(cells) > 65536 || !colonyCell(room.Center, size) || !local[[2]int32{room.Center.GetX(), room.Center.GetZ()}] || room.Extents == nil || !colonyCell(room.Extents.Minimum, size) || !colonyCell(room.Extents.Maximum, size) || room.Extents.Minimum.GetX() != minX || room.Extents.Minimum.GetZ() != minZ || room.Extents.Maximum.GetX() != maxX || room.Extents.Maximum.GetZ() != maxZ {
+		if !colonyCell(room.Center, size) || !local[[2]int32{room.Center.GetX(), room.Center.GetZ()}] || room.Extents == nil || !colonyCell(room.Extents.Minimum, size) || !colonyCell(room.Extents.Maximum, size) || room.Extents.Minimum.GetX() != minX || room.Extents.Minimum.GetZ() != minZ || room.Extents.Maximum.GetX() != maxX || room.Extents.Maximum.GetZ() != maxZ {
 			return contract("inconsistent room geometry")
-		}
-		if len(room.Beds) > 256 {
-			return contract("room bed census exceeds bound")
 		}
 		for _, bed := range room.Beds {
 			if bed == nil || bed.Building == nil || pawnsEntity(bed.Building, v.Context) != nil || bed.Building.DefName == nil || bed.Building.MapId == nil || !colonyCell(bed.Building.Position, size) || !local[[2]int32{bed.Building.Position.GetX(), bed.Building.Position.GetZ()}] || beds[bed.Building.GetId()] || bed.GetStatus() != "built" {

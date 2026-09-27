@@ -172,8 +172,8 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command, context, out var thing, out var failure)) return new Operations.PreviewReply { Failure = failure };
                 var proposed = Evidence(thing!, command.DesignationDef); proposed.Designation.Present = true;
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
-                    Context = context.Clone(), Accepted = true, Projected = proposed } });
+                return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
+                    Context = context.Clone(), Accepted = true, Projected = proposed } };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Clear cover preview failed: " + error.GetType().Name) }; }
         }
@@ -205,13 +205,13 @@ namespace HomeBridge.BridgeTools
                     if (!evidence.Designation.Present) throw new InvalidOperationException("Native clearance designation was not observed.");
                     state.CoverClearances.Add(pre.Attempt.Clone(), evidence.Designation.Clone());
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Clear cover admission failed: " + error.GetType().Name) }
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted ClearCover requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted ClearCover requires observation: " + error.GetType().Name) };
             }
         }
 

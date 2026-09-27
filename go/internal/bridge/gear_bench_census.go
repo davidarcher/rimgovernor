@@ -11,9 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const gearBenchLimit = 256
-const gearRecipeLimit = 256
-
 // GearBenchRead is one workbench's fresh CAS token alongside the
 // policy.GearBench census SelectGearMethod's produce path (GearProduce)
 // evaluates. Unlike the specialized Cooking/Butchering rows ColonyFactsSnapshot
@@ -35,7 +32,7 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	request := &o.BillsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: &c.PageRequest{Limit: proto.Uint32(gearBenchLimit)}}
+	request := &o.BillsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 	reply := &o.BillsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_bills", request, reply)
 	if err != nil {
@@ -59,7 +56,7 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 		return nil, raw, contract("invalid bills context")
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || len(snapshot.Benches) > gearBenchLimit {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return nil, raw, contract("incomplete bills census")
 	}
 	seen := map[string]bool{}
@@ -91,7 +88,7 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 }
 
 func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity, bench string) ([]policy.GearRecipe, error) {
-	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, BenchId: proto.String(bench), Page: &c.PageRequest{Limit: proto.Uint32(gearRecipeLimit)}}
+	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, BenchId: proto.String(bench)}
 	reply := &o.RecipesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_recipes", request, reply)
 	if err != nil {
@@ -118,7 +115,7 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		return nil, contract("recipe snapshot bench mismatch")
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || len(snapshot.Recipes) > gearRecipeLimit {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return nil, contract("incomplete recipe census")
 	}
 	names := map[string]bool{}
@@ -159,7 +156,7 @@ func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identit
 	if validID(product) != nil {
 		return nil, Result{}, contract("invalid recipe product")
 	}
-	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, ProductDef: proto.String(product), Page: &c.PageRequest{Limit: proto.Uint32(gearRecipeLimit)}}
+	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, ProductDef: proto.String(product)}
 	reply := &o.RecipesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_recipes", request, reply)
 	if err != nil {
@@ -183,7 +180,7 @@ func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identit
 		return nil, raw, contract("invalid recipes context")
 	}
 	counts := snapshot.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || len(snapshot.Recipes) > gearRecipeLimit {
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() {
 		return nil, raw, contract("incomplete recipe catalog")
 	}
 	names := map[string]bool{}
@@ -197,13 +194,10 @@ func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identit
 		if err != nil {
 			return nil, raw, err
 		}
-		if len(row.BenchDefs) == 0 || len(row.BenchDefs) > 256 {
+		if len(row.BenchDefs) == 0 {
 			return nil, raw, contract("recipe catalog row without benches")
 		}
 		host := policy.RecipeHost{Definition: row.Recipe.GetDefName(), Products: products, Available: row.GetAvailableNow(), Ingredients: GearRecipeIngredients(row.Ingredients), RequiredWork: gearRecipeWork(row)}
-		if len(row.ResearchPrerequisites) > 256 {
-			return nil, raw, contract("recipe research prerequisites exceed bound")
-		}
 		for _, project := range row.ResearchPrerequisites {
 			if validID(project) != nil {
 				return nil, raw, contract("invalid recipe research prerequisite")
@@ -227,9 +221,6 @@ func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identit
 }
 
 func gearRecipeProducts(list []*o.Quantity) ([]policy.Resource, error) {
-	if len(list) > 256 {
-		return nil, contract("recipe products exceed bound")
-	}
 	seen := map[policy.Resource]bool{}
 	out := make([]policy.Resource, 0, len(list))
 	for _, q := range list {
@@ -253,7 +244,7 @@ func gearRecipeProducts(list []*o.Quantity) ([]policy.Resource, error) {
 // skill and the highest native minimum level over its skill requirements.
 // Unknown without a native work type, or when a skill row is malformed.
 func gearRecipeWork(row *o.RecipeState) domain.Fact[[]policy.WorkRequirement] {
-	if row.WorkType == nil || validID(row.GetWorkType()) != nil || len(row.Skills) > 256 {
+	if row.WorkType == nil || validID(row.GetWorkType()) != nil {
 		return domain.Unknown[[]policy.WorkRequirement]()
 	}
 	minimum := 0
@@ -308,9 +299,6 @@ func (client *Client) ReadSupplyStock(ctx context.Context, identity *c.Identity,
 	if len(defNames) == 0 {
 		return nil, Result{}, nil
 	}
-	if len(defNames) > 256 {
-		return nil, Result{}, contract("supply stock query exceeds bound")
-	}
 	names := map[string]bool{}
 	for _, n := range defNames {
 		if validID(n) != nil || names[n] {
@@ -318,7 +306,7 @@ func (client *Client) ReadSupplyStock(ctx context.Context, identity *c.Identity,
 		}
 		names[n] = true
 	}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{DefNames: append([]string(nil), defNames...), Ownership: proto.String("ours")}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(defNames)))}}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{DefNames: append([]string(nil), defNames...), Ownership: proto.String("ours")}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {

@@ -253,9 +253,6 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
-	if len(census) > 256 {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
-	}
 	benches := make([]policy.GearBench, 0, len(census))
 	tokens := map[string]string{}
 	for _, row := range census {

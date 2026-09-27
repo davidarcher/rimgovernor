@@ -26,7 +26,6 @@ func (client *Client) ReadHomeColonists(ctx context.Context, identity *c.Identit
 		// the rest are declined explicitly (the same shape pawnDetailsRequest
 		// sends).
 		Details: &o.PawnDetails{Work: proto.Bool(true), Needs: proto.Bool(true), Health: proto.Bool(false), Equipment: proto.Bool(false), Biography: proto.Bool(false), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false), Schedule: proto.Bool(false)},
-		Page:    &c.PageRequest{Limit: proto.Uint32(256)},
 	}
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
@@ -52,9 +51,6 @@ func (client *Client) ReadHomeColonists(ctx context.Context, identity *c.Identit
 func homeColonistsSelected(v *o.PawnSnapshot, id *c.Identity) error {
 	if v == nil {
 		return contract("home colonist snapshot missing")
-	}
-	if len(v.Pawns) > 256 {
-		return contract("home colonist census exceeds bound")
 	}
 	requested := make(map[string]bool, len(v.Pawns))
 	for _, row := range v.Pawns {

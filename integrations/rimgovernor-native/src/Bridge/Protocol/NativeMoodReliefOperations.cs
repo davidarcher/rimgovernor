@@ -176,13 +176,13 @@ namespace HomeBridge.BridgeTools
                     evidence = record.Evidence(snapshot, accepted, accepted);
                     if (effectError != null || !accepted) throw new InvalidOperationException("Native relief order requires causal observation.", effectError);
                 }
-                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(handle, evidence) };
             }
             catch (Exception error)
             {
                 return handle == null
                     ? Refuse(Common.FailureCode.NativeFailure, "Relief validation failed: " + error.GetType().Name)
-                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted relief requires observation: " + error.GetType().Name) };
+                    : new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(handle, evidence, "Admitted relief requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
                     return new Operations.PreviewReply { Failure = failure };
                 var level = NeedLevel(pawn!, command.Need);
                 NativePawnControlState.Observe(new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context), context.Identity.ColonyId, context.Identity.LoadToken), pawn!, out var snapshot);
-                return NativeOperationEnvelope.Preview(new Operations.PreviewReply
+                return new Operations.PreviewReply
                 {
                     Evaluated = new Operations.PreviewEvaluation
                     {
@@ -211,7 +211,7 @@ namespace HomeBridge.BridgeTools
                             }
                         }
                     }
-                });
+                };
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Relief preview failed: " + error.GetType().Name) }; }
         }
