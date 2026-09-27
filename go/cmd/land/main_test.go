@@ -228,9 +228,6 @@ func TestLandRefusesAStaleTreeReparentedOntoMain(t *testing.T) {
 	landed := mustGit(t, root, "rev-parse", "HEAD")
 	mustGit(t, wt, "reset", "-q", "--soft", "main")
 	mustGit(t, wt, "commit", "-qm", "feat: b, squashed")
-	if fork, err := forkPoint(wt); err != nil || fork != landed {
-		t.Fatalf("forkPoint = %s, %v; want main %s", fork, err, landed)
-	}
 
 	t.Chdir(wt)
 	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)

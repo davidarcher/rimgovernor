@@ -131,15 +131,11 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err := gate.prepare(worktree); err != nil {
 		return err
 	}
-	base, err := forkPoint(worktree)
-	if err != nil {
-		return err
-	}
 	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
 		_, _ = git(worktree, "merge", "--abort")
 		return fmt.Errorf("merging main into %s: %w\nresolve the conflict on the branch (git merge main), commit, and run land again", branch, err)
 	}
-	if err := refuseReverts(worktree, base); err != nil {
+	if err := refuseReverts(worktree); err != nil {
 		return err
 	}
 	if _, err := git(worktree, "diff", "--quiet", "main"); err == nil {
@@ -409,19 +405,6 @@ func output(dir, name string, args ...string) (string, error) {
 	return string(out), nil
 }
 
-// forkPoint is where the branch first left main: the parent of its oldest
-// first-parent commit not on main, or main itself when there is none.
-// Earlier merges of main do not move it, so a revert committed after
-// such a merge still shows against it.
-func forkPoint(worktree string) (string, error) {
-	list, err := git(worktree, "rev-list", "--first-parent", "--reverse", "HEAD", "^main")
-	if err != nil || list == "" {
-		return "main", err
-	}
-	oldest, _, _ := strings.Cut(list, "\n")
-	return git(worktree, "rev-parse", oldest+"^")
-}
-
 // revertWindow is how many main landings refuseReverts looks back through.
 const revertWindow = 300
 
@@ -435,10 +418,12 @@ var hashToken = regexp.MustCompile(`\b[0-9a-f]{7,40}\b`)
 // cannot see this, since a stale tree re-parented onto main (git reset
 // --soft main, then commit) forks at main itself; that is how 6cbe9d337
 // undid 981ab0b9a (#946) after the fork-point check of #889 passed.
-// Deleting a file counts only for files main added since base, so the
-// branch's own deletions of old files land. A branch commit message
-// naming the reverted commit's hash marks the revert as intended.
-func refuseReverts(worktree, base string) error {
+// Deleting a file counts only for files main added after the branch
+// forked (the oldest main landing any branch commit has as a parent;
+// later merges of main do not move it), so the branch's own deletions of
+// old files land. A branch commit message naming the reverted commit's
+// hash marks the revert as intended.
+func refuseReverts(worktree string) error {
 	changed, err := git(worktree, "diff", "--raw", "--no-abbrev", "--no-renames", "main", "HEAD")
 	if err != nil || changed == "" {
 		return err
@@ -454,19 +439,38 @@ func refuseReverts(worktree, base string) error {
 	if err != nil {
 		return err
 	}
-	sinceBase := map[string]bool{}
-	if list, err := git(worktree, "rev-list", "--first-parent", base+"..main"); err != nil {
-		return err
-	} else if list != "" {
-		for _, c := range strings.Split(list, "\n") {
-			sinceBase[c] = true
-		}
-	}
-	messages, err := git(worktree, "log", "--format=%B", "main..HEAD")
+	branch, err := git(worktree, "log", "--format=%P%x1f%B%x1e", "main..HEAD")
 	if err != nil {
 		return err
 	}
-	named := hashToken.FindAllString(messages, -1)
+	parents := map[string]bool{}
+	var named []string
+	for _, entry := range strings.Split(branch, "\x1e") {
+		ps, body, _ := strings.Cut(entry, "\x1f")
+		for _, p := range strings.Fields(ps) {
+			parents[p] = true
+		}
+		named = append(named, hashToken.FindAllString(body, -1)...)
+	}
+	// sinceFork holds main's landings newer than the fork: every one in the
+	// window down to the oldest that parents a branch commit.
+	sinceFork := map[string]bool{}
+	var landings []string
+	for _, line := range strings.Split(history, "\n") {
+		if header, ok := strings.CutPrefix(line, "@"); ok {
+			c, _, _ := strings.Cut(header, " ")
+			landings = append(landings, c)
+		}
+	}
+	fork := len(landings)
+	for i, c := range landings {
+		if parents[c] {
+			fork = i
+		}
+	}
+	for _, c := range landings[:fork] {
+		sinceFork[c] = true
+	}
 	intended := func(commit string) bool {
 		for _, token := range named {
 			if strings.HasPrefix(commit, token) {
@@ -488,7 +492,7 @@ func refuseReverts(worktree, base string) error {
 		if !ok || !onBranch || reverted[path] != "" || blob != before {
 			continue
 		}
-		if (blob == nullBlob && !sinceBase[commit]) || intended(commit) {
+		if (blob == nullBlob && !sinceFork[commit]) || intended(commit) {
 			continue
 		}
 		reverted[path] = fmt.Sprintf("%s (undoes %.9s %s)", path, commit, subject)
