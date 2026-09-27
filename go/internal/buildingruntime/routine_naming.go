@@ -102,8 +102,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineNamingResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-naming-%x", digest[:16]))
+	id := domain.MintPlanID("routine-naming")
 	value, err := domain.NewNamingConfirmation(windowID, factionName, settlementName)
 	if err != nil {
 		return RoutineNamingResult{}, err

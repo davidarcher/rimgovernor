@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"strconv"
 	"strings"
@@ -244,8 +243,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseCoverPrefix, tick))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-defense-cover-%x", digest[:16]))
+	id := domain.MintPlanID("routine-defense-cover")
 	actions := make([]domain.Action, 0, len(clearances))
 	for i, clearance := range clearances {
 		action, err := domain.NewCoverClearanceAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), clearance)

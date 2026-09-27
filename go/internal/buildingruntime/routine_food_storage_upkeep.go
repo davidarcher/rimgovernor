@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"sort"
 
@@ -284,8 +283,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if !arbiter.tryClaim(nil, "bench:"+medChoice.Bench) {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, medChoice.ID)))
-	id := domain.PlanID(fmt.Sprintf("routine-food-storage-upkeep-%x", digest[:16]))
+	id := domain.MintPlanID("routine-food-storage-upkeep")
 	target := int32(medChoice.Target)
 	if int64(target) != medChoice.Target {
 		return RoutineFoodStorageUpkeepResult{}, ErrControl

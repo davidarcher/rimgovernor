@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -306,8 +305,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, animalShellMethod)))
-	planID := domain.PlanID(fmt.Sprintf("routine-pen-shell-%x", digest[:16]))
+	planID := domain.MintPlanID("routine-pen-shell")
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1
@@ -435,8 +433,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 			cells = append(cells, c)
 		}
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, animalMarkerMethod)))
-	planID := domain.PlanID(fmt.Sprintf("routine-pen-marker-%x", digest[:16]))
+	planID := domain.MintPlanID("routine-pen-marker")
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1

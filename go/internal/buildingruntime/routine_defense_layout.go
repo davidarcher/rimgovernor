@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math"
@@ -436,8 +435,7 @@ func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal st
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodUsed, Tier: policy.TierTurrets}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseRearmPrefix(order.Turret), tick))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-defense-rearm-%x", digest[:16]))
+	id := domain.MintPlanID("routine-defense-rearm")
 	service, err := domain.NewRecoveryService(domain.PawnID(order.Pawn), order.Turret, domain.RecoveryServiceRefuel)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
@@ -983,8 +981,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, buildings []domain.Building, key domain.MethodID) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	projection := read.Projection
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, key)))
-	id := domain.PlanID(fmt.Sprintf("routine-defense-layout-%x", digest[:16]))
+	id := domain.MintPlanID("routine-defense-layout")
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action

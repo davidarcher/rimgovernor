@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -121,8 +120,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-population-joiner-%x", digest[:16]))
+	id := domain.MintPlanID("routine-population-joiner")
 	action, err := domain.NewQuestAcceptAction(domain.ActionID(fmt.Sprintf("%s-0", id)), accept)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
@@ -152,8 +150,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-joiner-letter-%x", digest[:16]))
+	id := domain.MintPlanID("routine-joiner-letter")
 	value, err := domain.NewJoinerLetterAnswer(letter.ID, letter.Label, letter.Token)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -221,8 +220,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRepairResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-repair-%x", digest[:16]))
+	id := domain.MintPlanID("routine-repair")
 	action, err := domain.NewRepairAction(domain.ActionID(fmt.Sprintf("%s-0", id)), repair)
 	if err != nil {
 		return RoutineRepairResult{}, err

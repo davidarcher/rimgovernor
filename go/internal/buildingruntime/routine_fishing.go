@@ -2,9 +2,7 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
-	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -88,8 +86,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-			id := domain.PlanID(fmt.Sprintf("routine-fishing-%x", digest[:16]))
+			id := domain.MintPlanID("routine-fishing")
 			action, err := domain.NewZoneCreateAction(domain.ActionID(string(id)+"-0"), zone)
 			if err != nil {
 				return RoutineFieldResult{}, false, err

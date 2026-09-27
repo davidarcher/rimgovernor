@@ -179,6 +179,18 @@ func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.GoalID, epoch ui
 	return m, nil
 }
 
+// LatestMethodPlan finds the plan a goal last bound to method in any
+// epoch (#985): plan ids are minted, so planners whose work outlives an
+// epoch turnover (tidy re-sites, zone shelves) load it by this stored key.
+func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.GoalID, method domain.MethodID) (domain.PlanID, error) {
+	var id domain.PlanID
+	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE goal_id=? AND method_id=? ORDER BY CAST(epoch AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return id, err
+}
+
 // LoadGoalMethods includes retired bindings for one epoch. The bounded history
 // is evidence only; it cannot restore retired work to execution or accounting.
 func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.GoalID, epoch uint64) ([]domain.GoalMethod, error) {

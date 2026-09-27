@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -121,8 +120,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-prisoner-interaction-%x", digest[:16]))
+	id := domain.MintPlanID("routine-prisoner-interaction")
 	action, err := domain.NewPrisonerInteractionAction(domain.ActionID(fmt.Sprintf("%s-0", id)), interaction)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
@@ -225,8 +223,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	if evaluated := preview.GetEvaluated(); evaluated == nil || !evaluated.GetAccepted() {
 		return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-jail-mark-%x", digest[:16]))
+	id := domain.MintPlanID("routine-jail-mark")
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -138,8 +137,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-husbandry-%x", digest[:16]))
+	id := domain.MintPlanID("routine-husbandry")
 	action, err := domain.NewHusbandryAction(domain.ActionID(fmt.Sprintf("%s-0", id)), husbandry)
 	if err != nil {
 		return RoutineHusbandryResult{}, err

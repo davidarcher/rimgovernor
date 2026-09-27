@@ -265,8 +265,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineWorkResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-work-%x", digest[:16]))
+	id := domain.MintPlanID("routine-work")
 	var actions []domain.Action
 	for i, w := range work {
 		action, err := domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), w)

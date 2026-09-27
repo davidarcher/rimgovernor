@@ -126,7 +126,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 		if done, err := used(method); err != nil || done {
 			return RoutineBuildingResult{}, false, err
 		}
-		id := coupleBedPlan(goal, method)
+		id := domain.MintPlanID("routine-sleeping-couple")
 		actions := make([]domain.Action, 0, len(step.Pack))
 		for i, piece := range step.Pack {
 			value, err := domain.NewMoveBuilding(piece.Thing, piece.Def, policy.AnchorForRect(piece.Rect, piece.Size, piece.Rot), piece.Rot)
@@ -152,7 +152,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 			return RoutineBuildingResult{}, false, err
 		}
 		if stored {
-			id := coupleBedPlan(goal, method)
+			id := domain.MintPlanID("routine-sleeping-couple")
 			action, err := domain.NewMoveBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", id)), move)
 			if err != nil {
 				return RoutineBuildingResult{}, false, err
@@ -201,7 +201,7 @@ func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Co
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineBuildingResult{}, false, err
 		}
-		id := coupleBedPlan(goal, method)
+		id := domain.MintPlanID("routine-sleeping-couple")
 		action, err := domain.NewMoveBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", id)), move)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
@@ -210,11 +210,6 @@ func (r *RoutineSleepingUpkeepPlanner) reinstallStoredBed(call, epoch context.Co
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	return RoutineBuildingResult{}, false, nil
-}
-
-func coupleBedPlan(goal store.GoalState, method domain.MethodID) domain.PlanID {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	return domain.PlanID(fmt.Sprintf("routine-sleeping-couple-%x", digest[:16]))
 }
 
 func (r *RoutineSleepingUpkeepPlanner) commitCouple(call, epoch context.Context, state ControlState, goal store.GoalState, method domain.MethodID, id domain.PlanID, actions []domain.Action) (RoutineBuildingResult, bool, error) {

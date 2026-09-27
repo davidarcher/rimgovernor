@@ -274,8 +274,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-fields-%x", digest[:16]))
+	id := domain.MintPlanID("routine-fields")
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -455,8 +454,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
 		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-fields-%x", digest[:16]))
+	id := domain.MintPlanID("routine-fields")
 	action, err := domain.NewGrowerCropAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineFieldResult{}, false, err

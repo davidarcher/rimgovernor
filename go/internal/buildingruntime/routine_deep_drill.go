@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"math"
@@ -104,8 +103,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 			continue
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-		planID := domain.PlanID(fmt.Sprintf("routine-drill-removal-%x", digest[:16]))
+		planID := domain.MintPlanID("routine-drill-removal")
 		value, err := domain.NewDrillDeconstruction(drill.ID, drill.Definition, drill.Position)
 		if err != nil {
 			return RoutineResourceResult{}, true, err
@@ -243,8 +241,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineResourceResult{}, true, err
 		}
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-		planID := domain.PlanID(fmt.Sprintf("routine-deep-drill-%x", digest[:16]))
+		planID := domain.MintPlanID("routine-deep-drill")
 		snapshot := state.Snapshot
 		snapshot.Plan, snapshot.Revision = planID, 1
 		building, err := domain.NewBuilding("DeepDrill", site.Centre, domain.North, "")

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -181,8 +180,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-waste-%x", digest[:16]))
+	id := domain.MintPlanID("routine-waste")
 	action, err := domain.NewWasteAction(domain.ActionID(fmt.Sprintf("%s-0", id)), waste)
 	if err != nil {
 		return RoutineWasteResult{}, err

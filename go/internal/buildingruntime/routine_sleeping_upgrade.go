@@ -109,9 +109,8 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.PlanID(fmt.Sprintf("routine-sleeping-replace-%x", digest[:16]))
+	snapshot.Plan = domain.MintPlanID("routine-sleeping-replace")
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -158,9 +157,8 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 			stuff, _ = d.Stuff.Value()
 		}
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.PlanID(fmt.Sprintf("routine-sleeping-upgrade-%x", digest[:16]))
+	snapshot.Plan = domain.MintPlanID("routine-sleeping-upgrade")
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {

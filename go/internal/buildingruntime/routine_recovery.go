@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -154,8 +153,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, chosen.ID)))
-	id := domain.PlanID(fmt.Sprintf("routine-recovery-%x", digest[:16]))
+	id := domain.MintPlanID("routine-recovery")
 	var action domain.Action
 	switch chosen.Kind {
 	case policy.RecoveryAreaProposal:

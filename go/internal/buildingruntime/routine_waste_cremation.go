@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -88,8 +87,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-waste-cremate-%x", digest[:16]))
+	id := domain.MintPlanID("routine-waste-cremate")
 	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
 	if err != nil {
 		return RoutineWasteResult{}, true, err

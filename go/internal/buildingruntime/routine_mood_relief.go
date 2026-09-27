@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -229,8 +228,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineMoodReliefResult{}, err
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-		id := domain.PlanID(fmt.Sprintf("routine-mood-relief-%x", digest[:16]))
+		id := domain.MintPlanID("routine-mood-relief")
 		action, err := domain.NewMoodReliefAction(domain.ActionID(fmt.Sprintf("%s-0", id)), relief)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err

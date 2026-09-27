@@ -175,7 +175,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
-	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
+	if !excavationPlanFor(planID, excavationTestTarget, "0") || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 4}) || cells[1] != (domain.Cell{X: 10, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 	if result.Decision.Goal.Methods[0].Method != excavationStageMethod(0) || x.sleepingNative.previews != 0 || x.reads < 1 {
@@ -195,7 +195,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	planID, cells = excavationCells(t, db, result.Decision, excavationStageMethod(1))
-	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+	if !excavationPlanFor(planID, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 	if x.sleepingNative.previews != 0 {
@@ -216,7 +216,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 			t.Fatal(stage, result, err)
 		}
 		planID, cells = excavationCells(t, db, result.Decision, excavationStageMethod(stage))
-		if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, strconv.Itoa(stage)) || len(cells) == 0 || len(cells) > excavationStageLimit {
+		if !excavationPlanFor(planID, excavationTestTarget, strconv.Itoa(stage)) || len(cells) == 0 || len(cells) > excavationStageLimit {
 			t.Fatal(planID, cells)
 		}
 		completeExcavation(t, db, result.Decision, excavationStageMethod(stage), x)
@@ -240,7 +240,7 @@ func TestRoutineExcavationDigsStagesThenDoorThenRests(t *testing.T) {
 	}
 	doorPlan := methodPlan(t, result.Decision, excavationDoorMethod)
 	plan, err := db.LoadPlan(ctx, doorPlan)
-	if err != nil || doorPlan != excavationPlanID(result.Decision.Goal, excavationTestTarget, "door") || len(plan.Spec.Actions()) != 1 {
+	if err != nil || !excavationPlanFor(doorPlan, excavationTestTarget, "door") || len(plan.Spec.Actions()) != 1 {
 		t.Fatal(doorPlan, plan, err)
 	}
 	door, _ := plan.Spec.Actions()[0].Building()
@@ -322,7 +322,7 @@ func TestRoutineExcavationNeverStartsWithoutNativeSupportOrMiner(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			plan, loadErr := db.LoadPlan(context.Background(), excavationPlanID(result.Decision.Goal, excavationTestTarget, "0"))
+			plan, loadErr := loadMethodPlan(db, result.Decision.Goal.Goal.ID, excavationStageMethod(0))
 			switch change {
 			case "unknown-support":
 				// Unknown support is not a refusal for the site choice; the
@@ -358,13 +358,13 @@ func TestRoutineExcavationHoldsWhenFrontierUnknown(t *testing.T) {
 func TestExcavationPlanTargetRoundTrip(t *testing.T) {
 	t.Parallel()
 	// A successor goal re-adopting the same target gets distinct plans.
-	a := excavationPlanID(store.GoalState{Goal: domain.Goal{ID: "routine-a-EnsureInitialShelter"}}, excavationTestTarget, "0")
-	b := excavationPlanID(store.GoalState{Goal: domain.Goal{ID: "routine-b-EnsureInitialShelter"}}, excavationTestTarget, "0")
+	a := mintExcavationPlan(excavationTestTarget, "0")
+	b := mintExcavationPlan(excavationTestTarget, "0")
 	if a == b || !IsExcavationPlan(a) {
 		t.Fatal(a, b)
 	}
 	for _, suffix := range []string{"0", "17", "door"} {
-		target, err := excavationPlanTarget(excavationPlanID(store.GoalState{}, excavationTestTarget, suffix))
+		target, err := excavationPlanTarget(mintExcavationPlan(excavationTestTarget, suffix))
 		if err != nil || target.Key() != excavationTestTarget.Key() || target.Door != excavationTestTarget.Door {
 			t.Fatal(suffix, target, err)
 		}
@@ -373,7 +373,7 @@ func TestExcavationPlanTargetRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back, err := excavationPlanTarget(excavationPlanID(store.GoalState{}, west, "4")); err != nil || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
+	if back, err := excavationPlanTarget(mintExcavationPlan(west, "4")); err != nil || back.Key() != west.Key() || back.Corridor[0] != (domain.Cell{X: 19, Z: 15}) {
 		t.Fatal(back, err)
 	}
 	for _, bad := range []domain.PlanID{"routine-shell-abc", "routine-excavation-", "routine-excavation-x-0"} {
@@ -407,7 +407,7 @@ func TestRoutineExcavationReadoptsHalfDugTarget(t *testing.T) {
 		t.Fatal(result)
 	}
 	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
-	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "0") {
+	if !excavationPlanFor(planID, excavationTestTarget, "0") {
 		t.Fatal("re-planned a different target", planID)
 	}
 	if len(cells) != 1 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
@@ -463,7 +463,7 @@ func TestRoutineExcavationResumesProjectOutsideColonyWindow(t *testing.T) {
 		t.Fatal("goal was replaced by a re-acquire")
 	}
 	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(1))
-	if planID != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
+	if !excavationPlanFor(planID, excavationTestTarget, "1") || len(cells) != 7 || cells[0] != (domain.Cell{X: 11, Z: 4}) {
 		t.Fatal(planID, cells)
 	}
 }
@@ -500,7 +500,7 @@ func TestRoutineExcavationResumedProjectStillOwesDoor(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if plan := methodPlan(t, result.Decision, excavationDoorMethod); plan != excavationPlanID(result.Decision.Goal, excavationTestTarget, "door") {
+	if plan := methodPlan(t, result.Decision, excavationDoorMethod); !excavationPlanFor(plan, excavationTestTarget, "door") {
 		t.Fatal(plan)
 	}
 	// Once the door plan completed, a later shelter need starts afresh.
@@ -612,7 +612,7 @@ func TestRoutineExcavationDispatchedStageSurvivesPauseAndResume(t *testing.T) {
 		t.Fatal("stage 1 did not continue under the resumed goal", result, err)
 	}
 	stage1, cells := excavationCells(t, db, result.Decision, excavationStageMethod(1))
-	if stage1 != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 {
+	if !excavationPlanFor(stage1, excavationTestTarget, "1") || len(cells) != 7 {
 		t.Fatal(stage1, cells)
 	}
 }
@@ -648,7 +648,7 @@ func TestRoutineExcavationDigsRoundRoomForNeolithicColony(t *testing.T) {
 	if target.Shape != policy.EllipseShape(excavationRoundRadius, excavationRoundRadius, domain.EllipseNorthSouth) || len(target.InteriorCells()) != 49 || target.Access != (domain.Cell{X: 8, Z: 5}) || target.Interior != (policy.Rectangle{X: 11, Z: 1, Width: 9, Height: 9}) || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 5}) {
 		t.Fatal(target, cells)
 	}
-	if planID != excavationPlanID(result.Decision.Goal, target, "0") {
+	if !excavationPlanFor(planID, target, "0") {
 		t.Fatal(planID)
 	}
 }
@@ -720,7 +720,7 @@ func TestRoutineExcavationDigsAroundRevealedHazard(t *testing.T) {
 		t.Fatal(result)
 	}
 	doorPlan := methodPlan(t, result.Decision, excavationDoorMethod)
-	if doorPlan != excavationPlanID(result.Decision.Goal, excavationTestTarget, "door") {
+	if !excavationPlanFor(doorPlan, excavationTestTarget, "door") {
 		t.Fatal(doorPlan)
 	}
 	for _, h := range hazards {
@@ -942,4 +942,20 @@ func fogRest(cells *o.CellsSnapshot) {
 			}
 		}
 	}
+}
+
+// excavationPlanFor reports whether id is a minted stage plan for target
+// with suffix (#985: ids carry the target key, not a derivable hash).
+func excavationPlanFor(id domain.PlanID, target policy.ExcavationTarget, suffix string) bool {
+	back, err := excavationPlanTarget(id)
+	return err == nil && back.Key() == target.Key() && strings.HasSuffix(string(id), "-"+suffix)
+}
+
+// loadMethodPlan loads the plan goal last bound to method.
+func loadMethodPlan(db *store.Store, goal domain.GoalID, method domain.MethodID) (store.PlanState, error) {
+	id, err := db.LatestMethodPlan(context.Background(), goal, method)
+	if err != nil {
+		return store.PlanState{}, err
+	}
+	return db.LoadPlan(context.Background(), id)
 }

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -52,11 +51,10 @@ func NewRoutineStorageShelvesPlanner(reviewer *RoutineReviewer, native RoutineSt
 	return &RoutineStorageShelvesPlanner{reviewer: reviewer, native: native}, nil
 }
 
-// shelfPlanID is world-scoped and epoch-free, so a shelf placed under one
-// goal episode is still found in the next.
-func shelfPlanID(s domain.GenerationSnapshot, zone string, index int) domain.PlanID {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%d/%s/%d", s.Colony, s.Load, s.Map, zone, index)))
-	return domain.PlanID(fmt.Sprintf("routine-storage-shelf-%x", digest[:16]))
+// shelfMethod keys a zone shelf under the zone's goal; it is epoch-free,
+// so a shelf placed under one goal episode is still found in the next.
+func shelfMethod(zone string, index int) domain.MethodID {
+	return domain.MethodID(fmt.Sprintf("storage-shelf-%s-%d", zone, index))
 }
 
 func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (RoutineStorageShelvesResult, error) {
@@ -144,7 +142,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		}
 		owner[z.ID] = z
 		request.Zones = append(request.Zones, policy.ShelfZone{Zone: z.ID, Cells: cells, Filter: z.Filter, Priority: z.Priority})
-		shelves, index, err := zoneShelves(call, p.journal, state.Snapshot, z.ID, facts.Facts.CurrentConstruction)
+		shelves, index, err := zoneShelves(call, p.journal, z.Goal, z.ID, facts.Facts.CurrentConstruction)
 		if err != nil {
 			return RoutineStorageShelvesResult{}, err
 		}
@@ -164,13 +162,17 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 
 // zoneShelves reads back the zone's shelf plans in index order: the
 // shelves built or in flight, and the next free index.
-func zoneShelves(ctx context.Context, journal *store.Store, s domain.GenerationSnapshot, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
+func zoneShelves(ctx context.Context, journal *store.Store, goal domain.GoalID, zone string, census domain.Fact[policy.CurrentConstruction]) ([]policy.ShelfRecord, int, error) {
 	var out []policy.ShelfRecord
 	for index := 0; index < maxShelvesPerZone; index++ {
-		plan, err := journal.LoadPlan(ctx, shelfPlanID(s, zone, index))
+		id, err := journal.LatestMethodPlan(ctx, goal, shelfMethod(zone, index))
 		if errors.Is(err, store.ErrNotFound) {
 			return out, index, nil
 		}
+		if err != nil {
+			return nil, 0, err
+		}
+		plan, err := journal.LoadPlan(ctx, id)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -222,7 +224,7 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		}
 	}
 	snapshot := state.Snapshot
-	snapshot.Plan = shelfPlanID(state.Snapshot, step.Zone.Zone, index)
+	snapshot.Plan = domain.MintPlanID("routine-storage-shelf")
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -261,7 +263,7 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 			return RoutineStorageShelvesResult{}, err
 		}
-		method := domain.MethodID(fmt.Sprintf("storage-shelf-%s-%d", step.Zone.Zone, index))
+		method := shelfMethod(step.Zone.Zone, index)
 		result, err := building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Routine})
 		if err != nil || result.Reason != BuildingMethodAdmitted {
 			return RoutineStorageShelvesResult{Reason: result.Reason}, err

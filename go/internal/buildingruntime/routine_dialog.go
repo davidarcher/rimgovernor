@@ -123,8 +123,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineDialogResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-dialog-%x", digest[:16]))
+	id := domain.MintPlanID("routine-dialog")
 	value, err := domain.NewDialogAnswer(windowID, chosen.Index, chosen.Label)
 	if err != nil {
 		return RoutineDialogResult{}, err

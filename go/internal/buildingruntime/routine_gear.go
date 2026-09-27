@@ -272,7 +272,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if !arbiter.tryClaim([]domain.PawnID{value.Pawn()}) {
 			continue
 		}
-		id := domain.PlanID(method)
+		id := domain.MintPlanID("routine-gear-policy")
 		action, err := domain.NewApparelPolicyAction(domain.ActionID(string(id)+"-0"), value)
 		if err != nil {
 			return RoutineGearResult{}, err
@@ -360,8 +360,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, choice.ID)))
-	id := domain.PlanID(fmt.Sprintf("routine-gear-%x", digest[:16]))
+	id := domain.MintPlanID("routine-gear")
 	var action domain.Action
 	switch choice.Kind {
 	case policy.GearReplace:

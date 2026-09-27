@@ -251,8 +251,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, choice.ID)))
-	id := domain.PlanID(fmt.Sprintf("routine-medical-%x", digest[:16]))
+	id := domain.MintPlanID("routine-medical")
 	target := int32(choice.Target)
 	if int64(target) != choice.Target {
 		return RoutineMedicalResult{}, ErrControl
@@ -340,8 +339,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineMedicalResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-medical-acquire-%x", digest[:16]))
+	id := domain.MintPlanID("routine-medical-acquire")
 	var actions []domain.Action
 	for i, row := range selected {
 		value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -61,12 +60,11 @@ func excavationStageMethod(stage int) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s%d", excavationStagePrefix, stage))
 }
 
-// excavationPlanID scopes a stage plan to the goal epoch that admitted it:
-// an invalidated goal's successor re-adopts the same target (same key) and
-// must not collide with the retired stage plans.
-func excavationPlanID(goal store.GoalState, target policy.ExcavationTarget, suffix string) domain.PlanID {
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d", goal.Goal.ID, goal.Goal.Epoch)))
-	return domain.PlanID(fmt.Sprintf("%s-%s-%x-%s", excavationPlanPrefix, target.Key(), digest[:4], suffix))
+// mintExcavationPlan mints a stage plan id carrying the target key, so an
+// in-progress project is recovered from the journal alone; the UUID keeps a
+// successor goal re-adopting the same target clear of retired stage plans.
+func mintExcavationPlan(target policy.ExcavationTarget, suffix string) domain.PlanID {
+	return domain.PlanID(fmt.Sprintf("%s-%s", domain.MintPlanID(excavationPlanPrefix+"-"+target.Key()), suffix))
 }
 
 // excavationPlanTarget recovers the target from a stage plan identity so an
@@ -78,10 +76,10 @@ func excavationPlanTarget(plan domain.PlanID) (policy.ExcavationTarget, error) {
 		return policy.ExcavationTarget{}, errors.New("not an excavation plan")
 	}
 	parts := strings.Split(rest, "-")
-	if len(parts) < 3 {
+	if len(parts) < 7 {
 		return policy.ExcavationTarget{}, errors.New("not an excavation plan")
 	}
-	return policy.ParseExcavationKey(strings.Join(parts[:len(parts)-2], "-"))
+	return policy.ParseExcavationKey(strings.Join(parts[:len(parts)-6], "-"))
 }
 
 // ExcavationPlanTarget exposes the stage plan identity scheme to acceptance
@@ -401,7 +399,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	review, reason, door := excavationNext(s.target, site)
 	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
 	if door {
-		snapshot.Plan = excavationPlanID(s.goal, s.target, "door")
+		snapshot.Plan = mintExcavationPlan(s.target, "door")
 		return r.admitExcavationDoor(call, epoch, s, snapshot, check)
 	}
 	if reason != "" {
@@ -430,7 +428,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	if !site.WorkerAvailable {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
-	snapshot.Plan = excavationPlanID(s.goal, s.target, fmt.Sprint(stage))
+	snapshot.Plan = mintExcavationPlan(s.target, fmt.Sprint(stage))
 	actions := make([]domain.Action, 0, len(next))
 	for i, cell := range next {
 		excavation, err := domain.NewExcavation(cell, definitions[cell])

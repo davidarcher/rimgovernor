@@ -77,7 +77,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 				return RoutineMedicalResult{}, nil
 			}
 		}
-		id := domain.PlanID(method)
+		id := domain.MintPlanID("routine-medicine-tier")
 		action, err := domain.NewWorkAssignmentAction(domain.ActionID(string(id)+"-0"), w)
 		if err != nil {
 			return RoutineMedicalResult{}, err

@@ -201,8 +201,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		removalMaterial = material.Stuff
 	}
 	key := stoneShellMethodID(wall)
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, key)))
-	id := domain.PlanID(fmt.Sprintf("routine-stone-shell-%x", digest[:16]))
+	id := domain.MintPlanID("routine-stone-shell")
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	var actions []domain.Action

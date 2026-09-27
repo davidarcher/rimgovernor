@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -240,8 +239,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-refrigeration-%x", digest[:16]))
+	id := domain.MintPlanID("routine-refrigeration")
 	action, err := domain.NewBuildingTemperatureAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
 	if err != nil {
 		return RoutineBuildingResult{}, err

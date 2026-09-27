@@ -157,8 +157,7 @@ func (r *RoutineReviewer) restoreIdleDrafts(ctx, epoch context.Context, arbiter 
 	}
 	hash := sha256.New()
 	fmt.Fprint(hash, pawns)
-	method, id := defenseMethodIDs("idle-draft", goal, hash)
-	id = domain.PlanID("routine-idle-draft-" + strings.TrimPrefix(string(id), "routine-defense-"))
+	method, id := defenseMethodID("idle-draft", goal, hash), domain.MintPlanID("routine-idle-draft")
 	var actions []domain.Action
 	for _, pawn := range pawns {
 		draft, err := domain.NewOwnedDraft(pawn)

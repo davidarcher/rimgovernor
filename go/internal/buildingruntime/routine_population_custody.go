@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -184,8 +183,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-		id := domain.PlanID(fmt.Sprintf("routine-population-custody-%x", digest[:16]))
+		id := domain.MintPlanID("routine-population-custody")
 		action, err = domain.NewRescueAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
 			return RoutinePopulationCustodyResult{}, err
@@ -213,8 +211,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-		id := domain.PlanID(fmt.Sprintf("routine-population-custody-%x", digest[:16]))
+		id := domain.MintPlanID("routine-population-custody")
 		action, err = domain.NewCaptureAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
 			return RoutinePopulationCustodyResult{}, err

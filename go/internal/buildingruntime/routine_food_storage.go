@@ -148,8 +148,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineFoodStorageResult{}, err
 		}
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-		id = domain.PlanID(fmt.Sprintf("routine-food-storage-%x", digest[:16]))
+		id = domain.MintPlanID("routine-food-storage")
 		snapshot = state.Snapshot
 		snapshot.Plan = id
 		snapshot.Revision = 1

@@ -54,14 +54,6 @@ func tidyMethodID(item, phase string) domain.MethodID {
 	sum := sha256.Sum256([]byte(item))
 	return domain.MethodID(fmt.Sprintf("tidy-%s-%x", phase, sum[:12]))
 }
-func tidyPlanID(goal store.GoalState, method domain.MethodID) domain.PlanID {
-	// The plan id leaves the goal's epoch out on purpose: a re-site outlives
-	// an epoch turnover, and finish loads the create plan by this id rather
-	// than through the goal's current methods (#611: an epoch turning over
-	// under a moving tidy abandoned every re-site the tick it started).
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s", goal.Goal.ID, method)))
-	return domain.PlanID(fmt.Sprintf("routine-tidy-%x", digest[:16]))
-}
 
 func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineTidyResult, error) {
 	p := r.reviewer.player
@@ -172,23 +164,18 @@ func (r *RoutineTidyPlanner) create(call, epoch context.Context, state ControlSt
 	projection := read.Projection
 	item := proposal.Item
 	method := tidyMethodID(item.ID, "create")
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineTidyResult{}, err
-	}
 	token, known := projection.ZoneMapToken.Value()
 	if !known {
 		return RoutineTidyResult{Reason: BuildingMethodUnknown}, nil
 	}
-	id := tidyPlanID(goal, method)
-	// The plan id outlives the goal's epoch: an existing plan is this
-	// item's own earlier create, not a fresh one to admit.
-	if _, err := p.journal.LoadPlan(call, id); err == nil {
+	// A create bound in any epoch is this item's own earlier create, not
+	// a fresh one to admit: the re-site outlives an epoch turnover (#611).
+	if _, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method); err == nil {
 		return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}
+	id := domain.MintPlanID("routine-tidy")
 	snapshot := state.Snapshot
 	snapshot.Plan, snapshot.Revision = id, 1
 	kind := domain.GrowingZone
@@ -272,10 +259,14 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 	proposal := policy.TidyProposal{Item: policy.TidyItem{Kind: t.Kind, ID: t.Item, Footprint: t.From, Crop: t.Crop}, Target: t.To, Explanation: t.Explanation}
 	createMethod, deleteMethod := tidyMethodID(t.Item, "create"), tidyMethodID(t.Item, "delete")
 	load := func(method domain.MethodID) (*store.PlanState, error) {
-		plan, err := p.journal.LoadPlan(call, tidyPlanID(goal, method))
+		id, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, nil
 		}
+		if err != nil {
+			return nil, err
+		}
+		plan, err := p.journal.LoadPlan(call, id)
 		if err != nil {
 			return nil, err
 		}
@@ -356,7 +347,7 @@ func (r *RoutineTidyPlanner) finish(call, epoch context.Context, state ControlSt
 	if err != nil {
 		return RoutineTidyResult{}, err
 	}
-	id := tidyPlanID(goal, deleteMethod)
+	id := domain.MintPlanID("routine-tidy")
 	action, err := domain.NewZoneDeleteAction(domain.ActionID(fmt.Sprintf("%s-0", id)), del)
 	if err != nil {
 		return RoutineTidyResult{}, err
@@ -420,7 +411,7 @@ func (r *RoutineTidyPlanner) deconstruct(call, epoch context.Context, state Cont
 	onRing := func(c domain.Cell) bool {
 		return c.X >= ring.X && c.X < ring.X+ring.Width && c.Z >= ring.Z && c.Z < ring.Z+ring.Height && (c.X == ring.X || c.Z == ring.Z || c.X == ring.X+ring.Width-1 || c.Z == ring.Z+ring.Height-1)
 	}
-	id := tidyPlanID(goal, method)
+	id := domain.MintPlanID("routine-tidy")
 	var actions []domain.Action
 	for _, b := range census.Buildings {
 		if len(b.Cells) == 0 || !onRing(b.Cells[0]) || !claimed[b.Cells[0]] {

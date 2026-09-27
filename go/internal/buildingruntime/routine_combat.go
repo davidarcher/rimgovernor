@@ -66,7 +66,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, goal sto
 	if !arbiter.tryClaim(pawns) {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
-	method, id := defenseMethodIDs(strings.TrimSuffix(combatMethodPrefix, "-"), goal, hash)
+	method, id := defenseMethodID(strings.TrimSuffix(combatMethodPrefix, "-"), goal, hash), domain.MintPlanID("routine-defense")
 	plan, err := domain.NewPlan(id, 1, nil)
 	if err != nil {
 		return RoutineDefenseResult{}, err

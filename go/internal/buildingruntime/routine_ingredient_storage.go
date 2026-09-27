@@ -146,12 +146,16 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	var method domain.MethodID
 	for attempt := 0; attempt < maxIngredientStorageAttempts; attempt++ {
 		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d", goal.Goal.ID, bench, recipe, attempt)))
-		candidate := domain.PlanID(fmt.Sprintf("routine-ingredient-storage-%x", digest[:16]))
-		plan, err := p.journal.LoadPlan(call, candidate)
+		candidate := domain.MethodID(fmt.Sprintf("ingredient-storage-%x-%d", digest[:8], attempt))
+		bound, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, candidate)
 		if errors.Is(err, store.ErrNotFound) {
-			id, method = candidate, domain.MethodID(fmt.Sprintf("ingredient-storage-%x-%d", digest[:8], attempt))
+			id, method = domain.MintPlanID("routine-ingredient-storage"), candidate
 			break
 		}
+		if err != nil {
+			return RoutineIngredientStorageResult{}, err
+		}
+		plan, err := p.journal.LoadPlan(call, bound)
 		if err != nil {
 			return RoutineIngredientStorageResult{}, err
 		}

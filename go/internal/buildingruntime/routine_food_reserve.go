@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -64,8 +63,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 		wanted[id] = false
 	}
 	method := domain.MethodID(fmt.Sprintf("food-reserve-%d", goal.Revision))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-reserve-%x", digest[:16]))
+	id := domain.MintPlanID("routine-reserve")
 	started := r.reviewer.clock.Now()
 	native, ok := r.native.(interface {
 		ReadFoodReserveSupplies(context.Context, *c.Identity, bool) (bridge.SupplyRead, bridge.Result, error)

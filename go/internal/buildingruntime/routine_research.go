@@ -224,8 +224,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResearchResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-research-%x", digest[:16]))
+	id := domain.MintPlanID("routine-research")
 	value, err := domain.NewResearchSelect(next)
 	if err != nil {
 		return RoutineResearchResult{}, err

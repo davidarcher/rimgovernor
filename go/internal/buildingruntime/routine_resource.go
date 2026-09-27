@@ -357,8 +357,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if !ok {
 		return RoutineResourceResult{}, ErrControl
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, choice.ID)))
-	id := domain.PlanID(fmt.Sprintf("routine-resource-%x", digest[:16]))
+	id := domain.MintPlanID("routine-resource")
 	targetCount := int32(choice.Target)
 	if int64(targetCount) != choice.Target {
 		return RoutineResourceResult{}, ErrControl
@@ -646,8 +645,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResourceResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("%s-%x", planPrefix, digest[:16]))
+	id := domain.MintPlanID(planPrefix)
 	last, _, err := native.Identity(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
@@ -739,7 +737,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 		return RoutineResourceResult{}, false, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/mine/%s/%d/%d", goal.Goal.ID, goal.Goal.Epoch, source.ThingID, source.Cell.X, source.Cell.Z)))
-	id := domain.PlanID(fmt.Sprintf("routine-resource-mine-%x", digest[:16]))
+	id := domain.MintPlanID("routine-resource-mine")
 	methodID := domain.MethodID(fmt.Sprintf("resource-mine-%x", digest[:16]))
 	target := bridge.AcquisitionTarget{Acquisition: acquisitionValue, Token: source.Token}
 	preview, _, err := r.native.PreviewAcquisition(call, boundary.Identity(state.Snapshot), target)

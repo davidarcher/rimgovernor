@@ -120,8 +120,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		fmt.Fprintf(hash, "%s/%s/%d/%d\n", plant.ID, plant.Definition, plant.Cell.X, plant.Cell.Z)
 	}
 	method := domain.MethodID(fmt.Sprintf("cut-%x", hash.Sum(nil)[:16]))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-cut-%x", digest[:16]))
+	id := domain.MintPlanID("routine-cut")
 	var actions []domain.Action
 	for i, plant := range targets {
 		action, err := domain.NewCutPlantAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), byID[plant.ID])

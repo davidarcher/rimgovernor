@@ -364,6 +364,15 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if err = m.Validate(); err != nil {
 		return GoalState{}, err
 	}
+	// Plan ids are minted (#985); the real double-admission key is the
+	// goal_methods primary key (goal, epoch, method).
+	var bound string
+	switch err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE goal_id=? AND epoch=? AND method_id=?", id, strconv.FormatUint(g.Epoch, 10), method).Scan(&bound); {
+	case err == nil:
+		return GoalState{}, fmt.Errorf("%w: goal %s already binds method %s to plan %s", ErrConflict, id, method, bound)
+	case !errors.Is(err, sql.ErrNoRows):
+		return GoalState{}, err
+	}
 	if len(state.Methods) >= 256 || state.Revision == ^uint64(0) {
 		return GoalState{}, ErrCapacity
 	}

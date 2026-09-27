@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"slices"
@@ -256,8 +255,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-shrine-%x", digest[:16]))
+	id := domain.MintPlanID("routine-shrine")
 	identity := boundary.Identity(state.Snapshot)
 	var actions []domain.Action
 	for _, casket := range caskets {
@@ -321,8 +319,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-shrine-%x", digest[:16]))
+	id := domain.MintPlanID("routine-shrine")
 	var actions []domain.Action
 	for _, defender := range drafted {
 		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, defender))
@@ -408,8 +405,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-shrine-%x", digest[:16]))
+	id := domain.MintPlanID("routine-shrine")
 	var actions []domain.Action
 	var target policy.ShrineCasket
 	for _, casket := range caskets {

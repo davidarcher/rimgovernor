@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -275,8 +274,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-secure-supplies-%x", digest[:16]))
+	id := domain.MintPlanID("routine-secure-supplies")
 	action, err := domain.NewHaulAction(domain.ActionID(fmt.Sprintf("%s-0", id)), haul)
 	if err != nil {
 		return PlanResult{}, err
@@ -449,8 +447,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 		return PlanResult{}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-secure-supplies-zone-%x", digest[:16]))
+	id := domain.MintPlanID("routine-secure-supplies-zone")
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -524,8 +521,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	if value, err = value.WithRole("general"); err != nil {
 		return PlanResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, generalStoreMethod)))
-	id := domain.PlanID(fmt.Sprintf("routine-general-store-%x", digest[:16]))
+	id := domain.MintPlanID("routine-general-store")
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
@@ -716,8 +712,7 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if sites, err = benchCentralSites(call, r.native, boundary.Identity(state.Snapshot), projection.Cells, sites); err != nil {
 		return PlanResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, supplyRoomShellMethod)))
-	planID := domain.PlanID(fmt.Sprintf("routine-supply-room-shell-%x", digest[:16]))
+	planID := domain.MintPlanID("routine-supply-room-shell")
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1

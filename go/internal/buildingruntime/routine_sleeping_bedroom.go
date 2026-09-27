@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -147,9 +146,8 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if !known {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	snapshot := state.Snapshot
-	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
+	snapshot.Plan = domain.MintPlanID(prefix)
 	snapshot.Revision = 1
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {

@@ -265,8 +265,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBillResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-bill-%x", digest[:16]))
+	id := domain.MintPlanID("routine-bill")
 	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Token, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
 		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Token, selected.Worker)

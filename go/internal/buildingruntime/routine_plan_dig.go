@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -74,8 +73,7 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, false, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", s.goal.Goal.ID, s.goal.Goal.Epoch, method)))
-	snapshot.Plan = domain.PlanID(fmt.Sprintf("%s-%x", planDigPrefix, digest[:16]))
+	snapshot.Plan = domain.MintPlanID(planDigPrefix)
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
 	var previews []policy.Preview
 	actions := make([]domain.Action, 0, len(excavations)+1)

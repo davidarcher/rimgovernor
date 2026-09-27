@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -363,8 +362,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-sleeping-%x", digest[:16]))
+	id := domain.MintPlanID("routine-sleeping")
 	action, err := domain.NewBedAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
 	if err != nil {
 		return RoutineBuildingResult{}, err

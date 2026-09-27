@@ -225,8 +225,7 @@ func defenseRemovalGone(tier store.DefenseTierRecord, census *defenseCensus) boo
 func (r *RoutineDefenseLayoutPlanner) remove(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, record store.DefenseLayoutRecord, tier store.DefenseTierRecord, census *defenseCensus) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	key := defenseTierMethodID(tier)
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, key)))
-	id := domain.PlanID(fmt.Sprintf("routine-defense-layout-%x", digest[:16]))
+	id := domain.MintPlanID("routine-defense-layout")
 	actions, pending, lost, err := defenseRemovalActions(id, tier, census)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err

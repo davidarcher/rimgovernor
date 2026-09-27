@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -621,7 +620,6 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if roofingOnly {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	prefix := "routine-sleep"
 	if r.goal == policy.EnsureTemperatureSafety {
 		prefix = "routine-temperature"
@@ -665,7 +663,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.shelter {
 		prefix = shellPlanPrefix
 	}
-	planID := domain.PlanID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
+	planID := domain.MintPlanID(prefix)
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
 	snapshot.Revision = 1

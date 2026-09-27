@@ -165,9 +165,13 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 			}
 		}
 	}
+	zoneGoal := map[string]domain.GoalID{}
+	for _, z := range owned {
+		zoneGoal[z.ID] = z.Goal
+	}
 	request := stockpileRequest(projection, owned, patches, benches)
 	for _, z := range request.Zones {
-		shelves, _, err := zoneShelves(ctx, r.player.journal, snapshot, z.ID, projection.Facts.CurrentConstruction)
+		shelves, _, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
 			return policy.StockpileRequest{}, false, err
 		}
@@ -401,9 +405,8 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	}
 	tick := projection.Identity.Tick
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-stockpiles-%x", digest[:16]))
-	if _, err := p.journal.LoadPlan(call, id); err == nil {
+	id := domain.MintPlanID("routine-stockpiles")
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err
@@ -482,9 +485,9 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	}
 	tick := projection.Identity.Tick
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/create/%s/%d", goal.Goal.ID, goal.Goal.Epoch, e.Role, tick)))
-	id := domain.PlanID(fmt.Sprintf("routine-stockpile-create-%x", digest[:16]))
+	id := domain.MintPlanID("routine-stockpile-create")
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
-	if _, err := p.journal.LoadPlan(call, id); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err

@@ -320,8 +320,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("%s-%x", planPrefix, digest[:16]))
+	id := domain.MintPlanID(planPrefix)
 	var actions []domain.Action
 	for i, row := range selected {
 		value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)

@@ -136,8 +136,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-clearance-%x", digest[:16]))
+	id := domain.MintPlanID("routine-clearance")
 	value, err := domain.NewDeconstruction(target.EntityID, target.DefName, target.Minimum)
 	if err != nil {
 		return RoutineClearanceResult{}, err
@@ -230,8 +229,7 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 			return RoutineClearanceResult{Reason: BuildingMethodUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
 		}
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-chunk-haul-%x", digest[:16]))
+	id := domain.MintPlanID("routine-chunk-haul")
 	actions := make([]domain.Action, 0, len(chunks))
 	for i, chunk := range chunks {
 		clearance, err := domain.NewCoverClearance(chunk.EntityID, chunk.DefName, domain.CoverClearanceHaul, chunk.Cell)

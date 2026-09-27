@@ -24,17 +24,12 @@ func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlStat
 		things = append(things, m.Thing)
 	}
 	method := tidyMethodID(proposal.Item.ID+"/"+strings.Join(things, ","), "furniture")
-	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method); err == nil {
 		return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}
-	id := tidyPlanID(goal, method)
-	if _, err := p.journal.LoadPlan(call, id); err == nil {
-		return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineTidyResult{}, err
-	}
+	id := domain.MintPlanID("routine-tidy")
 	tick := read.Projection.Identity.Tick
 	actions := make([]domain.Action, 0, len(proposal.Moves))
 	var deps []domain.ActionDependency

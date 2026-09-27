@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"hash"
 	"log/slog"
@@ -503,18 +502,17 @@ func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
 	return facts
 }
 
-// defenseMethodIDs names one admission of a defense method. The count of
+// defenseMethodID names one admission of a defense method. The count of
 // every method the goal ever admitted salts the hash so that re-planning
 // the same assignments after an earlier method's actions were cancelled
-// admits a new plan instead of colliding with the retired one's identity.
+// admits a new method instead of colliding with the retired one's key.
 // The active method count is not that salt: it falls when a plan retires,
 // and the same assignments then rehash to a plan id the journal still
 // holds (#214).
-func defenseMethodIDs(prefix string, goal store.GoalState, hash hash.Hash) (domain.MethodID, domain.PlanID) {
+func defenseMethodID(prefix string, goal store.GoalState, hash hash.Hash) domain.MethodID {
 	fmt.Fprintf(hash, "#%d\n", goal.Admitted)
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	return method, domain.PlanID(fmt.Sprintf("routine-defense-%x", digest[:16]))
+	return method
 }
 
 // settleUnissuedWork cancels every pending or prepared action across the
