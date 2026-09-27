@@ -28,9 +28,6 @@ type Row struct {
 	Boot time.Duration
 }
 
-// Run is the wall time net of boot: what the case itself costs.
-func (r Row) Run() time.Duration { return r.Wall - r.Boot }
-
 // Table is a baseline's prices by case name.
 type Table struct {
 	Path string

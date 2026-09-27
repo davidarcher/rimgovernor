@@ -9818,17 +9818,6 @@
  },
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load b4e1b1f9e7c54f2b837eb862d1addf90 map 0 tick 54369",
  "Review": {
-  "AsOf": {
-   "bills": 54369,
-   "buildings": 54369,
-   "colony": 54369,
-   "emergency": 54369,
-   "pawns": 54369,
-   "planning_cells": 55039,
-   "population": 54369,
-   "research": 54369,
-   "zones": 54369
-  },
   "Development": {
    "Capacity": 8,
    "Census": [

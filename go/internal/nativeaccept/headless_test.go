@@ -449,7 +449,7 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configuration, err := Prepare(root)
+	configuration, err := prepare(root, nil, nil)
 	if err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
@@ -521,7 +521,7 @@ func TestPrepareKeepsClockJournal(t *testing.T) {
 	if err := os.WriteFile(row, []byte("<row/>"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	configuration, err := Prepare(root)
+	configuration, err := prepare(root, nil, nil)
 	if err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
@@ -561,7 +561,7 @@ func TestPrepareMirrorsEveryVariantSave(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "profile", "Saves", "RimGovernor-tribal8-scarce-wood.rws"), []byte("variant-save-data"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Prepare(root); err != nil {
+	if _, err := prepare(root, nil, nil); err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "headless-profile", "Saves", "RimGovernor-tribal8-baseline.rws")); err != nil {
@@ -586,7 +586,7 @@ func TestPrepareFailsWithoutRequiredBaseline(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, "profile", "Saves", "RimGovernor-tribal8-baseline.rws")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Prepare(root); err == nil {
+	if _, err := prepare(root, nil, nil); err == nil {
 		t.Fatal("expected Prepare to fail without the required baseline save")
 	}
 }
@@ -598,7 +598,7 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configuration, err := PrepareRendered(root)
+	configuration, err := prepareRendered(root, nil, nil)
 	if err != nil {
 		t.Fatalf("PrepareRendered failed: %v", err)
 	}
@@ -698,7 +698,7 @@ func TestLaunchedMismatchOnExpansions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configuration, err := Prepare(root)
+	configuration, err := prepare(root, nil, nil)
 	if err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
@@ -721,7 +721,7 @@ func TestLaunchedMismatchOnExpansions(t *testing.T) {
 	}
 	// The next harness wants a DLC save's expansions: the Core-only process
 	// cannot load it.
-	if _, err := Prepare(root, "royalty", "biotech"); err != nil {
+	if _, err := prepare(root, nil, []string{"royalty", "biotech"}); err != nil {
 		t.Fatalf("Prepare with expansions failed: %v", err)
 	}
 	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "expansions" {
@@ -735,7 +735,7 @@ func TestLaunchedMismatchOnExpansions(t *testing.T) {
 	}
 	// And the reverse: a Core-only harness after a DLC process relaunches
 	// too, rather than running slower with the extra defs.
-	if _, err := Prepare(root); err != nil {
+	if _, err := prepare(root, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "expansions" {
@@ -756,7 +756,7 @@ func TestLaunchedMismatchOnPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configuration, err := Prepare(root)
+	configuration, err := prepare(root, nil, nil)
 	if err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
@@ -807,7 +807,7 @@ func TestPrepareStagesCommittedBaseline(t *testing.T) {
 	withCommittedSaves(t, committed)
 	target := filepath.Join(root, "profile", "Saves", BaselineSave)
 	// IsolatedRoot copied the source root's stale "save-data" baseline.
-	if _, err := Prepare(root); err != nil {
+	if _, err := prepare(root, nil, nil); err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
 	if got, _ := os.ReadFile(target); string(got) != "committed core-only save" {
@@ -819,7 +819,7 @@ func TestPrepareStagesCommittedBaseline(t *testing.T) {
 	if err := os.Remove(target); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareRendered(root); err != nil {
+	if _, err := prepareRendered(root, nil, nil); err != nil {
 		t.Fatalf("PrepareRendered failed: %v", err)
 	}
 	if got, _ := os.ReadFile(target); string(got) != "committed core-only save" {
@@ -829,7 +829,7 @@ func TestPrepareStagesCommittedBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Prepare(root); err != nil {
+	if _, err := prepare(root, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if after, _ := os.Stat(target); !after.ModTime().Equal(before.ModTime()) {

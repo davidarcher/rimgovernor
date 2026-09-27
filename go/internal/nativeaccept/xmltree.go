@@ -62,33 +62,6 @@ func (e *xmlElem) findAll(name string) []*xmlElem {
 	return out
 }
 
-// children returns every direct child element regardless of name, in document order.
-func (e *xmlElem) children() []*xmlElem {
-	var out []*xmlElem
-	if e == nil {
-		return out
-	}
-	for _, kid := range e.kids {
-		if kid.elem != nil {
-			out = append(out, kid.elem)
-		}
-	}
-	return out
-}
-
-// attr returns the named attribute's value, or "" if absent.
-func (e *xmlElem) attr(name string) string {
-	if e == nil {
-		return ""
-	}
-	for _, a := range e.attrs {
-		if a.Name.Local == name {
-			return a.Value
-		}
-	}
-	return ""
-}
-
 func (e *xmlElem) text() string {
 	var out bytes.Buffer
 	for _, kid := range e.kids {

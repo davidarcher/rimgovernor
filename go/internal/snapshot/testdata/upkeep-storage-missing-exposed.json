@@ -11201,18 +11201,6 @@
  },
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load f4e11ac37f774c92985794b0fa307db1 map 0 tick 62208",
  "Review": {
-  "AsOf": {
-   "bills": 62208,
-   "buildings": 62208,
-   "colony": 62208,
-   "emergency": 62208,
-   "pawns": 62208,
-   "planning_cells": 62208,
-   "population": 62208,
-   "research": 62208,
-   "rooms": 62208,
-   "zones": 62208
-  },
   "Development": {
    "Capacity": 4,
    "Committed": [

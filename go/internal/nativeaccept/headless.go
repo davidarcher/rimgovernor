@@ -618,14 +618,10 @@ func copyFile(source, destination string) error {
 // launches carry it; the player's config (setup.RenderConfig) never does.
 const IdleExitArg = "-rimgovernor-idle-exit=20"
 
-// PrepareRendered launches the unified native package without batch-mode flags, for
-// a visible window. Returns the rewritten config directory (root/config).
-func PrepareRendered(root string, expansions ...string) (string, error) {
-	return prepareRendered(root, nil, expansions)
-}
-
-// prepareRendered is PrepareRendered with the run's fixture ops for the
-// stale-package check's rebuild hint (Config.FixtureOps).
+// prepareRendered launches the unified native package without batch-mode
+// flags, for a visible window, and returns the rewritten config directory
+// (root/config). fixtureOps feed the stale-package check's rebuild hint
+// (Config.FixtureOps).
 func prepareRendered(root string, fixtureOps, expansions []string) (string, error) {
 	root = mustAbs(root)
 	configuration := filepath.Join(root, "config")
@@ -675,15 +671,12 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	return configuration, nil
 }
 
-// Prepare builds the headless-profile subdirectory (copying Prefs.xml/ModsConfig.xml
-// and every profile/Saves/*.rws save into it, Prefs.xml trimmed per HeadlessPrefs), rewrites config.json's args for batch
-// mode, writes config-headless/config.json, and returns that directory.
-func Prepare(root string, expansions ...string) (string, error) {
-	return prepare(root, nil, expansions)
-}
-
-// prepare is Prepare with the run's fixture ops for the stale-package
-// check's rebuild hint (Config.FixtureOps).
+// prepare builds the headless-profile subdirectory (copying
+// Prefs.xml/ModsConfig.xml and every profile/Saves/*.rws save into it,
+// Prefs.xml trimmed per HeadlessPrefs), rewrites config.json's args for
+// batch mode, writes config-headless/config.json, and returns that
+// directory. fixtureOps feed the stale-package check's rebuild hint
+// (Config.FixtureOps).
 func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	root = mustAbs(root)
 	config, err := loadConfig(filepath.Join(root, "config", "config.json"))

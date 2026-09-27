@@ -32,10 +32,6 @@ func (e *StepStallError) Error() string {
 	return b.String()
 }
 
-func stepStall(stall time.Duration, families, lastFailure string) error {
-	return &StepStallError{Stall: stall, Families: families, LastFailure: lastFailure}
-}
-
 // stepFailureMark is the unconditional "scheduler_step" line
 // ClockWorker.stepLoop writes when a step's error changes
 // (buildingruntime/clock_worker.go), after the line's time and tick stamp.

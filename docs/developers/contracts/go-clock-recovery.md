@@ -434,13 +434,9 @@ section and the method that produced it. Every routine review files the
 sections it decoded (`observation.RoutineReading.Sections`) and the
 admission's emergency census is filed from the step's bundle; the store
 follows the cache's scope rule (a new (load, generation) empties it) and
-the same typed-event discards, by family (`facts.Section.Family`). The
-`routine_review` event and the journal's review row record `as_of`
-(section -> tick), `as_of_min` and `as_of_spread` (max - min); the
-postmortem digest (`acceptance why`) prints a non-zero spread on the review
-line, and `/api/routines` lists the held sections (`sections`). The spread
-is zero while every section comes from one bundle; it is the drift
-indicator for the incremental reads that follow.
+the same typed-event discards, by family (`facts.Section.Family`). Every
+section but `rooms` carries the routine frame's tick, and `/api/routines`
+lists the held sections (`sections`).
 
 `planning_cells` is the first section with its own read (#356). A current
 native's colony facts carry no `planning.cells`; the window (the site
@@ -459,7 +455,7 @@ natively when nothing held covers the region and once per full review
 step, and serves the held window on every timer or event step. The step's read cache makes
 a second ask in the step free; a failed read serves the held window when
 one covers the region. The section files with the window reply's own
-tick, so `as_of_spread` is non-zero on steps served from the store. The
+tick. The
 row carries no `reachable` (`placement_preview` refuses an unreachable
 site) and never lists a fogged cell (`Completeness.filtered` counts them).
 

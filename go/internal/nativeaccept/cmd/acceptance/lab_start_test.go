@@ -68,11 +68,11 @@ func TestUnpinnedFixtureStartRefusesRandomWorld(t *testing.T) {
 		want  bool
 	}{
 		{"no On", cases.Fixture{Op: "test/x"}, true},
-		{"unseeded debug", cases.Fixture{Op: "test/x", On: cases.FlatDebugStart()}, true},
+		{"unseeded debug", cases.Fixture{Op: "test/x", On: cases.DebugStart{}}, true},
 		{"nested unseeded", cases.Fixture{Op: "test/y", On: cases.Fixture{Op: "test/x"}}, true},
 		{"lab", cases.Fixture{Op: "test/x", On: cases.LabStart()}, false},
 		{"save", cases.Fixture{Op: "test/x", On: cases.Save{Name: "baseline"}}, false},
-		{"plain debug start", cases.FlatDebugStart(), false},
+		{"plain debug start", cases.DebugStart{}, false},
 	} {
 		if got := unpinnedFixtureStart(tc.start); got != tc.want {
 			t.Errorf("%s: unpinned = %v, want %v", tc.name, got, tc.want)

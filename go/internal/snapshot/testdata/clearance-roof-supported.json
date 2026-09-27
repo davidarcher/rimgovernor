@@ -10167,17 +10167,6 @@
  },
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load cb8d9b8859ea4086a6a292634b312c4a map 0 tick 615",
  "Review": {
-  "AsOf": {
-   "bills": 615,
-   "buildings": 615,
-   "colony": 615,
-   "emergency": 615,
-   "pawns": 615,
-   "planning_cells": 615,
-   "population": 615,
-   "research": 615,
-   "zones": 615
-  },
   "ClearanceHolds": [
    {
     "Reason": "roof_support_risk",

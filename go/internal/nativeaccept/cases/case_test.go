@@ -13,6 +13,13 @@ import (
 
 func noop(context.Context, Session) error { return nil }
 
+// reset empties the registry.
+func reset() {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	registry = map[string]Case{}
+}
+
 func TestRegisterRejectsDuplicateNames(t *testing.T) {
 	reset()
 	defer reset()

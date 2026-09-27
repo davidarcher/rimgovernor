@@ -24,7 +24,7 @@ func TestWaitProgressStallsBeforeCeiling(t *testing.T) {
 		return "same", false, nil
 	})
 	var w *WaitError
-	if !errors.As(err, &w) || w.Outcome != WaitStalled || !IsStalled(err) {
+	if !errors.As(err, &w) || w.Outcome != WaitStalled || !isStalled(err) {
 		t.Fatalf("want stalled, got %v", err)
 	}
 	if w.Signature != "same" || w.Rounds < 2 || w.Quiet < 30*time.Millisecond {
@@ -42,7 +42,7 @@ func TestWaitProgressChangingSignatureHitsCeiling(t *testing.T) {
 		return Signature(n), false, nil
 	})
 	var w *WaitError
-	if !errors.As(err, &w) || w.Outcome != WaitCeiling || IsStalled(err) {
+	if !errors.As(err, &w) || w.Outcome != WaitCeiling || isStalled(err) {
 		t.Fatalf("want ceiling, got %v", err)
 	}
 	if w.Quiet > 20*time.Millisecond {
@@ -126,7 +126,7 @@ func TestWaitStatsRecordTheLongestQuietSpan(t *testing.T) {
 	err := WaitProgress(context.Background(), Wait{Interval: time.Millisecond, Stall: 30 * time.Millisecond}, func(context.Context) (string, bool, error) {
 		return "held", false, nil
 	})
-	if !IsStalled(err) {
+	if !isStalled(err) {
 		t.Fatalf("want stalled, got %v", err)
 	}
 	after := WaitStats()
@@ -150,4 +150,10 @@ func TestDefaultStallIsMinutesNotTens(t *testing.T) {
 	if StallBudget() != 90*time.Second {
 		t.Fatalf("override ignored: %s", StallBudget())
 	}
+}
+
+// isStalled reports whether err is a WaitError with the stalled outcome.
+func isStalled(err error) bool {
+	var w *WaitError
+	return errors.As(err, &w) && w.Outcome == WaitStalled
 }

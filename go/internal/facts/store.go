@@ -396,35 +396,3 @@ func (s *Store) Status() []Status {
 	}
 	return out
 }
-
-// AsOf is the tick each held section describes.
-func (s *Store) AsOf() map[Section]int64 {
-	if s == nil {
-		return nil
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make(map[Section]int64, len(s.rows))
-	for section, r := range s.rows {
-		out[section] = r.asOf
-	}
-	return out
-}
-
-// Spread is the oldest tick among the sections and how far the newest is
-// ahead of it (max - min); zero and zero when nothing is held. A non-zero
-// spread means a step planned against sections from different ticks.
-func Spread(asOf map[Section]int64) (min, spread int64) {
-	first := true
-	var max int64
-	for _, tick := range asOf {
-		if first || tick < min {
-			min = tick
-		}
-		if first || tick > max {
-			max = tick
-		}
-		first = false
-	}
-	return min, max - min
-}

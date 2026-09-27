@@ -65,15 +65,6 @@ func TestRoutineReadingSections(t *testing.T) {
 	if sections.Pawns.Source != "" || sections.Rooms.Source != "" {
 		t.Fatalf("pawns=%+v rooms=%+v filed without a read", sections.Pawns, sections.Rooms)
 	}
-	asOf := sections.AsOf()
-	want := map[facts.Section]int64{facts.Colony: tick, facts.PlanningCells: tick, facts.Emergency: tick, facts.Population: tick, facts.Research: tick}
-	if !reflect.DeepEqual(asOf, want) {
-		t.Fatalf("as_of = %v", asOf)
-	}
-	if min, spread := facts.Spread(asOf); min != tick || spread != 0 {
-		t.Fatalf("min=%d spread=%d", min, spread)
-	}
-
 	store := facts.NewStore()
 	scope := facts.Scope{Load: "load", Generation: 1}
 	sections.File(store, scope)
@@ -141,9 +132,6 @@ func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
 	if got := out.Sections.PlanningCells; got.AsOf != tick-5 || got.Source != "rimgovernor/observations_get_cells" || !reflect.DeepEqual(got.Value.Cells, cells) {
 		t.Fatalf("planning cells section = %+v", got)
 	}
-	if _, spread := facts.Spread(out.Sections.AsOf()); spread != 5 {
-		t.Fatalf("spread = %d", spread)
-	}
 	// A source that fails the read fails the observation.
 	source.err = bridge.ErrUnavailable
 	if _, err := observeRoutineUnowned(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second); !errors.Is(err, bridge.ErrUnavailable) {
@@ -153,8 +141,5 @@ func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
 	out, err = observeRoutineUnowned(context.Background(), &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil || out.Projection.Cells != nil || out.Sections.PlanningCells.Source != "" {
 		t.Fatalf("%+v %v", out.Sections.PlanningCells, err)
-	}
-	if _, held := out.Sections.AsOf()[facts.PlanningCells]; held {
-		t.Fatal("empty window filed")
 	}
 }

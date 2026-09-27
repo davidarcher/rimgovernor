@@ -30114,17 +30114,6 @@
  },
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load b4e64aaec9b44b7eaf708c62c7223e9b map 0 tick 40501",
  "Review": {
-  "AsOf": {
-   "bills": 40501,
-   "buildings": 40501,
-   "colony": 40501,
-   "emergency": 40501,
-   "pawns": 40501,
-   "planning_cells": 40501,
-   "population": 40501,
-   "research": 40501,
-   "zones": 40501
-  },
   "Development": {
    "Capacity": 8,
    "Census": [

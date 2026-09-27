@@ -62,19 +62,3 @@ func refreshEntitySection[T proto.Message](f *clockFacts, scope facts.Scope, ide
 	mirror.Put(f.mirror, mirrorScope(scope, identity), string(section), full.Rows, mirror.At(full.AsOf()))
 	facts.Put(f.store, scope, section, facts.Held[EntitySection[T]]{Value: full.Rows, AsOf: full.AsOf(), Complete: true, Source: source})
 }
-
-// entitySectionsAsOf adds the held entity sections' as-of ticks to a
-// review's as_of map, so the journal shows the spread a review planned
-// against including the sections the refresher keeps (#358).
-func entitySectionsAsOf(store *facts.Store, asOf map[facts.Section]int64) map[facts.Section]int64 {
-	held := store.AsOf()
-	for _, section := range []facts.Section{facts.Zones, facts.Buildings, facts.Bills} {
-		if tick, ok := held[section]; ok {
-			if asOf == nil {
-				asOf = map[facts.Section]int64{}
-			}
-			asOf[section] = tick
-		}
-	}
-	return asOf
-}

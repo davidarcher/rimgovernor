@@ -78,7 +78,7 @@ func TestStoreInvalidate(t *testing.T) {
 	}
 }
 
-func TestStoreStatusAndSpread(t *testing.T) {
+func TestStoreStatus(t *testing.T) {
 	s := NewStore()
 	scope := Scope{Load: "a", Generation: 1}
 	Put(s, scope, Pawns, Held[string]{AsOf: 130, Complete: false, Source: "p"})
@@ -87,16 +87,8 @@ func TestStoreStatusAndSpread(t *testing.T) {
 	if len(status) != 2 || status[0].Section != Colony || status[1].Section != Pawns || status[0].Family != bridge.FactColony || status[1].Complete || status[0].StoredAt.IsZero() {
 		t.Fatalf("status = %+v", status)
 	}
-	asOf := s.AsOf()
-	min, spread := Spread(asOf)
-	if min != 100 || spread != 30 {
-		t.Fatalf("min=%d spread=%d from %v", min, spread, asOf)
-	}
-	if min, spread := Spread(nil); min != 0 || spread != 0 {
-		t.Fatalf("empty spread = %d %d", min, spread)
-	}
 	var nilStore *Store
-	if nilStore.Status() != nil || nilStore.AsOf() != nil || fresh(nilStore, Colony) || nilStore.Len() != 0 {
+	if nilStore.Status() != nil || fresh(nilStore, Colony) || nilStore.Len() != 0 {
 		t.Fatal("a nil store must hold nothing")
 	}
 	Put(nilStore, scope, Colony, Held[string]{})

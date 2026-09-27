@@ -73,9 +73,6 @@ type RoutineReview struct {
 	// Layout is the TidyLayout review this enabled review measured (#611):
 	// the standing proposal with its explanation, or why none stands.
 	Layout *policy.TidyReview `json:",omitempty"`
-	// AsOf is the tick each census section the review read described,
-	// by facts.Section name (#354); absent before any review filed one.
-	AsOf map[string]int64 `json:",omitempty"`
 	// Progress is every active goal's progress record (#629), keyed by
 	// need: method, expected observable, last progress tick, next review
 	// tick, blocked reason and the bounded cooldowns its rotations keyed.
@@ -105,8 +102,6 @@ type RoutineReviewRequest struct {
 	// PartialPlanners: only the planners a wake named follow this review,
 	// so the next review must not count an unrun planner's goal idle.
 	PartialPlanners bool
-	// AsOf is the tick each census section described (RoutineReview.AsOf).
-	AsOf map[string]int64
 }
 
 type RoutineReviewResult struct {
@@ -587,9 +582,6 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if choice.Kind == "allow" || choice.Kind == "forbid" {
 			r.LarderSupplies = []policy.StartingSupply{{Thing: choice.Stock.ID, Definition: string(choice.Stock.DefName), Cell: choice.Handling.Cell, Forbid: choice.Kind == "forbid"}}
 		}
-	}
-	if request.Enabled && len(request.AsOf) > 0 {
-		r.AsOf = request.AsOf
 	}
 	r.Comfort = comfort
 	r.Sleeping = sleeping

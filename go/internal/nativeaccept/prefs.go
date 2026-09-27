@@ -76,8 +76,6 @@ func SetPrefs(path string, prefs map[string]string) error {
 	return os.WriteFile(path, []byte(text), 0644)
 }
 
-func trimPrefsText(text string) (string, error) { return setPrefsText(text, HeadlessPrefs) }
-
 func setPrefsText(text string, prefs map[string]string) (string, error) {
 	const end = "</PrefsData>"
 	if !strings.Contains(text, end) {

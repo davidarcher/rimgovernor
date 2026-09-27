@@ -74,21 +74,6 @@ func TestReplayHarnessTick(t *testing.T) {
 	}
 }
 
-func TestReplayDiscoveryAndFixtureToolWait(t *testing.T) {
-	h, replay := replayHarness(t, "discovery.jsonl")
-	names, err := h.Discovery(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Join(names, ",") != "home/status,home/colony_facts,rimgovernor/lifecycle_read_identity" {
-		t.Fatalf("discovery: %v", names)
-	}
-	if err := WaitForNativeTool(context.Background(), h.Client, "test/throughput_prepare", time.Minute); err != nil {
-		t.Fatal(err)
-	}
-	requireConsumed(t, replay)
-}
-
 func TestReplayAuthorityCeremony(t *testing.T) {
 	h, replay := replayHarness(t, "authority.jsonl")
 	identity := map[string]any{"colonyId": "e8e3bf970585487baec750084f138753", "loadToken": "8de1a627d4a64722a24156436f4fca81", "mapId": 0}

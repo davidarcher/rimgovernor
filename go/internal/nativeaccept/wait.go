@@ -2,7 +2,6 @@ package nativeaccept
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -137,12 +136,6 @@ func (e *WaitError) Error() string {
 }
 
 func (e *WaitError) Unwrap() error { return e.Cause }
-
-// IsStalled reports whether err is a WaitError with the stalled outcome.
-func IsStalled(err error) bool {
-	var w *WaitError
-	return errors.As(err, &w) && w.Outcome == WaitStalled
-}
 
 // waitStats is what Finalize reports under wait_stats: how many waits the
 // run made, the longest a signature stayed unchanged before it moved or the

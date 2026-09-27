@@ -98,23 +98,3 @@ func routineSections(frame bridge.RoutineFrame, projection ColonyProjection, roo
 	}
 	return out
 }
-
-// AsOf is the tick each filed section describes, keyed as the store keys
-// them, for the review's journal row.
-func (r RoutineSections) AsOf() map[facts.Section]int64 {
-	out := map[facts.Section]int64{}
-	add := func(section facts.Section, source string, tick int64) {
-		if source != "" {
-			out[section] = tick
-		}
-	}
-	add(facts.Colony, r.Colony.Source, r.Colony.AsOf)
-	add(facts.PlanningCells, r.PlanningCells.Source, r.PlanningCells.AsOf)
-	add(facts.Population, r.Population.Source, r.Population.AsOf)
-	add(facts.Research, r.Research.Source, r.Research.AsOf)
-	add(facts.Pawns, r.Pawns.Source, r.Pawns.AsOf)
-	add(facts.Emergency, r.Emergency.Source, r.Emergency.AsOf)
-	add(facts.Rooms, r.Rooms.Source, r.Rooms.AsOf)
-	add(facts.Zones, r.Zones.Source, r.Zones.AsOf)
-	return out
-}

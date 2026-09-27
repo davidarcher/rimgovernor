@@ -24,7 +24,7 @@ func TestLastStepFailure(t *testing.T) {
 }
 
 func TestStepStallErrorNamesTheCause(t *testing.T) {
-	err := stepStall(90*time.Second, "field,cooking", "[clock-worker] step failed: Fields: context deadline exceeded")
+	var err error = &StepStallError{Stall: 90 * time.Second, Families: "field,cooking", LastFailure: "[clock-worker] step failed: Fields: context deadline exceeded"}
 	var stall *StepStallError
 	if !errors.As(err, &stall) {
 		t.Fatalf("not a StepStallError: %v", err)
@@ -35,7 +35,7 @@ func TestStepStallErrorNamesTheCause(t *testing.T) {
 			t.Errorf("message %q lacks %q", msg, want)
 		}
 	}
-	if msg := stepStall(time.Minute, "", "").Error(); strings.Contains(msg, ": [") {
+	if msg := (&StepStallError{Stall: time.Minute}).Error(); strings.Contains(msg, ": [") {
 		t.Errorf("empty failure must not leave a dangling separator: %q", msg)
 	}
 }

@@ -26,7 +26,7 @@ func TestLoadSuiteResultPricesRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r, ok := table.Of("a/one"); !ok || r.Wall != 4*time.Minute || r.Boot != 5*time.Second || r.Run() != 4*time.Minute-5*time.Second {
+	if r, ok := table.Of("a/one"); !ok || r.Wall != 4*time.Minute || r.Boot != 5*time.Second {
 		t.Errorf("a/one = %+v %v", r, ok)
 	}
 	if _, ok := table.Of("a/failed"); ok {

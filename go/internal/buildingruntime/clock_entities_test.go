@@ -82,17 +82,3 @@ func TestRefreshEntitySectionsWholeReads(t *testing.T) {
 		t.Fatalf("scope=%+v", f.store.Scope())
 	}
 }
-
-func TestEntitySectionsAsOf(t *testing.T) {
-	store := facts.NewStore()
-	scope := facts.Scope{Load: "load", Generation: 1}
-	if got := entitySectionsAsOf(store, nil); len(got) != 0 {
-		t.Fatal(got)
-	}
-	facts.Put(store, scope, facts.Zones, facts.Held[EntitySection[*o.ZoneState]]{AsOf: 70, Complete: true, Source: "x"})
-	facts.Put(store, scope, facts.Colony, facts.Held[string]{AsOf: 80, Complete: true, Source: "x"})
-	got := entitySectionsAsOf(store, map[facts.Section]int64{facts.Colony: 90})
-	if len(got) != 2 || got[facts.Zones] != 70 || got[facts.Colony] != 90 {
-		t.Fatal(got)
-	}
-}

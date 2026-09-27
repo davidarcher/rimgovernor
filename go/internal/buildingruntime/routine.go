@@ -328,8 +328,6 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.store != nil && reading.Sections.Colony.Source != "" {
 		facts.Put(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)}, facts.Colony, reading.Sections.Colony)
 	}
-	asOf := entitySectionsAsOf(r.store, reading.Sections.AsOf())
-	asOfMin, asOfSpread := facts.Spread(asOf)
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
 		clockSchedulerLog("routine.step: NewEmergencySnapshot err=%v", err)
@@ -490,14 +488,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
-	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial, AsOf: routineAsOf(asOf)})
+	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		// as_of is the tick each census section described; as_of_spread
-		// (max - min) is zero while every section comes from one bundle
-		// and becomes visible the moment a section takes another source.
-		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency), "as_of", routineAsOf(asOf), "as_of_min", asOfMin, "as_of_spread", asOfSpread}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency)}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
 		r.drawStatusStrip(ctx, state.Snapshot, &reading.Projection, result)
@@ -512,15 +507,6 @@ func routineStageAttrs(stage *policy.ColonyStageRecord) []any {
 		return nil
 	}
 	return []any{"stage", stage.Stage.String(), "stage_blocker", string(stage.Blocker), "stage_reason", stage.Reason, "stage_held", stage.Held}
-}
-
-// routineAsOf keys the sections' ticks by name for the journal.
-func routineAsOf(asOf map[facts.Section]int64) map[string]int64 {
-	out := make(map[string]int64, len(asOf))
-	for section, tick := range asOf {
-		out[string(section)] = tick
-	}
-	return out
 }
 
 // routineFoodAttrs are the review row's stored-food attrs: the food runway

@@ -30,7 +30,7 @@ type Selection struct {
 	// means ./... .
 	Packages []string
 	// Cases are the go/internal/nativeaccept/cases areas (#135) whose
-	// inputs (na.HarnessInputs) include a changed file: every case the
+	// inputs (na.HarnessInputRoots) include a changed file: every case the
 	// area registers is affected (acceptance run <area>/...).
 	Cases []string
 	// AllHarnesses means a shared acceptance input changed (native mod

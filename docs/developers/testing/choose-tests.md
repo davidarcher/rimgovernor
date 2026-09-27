@@ -201,8 +201,7 @@ test-only embeds select only their owner. A test fixture under `scripts/fixtures
 of its `[Tool("test/...")]` ops (and the fixtures it mentions by class
 name), a committed save under `saves/` the area naming it, and the
 fixture build files (`.csproj`, `Taskfile.yml`, lock file) every area;
-`contracts/fixtures` feeds unit tests only. `na.HarnessInputs` lists a
-case's inputs. Selection is per package, not
+`contracts/fixtures` feeds unit tests only. Selection is per package, not
 per symbol: any code edit to a package the runner imports (`cases`,
 `clock`, ...) names every area, even an additive one whose zero value
 keeps the old path, because nothing cheaper proves that. Two grains are

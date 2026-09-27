@@ -12070,17 +12070,6 @@
  },
  "Recorded": "colony 7f60d09eec774440b7135c426cb600bc load 6f7b51bc62d14d78967d3d81a7541210 map 0 tick 16740",
  "Review": {
-  "AsOf": {
-   "bills": 16740,
-   "buildings": 16740,
-   "colony": 16740,
-   "emergency": 16740,
-   "pawns": 16740,
-   "planning_cells": 16740,
-   "population": 16740,
-   "research": 16740,
-   "zones": 16740
-  },
   "Development": {
    "Capacity": 8,
    "Census": [

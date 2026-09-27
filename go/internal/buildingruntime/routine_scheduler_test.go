@@ -136,22 +136,6 @@ func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
 	if scope := s.facts.store.Scope(); scope.Load != f.status.Context.GetIdentity().GetLoadToken() || scope.Generation != f.status.Context.GetNativeGeneration() {
 		t.Fatalf("scope = %+v", scope)
 	}
-	asOf := first.Routine.Review.AsOf
-	if len(asOf) != 4 {
-		t.Fatalf("review as_of = %v", asOf)
-	}
-	for section, at := range asOf {
-		if at != tick {
-			t.Fatalf("%s as of %d, bundle at %d", section, at, tick)
-		}
-	}
-	stored, err := s.player.journal.LoadRoutineReview(context.Background())
-	if err != nil || len(stored.AsOf) != 4 || stored.AsOf["colony"] != tick {
-		t.Fatalf("stored as_of = %v err=%v", stored.AsOf, err)
-	}
-	if _, spread := factsstore.Spread(s.facts.store.AsOf()); spread != 0 {
-		t.Fatalf("spread %d from one bundle", spread)
-	}
 }
 
 // TestClockSchedulerDisabledReviewFailsTheStep: authority that lapses
