@@ -661,7 +661,16 @@ delta or in full, and a row equality); `buildingruntime/clock_mirror.go` adapts 
 entity reads. The refreshers file each table into `facts.Store`, which
 the planners read. Watermarks stay per section (`mirror.Watermarks`);
 `View.CompleteThrough` is the least of them, the one point every section
-is complete through. The review keeps its paused bracket. Research
+is complete through. The review reads the colonists' pawn detail
+(section `pawns`, keyed by pawn id) and the bench census (`benches`, each
+bench's bills and recipes, keyed by bench thing id; a keyframe every read)
+through the mirror, and retains its census for the step's planners
+(`routineCensus`): a planner of the same load, map and native generation
+plans from it at any tick up to the pawn cadence after the review
+(`bridge.FactTickTolerancePawns`), paused or running, until committed
+clock evidence invalidates it; the work planner serves the review's bench
+table the same way. There is no paused review bracket: CAS evidence on
+every write refuses a decision the world moved past. Research
 stays bundle-borne (its rows are defs with continuous progress, not
 entities that come and go) and areas and designations have no list read
 to page, so neither carries the fields. `entities/changed-since` proves

@@ -209,7 +209,11 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 		s.serve(facts.Pawns)
 		return nil, nil
 	}
-	pawns, pawnReceipt, err := s.ReadRoutinePawns(ctx, id, ids)
+	read := s.ReadRoutinePawns
+	if s.store.Pawns != nil {
+		read = s.store.Pawns
+	}
+	pawns, pawnReceipt, err := read(ctx, id, ids)
 	s.pawnReceipt = pawnReceipt
 	if err != nil {
 		return nil, err

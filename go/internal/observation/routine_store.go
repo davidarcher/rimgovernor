@@ -5,6 +5,8 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // RoutineStore is the routine census's section refresher (#360): the facts
@@ -30,6 +32,10 @@ type RoutineStore struct {
 	// an invalidation has dropped or marked it. MaxAge still bounds a
 	// section named in both.
 	Held map[facts.Section]bool
+	// Pawns, when set, is the colonists' pawn detail read in place of the
+	// source's ReadRoutinePawns: the reviewer's colony mirror section
+	// (#795), which publishes the rows it read and answers from them.
+	Pawns func(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
 }
 
 type routineStoreKey struct{}

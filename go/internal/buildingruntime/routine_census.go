@@ -5,18 +5,24 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// routineCensus is the review's own paused-tick observation, retained so the
-// planners that step after it in the same tick plan from the projection it
-// already produced instead of re-observing the world. It is exactly what a
-// planner's own observe would return under the same identity (same colony,
-// load, map, tick and native generation: the game is paused and nothing has
-// been written), so reuse changes no decision; a planner still takes its
-// own fresh identity read immediately before it writes.
+// routineCensus is the review's observation, retained so the planners that
+// step after it plan from the projection it already produced instead of
+// re-observing the world (#795 step 3). The review reads through the
+// colony mirror and decides at the tick its sections are complete
+// through; a planner of the same colony, load, map and native generation
+// decides there too, on a paused or a running clock, until committed
+// clock evidence invalidates the census or the planner's tick passes it by
+// more than the pawn cadence (bridge.FactTickTolerancePawns). A stale read
+// is not obeyed: every write carries its CAS evidence, which the native
+// refuses once the world moved.
 type routineCensus struct {
 	reading     observation.RoutineReading
 	rooms       bool
@@ -43,6 +49,29 @@ type routineCensusStore struct {
 	grid      domain.Fact[policy.ColonyGrid]
 	layout    domain.Fact[policy.LayoutPlan]
 	gridScope observation.Identity
+	// benches is the mirror version of the bench table the latest review
+	// refreshed (0: it read none), which planners of its census serve.
+	benches uint64
+}
+
+// rememberBenches records the bench table the review just published.
+func (s *routineCensusStore) rememberBenches(version uint64) {
+	s.mu.Lock()
+	s.benches = version
+	s.mu.Unlock()
+}
+
+// benchTable is the bench table the latest review published when its
+// census still serves expected and the mirror still holds that table.
+func (s *routineCensusStore) benchTable(m *mirror.Mirror, scope mirror.Scope, expected observation.Identity) (mirror.Table[string, bridge.GearBenchRead], bool) {
+	s.mu.Lock()
+	census, generation, version := s.latest, s.generation, s.benches
+	s.mu.Unlock()
+	if version == 0 || census == nil || census.generation != generation || !sameObservedIdentity(census.reading.Projection.Identity, expected) {
+		return mirror.Table[string, bridge.GearBenchRead]{}, false
+	}
+	table, ok := mirror.Get[string, bridge.GearBenchRead](m, scope, benchSectionName)
+	return table, ok && table.Version == version
 }
 
 // rememberGrid keeps the grid and v2 layout plan the review served under its identity.
@@ -78,6 +107,7 @@ func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bo
 	s.mu.Lock()
 	census.generation = s.generation
 	s.latest = census
+	s.benches = 0
 	s.mu.Unlock()
 }
 
@@ -122,12 +152,13 @@ func (s *routineCensusStore) lookup(source, reviewerSource any, expected observa
 
 // sameObservedIdentity matches the census identity (from colony facts)
 // against the planner's expected identity: the same load, map and
-// generation, at the same tick. A census is one step's read; a later step
-// at another tick reads its own.
+// generation, at the census tick or within the pawn cadence after it. An
+// expected tick before the census belongs to an older read.
 func sameObservedIdentity(census, expected observation.Identity) bool {
 	a, ak := census.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()
-	return census.SameContext(expected) && census.Tick == expected.Tick && ak && bk && a == b
+	lag := int64(expected.Tick) - int64(census.Tick)
+	return census.SameContext(expected) && lag >= 0 && lag <= bridge.FactTickTolerancePawns && ak && bk && a == b
 }
 
 // sameNativeSource reports whether two planner sources are one native
@@ -154,6 +185,46 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 		r.reviewReserve(&reading.Projection)
 	}
 	return reading, err
+}
+
+// benchSource is the bench census a work requirement reads through the
+// colony mirror (#795 step 3): the review (fresh) refreshes the bench
+// section and remembers the table; a planner serves that table while the
+// review's census serves it and refreshes the section otherwise. Without
+// a mirror (a standalone reviewer) it is native itself.
+func (r *RoutineReviewer) benchSource(native RoutineWorkBenchSource, expected observation.Identity, fresh bool) RoutineWorkBenchSource {
+	if native == nil || r.mirror == nil {
+		return native
+	}
+	generation, _ := expected.NativeGeneration.Value()
+	scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
+	return mirroredBenches{reviewer: r, native: native, scope: scope, expected: expected, fresh: fresh}
+}
+
+type mirroredBenches struct {
+	reviewer *RoutineReviewer
+	native   RoutineWorkBenchSource
+	scope    mirror.Scope
+	expected observation.Identity
+	fresh    bool
+}
+
+func (m mirroredBenches) ReadGearBenches(ctx context.Context, id *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
+	r := m.reviewer
+	if !m.fresh {
+		if table, ok := r.census.benchTable(r.mirror, m.scope, m.expected); ok {
+			return benchRows(table.Rows), bridge.Result{}, nil
+		}
+	}
+	tick := int64(m.expected.Tick)
+	table, _, err := mirror.Refresh(ctx, r.mirror, m.scope, tick, benchSection{native: m.native, id: id, tick: tick})
+	if err != nil {
+		return nil, bridge.Result{}, err
+	}
+	if m.fresh {
+		r.census.rememberBenches(table.Version)
+	}
+	return benchRows(table.Rows), bridge.Result{}, nil
 }
 
 // observeRooms is ObserveRoutineRooms served from the census when it read

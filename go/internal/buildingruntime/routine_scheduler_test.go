@@ -350,18 +350,18 @@ func TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition(t *testing.T) {
 	schedulerRoutine(t, s, f)
 	r := s.config.Routine
 	scope := factsstore.Scope{Load: "load", Generation: 1}
-	if rs := r.routineStore(nil); rs.Store != s.facts.store || rs.MaxAge != nil {
+	if rs := r.routineStore(nil, observation.Identity{}); rs.Store != s.facts.store || rs.MaxAge != nil {
 		t.Fatal("max age without colony facts", rs.MaxAge)
 	}
 	colony := observation.ColonyProjection{}
 	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "Flashstorm"}})
 	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
-	if rs := r.routineStore(nil); rs.MaxAge != nil {
+	if rs := r.routineStore(nil, observation.Identity{}); rs.MaxAge != nil {
 		t.Fatal("max age under a flashstorm", rs.MaxAge)
 	}
 	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "2", Definition: policy.ConditionColdSnap}})
 	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
-	if rs := r.routineStore(nil); rs.MaxAge[factsstore.Rooms] != 0 || len(rs.MaxAge) != 1 {
+	if rs := r.routineStore(nil, observation.Identity{}); rs.MaxAge[factsstore.Rooms] != 0 || len(rs.MaxAge) != 1 {
 		t.Fatal("max age under a cold snap", rs.MaxAge)
 	}
 }

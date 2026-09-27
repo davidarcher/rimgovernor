@@ -7,12 +7,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // RoutineReviewer observes and journals needs under Player's existing gate.
@@ -32,6 +36,10 @@ type RoutineReviewer struct {
 	// store receives each review's decoded sections (#354); the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
+	// mirror is the colony mirror the review reads its pawn detail and
+	// bench census through (#795 step 3); the scheduler sets it beside
+	// store, a standalone reviewer reads natively.
+	mirror *mirror.Mirror
 	// buildTier is the last build tier logged (#604): the service log
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
@@ -124,8 +132,15 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 // every other section held past its cadence: the review consumes it, but
 // nothing this step plans from it, so it is read again only once it is
 // invalidated or a planner consuming it runs.
-func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool) observation.RoutineStore {
+func (r *RoutineReviewer) routineStore(wanted map[facts.Section]bool, expected observation.Identity) observation.RoutineStore {
 	out := observation.RoutineStore{Store: r.store}
+	if r.mirror != nil {
+		generation, _ := expected.NativeGeneration.Value()
+		scope := mirror.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
+		out.Pawns = func(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
+			return readPawns(ctx, r.mirror, scope, r.native, id, ids)
+		}
+	}
 	if colony, ok := facts.Get[observation.ColonyProjection](r.store, facts.Colony); ok && policy.RoomTemperatureUrgent(colony.Value.Facts.DisasterConditions) {
 		out.MaxAge = map[facts.Section]int64{facts.Rooms: 0}
 	}
@@ -277,7 +292,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		observe = observation.ObserveRoutineRooms
 	}
-	reading, err := observe(observation.WithRoutineStore(ctx, r.routineStore(wanted)), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
+	reading, err := observe(observation.WithRoutineStore(ctx, r.routineStore(wanted, expected)), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
@@ -389,7 +404,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			// Bench work (open bills, a deficit's standing benches) counts
 			// toward coverage here so the work goal assesses a deficit the
 			// planner then covers; a failed census leaves coverage unknown.
-			benches, _ := r.native.(RoutineWorkBenchSource)
+			native, _ := r.native.(RoutineWorkBenchSource)
+			benches := r.benchSource(native, expected, true)
 			recovered, _ := policy.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources)
 			deficit, deficitKnown := recovered.Value()
 			targets := routineDeficitTargets(resourceTargets, deficitKnown && !deficit, reading.Projection.Facts.Gear)
