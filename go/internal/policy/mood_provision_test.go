@@ -16,15 +16,15 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 		t.Fatal(h)
 	}
 	s := h.States[0]
-	want := []MoodProvision{{EnsureBasicComfort, -20}, {EnsureComfort, -20}, {EnsureInitialShelter, -4}}
-	if len(s.Provision) != 3 || s.Provision[0] != want[0] || s.Provision[1] != want[1] || s.Provision[2] != want[2] {
+	want := []MoodProvision{{EnsureComfort, -20}, {MaintainHousing, -4}}
+	if len(s.Provision) != 2 || s.Provision[0] != want[0] || s.Provision[1] != want[1] {
 		t.Fatalf("provision = %+v, want %+v", s.Provision, want)
 	}
 	proposal, err := SelectMoodMethod(s, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason != MoodProvisioned || proposal.Goal != EnsureBasicComfort || proposal.Need != "" {
+	if proposal.Reason != MoodProvisioned || proposal.Goal != EnsureComfort || proposal.Need != "" {
 		t.Fatalf("provisioning did not defer to the owner: %+v", proposal)
 	}
 	proposal, err = SelectMoodMethod(s.WithoutProvision(), nil)
@@ -35,7 +35,7 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 		t.Fatalf("relief fallback lost: %+v", proposal)
 	}
 	deficits := MoodProvisionDeficits(h)
-	if deficits[EnsureBasicComfort] != 1 || deficits[EnsureComfort] != 1 || deficits[EnsureInitialShelter] != 1 {
+	if deficits[EnsureComfort] != 1 || deficits[MaintainHousing] != 1 {
 		t.Fatal(deficits)
 	}
 
@@ -54,7 +54,7 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 	h = moodReview(t, p, MoodHistory{})
 	p.Thoughts = domain.Unknown[[]MoodThought]()
 	h = moodReview(t, p, h)
-	if len(h.States[0].Provision) != 2 || h.States[0].Provision[0].Goal != EnsureBasicComfort {
+	if len(h.States[0].Provision) != 1 || h.States[0].Provision[0].Goal != EnsureComfort {
 		t.Fatal("unknown thoughts dropped the retained provisioning", h.States[0].Provision)
 	}
 	p.Thoughts = domain.Known([]MoodThought{})
@@ -74,7 +74,7 @@ func TestMoodProvisionValidation(t *testing.T) {
 	if err := p.Validate(); err == nil {
 		t.Fatal("duplicate thought accepted")
 	}
-	s := MoodState{Pawn: moodPawn(), Active: true, Provision: []MoodProvision{{EnsureInitialShelter, -4}, {EnsureComfort, -20}}}
+	s := MoodState{Pawn: moodPawn(), Active: true, Provision: []MoodProvision{{MaintainHousing, -4}, {EnsureComfort, -20}}}
 	if err := (MoodHistory{States: []MoodState{s}}).Validate(); err == nil {
 		t.Fatal("unordered provision accepted")
 	}

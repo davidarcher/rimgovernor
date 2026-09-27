@@ -170,7 +170,7 @@ func watchHomeBeds(ctx context.Context, journal *store.Store, report na.Report) 
 	seen := map[domain.PlanID]bool{}
 	for n := 0; n < 2; n++ {
 		label := fmt.Sprintf("bed_%d", n)
-		_, err := followMethodsExcluding(bounded, journal, policy.MaintainSleeping, label, seen, func(a domain.Action) error {
+		_, err := followMethodsExcluding(bounded, journal, policy.MaintainHousing, label, seen, func(a domain.Action) error {
 			b, ok := a.Building()
 			if !ok || b.Definition() != "Bed" {
 				return fmt.Errorf("not a bed build: %s", a.Kind())

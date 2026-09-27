@@ -281,3 +281,28 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 		}
 	}
 }
+
+// A sick colonist puts MaintainMedicalReserves in its care phase, but the
+// medicine stock latch stays live and the phase still restocks: the bill and
+// herb harvest never stop because someone is ill.
+func TestMedicalCarePhaseKeepsRestocking(t *testing.T) {
+	f := stableRoutine()
+	f.MedicalCareRecovered = domain.Known(false)
+	f.MedicalReserve = MedicalReserveObservation{Items: domain.Known([]MedicineStack{}), Resources: domain.Known([]Amount{})}
+	p := DefaultRoutinePolicy()
+	p.ColonyStage = StageStable
+	r, err := DetectRoutine(f, RoutineLatches{}, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Latches.Medical != MedicalCare || !r.Latches.MedicalReserve || !r.Latches.Medical.Restocks() || !hasNeed(r, MaintainMedicalReserves) {
+		t.Fatal(r.Latches.Medical, r.Latches.MedicalReserve, r.Goals)
+	}
+	f.MedicalCareRecovered = domain.Known(true)
+	if r, err = DetectRoutine(f, r.Latches, p); err != nil || r.Latches.Medical != MedicalReserves || !r.Latches.Medical.Restocks() {
+		t.Fatal(err, r.Latches.Medical)
+	}
+	if Phase("").Restocks() {
+		t.Fatal("a recovered goal restocks nothing")
+	}
+}

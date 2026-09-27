@@ -35,20 +35,20 @@ var moodProvisionOwners = map[string][]GoalID{
 	"SkyHighExpectations": {EnsureCooking},
 	"AteRawFood":          {EnsureCooking},
 	"AteAwfulMeal":        {EnsureCooking},
-	"AteWithoutTable":     {EnsureBasicComfort, EnsureComfort},
-	"NeedJoy":             {EnsureBasicComfort, EnsureComfort},
-	"SleptOutside":        {EnsureInitialShelter},
-	"SleptOnGround":       {EnsureInitialShelter},
+	"AteWithoutTable":     {EnsureComfort},
+	"NeedJoy":             {EnsureComfort},
+	"SleptOutside":        {MaintainHousing},
+	"SleptOnGround":       {MaintainHousing},
 	"EnvironmentDark":     {MaintainLighting},
 	"EnvironmentCold":     {EnsureTemperatureSafety},
 	"EnvironmentHot":      {EnsureTemperatureSafety},
 	"NeedBeauty":          {MaintainCleanFacilities},
-	"NeedRoomSize":        {EnsureExpansion},
+	"NeedRoomSize":        {MaintainHousing},
 }
 
 // moodUnownedThoughts are the removable environment thoughts no goal owns
 // a facility for: a private bedroom would clear SleptInBarracks, but no
-// goal builds bedrooms (MaintainSleeping stages hosted beds and the game
+// goal builds bedrooms (MaintainHousing stages hosted beds and the game
 // scores the room by count; #286). When they dominate a pawn's pressure
 // the mood goal records them (MoodState.Unowned) and, with no measured
 // relief left, proposes the explicit MoodUnowned blocker instead of

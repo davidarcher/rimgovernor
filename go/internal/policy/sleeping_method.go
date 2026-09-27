@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SleepingMethod is what a MaintainSleeping deficit needs next: ownership of
+// SleepingMethod is what a MaintainHousing deficit needs next: ownership of
 // a vacant suitable bed for one colonist, or one more humanlike bed staged in
 // a room that can host a Bedroom. Observed sleep in the assigned bed, never
 // an assignment or construction receipt, completes the goal (ReviewSleeping).

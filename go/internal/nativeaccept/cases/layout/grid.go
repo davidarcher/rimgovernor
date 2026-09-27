@@ -88,7 +88,7 @@ func grid(ctx context.Context, s cases.Session) error {
 	var laid bool
 	var audit map[string]any
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: window, Extra: []policy.GoalID{policy.EnsureInitialShelter, policy.EnsureExpansion}, Until: layoutPlanned},
+		WatchConfig: sustainedfood.WatchConfig{Watch: window, Extra: []policy.GoalID{policy.MaintainHousing}, Until: layoutPlanned},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 			journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
 			if err != nil {
@@ -305,7 +305,7 @@ func layoutPlanned(sample map[string]any) bool {
 	if !fieldsPlanned(sample) {
 		return false
 	}
-	for _, goal := range []policy.GoalID{policy.EnsureInitialShelter, policy.EnsureExpansion} {
+	for _, goal := range []policy.GoalID{policy.MaintainHousing} {
 		capacity, _ := sample[string(goal)].(map[string]any)
 		if planned(capacity, shellPlanPrefix, false) {
 			return true

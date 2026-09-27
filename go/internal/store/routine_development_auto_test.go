@@ -32,10 +32,10 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 		{ID: "hauler", Work: []policy.WorkType{policy.WorkHauling}},
 		{ID: "scholar", Work: []policy.WorkType{policy.WorkResearch}},
 	})
-	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(2)), domain.Known(int64(3))
+	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(3)), domain.Known(int64(3))
 	first := reviewRoutine(t, s, &r)
 	d := first.Review.Development
-	for _, need := range []domain.GoalID{policy.EnsureExpansion, policy.EnsureResearch, policy.MaintainResource} {
+	for _, need := range []domain.GoalID{policy.MaintainHousing, policy.EnsureResearch, policy.MaintainResource} {
 		if !developmentRow(t, first.Review, need).Selected {
 			t.Fatal(need, d.Rows)
 		}
@@ -55,7 +55,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expansion := routineGoal(t, first, policy.EnsureExpansion)
+	expansion := routineGoal(t, first, policy.MaintainHousing)
 	if _, err = s.CommitGoalMethod(ctx, expansion.Goal.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrNotAdmitted) || !strings.Contains(err.Error(), string(policy.DevelopmentLabor)) {
 		t.Fatal("builder double-spent", err)
 	}
@@ -77,7 +77,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	// A reviewed goal from another load is refused on the snapshot.
 	r.Current.Load = "reloaded"
 	reviewRoutine(t, s, &r)
-	stale := routineGoal(t, first, policy.EnsureExpansion)
+	stale := routineGoal(t, first, policy.MaintainHousing)
 	if _, err = s.CommitGoalMethod(ctx, stale.Goal.ID, stale.Revision, "wall", plan(t, "wall2", "wall2-action")); err == nil {
 		t.Fatal("stale review admitted")
 	}

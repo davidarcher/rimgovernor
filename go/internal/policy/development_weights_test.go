@@ -35,7 +35,7 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
 	r.Goals = []DevelopmentGoal{
 		{ID: "comfort", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(EnsureComfort)},
-		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.5), Labor: GoalLabor(EnsureExpansion)},
+		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.5), Labor: GoalLabor(MaintainHousing)},
 		{ID: "research", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.4), Labor: GoalLabor(EnsureResearch)},
 	}
 	s := rank(t, r)
@@ -100,18 +100,18 @@ func TestDevelopmentRiskPenalisesAndDefers(t *testing.T) {
 
 func TestRoutineDevelopmentRiskFromObservedHazards(t *testing.T) {
 	f := stableRoutine()
-	if RoutineDevelopmentRisk(EnsureExpansion, f, RoutineLatches{}) != domain.Known(0.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{Cold: true}) != domain.Known(0.0) {
+	if RoutineDevelopmentRisk(MaintainHousing, f, RoutineLatches{}) != domain.Known(0.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{Cold: true}) != domain.Known(0.0) {
 		t.Fatal("no hazard must be zero risk")
 	}
 	if RoutineDevelopmentRisk(EnsureComfort, f, RoutineLatches{Hot: true}) != domain.Known(0.5) || RoutineDevelopmentRisk(MaintainResource, f, RoutineLatches{Cold: true}) != domain.Known(0.5) {
 		t.Fatal("temperature latch must halve outdoor priority")
 	}
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})
-	if RoutineDevelopmentRisk(EnsureExpansion, f, RoutineLatches{}) != domain.Known(1.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{}) != domain.Known(0.0) {
+	if RoutineDevelopmentRisk(MaintainHousing, f, RoutineLatches{}) != domain.Known(1.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{}) != domain.Known(0.0) {
 		t.Fatal("outdoor hazard must defer outdoor work only")
 	}
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "1", Definition: "Eclipse"}})
-	if RoutineDevelopmentRisk(EnsureExpansion, f, RoutineLatches{}) != domain.Known(0.0) {
+	if RoutineDevelopmentRisk(MaintainHousing, f, RoutineLatches{}) != domain.Known(0.0) {
 		t.Fatal("non-hazard condition")
 	}
 }

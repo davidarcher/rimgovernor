@@ -867,13 +867,10 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRoutes)
 	}
 	if sc.routineComfortPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort, policy.EnsureBasicComfort)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
 	}
-	if sc.routineSleepingPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainSleeping)
-	}
-	if sc.routineExpansionPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureExpansion)
+	if sc.routineSleepingPlans || sc.routineExpansionPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainHousing)
 	}
 	if sc.routineAnimalContainmentPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalContainment)
@@ -954,7 +951,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
 	}
 	if sc.routineMedicalPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainMedicalCare)
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves)
 	}
 	if sc.routineTradePlans {
 		thresholds.Trade = policy.RoutineTradePolicy{ComponentTarget: policy.DefaultResourceTargets()[policy.ComponentResource]}

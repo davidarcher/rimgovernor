@@ -11,7 +11,7 @@ import (
 // colonist into a planned 5x5 bedroom of their own, in the plan's slot
 // order along the spine: raise the room's shell, stage one bed in it, then
 // move the colonist's ownership there. The barracks bed left behind stays
-// as a spare for joiners (EnsureExpansion keeps one beyond the population).
+// as a spare for joiners (MaintainHousing keeps one beyond the population).
 
 // BedroomStepKind is the next bedroom step.
 type BedroomStepKind string

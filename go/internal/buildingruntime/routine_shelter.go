@@ -26,7 +26,7 @@ func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineShelterPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureInitialShelter, definition: "Wall", shelter: true}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.MaintainHousing, phase: policy.HousingShelter, definition: "Wall", shelter: true}, nil
 }
 
 // Expansion reuses the same furnishing and whole-shell admission path to keep
@@ -35,7 +35,7 @@ func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildin
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineExpansionPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.MaintainHousing, phase: policy.HousingExpansion, definition: "Wall", shelter: true}, nil
 }
 
 // shelterStyle maps the build tier
@@ -544,10 +544,10 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 // whose shell is the deficit itself.
 func (r *RoutineBuildingPlanner) facilityLadder() bool {
 	switch r.goal {
-	case policy.EnsureComfort, policy.MaintainResource, policy.MaintainEquipment, policy.MaintainMedicalCare, policy.MaintainSleeping, policy.EnsureResearch:
+	case policy.MaintainResource, policy.MaintainEquipment, policy.MaintainMedicalReserves, policy.EnsureResearch:
 		return true
 	}
-	return false
+	return r.phase == policy.HousingSleeping || r.phase == policy.ComfortRanked
 }
 
 // shellEncloses reports whether a standing ring is a finished room: some

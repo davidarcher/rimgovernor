@@ -19,7 +19,7 @@ func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
 
 func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{})
-	if len(r.Assessments) != 48 {
+	if len(r.Assessments) != 44 {
 		t.Fatal(r)
 	}
 	for _, n := range r.Assessments {
@@ -68,7 +68,7 @@ func TestRoutineAssessmentsRetainHysteresisButRequireFreshEvidence(t *testing.T)
 	f.BedCapacity = domain.Known(int64(0))
 	f.IndoorCapacity = domain.Unknown[int64]()
 	r = needs(t, f, r.Latches)
-	if assessment(t, r, EnsureInitialShelter) != domain.NeedDeficit {
+	if assessment(t, r, MaintainHousing) != domain.NeedDeficit {
 		t.Fatal("known shortage masked by unknown neighbor", r)
 	}
 }

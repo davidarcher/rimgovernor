@@ -230,7 +230,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 			return na.Signature("no-review", err), false, nil
 		}
 		for _, binding := range review.Goals {
-			if binding.Need != policy.EnsureInitialShelter {
+			if binding.Need != policy.MaintainHousing {
 				continue
 			}
 			goal, err := st.LoadGoal(ctx, binding.Goal)
@@ -256,7 +256,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 		return na.Signature("unbound", len(review.Goals)), false, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("no shell plan admitted for EnsureInitialShelter: %w", err)
+		return nil, fmt.Errorf("no shell plan admitted for MaintainHousing: %w", err)
 	}
 	return found, nil
 }

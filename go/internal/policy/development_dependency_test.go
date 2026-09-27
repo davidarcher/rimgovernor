@@ -34,7 +34,7 @@ func woodShortage() DevelopmentRequest {
 		Workers: domain.Known(1),
 		Census:  census(worker("a", WorkPlantCutting, WorkCooking, WorkHauling)),
 		Goals: []DevelopmentGoal{
-			{ID: EnsureInitialShelter, Source: AutopilotGoal, Priority: 2, Served: true},
+			{ID: MaintainHousing, Source: AutopilotGoal, Priority: 2, Served: true},
 			{ID: MaintainAnimalFeed, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
 			{ID: SecureSupplies, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
 			{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
@@ -43,7 +43,7 @@ func woodShortage() DevelopmentRequest {
 }
 
 func shelterWood(available domain.Fact[int64], costs ...DependencyCost) DevelopmentDependency {
-	return DevelopmentDependency{Dependent: EnsureInitialShelter, Goal: "routine-shelter", Epoch: 1, Method: "shell", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: costs, Available: available, Observed: 90}
+	return DevelopmentDependency{Dependent: MaintainHousing, Goal: "routine-shelter", Epoch: 1, Method: "shell", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: costs, Available: available, Observed: 90}
 }
 
 func rankDep(t *testing.T, r DevelopmentRequest) DevelopmentState {
@@ -68,7 +68,7 @@ func TestShelterWoodShortfallOrdersWoodFirst(t *testing.T) {
 	if !wood.Selected || wood.Donation == nil || rowOf(s, MaintainAnimalFeed).Selected {
 		t.Fatalf("wood should take the worker: %+v", s.Rows)
 	}
-	want := DevelopmentDonation{Priority: 2, Chain: []GoalID{EnsureInitialShelter, MaintainResource}, Resource: "WoodLog", Shortfall: 80}
+	want := DevelopmentDonation{Priority: 2, Chain: []GoalID{MaintainHousing, MaintainResource}, Resource: "WoodLog", Shortfall: 80}
 	if !reflect.DeepEqual(*wood.Donation, want) {
 		t.Fatalf("donation %+v, want %+v", *wood.Donation, want)
 	}
@@ -106,9 +106,9 @@ func TestDonationOnlyWhileShortfallOpen(t *testing.T) {
 func TestSharedDemandCountsEachActionOnce(t *testing.T) {
 	a := shelterWood(domain.Known[int64](50), DependencyCost{"wall-1", 60}, DependencyCost{"wall-2", 60})
 	b := a
-	b.Dependent, b.Goal, b.Method = EnsureExpansion, "routine-expansion", "room"
+	b.Dependent, b.Goal, b.Method = EnsureComfort, "routine-comfort", "room"
 	b.Costs = []DependencyCost{{"wall-2", 60}, {"wall-3", 30}}
-	goals := append(woodShortage().Goals, DevelopmentGoal{ID: EnsureExpansion, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)})
+	goals := append(woodShortage().Goals, DevelopmentGoal{ID: EnsureComfort, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)})
 	d, _ := ResolveDonations(goals, []DevelopmentDependency{a, b})
 	if got := d[MaintainResource]; got.Shortfall != 60+60+30-50 || got.Priority != 2 {
 		t.Fatalf("shared demand %+v", got)
@@ -170,7 +170,7 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 	if r := needs(t, f, RoutineLatches{}); r.Latches.Wood || hasNeed(r, MaintainResource) {
 		t.Fatal("150 wood is above WoodMin", r)
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: EnsureInitialShelter, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
+	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
 	r := needs(t, f, RoutineLatches{})
 	if r.Latches.Wood || !hasNeed(r, MaintainResource) {
 		t.Fatal("shortfall did not activate MaintainResource", r)
@@ -206,7 +206,7 @@ func TestNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	if hasNeed(needs(t, f, RoutineLatches{}), MaintainResource) {
 		t.Fatal("no floor configured")
 	}
-	f.Dependencies = []DevelopmentDependency{{Dependent: EnsureInitialShelter, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
+	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Epoch: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
 	if got := DependencyResourceNeeds(f.Dependencies); got["Steel"] != 50 || len(got) != 1 {
 		t.Fatal(got)
 	}

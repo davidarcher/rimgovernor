@@ -1504,8 +1504,7 @@
     "ClearPests",
     "EnsureCooking",
     "MaintainFoodStorage",
-    "MaintainMedicalReserves",
-    "MaintainMedicalCare"
+    "MaintainMedicalReserves"
    ]
   },
   "BasicComfort": {
@@ -11134,7 +11133,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "EnsureExpansion",
+     "Goal": "MaintainHousing",
      "Labor": [
       "Construction"
      ],
@@ -11164,17 +11163,6 @@
       "Tailoring",
       "Smithing",
       "Crafting"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 261.949,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Goal": "MaintainSleeping",
-     "Labor": [
-      "Construction"
      ],
      "Reason": "method_unavailable",
      "Risk": 0,
@@ -11538,8 +11526,8 @@
     "Need": "EnsureFoodSupply"
    },
    {
-    "Goal": "routine-bf1f3896c99fa4fe-EnsureInitialShelter",
-    "Need": "EnsureInitialShelter"
+    "Goal": "routine-bf1f3896c99fa4fe-MaintainHousing",
+    "Need": "MaintainHousing"
    },
    {
     "Goal": "routine-bf1f3896c99fa4fe-EnsureTemperatureSafety",
@@ -11558,24 +11546,16 @@
     "Need": "EnsureBasicDefense"
    },
    {
-    "Goal": "routine-bf1f3896c99fa4fe-MaintainMedicalCare",
-    "Need": "MaintainMedicalCare"
-   },
-   {
-    "Goal": "routine-bf1f3896c99fa4fe-EnsureBasicComfort",
-    "Need": "EnsureBasicComfort"
-   },
-   {
-    "Goal": "routine-bf1f3896c99fa4fe-ClearPests",
-    "Need": "ClearPests"
+    "Goal": "routine-bf1f3896c99fa4fe-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-bf1f3896c99fa4fe-EnsureComfort",
     "Need": "EnsureComfort"
    },
    {
-    "Goal": "routine-bf1f3896c99fa4fe-EnsureExpansion",
-    "Need": "EnsureExpansion"
+    "Goal": "routine-bf1f3896c99fa4fe-ClearPests",
+    "Need": "ClearPests"
    },
    {
     "Goal": "routine-bf1f3896c99fa4fe-MaintainEquipment",
@@ -11632,14 +11612,6 @@
    {
     "Goal": "routine-bf1f3896c99fa4fe-MaintainStoneShell",
     "Need": "MaintainStoneShell"
-   },
-   {
-    "Goal": "routine-bf1f3896c99fa4fe-MaintainSleeping",
-    "Need": "MaintainSleeping"
-   },
-   {
-    "Goal": "routine-bf1f3896c99fa4fe-MaintainMedicalReserves",
-    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-bf1f3896c99fa4fe-MaintainFoodStorage",
@@ -11702,11 +11674,13 @@
      "Thing_YorkshireTerrier5167"
     ]
    },
+   "Comfort": "basic",
    "Flooring": [
     "traffic"
    ],
    "Food": true,
    "FoodStorage": true,
+   "Housing": "shelter",
    "Sleeping": true,
    "Upkeep": {
     "Supplies": true
@@ -11790,7 +11764,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureInitialShelter",
+    "Goal": "MaintainHousing",
     "LastProgress": 161964,
     "Method": "assess",
     "NextReview": 164464
@@ -11847,7 +11821,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalCare",
+    "Goal": "MaintainMedicalReserves",
     "LastProgress": 161964,
     "Method": "assess",
     "NextReview": 164464
@@ -11861,37 +11835,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureBasicComfort",
-    "LastProgress": 161964,
-    "Method": "assess",
-    "NextReview": 164464,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 164464
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureComfort",
-    "LastProgress": 161964,
-    "Method": "assess",
-    "NextReview": 164464,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 164464
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureExpansion",
     "LastProgress": 161964,
     "Method": "assess",
     "NextReview": 164464,
@@ -11962,21 +11906,6 @@
     "LastProgress": 161964,
     "Method": "assess",
     "NextReview": 164464
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 164464
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainSleeping",
-    "LastProgress": 161964,
-    "Method": "assess",
-    "NextReview": 164464,
-    "Observed": 1
    },
    {
     "Blocked": "no_method",
@@ -12210,7 +12139,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureExpansion"
+      "MaintainHousing"
      ],
      "ID": "46aece9bafe3c08f",
      "Reason": "no plan or proposal",
@@ -12220,7 +12149,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "MaintainSleeping"
+      "MaintainHousing"
      ],
      "ID": "6ef52414d0c1e8eb",
      "Reason": "no plan or proposal",
@@ -12230,7 +12159,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureBasicComfort"
+      "EnsureComfort"
      ],
      "ID": "73c957caff0f31cc",
      "Reason": "no plan or proposal",

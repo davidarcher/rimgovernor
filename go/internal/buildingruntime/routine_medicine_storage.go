@@ -138,7 +138,7 @@ func medicineFilter() (domain.StockpileFilter, error) {
 }
 
 // medicineStorage places one medicine stockpile beside the hospital's
-// medical beds once the ward stands (#723), a MaintainMedicalCare method
+// medical beds once the ward stands (#723), a MaintainMedicalReserves method
 // keyed by the room: role medicine:<roomID>. A zero reason means nothing to
 // do this step.
 func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading, started time.Time) (RoutineBuildingReason, error) {

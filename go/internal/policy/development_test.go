@@ -237,7 +237,7 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 	r.Goals = []DevelopmentGoal{
 		goal("EnsureDefensiveLayout", 0, false), goal("MaintainEquipment", 0, true), goal("EnsureComfort", 0.5, true),
 		goal("MaintainFlooring", 0.5, false), goal("MaintainAnimalFeed", 0, false), goal("MaintainStorage", 0, false),
-		goal("SecureSupplies", 0, false), goal("EnsureExpansion", 0.5, false), goal("MaintainSleeping", 0.5, false),
+		goal("SecureSupplies", 0, false), goal("MaintainHousing", 0.5, false),
 		goal("MaintainStoneShell", 0.5, false), goal("MaintainWaste", 0, true),
 	}
 	since := map[GoalID]domain.Tick{"MaintainFlooring": 6430, "MaintainStorage": 36769, "SecureSupplies": 36769, "MaintainStoneShell": 33189}

@@ -45,7 +45,7 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoutineComfortPlanner: !ok", ErrControl)
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, definition: "Wall", shelter: true}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}, nil
 }
 
 // A definition needs one available pawn whose observed Construction setting
@@ -231,7 +231,7 @@ func NewRoutineBasicComfortPlanner(reviewer *RoutineReviewer, native RoutineBuil
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoutineBasicComfortPlanner: !ok", ErrControl)
 	}
-	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureBasicComfort}, nil
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, phase: policy.ComfortBasic}, nil
 }
 
 // selectBasicComfort resolves the next foothold facility from the unfiltered

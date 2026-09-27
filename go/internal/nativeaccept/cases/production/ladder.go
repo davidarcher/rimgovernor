@@ -53,7 +53,7 @@ const (
 // a choice dialog the DLC save opens by itself (Verse.Dialog_NodeTree)
 // force-pauses the game and holds every development row as an emergency
 // until the dialog planner answers it (#156). The sleeping and shelter
-// families (both serve EnsureInitialShelter with sleeping spots) stay off
+// families (both serve MaintainHousing with sleeping spots) stay off
 // for time: the fixture hut already holds a sleeping spot per colonist, and
 // with them on the workshop ladder once staged a second shell before its
 // bench (#218, a 16 minute run whose ingredient stockpile then had no clean

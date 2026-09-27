@@ -41,7 +41,7 @@ func deficits(t *testing.T, path string) (Routine, map[policy.GoalID]bool) {
 func TestReplayShelterOpensBesideResourceAndUpkeep(t *testing.T) {
 	t.Parallel()
 	r, open := deficits(t, shelterOpen)
-	for _, id := range []policy.GoalID{policy.EnsureInitialShelter, policy.MaintainResource, policy.MaintainFoodStorage, policy.EnsureFoodSupply, policy.MaintainSleeping} {
+	for _, id := range []policy.GoalID{policy.MaintainHousing, policy.MaintainResource, policy.MaintainFoodStorage, policy.EnsureFoodSupply} {
 		if !open[id] {
 			t.Errorf("%s not open beside the initial shelter: %v", id, open)
 		}
@@ -50,15 +50,15 @@ func TestReplayShelterOpensBesideResourceAndUpkeep(t *testing.T) {
 	for _, g := range r.Review.Goals {
 		bound[g.Need] = true
 	}
-	if !bound[policy.EnsureInitialShelter] || !bound[policy.MaintainResource] {
+	if !bound[policy.MaintainHousing] || !bound[policy.MaintainResource] {
 		t.Fatalf("the review did not bind shelter and resource goals together: %v", bound)
 	}
 }
 
 func TestReplayUpkeepOutlivesTheRecoveredShelter(t *testing.T) {
 	t.Parallel()
-	_, open := deficits(t, shelterRecovered)
-	if open[policy.EnsureInitialShelter] {
+	r, open := deficits(t, shelterRecovered)
+	if needs, err := r.Detect(); err != nil || needs.Latches.Housing == policy.HousingShelter {
 		t.Fatal("the initial shelter is still owed after it recovered")
 	}
 	for _, id := range []policy.GoalID{policy.MaintainResource, policy.MaintainFoodStorage} {
@@ -96,7 +96,7 @@ func TestReplayWoodShortageKeepsTheShelterOwed(t *testing.T) {
 	for _, a := range needs.Assessments {
 		open[a.ID] = a.Need == domain.NeedDeficit
 	}
-	if !open[policy.EnsureInitialShelter] || !open[policy.MaintainResource] {
-		t.Fatalf("wood shortage: shelter owed=%v resource open=%v", open[policy.EnsureInitialShelter], open[policy.MaintainResource])
+	if !open[policy.MaintainHousing] || !open[policy.MaintainResource] {
+		t.Fatalf("wood shortage: shelter owed=%v resource open=%v", open[policy.MaintainHousing], open[policy.MaintainResource])
 	}
 }

@@ -73,8 +73,8 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 	var move domain.BedAssign
 	found := false
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-		WatchConfig: sustainedfood.WatchConfig{Watch: 2 * time.Minute, Extra: []policy.GoalID{policy.MaintainSleeping}, Until: func(sample map[string]any) bool {
-			goal, _ := sample[string(policy.MaintainSleeping)].(map[string]any)
+		WatchConfig: sustainedfood.WatchConfig{Watch: 2 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
+			goal, _ := sample[string(policy.MaintainHousing)].(map[string]any)
 			return moved(goal)
 		}},
 		Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {

@@ -6,12 +6,21 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// EnsureComfort's Phase is the step a review leaves owed: the basic
+// facilities (a reachable table, seat and recreation source, foothold
+// priority) before the ranked project (hosting rooms and proof of use,
+// from StageDevelopment). Each phase has its own planner.
+const (
+	ComfortBasic  Phase = "basic"
+	ComfortRanked Phase = "ranked"
+)
+
 // BasicComfortReview is the foothold half of the comfort need: every
 // colonist can reach a seat at an indoor eating surface and a recreation
 // source, wherever they stand. "Ate without table" and "no recreation" are
 // the cheapest mood debuffs to remove, so they are provided with the
 // starter hut rather than after the whole startup ladder; the hosting
-// room's native role and proof of use stay EnsureComfort's ranked concern.
+// room's native role and proof of use stay EnsureComfort's ranked phase.
 type BasicComfortReview struct {
 	Dining, Recreation                       ComfortNeed
 	MissingDining, MissingRecreation, People int

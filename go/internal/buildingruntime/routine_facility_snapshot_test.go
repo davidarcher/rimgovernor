@@ -14,7 +14,7 @@ import (
 func TestSnapshotBasicComfortFurnishesBareHut(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "basic-comfort-bare-hut")
-	selected, reason, err := recordedPlanner(r, policy.EnsureBasicComfort).selectBasicComfort(*r.Projection)
+	selected, reason, err := recordedPlanner(r, policy.EnsureComfort).selectBasicComfort(*r.Projection)
 	if err != nil || selected == nil || selected.definition != "Table1x2c" || selected.environment != policy.PlacementIndoors {
 		t.Fatalf("basic comfort: selected %+v reason %q err %v, want an indoor Table1x2c", selected, reason, err)
 	}

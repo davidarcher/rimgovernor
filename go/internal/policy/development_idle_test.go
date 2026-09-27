@@ -11,7 +11,7 @@ import (
 // idle age but keeps its commitment past DevelopmentIdleTicks: work nobody
 // has picked up yet is still the goal's work. Work picked up clears the age.
 func TestIdleLaborRecordsButKeepsCommitmentAcrossReviews(t *testing.T) {
-	s := newDevelopmentSim(t, 1, simGoal("wood", 0.4, GoalLabor(MaintainResource)), simGoal("sleeping", 0.9, GoalLabor(MaintainSleeping)))
+	s := newDevelopmentSim(t, 1, simGoal("wood", 0.4, GoalLabor(MaintainResource)), simGoal("sleeping", 0.9, GoalLabor(MaintainHousing)))
 	s.tick = 5000
 	c := s.commitment("wood", AutopilotGoal, 4, true)
 	c.Labor = GoalLabor(MaintainResource)

@@ -12,15 +12,15 @@ import (
 
 func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 	t.Parallel()
-	r := &RoutineBuildingPlanner{goal: policy.EnsureExpansion}
+	r := &RoutineBuildingPlanner{goal: policy.MaintainHousing, phase: policy.HousingExpansion}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), HousingTarget: domain.Known(int64(20))}}
 	n, id, reason := r.selection(f)
-	if n != 1 || id != "indoor-sleeping-4-1" || reason != "" {
+	if n != 1 || id != "expansion-indoor-sleeping-4-1" || reason != "" {
 		t.Fatal(n, id, reason)
 	}
 	r.shelter = true
 	n, id, reason = r.selection(f)
-	if n != 32 || id != "starter-shell" || reason != "" {
+	if n != 32 || id != "expansion-starter-shell" || reason != "" {
 		t.Fatal(n, id, reason)
 	}
 	f.Facts.IndoorCapacity = domain.Known(int64(4))
@@ -63,7 +63,7 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 	}
 }
 
-// expansionPolicy raises EnsureExpansion, a Reserves goal, on a fixture
+// expansionPolicy raises MaintainHousing's expansion phase, a Reserves step, on a fixture
 // that has not climbed the stage ladder.
 func expansionPolicy() policy.RoutinePolicy {
 	p := policy.DefaultRoutinePolicy()
@@ -89,7 +89,9 @@ func prepareExpansionReview(t *testing.T, db *store.Store, n *sleepingNative) {
 }
 func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	t.Parallel()
-	base, db, n := shelterFixture(t)
+	// No staged bunks: an open shelter rung would hold the housing goal's
+	// later phases.
+	base, db, n := shelterSiteFixture(t)
 	prepareExpansionReview(t, db, n)
 	r, err := NewRoutineExpansionPlanner(base.reviewer, n, nil)
 	if err != nil {

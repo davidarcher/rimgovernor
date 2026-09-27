@@ -39,7 +39,7 @@ func TestHospitalIsHostedByBedroomsAndBarracks(t *testing.T) {
 
 func TestSelectHospitalBedNoDemandAndExisting(t *testing.T) {
 	// A bad condition that needs no medical rest (a scar) keeps
-	// MaintainMedicalCare's deficit but asks for no ward.
+	// MaintainMedicalReserves's deficit but asks for no ward.
 	healthy := domain.Known([]CarePawn{{ID: "a", Dead: domain.Known(false), NeedsRest: domain.Known(false), NeedsTend: domain.Known(false), BadConditions: domain.Known(true)}})
 	choice, err := SelectHospitalBed(HospitalRequest{Patients: healthy})
 	if err != nil || choice.Method != HospitalNoDemand {

@@ -33,7 +33,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	r.Policy.Stage.Floor = policy.StageReserves
 	r.Facts.Workers = domain.Known(3)
 	r.Facts.Labor = domain.Known(map[policy.WorkType]int{policy.WorkConstruction: 1, policy.WorkPlantCutting: 1})
-	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(2)), domain.Known(int64(3))
+	r.Facts.Colonists, r.Facts.IndoorCapacity, r.Facts.BedCapacity = domain.Known(int64(3)), domain.Known(int64(3)), domain.Known(int64(3))
 	r.Facts.FoodDays = domain.Known(1.0)
 	r.Facts.Cooking = domain.Known(false)
 	first := reviewRoutine(t, s, &r)
@@ -43,7 +43,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	if food.Method != "acquire" || food.Blocked != policy.BlockedPrerequisite(policy.EnsureCooking) || food.LastProgress != 10 || food.NextReview != 10+policy.DevelopmentStallTicks || food.Expected == "" {
 		t.Fatalf("food record %+v", food)
 	}
-	if expansion := developmentRow(t, first.Review, policy.EnsureExpansion); !expansion.Selected {
+	if expansion := developmentRow(t, first.Review, policy.MaintainHousing); !expansion.Selected {
 		t.Fatalf("builder withheld for a bench nobody proposed: %+v", expansion)
 	}
 	if !developmentRow(t, first.Review, policy.MaintainResource).Selected {
@@ -67,7 +67,7 @@ func TestRoutineProgressFoodPrerequisiteWithholdsBuilder(t *testing.T) {
 	if food = progressRecord(t, second.Review, policy.EnsureFoodSupply); food.Blocked != policy.BlockedNoMethod || food.LastProgress != 10 {
 		t.Fatalf("food record %+v", food)
 	}
-	if !developmentRow(t, second.Review, policy.EnsureExpansion).Selected {
+	if !developmentRow(t, second.Review, policy.MaintainHousing).Selected {
 		t.Fatal(second.Review.Development.Rows)
 	}
 	// A shrinking deficit is native progress and resets the clock; a

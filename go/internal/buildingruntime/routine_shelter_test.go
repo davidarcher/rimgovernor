@@ -1124,7 +1124,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 		rooms   domain.Fact[policy.RoomObservation]
 		adopted bool
 	}{
-		{"initial shelter waits on its roof", policy.EnsureInitialShelter, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), true},
+		{"initial shelter waits on its roof", policy.MaintainHousing, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), true},
 		{"workshop waits while the ring is unroofed", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{unroofed}}), true},
 		{"workshop waits without a census", policy.MaintainResource, domain.Unknown[policy.RoomObservation](), true},
 		{"a room elsewhere is not this ring's", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{elsewhere}}), true},
@@ -1133,6 +1133,9 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: n, goal: test.goal, definition: "Wall", shelter: true}
+			if test.goal == policy.EnsureComfort {
+				planner.phase = policy.ComfortRanked
+			}
 			facts := facts
 			facts.Rooms = test.rooms
 			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, policy.ShelterRectangle, func() error { return nil })
@@ -1154,7 +1157,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	for _, test := range []struct {
 		goal    policy.GoalID
 		adopted bool
-	}{{policy.EnsureInitialShelter, true}, {policy.MaintainResource, false}} {
+	}{{policy.MaintainHousing, true}, {policy.MaintainResource, false}} {
 		planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: gap, goal: test.goal, definition: "Wall", shelter: true}
 		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, policy.ShelterRectangle, func() error { return nil })
 		if err != nil || reason != "" || adopted != test.adopted || (len(selected) == 1) != test.adopted {

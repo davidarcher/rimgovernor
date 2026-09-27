@@ -12,12 +12,12 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 	f.IndoorCapacity = domain.Known(int64(3))
 	f.ComfortRecovered = domain.Known(false)
 	f.ComfortDeficit = domain.Known(.8)
-	f.AvailableMethods = domain.Known([]GoalID{EnsureExpansion})
+	f.AvailableMethods = domain.Known([]GoalID{MaintainHousing})
 	needs := needs(t, f, RoutineLatches{})
 	request := developmentFixture()
 	request.Goals = needs.Goals
 	got := rank(t, request)
-	if !reflect.DeepEqual(selected(got), []GoalID{EnsureExpansion}) {
+	if !reflect.DeepEqual(selected(got), []GoalID{MaintainHousing}) {
 		t.Fatal(got)
 	}
 	found := false
@@ -59,13 +59,13 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoutineComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
-	all := []GoalID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, EnsureExpansion, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainStorage, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
+	all := []GoalID{EnsureFoodSupply, MaintainFoodStorage, MaintainResource, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, MaintainHousing, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainStorage, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainAnimalFeed, RemoveBlight}
 	if _, err := DetectRoutine(RoutineFacts{AvailableMethods: domain.Known(all)}, RoutineLatches{}, DefaultRoutinePolicy()); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// MaintainSleeping's method availability follows the declared capability:
+// MaintainHousing's method availability follows the declared capability:
 // a confirmed sleeping deficit ranks as a known Deficit and is only marked
 // method-unavailable when the sleeping family is not declared.
 func TestRoutineSleepingMethodFollowsDeclaredCapability(t *testing.T) {
@@ -74,13 +74,13 @@ func TestRoutineSleepingMethodFollowsDeclaredCapability(t *testing.T) {
 	for _, declared := range []bool{false, true} {
 		methods := []GoalID{}
 		if declared {
-			methods = append(methods, MaintainSleeping)
+			methods = append(methods, MaintainHousing)
 		}
 		f.AvailableMethods = domain.Known(methods)
 		needs := needs(t, f, RoutineLatches{})
 		found := false
 		for _, g := range needs.Goals {
-			if g.ID != MaintainSleeping {
+			if g.ID != MaintainHousing {
 				continue
 			}
 			found = true

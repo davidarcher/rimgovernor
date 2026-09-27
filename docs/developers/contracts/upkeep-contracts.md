@@ -430,7 +430,13 @@ complete roofing must be observed before the filtered zone is created; the entra
 aisle stays free. The controller does not build duplicate rooms after interruption
 or change another stockpile's filters.
 
-`MaintainSleeping` is declared by the `sleeping` family: with it enabled the goal
+`MaintainHousing` is one goal with three ordered phases, recorded as
+`Latches.Housing`: `shelter` (the first sleeping places and roofed shell, at
+foothold priority), then `sleeping` (bed ownership and upgrades), then, from
+`StageReserves`, `expansion` (one spare indoor place). Only the planner for the
+current phase acts; the others return no deficit.
+
+The sleeping phase is declared by the `sleeping` family: with it enabled the goal
 is a method-available deficit ranked like any other development row; without it
 the deficit stays visible as method-unavailable. Each review re-derives the
 sleeping targets (colonists without an owned suitable bed, or without observed
@@ -728,12 +734,13 @@ with no breach at all is reported (`route_no_breach`) so the deficit stays
 visible; an unavailable door defers (`route_door_unavailable`). A build
 receipt never clears the deficit.
 
-`EnsureBasicComfort` is the foothold-tier comfort goal (priority 2, #232): once
+`EnsureComfort` has two phases, recorded as `Latches.Comfort`. Its `basic`
+phase is the foothold-tier comfort work (priority 2, #232): once
 the initial shelter's roof and sleeping gates hold it wants one eating surface,
 one adjacent seat and one recreation source that every colonist can reach, read
 from the same native census before the hosting-room filter, so the starter hut
 counts whatever room role it scores. Capacity alone recovers it; observed use is
-`EnsureComfort`'s concern. While shelter is still owed the goal is
+the `ranked` phase's concern (raised from `StageDevelopment`). While shelter is still owed the goal is
 `method_unavailable` and its planner reports `initial_shelter_pending`, so it
 never extends the startup hold nor competes with the shell. The table and chair
 preview indoors, the horseshoes pin anywhere with accessible watch cells; an
@@ -763,7 +770,7 @@ The hosted-room comfort projection does not retain this unfiltered kind matrix.
 `EnsureComfort` maintains dining and recreation once every startup survival goal
 has a method on record or is monitoring-only.
 Its deficit remains visible during emergencies; admission waits rather than
-claiming the facilities complete. Sleeping upgrades belong to `MaintainSleeping`.
+claiming the facilities complete. Sleeping upgrades belong to `MaintainHousing`.
 Dining uses native eating surfaces with adjacent sittable furniture, an enclosed
 roofed room and safe colonist access. Seat placement is restricted to the observed
 surface's adjacent cells. Recreation reuses native joy buildings with safe access

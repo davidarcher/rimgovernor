@@ -216,7 +216,7 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 			return na.Signature("no-review", err), false, nil
 		}
 		for _, binding := range review.Goals {
-			if binding.Need != policy.EnsureInitialShelter {
+			if binding.Need != policy.MaintainHousing {
 				continue
 			}
 			goal, err := st.LoadGoal(ctx, binding.Goal)
@@ -261,7 +261,7 @@ func waitBunks(ctx context.Context, st *store.Store, method domain.MethodID, def
 		return na.Signature("unbound", len(review.Goals)), false, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%s not admitted for EnsureInitialShelter (last seen: %s): %w", method, seen, err)
+		return nil, fmt.Errorf("%s not admitted for MaintainHousing (last seen: %s): %w", method, seen, err)
 	}
 	return found, nil
 }

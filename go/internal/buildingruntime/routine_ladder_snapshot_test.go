@@ -36,7 +36,7 @@ func loadPlannerStep(t *testing.T, name string, goal policy.GoalID) snapshot.Pla
 // colonists and fail the shelter gate, so it stages a new spot instead.
 func TestSnapshotHospitalStagesBedAtShelterCapacity(t *testing.T) {
 	t.Parallel()
-	step := loadStep(t, "hospital-step-convert", policy.MaintainMedicalCare)
+	step := loadStep(t, "hospital-step-convert", policy.MaintainMedicalReserves)
 	if _, known := step.Projection.Rooms.Value(); !known {
 		t.Fatal("hospital step read holds no room census")
 	}

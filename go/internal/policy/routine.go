@@ -18,19 +18,16 @@ const (
 	ManageSupplySafety      GoalID = "ManageSupplySafety"
 	EnsureWorkAssignments   GoalID = "EnsureWorkAssignments"
 	EnsureFoodSupply        GoalID = "EnsureFoodSupply"
-	EnsureInitialShelter    GoalID = "EnsureInitialShelter"
+	MaintainHousing         GoalID = "MaintainHousing"
 	EnsureTemperatureSafety GoalID = "EnsureTemperatureSafety"
 	EnsureCooking           GoalID = "EnsureCooking"
 	EnsureBasicPower        GoalID = "EnsureBasicPower"
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
-	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	MaintainMedicalReserves GoalID = "MaintainMedicalReserves"
 	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
 	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
 	EnsureComfort           GoalID = "EnsureComfort"
-	EnsureBasicComfort      GoalID = "EnsureBasicComfort"
 	ClearPests              GoalID = "ClearPests"
-	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
 	MaintainResource        GoalID = "MaintainResource"
@@ -259,7 +256,7 @@ type RoutineFacts struct {
 	Sleeping            domain.Fact[SleepingObservation]
 	SleepingRecovered   domain.Fact[bool]
 	// BedroomsOwed: a planned individual bedroom step is due (#786); it
-	// keeps MaintainSleeping open once everyone owns a barracks bed.
+	// keeps MaintainHousing open once everyone owns a barracks bed.
 	BedroomsOwed domain.Fact[bool]
 	// CorpsesOwed: a tomb (#832) or cremation (#833) step is due; it keeps
 	// MaintainWaste open while a corpse waits on either.
@@ -328,7 +325,7 @@ type RoutineFacts struct {
 	Comfort      domain.Fact[ComfortObservation]
 	// BasicComfort is the same census before the hosting-room filter: every
 	// indoor seat at an eating surface and every recreation source, whatever
-	// room (or none) hosts it. EnsureBasicComfort measures it; Comfort keeps
+	// room (or none) hosts it. EnsureComfort's basic phase measures it; Comfort keeps
 	// only facilities in rooms whose native role the facility catalog hosts.
 	BasicComfort         domain.Fact[ComfortObservation]
 	ComfortRecovered     domain.Fact[bool]
@@ -456,6 +453,18 @@ type RoutineLatches struct {
 	// research roadmap then walks the armor ladder (ArmorResearchLadder,
 	// #470) and keeps walking it when the squad is later undrafted.
 	Soldiers bool `json:",omitempty"`
+	// Housing is the MaintainHousing phase this review left owed
+	// (reviewHousing); empty once housing recovered. The housing planners
+	// run only for their own phase.
+	Housing Phase `json:",omitempty"`
+	// Comfort is the EnsureComfort phase this review left owed: basic
+	// (reachable table, seat and recreation) before ranked (hosting rooms
+	// and proof of use, from StageDevelopment). Empty once recovered.
+	Comfort Phase `json:",omitempty"`
+	// Medical is the MaintainMedicalReserves phase this review left owed:
+	// care (sick colonists resting, the hospital) before reserves (the
+	// medicine stock). Empty once recovered.
+	Medical Phase `json:",omitempty"`
 }
 type RoutineNeeds struct {
 	Disaster    *DisasterHistory
@@ -717,8 +726,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(g.Food) || !positive(g.Production) || !positive(measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })) {
 		addGoal(EnsureFoodSupply, 2)
 	}
-	if !positive(g.Shelter) || !positive(g.Sleeping) {
-		addGoal(EnsureInitialShelter, 2)
+	housing := reviewHousing(f, g, previous, p, sleepingActive)
+	r.Latches.Housing = housing.Phase
+	if housing.Phase != "" {
+		addGoal(MaintainHousing, housing.Priority)
+		r.Goals[len(r.Goals)-1].Deficit = housing.Deficit
+		r.Goals[len(r.Goals)-1].Blocked = housing.Blocked
+		if housing.Phase == HousingShelter {
+			// The starter shelter is a foothold goal: no ranked labor, as
+			// before the housing goals merged.
+			r.Goals[len(r.Goals)-1].Labor, r.Goals[len(r.Goals)-1].Risk = nil, domain.Known(0.0)
+		}
 	}
 	if l.Cold || l.Hot || !positive(g.Temperature) {
 		addGoal(EnsureTemperatureSafety, 2)
@@ -749,22 +767,32 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(deficit)
 		}
 	}
-	if !positive(f.MedicalCareRecovered) {
-		addGoal(MaintainMedicalCare, 2)
-		// Work assignments own disease rest priorities and restoration;
-		// native AI selects the medical bed. Monitoring recovery must not
-		// reserve execution capacity while the pawn rests.
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
-	}
 	// A table with a seat and a recreation source are provided with the
 	// starter hut, at foothold priority: the two cheapest mood debuffs to
 	// remove should not wait for the ranked comfort project (#232). While the
 	// initial shelter is still owed there is no room to furnish, so the goal
 	// holds no method and neither extends the startup hold nor competes.
+	comfortRanked := p.ColonyStage >= StageDevelopment
 	if !positive(basicComfort.Recovered()) {
-		addGoal(EnsureBasicComfort, basicComfort.Priority())
+		r.Latches.Comfort = ComfortBasic
+		addGoal(EnsureComfort, basicComfort.Priority())
 		r.Goals[len(r.Goals)-1].Deficit = basicComfort.Deficit()
 		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(g.Shelter) || !positive(g.Sleeping) || basicComfort.Priority() == 3 && !basicComfort.VarietyKnown
+	} else if comfortRanked && !positive(f.ComfortRecovered) {
+		// The ranked phase: hosting rooms and proof of use, once the basic
+		// facilities stand and the colony reached StageDevelopment.
+		r.Latches.Comfort = ComfortRanked
+		addGoal(EnsureComfort, 4)
+		r.Goals[len(r.Goals)-1].Comfort = true
+		r.Goals[len(r.Goals)-1].Deficit = f.ComfortDeficit
+	}
+	comfortPriority, comfortRecovered := 4, basicComfort.Recovered()
+	if r.Latches.Comfort == ComfortBasic {
+		comfortPriority = basicComfort.Priority()
+	} else {
+		// The ranked phase is assessed at every stage, as before the merge;
+		// only its goal waits for StageDevelopment.
+		comfortRecovered = allFacts(comfortRecovered, f.ComfortRecovered)
 	}
 	// A recognised pest on the map (an alphabeaver pack eating the trees,
 	// #247) is a foothold deficit answered by hunting, priority 2: it is
@@ -778,23 +806,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if n, known := pests.Value(); known && n > 0 {
 		addGoal(ClearPests, 2)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	if !positive(f.ComfortRecovered) {
-		addGoal(EnsureComfort, 4)
-		r.Goals[len(r.Goals)-1].Comfort = true
-		r.Goals[len(r.Goals)-1].Deficit = f.ComfortDeficit
-	}
-	expansion := domain.Unknown[bool]()
-	if n, known := f.Colonists.Value(); known && n > 0 {
-		expansion = measured(f.IndoorCapacity, func(capacity int64) bool { return capacity > n })
-	}
-	if !positive(expansion) {
-		addGoal(EnsureExpansion, 4)
-		r.Goals[len(r.Goals)-1].Deficit = RoutineDevelopmentDeficit(EnsureExpansion, f, p)
-		r.Goals[len(r.Goals)-1].Blocked = !positive(g.Shelter) || !positive(g.Sleeping)
-		if plan, known := f.FoodPlan.Value(); known && plan.GapPerDay > 0 {
-			r.Goals[len(r.Goals)-1].Blocked = true
-		}
 	}
 	if !positive(gear.Recovered) {
 		addGoal(MaintainEquipment, 3)
@@ -824,16 +835,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(ManageSupplySafety, supplySafetyPriority(f), not(f.EventLootPending))
 	addAssessment(EnsureWorkAssignments, 2, g.Work)
 	addAssessment(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), g.Food, g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
-	addAssessment(EnsureInitialShelter, 2, allFacts(g.Shelter, g.Sleeping))
+	addAssessment(MaintainHousing, housing.Priority, housing.Recovered)
 	addAssessment(EnsureTemperatureSafety, 2, allFacts(g.Temperature, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
 	addAssessment(EnsureCooking, 2, g.Cooking)
 	addAssessment(EnsureBasicPower, 2, g.Power)
 	addAssessment(EnsureBasicDefense, 3, defense)
-	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
-	addAssessment(EnsureBasicComfort, basicComfort.Priority(), basicComfort.Recovered())
+	addAssessment(EnsureComfort, comfortPriority, comfortRecovered)
 	addAssessment(ClearPests, 2, pestsClear)
-	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
-	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
 	// EnsureResearch and MaintainResource are operator-configured targets whose
 	// deficit is measured against native facts read in this review: no target
@@ -915,7 +923,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		if !positive(recovered) {
 			addGoal(n.Goal, n.Priority)
 			// addGoal's Deficit defaults to RoutineDevelopmentDeficit(n.Goal, ...),
-			// which only covers EnsureExpansion/EnsureBasicDefense
+			// which only covers a few measured goals
 			// and otherwise reports Unknown -- leaving every upkeep.Needs-sourced
 			// goal (Fire/Supplies/Repairs/Cleaning/Storage) permanently
 			// DevelopmentUnknown in RankDevelopment, so it could never win a
@@ -984,26 +992,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			}
 		}
 	}
-	sleepingRecovered := f.SleepingRecovered
-	sleepingPriority := 3
-	if _, known := sleepingRecovered.Value(); !known && !sleepingActive && !f.UpkeepIssued[MaintainSleeping] {
-		sleepingPriority = 4
-	}
-	if f.UpkeepIssued[MaintainSleeping] {
-		sleepingRecovered = domain.Known(false)
-	}
-	addAssessment(MaintainSleeping, sleepingPriority, sleepingRecovered)
-	if !positive(sleepingRecovered) {
-		addGoal(MaintainSleeping, sleepingPriority)
-		// Binary need: a confirmed deficit ranks at Known(1.0); an unknown
-		// census stays DevelopmentUnknown. Method availability follows the
-		// composed capability list (AvailableMethods below), since the
-		// sleeping family dispatches bed construction and ownership.
-		if _, known := sleepingRecovered.Value(); known {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-		}
-	}
-	medicalReserveActive := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves]
+	// A plan issued for the care phase is not a medicine bill.
+	medicalReserveActive := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves] && previous.Medical != MedicalCare
 	medicalReserveRecovered := domain.Unknown[bool]()
 	medicalReservePriority := 3
 	if _, known := medicine.Stock.Value(); known {
@@ -1011,10 +1001,27 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	} else if !medicalReserveActive {
 		medicalReservePriority = 4
 	}
-	addAssessment(MaintainMedicalReserves, medicalReservePriority, medicalReserveRecovered)
-	if !positive(medicalReserveRecovered) {
+	// MaintainMedicalReserves is the one medical upkeep goal: resting and
+	// hospital care for the sick first (from StageStable), then the medicine
+	// stock. The care phase keeps its pre-merge shape: priority 2, no ranked
+	// method and no labor, since work assignments own disease rest and
+	// monitoring recovery must not reserve execution capacity while the pawn
+	// rests.
+	careRaised := p.ColonyStage >= StageStable
+	medicalUpkeepPriority, medicalRecovered := medicalReservePriority, medicalReserveRecovered
+	if careRaised {
+		medicalRecovered = allFacts(f.MedicalCareRecovered, medicalReserveRecovered)
+	}
+	if careRaised && !positive(f.MedicalCareRecovered) {
+		r.Latches.Medical, medicalUpkeepPriority = MedicalCare, 2
+		addGoal(MaintainMedicalReserves, 2)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		r.Goals[len(r.Goals)-1].Labor = nil
+	} else if !positive(medicalReserveRecovered) {
+		r.Latches.Medical = MedicalReserves
 		addGoal(MaintainMedicalReserves, medicalReservePriority)
 	}
+	addAssessment(MaintainMedicalReserves, medicalUpkeepPriority, medicalRecovered)
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
 	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0

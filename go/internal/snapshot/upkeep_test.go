@@ -100,9 +100,9 @@ func TestReplayConfinedPetFedByDelivery(t *testing.T) {
 }
 
 // upkeep/sleeping, ticks 40346 and 40501: one bed fewer than colonists
-// keeps MaintainSleeping open until every colonist sleeps in an owned bed.
+// keeps MaintainHousing open until every colonist sleeps in an owned bed.
 func TestReplayMissingBedBuiltAndOwned(t *testing.T) {
-	transition(t, "testdata/upkeep-sleeping-short.json", "testdata/upkeep-sleeping-bedded.json", policy.MaintainSleeping)
+	transition(t, "testdata/upkeep-sleeping-short.json", "testdata/upkeep-sleeping-bedded.json", policy.MaintainHousing)
 }
 
 // upkeep/cold, ticks 15 and 12145: sleeping spots in an enclosed room

@@ -444,7 +444,6 @@ func DoctorCapable(profiles domain.Fact[[]PawnProfile]) domain.Fact[bool] {
 // stage is not raised at all, not merely held: it takes no slot and no
 // planner runs for it.
 var stageGoals = map[GoalID]ColonyStage{
-	EnsureExpansion:           StageReserves,
 	EnsureResearch:            StageReserves,
 	MaintainResource:          StageReserves,
 	EnsureDefensiveLayout:     StageStable,
@@ -452,11 +451,9 @@ var stageGoals = map[GoalID]ColonyStage{
 	MaintainEquipment:         StageStable,
 	MaintainRefrigeration:     StageStable,
 	MaintainCleanFacilities:   StageStable,
-	MaintainMedicalCare:       StageStable,
 	MaintainAnimalContainment: StageStable,
 	MaintainAnimalFeed:        StageStable,
 	MaintainHerd:              StageStable,
-	EnsureComfort:             StageDevelopment,
 	MaintainFlooring:          StageDevelopment,
 	MaintainLighting:          StageDevelopment,
 }

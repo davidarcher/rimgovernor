@@ -1207,7 +1207,7 @@
   },
   "AvailableMethods": {
    "v": [
-    "MaintainSleeping"
+    "MaintainHousing"
    ]
   },
   "BasicComfort": {
@@ -1372,30 +1372,12 @@
       "definition": "SleepingSpot",
       "rotation": "north"
      },
-     "Goal": "routine-eb99163e6625776b-EnsureInitialShelter",
+     "Goal": "routine-eb99163e6625776b-MaintainHousing",
      "Identity": {
       "Current": "Thing_SleepingSpot44731",
       "Origin": "Thing_SleepingSpot44731"
      },
      "Plan": "routine-sleep-409fe68012bafae790943bc7b6a2a4dd"
-    },
-    {
-     "Action": "routine-sleeping-8b71a7ca05cd13770d5248a38fb02896-1",
-     "Building": {
-      "cell": {
-       "X": 120,
-       "Z": 126
-      },
-      "definition": "Bed",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-eb99163e6625776b-MaintainSleeping",
-     "Identity": {
-      "Current": "Thing_Bed44744",
-      "Origin": "Thing_Blueprint_Bed44732"
-     },
-     "Plan": "routine-sleeping-8b71a7ca05cd13770d5248a38fb02896"
     }
    ]
   },
@@ -30683,8 +30665,8 @@
     "Need": "EnsureFoodSupply"
    },
    {
-    "Goal": "routine-eb99163e6625776b-EnsureInitialShelter",
-    "Need": "EnsureInitialShelter"
+    "Goal": "routine-eb99163e6625776b-MaintainHousing",
+    "Need": "MaintainHousing"
    },
    {
     "Goal": "routine-eb99163e6625776b-EnsureTemperatureSafety",
@@ -30703,24 +30685,16 @@
     "Need": "EnsureBasicDefense"
    },
    {
-    "Goal": "routine-eb99163e6625776b-MaintainMedicalCare",
-    "Need": "MaintainMedicalCare"
-   },
-   {
-    "Goal": "routine-eb99163e6625776b-EnsureBasicComfort",
-    "Need": "EnsureBasicComfort"
-   },
-   {
-    "Goal": "routine-eb99163e6625776b-ClearPests",
-    "Need": "ClearPests"
+    "Goal": "routine-eb99163e6625776b-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-eb99163e6625776b-EnsureComfort",
     "Need": "EnsureComfort"
    },
    {
-    "Goal": "routine-eb99163e6625776b-EnsureExpansion",
-    "Need": "EnsureExpansion"
+    "Goal": "routine-eb99163e6625776b-ClearPests",
+    "Need": "ClearPests"
    },
    {
     "Goal": "routine-eb99163e6625776b-MaintainEquipment",
@@ -30777,14 +30751,6 @@
    {
     "Goal": "routine-eb99163e6625776b-MaintainStoneShell",
     "Need": "MaintainStoneShell"
-   },
-   {
-    "Goal": "routine-eb99163e6625776b-MaintainSleeping",
-    "Need": "MaintainSleeping"
-   },
-   {
-    "Goal": "routine-eb99163e6625776b-MaintainMedicalReserves",
-    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-eb99163e6625776b-MaintainFoodStorage",
@@ -30847,12 +30813,14 @@
      "Thing_YorkshireTerrier5167"
     ]
    },
+   "Comfort": "basic",
    "Flooring": [
     "119,124",
     "traffic"
    ],
    "Food": true,
    "FoodStorage": true,
+   "Medical": "reserves",
    "MedicalReserve": true,
    "StoneShell": true,
    "Upkeep": {
@@ -30940,25 +30908,10 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalCare",
+    "Goal": "MaintainMedicalReserves",
     "LastProgress": 38602,
     "Method": "assess",
     "NextReview": 41102
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 41102
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureBasicComfort",
-    "LastProgress": 38602,
-    "Method": "assess",
-    "NextReview": 41102,
-    "Observed": 1
    },
    {
     "Blocked": "no_method",
@@ -31058,21 +31011,6 @@
     ],
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "MaintainStoneShell",
-    "LastProgress": 38602,
-    "Method": "assess",
-    "NextReview": 41102,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 41102
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalReserves",
     "LastProgress": 38602,
     "Method": "assess",
     "NextReview": 41102,
@@ -31271,7 +31209,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureBasicComfort"
+      "EnsureComfort"
      ],
      "ID": "f0cfc743c93975fd",
      "Reason": "no plan or proposal",

@@ -543,7 +543,7 @@ func verifyFeed(ctx context.Context, h *na.Harness, identity, prepared map[strin
 func watchSleeping(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainSleeping, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(deficitCtx, journal, policy.MaintainHousing, domain.NeedDeficit); err != nil {
 		return err
 	}
 	// The fixture leaves no vacant suitable bed, so the first method builds
@@ -554,7 +554,7 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	// waitNeed below confirms and verifySleeping checks natively.
 	seen := map[domain.PlanID]bool{}
 	kinds := []string{}
-	if _, err := followMethodsExcluding(ctx, journal, policy.MaintainSleeping, "bed", seen, func(a domain.Action) error {
+	if _, err := followMethodsExcluding(ctx, journal, policy.MaintainHousing, "bed", seen, func(a domain.Action) error {
 		if _, ok := a.Building(); ok {
 			kinds = append(kinds, string(a.Kind()))
 			return nil
@@ -564,7 +564,7 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 		return err
 	}
 	if report["bed_recovered_by"] != "ordinary_work" {
-		if _, err := followMethodsExcluding(ctx, journal, policy.MaintainSleeping, "assign", seen, func(a domain.Action) error {
+		if _, err := followMethodsExcluding(ctx, journal, policy.MaintainHousing, "assign", seen, func(a domain.Action) error {
 			if _, ok := a.BedAssign(); ok {
 				kinds = append(kinds, string(a.Kind()))
 				return nil
@@ -577,7 +577,7 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	report["sleeping_action_kinds"] = kinds
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainSleeping, domain.NeedRecovered)
+	goal, err := waitNeed(recoverCtx, journal, policy.MaintainHousing, domain.NeedRecovered)
 	if err != nil {
 		return err
 	}
@@ -616,7 +616,7 @@ func verifySleeping(ctx context.Context, h *na.Harness, identity, prepared map[s
 	colonists := int(na.AsNumber(observed["colonistCount"]))
 	report["colonists"] = colonists
 	if colonists == 0 || suitable < colonists {
-		return fmt.Errorf("%d of %d colonists own a roofed bed after MaintainSleeping recovered", suitable, colonists)
+		return fmt.Errorf("%d of %d colonists own a roofed bed after MaintainHousing recovered", suitable, colonists)
 	}
 	return nil
 }

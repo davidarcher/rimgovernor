@@ -10,7 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Individual bedrooms (#786). The review keeps MaintainSleeping open while a
+// Individual bedrooms (#786). The review keeps MaintainHousing open while a
 // bedroom step is due; the sleeping planner answers it once every colonist
 // owns a bed: move, furnish, then shell (policy.NextBedroomStep).
 

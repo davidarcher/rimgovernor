@@ -675,7 +675,7 @@
   },
   "AvailableMethods": {
    "v": [
-    "MaintainSleeping"
+    "MaintainHousing"
    ]
   },
   "BasicComfort": {
@@ -824,653 +824,12 @@
       "definition": "SleepingSpot",
       "rotation": "north"
      },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
+     "Goal": "routine-69c4ddc65761f9c6-MaintainHousing",
      "Identity": {
       "Current": "Thing_SleepingSpot44690",
       "Origin": "Thing_SleepingSpot44690"
      },
      "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-1",
-     "Building": {
-      "cell": {
-       "X": 113,
-       "Z": 122
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44691",
-      "Origin": "Thing_SleepingSpot44691"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-2",
-     "Building": {
-      "cell": {
-       "X": 110,
-       "Z": 123
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44692",
-      "Origin": "Thing_SleepingSpot44692"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-3",
-     "Building": {
-      "cell": {
-       "X": 114,
-       "Z": 123
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44693",
-      "Origin": "Thing_SleepingSpot44693"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-4",
-     "Building": {
-      "cell": {
-       "X": 115,
-       "Z": 123
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44694",
-      "Origin": "Thing_SleepingSpot44694"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-5",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 124
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44695",
-      "Origin": "Thing_SleepingSpot44695"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-6",
-     "Building": {
-      "cell": {
-       "X": 110,
-       "Z": 125
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44696",
-      "Origin": "Thing_SleepingSpot44696"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681-7",
-     "Building": {
-      "cell": {
-       "X": 114,
-       "Z": 125
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44697",
-      "Origin": "Thing_SleepingSpot44697"
-     },
-     "Plan": "routine-bunks-f3c5a5b7cedca0a9a5264226988bd681"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-0",
-     "Building": {
-      "cell": {
-       "X": 112,
-       "Z": 118
-      },
-      "definition": "Door",
-      "rotation": "south",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Door44737",
-      "Origin": "Thing_Blueprint_Door44698"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-1",
-     "Building": {
-      "cell": {
-       "X": 111,
-       "Z": 118
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44733",
-      "Origin": "Thing_Blueprint_Wall44699"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-2",
-     "Building": {
-      "cell": {
-       "X": 113,
-       "Z": 118
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44738",
-      "Origin": "Thing_Blueprint_Wall44700"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-3",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44731",
-      "Origin": "Thing_Blueprint_Wall44701"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-4",
-     "Building": {
-      "cell": {
-       "X": 110,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44732",
-      "Origin": "Thing_Blueprint_Wall44702"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-5",
-     "Building": {
-      "cell": {
-       "X": 111,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44863",
-      "Origin": "Thing_Blueprint_Wall44852"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-6",
-     "Building": {
-      "cell": {
-       "X": 113,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44865",
-      "Origin": "Thing_Blueprint_Wall44860"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-7",
-     "Building": {
-      "cell": {
-       "X": 114,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44872",
-      "Origin": "Thing_Blueprint_Wall44867"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-8",
-     "Building": {
-      "cell": {
-       "X": 115,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44965",
-      "Origin": "Thing_Blueprint_Wall44879"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-9",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 120
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44948",
-      "Origin": "Thing_Blueprint_Wall44880"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-10",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 120
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44950",
-      "Origin": "Thing_Blueprint_Wall44881"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-11",
-     "Building": {
-      "cell": {
-       "X": 115,
-       "Z": 120
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44958",
-      "Origin": "Thing_Blueprint_Wall44882"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-12",
-     "Building": {
-      "cell": {
-       "X": 116,
-       "Z": 120
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44961",
-      "Origin": "Thing_Blueprint_Wall44883"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-13",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 121
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44975",
-      "Origin": "Thing_Blueprint_Wall44884"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-14",
-     "Building": {
-      "cell": {
-       "X": 116,
-       "Z": 121
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44955",
-      "Origin": "Thing_Blueprint_Wall44885"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-15",
-     "Building": {
-      "cell": {
-       "X": 107,
-       "Z": 122
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44925",
-      "Origin": "Thing_Blueprint_Wall44886"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-16",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 122
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44938",
-      "Origin": "Thing_Blueprint_Wall44887"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-17",
-     "Building": {
-      "cell": {
-       "X": 116,
-       "Z": 122
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44963",
-      "Origin": "Thing_Blueprint_Wall44888"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-18",
-     "Building": {
-      "cell": {
-       "X": 117,
-       "Z": 122
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44968",
-      "Origin": "Thing_Blueprint_Wall44889"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-19",
-     "Building": {
-      "cell": {
-       "X": 107,
-       "Z": 123
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44944",
-      "Origin": "Thing_Blueprint_Wall44890"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-20",
-     "Building": {
-      "cell": {
-       "X": 117,
-       "Z": 123
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44971",
-      "Origin": "Thing_Blueprint_Wall44891"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-21",
-     "Building": {
-      "cell": {
-       "X": 107,
-       "Z": 124
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44946",
-      "Origin": "Thing_Blueprint_Wall44892"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-22",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 124
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45191",
-      "Origin": "Thing_Blueprint_Wall45167"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-23",
-     "Building": {
-      "cell": {
-       "X": 116,
-       "Z": 124
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45196",
-      "Origin": "Thing_Blueprint_Wall45178"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-24",
-     "Building": {
-      "cell": {
-       "X": 117,
-       "Z": 124
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45220",
-      "Origin": "Thing_Blueprint_Wall45214"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-25",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 125
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45227",
-      "Origin": "Thing_Blueprint_Wall45222"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-26",
-     "Building": {
-      "cell": {
-       "X": 116,
-       "Z": 125
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45266",
-      "Origin": "Thing_Blueprint_Wall45244"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-27",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 126
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45288",
-      "Origin": "Thing_Blueprint_Wall45263"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
-    },
-    {
-     "Action": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46-0-28",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 126
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall45318",
-      "Origin": "Thing_Blueprint_Wall45307"
-     },
-     "Plan": "routine-shell-8a36ef5929db2de9f0ed80e1b2120c46"
     }
    ]
   },
@@ -13707,7 +13066,7 @@
      "Goal": "AllowStartingSupplies"
     },
     {
-     "Goal": "EnsureInitialShelter"
+     "Goal": "MaintainHousing"
     }
    ],
    "Labor": {
@@ -13759,7 +13118,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "EnsureExpansion",
+     "Goal": "MaintainHousing",
      "Labor": [
       "Construction"
      ],
@@ -13839,18 +13198,6 @@
      "Reason": "method_unavailable",
      "Risk": 0,
      "Score": 165.374,
-     "WaitingSince": 15
-    },
-    {
-     "Bottleneck": "Construction",
-     "Deficit": 1,
-     "Goal": "MaintainSleeping",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "labor_unavailable",
-     "Risk": 0,
-     "Score": 153.003,
      "WaitingSince": 15
     },
     {
@@ -14012,8 +13359,8 @@
     "Need": "EnsureFoodSupply"
    },
    {
-    "Goal": "routine-69c4ddc65761f9c6-EnsureInitialShelter",
-    "Need": "EnsureInitialShelter"
+    "Goal": "routine-69c4ddc65761f9c6-MaintainHousing",
+    "Need": "MaintainHousing"
    },
    {
     "Goal": "routine-69c4ddc65761f9c6-EnsureTemperatureSafety",
@@ -14032,24 +13379,16 @@
     "Need": "EnsureBasicDefense"
    },
    {
-    "Goal": "routine-69c4ddc65761f9c6-MaintainMedicalCare",
-    "Need": "MaintainMedicalCare"
-   },
-   {
-    "Goal": "routine-69c4ddc65761f9c6-EnsureBasicComfort",
-    "Need": "EnsureBasicComfort"
-   },
-   {
-    "Goal": "routine-69c4ddc65761f9c6-ClearPests",
-    "Need": "ClearPests"
+    "Goal": "routine-69c4ddc65761f9c6-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-69c4ddc65761f9c6-EnsureComfort",
     "Need": "EnsureComfort"
    },
    {
-    "Goal": "routine-69c4ddc65761f9c6-EnsureExpansion",
-    "Need": "EnsureExpansion"
+    "Goal": "routine-69c4ddc65761f9c6-ClearPests",
+    "Need": "ClearPests"
    },
    {
     "Goal": "routine-69c4ddc65761f9c6-MaintainEquipment",
@@ -14106,14 +13445,6 @@
    {
     "Goal": "routine-69c4ddc65761f9c6-MaintainStoneShell",
     "Need": "MaintainStoneShell"
-   },
-   {
-    "Goal": "routine-69c4ddc65761f9c6-MaintainSleeping",
-    "Need": "MaintainSleeping"
-   },
-   {
-    "Goal": "routine-69c4ddc65761f9c6-MaintainMedicalReserves",
-    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-69c4ddc65761f9c6-MaintainFoodStorage",
@@ -14176,10 +13507,13 @@
      "Thing_YorkshireTerrier5167"
     ]
    },
+   "Comfort": "basic",
    "Flooring": [
     "traffic"
    ],
    "Food": true,
+   "Housing": "shelter",
+   "Medical": "reserves",
    "MedicalReserve": true,
    "Sleeping": true,
    "StoneShell": true,
@@ -14246,7 +13580,7 @@
    },
    {
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureInitialShelter",
+    "Goal": "MaintainHousing",
     "LastProgress": 83018,
     "Method": "starter-shell",
     "NextReview": 85518
@@ -14303,7 +13637,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalCare",
+    "Goal": "MaintainMedicalReserves",
     "LastProgress": 83018,
     "Method": "assess",
     "NextReview": 85518
@@ -14317,37 +13651,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureBasicComfort",
-    "LastProgress": 83018,
-    "Method": "assess",
-    "NextReview": 85518,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 85518
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureComfort",
-    "LastProgress": 83018,
-    "Method": "assess",
-    "NextReview": 85518,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 85518
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureExpansion",
     "LastProgress": 83018,
     "Method": "assess",
     "NextReview": 85518,
@@ -14473,36 +13777,6 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainSleeping",
-    "LastProgress": 83018,
-    "Method": "assess",
-    "NextReview": 85518,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 85518
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalReserves",
-    "LastProgress": 83018,
-    "Method": "assess",
-    "NextReview": 85518,
-    "Observed": 0.16666666666666666
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 85518
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Goal": "MaintainFlooring",
     "LastProgress": 83018,
     "Method": "assess",
@@ -14579,7 +13853,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "108075ec9a94d9fe",
      "Parallelism": 1,
@@ -14601,7 +13875,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "1fe72ff38eb9c265",
      "Parallelism": 1,
@@ -14623,7 +13897,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "528fb34d47916953",
      "Parallelism": 1,
@@ -14657,7 +13931,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "6c48798ff426fd1a",
      "Parallelism": 1,
@@ -14679,7 +13953,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "81a68a446d332c5f",
      "Parallelism": 1,
@@ -14701,7 +13975,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "9db75ee250920ba8",
      "Parallelism": 1,
@@ -14723,7 +13997,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "afcaf03c751a7d1f",
      "Parallelism": 1,
@@ -14745,7 +14019,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "b561f35e38f20558",
      "Parallelism": 1,
@@ -14886,7 +14160,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureExpansion"
+      "MaintainHousing"
      ],
      "ID": "bac96fc929e4a4ca",
      "Reason": "no plan or proposal",
@@ -14906,7 +14180,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "MaintainSleeping"
+      "MaintainHousing"
      ],
      "ID": "cbe7ada8ed0857a9",
      "Reason": "no plan or proposal",
@@ -14926,7 +14200,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureBasicComfort"
+      "EnsureComfort"
      ],
      "ID": "d8f7b4bf58e02450",
      "Reason": "no plan or proposal",
@@ -14948,7 +14222,7 @@
    "Deferred": [
     {
      "Count": 3,
-     "Goal": "EnsureInitialShelter",
+     "Goal": "MaintainHousing",
      "Reason": "per_goal_bound"
     }
    ],

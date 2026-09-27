@@ -18,7 +18,7 @@ rechecks paused native threat counts and exact incapacitated identities; an acti
 or unknown threat retains the squad. Existing tending is never interrupted for
 cleanup. Changed patient/worker evidence can reopen an unavailable-pair hold.
 
-`MaintainMedicalCare` retains native visible condition identities, severity, immunity,
+`MaintainMedicalReserves` (care phase) retains native visible condition identities, severity, immunity,
 retend timing, care policy and medical-rest state. It enables ordinary Patient and
 PatientBedRest work when available and not disabled by a player override. Native jobs choose
 beds. Missing observations, unavailable work or player restrictions produce explicit

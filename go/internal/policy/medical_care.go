@@ -105,3 +105,15 @@ func ReviewMedicalCare(observed domain.Fact[[]CarePawn], previous MedicalCareHis
 	sort.Slice(r.Unknown, func(i, j int) bool { return r.Unknown[i] < r.Unknown[j] })
 	return r, r.Validate()
 }
+
+// MaintainMedicalReserves' Phase is the step a review leaves owed:
+// care for the sick (rest and a hospital bed) before the medicine stock.
+const (
+	MedicalCare     Phase = "care"
+	MedicalReserves Phase = "reserves"
+)
+
+// Restocks reports whether the medicine bill and herb harvest may act. They
+// run in both phases: a sick colonist never pauses restocking. Only the
+// hospital and medicine-tier steps are care-only.
+func (p Phase) Restocks() bool { return p != "" }

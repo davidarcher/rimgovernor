@@ -26,7 +26,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"haul", policy.MaintainStorage},
 		{"waste", policy.MaintainWaste},
 		{"comfort", policy.EnsureComfort},
-		{"expansion", policy.EnsureExpansion},
+		{"expansion", policy.MaintainHousing},
 		{"animal-feed", policy.MaintainAnimalFeed},
 		{"medical", policy.MaintainMedicalReserves},
 		{"home-coverage", policy.MaintainHomeCoverage},

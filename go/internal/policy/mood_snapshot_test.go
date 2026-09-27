@@ -58,7 +58,7 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 	if len(history.States) != 1 || !history.States[0].Active {
 		t.Fatalf("pressure opened no active mood state: %+v", history)
 	}
-	staged := map[policy.GoalID]bool{policy.EnsureBasicComfort: true, policy.EnsureComfort: true, policy.EnsureInitialShelter: true}
+	staged := map[policy.GoalID]bool{policy.EnsureComfort: true, policy.MaintainHousing: true}
 	owners := map[policy.GoalID]bool{}
 	for _, p := range history.States[0].Provision {
 		owners[p.Goal] = true

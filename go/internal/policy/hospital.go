@@ -7,7 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// HospitalMethod is what a MaintainMedicalCare deficit needs from the
+// HospitalMethod is what a MaintainMedicalReserves deficit needs from the
 // facility ladder: a humanlike bed the game treats as medical, standing in a
 // room whose native role can host the Hospital function.
 type HospitalMethod string
@@ -74,7 +74,7 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 	if len(patients) > 256 {
 		return HospitalChoice{}, errors.New("hospital census exceeds bound")
 	}
-	// A hospital bed serves medical rest. MaintainMedicalCare's wider
+	// A hospital bed serves medical rest. MaintainMedicalReserves's wider
 	// census (any bad condition, e.g. a scar) keeps the deficit; it does
 	// not size the ward.
 	ill := map[PawnID]bool{}

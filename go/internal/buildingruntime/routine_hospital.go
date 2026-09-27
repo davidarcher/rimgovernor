@@ -30,7 +30,7 @@ type RoutineHospitalSource interface {
 	ReadBedUseTarget(context.Context, *c.Identity, string) (bridge.BedUseTarget, bridge.Result, error)
 }
 
-// RoutineHospitalPlanner gives MaintainMedicalCare's patients a hosted
+// RoutineHospitalPlanner gives MaintainMedicalReserves's patients a hosted
 // medical bed: it flags an existing bed in a Hospital-hosting room medical
 // (a one-shot BedUse patch), and when no bed can be spared it stages one
 // through the same building ladder EnsureComfort walks (furnish a hosting
@@ -53,7 +53,7 @@ func NewRoutineHospitalPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoutineHospitalPlanner: !ok", ErrControl)
 	}
-	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainMedicalCare, definition: "Wall", shelter: true}
+	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainMedicalReserves, definition: "Wall", shelter: true}
 	return &RoutineHospitalPlanner{reviewer: reviewer, native: source, building: building}, nil
 }
 
@@ -128,7 +128,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainMedicalCare {
+		if binding.Need == policy.MaintainMedicalReserves {
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
 			found = true
 			break
@@ -137,7 +137,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {
@@ -166,7 +166,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
-	recordStepRead("hospital", policy.MaintainMedicalCare, state.Snapshot, facts)
+	recordStepRead("hospital", policy.MaintainMedicalReserves, state.Snapshot, facts)
 	choice, err := policy.SelectHospitalBed(hospitalRequest(facts))
 	if err != nil {
 		return RoutineBuildingResult{}, err

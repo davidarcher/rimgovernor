@@ -294,7 +294,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
 		allowed[n.ID] = true
-		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices || n.ID == policy.EnsureBasicComfort
+		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves
 	}
 	// Area reconciliation may own recovery without a disaster history, including
 	// a restriction restored by loading a save or set during Manual.

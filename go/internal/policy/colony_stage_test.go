@@ -184,8 +184,8 @@ func TestProductionBlockedGoal(t *testing.T) {
 	if goal, _ := ProductionBlockedGoal(records); goal != "" {
 		t.Fatal(goal)
 	}
-	records = append(records, GoalProgress{Goal: MaintainResource, Blocked: BlockedCooldown}, GoalProgress{Goal: EnsureCooking, Blocked: BlockedPrerequisite(EnsureInitialShelter)})
-	if goal, reason := ProductionBlockedGoal(records); goal != EnsureCooking || reason.Prerequisite() != EnsureInitialShelter {
+	records = append(records, GoalProgress{Goal: MaintainResource, Blocked: BlockedCooldown}, GoalProgress{Goal: EnsureCooking, Blocked: BlockedPrerequisite(MaintainHousing)})
+	if goal, reason := ProductionBlockedGoal(records); goal != EnsureCooking || reason.Prerequisite() != MaintainHousing {
 		t.Fatal(goal, reason)
 	}
 }
@@ -244,7 +244,7 @@ func TestRaisedAtStage(t *testing.T) {
 	}
 	all := func() []DevelopmentGoal {
 		var goals []DevelopmentGoal
-		for _, id := range []GoalID{CriticalMedicine, EnsureFoodSupply, EnsureResearch, MaintainResource, MaintainStoneShell, MaintainRefrigeration, MaintainHerd, EnsureComfort, MaintainLighting} {
+		for _, id := range []GoalID{CriticalMedicine, EnsureFoodSupply, EnsureResearch, MaintainResource, MaintainStoneShell, MaintainRefrigeration, MaintainHerd, MaintainFlooring, MaintainLighting} {
 			goals = append(goals, DevelopmentGoal{ID: id, Deficit: domain.Known(0.5)})
 		}
 		return goals
@@ -266,12 +266,12 @@ func TestRaisedAtStage(t *testing.T) {
 		t.Fatalf("reserves raised %v", got)
 	}
 	p.ColonyStage = StageStable
-	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainRefrigeration] || got[EnsureComfort] {
+	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainRefrigeration] || got[MaintainFlooring] {
 		t.Fatalf("stable raised %v", got)
 	}
 	f.Research = domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Stonecutting"}})
 	p.ColonyStage = StageDevelopment
-	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); !got[MaintainStoneShell] || got[MaintainHerd] || !got[EnsureComfort] || !got[MaintainLighting] {
+	if got := ids(raisedAtStage(all(), f, p, RoutineLatches{})); !got[MaintainStoneShell] || got[MaintainHerd] || !got[MaintainFlooring] || !got[MaintainLighting] {
 		t.Fatalf("development raised %v", got)
 	}
 }

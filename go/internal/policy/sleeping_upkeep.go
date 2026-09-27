@@ -8,8 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-const MaintainSleeping GoalID = "MaintainSleeping"
-
 type SleepingPerson struct {
 	ID                             PawnID
 	OwnedBed                       domain.Fact[string]

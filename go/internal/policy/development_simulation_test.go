@@ -133,7 +133,7 @@ func simGoal(id GoalID, deficit float64, labor LaborProfile) DevelopmentGoal {
 func TestDevelopmentSimulationNoStarvationUnderCompetition(t *testing.T) {
 	s := newDevelopmentSim(t, 1,
 		simGoal("comfort", 0.9, GoalLabor(EnsureComfort)),
-		simGoal("expansion", 0.7, GoalLabor(EnsureExpansion)),
+		simGoal("expansion", 0.7, GoalLabor(MaintainHousing)),
 		simGoal("research", 0.5, GoalLabor(EnsureResearch)),
 		simGoal("resource", 0.1, GoalLabor(MaintainResource)),
 	)

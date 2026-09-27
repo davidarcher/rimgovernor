@@ -439,7 +439,7 @@ func WithheldLabor(progress []GoalProgress) LaborProfile {
 	}
 	for _, p := range progress {
 		switch pre := p.Blocked.Prerequisite(); pre {
-		case EnsureCooking, MaintainFoodStorage, EnsureInitialShelter:
+		case EnsureCooking, MaintainFoodStorage, MaintainHousing:
 			if open[pre] && !seen[WorkConstruction] {
 				seen[WorkConstruction] = true
 				withheld = append(withheld, WorkConstruction)

@@ -34,7 +34,7 @@ type LaborProfile []WorkType
 // (emergencies, monitoring-only needs, configuration pushes) have no profile.
 func GoalLabor(id GoalID) LaborProfile {
 	switch id {
-	case ClearHomeObstructions, ClearAncientShrine, EnsureBasicDefense, EnsureComfort, EnsureBasicComfort, EnsureExpansion, MaintainEssentialRepairs, MaintainStoneShell, MaintainSleeping, MaintainFoodStorage, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes:
+	case ClearHomeObstructions, ClearAncientShrine, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell, MaintainFoodStorage, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes:
 		return LaborProfile{WorkConstruction}
 	case RemoveBlight:
 		return LaborProfile{WorkPlantCutting}

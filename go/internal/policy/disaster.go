@@ -474,7 +474,7 @@ func (h *DisasterHistory) Promote(id GoalID, priority int) int {
 		if e.Need != domain.NeedDeficit {
 			continue
 		}
-		goal := map[DisasterService]GoalID{DisasterFood: EnsureFoodSupply, DisasterProduction: EnsureFoodSupply, DisasterSleeping: EnsureInitialShelter, DisasterShelter: EnsureInitialShelter, DisasterTemperature: EnsureTemperatureSafety, DisasterCooking: EnsureCooking, DisasterPower: EnsureBasicPower, DisasterStorage: MaintainFoodStorage, DisasterInfrastructure: RecoverDisasterServices}[e.Service]
+		goal := map[DisasterService]GoalID{DisasterFood: EnsureFoodSupply, DisasterProduction: EnsureFoodSupply, DisasterSleeping: MaintainHousing, DisasterShelter: MaintainHousing, DisasterTemperature: EnsureTemperatureSafety, DisasterCooking: EnsureCooking, DisasterPower: EnsureBasicPower, DisasterStorage: MaintainFoodStorage, DisasterInfrastructure: RecoverDisasterServices}[e.Service]
 		if goal == id || id == MaintainResource && (e.Service == DisasterTemperature || e.Service == DisasterCooking) {
 			return min(priority, 2)
 		}

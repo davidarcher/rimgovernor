@@ -54,7 +54,7 @@ func runJealousAscetic(ctx context.Context, s cases.Session) error {
 	journal, err := serveStage(ctx, service, report)
 	if err == nil {
 		recoverCtx, cancel := context.WithTimeout(ctx, 25*time.Minute)
-		g, werr := waitNeed(recoverCtx, journal, policy.MaintainSleeping, domain.NeedRecovered)
+		g, werr := waitNeed(recoverCtx, journal, policy.MaintainHousing, domain.NeedRecovered)
 		cancel()
 		err = werr
 		if werr == nil {

@@ -36241,24 +36241,13 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainSleeping",
+     "Goal": "MaintainHousing",
      "Labor": [
       "Construction"
      ],
      "Reason": "method_unavailable",
      "Risk": 0.5,
      "Score": 86.661,
-     "WaitingSince": 32
-    },
-    {
-     "Deficit": 0.5,
-     "Goal": "EnsureExpansion",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0.5,
-     "Score": 36.661,
      "WaitingSince": 32
     },
     {
@@ -36799,8 +36788,8 @@
     "Need": "EnsureFoodSupply"
    },
    {
-    "Goal": "routine-6cb69ccfa0314397-EnsureInitialShelter",
-    "Need": "EnsureInitialShelter"
+    "Goal": "routine-6cb69ccfa0314397-MaintainHousing",
+    "Need": "MaintainHousing"
    },
    {
     "Goal": "routine-6cb69ccfa0314397-EnsureTemperatureSafety",
@@ -36819,24 +36808,16 @@
     "Need": "EnsureBasicDefense"
    },
    {
-    "Goal": "routine-6cb69ccfa0314397-MaintainMedicalCare",
-    "Need": "MaintainMedicalCare"
-   },
-   {
-    "Goal": "routine-6cb69ccfa0314397-EnsureBasicComfort",
-    "Need": "EnsureBasicComfort"
-   },
-   {
-    "Goal": "routine-6cb69ccfa0314397-ClearPests",
-    "Need": "ClearPests"
+    "Goal": "routine-6cb69ccfa0314397-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-6cb69ccfa0314397-EnsureComfort",
     "Need": "EnsureComfort"
    },
    {
-    "Goal": "routine-6cb69ccfa0314397-EnsureExpansion",
-    "Need": "EnsureExpansion"
+    "Goal": "routine-6cb69ccfa0314397-ClearPests",
+    "Need": "ClearPests"
    },
    {
     "Goal": "routine-6cb69ccfa0314397-MaintainEquipment",
@@ -36893,14 +36874,6 @@
    {
     "Goal": "routine-6cb69ccfa0314397-MaintainStoneShell",
     "Need": "MaintainStoneShell"
-   },
-   {
-    "Goal": "routine-6cb69ccfa0314397-MaintainSleeping",
-    "Need": "MaintainSleeping"
-   },
-   {
-    "Goal": "routine-6cb69ccfa0314397-MaintainMedicalReserves",
-    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-6cb69ccfa0314397-MaintainFoodStorage",
@@ -36960,8 +36933,11 @@
     "Feed": []
    },
    "Cold": true,
+   "Comfort": "basic",
    "Food": true,
    "FoodStorage": true,
+   "Housing": "sleeping",
+   "Medical": "reserves",
    "MedicalReserve": true,
    "Refrigeration": true,
    "RefrigerationSince": 6693,
@@ -37072,21 +37048,6 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureBasicComfort",
-    "LastProgress": 6693,
-    "Method": "assess",
-    "NextReview": 9193,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 9193
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureComfort",
     "LastProgress": 6693,
     "Method": "assess",
@@ -37102,7 +37063,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureExpansion",
+    "Goal": "MaintainHousing",
     "LastProgress": 6693,
     "Method": "assess",
     "NextReview": 9193,
@@ -37209,21 +37170,6 @@
     "LastProgress": 6693,
     "Method": "assess",
     "NextReview": 9193
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 9193
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainSleeping",
-    "LastProgress": 6693,
-    "Method": "assess",
-    "NextReview": 9193,
-    "Observed": 1
    },
    {
     "Blocked": "no_method",
@@ -37371,7 +37317,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureBasicComfort"
+      "EnsureComfort"
      ],
      "ID": "21af2ecd1003984a",
      "Reason": "no plan or proposal",
@@ -37381,7 +37327,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureExpansion"
+      "MaintainHousing"
      ],
      "ID": "639fd22cc2d5b008",
      "Reason": "no plan or proposal",
@@ -37411,7 +37357,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "MaintainSleeping"
+      "MaintainHousing"
      ],
      "ID": "8e43ac3efa2aa2f3",
      "Reason": "no plan or proposal",

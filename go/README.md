@@ -649,7 +649,7 @@ default routine thresholds and requires typed colony observations. Startup
 remains disabled. The reviewer journals needs; the `sleeping` family compiles
 eligible shelter deficits into pending methods at that same paused boundary
 under the player gate, and a failed preview prevents a new clock window. The
-same family declares `MaintainSleeping`: its upkeep planner assigns a vacant
+same family declares `MaintainHousing`: its upkeep planner assigns a vacant
 suitable bed to a colonist without one through the typed `bed_assign`
 operation (one per goal epoch, carrying the expected previous bed) and, when
 nobody can be assigned, stages one `Bed` through the building ladder in a
@@ -672,7 +672,7 @@ It remains available after furnishing until native indoor capacity recovers or
 the budget expires: roofed spot footprints alone do not prove a fully roofed room.
 Furnishing still requires observed roofed indoor space. Unfinished or cancelled
 shells grant no roofing budget. The `cooking` family independently
-compiles campfires at the same boundary. The `comfort` family also composes the foothold planner for `EnsureBasicComfort`
+compiles campfires at the same boundary. The `comfort` family also composes the basic-phase planner for `EnsureComfort`
 (one table, one adjacent chair and one horseshoes pin from the unfiltered census,
 any room role, once shelter is no longer owed; methods `basic-comfort-*`, plans
 `routine-basic-comfort-*`; #232). The same family enables
@@ -700,7 +700,7 @@ recipe, it reads the native recipe catalog for the product, previews the first
 research-available, unpowered, unskilled bench definition (`CraftingSpot` on the
 tribal baseline; `TableStonecutter` once stonecutting is researched) inside a
 Workshop-hosting room (method `workshop-<definition>`), or stages a shell
-first (`workshop-shell`); while `EnsureInitialShelter` is still in deficit it
+first (`workshop-shell`); while `MaintainHousing` is still in deficit it
 waits (`earlier_shell_blocked`) for that starter shell to become the first
 room rather than split the builders across two rings. Research-gated or powered benches stop at
 `workshop_bench_unavailable`. The `resource` family then places the bill on the

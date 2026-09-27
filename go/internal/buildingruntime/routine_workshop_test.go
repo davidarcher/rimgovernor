@@ -355,7 +355,7 @@ func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
 	}
 	var others []store.RoutineGoal
 	for _, binding := range review.Goals {
-		if binding.Need != policy.EnsureInitialShelter {
+		if binding.Need != policy.MaintainHousing {
 			others = append(others, binding)
 		}
 	}

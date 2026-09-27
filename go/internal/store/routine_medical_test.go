@@ -20,9 +20,13 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
+	r.Policy.Stage.Floor = policy.StageStable // the care phase is raised from StageStable
+	// A stocked reserve, so the care phase alone decides the merged goal.
+	r.Facts.Colonists = domain.Known(int64(1))
+	r.Facts.MedicalReserve = policy.MedicalReserveObservation{Items: domain.Known([]policy.MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 100, Perishable: domain.Known(false)}}), Resources: domain.Known([]policy.Amount{{Resource: "MedicineHerbal", Count: 100}})}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 	out := reviewRoutine(t, s, &r)
-	initial := routineGoal(t, out, policy.MaintainMedicalCare)
+	initial := routineGoal(t, out, policy.MaintainMedicalReserves)
 	if initial.Goal.Need != domain.NeedDeficit || initial.Goal.Priority != 2 || initial.Goal.Status != domain.GoalActive {
 		t.Fatal(initial)
 	}
@@ -36,29 +40,29 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	// A caller-supplied aggregate cannot erase unresolved tracked patients.
 	r.Facts.MedicalCareRecovered = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainMedicalCare).Goal.Need != domain.NeedUnknown || !reflect.DeepEqual(out.Review.MedicalCare.Unknown, []policy.PawnID{"patient"}) {
+	if routineGoal(t, out, policy.MaintainMedicalReserves).Goal.Need != domain.NeedUnknown || !reflect.DeepEqual(out.Review.MedicalCare.Unknown, []policy.PawnID{"patient"}) {
 		t.Fatal(out)
 	}
 	r.Enabled = false
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainMedicalCare).Goal.Status != domain.GoalSuspended || len(out.Review.MedicalCare.Unknown) != 1 {
+	if routineGoal(t, out, policy.MaintainMedicalReserves).Goal.Status != domain.GoalSuspended || len(out.Review.MedicalCare.Unknown) != 1 {
 		t.Fatal(out)
 	}
 	r.Enabled = true
 	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainMedicalCare).Goal.Need != domain.NeedUnknown {
+	if routineGoal(t, out, policy.MaintainMedicalReserves).Goal.Need != domain.NeedUnknown {
 		t.Fatal("new direction claimed recovery", out)
 	}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(false)})
 	out = reviewRoutine(t, s, &r)
-	healed := routineGoal(t, out, policy.MaintainMedicalCare)
+	healed := routineGoal(t, out, policy.MaintainMedicalReserves)
 	if healed.Goal.Need != domain.NeedRecovered || healed.Goal.Status != domain.GoalSatisfied || len(out.Review.MedicalCare.Unknown) != 0 {
-		t.Fatal(out)
+		t.Fatal(healed.Goal, out.Review.Latches.Medical, out.Review.Latches.MedicalReserve)
 	}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 	out = reviewRoutine(t, s, &r)
-	renewed := routineGoal(t, out, policy.MaintainMedicalCare)
+	renewed := routineGoal(t, out, policy.MaintainMedicalReserves)
 	if renewed.Goal.Need != domain.NeedDeficit || renewed.Goal.Epoch <= healed.Goal.Epoch {
 		t.Fatal(renewed)
 	}
@@ -66,7 +70,7 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainMedicalCare).Goal.Status != domain.GoalCancelled {
+	if routineGoal(t, out, policy.MaintainMedicalReserves).Goal.Status != domain.GoalCancelled {
 		t.Fatal("review overrode cancellation", out)
 	}
 }

@@ -13,7 +13,7 @@ import (
 func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(DirEnv, dir)
-	ctx, finish := StartPlanner(context.Background(), policy.EnsureInitialShelter)
+	ctx, finish := StartPlanner(context.Background(), policy.MaintainHousing)
 	shelter := policy.StarterRequest{Anchor: domain.Cell{X: 4, Z: 5}, Shelter: policy.ShelterRectangle, Grid: domain.Unknown[policy.ColonyGrid](),
 		Cells: []policy.SiteCell{{Cell: domain.Cell{X: 1, Z: 2}, Walkable: domain.Known(true)}}}
 	NoteShelter(ctx, shelter)
@@ -23,7 +23,7 @@ func TestPlannerRecordsWhatTheStepNotedAndRoundTrips(t *testing.T) {
 	if err := finish(domain.GenerationSnapshot{Colony: "c"}, 120); err != nil {
 		t.Fatal(err)
 	}
-	p, err := LoadPlanner(dir + "/planner-EnsureInitialShelter-120-1.json")
+	p, err := LoadPlanner(dir + "/planner-MaintainHousing-120-1.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestPlannerRecordsProductionAndResearchInputs(t *testing.T) {
 
 func TestPlannerRecordsNothingWhenUnset(t *testing.T) {
 	t.Setenv(DirEnv, "")
-	ctx, finish := StartPlanner(context.Background(), policy.EnsureInitialShelter)
+	ctx, finish := StartPlanner(context.Background(), policy.MaintainHousing)
 	NoteShelter(ctx, policy.StarterRequest{})
 	if err := finish(domain.GenerationSnapshot{}, 1); err != nil {
 		t.Fatal(err)

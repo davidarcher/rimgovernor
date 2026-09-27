@@ -251,7 +251,7 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineR
 				return nil, err
 			}
 			subject.Method, subject.Action, subject.Progress = method, action, progress
-			if row.Goal == policy.EnsureInitialShelter {
+			if row.Goal == policy.MaintainHousing {
 				subject.ShelterBeds = domain.Known(beds)
 			}
 		}
@@ -296,7 +296,7 @@ func shelterRecovery(ctx context.Context, st *store.Store, review store.RoutineR
 		return known, nil
 	}
 	for _, b := range review.Goals {
-		if b.Need != policy.EnsureInitialShelter {
+		if b.Need != policy.MaintainHousing {
 			continue
 		}
 		state, err := st.LoadGoal(ctx, b.Goal)

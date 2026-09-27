@@ -120,7 +120,7 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	}
 	// The floor blueprint is out; the bed (first open action after it)
 	// waits on the floor, the wall stands alone.
-	plan := ReadyPlan{Goal: MaintainSleeping, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "floor", "dispatched"), readyProgress(t, spec, "bed", ""), readyProgress(t, spec, "wall", "")}}
+	plan := ReadyPlan{Goal: MaintainHousing, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "floor", "dispatched"), readyProgress(t, spec, "bed", ""), readyProgress(t, spec, "wall", "")}}
 	got := byStage(ProjectReadyWork(ReadyRequest{Snapshot: readySnap("p"), Plans: []ReadyPlan{plan}}))
 	if c := got["building:Bed"]; c.State != ReadyBlocked || !reflect.DeepEqual(c.Requires, []string{"floor"}) {
 		t.Fatalf("bed %+v", c)

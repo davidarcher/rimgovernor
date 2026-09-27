@@ -14,7 +14,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 	p := r.reviewer.player
 	var goal store.GoalState
 	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainMedicalCare {
+		if binding.Need == policy.MaintainMedicalReserves {
 			var err error
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
 			if err != nil {
@@ -23,7 +23,7 @@ func (r *RoutineMedicalPlanner) planMedicineTier(call, epoch context.Context, st
 			break
 		}
 	}
-	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Medical != policy.MedicalCare {
 		return RoutineMedicalResult{}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)

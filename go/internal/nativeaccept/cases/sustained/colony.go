@@ -40,8 +40,8 @@ func ColonyWindow() uint64 {
 // projects, so the timeline shows which one stalls, thrashes or starves the
 // others (#99).
 var colonyGoals = []policy.GoalID{
-	policy.EnsureInitialShelter, policy.MaintainFoodStorage, policy.EnsureCooking,
-	policy.EnsureTemperatureSafety, policy.MaintainSleeping, policy.MaintainResource,
+	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
+	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureWorkAssignments, policy.EnsureBasicDefense, policy.EnsureResearch,
 	policy.EnsureComfort, policy.MaintainStorage, policy.MaintainEssentialRepairs,
 }

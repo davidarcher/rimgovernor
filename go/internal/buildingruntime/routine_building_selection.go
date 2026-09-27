@@ -120,18 +120,19 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		return 0, "", BuildingMethodUnknown
 	case policy.EnsureComfort:
+		if r.phase == policy.ComfortBasic {
+			return 1, domain.MethodID("basic-comfort-" + r.definition), ""
+		}
 		if r.shelter {
 			return 32, "comfort-shell", ""
 		}
 		return 1, domain.MethodID("comfort-" + r.definition), ""
-	case policy.EnsureBasicComfort:
-		return 1, domain.MethodID("basic-comfort-" + r.definition), ""
 	case policy.MaintainResource, policy.MaintainEquipment:
 		if r.shelter {
 			return 32, "workshop-shell", ""
 		}
 		return 1, domain.MethodID("workshop-" + r.definition), ""
-	case policy.MaintainMedicalCare:
+	case policy.MaintainMedicalReserves:
 		if r.shelter {
 			return 32, "hospital-shell", ""
 		}
@@ -141,25 +142,31 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 32, "laboratory-shell", ""
 		}
 		return 1, domain.MethodID("laboratory-" + r.definition), ""
-	case policy.MaintainSleeping:
-		if r.shelter {
-			return 32, "sleeping-shell", ""
+	case policy.MaintainHousing:
+		// The three housing phases share the goal's epoch, so each names
+		// its own methods: the starter shell and its bunks, then the
+		// bedrooms, then the spare expansion room.
+		if r.phase == policy.HousingSleeping {
+			if r.shelter {
+				return 32, "sleeping-shell", ""
+			}
+			// One method per bed still owed: the count falls once a staged
+			// bed is assigned, so the next bed is a new method in the same
+			// epoch.
+			if r.sleeping == nil {
+				return 0, "", BuildingMethodUnknown
+			}
+			if r.bedroom != nil {
+				return 1, bedroomMethod(r.bedroom.Kind, r.bedroom.Room), ""
+			}
+			return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), ""
 		}
-		// One method per bed still owed: the count falls once a staged bed
-		// is assigned, so the next bed is a new method in the same epoch.
-		if r.sleeping == nil {
-			return 0, "", BuildingMethodUnknown
-		}
-		if r.bedroom != nil {
-			return 1, bedroomMethod(r.bedroom.Kind, r.bedroom.Room), ""
-		}
-		return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), ""
-	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()
 		if !known {
 			return 0, "", BuildingMethodUnknown
 		}
-		if r.goal == policy.EnsureExpansion {
+		prefix := ""
+		if r.phase == policy.HousingExpansion {
 			if plan, known := facts.Facts.FoodPlan.Value(); known && plan.GapPerDay > 0 {
 				return 0, "", BuildingMethodRefused
 			}
@@ -167,6 +174,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 				return 0, "", BuildingMethodUnknown
 			}
 			count++
+			prefix = "expansion-"
 		} else if target, known := facts.Facts.HousingTarget.Value(); known {
 			count = max(count, target)
 		}
@@ -178,9 +186,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingMethodNoSpace
 		}
 		if r.shelter {
-			return 32, "starter-shell", ""
+			return 32, domain.MethodID(prefix + "starter-shell"), ""
 		}
-		return missing, domain.MethodID(fmt.Sprintf("indoor-sleeping-%d-%d", count, missing)), ""
+		return missing, domain.MethodID(fmt.Sprintf("%sindoor-sleeping-%d-%d", prefix, count, missing)), ""
 	case policy.EnsureCooking:
 		if len(r.paste) > 0 {
 			return int64(len(r.paste)), "nutrient-paste", ""

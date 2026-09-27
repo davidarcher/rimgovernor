@@ -20,8 +20,8 @@ func init() {
 // EnsureFoodSupply: the foothold gates and the wood stock the recovery
 // campaign breaches.
 var campaignGoals = []policy.GoalID{
-	policy.EnsureInitialShelter, policy.MaintainFoodStorage, policy.EnsureCooking,
-	policy.EnsureTemperatureSafety, policy.MaintainSleeping, policy.MaintainResource,
+	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
+	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureBasicDefense,
 }
 

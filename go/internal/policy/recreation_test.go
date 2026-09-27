@@ -89,7 +89,7 @@ func TestRecreationVarietyRanksAsMaintenance(t *testing.T) {
 	}
 	found := false
 	for _, g := range r.Goals {
-		if g.ID == EnsureBasicComfort {
+		if g.ID == EnsureComfort {
 			found = true
 			if g.Priority != 3 || g.Deficit != domain.Known(.5) || g.MethodUnavailable {
 				t.Fatal(g)
@@ -100,7 +100,7 @@ func TestRecreationVarietyRanksAsMaintenance(t *testing.T) {
 		t.Fatal("missing maintenance variety goal")
 	}
 	for _, a := range r.Assessments {
-		if a.ID == EnsureBasicComfort && (a.Priority != 3 || a.Need != domain.NeedDeficit) {
+		if a.ID == EnsureComfort && (a.Priority != 3 || a.Need != domain.NeedDeficit) {
 			t.Fatal(a)
 		}
 	}

@@ -37,7 +37,7 @@ const maxActiveGoals = 512
 // player_goals is the one per-world, per-kind binding for goals the player
 // commands directly, shared by every such command rather than owned by one:
 // CreateGoal binds a kind it force-activates, AdoptRoom binds
-// EnsureInitialShelter when it completes it. Because request_id may name a row
+// MaintainHousing when it completes it. Because request_id may name a row
 // in either command's own request table, it carries no foreign key and the
 // command column says which table to read it from. Sharing the binding is what
 // makes the two commands agree: adopting a room completes the same shelter goal

@@ -231,16 +231,16 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	if _, _, err = s.SubmitBuilding(ctx, submissionRequest(t, "builder")); err != nil {
 		t.Fatal(err)
 	}
-	r.Facts.Colonists, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(2))
+	r.Facts.Colonists, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
 	second := reviewRoutine(t, s, &r)
-	expansion := developmentRow(t, second.Review, policy.EnsureExpansion)
+	expansion := developmentRow(t, second.Review, policy.MaintainHousing)
 	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
 		t.Fatal(expansion)
 	}
 	if !developmentRow(t, second.Review, policy.EnsureResearch).Selected || !developmentRow(t, second.Review, policy.MaintainResource).Selected {
 		t.Fatal(second.Review.Development.Rows)
 	}
-	g := routineGoal(t, second, policy.EnsureExpansion)
+	g := routineGoal(t, second, policy.MaintainHousing)
 	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrNotAdmitted) {
 		t.Fatal("labor-deferred goal admitted", err)
 	}
@@ -248,7 +248,7 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	// and the measured risk persists with the row.
 	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})
 	third := reviewRoutine(t, s, &r)
-	expansion = developmentRow(t, third.Review, policy.EnsureExpansion)
+	expansion = developmentRow(t, third.Review, policy.MaintainHousing)
 	if expansion.Reason != policy.DevelopmentRisk || expansion.Risk == nil || *expansion.Risk != 1 || expansion.Bottleneck != "" {
 		t.Fatal(expansion)
 	}

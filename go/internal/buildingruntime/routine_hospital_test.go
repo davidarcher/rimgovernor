@@ -15,7 +15,7 @@ import (
 )
 
 // hospitalNative is a one-colonist colony whose colonist should rest in a
-// medical bed but needs no tending: MaintainMedicalCare is in deficit while
+// medical bed but needs no tending: MaintainMedicalReserves is in deficit while
 // the tend and rescue families have nothing to do.
 type hospitalNative struct {
 	*sleepingNative
@@ -79,7 +79,8 @@ func hospitalFixture(t *testing.T) (*RoutineHospitalPlanner, *store.Store, *hosp
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
 	native.target = bridge.BedUseTarget{Context: proto.Clone(v.Context).(*c.ObservationContext), Thing: "bed"}
 	base.reviewer.native = native
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainMedicalCare})
+	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainMedicalReserves})
+	base.reviewer.policy.Stage.Floor = policy.StageStable // MaintainMedicalReserves' care phase
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	}
 	var goal store.GoalState
 	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainMedicalCare {
+		if binding.Need == policy.MaintainMedicalReserves {
 			if goal, err = db.LoadGoal(ctx, binding.Goal); err != nil {
 				t.Fatal(err)
 			}
@@ -177,7 +178,7 @@ func TestHospitalBuildsOnlyWhenNoHostedBedCanBeSpared(t *testing.T) {
 
 func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	t.Parallel()
-	ladder := &RoutineBuildingPlanner{goal: policy.MaintainMedicalCare, definition: "Wall", shelter: true}
+	ladder := &RoutineBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "Wall", shelter: true}
 	patient := policy.CarePawn{ID: "p", Dead: domain.Known(false), NeedsRest: domain.Known(true), NeedsTend: domain.Known(false), BadConditions: domain.Known(false)}
 	definition := func(name string, available bool) observation.PlanningDefinition {
 		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("WoodLog")}
@@ -221,7 +222,7 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "hospital-shell" || reason != "" {
 		t.Fatal(missing, method, reason)
 	}
-	spot := &RoutineBuildingPlanner{goal: policy.MaintainMedicalCare, definition: "SleepingSpot"}
+	spot := &RoutineBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "SleepingSpot"}
 	if missing, method, reason := spot.selection(facts); missing != 1 || method != "hospital-SleepingSpot" || reason != "" {
 		t.Fatal(missing, method, reason)
 	}

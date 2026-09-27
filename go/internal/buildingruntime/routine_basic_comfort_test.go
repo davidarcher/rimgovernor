@@ -18,7 +18,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 	for _, name := range policy.RecreationDefinitions {
 		f.Definitions = append(f.Definitions, observation.PlanningDefinition{Name: name, Available: domain.Known(true), ConstructionSkill: domain.Known[int32](0), Stuff: domain.Known("WoodLog")})
 	}
-	planner := &RoutineBuildingPlanner{goal: policy.EnsureBasicComfort}
+	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}
 	check := func(want string) {
 		t.Helper()
 		selected, reason, err := planner.selectBasicComfort(f)
@@ -57,7 +57,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 
 func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	t.Parallel()
-	planner := &RoutineBuildingPlanner{goal: policy.EnsureBasicComfort}
+	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}
 	people := []policy.PawnID{"pawn"}
 	census := policy.ComfortObservation{People: people}
 	// The hosted census is empty (the hut is a barracks); the foothold goal
@@ -100,7 +100,7 @@ func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	if planner.definition != "" || planner.stuff != "" || len(planner.adjacent) != 0 {
 		t.Fatal("selection mutated reusable compiler", planner)
 	}
-	if _, method, reason := (&RoutineBuildingPlanner{goal: policy.EnsureBasicComfort, definition: "Table1x2c"}).selection(observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3))}}); reason != "" || method != "basic-comfort-Table1x2c" {
+	if _, method, reason := (&RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic, definition: "Table1x2c"}).selection(observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3))}}); reason != "" || method != "basic-comfort-Table1x2c" {
 		t.Fatal(method, reason)
 	}
 }

@@ -16,7 +16,7 @@ var plannerGoals = map[string]policy.GoalID{
 	"resourceAcquisition": policy.MaintainResource, "resource": policy.MaintainResource, "power": policy.EnsureBasicPower,
 	"temperature": policy.EnsureTemperatureSafety, "refrigeration": policy.MaintainRefrigeration, "lighting": policy.MaintainLighting,
 	"flooring": policy.MaintainFlooring, "routes": policy.MaintainRoutes, "cooking": policy.EnsureCooking,
-	"basicComfort": policy.EnsureBasicComfort, "comfort": policy.EnsureComfort, "expansion": policy.EnsureExpansion,
+	"basicComfort": policy.EnsureComfort, "comfort": policy.EnsureComfort, "expansion": policy.MaintainHousing,
 	"equip": policy.MaintainEquipment, "gear": policy.MaintainEquipment, "secureSupplies": policy.SecureSupplies,
 	"repair": policy.MaintainEssentialRepairs, "fireSafety": policy.MaintainFireSafety, "clearance": policy.ClearHomeObstructions,
 	"shrine": policy.ClearAncientShrine, "clean": policy.MaintainCleanFacilities, "blight": policy.RemoveBlight,

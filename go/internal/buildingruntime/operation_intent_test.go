@@ -18,10 +18,10 @@ func TestOperationIntentLabelsGoalMethod(t *testing.T) {
 	}{
 		{"routine-0123456789abcdef-MaintainFoodStorage", "hunt-0123456789abcdef0123456789abcdef", "", "Food storage: hunt"},
 		{"routine-0123456789abcdef-MaintainFlooring", "floor-2", "", "Flooring: floor 2"},
-		{"player-ab-MaintainSleeping", "comfort-Bed", "", "Bedroom: comfort Bed"},
+		{"player-ab-MaintainHousing", "comfort-Bed", "", "Housing: comfort Bed"},
 		{"routine-01-MaintainFireSafety", "fire", "", "Fire safety: fire"},
 		{"routine-01-EnsureFoodSupply", "acquire-0123456789abcdef0123456789abcdef", "food runway 1.5d", "Food supply: acquire, food runway 1.5d"},
-		{"routine-01-MaintainSleeping", "bedroom-shell-3-4", "  room for 2 unhoused ", "Bedroom: bedroom shell 3 4, room for 2 unhoused"},
+		{"routine-01-MaintainHousing", "bedroom-shell-3-4", "  room for 2 unhoused ", "Housing: bedroom shell 3 4, room for 2 unhoused"},
 	} {
 		got := OperationIntent(store.PlanMethod{GoalMethod: domain.GoalMethod{Goal: c.goal, Method: c.method}, Reason: c.reason})
 		if got != c.want {

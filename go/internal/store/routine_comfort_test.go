@@ -9,6 +9,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// basicComfortProvided is EnsureComfort's basic phase met (reachable
+// seat and recreation, variety known), so its ranked phase decides.
+func basicComfortProvided() domain.Fact[policy.ComfortObservation] {
+	v := comfortCensus(false)
+	v.Recreation[0].Kind = "Dexterity"
+	v.Joy = &policy.RecreationCensus{Kinds: []string{"Dexterity"}}
+	return domain.Known(v)
+}
+
 func comfortCensus(using bool) policy.ComfortObservation {
 	people := []policy.PawnID{"pawn"}
 	var users []policy.PawnID
@@ -26,22 +35,23 @@ func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
 	v := comfortCensus(false)
 	v.Recreation[0].Kind = "Dexterity"
 	v.Joy = &policy.RecreationCensus{Kinds: []string{"Dexterity"}, Pawns: []policy.JoyTolerance{{Pawn: "pawn", Tolerance: []float64{.4}, Bored: []bool{true}}}}
+	r.Facts.Comfort = domain.Known(comfortCensus(true)) // the ranked phase met: variety alone decides
 	r.Facts.BasicComfort = domain.Known(v)
 	out := reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.EnsureBasicComfort).Goal.Need != domain.NeedDeficit {
+	if routineGoal(t, out, policy.EnsureComfort).Goal.Need != domain.NeedDeficit {
 		t.Fatal("variety not persisted as a deficit")
 	}
 	// Loading and reviewing again traverses RoutineReview's optional-goal
 	// validation: this goal can be foothold or maintenance in the same save.
 	out = reviewRoutine(t, s, &r)
-	row := developmentRow(t, out.Review, policy.EnsureBasicComfort)
-	if row.Goal != policy.EnsureBasicComfort {
+	row := developmentRow(t, out.Review, policy.EnsureComfort)
+	if row.Goal != policy.EnsureComfort {
 		t.Fatal(row)
 	}
 	v.Joy.Pawns[0].Bored[0] = false
 	r.Facts.BasicComfort = domain.Known(v)
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.EnsureBasicComfort).Goal.Need != domain.NeedRecovered {
+	if routineGoal(t, out, policy.EnsureComfort).Goal.Need != domain.NeedRecovered {
 		t.Fatal("fresh native evidence did not recover variety")
 	}
 }
@@ -51,6 +61,7 @@ func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	r := routineRequest()
+	r.Facts.BasicComfort = basicComfortProvided()
 	r.Facts.Comfort = domain.Known(comfortCensus(true))
 	out := reviewRoutine(t, s, &r)
 	history := out.Review.Comfort
@@ -72,7 +83,7 @@ func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	r.Facts.ComfortRecovered = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
 	if out.Review.Comfort != history || routineGoal(t, out, policy.EnsureComfort).Goal.Need != domain.NeedUnknown {
-		t.Fatal("unknown census replaced by aggregate", out)
+		t.Fatal("unknown census replaced by aggregate", routineGoal(t, out, policy.EnsureComfort).Goal, out.Review.Latches.Comfort)
 	}
 	replacement := comfortCensus(false)
 	replacement.Dining[0].ID = "replacement-chair"
@@ -95,6 +106,7 @@ func TestRoutineComfortWorldResetAndInvalidDisabledHistory(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			s := open(t, memoryPath(t))
 			r := routineRequest()
+			r.Facts.BasicComfort = basicComfortProvided()
 			r.Facts.Comfort = domain.Known(comfortCensus(true))
 			reviewRoutine(t, s, &r)
 			if change == "world" {

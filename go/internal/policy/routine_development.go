@@ -23,7 +23,8 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 	var stock, target int64
 	var known bool
 	switch id {
-	case EnsureExpansion:
+	case MaintainHousing:
+		// The expansion phase: one indoor place beyond the population.
 		var countKnown bool
 		target, countKnown = f.Colonists.Value()
 		if !countKnown || target <= 0 || target >= 1<<63-1 {

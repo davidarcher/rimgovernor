@@ -143,7 +143,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	var shells []store.PlanState
 	for _, binding := range review.Goals {
-		if binding.Need != policy.EnsureInitialShelter {
+		if binding.Need != policy.MaintainHousing {
 			continue
 		}
 		shelter, err := p.journal.LoadGoal(call, binding.Goal)

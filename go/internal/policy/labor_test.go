@@ -39,7 +39,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
 	r.Goals = []DevelopmentGoal{
 		{ID: "comfort", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.9), Labor: GoalLabor(EnsureComfort)},
-		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(EnsureExpansion)},
+		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(MaintainHousing)},
 		{ID: "research", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.3), Labor: GoalLabor(EnsureResearch)},
 		{ID: "resource", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.2), Labor: GoalLabor(MaintainResource)},
 	}

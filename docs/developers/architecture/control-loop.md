@@ -88,9 +88,9 @@ Every GoalID in `go/internal/policy`:
 | Concept | GoalIDs |
 | --- | --- |
 | Response | `ActiveCombat`, `CriticalMedicine` (`CriticalMedical`), `RestoreWorkers`, `MoodGoal(pawn)`, `AnswerDialog`, `ConfirmColonyNames`, `RecoverDisasterServices`, `TradeWithCaravan` |
-| Project | `AllowStartingSupplies`, `EnsureInitialShelter`, `EnsureCooking`, `EnsureBasicPower`, `EnsureBasicComfort`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
+| Project | `AllowStartingSupplies`, `EnsureCooking`, `EnsureBasicPower`, `EnsureWorkAssignments`, `EnsureResearch`, `EnsureDefensiveLayout`, `ClearAncientShrine` |
 | Standard (chore) | `MaintainWaste`, `RemoveBlight`, `MaintainStockpiles`, `TidyLayout`, `ClearHomeObstructions` |
-| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `EnsureExpansion`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalCare`, `MaintainMedicalReserves`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainStorage` |
+| Standard | `EnsureFoodSupply`, `EnsureBasicDefense`, `EnsureTemperatureSafety`, `EnsureComfort`, `MaintainHousing`, `ManageSupplySafety`, `SecureSupplies`, `ClearPests`, `MaintainAnimalContainment`, `MaintainAnimalFeed`, `MaintainCleanFacilities`, `MaintainEquipment`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainFlooring`, `MaintainFoodStorage`, `MaintainHerd`, `MaintainHomeCoverage`, `MaintainLighting`, `MaintainMedicalReserves`, `MaintainPopulation`, `MaintainRefrigeration`, `MaintainResource`, `MaintainRoutes`, `MaintainStoneShell`, `MaintainStorage` |
 | Rule | none (see above) |
 
 `policy.GoalConcept` returns this classification, and a test fails on any

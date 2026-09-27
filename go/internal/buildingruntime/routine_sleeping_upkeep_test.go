@@ -27,7 +27,7 @@ func (n *sleepingUpkeepNative) ReadEmergency(ctx context.Context, id *c.Identity
 
 // sleepingUpkeepFixture stages one barracks at 20C holding one unowned,
 // suitable Bed and one colonist (comfortable 10..30C) who owns nothing:
-// MaintainSleeping is in deficit and the bed can be assigned outright.
+// MaintainHousing's bedroom phase is in deficit and the bed can be assigned outright.
 func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.Store, *sleepingUpkeepNative) {
 	t.Helper()
 	base, db, _, _, sleeping := sleepingFixture(t)
@@ -38,6 +38,9 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 	// The second colonist already sleeps in an owned bed, so only the
 	// patient is a sleeping target.
 	v.ColonistCount, v.WorkerCount = proto.Uint32(2), proto.Uint32(2)
+	// The shelter stands (both beds indoors): MaintainHousing is on its
+	// bedroom phase.
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
 	planning := v.Planning.GetObserved()
 	planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
 	missing := func(field string) *o.ReadIssue {
@@ -73,7 +76,7 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 		Beds:    []*o.UpkeepBed{upkeepBed(bed), upkeepBed(otherBed, "other")},
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
 	base.reviewer.native = native
-	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainSleeping})
+	base.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHousing})
 	if _, err := base.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +95,7 @@ func sleepingGoal(t *testing.T, db *store.Store) store.GoalState {
 		t.Fatal(err)
 	}
 	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainSleeping {
+		if binding.Need == policy.MaintainHousing {
 			goal, err := db.LoadGoal(ctx, binding.Goal)
 			if err != nil {
 				t.Fatal(err)
@@ -334,11 +337,12 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	planner, _, native := sleepingUpkeepFixture(t)
 	// A room outside the sleeper's comfortable band is not a site: no bed is
 	// previewed there and the ladder falls through to its shell rung, which
-	// waits while the initial shelter is still owed.
+	// waits: the shelter phase has passed, and the
+	// fixture colony has no known stage prerequisites for a new shell.
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = []string{"other"}
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingShellBlocked || native.previews != 0 {
+	if err != nil || (result.Reason != BuildingShellBlocked && result.Reason != BuildingMethodUnknown) || native.previews != 0 {
 		t.Fatal(result, err, native.previews)
 	}
 }

@@ -414,16 +414,16 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine)", ErrControl)
 	}
-	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.EnsureInitialShelter) {
+	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.MaintainHousing || config.Sleeping.phase != policy.HousingShelter) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sl", ErrControl)
 	}
 	if config.Cooking != nil && (config.Routine == nil || config.Cooking.reviewer != config.Routine || config.Cooking.goal != policy.EnsureCooking) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Cooking != nil && (config.Routine == nil || config.Cooking.reviewer != config.Routine || config.Cook", ErrControl)
 	}
-	if config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comfort.goal != policy.EnsureComfort) {
+	if config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comfort.goal != policy.EnsureComfort || config.Comfort.phase != policy.ComfortRanked) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comf", ErrControl)
 	}
-	if config.BasicComfort != nil && (config.Routine == nil || config.BasicComfort.reviewer != config.Routine || config.BasicComfort.goal != policy.EnsureBasicComfort) {
+	if config.BasicComfort != nil && (config.Routine == nil || config.BasicComfort.reviewer != config.Routine || config.BasicComfort.goal != policy.EnsureComfort || config.BasicComfort.phase != policy.ComfortBasic) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.BasicComfort != nil && (config.Routine == nil || config.BasicComfort.reviewer != config.Routine || c", ErrControl)
 	}
 	if config.Workshop != nil && (config.Routine == nil || config.Workshop.reviewer != config.Routine || config.Workshop.goal != policy.MaintainResource) {
@@ -435,7 +435,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.SleepingUpkeep != nil && (config.Routine == nil || config.SleepingUpkeep.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.SleepingUpkeep != nil && (config.Routine == nil || config.SleepingUpkeep.reviewer != config.Routine)", ErrControl)
 	}
-	if config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config.Expansion.goal != policy.EnsureExpansion) {
+	if config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config.Expansion.goal != policy.MaintainHousing || config.Expansion.phase != policy.HousingExpansion) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config", ErrControl)
 	}
 	if config.Power != nil && (config.Routine == nil || config.Power.reviewer != config.Routine || config.Power.goal != policy.EnsureBasicPower) {

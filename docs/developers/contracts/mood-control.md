@@ -39,11 +39,11 @@ Food, shelter and temperature provisioning use the existing shared colony goals.
 The routine pawn read carries each colonist's grouped thought rows (memories and
 the situational cache, the `social` block). The review keeps the rows that pull
 mood down and maps the removable environment thoughts to the upkeep goal whose
-facility removes them (a thought names every goal providing it): `AteWithoutTable` and `NeedJoy` to `EnsureBasicComfort` and `EnsureComfort`,
-`SleptOutside`/`SleptOnGround` to `EnsureInitialShelter`, `EnvironmentDark` to
+facility removes them (a thought names every goal providing it): `AteWithoutTable` and `NeedJoy` to `EnsureComfort`,
+`SleptOutside`/`SleptOnGround` to `MaintainHousing`, `EnvironmentDark` to
 `MaintainLighting`, `EnvironmentCold`/`EnvironmentHot` to
 `EnsureTemperatureSafety`, `NeedBeauty` to `MaintainCleanFacilities` and
-`NeedRoomSize` to `EnsureExpansion`. When those thoughts carry at least half of
+`NeedRoomSize` to `MaintainHousing`. When those thoughts carry at least half of
 the pawn's negative thought offset, the pawn's mood state records the owners
 (most negative first) and the method proposal is `facility_provision` naming the
 first owner instead of a relief job: `DetectRoutine` raises each owner's
@@ -124,8 +124,8 @@ plan alone cannot satisfy the native bed outcome.
 
 ## Recreation
 
-`EnsureBasicComfort` supplies a reachable recreation source. `EnsureComfort`
-adds a second distinct building-backed joy kind for multiple colonists, or for a
+`EnsureComfort`'s basic phase supplies a reachable recreation source; its
+ranked phase adds a second distinct building-backed joy kind for multiple colonists, or for a
 lone colonist bored with their only reachable kind. The native census supplies
 kinds, each colonist's tolerance and boredom, and available building methods.
 Selection prefers a researched, powered television, then billiards, chess or

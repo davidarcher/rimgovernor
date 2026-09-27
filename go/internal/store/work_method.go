@@ -27,7 +27,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	need := policy.EnsureWorkAssignments
 	medical := medicalCarePlan(plan)
 	if medical {
-		need = policy.MaintainMedicalCare
+		need = policy.MaintainMedicalReserves
 	}
 	for _, binding := range review.Goals {
 		bound = bound || binding.Need == need && binding.Goal == goal.Goal.ID

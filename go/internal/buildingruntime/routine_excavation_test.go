@@ -714,7 +714,7 @@ func goalIDFor(t *testing.T, db *store.Store) domain.GoalID {
 		t.Fatal(err)
 	}
 	for _, binding := range review.Goals {
-		if binding.Need == policy.EnsureInitialShelter {
+		if binding.Need == policy.MaintainHousing {
 			return binding.Goal
 		}
 	}

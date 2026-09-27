@@ -21,7 +21,7 @@ const (
 	BuildingSleepingUseNeeded RoutineBuildingReason = "sleeping_use_needed"
 )
 
-// RoutineSleepingUpkeepPlanner answers MaintainSleeping: it transfers
+// RoutineSleepingUpkeepPlanner answers MaintainHousing's bedroom phase: it transfers
 // ownership of a vacant suitable bed to a colonist without one (a one-shot
 // BedAssignIntent native checks for roof, access, allowed area and the
 // pawn's comfortable band), and when no bed can be assigned it stages one
@@ -43,7 +43,7 @@ func NewRoutineSleepingUpkeepPlanner(reviewer *RoutineReviewer, native RoutineBu
 	if _, ok := native.(observation.RoutineSource); !ok {
 		return nil, fmt.Errorf("%w: NewRoutineSleepingUpkeepPlanner: !ok", ErrControl)
 	}
-	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainSleeping, definition: "Wall", shelter: true}
+	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainHousing, phase: policy.HousingSleeping, definition: "Wall", shelter: true}
 	return &RoutineSleepingUpkeepPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 
@@ -172,7 +172,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
-		if binding.Need == policy.MaintainSleeping {
+		if binding.Need == policy.MaintainHousing {
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
 			found = true
 			break
@@ -181,7 +181,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Latches.Housing != policy.HousingSleeping {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {

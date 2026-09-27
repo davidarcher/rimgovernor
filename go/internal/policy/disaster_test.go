@@ -158,7 +158,13 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 		t.Fatal("missing assessment", id)
 		return -1
 	}
-	if priority(r, MaintainResource) != 2 || priority(r, EnsureComfort) != 4 {
+	calm := f
+	calm.DisasterConditions = domain.Known([]DisasterCondition{})
+	quiet, err := DetectRoutine(calm, RoutineLatches{}, DefaultRoutinePolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if priority(r, MaintainResource) != 2 || priority(r, EnsureComfort) != priority(quiet, EnsureComfort) {
 		t.Fatal("incorrect disaster promotion")
 	}
 	f.Disaster = r.Disaster

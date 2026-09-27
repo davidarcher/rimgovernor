@@ -525,7 +525,7 @@ func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions)
 // budget (RIMGOVERNOR_ACCEPT_STALL or the runner's -stall) and a 1s poll.
 func storeWait() na.Wait { return na.Wait{Stall: na.StallBudget(), Interval: time.Second} }
 
-// waitMethod polls the routine review for the EnsureInitialShelter binding
+// waitMethod polls the routine review for the MaintainHousing binding
 // and the named committed method under it.
 
 func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, method domain.MethodID) (domain.GoalID, domain.GoalMethod, error) {
@@ -538,7 +538,7 @@ func waitMethod(ctx context.Context, s *store.Store, knownGoal domain.GoalID, me
 		}
 		var goalID domain.GoalID
 		for _, binding := range review.Goals {
-			if binding.Need == policy.EnsureInitialShelter {
+			if binding.Need == policy.MaintainHousing {
 				goalID = binding.Goal
 				break
 			}
@@ -673,7 +673,7 @@ func waitFurnishing(ctx context.Context, s *store.Store, goalID domain.GoalID, i
 		// stops binding it; the goal that committed the door stays the one
 		// to read unless the lineage moved on in between.
 		for _, binding := range review.Goals {
-			if binding.Need == policy.EnsureInitialShelter {
+			if binding.Need == policy.MaintainHousing {
 				goalID = binding.Goal
 			}
 		}

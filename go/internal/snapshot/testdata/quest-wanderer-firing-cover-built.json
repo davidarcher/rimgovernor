@@ -2595,329 +2595,12 @@
       "definition": "SleepingSpot",
       "rotation": "north"
      },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
+     "Goal": "routine-2ae3a8f3f060a0b2-MaintainHousing",
      "Identity": {
       "Current": "Thing_SleepingSpot44737",
       "Origin": "Thing_SleepingSpot44737"
      },
      "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-1",
-     "Building": {
-      "cell": {
-       "X": 113,
-       "Z": 122
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44738",
-      "Origin": "Thing_SleepingSpot44738"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-2",
-     "Building": {
-      "cell": {
-       "X": 110,
-       "Z": 123
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44739",
-      "Origin": "Thing_SleepingSpot44739"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-3",
-     "Building": {
-      "cell": {
-       "X": 114,
-       "Z": 123
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44740",
-      "Origin": "Thing_SleepingSpot44740"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-4",
-     "Building": {
-      "cell": {
-       "X": 115,
-       "Z": 123
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44741",
-      "Origin": "Thing_SleepingSpot44741"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-5",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 124
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44742",
-      "Origin": "Thing_SleepingSpot44742"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-6",
-     "Building": {
-      "cell": {
-       "X": 110,
-       "Z": 125
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot44743",
-      "Origin": "Thing_SleepingSpot44743"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d-7",
-     "Building": {
-      "cell": {
-       "X": 114,
-       "Z": 125
-      },
-      "definition": "SleepingSpot",
-      "rotation": "north"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_SleepingSpot45012",
-      "Origin": "Thing_SleepingSpot45012"
-     },
-     "Plan": "routine-bunks-72bc79ab4b47b5cff5f9108f3feef95d"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-0",
-     "Building": {
-      "cell": {
-       "X": 112,
-       "Z": 118
-      },
-      "definition": "Door",
-      "rotation": "south",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Door44759",
-      "Origin": "Thing_Blueprint_Door44755"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-1",
-     "Building": {
-      "cell": {
-       "X": 111,
-       "Z": 118
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44775",
-      "Origin": "Thing_Blueprint_Wall44760"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-2",
-     "Building": {
-      "cell": {
-       "X": 113,
-       "Z": 118
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44787",
-      "Origin": "Thing_Blueprint_Wall44777"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-3",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44805",
-      "Origin": "Thing_Blueprint_Wall44790"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-4",
-     "Building": {
-      "cell": {
-       "X": 110,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44814",
-      "Origin": "Thing_Blueprint_Wall44806"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-5",
-     "Building": {
-      "cell": {
-       "X": 111,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44825",
-      "Origin": "Thing_Blueprint_Wall44819"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-6",
-     "Building": {
-      "cell": {
-       "X": 113,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44901",
-      "Origin": "Thing_Blueprint_Wall44889"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-7",
-     "Building": {
-      "cell": {
-       "X": 114,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44919",
-      "Origin": "Thing_Blueprint_Wall44898"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-8",
-     "Building": {
-      "cell": {
-       "X": 115,
-       "Z": 119
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44917",
-      "Origin": "Thing_Blueprint_Wall44908"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-9",
-     "Building": {
-      "cell": {
-       "X": 108,
-       "Z": 120
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44958",
-      "Origin": "Thing_Blueprint_Wall44922"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
-    },
-    {
-     "Action": "routine-shell-ea15c0a492716ead36d7c965dd138cfc-0-10",
-     "Building": {
-      "cell": {
-       "X": 109,
-       "Z": 120
-      },
-      "definition": "Wall",
-      "rotation": "north",
-      "stuff": "WoodLog"
-     },
-     "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-     "Identity": {
-      "Current": "Thing_Wall44953",
-      "Origin": "Thing_Blueprint_Wall44940"
-     },
-     "Plan": "routine-shell-ea15c0a492716ead36d7c965dd138cfc"
     }
    ]
   },
@@ -17309,7 +16992,7 @@
      "Goal": "AllowStartingSupplies"
     },
     {
-     "Goal": "EnsureInitialShelter"
+     "Goal": "MaintainHousing"
     }
    ],
    "Labor": {
@@ -17370,7 +17053,7 @@
     },
     {
      "Deficit": 1,
-     "Goal": "EnsureExpansion",
+     "Goal": "MaintainHousing",
      "Labor": [
       "Construction"
      ],
@@ -17396,17 +17079,6 @@
     {
      "Deficit": 1,
      "Goal": "MaintainFoodStorage",
-     "Labor": [
-      "Construction"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0.5,
-     "Score": 114.539,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Goal": "MaintainSleeping",
      "Labor": [
       "Construction"
      ],
@@ -17596,8 +17268,8 @@
     "Need": "EnsureFoodSupply"
    },
    {
-    "Goal": "routine-2ae3a8f3f060a0b2-EnsureInitialShelter",
-    "Need": "EnsureInitialShelter"
+    "Goal": "routine-2ae3a8f3f060a0b2-MaintainHousing",
+    "Need": "MaintainHousing"
    },
    {
     "Goal": "routine-2ae3a8f3f060a0b2-EnsureTemperatureSafety",
@@ -17616,24 +17288,16 @@
     "Need": "EnsureBasicDefense"
    },
    {
-    "Goal": "routine-2ae3a8f3f060a0b2-MaintainMedicalCare",
-    "Need": "MaintainMedicalCare"
-   },
-   {
-    "Goal": "routine-2ae3a8f3f060a0b2-EnsureBasicComfort",
-    "Need": "EnsureBasicComfort"
-   },
-   {
-    "Goal": "routine-2ae3a8f3f060a0b2-ClearPests",
-    "Need": "ClearPests"
+    "Goal": "routine-2ae3a8f3f060a0b2-MaintainMedicalReserves",
+    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-2ae3a8f3f060a0b2-EnsureComfort",
     "Need": "EnsureComfort"
    },
    {
-    "Goal": "routine-2ae3a8f3f060a0b2-EnsureExpansion",
-    "Need": "EnsureExpansion"
+    "Goal": "routine-2ae3a8f3f060a0b2-ClearPests",
+    "Need": "ClearPests"
    },
    {
     "Goal": "routine-2ae3a8f3f060a0b2-MaintainEquipment",
@@ -17690,14 +17354,6 @@
    {
     "Goal": "routine-2ae3a8f3f060a0b2-MaintainStoneShell",
     "Need": "MaintainStoneShell"
-   },
-   {
-    "Goal": "routine-2ae3a8f3f060a0b2-MaintainSleeping",
-    "Need": "MaintainSleeping"
-   },
-   {
-    "Goal": "routine-2ae3a8f3f060a0b2-MaintainMedicalReserves",
-    "Need": "MaintainMedicalReserves"
    },
    {
     "Goal": "routine-2ae3a8f3f060a0b2-MaintainFoodStorage",
@@ -17757,10 +17413,13 @@
     "Feed": []
    },
    "Cold": true,
+   "Comfort": "basic",
    "Flooring": [
     "traffic"
    ],
    "FoodStorage": true,
+   "Housing": "shelter",
+   "Medical": "reserves",
    "MedicalReserve": true,
    "Sleeping": true,
    "StoneShell": true,
@@ -17821,7 +17480,7 @@
    },
    {
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureInitialShelter",
+    "Goal": "MaintainHousing",
     "LastProgress": 34554,
     "Method": "starter-shell",
     "NextReview": 37054
@@ -17878,7 +17537,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalCare",
+    "Goal": "MaintainMedicalReserves",
     "LastProgress": 34554,
     "Method": "assess",
     "NextReview": 37054
@@ -17892,37 +17551,7 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureBasicComfort",
-    "LastProgress": 34554,
-    "Method": "assess",
-    "NextReview": 37054,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 37054
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Goal": "EnsureComfort",
-    "LastProgress": 34554,
-    "Method": "assess",
-    "NextReview": 37054,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 37054
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "EnsureExpansion",
     "LastProgress": 34554,
     "Method": "assess",
     "NextReview": 37054,
@@ -18040,36 +17669,6 @@
      }
     ],
     "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainSleeping",
-    "LastProgress": 34554,
-    "Method": "assess",
-    "NextReview": 37054,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 37054
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainMedicalReserves",
-    "LastProgress": 34554,
-    "Method": "assess",
-    "NextReview": 37054,
-    "Observed": 0.16666666666666666
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 37054
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
     "Goal": "MaintainFoodStorage",
     "LastProgress": 34554,
     "Method": "assess",
@@ -18154,7 +17753,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "01f5ba103d50928c",
      "Parallelism": 1,
@@ -18176,7 +17775,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "0cf8366e775f02d1",
      "Parallelism": 1,
@@ -18198,7 +17797,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "0de8ba31634ceb10",
      "Parallelism": 1,
@@ -18220,7 +17819,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "120fd4ef3098023f",
      "Parallelism": 1,
@@ -18242,7 +17841,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "14cc673ec2a1412a",
      "Parallelism": 1,
@@ -18264,7 +17863,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "20747396b9d7dc33",
      "Parallelism": 1,
@@ -18286,7 +17885,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "3dbd0d65415ccac5",
      "Parallelism": 1,
@@ -18308,7 +17907,7 @@
       }
      ],
      "Goals": [
-      "EnsureInitialShelter"
+      "MaintainHousing"
      ],
      "ID": "4756425fe293e0b0",
      "Parallelism": 1,
@@ -18365,7 +17964,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "MaintainSleeping"
+      "MaintainHousing"
      ],
      "ID": "219030e554e0f968",
      "Reason": "no plan or proposal",
@@ -18425,7 +18024,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureExpansion"
+      "MaintainHousing"
      ],
      "ID": "b1115f8766822d35",
      "Reason": "no plan or proposal",
@@ -18465,7 +18064,7 @@
     {
      "Adapter": "migrated",
      "Goals": [
-      "EnsureBasicComfort"
+      "EnsureComfort"
      ],
      "ID": "ecd8460f67ae2349",
      "Reason": "no plan or proposal",
@@ -18477,7 +18076,7 @@
    "Deferred": [
     {
      "Count": 21,
-     "Goal": "EnsureInitialShelter",
+     "Goal": "MaintainHousing",
      "Reason": "per_goal_bound"
     }
    ],

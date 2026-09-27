@@ -153,9 +153,9 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	}
 	animalNeeds := map[policy.GoalID]domain.NeedState{}
 	if fixture.Sleeping != nil {
-		animalNeeds[policy.MaintainSleeping] = domain.NeedRecovered
+		animalNeeds[policy.MaintainHousing] = domain.NeedRecovered
 		if len(fixture.Sleeping.Targets) > 0 {
-			animalNeeds[policy.MaintainSleeping] = domain.NeedDeficit
+			animalNeeds[policy.MaintainHousing] = domain.NeedDeficit
 		}
 	}
 	if fixture.Animals != nil {

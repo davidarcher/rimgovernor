@@ -15,7 +15,7 @@ func TestPlayerGoalKindsMatchRoutineGoals(t *testing.T) {
 	t.Parallel()
 	routine := map[domain.GoalKind]GoalID{
 		domain.EnsureFoodSupplyGoal:        EnsureFoodSupply,
-		domain.EnsureInitialShelterGoal:    EnsureInitialShelter,
+		domain.MaintainHousingGoal:         MaintainHousing,
 		domain.MaintainFoodStorageGoal:     MaintainFoodStorage,
 		domain.EnsureCookingGoal:           EnsureCooking,
 		domain.EnsureTemperatureSafetyGoal: EnsureTemperatureSafety,

@@ -138,7 +138,7 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {
 		t.Fatal(err)
 	}
-	other := routineGoal(t, out, policy.EnsureInitialShelter)
+	other := routineGoal(t, out, policy.MaintainHousing)
 	if _, err := s.CommitGoalMethod(ctx, other.Goal.ID, other.Revision, "shelter-hunt", acquisitionPlan(t, "routine-shelter-hunt", "Corpse_Alphabeaver")); err == nil {
 		t.Fatal("a shelter goal admitted an acquisition method")
 	}
