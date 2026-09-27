@@ -374,8 +374,17 @@ func TestCombatReplayLabChoke(t *testing.T) {
 		}},
 		ordersOwnedDrafts(),
 		changesOnly(),
-		// No noAimInterrupt: the hold-fire toggle (#861) flips a rifleman's
-		// fire mode mid-aim at stops 1 and 4 (#903).
+		noAimInterrupt(),
+		// Hold fire holds while the raider fights our blocker between
+		// swings (#903): no fire-at-will at stops 2 and 5.
+		combatAssertion{name: "hold fire holds", at: func(s combatReplayStop) bool { return s.Index == 2 || s.Index == 5 }, check: func(s combatReplayStop) error {
+			for _, o := range s.Orders {
+				if o.Kind == policy.OrderFireMode && o.FireMode == policy.FireAtWill {
+					return fmt.Errorf("%s back to fire at will", o.Pawn)
+				}
+			}
+			return nil
+		}},
 		combatAssertion{name: "a stop sends orders", at: withOrders, check: func(combatReplayStop) error { return nil }},
 		combatAssertion{name: "a serious injury retreats", at: retreat, check: func(combatReplayStop) error { return nil }},
 	)

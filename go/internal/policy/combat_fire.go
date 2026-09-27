@@ -134,6 +134,22 @@ func clearLines(view CombatView, orders []CombatOrder, lines []SightLine, roles 
 	return out, roles
 }
 
+// inMelee reports p fighting its target hand to hand: in the melee stance,
+// or between swings (warmup, cooldown) standing next to it. A melee
+// attacker reports cooldown after each swing (#903); reading that as the
+// melee's end flipped hold fire every other stop.
+func inMelee(p, target CombatPawnState) bool {
+	if p.Stance == StanceMelee {
+		return true
+	}
+	if p.Target == "" || !interruptsAim(p) {
+		return false
+	}
+	a, ok := p.Cell.Value()
+	b, ok2 := target.Cell.Value()
+	return ok && ok2 && adjacent8(a, b)
+}
+
 // Fire modes, as the combat pawn row reports them.
 const (
 	FireAtWill = "fire_at_will"
@@ -158,7 +174,7 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 	}
 	locked := map[domain.PawnID]bool{}
 	for _, p := range view.Pawns {
-		if p.Dead || p.Downed || p.Stance != StanceMelee {
+		if p.Dead || p.Downed || !inMelee(p, state[p.Target]) {
 			continue
 		}
 		if blockers[p.Target] {
@@ -183,6 +199,11 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 		}
 		held := s.FireMode == HoldFire || s.FireMode == "" && lastHold[r.Pawn]
 		mine := func(o CombatOrder) bool { return o.Pawn == r.Pawn }
+		// A pawn mid-aim keeps its fire mode (#903) unless its shot is at
+		// the hostile our blocker is fighting.
+		if interruptsAim(s) && !locked[s.Target] {
+			continue
+		}
 		switch {
 		case locked[r.Target] || locked[s.Target]:
 			orders = slices.DeleteFunc(orders, mine)

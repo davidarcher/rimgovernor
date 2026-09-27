@@ -121,3 +121,29 @@ func TestDecideCombatHoldsFireOnBlockerMelee(t *testing.T) {
 		t.Fatalf("%+v", orders)
 	}
 }
+
+// A melee raider reports cooldown between swings: hold fire stays on while
+// it stands next to our blocker, and a gunner mid-aim at another hostile
+// keeps its fire mode (#903).
+func TestDecideCombatHoldFireSteadyBetweenSwings(t *testing.T) {
+	view := threatView()
+	cell := func(x int32) *domain.Cell { return &domain.Cell{X: x, Z: 23} }
+	memory := CombatMemory{Tactic: TacticHold, Formed: 50, Roles: []CombatRole{
+		{Pawn: "a", Cell: cell(9), Target: "h1", Ranged: true},
+		{Pawn: "b", Cell: cell(8), Target: "h1", Duty: DutyBlocker},
+		{Pawn: "c", Cell: cell(10), Target: "h5", Ranged: true},
+	}}
+	view.Pawns[0].Stance, view.Pawns[0].FireMode = StanceIdle, HoldFire
+	view.Pawns[1].Target, view.Pawns[1].Stance = "h1", StanceMelee
+	view.Pawns[2].Target, view.Pawns[2].FireMode = "h5", FireAtWill
+	view.Pawns[3].Target, view.Pawns[3].Stance, view.Pawns[3].Cell = "b", StanceCooldown, domain.Known(domain.Cell{X: 8, Z: 22})
+	if orders, _ := decideStop(t, view, StopEvent{}, memory); len(orders) != 0 {
+		t.Fatalf("held gunner flipped between swings: %+v", orders)
+	}
+	// a aiming at h5 while h1 fights b: no hold fire mid-aim.
+	view.Pawns[1].Stance = StanceMelee
+	view.Pawns[0].Target, view.Pawns[0].Stance, view.Pawns[0].FireMode = "h5", StanceWarmup, FireAtWill
+	if orders, _ := decideStop(t, view, StopEvent{}, memory); len(orders) != 0 {
+		t.Fatalf("gunner flipped mid-aim: %+v", orders)
+	}
+}
