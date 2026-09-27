@@ -164,8 +164,12 @@ namespace HomeBridge.BridgeTools
         // ObservationFrameHook, main thread) instead of inside a Read. An
         // entry is stale when its per-building signature (forbidden,
         // burning, hit points, position) or the colony signature it was
-        // computed under (game hour, visible hazard count, free colonists'
-        // identity/drafted/hauling/area, storage groups) changed; a stale
+        // computed under (visible hazard count, free colonists'
+        // identity/drafted/hauling/area, storage groups) changed, or it is
+        // older than salvageMaxAgeTicks (four game hours: path lengths and
+        // headroom drift with colonist positions and stockpile fill, which
+        // no signature tracks); ages differ per entry, so they come due a
+        // few at a time rather than all at once. A stale
         // entry keeps serving its old value until the refresher reaches it,
         // oldest first, within salvageFrameBudgetMs per update. Read serves
         // every cached entry and computes only rows with no entry, capped at
@@ -174,11 +178,11 @@ namespace HomeBridge.BridgeTools
         // it as salvage_unknown) and the refresher fills it for the next
         // Read. The refresher only walks targets a Read listed, so a colony
         // that never asks pays nothing.
-        private const int salvageTickBucket = 2500;
+        private const int salvageMaxAgeTicks = 4 * GenDate.TicksPerHour;
         private const double salvageFrameBudgetMs = 1.5;
         private const double salvageInlineBudgetMs = 5;
         private const int salvageSignatureEveryTicks = 60;
-        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal Obs.SalvageEvidence Evidence = null!; }
+        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal Obs.SalvageEvidence Evidence = null!; }
         private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
         private static readonly Dictionary<int, Building> salvageTargets = new Dictionary<int, Building>();
         private static Game? salvageGame;
@@ -210,9 +214,15 @@ namespace HomeBridge.BridgeTools
         private static Obs.SalvageEvidence Store(Map map, Building b, long local)
         {
             var safety = Pass(map);
-            var entry = new SalvageEntry { Local = local, Colony = salvageSignature, Stamp = ++salvageStamp, Evidence = Salvage(map, b, safety, passYields) };
+            var entry = new SalvageEntry { Local = local, Colony = salvageSignature, Stamp = ++salvageStamp, Computed = Find.TickManager.TicksGame, Evidence = Salvage(map, b, safety, passYields) };
             salvageCache[b.thingIDNumber] = entry;
             return entry.Evidence;
+        }
+
+        private static bool Aged(SalvageEntry e)
+        {
+            var age = Find.TickManager.TicksGame - e.Computed;
+            return age < 0 || age >= salvageMaxAgeTicks;
         }
 
         private static void Forget(IEnumerable<int> gone)
@@ -235,7 +245,7 @@ namespace HomeBridge.BridgeTools
                 if (!b.Spawned || b.Map != map) { (gone ??= new List<int>()).Add(kv.Key); continue; }
                 var local = LocalSignature(b);
                 if (!salvageCache.TryGetValue(kv.Key, out var e)) stale.Add((long.MinValue, b, local));
-                else if (e.Local != local || e.Colony != salvageSignature) stale.Add((e.Stamp, b, local));
+                else if (e.Local != local || e.Colony != salvageSignature || Aged(e)) stale.Add((e.Stamp, b, local));
             }
             if (gone != null) Forget(gone);
             foreach (var s in stale.OrderBy(s => s.stamp)) {
@@ -296,7 +306,6 @@ namespace HomeBridge.BridgeTools
             unchecked {
                 long sig = 17;
                 void Mix(long v) { sig = sig * 1_000_003 + v; }
-                Mix(Find.TickManager.TicksGame / salvageTickBucket);
                 Mix(safety.HazardCount);
                 foreach (var p in safety.People) {
                     Mix(p.thingIDNumber);
