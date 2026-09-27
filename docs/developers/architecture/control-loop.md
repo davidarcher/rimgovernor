@@ -106,12 +106,12 @@ or budgets labor.
 
 | Domain | GoalIDs |
 | --- | --- |
-| Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainFoodStorage`, `MaintainRefrigeration`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment`, `RemoveBlight` |
+| Food | `EnsureFoodSupply`, `EnsureCooking`, `MaintainFoodStorage`, `MaintainRefrigeration`, `RemoveBlight` |
 | Shelter | `EnsureInitialShelter`, `EnsureBasicComfort`, `EnsureComfort`, `EnsureTemperatureSafety`, `EnsureExpansion`, `MaintainSleeping`, `MaintainStoneShell`, `MaintainLighting`, `MaintainFlooring`, `MaintainHomeCoverage` |
 | Industry | `EnsureBasicPower`, `MaintainResource`, `EnsureResearch` |
 | Military | `ActiveCombat`, `EnsureBasicDefense`, `EnsureDefensiveLayout`, `ClearAncientShrine`, `ClearPests`, `MaintainEquipment` |
 | Medical | `CriticalMedicine`, `MaintainMedicalCare`, `MaintainMedicalReserves` |
-| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MoodGoal(pawn)` |
+| People | `RestoreWorkers`, `EnsureWorkAssignments`, `MaintainPopulation`, `MoodGoal(pawn)`, `MaintainHerd`, `MaintainAnimalFeed`, `MaintainAnimalContainment` |
 | Upkeep | `AllowStartingSupplies`, `SecureSupplies`, `ManageSupplySafety`, `MaintainStockpiles`, `MaintainStorage`, `TradeWithCaravan`, `MaintainWaste`, `TidyLayout`, `ClearHomeObstructions`, `MaintainCleanFacilities`, `MaintainEssentialRepairs`, `MaintainFireSafety`, `MaintainRoutes`, `RecoverDisasterServices` |
 | System (no panel section) | `AnswerDialog`, `ConfirmColonyNames` |
 
