@@ -221,8 +221,8 @@ func traceLines(t TraceSummary) []traceLine {
 					line.text += "  error: " + text
 				}
 			}
-		case "native_cache_hit":
-			line.text = "cache hit " + toolName(row.Payload)
+		case "native_frame_hit":
+			line.text = "frame hit " + toolName(row.Payload)
 		case "native_decode":
 			continue
 		default:

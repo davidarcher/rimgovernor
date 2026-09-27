@@ -22,7 +22,7 @@ const (
 	AdmissionControl     AdmissionClass = "control"
 	AdmissionObservation AdmissionClass = "observation"
 	AdmissionMedia       AdmissionClass = "media"
-	// AdmissionMirror is the mirror long poll (#795): ranked after
+	// AdmissionMirror is the clock events long poll: ranked after
 	// observation and before media, one call at a time, and outside the
 	// shared slots, so its idle wait never holds one against a command
 	// or a read.
@@ -230,7 +230,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/clock_renew":                          AdmissionControl,
 	"rimgovernor/clock_change_speed":                   AdmissionControl,
 	"rimgovernor/clock_pause":                          AdmissionControl,
-	"rimgovernor/clock_read_events":                    AdmissionControl,
+	"rimgovernor/clock_read_events":                    AdmissionMirror,
 	"rimgovernor/clock_read_status":                    AdmissionControl,
 	"rimgovernor/clock_read_attempt":                   AdmissionControl,
 	"rimgovernor/authority_control":                    AdmissionControl,
@@ -250,7 +250,6 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/lifecycle_load":                       AdmissionControl,
 	"rimgovernor/lifecycle_read_load":                  AdmissionControl,
 	"rimgovernor/observations_read_status":             AdmissionObservation,
-	"rimgovernor/observations_read_bundle":             AdmissionObservation,
 	methodOpenSnapshotStream:                           AdmissionObservation,
 	"rimgovernor/observations_list_pawns":              AdmissionObservation,
 	"rimgovernor/observations_get_cells":               AdmissionObservation,
@@ -287,7 +286,6 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/presentation_render_state":            AdmissionObservation,
 	"rimgovernor/presentation_render_demand":           AdmissionObservation,
 	"rimgovernor/presentation_lease_video":             AdmissionObservation,
-	mirrorPollMethod:                                   AdmissionMirror,
 	"rimgovernor/presentation_capture_pawn":            AdmissionMedia,
 	"rimgovernor/presentation_read_frame":              AdmissionMedia,
 	"rimgovernor/presentation_acknowledge_frame":       AdmissionMedia,

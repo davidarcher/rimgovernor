@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"path/filepath"
@@ -32,22 +31,19 @@ type clockPollNative struct {
 }
 
 func (f *clockPollNative) ReadClockEvents(ctx context.Context, request *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
+	// before runs while the native call is out: the page it answers with
+	// is read after it.
+	if f.before != nil {
+		f.before()
+	}
 	f.request = proto.Clone(request).(*k.EventsRequest)
 	if f.err != nil {
 		return nil, bridge.Result{}, f.err
 	}
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: proto.Clone(f.page).(*k.EventsPage)}}, bridge.Result{}, nil
 }
-func (f *clockPollNative) MirrorPoll(ctx context.Context, request *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
-	// before runs while the native call is out: the scope and the page it
-	// answers with are both read after it.
-	if f.before != nil {
-		f.before()
-	}
-	return composeMirrorPoll(ctx, request, bundleParts{tick: f.core.Tick, events: f.ReadClockEvents})
-}
-func (f *clockPollNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
-	return composeBundle(ctx, request, bundleParts{tick: f.core.Tick})
+func (f *clockPollNative) ReadStep(ctx context.Context, request bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
+	return composeStep(ctx, request, bundleParts{tick: f.core.Tick})
 }
 func clockPollFixture(t *testing.T) (*ClockScheduler, *schedulerNative, *sql.DB) {
 	t.Helper()

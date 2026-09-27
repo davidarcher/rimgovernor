@@ -36,7 +36,7 @@ func NewZoneControl(client *Client) (*ZoneControl, error) {
 	return &ZoneControl{client}, nil
 }
 func (client *Client) ReadZoneTarget(ctx context.Context, identity *c.Identity, zone domain.ZoneCreate) (ZoneRead, Result, error) {
-	reply, raw, err := client.ReadZoneSection(ctx, identity, 0)
+	reply, raw, err := client.ReadZoneSection(ctx, identity)
 	if err != nil {
 		return ZoneRead{}, raw, err
 	}

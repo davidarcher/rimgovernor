@@ -167,7 +167,7 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, bounded unique exact cells or inclusive rectangle required.");
-            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, request.Compact ? CompactCellEncoding.Limit : CellsPageLimit) || request.HasChangedSinceTick) return false;
+            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, request.Compact ? CompactCellEncoding.Limit : CellsPageLimit)) return false;
             if (request.Compact && (request.SelectionCase != Obs.GetCellsRequest.SelectionOneofCase.Rectangle || !CompactCellEncoding.Supports(Fields(request.Fields)))) return false;
             var fields = request.Fields;
             if (fields != null && (fields.Areas || fields.Designations)) {

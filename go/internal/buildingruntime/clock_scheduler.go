@@ -28,12 +28,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ClockWindowNative is the scheduler's native read side: the bundle is the
-// one read a step, an event poll or a renewal opens with (scope, clock
-// status, emergency, events in a single round trip); the plain clock status
-// read serves the renewal's post-write re-check.
+// ClockWindowNative is the scheduler's native read side: the step read is
+// the one read a step or a renewal opens with (scope, clock status,
+// emergency census); the plain clock status read serves the renewal's
+// post-write re-check.
 type ClockWindowNative interface {
-	ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error)
+	ReadStep(context.Context, bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error)
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
@@ -69,9 +69,6 @@ type ClockSchedulerConfig struct {
 	// the player runs by hand under a stopped epoch (#601). Zero means
 	// DefaultPlayerQuiet.
 	PlayerQuiet time.Duration
-	// Facts is the cross-step fact cache the scheduler's steps fill and the
-	// worker's writes discard (WorkerConfig.Facts); nil makes a private one.
-	Facts *bridge.FactCache
 	// Budget bounds the step's planner waves (#623); see StepBudget.
 	Budget StepBudget
 	// Faults are the acceptance harness's injected failures (#633); the
@@ -293,10 +290,9 @@ type ClockScheduler struct {
 	config              ClockSchedulerConfig
 	clock               executor.Clock
 	pollGate, renewGate chan struct{}
-	// reviewPawns is whether the step's review poll carries the routine
-	// pawn detail (#795): the pawns family bundleRequest would have
-	// ridden on the bundle. Step goroutine only.
-	reviewPawns bool
+	// pollIdentity is the world the event poll asks for: the last page's,
+	// else found by one bare bundle read. Poll goroutine only.
+	pollIdentity *c.Identity
 	// pace is player acceleration's backoff (clock_pace_backoff.go), nil
 	// under fixed pacing.
 	pace *paceBackoff
@@ -369,8 +365,7 @@ type ClockScheduler struct {
 	// readmitOwed is set by a step that settled its own stopped window and
 	// then deferred, so the step that finally admits reports the whole
 	// stop-to-readmit pause; touched only under the player gate.
-	readmitOwed   bool
-	admissionWarm *atomic.Pointer[clockAdmissionWarm]
+	readmitOwed bool
 	// queue is the planners' due queue (#625): what a step selects
 	// between full steps, and the waits it skips. Touched only under the
 	// player gate.
@@ -603,7 +598,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
 	if config.Start.PlayerAccelerated {
 		scheduler.paceEpoch = new(atomic.Pointer[k.Epoch])
 		scheduler.pace = newPaceBackoff(config.PaceHorizonTicks, clock.Now, scheduler.requestCeiling)
@@ -719,29 +714,17 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if gateWait = time.Since(entered); gateWait > 50*time.Millisecond {
 		clockSchedulerLog("step waited %s for the player gate", gateWait.Round(time.Millisecond))
 	}
-	// Every native observation this step issues -- the bundle below, the
-	// routine census and each planner's own reads -- goes through one cache
-	// that lives exactly as long as the step, so the facts the planners
-	// share are read from native once per tick. A write within the step
-	// discards it; see bridge.StepReadCache. Its parent outlives the step:
-	// once the bundle has fixed this step's scope, facts an earlier step
-	// read under the same load, generation and tick (or a tick-independent
-	// family) are served from it, and the typed events PollEvents ingests
-	// drop what they make stale.
 	// A wake's evidence lands on the due queue once, here, so it outlives
 	// a step that runs no planners (a paced live wave, a stopping window)
 	// and selects the same planners on the next (#625).
 	if reason.Cause == StepWake {
 		s.queue.wake(reason, s.facts.kindOf)
 	}
-	cache := bridge.NewChildReadCache(s.facts.cache)
-	call = bridge.WithStepReadCache(call, cache)
 	call = observation.WithDefinitionPool(call, s.facts.definitions)
-	// The round trips that still cross the bridge (cache misses, the
-	// uncacheable reads, writes) are tallied by tool so the cost of the
-	// composition is visible per step: as a debug record beside the cache's
-	// hit/miss counts, and as a clock_step row in the flight recorder,
-	// which `rimgovernor phases` reports as reads/step.
+	// The round trips that still cross the bridge (frame misses and
+	// writes) are tallied by tool so the cost of the composition is
+	// visible per step: as a debug record and as a clock_step row in the
+	// flight recorder, which `rimgovernor phases` reports as reads/step.
 	call, reads := bridge.WithReadTally(call)
 	// The planning window's refresher (#356): its step scope, tick and
 	// whether this step reviews are fixed once the bundle below is read,
@@ -750,14 +733,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var zones *zoneRefresher
 	reviews := s.stepReviews(reason)
 	if native, ok := s.native.(observation.ZonesNative); ok {
-		zones = &zoneRefresher{native: native, store: s.facts.store, mirror: s.facts.mirror}
-		s.facts.mu.Lock()
-		s.facts.pollZones = true
-		s.facts.mu.Unlock()
+		zones = &zoneRefresher{native: native, store: s.facts.store}
 		call = observation.WithZones(call, zones)
 	}
 	if native, ok := s.native.(PlanningWindowNative); ok {
-		window = &planningWindow{native: native, store: s.facts.store, mirror: s.facts.mirror, facts: s.facts}
+		window = &planningWindow{native: native, store: s.facts.store, mirror: s.facts.mirror}
 		call = observation.WithPlanningWindow(call, window)
 	}
 	stepBegan := time.Now()
@@ -765,8 +745,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	defer func() {
 		elapsed := time.Since(stepBegan)
 		out.Journal = journal.total
-		stats := cache.Stats()
-		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d parent_hits=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.ParentHits, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
+		clockSchedulerLog("step reads: %s running=%v elapsed=%s", reads, out.Running, elapsed.Round(time.Millisecond))
 		// The reason the step acted on (out.Reason once the status read
 		// fixed it, else the caller's) and, for a step woken by a clock
 		// stop, the latency from the native stop stamp to the step
@@ -775,7 +754,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if cause == "" {
 			cause = reason.Cause
 		}
-		extra := map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond), "reason": string(cause)}
+		extra := map[string]any{"running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond), "reason": string(cause)}
 		// The wait for the player gate before the step began: the
 		// Worker's dispatch step, or manual control, holding it (#593).
 		if gateWait > 0 {
@@ -850,29 +829,18 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			extra["stop_pause_s"] = paused.Seconds()
 		}
 		reads.Publish(call, extra)
-		// What this review's planners asked through the cache is what the
-		// next review's bundle carries (#593); a step that ran no review
-		// says nothing about it.
-		if reviews {
-			s.facts.asks = cache.StepAsks()
-		}
 	}()
 	attempts, err := journalTimed(journal, func() ([]store.ClockAttempt, error) { return s.player.journal.LoadClockAttempts(call, 4096) })
 	if err != nil {
 		return out, err
 	}
-	// The step's one native read: the current scope, the owned clock status
-	// and the emergency census of the same tick (issue #127). Its tick and
-	// emergency sections are seeded into the step cache, so the routine
-	// census and the planners read them without another round trip; a step
-	// about to review asks for the census families too (issue #180).
+	// The step's opening read: the current scope, the owned clock status
+	// and the emergency census (issue #127).
 	started := s.clock.Now()
-	stepRequest := s.bundleRequest(reason)
-	bundle, err := s.readStepBundle(call, stepRequest)
+	loaded, _, err := s.native.ReadStep(call, s.stepRead(reason))
 	if err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
-	loaded := bundle.GetObserved()
 	if loaded == nil {
 		return out, errors.Join(executor.ErrHeld, s.session.Disable())
 	}
@@ -917,11 +885,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		reason.TickAdvanced = true
 		reviews = s.stepReviews(reason)
 		started = s.clock.Now()
-		stepRequest = s.bundleRequest(reason)
-		if bundle, err = s.readStepBundle(call, stepRequest); err != nil {
+		if loaded, _, err = s.native.ReadStep(call, s.stepRead(reason)); err != nil {
 			return out, errors.Join(err, s.session.Disable())
 		}
-		if loaded = bundle.GetObserved(); loaded == nil {
+		if loaded == nil {
 			return out, errors.Join(executor.ErrHeld, s.session.Disable())
 		}
 		if err = bridge.ValidateContext(loaded.Context); err != nil {
@@ -930,40 +897,15 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	if window != nil {
 		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
-		window.view = decodePlanningWindowView(stepRequest, loaded)
 	}
 	if zones != nil {
-		zones.scope, zones.tick, zones.carried, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), loaded.Zones != nil, reviews
+		zones.scope, zones.tick, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
 	}
-	// Every full review step refreshes the mirrored entity sections (#795):
-	// delta reads over the mirror's rows, or the full section the bundle
-	// carried when none was usable (#593). The zone census refreshes here
-	// too, so its watermark stays inside the tombstone window whether or
-	// not a planner asks for it this step.
+	// Every full review step refreshes the entity sections and the zone
+	// census, each read whole.
 	if reviews {
-		carried := entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil}
-		// A native with mirror_poll brings the entity sections, the
-		// colony facts and the routine pawn detail current in one
-		// immediate poll (#795); what it did not serve is read directly.
-		if poller, ok := s.native.(MirrorPollNative); ok {
-			scope, tick := factsScope(loaded.Context), loaded.Context.GetTick()
-			want := map[facts.Section]bool{}
-			for section, isCarried := range map[facts.Section]bool{facts.Buildings: carried.buildings, facts.Bills: carried.bills, facts.Zones: carried.zones || zones == nil} {
-				if !isCarried && !(s.facts.store.Scope() == scope && s.facts.store.FreshWithin(section, tick, 0)) {
-					want[section] = true
-				}
-			}
-			var pawns []string
-			if s.reviewPawns {
-				pawns = bridge.RoutinePawnIDs(loaded)
-			}
-			carried.polled, carried.pollTried = reviewPoll(call, poller, s.facts, loaded.Context.Identity, want, pawns), true
-			if carried.polled[facts.Zones] && zones != nil {
-				zones.refreshed, zones.carried = true, false
-			}
-		}
 		if native, ok := s.native.(EntityNative); ok {
-			refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), carried)
+			refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context))
 		}
 		if zones != nil {
 			if _, err := zones.Zones(call, loaded.Context.Identity); err != nil {
@@ -1167,12 +1109,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if sel.pick == nil {
 			s.lastFull = s.clock.Now()
 		}
-		// The planners ran between the bundle and admission; MaxAge bounds
-		// the admission reads alone, so read the status and the emergency
-		// census again here, in one round trip.
+		// The planners ran between the step read and admission; MaxAge
+		// bounds the admission reads alone, so read the status and the
+		// emergency census again here.
 		if out.Routine != nil || len(out.Planners) > 0 {
 			started = s.clock.Now()
-			if loaded, err = s.readBundle(call, loaded.Context.Identity, state.Snapshot); err != nil {
+			if loaded, err = s.readStep(call, loaded.Context.Identity, state.Snapshot); err != nil {
 				return out, err
 			}
 			if status, err = s.bundleClockStatus(loaded, state.Snapshot); err != nil {
@@ -1195,7 +1137,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// file it so the store's section is the one the window was admitted
 	// against, not the review's earlier read of the same bundle.
 	colonistsComplete, colonistsKnown := emergency.Facts.ColonistsComplete.Value()
-	facts.Put(s.facts.store, factsScope(loaded.Context), facts.Emergency, facts.Held[policy.EmergencyFacts]{Value: emergency.Facts, AsOf: emergency.Context.GetTick(), Complete: colonistsKnown && colonistsComplete, Source: "rimgovernor/observations_read_bundle"})
+	facts.Put(s.facts.store, factsScope(loaded.Context), facts.Emergency, facts.Held[policy.EmergencyFacts]{Value: emergency.Facts, AsOf: emergency.Context.GetTick(), Complete: colonistsKnown && colonistsComplete, Source: "rimgovernor/observations_read_status"})
 	review, err := journalTimed(journal, func() (store.ClockReviewState, error) {
 		return s.player.journal.ReadClockReview(call, s.config.Profile)
 	})
@@ -1741,170 +1683,12 @@ func (s *ClockScheduler) previewSelection(reason StepReason) plannerSelectionRes
 	return plannerSelection(reason, s.facts.kindOf, s.queue, s.lastTick+int64(s.drift()))
 }
 
-// bundleRequest is the step's first bundle: the clock status and the
-// emergency census always, plus the routine census's families (colony
-// facts, population, research, the colonists' pawn detail) when the step
-// is expected to review, so the review costs no census round trips. The
-// expectation is the planner selection the step will make once the status
-// is read: a timer step reviews only when the full-step safety net is due
-// (a tick that moved under a stopped clock, or a stop the timer catches
-// before the poll, is the exception, read natively as before); any other
-// cause reviews, under a stopped clock or live under a running window
-// (livePlanningDue). A continuous family the facts store still holds fresh
-// under its cadence (bundleFamilies, #360) is left out: the review serves
-// it from the store. A wrong guess costs a heavier bundle or the dedicated
-// reads, never a wrong fact.
-//
-// A review step's bundle also carries the step families (#593): the
-// entity sections the refreshers would otherwise read after the bundle
-// (zones, buildings, bills, each in full when the store's row is absent
-// or stale under the expected tick), the held planning window's delta
-// since its as-of tick, and what the previous review's planners asked
-// for through the read cache (the built census, traders, world
-// progression, resource sources), so those reads are cache hits.
-//
-// A step expected to run a planner subset reads at cadence only the
-// sections its planners declare (sectionsWanted, #625): a section none of
-// them consumes rides only while the store holds nothing usable for it
-// (absent, or dropped or marked by an invalidation), and is served held
-// otherwise, however old. The colony facts always ride: they are the
-// review's identity anchor.
-func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
-	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
-	if s.stepReviews(reason) {
-		request.ColonyFacts = proto.Bool(true)
-		tick := s.lastTick + int64(s.drift())
-		wanted := s.sectionsWanted(s.previewSelection(reason).pick)
-		population, research, pawns := bundleFamilies(s.facts.store, tick, s.lastTickKnown, wanted)
-		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)
-		request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = bundleMasks()
-		s.bundleStepFamilies(request, tick, wanted)
-		// A native with mirror_poll serves the colony facts and the pawn
-		// detail through the review's poll instead (#795, reviewPoll):
-		// #773 deltas beside the entity deltas, one hop. The entity
-		// keyframes still ride here: the bundle seeds them under the
-		// full list reads' keys, which planners read too.
-		if _, ok := s.native.(MirrorPollNative); ok {
-			s.reviewPawns = pawns
-			request.ColonyFacts, request.ColonistPawns, request.ColonistPawnFields = nil, nil, nil
-		}
-	}
-	return request
-}
-
-// sectionRides reports whether a review step at tick reads section: when
-// the tick is unknown, when the store holds nothing usable for it, or
-// when a planner this step runs consumes it (wanted, nil for all) and
-// the held value is past its cadence.
-func sectionRides(store *facts.Store, section facts.Section, tick int64, known bool, wanted map[facts.Section]bool) bool {
-	if !known || !store.Held(section, tick) {
-		return true
-	}
-	return (wanted == nil || wanted[section]) && !store.Fresh(section, tick)
-}
-
-// bundleStepFamilies adds the step families to a review bundle request
-// (bundleRequest, #593).
-func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64, wanted map[facts.Section]bool) {
-	store := s.facts.store
-	stale := func(section facts.Section) bool { return sectionRides(store, section, tick, s.lastTickKnown, wanted) }
-	// A mirrored entity section rides whole only as a keyframe (#795):
-	// when none is held. Otherwise the review's refresher pulls its delta,
-	// which the native answers in full when its tombstones cannot.
-	held := store.AsOf()
-	keyframe := func(section facts.Section) bool {
-		_, ok := held[section]
-		return !s.lastTickKnown || !ok
-	}
-	_, entities := s.native.(EntityNative)
-	_, zones := s.native.(observation.ZonesNative)
-	if entities {
-		request.Buildings, request.Bills = proto.Bool(keyframe(facts.Buildings)), proto.Bool(keyframe(facts.Bills))
-	}
-	if entities || zones {
-		request.Zones = proto.Bool(keyframe(facts.Zones))
-	}
-	if _, ok := s.native.(PlanningWindowNative); ok && stale(facts.PlanningCells) {
-		request.PlanningWindowView = s.planningWindowView()
-	}
-	asks := s.facts.asks
-	if !s.lastTickKnown && asks.Empty() {
-		// No review has asked yet: the first carries the families every
-		// review's planners ask for, rather than paying them one hop each
-		// once (#593). The resources depend on the colony and wait for
-		// the planners to name them.
-		asks.BuiltBuildings, asks.Traders, asks.WorldProgression = true, true, true
-	}
-	request.BuiltBuildings, request.Traders, request.WorldProgression = proto.Bool(asks.BuiltBuildings), proto.Bool(asks.Traders), proto.Bool(asks.WorldProgression)
-	request.ResourceSources = append([]string(nil), asks.Resources...)
-}
-
-// decodePlanningWindowView decodes the view a step's bundle carried for
-// the refresher (#650); nil when none rode. A view that fails to decode
-// is logged and left unused, so the refresher reads the window natively,
-// once, as it would without one.
-func decodePlanningWindowView(request *o.BundleRequest, loaded *o.BundleSnapshot) *bridge.PlanningWindowView {
-	if loaded.PlanningWindowView == nil || request.PlanningWindowView == nil {
-		return nil
-	}
-	view, err := bridge.DecodePlanningWindowView(loaded.PlanningWindowView, request.PlanningWindowView)
-	if errors.Is(err, bridge.ErrPlanningViewPending) {
-		// The native is still capturing (#654): the window is read the
-		// usual way when it is due, and the next step asks again.
-		clockSchedulerLog("planning window view %v", err)
-		return nil
-	}
-	if err != nil {
-		clockSchedulerLog("planning window view refused: %v", err)
-		return nil
-	}
-	return &view
-}
-
-// planningWindowView is the opt-in planning window view (#650) for the
-// held window's region: nil when no window is held, the region is past
-// or the region is past the view's bound.
-func (s *ClockScheduler) planningWindowView() *o.BundlePlanningWindowViewRequest {
-	held, ok := facts.Get[observation.PlanningCells](s.facts.store, facts.PlanningCells)
-	if !ok {
-		return nil
-	}
-	return bridge.BundlePlanningWindowViewRequest(held.Value.Region)
-}
-
-// bundleMasks is the review bundle's field mask per continuous family
-// (#360): the sub-blocks the routine review decodes. The mask is the same
-// whatever planners the step selects: the review's DetectRoutine consumes
-// every decoded block, so a family that rides always rides whole; a
-// planner subset narrows which families ride instead (bundleFamilies,
-// #625), serving the rest held. Each mask is an empty message: present, so native drops
-// the blocks the controller never reads (gear detail, inventory,
-// capacities, surgery bills, relations; owned beds, nutrition, supported
-// interactions; research unlocks, costs, facilities). Traits and backstory
-// (the ages) ride: the work and schedule planners build the pawn profile
-// from them (observation.routine_work), and stripped they read as a
-// colonist with no traits. A native that predates the masks returns the
-// whole family; the decoders read the same fields either way.
-func bundleMasks() (*o.PawnFields, *o.PopulationFields, *o.ResearchFields) {
-	return bundlePawnMask(), &o.PopulationFields{}, &o.ResearchFields{}
-}
-
-// bundlePawnMask is the colonist mask every bundle read carries, the
-// admission warm read included, since it seeds the same rows.
-func bundlePawnMask() *o.PawnFields {
-	return &o.PawnFields{IncludeTraits: proto.Bool(true), IncludeBackstory: proto.Bool(true)}
-}
-
-// bundleFamilies decides which continuous families ride a review step's
-// bundle: a family whose section the store holds fresh at tick, the tick
-// the step is expected to observe (the previous status tick plus the
-// running window's drift, so the guess errs on the later side), is served
-// by the review from the store and stays out; every family rides when the
-// tick is unknown (the first step) or the section is stale or absent. A
-// section no selected planner consumes (wanted, nil for all) is served
-// held past its cadence too (sectionRides, #625).
-func bundleFamilies(store *facts.Store, tick int64, known bool, wanted map[facts.Section]bool) (population, research, pawns bool) {
-	return sectionRides(store, facts.Population, tick, known, wanted), sectionRides(store, facts.Research, tick, known, wanted), sectionRides(store, facts.Pawns, tick, known, wanted)
+// stepRead is the step's opening read: the clock status and the emergency
+// census always. The review's census families, entity sections and
+// planning window come from the snapshot stream as the planners read them
+// (#858).
+func (s *ClockScheduler) stepRead(reason StepReason) bridge.StepRequest {
+	return bridge.StepRequest{ClockStatus: true, Emergency: true}
 }
 
 // stepReviews is whether a step taken for reason is expected to run the
@@ -1937,15 +1721,13 @@ func plannerRefusalWait(failures []error) uint32 {
 	return 0
 }
 
-// readBundle re-reads the step's bundle (clock status and emergency census)
-// under the identity the step observed, validated against the enabled
-// snapshot.
-func (s *ClockScheduler) readBundle(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (*o.BundleSnapshot, error) {
-	reply, _, err := s.native.ReadBundle(call, &o.BundleRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)})
+// readStep re-reads the step's clock status and emergency census under
+// the identity the step observed, validated against the enabled snapshot.
+func (s *ClockScheduler) readStep(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (*o.BundleSnapshot, error) {
+	loaded, _, err := s.native.ReadStep(call, bridge.StepRequest{Identity: proto.Clone(identity).(*c.Identity), ClockStatus: true, Emergency: true})
 	if err != nil {
 		return nil, err
 	}
-	loaded := reply.GetObserved()
 	if loaded == nil {
 		return nil, executor.ErrHeld
 	}
@@ -1955,7 +1737,7 @@ func (s *ClockScheduler) readBundle(call context.Context, identity *c.Identity, 
 	return loaded, nil
 }
 
-// bundleClockStatus validates a bundle's clock status section under the
+// bundleClockStatus validates a step read's clock status section under the
 // enabled snapshot.
 func (s *ClockScheduler) bundleClockStatus(loaded *o.BundleSnapshot, snapshot domain.GenerationSnapshot) (*k.Status, error) {
 	status := loaded.GetClockStatus()
@@ -2246,7 +2028,7 @@ func clockPlayerRunning(status *k.Status) bool {
 	return status.GetStopped() != nil && status.ActualPaused != nil && !status.GetActualPaused()
 }
 
-// playerDriven reports whether the bundle just read shows the player
+// playerDriven reports whether the step read just taken shows the player
 // running the game under a stopped clock this process no longer owes: the
 // status is stopped and not actually paused, the tick moved on since the
 // previous step's (a first step, with no previous tick, waits for the

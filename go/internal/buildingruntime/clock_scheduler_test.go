@@ -22,15 +22,12 @@ import (
 type schedulerNative struct {
 	*clockCoreFake
 	emergency policy.EmergencyFacts
-	// caches records the step read cache each bundle read's context carried.
-	caches []*bridge.StepReadCache
 }
 
-// ReadBundle answers what the fake's Tick, ReadClockStatus and
+// ReadStep answers what the fake's Tick, ReadClockStatus and
 // ReadEmergency answer, from one call (issue #127).
-func (f *schedulerNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
-	f.caches = append(f.caches, bridge.StepReadCacheFrom(ctx))
-	return composeBundle(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency})
+func (f *schedulerNative) ReadStep(ctx context.Context, request bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
+	return composeStep(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency})
 }
 
 func (f *schedulerNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -95,21 +92,6 @@ func TestClockSchedulerStartsOnceAndLeavesRunningEpoch(t *testing.T) {
 	}
 }
 
-// TestClockSchedulerReadsThroughAFreshCachePerStep: every native read a
-// step issues carries the step's read cache (the planners' shared
-// same-tick memo, issue #74), and no cache outlives its step.
-func TestClockSchedulerReadsThroughAFreshCachePerStep(t *testing.T) {
-	t.Parallel()
-	s, f := schedulerFixture(t)
-	for i := 0; i < 2; i++ {
-		if _, err := s.Step(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if len(f.caches) != 2 || f.caches[0] == nil || f.caches[1] == nil || f.caches[0] == f.caches[1] {
-		t.Fatalf("bundle reads carried caches %v", f.caches)
-	}
-}
 func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)

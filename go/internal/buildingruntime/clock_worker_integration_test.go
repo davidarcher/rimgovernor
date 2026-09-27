@@ -6,7 +6,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"sync"
@@ -56,15 +55,11 @@ func (f *joinedClockNative) ReadEmergency(ctx context.Context, id *c.Identity) (
 	return f.source.ReadEmergency(ctx, id)
 }
 
-// ReadBundle composes the joined reads; each part counts as its own call.
-func (f *joinedClockNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
-	return composeBundle(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency})
+// ReadStep composes the joined reads; each part counts as its own call.
+func (f *joinedClockNative) ReadStep(ctx context.Context, request bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
+	return composeStep(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency})
 }
 
-// MirrorPoll composes the journal page the same way.
-func (f *joinedClockNative) MirrorPoll(ctx context.Context, request *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
-	return composeMirrorPoll(ctx, request, bundleParts{tick: f.Tick, events: f.ReadClockEvents})
-}
 func (f *joinedClockNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlReply, bridge.Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

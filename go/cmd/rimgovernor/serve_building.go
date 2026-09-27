@@ -963,10 +963,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// One wake signal joins the clock poll loop to the step loop and the
 	// worker: committed journal evidence steps both at once.
 	wake := buildingruntime.NewWakeSignal()
-	// One fact cache joins them too: the planners read facts across steps
-	// from it and the worker's writes discard what they make stale.
-	facts := bridge.NewFactCache()
-	// The decoded state store beside it (#354): the scheduler's reviews
+	// The decoded state store (#354): the scheduler's reviews
 	// file their census sections, /api/routines reports them.
 	var sections *factsstore.Store
 	var advanced, windowRunning = func() {}, func() bool { return false }
@@ -974,7 +971,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var validity func() (domain.ReadValidity, bool)
 	if config.clockControl {
 		sections = factsstore.NewStore()
-		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, facts, sections)
+		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, sections)
 		if err != nil {
 			return err
 		}
@@ -985,7 +982,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	previews, _ := client.native.(buildingruntime.BuildingPreviewSource)
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Previews: previews, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity,
 	}, player, session)
 	if err != nil {
 		return err
@@ -995,11 +992,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if _, err = rand.Read(entropy[:]); err != nil {
 		return err
 	}
-	var readSource observation.Source = client.reads
-	if config.clockControl {
-		readSource = factTickSource{Source: client.reads, facts: facts, maxAge: config.refresh, now: time.Now}
-	}
-	reads, err := newReadState(hex.EncodeToString(entropy[:]), readSource, wallClock{}, 2*config.refresh+config.bridge.Timeout)
+	reads, err := newReadState(hex.EncodeToString(entropy[:]), client.reads, wallClock{}, 2*config.refresh+config.bridge.Timeout)
 	if err != nil {
 		return err
 	}

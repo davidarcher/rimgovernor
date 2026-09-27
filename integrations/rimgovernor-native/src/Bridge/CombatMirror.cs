@@ -12,32 +12,32 @@ using Verse.AI.Group;
 using Clock = RimGovernor.Protocol.Clock;
 using Common = RimGovernor.Protocol.Common;
 using Mirror = RimGovernor.Protocol.Mirror;
+using Observations = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The combat mirror sections (#851): SECTION_COMBAT_PAWNS and
-    /// SECTION_COMBAT_EVENTS of rimgovernor/mirror_poll.
+    /// Combat state for the snapshot stream (#851, #858): the combat_pawns
+    /// and combat_events sections of every frame.
     ///
-    /// Combat is active while the last poll saw a hostile on the map or a
+    /// Combat is active while the last capture saw a hostile on the map or a
     /// combat clock epoch runs. Only then do the hooks here do anything past
     /// one static read: a hook that changes a pawn's decision facts (job,
-    /// stance, draft, fire mode, equipment) marks the section dirty so the
-    /// next poll compares at once; a hook that is an event appends a row to
-    /// the event ring at a fresh (tick, seq) mark and stamps the pawns it
-    /// concerns with that mark, so their row change and the event share a
-    /// watermark. The #849 stop hooks (Supervisor) feed the ring through
-    /// Record. The pawn rows are projected at poll time and compared by
-    /// digest (EntityTracking); the sampled fields are thresholded in the
-    /// projection so noise does not change a row.
+    /// stance, draft, fire mode, equipment) marks the state dirty so the
+    /// stream captures sooner (MinCombatCompareTicks); a hook that is an
+    /// event appends a row to the event ring at a fresh (tick, seq) mark and
+    /// stamps the pawns it concerns with that mark, so their row change and
+    /// the event share a watermark. The #849 stop hooks (Supervisor) feed the
+    /// ring through Record. The pawn rows are projected at capture time and
+    /// compared with the previous capture's; the sampled fields are
+    /// thresholded in the projection so noise does not change a row.
     /// </summary>
     internal static class CombatMirror
     {
-        internal const string PawnsShape = "rimgovernor/mirror_poll|combat_pawns";
-        /// A clean combat pawns section is compared at most this often on a
-        /// running game (a dirty one every poll): half a game second.
+        /// While combat is dirty the stream captures at most this often on a
+        /// running game: half a game second.
         internal const int MinCombatCompareTicks = 30;
-        /// The event ring's size; a keyframe carries it whole.
+        /// The event ring's size; every frame carries it whole.
         internal const int RingSize = 1024;
 
         private static volatile bool _active;
@@ -45,15 +45,34 @@ namespace HomeBridge.BridgeTools
         private static int _hooked;
         internal static readonly List<string> HookErrors = new List<string>();
 
-        private struct Entry { public EntityTracking.Mark Mark; public object? Game; public int MapId; public Mirror.CombatEventRow Row; }
+        /// A (tick, seq) watermark: seq orders the marks taken within a tick.
+        internal struct Mark : IComparable<Mark>
+        {
+            public int Tick;
+            public uint Seq;
+            public int CompareTo(Mark other) => Tick != other.Tick ? Tick.CompareTo(other.Tick) : Seq.CompareTo(other.Seq);
+            public Mirror.Watermark Wire() => new Mirror.Watermark { Tick = Tick, Seq = Seq };
+        }
+        private static Mark _last = new Mark { Tick = int.MinValue };
+        /// Next is a fresh mark, after every mark taken before it.
+        internal static Mark Next()
+        {
+            var tick = Find.TickManager?.TicksGame ?? 0;
+            _last = tick == _last.Tick ? new Mark { Tick = tick, Seq = _last.Seq + 1 } : new Mark { Tick = tick };
+            return _last;
+        }
+
+        private struct Entry { public Mark Mark; public object? Game; public int MapId; public Mirror.CombatEventRow Row; }
         private static readonly List<Entry> Ring = new List<Entry>();
-        private static EntityTracking.Mark _droppedThrough = new EntityTracking.Mark { Tick = int.MinValue };
-        // The event mark per pawn since its row was last compared: the newest
-        // event of the highest rank, a downing or death (2) over another stop
-        // kind (1) over the rest (0), so a downing inside a damage call keeps
-        // the downing's mark.
-        private static readonly Dictionary<int, (EntityTracking.Mark Mark, int Rank)> Stamped = new Dictionary<int, (EntityTracking.Mark, int)>();
-        private static void Stamp(Thing? thing, EntityTracking.Mark mark, int rank)
+        // The event mark per pawn since the last capture: the newest event of
+        // the highest rank, a downing or death (2) over another stop kind (1)
+        // over the rest (0), so a downing inside a damage call keeps the
+        // downing's mark.
+        private static readonly Dictionary<int, (Mark Mark, int Rank)> Stamped = new Dictionary<int, (Mark, int)>();
+        // Each pawn row as last captured (without its changed mark) and the
+        // mark of its last change, keyed by load id.
+        private static readonly Dictionary<string, (Mirror.CombatPawn Row, Mark Changed)> Captured = new Dictionary<string, (Mirror.CombatPawn, Mark)>();
+        private static void Stamp(Thing? thing, Mark mark, int rank)
         {
             if (!(thing is Pawn pawn)) return;
             if (Stamped.TryGetValue(pawn.thingIDNumber, out var held) && held.Rank > rank) return;
@@ -148,7 +167,7 @@ namespace HomeBridge.BridgeTools
             {
                 var map = thing?.MapHeld ?? other?.MapHeld;
                 if (map == null) return;
-                var mark = EntityTracking.Next();
+                var mark = Next();
                 var row = new Mirror.CombatEventRow { At = new Mirror.Watermark { Tick = mark.Tick, Seq = mark.Seq }, Kind = kind };
                 if (stop != Clock.CombatEvent.Unspecified) row.Stop = stop;
                 if (thing != null) row.ThingId = LoadId(thing);
@@ -160,11 +179,7 @@ namespace HomeBridge.BridgeTools
                 var at = cell ?? thing?.PositionHeld ?? other?.PositionHeld;
                 if (at.HasValue && at.Value.IsValid) row.Cell = new Common.Cell { X = at.Value.x, Z = at.Value.z };
                 Ring.Add(new Entry { Mark = mark, Game = Verse.Current.Game, MapId = map.uniqueID, Row = row });
-                if (Ring.Count > RingSize)
-                {
-                    _droppedThrough = Ring[0].Mark;
-                    Ring.RemoveAt(0);
-                }
+                if (Ring.Count > RingSize) Ring.RemoveAt(0);
                 Stamp(thing, mark, kind == Mirror.CombatLogKind.Downed || kind == Mirror.CombatLogKind.Killed ? 2 : stop != Clock.CombatEvent.Unspecified ? 1 : 0);
                 Stamp(other, mark, 0);
                 _dirty = true;
@@ -172,32 +187,18 @@ namespace HomeBridge.BridgeTools
             catch { }
         }
 
-        // The events section: a keyframe of the ring on this map, or the rows
-        // after since while the ring still reaches it.
-        internal static Mirror.SectionPage Events(Map map, EntityTracking.Mark? since)
+        /// Capture fills a frame's combat sections on the game thread: every
+        /// colonist, hostile and colony animal while combat is active (a
+        /// spawned, undowned hostile sets it), and the event ring on this
+        /// map, oldest first. A pawn row's changed mark is the event that
+        /// last concerned it (a downing outranks the damage around it), else
+        /// the capture that first saw its current row.
+        internal static void Capture(Map map, Observations.BundleSnapshot frame)
         {
             // A load or lab restart sets the game's tick back: events stamped
             // past it belong to the earlier timeline.
             var now = Find.TickManager.TicksGame;
             Ring.RemoveAll(e => e.Mark.Tick > now || !ReferenceEquals(e.Game, Verse.Current.Game));
-            if (_droppedThrough.Tick > now) _droppedThrough = new EntityTracking.Mark { Tick = int.MinValue };
-            var page = new Mirror.SectionPage { Section = Mirror.Section.CombatEvents };
-            if (since == null || since.Value.CompareTo(_droppedThrough) < 0)
-            {
-                page.Keyframe = new Mirror.Keyframe();
-                page.Keyframe.CombatEvents.AddRange(Ring.Where(e => e.MapId == map.uniqueID).Select(e => e.Row.Clone()));
-                return page;
-            }
-            page.Delta = new Mirror.Delta { From = new Mirror.Watermark { Tick = since.Value.Tick, Seq = since.Value.Seq } };
-            page.Delta.CombatEvents.AddRange(Ring.Where(e => e.MapId == map.uniqueID && e.Mark.CompareTo(since.Value) > 0).Select(e => e.Row.Clone()));
-            return page;
-        }
-
-        // The pawns section: every colonist, hostile and colony animal while
-        // combat is active (the poll's hostile sighting sets it), noted into
-        // the tracker, as a keyframe or the rows changed after since.
-        internal static Mirror.SectionPage Pawns(Map map, Mirror.SectionAsk ask, EntityTracking.Mark? since)
-        {
             var hostile = false;
             var pawns = new List<(Pawn pawn, Mirror.CombatSide side)>();
             foreach (var p in map.mapPawns.AllPawnsSpawned)
@@ -210,36 +211,30 @@ namespace HomeBridge.BridgeTools
                 pawns.Add((p, side));
             }
             _active = hostile;
-            if (!Active) pawns.Clear();
-            var tracking = EntityTracking.For(map, PawnsShape);
-            var rows = new List<Mirror.CombatPawn>(pawns.Count);
+            _dirty = false;
+            if (!Active)
+            {
+                Stamped.Clear();
+                Captured.Clear();
+                return;
+            }
+            Mark? capture = null;
+            var seen = new HashSet<string>();
             foreach (var (pawn, side) in pawns)
             {
                 var row = Project(pawn, side);
-                tracking.Note(row.Id, row, Stamped.TryGetValue(pawn.thingIDNumber, out var stamp) ? stamp.Mark : (EntityTracking.Mark?)null);
-                var changed = tracking.Changed(row.Id);
-                if (changed.HasValue) row.Changed = new Mirror.Watermark { Tick = changed.Value.Tick, Seq = changed.Value.Seq };
-                rows.Add(row);
+                seen.Add(row.Id);
+                Mark changed;
+                if (Stamped.TryGetValue(pawn.thingIDNumber, out var stamp)) changed = stamp.Mark;
+                else if (Captured.TryGetValue(row.Id, out var held) && held.Row.Equals(row)) changed = held.Changed;
+                else changed = capture ??= Next();
+                Captured[row.Id] = (row.Clone(), changed);
+                row.Changed = changed.Wire();
+                frame.CombatPawns.Add(row);
             }
-            tracking.Sweep(new HashSet<string>(rows.Select(r => r.Id)));
+            foreach (var id in Captured.Keys.Where(id => !seen.Contains(id)).ToList()) Captured.Remove(id);
             Stamped.Clear();
-            _dirty = false;
-            var page = new Mirror.SectionPage { Section = Mirror.Section.CombatPawns };
-            if (since == null || !tracking.Covers(since.Value.Tick))
-            {
-                page.Keyframe = new Mirror.Keyframe();
-                page.Keyframe.CombatPawns.AddRange(rows);
-                return page;
-            }
-            page.Delta = new Mirror.Delta { From = new Mirror.Watermark { Tick = since.Value.Tick, Seq = since.Value.Seq } };
-            page.Delta.CombatPawns.AddRange(rows.Where(r => tracking.ChangedAfter(r.Id, since.Value)));
-            page.Delta.Tombstones.AddRange(tracking.RemovedAfter(since.Value));
-            if (ask.Resync)
-            {
-                page.Resync = new Mirror.Keyframe();
-                page.Resync.CombatPawns.AddRange(rows);
-            }
-            return page;
+            frame.CombatEvents.AddRange(Ring.Where(e => e.MapId == map.uniqueID).Select(e => e.Row.Clone()));
         }
 
         private static double Step(double value, double step) => Math.Round(value / step) * step;
@@ -354,7 +349,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!Active) return;
             var wearer = (__instance.parent as Apparel)?.Wearer;
-            if (wearer != null) { _dirty = true; Stamp(wearer, EntityTracking.Next(), 0); }
+            if (wearer != null) { _dirty = true; Stamp(wearer, Next(), 0); }
         }
 
         /// The raid strategy a lord is running, by its lord job: a siege, or

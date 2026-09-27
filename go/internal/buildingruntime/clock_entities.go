@@ -14,12 +14,9 @@ import (
 
 // EntityNative is the optional native side of the entity sections
 // (bridge.Client.ReadZones, ReadBuildings, ReadBillStacks): a scheduler
-// whose native lacks them holds no zones, buildings or bills section. The
-// zones since tick asks for a delta over a held section (#358); buildings
-// and bills are read in full only as the bundle's keyframe, and kept
-// current through mirror_poll (#795).
+// whose native lacks them holds no zones, buildings or bills section.
 type EntityNative interface {
-	ReadZones(context.Context, *c.Identity, int64) (bridge.EntityRows[*o.ZoneState], bridge.Result, error)
+	ReadZones(context.Context, *c.Identity) (bridge.EntityRows[*o.ZoneState], bridge.Result, error)
 	ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error)
 	ReadBillStacks(context.Context, *c.Identity) (bridge.EntityRows[*o.BillStack], bridge.Result, error)
 }
@@ -29,109 +26,41 @@ type EntityNative interface {
 type EntitySection[T proto.Message] map[string]T
 
 // refreshEntitySections is the review step's refresher for the zones,
-// buildings and bills sections (#358), mirrored (#795). It runs once per
-// full review step after the bundle has fixed the step's scope and tick.
-// A section the bundle carried in full (#593: none is held) is filed as
-// that keyframe. Zones are otherwise refreshed through the mirror, a delta
-// since its watermark merged by id with removed ids dropped (replaced
-// outright when the native answers the ask in full because its one-day
-// tombstones no longer reach it), with the mirror's resync backstop
-// compared and logged as `[facts] <section> resync drift=<n>`. Buildings
-// and bills are brought current in one immediate mirror poll over the
-// mirror's watermarks, unless the poll loop already filed them at this
-// tick. A section already complete through the step's tick is left alone.
-// A failed read keeps the held section: a plan may reason over stale
-// state, apply refuses stale intent.
-func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFacts, identity *c.Identity, scope facts.Scope, tick int64, carried entitySectionsCarried) {
+// buildings and bills sections (#358). It runs once per full review step
+// after the bundle has fixed the step's scope, and reads each section
+// whole: the snapshot stream's frame serves them. A failed read keeps the
+// held section: a plan may reason over stale state, apply refuses stale
+// intent.
+func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFacts, identity *c.Identity, scope facts.Scope) {
 	if native == nil || f == nil {
 		return
 	}
 	// The policy zone refresher owns the typed zone census when available.
 	// Do not overwrite it with a second read under a different store type.
 	if _, policyZones := native.(observation.ZonesNative); !policyZones {
-		refreshEntitySection(ctx, f, scope, identity, tick, carried.zones, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
-			rows, _, err := native.ReadZones(ctx, identity, since)
+		refreshEntitySection(f, scope, identity, facts.Zones, "rimgovernor/observations_list_zones", func() (bridge.EntityRows[*o.ZoneState], error) {
+			rows, _, err := native.ReadZones(ctx, identity)
 			return rows, err
 		})
 	}
-	if carried.buildings {
-		refreshEntitySection(ctx, f, scope, identity, tick, true, facts.Buildings, "rimgovernor/observations_list_buildings", func(int64) (bridge.EntityRows[*o.BuildingState], error) {
-			rows, _, err := native.ReadBuildings(ctx, identity)
-			return rows, err
-		})
-	}
-	if carried.bills {
-		refreshEntitySection(ctx, f, scope, identity, tick, true, facts.Bills, "rimgovernor/observations_read_bills", func(int64) (bridge.EntityRows[*o.BillStack], error) {
-			rows, _, err := native.ReadBillStacks(ctx, identity)
-			return rows, err
-		})
-	}
-	// A native with mirror_poll brings the buildings and bills sections
-	// current in one immediate poll over the mirror's watermarks (#795),
-	// unless the review's poll already ran; a section the page did not
-	// serve keeps what is held.
-	if poller, ok := native.(MirrorPollNative); ok && !carried.pollTried {
-		want := map[facts.Section]bool{}
-		for section, isCarried := range map[facts.Section]bool{facts.Buildings: carried.buildings, facts.Bills: carried.bills} {
-			if !isCarried && !(f.store.Scope() == scope && f.store.FreshWithin(section, tick, 0)) {
-				want[section] = true
-			}
-		}
-		if len(want) > 0 {
-			pollEntitySections(ctx, poller, f, identity, want)
-		}
-	}
+	refreshEntitySection(f, scope, identity, facts.Buildings, "rimgovernor/observations_list_buildings", func() (bridge.EntityRows[*o.BuildingState], error) {
+		rows, _, err := native.ReadBuildings(ctx, identity)
+		return rows, err
+	})
+	refreshEntitySection(f, scope, identity, facts.Bills, "rimgovernor/observations_read_bills", func() (bridge.EntityRows[*o.BillStack], error) {
+		rows, _, err := native.ReadBillStacks(ctx, identity)
+		return rows, err
+	})
 }
 
-// entitySectionsCarried names the entity sections the step's bundle
-// carried in full (#593).
-type entitySectionsCarried struct {
-	zones, buildings, bills bool
-	// polled are the sections the step's review poll served; pollTried
-	// is set once it ran, so the refresher does not poll again.
-	polled    map[facts.Section]bool
-	pollTried bool
-}
-
-func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, identity *c.Identity, tick int64, carried bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
-	store := f.store
-	held, ok := facts.Get[EntitySection[T]](store, section)
-	ok = ok && store.Scope() == scope
-	if ok && !carried && store.FreshWithin(section, tick, 0) {
-		return
-	}
-	put := func(rows map[string]T, asOf int64) {
-		facts.Put(store, scope, section, facts.Held[EntitySection[T]]{Value: rows, AsOf: asOf, Complete: true, Source: source})
-	}
-	ms, name := mirrorScope(scope, identity), string(section)
-	if carried {
-		// The bundle's keyframe, seeded under the full read's key: a
-		// cache hit.
-		full, err := read(0)
-		if err != nil {
-			clockSchedulerLog("%s: full read failed, held=%v: %v", section, ok, err)
-			return
-		}
-		mirror.Put(f.mirror, ms, name, full.Rows, mirror.At(full.AsOf()))
-		put(full.Rows, full.AsOf())
-		return
-	}
-	if table, mirrored := mirror.Get[string, T](f.mirror, ms, name); ok && (!mirrored || table.AsOf.Before(mirror.At(held.AsOf))) {
-		mirror.Put(f.mirror, ms, name, map[string]T(held.Value), mirror.At(held.AsOf))
-	}
-	if store.ResyncDue(section) {
-		f.mirror.RequestResync(name)
-	}
-	table, out, err := mirror.Refresh(ctx, f.mirror, ms, tick, entityMirror[T]{section: section, read: read})
-	mirrorEvent(ctx, section, out)
+func refreshEntitySection[T proto.Message](f *clockFacts, scope facts.Scope, identity *c.Identity, section facts.Section, source string, read func() (bridge.EntityRows[T], error)) {
+	full, err := read()
 	if err != nil {
-		if out.Kind != mirror.Delta {
-			clockSchedulerLog("%s: read failed, held=%v, serving it as of %d: %v", section, ok, held.AsOf, err)
-			return
-		}
-		clockSchedulerLog("%s: resync read failed, keeping the delta as of %d: %v", section, table.AsOf.Tick, err)
+		clockSchedulerLog("%s: read failed, keeping the held section: %v", section, err)
+		return
 	}
-	put(table.Rows, table.AsOf.Tick)
+	mirror.Put(f.mirror, mirrorScope(scope, identity), string(section), full.Rows, mirror.At(full.AsOf()))
+	facts.Put(f.store, scope, section, facts.Held[EntitySection[T]]{Value: full.Rows, AsOf: full.AsOf(), Complete: true, Source: source})
 }
 
 // entitySectionsAsOf adds the held entity sections' as-of ticks to a

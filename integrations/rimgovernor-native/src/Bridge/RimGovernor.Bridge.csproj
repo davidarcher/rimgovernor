@@ -99,7 +99,6 @@
     <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SubdueFixture.cs" Condition="'$(SubdueFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/CellsFixture.cs" Condition="'$(CellsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CleanlinessFixture.cs" Condition="'$(CleanlinessFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ConditionFixture.cs" Condition="'$(ConditionFixture)' == 'true'" />

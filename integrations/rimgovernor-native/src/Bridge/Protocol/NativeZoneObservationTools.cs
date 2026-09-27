@@ -45,18 +45,9 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                var tracking = ZoneTracking.For(map);
-                var since = parsed.HasChangedSinceTick ? parsed.ChangedSinceTick : 0;
-                // An ask the tombstones cannot answer is read in full (#795).
-                if (since > 0 && !tracking.Covers(since)) since = 0;
                 var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
                 var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                 var filtered = source.Count - matched.Count;
-                var rows = new Dictionary<Zone, Obs.ZoneState>();
-                foreach (var zone in matched) rows[zone] = Project(zone, map, context, parsed);
-                var changed = matched.Where(z => !tracking.Unchanged(z, rows[z], since)).ToList();
-                var unchanged = matched.Count - changed.Count;
-                matched = changed;
                 var seed = QuerySeed(parsed);
                 var afterCursor = matched;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
@@ -70,10 +61,9 @@ namespace HomeBridge.BridgeTools
                 var truncated = afterCursor.Count > page.Count;
                 var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(page.Count, filtered),
                     MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
-                if (since > 0) { snapshot.AsOfTick = context.Tick; snapshot.Unchanged = (uint)unchanged; snapshot.RemovedIds.Add(tracking.Removed(since)); }
                 snapshot.Completeness.Page.Complete = !truncated;
                 if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
-                foreach (var zone in page) snapshot.Zones.Add(rows[zone]);
+                foreach (var zone in page) snapshot.Zones.Add(Project(zone, map, context, parsed));
                 return new Obs.ListZonesReply { Observed = snapshot };
             }
             catch (ReadLimit errorLimit) { return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
@@ -84,10 +74,6 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, exact bounded identifiers, supported filters and page limit1..16 are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (request.HasChangedSinceTick && (request.ChangedSinceTick < 0 || request.ChangedSinceTick > Find.TickManager.TicksGame)) return false;
-            // A mutable selection could lose membership without removal.
-            // Incremental reads therefore cover the entire zone census.
-            if (request.HasChangedSinceTick && request.ChangedSinceTick > 0 && (request.Ids.Count != 0 || request.HasNameContains || request.Region != null)) return false;
             if (request.Page != null && (request.Page.HasLimit && (request.Page.Limit < 1 || request.Page.Limit > MaxPage)
                 || request.Page.HasCursor && request.Page.Cursor.Length > 4096)) return false;
             if (request.Ids.Count > MaxPage || !request.Ids.All(ProtoBoundary.IsIdentifier)
@@ -217,7 +203,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static string QuerySeed(Obs.ListZonesRequest request) => string.Join("",
-            request.NameContains ?? "", request.IncludeCells, request.IncludeContents, request.IncludeFilter, request.ChangedSinceTick,
+            request.NameContains ?? "", request.IncludeCells, request.IncludeContents, request.IncludeFilter,
             string.Join(",", request.Ids.OrderBy(s=>s,StringComparer.Ordinal)),
             request.Region == null ? "" : request.Region.Minimum.X+","+request.Region.Minimum.Z+"-"+request.Region.Maximum.X+","+request.Region.Maximum.Z);
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;

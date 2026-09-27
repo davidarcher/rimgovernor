@@ -89,5 +89,5 @@ func plagueReadback(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("read %d Plague conditions, want 2", found)
 	}
 	s.Report()["plague_readback"] = observed
-	return na.CheckCommittedSaveHeadroom(ctx, h, s.Report())
+	return nil
 }

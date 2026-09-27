@@ -17,7 +17,9 @@
 //	  0  uint64 seqlock: 2n+1 while writing, 2n once committed
 //	  8  int64  writes the frame was captured at
 //	  16 uint32 payload length
-//	  24 payload
+//	  20 uint32 capture microseconds (native game thread)
+//	  24 uint32 encode microseconds  28 uint32 write microseconds
+//	  40 payload
 package snapshotshm
 
 import (
@@ -32,9 +34,9 @@ import (
 
 const (
 	magic           = 0x53534752
-	version         = 1
+	version         = 2
 	headerBytes     = 64
-	slotHeaderBytes = 24
+	slotHeaderBytes = 40
 	// pollInterval paces Wait where the platform has no ready event, and
 	// after a spurious wake.
 	pollInterval = 2 * time.Millisecond
@@ -48,6 +50,9 @@ type Frame struct {
 	Number  uint64
 	Writes  int64 // the native write counter when the frame was captured
 	Payload []byte
+	// The native cost of the frame, in microseconds: capturing it on the
+	// game thread, encoding it, and writing it into its slot.
+	CaptureMicros, EncodeMicros, WriteMicros uint32
 }
 
 // mapping is the platform view of the ring plus its ready signal.
@@ -129,12 +134,15 @@ func (r *Reader) read(n uint64) (Frame, bool, error) {
 		}
 		return Frame{}, false, fmt.Errorf("snapshot frame %d claims %d bytes, over its %d-byte slot", n, length, r.slotBytes-slotHeaderBytes)
 	}
+	capture := binary.LittleEndian.Uint32(buf[slot+20 : slot+24])
+	encode := binary.LittleEndian.Uint32(buf[slot+24 : slot+28])
+	write := binary.LittleEndian.Uint32(buf[slot+28 : slot+32])
 	payload := make([]byte, length)
 	copy(payload, buf[slot+slotHeaderBytes:slot+slotHeaderBytes+length])
 	if r.load(slot) != before {
 		return Frame{}, false, nil
 	}
-	return Frame{Number: n, Writes: writes, Payload: payload}, true, nil
+	return Frame{Number: n, Writes: writes, Payload: payload, CaptureMicros: capture, EncodeMicros: encode, WriteMicros: write}, true, nil
 }
 
 // Wait blocks until a frame past after is committed, ctx ends or timeout

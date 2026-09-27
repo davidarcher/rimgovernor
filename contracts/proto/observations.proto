@@ -4,6 +4,7 @@ option csharp_namespace = "RimGovernor.Protocol.Observations";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb;observationspb";
 import "common.proto";
 import "clock.proto";
+import "mirror.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -12,27 +13,6 @@ import "clock.proto";
 // Native definition/enum names remain open strings, resolved by the game.
 // Reconciliation survives tick advancement and authority revocation.
 message ReadScope { rimgovernor.common.v1.Identity expected_identity = 1; }
-// Changed-since reads of whole snapshots (#773). Every colony facts, pawn
-// list and bundle reply carries delta: the watermark of this read and the
-// tracker that stamped it. A request passing both back as changed_since gets
-// a reply that omits every part unchanged since, listed in held. A held path
-// is dot-separated field numbers from the snapshot root; a segment N[key] is
-// the element of repeated field N whose key is key (its string `id`, else
-// the `id` of its first message field that has one: pawn and thing ids). A
-// held singular field or whole repeated field is absent from the reply; a
-// held element stays in place as a stub carrying only its key, so ranked
-// lists keep their native order. removed lists the keyed elements that left
-// their list since the watermark (tombstones), kept as for the entity lists
-// (#358): one game day (60000 ticks), at most 4096 per tracker. Every
-// ObservationContext inside a held part that equalled the root context then
-// equals the root context now. A reply is a delta exactly when its since is
-// set. An ask the native cannot answer (a tracker it no longer has after a
-// reload, restart or eviction; older than the tombstones reach) gets a full
-// reply inline, without since, which replaces what the caller holds (#795).
-// A watermark orders reads: the tick, then seq within that tick.
-message Watermark { optional int64 tick = 1; optional uint64 seq = 2; }
-message SectionDeltaAsk { optional string tracker = 1; Watermark since = 2; }
-message SectionDelta { optional string tracker = 1; Watermark as_of = 2; Watermark since = 3; repeated string held = 4; repeated string removed = 5; optional double digest_ms = 6; optional uint32 tracked = 7; }
 message SnapshotRef {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional string entity_id = 2;
@@ -392,8 +372,8 @@ message PawnDetails {
   // quadratic in the page and is bounded to 64 rows.
   optional bool tend = 11;
 }
-message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; SectionDelta delta = 4; }
-message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; SectionDeltaAsk changed_since = 5; }
+message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; reserved 4; }
+message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; reserved 5; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message HeldStock { EntityRef holder = 1; optional string holder_kind = 2; optional int64 units = 3; }
@@ -498,8 +478,8 @@ message PowerNetwork {
   optional bool has_source = 12; optional bool has_active_source = 13; repeated string flags = 14;
   repeated string member_ids = 15; Completeness completeness = 16;
 }
-message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4; Completeness networks_completeness = 5; repeated string removed_ids = 6; optional uint32 unchanged = 7; optional int64 as_of_tick = 8; }
-message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; rimgovernor.common.v1.PageRequest page = 11; optional int64 changed_since_tick = 12; }
+message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BuildingState buildings = 2; repeated PowerNetwork power_networks = 3; Completeness completeness = 4; Completeness networks_completeness = 5; reserved 6, 7, 8; }
+message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; rimgovernor.common.v1.PageRequest page = 11; reserved 12; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoomStat { optional string def_name = 1; optional double value = 2; optional string display = 3; optional string unit = 4; optional string cost = 5; rimgovernor.common.v1.Unavailable unavailable = 6; }
 message RoomBedMembership { BuildingState building = 1; repeated EntityRef owners = 2; repeated EntityRef users = 3; repeated EntityRef accessible_to = 4; }
@@ -530,8 +510,8 @@ message ZoneState {
   Completeness cells_completeness = 25; Completeness contents_completeness = 26; repeated ReadIssue issues = 27;
   FarmFacts farm = 28; optional bool food_storage = 29;
 }
-message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; repeated string removed_ids = 4; optional uint32 unchanged = 5; optional int64 as_of_tick = 6; SnapshotRef map_snapshot = 7; }
-message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; rimgovernor.common.v1.PageRequest page = 8; optional int64 changed_since_tick = 9; }
+message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; SnapshotRef map_snapshot = 7; reserved 4, 5, 6; }
+message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; rimgovernor.common.v1.PageRequest page = 8; reserved 9; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message DesignationState { optional string def_name = 1; TargetRef target = 2; }
 message CellThing { EntityRef thing = 1; optional string class_name = 2; optional int64 stack_count = 3; optional string stuff = 4; optional int32 hit_points = 5; optional bool forbidden = 6; repeated string owner_ids = 7; optional bool medical = 8; optional double growth = 9; optional bool harvestable_now = 10; optional string build_def_name = 11; optional bool blueprint = 12; optional bool frame = 13; }
@@ -555,8 +535,8 @@ message CellState {
   optional bool tree = 29; // Foundation field: a tree grows on the cell (#778).
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; optional bool foundation = 11; }
-message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; optional uint32 unchanged = 8; optional int64 as_of_tick = 9; CompactCells compact = 10; }
-message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle rectangle = 2; CellSelection exact_cells = 3; } CellFields fields = 4; rimgovernor.common.v1.PageRequest page = 5; optional int64 changed_since_tick = 6; optional bool compact = 7; }
+message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; CompactCells compact = 10; reserved 8, 9; }
+message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle rectangle = 2; CellSelection exact_cells = 3; } CellFields fields = 4; rimgovernor.common.v1.PageRequest page = 5; optional bool compact = 7; reserved 6; }
 // Planning fields only. One byte string per region z, x ascending. Each cell
 // starts with little-endian uint16 flags: unchanged, fogged, walkable, passable,
 // occupied, doorway, supports_light, storage_empty, indoors, polluted,
@@ -569,7 +549,7 @@ message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle recta
 // glow-table index. With foundation applied, one more byte: bit 0 supports_heavy, bit 1 resource_rock, bit 2 tree.
 // Fertility values (>0) follow flagged cells in row-major order; no quantization.
 // Cells and compact are mutually exclusive. Counts count changed cells, including
-// fogged; unchanged and as_of_tick retain the ordinary row delta semantics.
+// fogged. The unchanged flag is never set since changed-since reads were removed (#858).
 message CompactCells {
   repeated bytes rows = 1;
   repeated string strings = 2;
@@ -746,8 +726,8 @@ message WorldProgressionRequest { ReadScope scope = 1; optional bool include_sto
 message WorldProgressionReply { oneof outcome { WorldProgressionSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Mixed legacy tools get separate read requests: no action/dryRun write branch.
-message BillsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BillStack benches = 2; Completeness completeness = 3; repeated string removed_ids = 4; optional uint32 unchanged = 5; optional int64 as_of_tick = 6; }
-message BillsRequest { ReadScope scope = 1; optional string bench_id = 2; optional bool all_factions = 3; rimgovernor.common.v1.PageRequest page = 4; optional int64 changed_since_tick = 5; }
+message BillsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BillStack benches = 2; Completeness completeness = 3; reserved 4, 5, 6; }
+message BillsRequest { ReadScope scope = 1; optional string bench_id = 2; optional bool all_factions = 3; rimgovernor.common.v1.PageRequest page = 4; reserved 5; }
 message BillsReply { oneof outcome { BillsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RecipesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated RecipeState recipes = 3; Completeness completeness = 4; }
 message RecipesRequest { ReadScope scope = 1; optional string bench_id = 2; rimgovernor.common.v1.PageRequest page = 3; optional string product_def = 4; } // No bench_id: definition catalog, optionally narrowed to recipes producing product_def.
@@ -1109,11 +1089,11 @@ message ColonyFactsSnapshot {
   FoodChannelsSection food_channels = 45;
   DeepResourcesSection deep_resources = 46;
   optional uint32 fermenting_barrels = 47;
-  SectionDelta delta = 48;
+  reserved 48;
 }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
-message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; SectionDeltaAsk changed_since = 5; }
+message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; reserved 5; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
@@ -1129,27 +1109,6 @@ message ThreatsSnapshot { repeated ThreatPawn hostiles = 1; repeated ThreatPawn 
 message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; PawnSnapshot colonists = 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; }
 message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; optional bool colonist_detail = 4; optional double predator_radius = 5; rimgovernor.common.v1.PageRequest page = 6; }
 message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// ReadBundle is the scheduler's one per-step native read: the observation
-// scope ReadTick reports plus, on request, the owned clock status
-// (Clock/ReadStatus), the emergency status (ReadStatus with colonists and
-// threats, no detail, page 256) and one clock events page
-// (Clock/ReadEvents). Every section is the same read its dedicated method
-// answers, taken in one main-thread hop so all describe one tick. Without a
-// scope the bundle describes the current map; with one, a changed identity
-// is a StaleIdentity failure. An events section may long-poll like
-// ReadEvents (wait_ms 0..5000): the whole bundle is then re-read after the
-// wait, so its sections still share one hop.
-//
-// The census families a planning step reads after the bundle may ride in
-// it too: colony_facts (ReadColonyFacts, planning, no definitions, page
-// 256), population (ReadPopulation), research (ReadResearch, locked and
-// finished included, page 256) and colonist_pawns (ListPawns for the
-// emergency section's colonists, by id, dead included, with needs, health,
-// equipment, biography, animals, work and schedule detail; it requires
-// emergency). They are best effort: a family that cannot be read, or that
-// would push the reply over the envelope, is omitted rather than failing
-// the bundle, and the caller reads it on its own.
-message BundleEventsRequest { optional int64 after_cursor = 1; optional uint32 limit = 2; optional uint32 wait_ms = 3; }
 // Field masks for the bundle's continuous families (#360, the CellFields
 // pattern): an absent mask keeps the family whole, as the dedicated read
 // returns it; a present mask keeps only the sub-blocks it includes, and
@@ -1177,22 +1136,17 @@ message ResearchFields {
   optional bool include_costs = 2; // ResearchProject base_cost, apparent_cost, cost_factor, progress, progress_fraction, techprints_*
   optional bool include_facilities = 3; // ResearchProject required_facilities
 }
+// The shape of a snapshot stream frame (#858): the families it carries,
+// each the exact read its dedicated tool answers for the request shape the
+// controller issues (whole families, no field masks). Native builds it from
+// the SnapshotStreamRequest; it is never sent.
 message BundleRequest {
-  ReadScope scope = 1;
-  optional bool clock_status = 2;
+  reserved 1, 2, 4, 9, 10, 11, 20, 21;
   optional bool emergency = 3;
-  BundleEventsRequest events = 4;
   optional bool colony_facts = 5;
   optional bool population = 6;
   optional bool research = 7;
   optional bool colonist_pawns = 8;
-  PawnFields colonist_pawn_fields = 9;
-  PopulationFields population_fields = 10;
-  ResearchFields research_fields = 11;
-  // Step families (#593): the reads a review step would otherwise issue one
-  // by one after the bundle, each the exact read its dedicated tool answers
-  // and best effort like the census families (omitted when it fails or
-  // pushes the reply past the envelope; the step families drop first).
   optional bool buildings = 12;        // list_buildings: artificial, player-only, one page of 256
   optional bool built_buildings = 13;  // list_buildings: the same, statuses [built]
   optional bool bills = 14;            // read_bills: player benches, one page of 256
@@ -1201,57 +1155,18 @@ message BundleRequest {
   optional bool world_progression = 17; // read_world_progression without storage, page 256
   repeated string resource_sources = 18; // list_resource_sources per named resource, no development
   BundlePlanningWindowRequest planning_window = 19; // get_cells: the planning window's band
-  // Opt-in published planning-window view (#650), distinct from the same-tick
-  // planning_window band above; see PlanningWindowView.
-  BundlePlanningWindowViewRequest planning_window_view = 20;
-  // SectionDelta over the whole bundle (#773); events and the planning
-  // window's since tick do not shape the tracking.
-  SectionDeltaAsk changed_since = 21;
 }
 // The planning window's one get_cells band: the region (at most 65536
-// cells) with the planning fields, compact, optionally as a delta.
-message BundlePlanningWindowRequest { Rectangle region = 1; optional int64 changed_since_tick = 2; }
-// The planning-window view a bundle asks for: the region (at most 65536 cells),
-// always the planning fields (roof, visibility, traversal, zone, room, growth).
-message BundlePlanningWindowViewRequest { Rectangle region = 1; }
-// A published planning-window view (#650): an immutable native root captured
-// on the game thread and projected off it. Unlike every other bundle section it
-// does not claim to describe the bundle tick: each chunk carries its own
-// content revision, capture tick and last validation tick, and a chunk the
-// change grid shows unchanged is re-served without being read again. Contract:
-// docs/developers/contracts/planning-window-view.md.
-message PlanningWindowView {
-  rimgovernor.common.v1.ObservationContext context = 1; // the serving hop: identity and publication tick
-  MapSize map_size = 2;
-  Rectangle region = 3;
-  CellFields applied_fields = 4;     // the field-mask key
-  optional uint64 incarnation = 5;   // publisher incarnation: new on every unload and identity change
-  optional uint64 revision = 6;      // publication revision, monotonic across incarnations
-  optional int64 published_tick = 7; // tick the root was published
-  optional bool complete = 8;        // chunks tile the region's rows exactly, in order
-  repeated PlanningWindowChunk chunks = 9;
-  // Frame-budgeted capture (#654). pending is set, with no chunks and
-  // complete false, when no complete root for the region exists yet: a
-  // resumable capture is running ("capturing") or the capture queue is full
-  // ("saturated"). The caller retries on its next step or reads another way.
-  // refreshing marks a served root that a newer capture is replacing.
-  optional string pending = 10;
-  optional bool refreshing = 11;
-}
-message PlanningWindowChunk {
-  optional int32 min_z = 1;
-  optional int32 max_z = 2;
-  optional uint64 revision = 3;       // content revision: the publication that captured it
-  optional int64 captured_tick = 4;   // tick its cells were read
-  optional int64 validated_tick = 5;  // last tick the change grid confirmed them unchanged
-  CompactCells cells = 6;             // one row per z in min_z..max_z over the region's x span
-}
+// cells) with the planning fields, compact.
+message BundlePlanningWindowRequest { Rectangle region = 1; reserved 2; }
+// A snapshot stream frame, and the scheduler's step read the controller
+// composes (clock_status is set only there: frames never carry it).
 message BundleSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional bool paused = 2;
   rimgovernor.clock.v1.Status clock_status = 3;
   StatusSnapshot emergency = 4;
-  rimgovernor.clock.v1.EventsPage events = 5;
+  reserved 5, 18, 19;
   ColonyFactsSnapshot colony_facts = 6;
   PopulationSnapshot population = 7;
   ResearchSnapshot research = 8;
@@ -1264,10 +1179,14 @@ message BundleSnapshot {
   WorldProgressionSnapshot world_progression = 15;
   repeated ResourceSourcesSnapshot resource_sources = 16;
   CellsSnapshot planning_window = 17;
-  PlanningWindowView planning_window_view = 18;
-  SectionDelta delta = 19;
+  // Combat state (#851), while the map has an active hostile or a combat
+  // epoch runs, else empty: every spawned colonist, hostile and colony
+  // animal, and the native's retained event ring (the newest 1024
+  // events, oldest first). A reader merges events by their watermark, so
+  // a lapped or restarted reader resyncs from any frame.
+  repeated rimgovernor.mirror.v1.CombatPawn combat_pawns = 20;
+  repeated rimgovernor.mirror.v1.CombatEventRow combat_events = 21;
 }
-message BundleReply { oneof outcome { BundleSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;
   StatusReply status_before = 3; ListPawnsReply pawns = 4; ListSuppliesReply supplies = 5;
@@ -1306,8 +1225,8 @@ message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot
 // into a named shared-memory ring and signals a named event; this request
 // opens it (or replaces its subscription) and names the ring. A frame carries
 // every state family whole (no page caps, no field masks) plus the
-// subscription's resource sources and planning window band. Clock status and
-// events stay on ReadBundle.
+// subscription's resource sources and planning window band. Clock status
+// stays a dedicated read.
 message SnapshotStreamRequest {
   repeated string resource_sources = 1; // list_resource_sources per named resource, no development
   Rectangle planning_window = 2;        // get_cells band the frame carries, full every frame
@@ -1327,7 +1246,6 @@ service Observations {
   rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
   rpc ReadStatus(StatusRequest) returns (StatusReply);
   rpc ReadObservationBatch(ObservationBatchRequest) returns (ObservationBatchReply);
-  rpc ReadBundle(BundleRequest) returns (BundleReply);
   rpc OpenSnapshotStream(SnapshotStreamRequest) returns (SnapshotStreamReply);
   rpc ListPawns(ListPawnsRequest) returns (ListPawnsReply);
   rpc ListSupplies(ListSuppliesRequest) returns (ListSuppliesReply);

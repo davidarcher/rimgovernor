@@ -25,7 +25,7 @@ const liveStepReason = "live"
 // inner rimgovernor/* method for games_call_tool and games_tool_detail rows,
 // so describe round trips for a method appear under the same name with
 // Wrapper "games_tool_detail". CacheHits are reads of the method the
-// scheduler's per-step cache served without a round trip (bridge.StepReadCache);
+// snapshot stream served from a frame without a round trip (#858);
 // they are not counted in Calls.
 type ToolPhases struct {
 	NativeTool      string  `json:"native_tool"`
@@ -58,6 +58,42 @@ type ToolPhases struct {
 	EncodeMs        float64 `json:"encode_ms,omitempty"`
 }
 
+// SnapshotSample aggregates the "native_frame" rows (#858): one per
+// snapshot stream frame the controller decoded, with its size and the
+// native capture (game thread), encode and write costs beside the
+// controller's decode, in microseconds, summed and at most. Skipped counts
+// frames published but never read. It is what says whether whole frames
+// stay cheap enough to go without deltas.
+type SnapshotSample struct {
+	Frames    uint64 `json:"frames"`
+	Bytes     uint64 `json:"bytes"`
+	MaxBytes  uint64 `json:"max_bytes"`
+	CaptureUs uint64 `json:"capture_us"`
+	MaxCapUs  uint64 `json:"max_capture_us"`
+	EncodeUs  uint64 `json:"encode_us"`
+	MaxEncUs  uint64 `json:"max_encode_us"`
+	WriteUs   uint64 `json:"write_us"`
+	MaxWrUs   uint64 `json:"max_write_us"`
+	DecodeUs  uint64 `json:"decode_us"`
+	MaxDecUs  uint64 `json:"max_decode_us"`
+	Skipped   uint64 `json:"skipped"`
+}
+
+func (s *SnapshotSample) add(payload map[string]any) {
+	sum := func(total, top *uint64, key string) {
+		v := uint64(field(payload, key))
+		*total += v
+		*top = max(*top, v)
+	}
+	s.Frames++
+	sum(&s.Bytes, &s.MaxBytes, "bytes")
+	sum(&s.CaptureUs, &s.MaxCapUs, "capture_us")
+	sum(&s.EncodeUs, &s.MaxEncUs, "encode_us")
+	sum(&s.WriteUs, &s.MaxWrUs, "write_us")
+	sum(&s.DecodeUs, &s.MaxDecUs, "decode_us")
+	s.Skipped += uint64(field(payload, "skipped"))
+}
+
 // PhaseSummary is a read-only aggregation of one flight-recorder timeline:
 // per-tool phase totals plus the game-clock progress visible in observation
 // replies. It changes nothing in the game and needs no authority.
@@ -75,14 +111,14 @@ type PhaseSummary struct {
 	// Observation.Hops and Frames.Samples say whether anything was read.
 	Observation ObservationSample `json:"observation"`
 	Frames      FrameSample       `json:"frames"`
+	Snapshots   SnapshotSample    `json:"snapshots"`
 	FirstWall   float64           `json:"first_wall_time"`
 	LastWall    float64           `json:"last_wall_time"`
 }
 
 // StepSample aggregates the "clock_step" rows a ClockScheduler step publishes
 // from its ReadTally: how many steps the timeline covers, the native round
-// trips they issued in total and at most, the reads the step cache served
-// instead, the reads the cross-step FactCache served (ParentHits), and the
+// trips they issued in total and at most, and the
 // round trips per tool summed over all steps (divide by Steps for a
 // per-step mean), plus the colony windows the steps sized by wall time
 // (issue #126): how many steps reached the admission tail (Windows), the
@@ -97,8 +133,6 @@ type StepSample struct {
 	Steps          uint64            `json:"steps"`
 	Reads          uint64            `json:"reads"`
 	MaxReads       uint64            `json:"max_reads"`
-	CacheHits      uint64            `json:"cache_hits"`
-	ParentHits     uint64            `json:"parent_hits"`
 	Tools          map[string]uint64 `json:"tools,omitempty"`
 	Windows        uint64            `json:"windows"`
 	WindowTicks    uint64            `json:"window_ticks"`
@@ -302,7 +336,7 @@ func (c ClockSample) PausedFraction() float64 {
 }
 
 // SummarizePhases aggregates rows produced by Client (native_response,
-// native_error, native_decode, native_cache_hit). Rows recorded before phase timing existed
+// native_error, native_decode, native_frame_hit). Rows recorded before phase timing existed
 // count as Untimed and contribute only to Calls.
 func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	summary := PhaseSummary{}
@@ -411,17 +445,17 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			}
 			lastTick, tickWall, haveTick = tick, row.WallTime, true
 			summary.Clock.LastTick = tick
-		case "native_cache_hit":
+		case "native_frame_hit":
 			_, entry := phaseEntry(tools, row)
 			entry.CacheHits++
+		case "native_frame":
+			summary.Snapshots.add(row.Payload)
 		case "clock_step":
 			steps := &summary.Steps
 			steps.Steps++
 			reads := uint64(field(row.Payload, "reads"))
 			steps.Reads += reads
 			steps.MaxReads = max(steps.MaxReads, reads)
-			steps.CacheHits += uint64(field(row.Payload, "cache_hits"))
-			steps.ParentHits += uint64(field(row.Payload, "parent_hits"))
 			if ticks := uint64(field(row.Payload, "window_ticks")); ticks > 0 {
 				steps.Windows++
 				steps.WindowTicks += ticks
@@ -751,8 +785,13 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		}
 		fmt.Fprintln(w)
 	}
+	if s := summary.Snapshots; s.Frames > 0 {
+		n := float64(s.Frames)
+		fmt.Fprintf(w, "snapshot frames: %d read (%d skipped), bytes mean %.0f max %d, capture us mean %.0f max %d, encode us mean %.0f max %d, write us mean %.0f max %d, decode us mean %.0f max %d\n",
+			s.Frames, s.Skipped, float64(s.Bytes)/n, s.MaxBytes, float64(s.CaptureUs)/n, s.MaxCapUs, float64(s.EncodeUs)/n, s.MaxEncUs, float64(s.WriteUs)/n, s.MaxWrUs, float64(s.DecodeUs)/n, s.MaxDecUs)
+	}
 	if steps := summary.Steps; steps.Steps > 0 {
-		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f, parent hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps), float64(steps.ParentHits)/float64(steps.Steps))
+		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads)
 		if steps.Windows > 0 {
 			fmt.Fprintf(w, ", window ticks mean %.0f max %d over %d sized steps", float64(steps.WindowTicks)/float64(steps.Windows), steps.MaxWindowTicks, steps.Windows)
 		}

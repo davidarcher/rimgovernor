@@ -48,7 +48,7 @@ func (client *Client) ReadZoneDeleteTarget(ctx context.Context, identity *c.Iden
 	case *o.ListZonesReply_Unavailable:
 		return ZoneDeleteTarget{}, raw, unavailable(v.Unavailable, raw)
 	case *o.ListZonesReply_Observed:
-		if err = validateZonePage(v.Observed, identity, 0); err != nil {
+		if err = validateZonePage(v.Observed, identity); err != nil {
 			return ZoneDeleteTarget{}, raw, err
 		}
 	default:

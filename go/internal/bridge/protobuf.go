@@ -217,99 +217,28 @@ func nativeReadMethod(name string) bool {
 	switch name {
 	case clearanceTool, shrinesTool, "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms", "rimgovernor/observations_read_research", "rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_defense_site", "rimgovernor/observations_read_lines_of_fire", "rimgovernor/observations_read_spatial_access", "rimgovernor/observations_read_husbandry":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications", "rimgovernor/presentation_render_state":
-	case mirrorPollMethod, combatGeometryMethod:
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_trade_session", "rimgovernor/observations_list_traders", "rimgovernor/observations_read_excavation_site", "rimgovernor/observations_read_bundle", methodOpenSnapshotStream:
+	case combatGeometryMethod:
+	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_trade_session", "rimgovernor/observations_list_traders", "rimgovernor/observations_read_excavation_site", methodOpenSnapshotStream:
 	default:
 		return false
 	}
 	return true
 }
 
+// WritesPending reports whether a typed side-effect call is queued or in
+// flight on this client: the clock poll loop then polls without waiting,
+// so a command never waits behind an idle poll on a transport that
+// serializes calls.
+func (caller *Client) WritesPending() bool { return caller.writes.Load() > 0 }
+
 func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	if !nativeReadMethod(name) {
 		return Result{}, contract("unreviewed native read")
 	}
-	if caller.frameRead(ctx, name, request, reply) {
-		return Result{}, nil
+	if served, err := caller.frameRead(ctx, name, request, reply); served {
+		return Result{}, err
 	}
-	defer caller.noteFrameMiss(name, request)
-	cache := StepReadCacheFrom(ctx)
-	if cache == nil || !cacheableRead(name) {
-		return caller.readCall(ctx, name, request, reply)
-	}
-	return caller.cachedRead(ctx, cache, name, request, reply)
-}
-
-// cachedRead serves a pure observation read through the step's cache: the
-// first caller of a (method, request) pair reads natively and stores the
-// reply; identical reads in the same step, concurrent or later, decode the
-// stored bytes instead of crossing the bridge. A stored reply is decoded
-// into the caller's own message so validation downstream is unchanged.
-func (caller *Client) cachedRead(ctx context.Context, cache *StepReadCache, name string, request, reply proto.Message) (Result, error) {
-	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(request)
-	if err != nil {
-		return Result{}, contract("request encoding: %v", err)
-	}
-	key := readCacheKey{method: name, request: string(encoded)}
-	entry, leader := cache.acquire(key)
-	if !leader {
-		var payload []byte
-		var result Result
-		var ok bool
-		select {
-		case <-entry.done:
-			payload, result, ok = entry.payload, entry.result, entry.ok
-			if ok {
-				cache.hit()
-			}
-		default:
-			payload, result, ok, err = cache.wait(ctx, entry)
-			if err != nil {
-				return Result{}, err
-			}
-		}
-		if ok {
-			if err = proto.Unmarshal(payload, reply); err == nil {
-				caller.recordCacheHit(ctx, name)
-				return result, nil
-			}
-		}
-		// The leader failed or its reply was uncacheable: read natively.
-		return caller.readCall(ctx, name, request, reply)
-	}
-	if payload, result, ok := cache.fromParent(key, entry); ok {
-		if err = proto.Unmarshal(payload, reply); err == nil {
-			caller.recordCacheHit(ctx, name)
-			return result, nil
-		}
-		return Result{}, contract("cached reply decoding: %v", err)
-	}
-	result, err := caller.readCall(ctx, name, request, reply)
-	if err != nil {
-		cache.complete(key, entry, nil, nil, Result{})
-		return result, err
-	}
-	scope, ok := replyScope(reply)
-	if !ok {
-		cache.complete(key, entry, nil, nil, Result{})
-		return result, nil
-	}
-	payload, err := proto.Marshal(reply)
-	if err != nil {
-		cache.complete(key, entry, nil, nil, Result{})
-		return result, nil
-	}
-	cache.complete(key, entry, &scope, payload, result)
-	return result, nil
-}
-
-// recordCacheHit leaves a native_cache_hit row so the phases sampler can
-// show how many reads of each method the step cache absorbed.
-func (caller *Client) recordCacheHit(ctx context.Context, name string) {
-	if caller.recorder == nil {
-		return
-	}
-	caller.recorder.Event("native_cache_hit", caller.snapshotRecordingContext(ctx), false, map[string]any{"tool": "games_call_tool", "native_tool": name})
+	return caller.protoCall(ctx, name, request, reply)
 }
 
 // video and frame-acknowledge RPCs are active mutations (lease state, capture
@@ -381,8 +310,6 @@ var reviewedNativeMethods = map[string]bool{
 	"rimgovernor/lifecycle_read_save":                  true,
 	"rimgovernor/lifecycle_load":                       true,
 	"rimgovernor/lifecycle_read_load":                  true,
-	"rimgovernor/observations_read_bundle":             true,
-	mirrorPollMethod:                                   true,
 	methodOpenSnapshotStream:                           true,
 }
 
@@ -392,19 +319,11 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if !reviewedNativeMethods[name] {
 		return Result{}, contract("unreviewed native method")
 	}
-	// A write through a cached step context discards the step's memoized
-	// observations, both before it is issued and once it has landed, so a
-	// read in flight across the write is never served afterwards.
 	if !nativeReadMethod(name) {
-		// A queued write tells the mirror poll loop not to hold its
-		// next poll (#795): the nativeaccept client serializes calls.
+		// A queued write tells the clock poll loop not to hold its
+		// next poll: the nativeaccept client serializes calls.
 		caller.writes.Add(1)
 		defer caller.writes.Add(-1)
-	}
-	cache := StepReadCacheFrom(ctx)
-	if cache != nil && !nativeReadMethod(name) {
-		cache.Invalidate()
-		defer cache.Invalidate()
 	}
 	if !nativeReadMethod(name) {
 		defer caller.noteFrameWrite()

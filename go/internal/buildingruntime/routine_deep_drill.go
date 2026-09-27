@@ -199,7 +199,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	if err != nil {
 		return RoutineResourceResult{}, true, err
 	}
-	if _, err := boundary.Context(buildings.Context, state.Snapshot); err != nil || buildings.Delta || !routineCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick) {
+	if _, err := boundary.Context(buildings.Context, state.Snapshot); err != nil || !routineCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick) {
 		return RoutineResourceResult{}, true, ErrControl
 	}
 	// Any remaining drill or drill blueprint holds placement: a working drill

@@ -8,8 +8,6 @@ import (
 var serviceReads = map[string]bool{
 	"rimgovernor/lifecycle_read_identity":  true,
 	"rimgovernor/lifecycle_read_tick":      true,
-	"rimgovernor/observations_read_bundle": true,
-	"rimgovernor/mirror_poll":              true,
 	"rimgovernor/observations_read_status": true,
 }
 

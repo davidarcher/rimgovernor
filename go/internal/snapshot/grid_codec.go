@@ -1,6 +1,7 @@
-package bridge
+package snapshot
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -9,35 +10,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The planning_cells mirror section travels as a CellGrid (#795,
-// mirror.proto): one array per policy.SiteCell field over the window rect,
-// row-major. CellGrid is a grid as the client holds it, every array whole
-// and strings resolved, so a delta's arrays (whole, or sparse over the held
-// array) apply without the native's string table.
+// The grid line's decoder (grid.go holds the encoder). The recorder is the
+// CellGrid format's only reader since the frame stream replaced mirror_poll
+// (#858); both halves share gridArrays.
 
-type gridKind uint8
-
-const (
-	gridCode   gridKind = iota // presence and Fact[bool]: 0 unknown, 1 false, 2 true
-	gridNumber                 // Fact[float64]: NaN unknown
-	gridIndex                  // Fact[string]: 0 unknown, k strings[k-1]; ruin_hold 0 empty
-)
-
-// gridField is one CellGrid array: its kind, its accessor on the wire and
-// how a cell's value lands on a SiteCell.
-type gridField struct {
-	kind gridKind
-	wire func(*mp.CellGrid) *mp.FieldArray
-	set  func(*policy.SiteCell, gridValue)
-}
-
-// gridValue is one cell of one array.
-type gridValue struct {
-	code  uint8
-	num   float64
-	str   string
-	known bool // gridIndex: the string is known (index > 0)
-}
+func contract(msg string) error { return fmt.Errorf("snapshot: %s", msg) }
 
 func boolFact(v gridValue) domain.Fact[bool] {
 	if v.code == 0 {
@@ -60,64 +37,35 @@ func strFact(v gridValue) domain.Fact[string] {
 	return domain.Known(v.str)
 }
 
-// gridFields are CellGrid's arrays in field order; the first is presence.
-var gridFields = []gridField{
-	{gridCode, (*mp.CellGrid).GetCell, nil},
-	{gridCode, (*mp.CellGrid).GetWalkable, func(c *policy.SiteCell, v gridValue) { c.Walkable = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetOccupied, func(c *policy.SiteCell, v gridValue) { c.Occupied = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetZone, func(c *policy.SiteCell, v gridValue) { c.Zone = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetRoofed, func(c *policy.SiteCell, v gridValue) { c.Roofed = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetIndoors, func(c *policy.SiteCell, v gridValue) { c.Indoors = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetSupportsLight, func(c *policy.SiteCell, v gridValue) { c.SupportsLight = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetStorageEmpty, func(c *policy.SiteCell, v gridValue) { c.StorageEmpty = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetDoorway, func(c *policy.SiteCell, v gridValue) { c.Doorway = boolFact(v) }},
-	{gridNumber, (*mp.CellGrid).GetFertility, func(c *policy.SiteCell, v gridValue) { c.Fertility = numFact(v) }},
-	{gridCode, (*mp.CellGrid).GetPolluted, func(c *policy.SiteCell, v gridValue) { c.Polluted = boolFact(v) }},
-	{gridNumber, (*mp.CellGrid).GetGlow, func(c *policy.SiteCell, v gridValue) { c.Glow = numFact(v) }},
-	{gridIndex, (*mp.CellGrid).GetRoof, func(c *policy.SiteCell, v gridValue) { c.Roof = strFact(v) }},
-	{gridIndex, (*mp.CellGrid).GetZoneId, func(c *policy.SiteCell, v gridValue) { c.ZoneID = strFact(v) }},
-	{gridCode, (*mp.CellGrid).GetNaturalRock, func(c *policy.SiteCell, v gridValue) { c.NaturalRock = boolFact(v) }},
-	{gridCode, (*mp.CellGrid).GetRuin, func(c *policy.SiteCell, v gridValue) { c.Ruin = boolFact(v) }},
-	{gridIndex, (*mp.CellGrid).GetPlayerEdifice, func(c *policy.SiteCell, v gridValue) { c.PlayerEdifice = strFact(v) }},
-	{gridIndex, (*mp.CellGrid).GetClaimableRuin, func(c *policy.SiteCell, v gridValue) { c.ClaimableRuin = strFact(v) }},
-	{gridIndex, (*mp.CellGrid).GetRuinHold, func(c *policy.SiteCell, v gridValue) { c.RuinHold = v.str }},
-}
-
-// CellGrid is a planning window grid as held: the rect and every array.
-type CellGrid struct {
+// cellGrid is a grid as replay holds it: the rect and every array.
+type cellGrid struct {
 	Rect policy.Rectangle
 	cols [][]gridValue
 }
 
-// GridRect is a wire rect as a policy rectangle.
-func GridRect(r *mp.CellRect) policy.Rectangle {
-	return policy.Rectangle{X: r.GetX(), Z: r.GetZ(), Width: r.GetWidth(), Height: r.GetHeight()}
-}
-
-// WireRect is a policy rectangle as a wire rect.
-func WireRect(r policy.Rectangle) *mp.CellRect {
+func wireRect(r policy.Rectangle) *mp.CellRect {
 	return &mp.CellRect{X: proto.Int32(r.X), Z: proto.Int32(r.Z), Width: proto.Int32(r.Width), Height: proto.Int32(r.Height)}
 }
 
 func validGridRect(r *mp.CellRect) bool {
-	return r != nil && r.X != nil && r.Z != nil && r.GetX() >= 0 && r.GetZ() >= 0 && r.GetWidth() >= 1 && r.GetHeight() >= 1 && int64(r.GetWidth())*int64(r.GetHeight()) <= planningWindowPage
+	return r != nil && r.X != nil && r.Z != nil && r.GetX() >= 0 && r.GetZ() >= 0 && r.GetWidth() >= 1 && r.GetHeight() >= 1 && int64(r.GetWidth())*int64(r.GetHeight()) <= 1<<16
 }
 
-// ApplyCellGrid lays a wire grid over held: a keyframe (held ignored)
+// applyCellGrid lays a wire grid over held: a keyframe (held ignored)
 // must carry every array, a delta only the changed ones on held's rect.
 // Sparse arrays apply over the sentinel array in a keyframe and over
 // held's in a delta.
-func ApplyCellGrid(held *CellGrid, key bool, g *mp.CellGrid) (*CellGrid, error) {
+func applyCellGrid(held *cellGrid, key bool, g *mp.CellGrid) (*cellGrid, error) {
 	if g == nil || !validGridRect(g.Rect) {
 		return nil, contract("mirror cell grid rect")
 	}
-	rect := GridRect(g.Rect)
+	rect := policy.Rectangle{X: g.Rect.GetX(), Z: g.Rect.GetZ(), Width: g.Rect.GetWidth(), Height: g.Rect.GetHeight()}
 	if !key && (held == nil || held.Rect != rect) {
 		return nil, contract("mirror cell grid delta off the held rect")
 	}
 	n := int(rect.Width) * int(rect.Height)
-	out := &CellGrid{Rect: rect, cols: make([][]gridValue, len(gridFields))}
-	for i, field := range gridFields {
+	out := &cellGrid{Rect: rect, cols: make([][]gridValue, len(gridArrays))}
+	for i, field := range gridArrays {
 		array := field.wire(g)
 		var base []gridValue
 		if !key {
@@ -236,19 +184,8 @@ func gridColumn(kind gridKind, array *mp.FieldArray, base []gridValue, n int, st
 	return col, nil
 }
 
-// GridArrays counts the arrays a wire grid carries.
-func GridArrays(g *mp.CellGrid) int {
-	n := 0
-	for _, field := range gridFields {
-		if g != nil && field.wire(g) != nil {
-			n++
-		}
-	}
-	return n
-}
-
 // Cells are the grid's held cells as site cells, row-major.
-func (g *CellGrid) Cells() []policy.SiteCell {
+func (g *cellGrid) Cells() []policy.SiteCell {
 	if g == nil {
 		return nil
 	}
@@ -258,7 +195,7 @@ func (g *CellGrid) Cells() []policy.SiteCell {
 			continue
 		}
 		cell := policy.SiteCell{Cell: domain.Cell{X: g.Rect.X + int32(j%int(g.Rect.Width)), Z: g.Rect.Z + int32(j/int(g.Rect.Width))}}
-		for i, field := range gridFields[1:] {
+		for i, field := range gridArrays[1:] {
 			field.set(&cell, g.cols[i+1][j])
 		}
 		out = append(out, cell)

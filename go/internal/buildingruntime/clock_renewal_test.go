@@ -111,8 +111,8 @@ func (n *renewalBoundaryNative) ReadClockStatus(ctx context.Context, id *c.Ident
 	return n.schedulerNative.ReadClockStatus(ctx, id)
 }
 
-func (n *renewalBoundaryNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
-	return composeBundle(ctx, request, bundleParts{tick: n.Tick, status: n.ReadClockStatus, emergency: n.ReadEmergency})
+func (n *renewalBoundaryNative) ReadStep(ctx context.Context, request bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
+	return composeStep(ctx, request, bundleParts{tick: n.Tick, status: n.ReadClockStatus, emergency: n.ReadEmergency})
 }
 
 func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {

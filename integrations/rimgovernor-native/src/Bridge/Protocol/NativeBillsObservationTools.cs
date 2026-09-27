@@ -53,14 +53,9 @@ namespace HomeBridge.BridgeTools
                 var benches = Benches(map, parsed.AllFactions);
                 if (parsed.HasBenchId) benches = benches.Where(b => b.GetUniqueLoadID() == parsed.BenchId).ToList();
                 var seed = "bills" + parsed.AllFactions + (parsed.HasBenchId ? parsed.BenchId : "");
-                // Entity tracking (issue #358) follows every read of all
-                // benches: a full one primes the shadow and sweeps the
-                // removed, and mirror_poll asks it for the changed (#795).
-                var tracking = parsed.HasBenchId ? null : EntityTracking.For(map, BillsToolName + parsed.AllFactions);
                 var snapshot = new Obs.BillsSnapshot { Context = context };
                 var rows = new Dictionary<string, Obs.BillStack>();
                 var listed = benches;
-                tracking?.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
                 var afterCursor = listed;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                 {
@@ -78,7 +73,7 @@ namespace HomeBridge.BridgeTools
                 snapshot.Completeness = completeness;
                 foreach (var bench in page)
                 {
-                    if (!rows.TryGetValue(bench.GetUniqueLoadID(), out var row)) { row = Stack(bench, map, context); tracking?.Note(bench.GetUniqueLoadID(), row); }
+                    if (!rows.TryGetValue(bench.GetUniqueLoadID(), out var row)) { row = Stack(bench, map, context); }
                     snapshot.Benches.Add(row);
                 }
                 return new Obs.BillsReply { Observed = snapshot };
@@ -136,11 +131,6 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional bench id and page limit 1..256 are required.");
             if (request?.Scope?.ExpectedIdentity == null || !Page(request.Page) || request.HasBenchId && !ProtoBoundary.IsIdentifier(request.BenchId)) return false;
-            if (request.HasChangedSinceTick)
-            {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick is retired; bills deltas ride mirror_poll.");
-                return false;
-            }
             return true;
         }
 

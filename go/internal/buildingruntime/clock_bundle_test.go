@@ -10,13 +10,12 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-// bundleParts are the dedicated reads a fake bundle or mirror poll is
-// composed from, so a fake's ReadBundle and MirrorPoll answer exactly what
+// bundleParts are the dedicated reads a fake step read is
+// composed from, so a fake's ReadStep answers exactly what
 // its Tick, ReadClockStatus, ReadEmergency and ReadClockEvents answer
 // (issue #127). A nil part leaves
 // its section out of the fake's repertoire: a request for it is an error.
@@ -27,7 +26,7 @@ type bundleParts struct {
 	events    func(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error)
 }
 
-func composeBundle(ctx context.Context, request *o.BundleRequest, parts bundleParts) (*o.BundleReply, bridge.Result, error) {
+func composeStep(ctx context.Context, request bridge.StepRequest, parts bundleParts) (*o.BundleSnapshot, bridge.Result, error) {
 	tick, raw, err := parts.tick(ctx)
 	if err != nil {
 		return nil, raw, err
@@ -36,7 +35,7 @@ func composeBundle(ctx context.Context, request *o.BundleRequest, parts bundlePa
 	if loaded == nil {
 		return nil, raw, errors.New("bundle: tick not loaded")
 	}
-	if request.Scope != nil && !proto.Equal(request.Scope.ExpectedIdentity, loaded.Context.Identity) {
+	if request.Identity != nil && !proto.Equal(request.Identity, loaded.Context.Identity) {
 		return nil, raw, bridge.ErrRefused
 	}
 	paused := loaded.Paused
@@ -44,7 +43,7 @@ func composeBundle(ctx context.Context, request *o.BundleRequest, parts bundlePa
 		paused = proto.Bool(false)
 	}
 	observed := &o.BundleSnapshot{Context: proto.Clone(loaded.Context).(*c.ObservationContext), Paused: paused}
-	if request.GetClockStatus() {
+	if request.ClockStatus {
 		if parts.status == nil {
 			return nil, raw, errors.New("bundle: clock status not served")
 		}
@@ -58,7 +57,7 @@ func composeBundle(ctx context.Context, request *o.BundleRequest, parts bundlePa
 		}
 		observed.Paused = proto.Bool(observed.ClockStatus.GetActualPaused())
 	}
-	if request.GetEmergency() {
+	if request.Emergency {
 		if parts.emergency == nil {
 			return nil, raw, errors.New("bundle: emergency not served")
 		}
@@ -68,42 +67,7 @@ func composeBundle(ctx context.Context, request *o.BundleRequest, parts bundlePa
 		}
 		observed.Emergency = emergencySnapshot(observed.Context, emergency.Facts)
 	}
-	if request.Events != nil {
-		return nil, raw, errors.New("bundle: events are read through mirror_poll")
-	}
-	return &o.BundleReply{Outcome: &o.BundleReply_Observed{Observed: observed}}, raw, nil
-}
-
-// composeMirrorPoll answers a mirror poll the way composeBundle answers a
-// bundle: the journal page from parts.events for the scope parts.tick
-// reports, and no mirror sections.
-func composeMirrorPoll(ctx context.Context, request *mp.MirrorPollRequest, parts bundleParts) (*mp.MirrorPollReply, bridge.Result, error) {
-	tick, raw, err := parts.tick(ctx)
-	if err != nil {
-		return nil, raw, err
-	}
-	loaded := tick.GetLoaded()
-	if loaded == nil {
-		return nil, raw, errors.New("mirror poll: tick not loaded")
-	}
-	if request.Identity != nil && !proto.Equal(request.Identity, loaded.Context.Identity) {
-		return nil, raw, bridge.ErrRefused
-	}
-	if parts.events == nil {
-		return nil, raw, errors.New("mirror poll: events not served")
-	}
-	events := bridge.MirrorJournalRequest(loaded.Context.Identity, request)
-	if request.GetWaitMs() > 0 {
-		events.WaitMs = proto.Uint32(request.GetWaitMs())
-	}
-	reply, _, err := parts.events(ctx, events)
-	if err != nil {
-		return nil, raw, err
-	}
-	if reply.GetPage() == nil {
-		return nil, raw, errors.New("mirror poll: events page missing")
-	}
-	return &mp.MirrorPollReply{Outcome: &mp.MirrorPollReply_Page{Page: &mp.MirrorPage{Journal: reply.GetPage()}}}, raw, nil
+	return observed, raw, nil
 }
 
 // emergencySnapshot encodes the facts a fake serves as the status snapshot

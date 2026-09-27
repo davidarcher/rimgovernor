@@ -244,7 +244,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, cache *bridge.FactCache, sections *facts.Store) (*buildingruntime.ClockWorker, error) {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, sections *facts.Store) (*buildingruntime.ClockWorker, error) {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.workshopPlans()
@@ -278,7 +278,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		// running window instead of waiting for the budget stop.
 		config.Start.Policy.ResourceThresholds = clockResourceThresholds(sc.routineResourceTargets.Map())
 	}
-	config.Facts = cache
 	config.Store = sections
 	config.Worker = true
 	// Acceptance fault injection (#633): a failing or hanging planner, a

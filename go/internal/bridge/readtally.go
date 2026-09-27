@@ -125,7 +125,7 @@ func (t *ReadTally) String() string {
 
 // Publish writes the tally as one "clock_step" flight-recorder row (payload:
 // reads, tools, schema_fetches, plus the caller's extra fields such as the
-// step cache's cache_hits and parent_hits) on the recorder of the Client
+// step's running flag) on the recorder of the Client
 // that served the tallied calls. Without a recorder, or when nothing was
 // tallied, it is a no-op; the profiler (SummarizePhases) aggregates the rows.
 func (t *ReadTally) Publish(ctx context.Context, extra map[string]any) {

@@ -9,39 +9,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/mirror"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 )
 
-// clockFacts is the scheduler's cross-step observation cache, the decoded
-// state store beside it (facts.Store, #354) and the bounded memory of
+// clockFacts is the scheduler's decoded
+// state store (facts.Store, #354) and the bounded memory of
 // which action kind each natively watched attempt belongs to, so an
 // OperationOutcome event can drop only the fact families that kind of
-// operation changes. Every discard the cache takes, the store takes too.
+// operation changes.
 type clockFacts struct {
-	cache   *bridge.FactCache
 	store   *facts.Store
 	mu      sync.Mutex
 	watched map[domain.ActionID]domain.ActionKind
-	// mirror holds the mirrored sections' rows and watermarks (#795):
-	// planning cells, zones, buildings and bills, refreshed by
-	// changed-since reads and filed into store.
+	// mirror holds the mirrored sections' rows (#795): planning cells,
+	// zones, buildings and bills, filed into store.
 	mirror *mirror.Mirror
-	// epoch is the mirror_poll epoch the polled sections' watermarks
-	// belong to (#795); nil until a page is applied. Guarded by mu.
-	epoch *mp.Epoch
-	// grid is the planning window as its last mirror_poll grid (#795),
-	// at gridAt under gridScope: the base a grid delta applies over.
-	// Guarded by mu.
-	grid      *bridge.CellGrid
-	gridAt    mirror.Watermark
-	gridScope mirror.Scope
-	// asks are the step families the last review step's planners asked
-	// for, folded into the next review bundle (#593).
-	asks bridge.BundleStepAsks
-	// pollZones is set when the native's zones are the policy census
-	// (observation.ZonesNative): the poll loop then carries them (#795).
-	// Guarded by mu.
-	pollZones bool
 	// definitions pools the project definition names the planners read
 	// beyond the census, so a step reads them once (#599).
 	definitions *observation.DefinitionPool
@@ -49,14 +30,11 @@ type clockFacts struct {
 
 const clockFactsWatchedMax = 256
 
-func newClockFacts(cache *bridge.FactCache, store *facts.Store) *clockFacts {
-	if cache == nil {
-		cache = bridge.NewFactCache()
-	}
+func newClockFacts(store *facts.Store) *clockFacts {
 	if store == nil {
 		store = facts.NewStore()
 	}
-	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: recordedMirror(), definitions: observation.NewDefinitionPool()}
+	return &clockFacts{store: store, watched: map[domain.ActionID]domain.ActionKind{}, mirror: recordedMirror(), definitions: observation.NewDefinitionPool()}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is
@@ -83,18 +61,16 @@ func (f *clockFacts) kindOf(id domain.ActionID) (domain.ActionKind, bool) {
 }
 
 // apply drops the cached facts a committed events page makes stale and
-// reports whether anything was dropped or marked. The byte cache drops
-// every family named; the store takes each invalidation as narrowed
+// reports whether anything was dropped or marked. The store
+// takes each invalidation as narrowed
 // (facts.Store.Apply), so a zone edit marks its rows and leaves a
 // planning window it does not touch fresh.
 func (f *clockFacts) apply(page *k.EventsPage) bool {
 	all, families, narrowed := clockPageInvalidation(page, f.kindOf)
 	if all {
-		f.cache.Invalidate()
 		f.store.InvalidateAll()
 		return true
 	}
-	f.cache.InvalidateFamilies(families...)
 	var whole []bridge.FactFamily
 	for _, family := range families {
 		if !clockNarrowedOnly(family, narrowed) {

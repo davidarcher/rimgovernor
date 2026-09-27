@@ -652,34 +652,6 @@ func TestWorkerBackoffIgnoresTickAndStretchesForUnknownEffects(t *testing.T) {
 	}
 }
 
-// The worker's step runs under a child of the scheduler's fact cache, so a
-// write an executor issues through it (a setpoint patch) discards the facts
-// the planners would otherwise keep reading from before it (#66).
-func TestWorkerStepCarriesChildOfSharedFactCache(t *testing.T) {
-	t.Parallel()
-	w, f, db := workerFixture(t)
-	facts := bridge.NewFactCache()
-	w.config.Facts = facts
-	pending := workerPending(t, w, "patch", true)
-	var seen *bridge.StepReadCache
-	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
-		seen = bridge.StepReadCacheFrom(ctx)
-		plan, err := db.LoadPlan(ctx, p)
-		return executor.Result{Progress: plan.Progress[0]}, err
-	}
-	if err := w.step(context.Background(), time.Now()); err != nil {
-		t.Fatal(err)
-	}
-	if f.runs.Load() != 1 || seen == nil {
-		t.Fatal("worker step ran without a step cache", f.runs.Load(), pending.Action)
-	}
-	before := facts.Stats().Invalidations
-	seen.Invalidate()
-	if facts.Stats().Invalidations != before+1 {
-		t.Fatal("worker step cache is not a child of the shared fact cache")
-	}
-}
-
 // A dispatch runs under a span of its own beneath the worker step's span,
 // which nests under the scheduler's latest step (WorkerConfig.Trace), so
 // the rows it leaves join that step's trace; without a scheduler trace the
@@ -709,27 +681,6 @@ func TestWorkerDispatchNestsUnderTheSchedulerTrace(t *testing.T) {
 	}
 	if seen.TraceID != step.TraceID || seen.ParentID == "" || seen.ParentID == step.SpanID || seen.SpanID == seen.ParentID {
 		t.Fatalf("dispatch %+v is not a span two levels under step %+v", seen, step)
-	}
-}
-
-// The step's world identity comes from the scheduler's seeded identity row
-// when the fact cache holds one; without a cache, or with an empty one,
-// the step still reads the world natively (#181). The served path is the
-// bridge package's contract (FactCache.Context).
-func TestWorkerStepReadsWorldNativelyWithoutASeededIdentity(t *testing.T) {
-	t.Parallel()
-	w, _, _ := workerFixture(t)
-	worlds := &playerWorldSource{world: playerSubmission().World}
-	w.player.worlds = worlds
-	for _, facts := range []*bridge.FactCache{nil, bridge.NewFactCache()} {
-		w.config.Facts = facts
-		before := worlds.calls
-		if err := w.step(context.Background(), time.Now()); err != nil {
-			t.Fatal(err)
-		}
-		if worlds.calls != before+1 {
-			t.Fatal("step without a seeded identity row did not read the world natively", facts == nil, worlds.calls-before)
-		}
 	}
 }
 

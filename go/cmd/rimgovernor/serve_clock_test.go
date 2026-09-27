@@ -15,7 +15,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -70,10 +69,10 @@ func (f *clockServiceFake) ReadClockStatus(context.Context, *c.Identity) (*k.Sta
 	return nil, bridge.Result{}, errors.New("clock status unavailable")
 }
 
-func (f *clockServiceFake) MirrorPoll(context.Context, *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
+func (f *clockServiceFake) ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
 	return nil, bridge.Result{}, f.unavailable()
 }
-func (f *clockServiceFake) ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+func (f *clockServiceFake) ReadStep(context.Context, bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
 	return nil, bridge.Result{}, f.unavailable()
 }
 func (f *clockServiceFake) unavailable() error {

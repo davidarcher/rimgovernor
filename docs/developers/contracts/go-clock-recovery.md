@@ -427,13 +427,11 @@ refusals or unavailability. A hit is decoded into a fresh reply, so the typed
 adapters and the context guards validate it as they would a
 native reply. Observations are not bracketed by identity reads: each reply's
 own `ObservationContext` is validated against the identity the step read on
-entry. That entry read is one `observations_read_bundle` (issue #127): the
-scope `lifecycle_read_tick` reports plus the owned clock status and the
-emergency census, captured in one main-thread hop so all describe one tick
-(the companion formats that capture once, on a bounded encoder worker off
-the main thread (#644); a bundle refused with `CAPACITY_EXHAUSTED` because
-the encoders stayed saturated read nothing). The
-event poll's bundle carries the scope and the events page after the review's
+entry. That entry read is `bridge.ReadStep` (#858): the scope
+`lifecycle_read_tick` reports, the owned clock status, and the emergency
+census from the newest snapshot stream frame; every state family comes from
+frames, never a GABP read. The
+event poll carries the scope and the events page after the review's
 cursor; the renewal's carries the scope and the clock status. The bundle
 itself is never memoized (its clock sections are live controller state), but
 its tick and emergency sections are seeded into the step cache under the keys
@@ -568,13 +566,11 @@ tick, so `as_of_spread` is non-zero on steps served from the store. The
 row carries no `reachable` (`placement_preview` refuses an unreachable
 site) and never lists a fogged cell (`Completeness.filtered` counts them).
 
-A held window refreshes through `mirror_poll` (#795): the poll's
-`planning_cells` section carries the window as a cell grid, a delta over
-the grid the worker holds, and `planningWindow` serves it (`pollGrid`)
-after the planning-window view (#650). Without either it reads the held
-region whole. The #357 `changed_since_tick` delta on `get_cells` and its
-per-cell change grid are retired; `CellTracking.cs` now only feeds the
-view's change ledger.
+When the planning-window view (#650) cannot serve a held window, it is
+reread whole. The #795 `mirror_poll` cell grid and the #357
+`changed_since_tick` delta on `get_cells` were removed (#858);
+`CellTracking.cs` only feeds the view's change ledger. The CellGrid format
+survives only as the snapshot recorder's planning_cells line encoding.
 
 The continuous sections follow the same pattern with a cadence each
 (#360). The reviewer attaches `observation.RoutineStore` (the store plus
@@ -599,22 +595,13 @@ facts, so onset lags one step) rooms get `MaxAge` 0 and are read every
 review. What a policy decides is unchanged: it sees the same decoded
 values, at most one cadence older.
 
-The entity list reads follow the same pattern per row (#358). The native
-keeps a per-map, per-query-shape shadow (`EntityTracking.cs`) of each
-row's digest (FNV-1a over the row bytes with every CAS snapshot's context
-stripped) and last-changed stamp, compared at read time rather than
-hooked, plus tombstones for the ids swept out. Tombstones live one game
-day (60000 ticks) and at most 4096 per tracker
-(`EntityTracking.TombstoneWindow`, `MaxTombstones`). `mirror_poll` asks
-the tracker for the `buildings` and `bills` rows changed after its last
-page; an ask the tombstones cannot answer gets the full section inline
-(#795). An unfiltered `list_zones` read still accepts `changed_since_tick`
-(below); `list_buildings` and `read_bills` refuse it. The store holds
-`zones`, `buildings` and `bills` as incremental sections keyed by id
-(`buildingruntime.EntitySection`): `refreshEntitySections` runs on every
-review step after the bundle, files buildings and bills from the bundle
-when it carried them (the keyframe cases, `bundleStepFamilies`) and from
-the poll otherwise, and refreshes zones through the colony mirror.
+The entity list reads (`zones`, `buildings`, `bills`) are read whole on
+every review step (`refreshEntitySections`) and filed in the store as
+sections keyed by id (`buildingruntime.EntitySection`). The #358/#795
+changed-since machinery was removed in #858: the native `EntityTracking.cs`
+digests and tombstones, `mirror_poll`, `SectionDelta` and the
+`changed_since_tick` request fields. Mirror reads now come from the
+snapshot frame stream.
 
 The colony mirror (`go/internal/mirror`, #795) is the row store under
 these refreshers: per section, keyed rows and the watermark they are
@@ -753,7 +740,7 @@ or whose declared `sections` include one the `ObservationInvalidated` row
 dirtied (`facts.Invalidation.Sections`: a whole family names every section
 it holds, entity ids the entity sections, a rect the planning cells), and
 all of them when authority changed. Each entry declares the
-`observations_read_bundle` sections it consumes; a subset step reads only
+snapshot frame sections it consumes; a subset step reads only
 those at cadence and serves every other section held from the store past
 its cadence (`RoutineStore.Held`), and reports them as `sections` on its
 `clock_step` row. An entry that reported `existing_work` waits on the open
@@ -824,20 +811,9 @@ lower bounds, food-stockpile suitability and the guarded zone-map token.
 `planning.zone_map_snapshot`; these fields remain in the schema only for
 retained captures. Routine policy and zone creation read the zone section.
 
-`observations_list_zones` accepts an inclusive `changed_since_tick` for an
-unfiltered census. A delta reply carries `as_of_tick`, `unchanged` and
-`removed_ids`; every reply carries `map_snapshot`; each growing row carries `farm`, and each zone carries
-`food_storage`. The per-map zone tracker starts with the cell tracker,
-records registration, removal and cell edits through Harmony postfixes,
-and retains tombstones as the entity lists do (one game day, 4096 ids). Read-time comparisons also catch
-settings, crop growth, diet and room-enclosure changes without a per-tick
-scan. Those continuous farm measurements can cause a growing row to be
-emitted on each refresh; they are not treated as static zone configuration.
-
-A stale colony invalidation retains the zone baseline for merging by id.
-A scope change reads in full. An ask older than the tombstones reach or
-than the tracker itself gets the full census inline (no `as_of_tick`),
-which replaces the held census. Every eighth refresh also reads in full and
-logs `[facts] zones resync drift=<n>` when both reads describe the same tick.
-`zone/changed-since` and `zone/tombstone-expiry` cover native mutation,
-omission, deletion, the inline full reply past the window and the absence of aggregate zone fields.
+`observations_list_zones` reads the census whole, in pages of 16. Every
+reply carries `map_snapshot`, each growing row carries `farm`, and each
+zone carries `food_storage`. The #795 changed-since ask
+(`changed_since_tick`, `as_of_tick`, `unchanged`, `removed_ids`) and the
+native zone tracker were removed along with `mirror_poll` (#858). A stale
+colony invalidation or a scope change rereads the census whole.

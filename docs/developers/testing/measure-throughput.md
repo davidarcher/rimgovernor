@@ -120,7 +120,7 @@ kinded event shows its message and attributes.
 ```
 trace 5c0e1f2a9b3d4e6f: 14 rows over 412.7ms, tick 12000, sequence 1032..1045
     at ms   dur ms  span      row
-      0.0     11.9  5c0e1f2a  native rimgovernor/observations_read_bundle  gate 0.0 call 11.5 decode 0.2 native queue 0.4 exec 9.1
+      0.0     11.9  5c0e1f2a  native rimgovernor/observations_read_status  gate 0.0 call 11.5 decode 0.2 native queue 0.4 exec 9.1
      12.5        -  5c0e1f2a  cache hit rimgovernor/observations_list_pawns
     230.1      5.0  90faecc0      native rimgovernor/operations_execute  gate 0.0 call 4.9 decode 0.0
     235.2        -  90faecc0      worker_dispatch action=... receipt=accepted running=true
@@ -149,7 +149,7 @@ observation: 118 hops with a capture account, capture p50 3.1 p95 11.4 p99 24.0 
 frames: 7012 updates over 118.1s = 59.4/s (hooked, 412 samples), max update 214.0ms, observation 4.1s (3.5% of update wall) over 118 hops, recorder 12.4ms, >16.7ms 402, >33.3ms 61, >100.0ms 4, >250.0ms 0
   worst update 4193: 214.0ms (observation 188.2ms, tick 12450, trace 5c0e1f2a/90faecc0)
   reads/step by tool
-  observations_read_bundle                              1.0
+  observations_read_status                              1.0
   ...
 native tool            wrapper  calls cached err total ms gate ms call ms queue ms exec ms decode ms proto ms avg KiB
 ```

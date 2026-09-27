@@ -46,18 +46,16 @@ func TestAcquisitionInspectionAcceptsAPreviewAheadOfItsCensus(t *testing.T) {
 	}
 	n.emergency.Context = proto.Clone(previewContext).(*c.ObservationContext)
 	b := NewAcquisitionBoundary(base, AcquisitionCapabilities{Native: n})
-	parent := bridge.NewFactCache()
-	cache := bridge.NewChildReadCache(parent)
-	ctx := bridge.WithStepReadCache(context.Background(), cache)
+	ctx := context.Background()
 	// A preview hundreds of ticks past its census still dispatches: native
 	// revalidates the harvest when it applies. An absent source remains a
-	// world-condition hold and does not flush the cache.
+	// world-condition hold.
 	inspection, err := b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot})
-	if err != nil || !inspection.Accepted || inspection.Tick != 195426 || parent.Stats().Invalidations != 0 {
-		t.Fatal(inspection, err, parent.Stats())
+	if err != nil || !inspection.Accepted || inspection.Tick != 195426 {
+		t.Fatal(inspection, err)
 	}
 	n.read.Targets = nil
-	if _, err = b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot}); !errors.Is(err, executor.ErrHeld) || errors.Is(err, executor.ErrAcquisitionStale) || parent.Stats().Invalidations != 0 {
-		t.Fatal("target absence is not stale facts", err, parent.Stats())
+	if _, err = b.InspectAcquisition(ctx, executor.Target{Action: action, Snapshot: f.Placement.Snapshot}); !errors.Is(err, executor.ErrHeld) || errors.Is(err, executor.ErrAcquisitionStale) {
+		t.Fatal("target absence is not stale facts", err)
 	}
 }

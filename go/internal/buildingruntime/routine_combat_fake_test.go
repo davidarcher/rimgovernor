@@ -64,3 +64,17 @@ func (n *equipTestNative) CombatGeometry(ctx context.Context, request *mp.Combat
 func (n *defenseReplayNative) CombatGeometry(ctx context.Context, request *mp.CombatGeometryRequest) (*mp.CombatGeometry, bridge.Result, error) {
 	return n.orders.CombatGeometry(ctx, request)
 }
+
+// ReadCombat: the fakes carry no snapshot stream, so the fight falls back
+// to the combat read's rows and answers no stop.
+func (f *combatOrdersFake) ReadCombat(ctx context.Context, _ *c.Identity) (bridge.Combat, error) {
+	return bridge.Combat{}, bridge.ErrUnavailable
+}
+
+func (n *equipTestNative) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Combat, error) {
+	return n.orders.ReadCombat(ctx, identity)
+}
+
+func (n *defenseReplayNative) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Combat, error) {
+	return n.orders.ReadCombat(ctx, identity)
+}

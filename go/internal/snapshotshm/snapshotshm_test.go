@@ -37,6 +37,9 @@ func (m *memMapping) publish(n uint64, writes int64, payload []byte, torn bool) 
 	m.store(slot, 2*n+1)
 	binary.LittleEndian.PutUint64(m.buf[slot+8:], uint64(writes))
 	binary.LittleEndian.PutUint32(m.buf[slot+16:], uint32(len(payload)))
+	binary.LittleEndian.PutUint32(m.buf[slot+20:], uint32(n)*10)
+	binary.LittleEndian.PutUint32(m.buf[slot+24:], uint32(n)*20)
+	binary.LittleEndian.PutUint32(m.buf[slot+28:], uint32(n)*30)
 	copy(m.buf[slot+slotHeaderBytes:], payload)
 	if torn {
 		return
@@ -61,7 +64,7 @@ func TestLatestReadsTheCommittedHead(t *testing.T) {
 	m.publish(1, 0, []byte("one"), false)
 	m.publish(2, 5, []byte("two"), false)
 	frame, ok, err := r.Latest()
-	if err != nil || !ok || frame.Number != 2 || frame.Writes != 5 || string(frame.Payload) != "two" {
+	if err != nil || !ok || frame.Number != 2 || frame.Writes != 5 || string(frame.Payload) != "two" || frame.CaptureMicros != 20 || frame.EncodeMicros != 40 || frame.WriteMicros != 60 {
 		t.Fatalf("latest = %+v ok=%v err=%v", frame, ok, err)
 	}
 	// Frame 3 mid-write does not move the head; a lapped slot is refused.

@@ -81,7 +81,6 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/campaign"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/cells"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clean"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clearance"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat"

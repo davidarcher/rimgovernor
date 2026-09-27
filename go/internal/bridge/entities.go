@@ -8,22 +8,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// EntityRows is one entity list read (zones, buildings or bill stacks)
-// keyed by entity id, with the tick the reply described. A read asked with
-// a since tick is a delta when Delta is set: Rows lists only the entities
-// changed at or after that tick, Removed the ids the native removed since
-// it and Unchanged counts the rest,
-// so the caller merges Rows over what it holds and drops Removed. An ask
-// the native's tombstones cannot answer (older than one game day or its
-// count cap, #795) is answered in full inline, as is every ask to a native
-// without entity tracking: Delta false, and the caller replaces what it
-// holds.
+// EntityRows is one whole entity list read (zones, buildings or bill
+// stacks) keyed by entity id, with the tick the reply described.
 type EntityRows[T proto.Message] struct {
-	Context   *c.ObservationContext
-	Rows      map[string]T
-	Removed   []string
-	Unchanged uint64
-	Delta     bool
+	Context *c.ObservationContext
+	Rows    map[string]T
 }
 
 // AsOf is the tick the reply described.
@@ -36,11 +25,10 @@ const (
 )
 
 // ReadZones lists every zone on the map (bounds and settings, no cells,
-// contents or filter) through observations_list_zones, every page. A
-// positive since asks for the zones changed at or after that tick (#358).
-func (client *Client) ReadZones(ctx context.Context, identity *c.Identity, since int64) (EntityRows[*o.ZoneState], Result, error) {
-	return readEntities(ctx, client, identity, since, "rimgovernor/observations_list_zones",
-		func(cursor string) proto.Message { return zonesListRequest(identity, since, cursor) },
+// contents or filter) through observations_list_zones, every page.
+func (client *Client) ReadZones(ctx context.Context, identity *c.Identity) (EntityRows[*o.ZoneState], Result, error) {
+	return readEntities(ctx, client, identity, "rimgovernor/observations_list_zones",
+		func(cursor string) proto.Message { return zonesListRequest(identity, cursor) },
 		func() proto.Message { return &o.ListZonesReply{} },
 		func(reply proto.Message) (entityPageReply[*o.ZoneState], error) {
 			switch v := reply.(*o.ListZonesReply).Outcome.(type) {
@@ -60,7 +48,7 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity, since
 					}
 					ids[i] = row.GetId()
 				}
-				return entityPageReply[*o.ZoneState]{context: s.Context, completeness: s.Completeness, rows: s.Zones, ids: ids, removed: s.RemovedIds, unchanged: s.Unchanged, asOf: s.AsOfTick, limit: zonesPage}, nil
+				return entityPageReply[*o.ZoneState]{context: s.Context, completeness: s.Completeness, rows: s.Zones, ids: ids, limit: zonesPage}, nil
 			}
 			return entityPageReply[*o.ZoneState]{}, contract("missing zones outcome")
 		})
@@ -69,7 +57,7 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity, since
 // ReadBuildings lists every built, pending or blueprint player building
 // (artificial) through observations_list_buildings, every page.
 func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (EntityRows[*o.BuildingState], Result, error) {
-	return readEntities(ctx, client, identity, 0, "rimgovernor/observations_list_buildings",
+	return readEntities(ctx, client, identity, "rimgovernor/observations_list_buildings",
 		func(cursor string) proto.Message { return buildingsListRequest(identity, cursor) },
 		func() proto.Message { return &o.ListBuildingsReply{} },
 		func(reply proto.Message) (entityPageReply[*o.BuildingState], error) {
@@ -90,7 +78,7 @@ func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (
 					}
 					ids[i] = row.Building.GetId()
 				}
-				return entityPageReply[*o.BuildingState]{context: s.Context, completeness: s.Completeness, rows: s.Buildings, ids: ids, removed: s.RemovedIds, unchanged: s.Unchanged, asOf: s.AsOfTick, limit: buildingsPage}, nil
+				return entityPageReply[*o.BuildingState]{context: s.Context, completeness: s.Completeness, rows: s.Buildings, ids: ids, limit: buildingsPage}, nil
 			}
 			return entityPageReply[*o.BuildingState]{}, contract("missing buildings outcome")
 		})
@@ -99,7 +87,7 @@ func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (
 // ReadBillStacks lists every player bench's bill stack through
 // observations_read_bills, every page, keyed by bench id.
 func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) (EntityRows[*o.BillStack], Result, error) {
-	return readEntities(ctx, client, identity, 0, "rimgovernor/observations_read_bills",
+	return readEntities(ctx, client, identity, "rimgovernor/observations_read_bills",
 		func(cursor string) proto.Message { return billsListRequest(identity, cursor) },
 		func() proto.Message { return &o.BillsReply{} },
 		func(reply proto.Message) (entityPageReply[*o.BillStack], error) {
@@ -120,7 +108,7 @@ func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) 
 					}
 					ids[i] = row.Bench.GetId()
 				}
-				return entityPageReply[*o.BillStack]{context: s.Context, completeness: s.Completeness, rows: s.Benches, ids: ids, removed: s.RemovedIds, unchanged: s.Unchanged, asOf: s.AsOfTick, limit: billsPage}, nil
+				return entityPageReply[*o.BillStack]{context: s.Context, completeness: s.Completeness, rows: s.Benches, ids: ids, limit: billsPage}, nil
 			}
 			return entityPageReply[*o.BillStack]{}, contract("missing bills outcome")
 		})
@@ -128,12 +116,8 @@ func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity) 
 
 // The entity list requests, shared with the bundle's step families so a
 // section the bundle carries is seeded under the key the read uses (#593).
-func zonesListRequest(identity *c.Identity, since int64, cursor string) *o.ListZonesRequest {
-	request := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeCells: proto.Bool(false), IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false), Page: entityPage(zonesPage, cursor)}
-	if since > 0 {
-		request.ChangedSinceTick = proto.Int64(since)
-	}
-	return request
+func zonesListRequest(identity *c.Identity, cursor string) *o.ListZonesRequest {
+	return &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeCells: proto.Bool(false), IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false), Page: entityPage(zonesPage, cursor)}
 }
 
 func buildingsListRequest(identity *c.Identity, cursor string) *o.ListBuildingsRequest {
@@ -161,27 +145,17 @@ type entityPageReply[T proto.Message] struct {
 	completeness *o.Completeness
 	rows         []T
 	ids          []string
-	removed      []string
-	unchanged    *uint32
-	asOf         *int64
 	limit        int
 }
 
 // readEntities pages one entity list read to the end and folds the pages
-// into EntityRows. Every page must describe the same context; a delta's
-// as_of_tick is that context's tick, unchanged and removed ids are
-// admitted only in a delta the read asked for, ids are valid and unique
-// across pages, and a removed id is never also listed. A reply without
-// as_of_tick is a full one, whether or not a delta was asked.
-func readEntities[T proto.Message](ctx context.Context, client *Client, identity *c.Identity, since int64, method string, request func(cursor string) proto.Message, reply func() proto.Message, decode func(proto.Message) (entityPageReply[T], error)) (EntityRows[T], Result, error) {
+// into EntityRows. Every page must describe the same context, and ids are
+// valid and unique across pages.
+func readEntities[T proto.Message](ctx context.Context, client *Client, identity *c.Identity, method string, request func(cursor string) proto.Message, reply func() proto.Message, decode func(proto.Message) (entityPageReply[T], error)) (EntityRows[T], Result, error) {
 	if err := authorityIdentity(identity); err != nil {
 		return EntityRows[T]{}, Result{}, err
 	}
-	if since < 0 {
-		return EntityRows[T]{}, Result{}, contract("invalid entity since tick")
-	}
 	out := EntityRows[T]{Rows: map[string]T{}}
-	removed := map[string]bool{}
 	var last Result
 	cursor := ""
 	for pages := 0; ; pages++ {
@@ -213,14 +187,10 @@ func readEntities[T proto.Message](ctx context.Context, client *Client, identity
 		if !sameIdentity(page.context.Identity, identity) {
 			return EntityRows[T]{}, raw, contract("entity list identity mismatch")
 		}
-		delta := since > 0 && page.asOf != nil
-		if out.Context != nil && (!proto.Equal(out.Context, page.context) || out.Delta != delta) {
+		if out.Context != nil && !proto.Equal(out.Context, page.context) {
 			return EntityRows[T]{}, raw, contract("entity list pages differ in context")
 		}
-		out.Context, out.Delta = page.context, delta
-		if page.asOf != nil && *page.asOf != page.context.GetTick() || !delta && (page.unchanged != nil && *page.unchanged != 0 || len(page.removed) != 0) {
-			return EntityRows[T]{}, raw, contract("invalid entity delta")
-		}
+		out.Context = page.context
 		counts := page.completeness
 		if len(page.rows) > page.limit || counts == nil || counts.Page == nil || counts.Page.Complete == nil || counts.Returned != nil && counts.GetReturned() != uint64(len(page.rows)) {
 			return EntityRows[T]{}, raw, contract("incomplete entity page")
@@ -235,70 +205,12 @@ func readEntities[T proto.Message](ctx context.Context, client *Client, identity
 			}
 			out.Rows[id] = row
 		}
-		for _, id := range page.removed {
-			if validID(id) != nil {
-				return EntityRows[T]{}, raw, contract("invalid removed entity identity")
-			}
-			if !removed[id] {
-				removed[id] = true
-				out.Removed = append(out.Removed, id)
-			}
-		}
-		// Unchanged is counted once: every page of one read reports the
-		// same whole-list count.
-		if page.unchanged != nil {
-			out.Unchanged = uint64(*page.unchanged)
-		}
 		if counts.Page.GetComplete() {
-			break
+			return out, last, nil
 		}
 		cursor = counts.Page.GetNextCursor()
 		if cursor == "" {
 			return EntityRows[T]{}, raw, contract("entity page incomplete without a cursor")
 		}
 	}
-	for _, id := range out.Removed {
-		if _, listed := out.Rows[id]; listed {
-			return EntityRows[T]{}, last, contract("removed entity also listed")
-		}
-	}
-	return out, last, nil
-}
-
-// MergeEntities lays a delta over held rows: a listed entity replaces the
-// held one, a removed id leaves, and every other held row stays. A full
-// read (Delta false) replaces the held rows outright.
-func MergeEntities[T proto.Message](held map[string]T, delta EntityRows[T]) map[string]T {
-	if !delta.Delta {
-		return delta.Rows
-	}
-	out := make(map[string]T, len(held)+len(delta.Rows))
-	for id, row := range held {
-		out[id] = row
-	}
-	for id, row := range delta.Rows {
-		out[id] = row
-	}
-	for _, id := range delta.Removed {
-		delete(out, id)
-	}
-	return out
-}
-
-// EntityDrift counts the entities on which a merged delta and a full read
-// of the same tick disagree: a row in one and not the other, or a row
-// whose facts differ.
-func EntityDrift[T proto.Message](merged, full map[string]T) int {
-	drift := 0
-	for id, row := range full {
-		if have, ok := merged[id]; !ok || !proto.Equal(have, row) {
-			drift++
-		}
-	}
-	for id := range merged {
-		if _, ok := full[id]; !ok {
-			drift++
-		}
-	}
-	return drift
 }

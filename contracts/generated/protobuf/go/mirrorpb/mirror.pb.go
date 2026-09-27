@@ -9,7 +9,6 @@ package mirrorpb
 import (
 	clockpb "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	observationspb "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -23,89 +22,6 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
-
-// The mirrored sections. Rows are keyed by the entity id the dedicated list
-// read keys them by: the building's thing id, the bench's thing id.
-type Section int32
-
-const (
-	Section_SECTION_UNSPECIFIED Section = 0
-	Section_SECTION_BUILDINGS   Section = 1 // observations_list_buildings, player artificial buildings
-	Section_SECTION_BILLS       Section = 2 // observations_read_bills, player bench bill stacks
-	// The planning window over the ask's window rect, as a CellGrid: the
-	// planning fields of observations_get_cells, one array per SiteCell field.
-	Section_SECTION_PLANNING_CELLS Section = 3
-	Section_SECTION_ZONES          Section = 4 // observations_list_zones, the whole census, rows keyed by zone id (#358)
-	// The pawn list and colony facts reads the ask names, each answered as its
-	// #773 changed-since read answers it: rows keyed by pawn id, and by the
-	// colony facts row paths the controller splits the snapshot into.
-	Section_SECTION_PAWNS        Section = 5
-	Section_SECTION_COLONY_FACTS Section = 6
-	// Combat state (#851), served while the map has an active hostile or a
-	// combat epoch runs, else empty (every row tombstoned). Rows keyed by
-	// pawn load id: every spawned colonist, hostile and colony animal.
-	// Hook-dirtied pawns are compared on the next poll; the sampled fields
-	// (cell, health, shield, aim/cooldown, move speed) at most every
-	// MinCombatCompareTicks of running game.
-	Section_SECTION_COMBAT_PAWNS Section = 7
-	// Combat events (#851), append-only: rows keyed "<tick>.<seq>" at the
-	// event's own watermark, never tombstoned. A keyframe is the native's
-	// retained ring (the newest 1024 events).
-	Section_SECTION_COMBAT_EVENTS Section = 8
-)
-
-// Enum value maps for Section.
-var (
-	Section_name = map[int32]string{
-		0: "SECTION_UNSPECIFIED",
-		1: "SECTION_BUILDINGS",
-		2: "SECTION_BILLS",
-		3: "SECTION_PLANNING_CELLS",
-		4: "SECTION_ZONES",
-		5: "SECTION_PAWNS",
-		6: "SECTION_COLONY_FACTS",
-		7: "SECTION_COMBAT_PAWNS",
-		8: "SECTION_COMBAT_EVENTS",
-	}
-	Section_value = map[string]int32{
-		"SECTION_UNSPECIFIED":    0,
-		"SECTION_BUILDINGS":      1,
-		"SECTION_BILLS":          2,
-		"SECTION_PLANNING_CELLS": 3,
-		"SECTION_ZONES":          4,
-		"SECTION_PAWNS":          5,
-		"SECTION_COLONY_FACTS":   6,
-		"SECTION_COMBAT_PAWNS":   7,
-		"SECTION_COMBAT_EVENTS":  8,
-	}
-)
-
-func (x Section) Enum() *Section {
-	p := new(Section)
-	*p = x
-	return p
-}
-
-func (x Section) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Section) Descriptor() protoreflect.EnumDescriptor {
-	return file_mirror_proto_enumTypes[0].Descriptor()
-}
-
-func (Section) Type() protoreflect.EnumType {
-	return &file_mirror_proto_enumTypes[0]
-}
-
-func (x Section) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Section.Descriptor instead.
-func (Section) EnumDescriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{0}
-}
 
 // Which side a combat pawn fights on.
 type CombatSide int32
@@ -144,11 +60,11 @@ func (x CombatSide) String() string {
 }
 
 func (CombatSide) Descriptor() protoreflect.EnumDescriptor {
-	return file_mirror_proto_enumTypes[1].Descriptor()
+	return file_mirror_proto_enumTypes[0].Descriptor()
 }
 
 func (CombatSide) Type() protoreflect.EnumType {
-	return &file_mirror_proto_enumTypes[1]
+	return &file_mirror_proto_enumTypes[0]
 }
 
 func (x CombatSide) Number() protoreflect.EnumNumber {
@@ -157,7 +73,7 @@ func (x CombatSide) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CombatSide.Descriptor instead.
 func (CombatSide) EnumDescriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{1}
+	return file_mirror_proto_rawDescGZIP(), []int{0}
 }
 
 // What a combat pawn's stance is doing.
@@ -203,11 +119,11 @@ func (x CombatStance) String() string {
 }
 
 func (CombatStance) Descriptor() protoreflect.EnumDescriptor {
-	return file_mirror_proto_enumTypes[2].Descriptor()
+	return file_mirror_proto_enumTypes[1].Descriptor()
 }
 
 func (CombatStance) Type() protoreflect.EnumType {
-	return &file_mirror_proto_enumTypes[2]
+	return &file_mirror_proto_enumTypes[1]
 }
 
 func (x CombatStance) Number() protoreflect.EnumNumber {
@@ -216,7 +132,7 @@ func (x CombatStance) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CombatStance.Descriptor instead.
 func (CombatStance) EnumDescriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{2}
+	return file_mirror_proto_rawDescGZIP(), []int{1}
 }
 
 // What a combat event row records. The #849 stop kinds and the non-stops.
@@ -289,11 +205,11 @@ func (x CombatLogKind) String() string {
 }
 
 func (CombatLogKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_mirror_proto_enumTypes[3].Descriptor()
+	return file_mirror_proto_enumTypes[2].Descriptor()
 }
 
 func (CombatLogKind) Type() protoreflect.EnumType {
-	return &file_mirror_proto_enumTypes[3]
+	return &file_mirror_proto_enumTypes[2]
 }
 
 func (x CombatLogKind) Number() protoreflect.EnumNumber {
@@ -302,10 +218,10 @@ func (x CombatLogKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CombatLogKind.Descriptor instead.
 func (CombatLogKind) EnumDescriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{3}
+	return file_mirror_proto_rawDescGZIP(), []int{2}
 }
 
-// One combat pawn row (SECTION_COMBAT_PAWNS). Numbers are thresholded so a
+// One combat pawn row (BundleSnapshot.combat_pawns). Numbers are thresholded so a
 // row only changes when a decision could: fractions to 0.01, bleed and pain
 // to 0.05, move speed to 0.1 cells/s.
 type CombatPawn struct {
@@ -337,8 +253,8 @@ type CombatPawn struct {
 	WeaponMelee         *bool                  `protobuf:"varint,25,opt,name=weapon_melee,json=weaponMelee,proto3,oneof" json:"weapon_melee,omitempty"`
 	// The watermark of the row's last change: when events concerned the pawn
 	// since the last compare, the newest of the highest rank (downing or
-	// death, then another #849 stop kind, then any), the matching SECTION_COMBAT_EVENTS
-	// row's; otherwise the poll's. Not part of the change comparison.
+	// death, then another #849 stop kind, then any), the matching combat_events
+	// row's; otherwise the capture's. Not part of the change comparison.
 	Changed       *Watermark `protobuf:"bytes,26,opt,name=changed,proto3" json:"changed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -556,7 +472,7 @@ func (x *CombatPawn) GetChanged() *Watermark {
 	return nil
 }
 
-// One combat event row (SECTION_COMBAT_EVENTS).
+// One combat event row (BundleSnapshot.combat_events).
 type CombatEventRow struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	At    *Watermark             `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"` // the event's own mark; the row id is "<tick>.<seq>"
@@ -1331,8 +1247,7 @@ func (*CombatGeometryReply_Observed) isCombatGeometryReply_Outcome() {}
 
 func (*CombatGeometryReply_Failure) isCombatGeometryReply_Outcome() {}
 
-// How far a section is complete: every change through tick, and within tick
-// every change up to seq. Monotonic within one epoch.
+// A combat row's watermark: the tick, and the event sequence within it.
 type Watermark struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Tick          *int64                 `protobuf:"varint,1,opt,name=tick,proto3,oneof" json:"tick,omitempty"`
@@ -1385,164 +1300,6 @@ func (x *Watermark) GetSeq() uint32 {
 	return 0
 }
 
-// The world a mirror's rows belong to. Any difference from the epoch a
-// client holds answers every asked section with a keyframe.
-type Epoch struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Process          *string                `protobuf:"bytes,1,opt,name=process,proto3,oneof" json:"process,omitempty"`                                            // this game process's instance token
-	Identity         *commonpb.Identity     `protobuf:"bytes,2,opt,name=identity,proto3" json:"identity,omitempty"`                                                // colony, load and map
-	NativeGeneration *uint64                `protobuf:"varint,3,opt,name=native_generation,json=nativeGeneration,proto3,oneof" json:"native_generation,omitempty"` // authority generation
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *Epoch) Reset() {
-	*x = Epoch{}
-	mi := &file_mirror_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Epoch) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Epoch) ProtoMessage() {}
-
-func (x *Epoch) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Epoch.ProtoReflect.Descriptor instead.
-func (*Epoch) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *Epoch) GetProcess() string {
-	if x != nil && x.Process != nil {
-		return *x.Process
-	}
-	return ""
-}
-
-func (x *Epoch) GetIdentity() *commonpb.Identity {
-	if x != nil {
-		return x.Identity
-	}
-	return nil
-}
-
-func (x *Epoch) GetNativeGeneration() uint64 {
-	if x != nil && x.NativeGeneration != nil {
-		return *x.NativeGeneration
-	}
-	return 0
-}
-
-type SectionAsk struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Section *Section               `protobuf:"varint,1,opt,name=section,proto3,enum=rimgovernor.mirror.v1.Section,oneof" json:"section,omitempty"`
-	Since   *Watermark             `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"` // absent or zero asks for a keyframe
-	// SECTION_PLANNING_CELLS only, and required there: the window, at most
-	// 65536 cells. A window other than the one since was served for is a
-	// keyframe.
-	Window *CellRect `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
-	// SECTION_PAWNS and SECTION_COLONY_FACTS only, and required there (the
-	// one matching the section): the read the section answers, identity
-	// scoped to the poll's. Its changed_since is the #773 ask; the section's
-	// since is unused. An ask the tracker cannot answer is answered whole
-	// (stale rule C).
-	Pawns       *observationspb.ListPawnsRequest   `protobuf:"bytes,4,opt,name=pawns,proto3" json:"pawns,omitempty"`
-	ColonyFacts *observationspb.ColonyFactsRequest `protobuf:"bytes,5,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
-	// The drift backstop (#795): beside a delta, the section's keyframe at
-	// the same watermark (SectionPage.resync) for the client to compare
-	// with what the delta leaves it holding. Entity and planning cell
-	// sections; ignored where the page is a keyframe anyway.
-	Resync        *bool `protobuf:"varint,6,opt,name=resync,proto3,oneof" json:"resync,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SectionAsk) Reset() {
-	*x = SectionAsk{}
-	mi := &file_mirror_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SectionAsk) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SectionAsk) ProtoMessage() {}
-
-func (x *SectionAsk) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SectionAsk.ProtoReflect.Descriptor instead.
-func (*SectionAsk) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *SectionAsk) GetSection() Section {
-	if x != nil && x.Section != nil {
-		return *x.Section
-	}
-	return Section_SECTION_UNSPECIFIED
-}
-
-func (x *SectionAsk) GetSince() *Watermark {
-	if x != nil {
-		return x.Since
-	}
-	return nil
-}
-
-func (x *SectionAsk) GetWindow() *CellRect {
-	if x != nil {
-		return x.Window
-	}
-	return nil
-}
-
-func (x *SectionAsk) GetPawns() *observationspb.ListPawnsRequest {
-	if x != nil {
-		return x.Pawns
-	}
-	return nil
-}
-
-func (x *SectionAsk) GetColonyFacts() *observationspb.ColonyFactsRequest {
-	if x != nil {
-		return x.ColonyFacts
-	}
-	return nil
-}
-
-func (x *SectionAsk) GetResync() bool {
-	if x != nil && x.Resync != nil {
-		return *x.Resync
-	}
-	return false
-}
-
 type CellRect struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             *int32                 `protobuf:"varint,1,opt,name=x,proto3,oneof" json:"x,omitempty"`
@@ -1555,7 +1312,7 @@ type CellRect struct {
 
 func (x *CellRect) Reset() {
 	*x = CellRect{}
-	mi := &file_mirror_proto_msgTypes[14]
+	mi := &file_mirror_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1567,7 +1324,7 @@ func (x *CellRect) String() string {
 func (*CellRect) ProtoMessage() {}
 
 func (x *CellRect) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[14]
+	mi := &file_mirror_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1580,7 +1337,7 @@ func (x *CellRect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellRect.ProtoReflect.Descriptor instead.
 func (*CellRect) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{14}
+	return file_mirror_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CellRect) GetX() int32 {
@@ -1631,7 +1388,7 @@ type FieldArray struct {
 
 func (x *FieldArray) Reset() {
 	*x = FieldArray{}
-	mi := &file_mirror_proto_msgTypes[15]
+	mi := &file_mirror_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +1400,7 @@ func (x *FieldArray) String() string {
 func (*FieldArray) ProtoMessage() {}
 
 func (x *FieldArray) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[15]
+	mi := &file_mirror_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +1413,7 @@ func (x *FieldArray) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldArray.ProtoReflect.Descriptor instead.
 func (*FieldArray) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{15}
+	return file_mirror_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FieldArray) GetForm() isFieldArray_Form {
@@ -1739,7 +1496,7 @@ type PackedUint32 struct {
 
 func (x *PackedUint32) Reset() {
 	*x = PackedUint32{}
-	mi := &file_mirror_proto_msgTypes[16]
+	mi := &file_mirror_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1751,7 +1508,7 @@ func (x *PackedUint32) String() string {
 func (*PackedUint32) ProtoMessage() {}
 
 func (x *PackedUint32) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[16]
+	mi := &file_mirror_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1764,7 +1521,7 @@ func (x *PackedUint32) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackedUint32.ProtoReflect.Descriptor instead.
 func (*PackedUint32) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{16}
+	return file_mirror_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PackedUint32) GetValues() []uint32 {
@@ -1783,7 +1540,7 @@ type PackedDouble struct {
 
 func (x *PackedDouble) Reset() {
 	*x = PackedDouble{}
-	mi := &file_mirror_proto_msgTypes[17]
+	mi := &file_mirror_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1795,7 +1552,7 @@ func (x *PackedDouble) String() string {
 func (*PackedDouble) ProtoMessage() {}
 
 func (x *PackedDouble) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[17]
+	mi := &file_mirror_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1808,7 +1565,7 @@ func (x *PackedDouble) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackedDouble.ProtoReflect.Descriptor instead.
 func (*PackedDouble) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{17}
+	return file_mirror_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PackedDouble) GetValues() []float64 {
@@ -1831,7 +1588,7 @@ type SparseArray struct {
 
 func (x *SparseArray) Reset() {
 	*x = SparseArray{}
-	mi := &file_mirror_proto_msgTypes[18]
+	mi := &file_mirror_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1843,7 +1600,7 @@ func (x *SparseArray) String() string {
 func (*SparseArray) ProtoMessage() {}
 
 func (x *SparseArray) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[18]
+	mi := &file_mirror_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1856,7 +1613,7 @@ func (x *SparseArray) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SparseArray.ProtoReflect.Descriptor instead.
 func (*SparseArray) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{18}
+	return file_mirror_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SparseArray) GetIndex() []uint32 {
@@ -1921,7 +1678,7 @@ type CellGrid struct {
 
 func (x *CellGrid) Reset() {
 	*x = CellGrid{}
-	mi := &file_mirror_proto_msgTypes[19]
+	mi := &file_mirror_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1933,7 +1690,7 @@ func (x *CellGrid) String() string {
 func (*CellGrid) ProtoMessage() {}
 
 func (x *CellGrid) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[19]
+	mi := &file_mirror_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1946,7 +1703,7 @@ func (x *CellGrid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellGrid.ProtoReflect.Descriptor instead.
 func (*CellGrid) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{19}
+	return file_mirror_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CellGrid) GetRect() *CellRect {
@@ -2096,582 +1853,11 @@ func (x *CellGrid) GetRuinHold() *FieldArray {
 	return nil
 }
 
-type MirrorPollRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Stale: the StaleIdentity failure, carrying the current
-	// context to re-anchor on.
-	Identity           *commonpb.Identity `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	Epoch              *Epoch             `protobuf:"bytes,2,opt,name=epoch,proto3" json:"epoch,omitempty"` // the epoch the client's watermarks belong to
-	Asks               []*SectionAsk      `protobuf:"bytes,3,rep,name=asks,proto3" json:"asks,omitempty"`
-	ByteBudget         *uint32            `protobuf:"varint,4,opt,name=byte_budget,json=byteBudget,proto3,oneof" json:"byte_budget,omitempty"`                           // section rows per page, 1..786432
-	WaitMs             *uint32            `protobuf:"varint,5,opt,name=wait_ms,json=waitMs,proto3,oneof" json:"wait_ms,omitempty"`                                       // 0..5000
-	JournalAfterCursor *int64             `protobuf:"varint,6,opt,name=journal_after_cursor,json=journalAfterCursor,proto3,oneof" json:"journal_after_cursor,omitempty"` // absent: no journal page
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
-}
-
-func (x *MirrorPollRequest) Reset() {
-	*x = MirrorPollRequest{}
-	mi := &file_mirror_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MirrorPollRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MirrorPollRequest) ProtoMessage() {}
-
-func (x *MirrorPollRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MirrorPollRequest.ProtoReflect.Descriptor instead.
-func (*MirrorPollRequest) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *MirrorPollRequest) GetIdentity() *commonpb.Identity {
-	if x != nil {
-		return x.Identity
-	}
-	return nil
-}
-
-func (x *MirrorPollRequest) GetEpoch() *Epoch {
-	if x != nil {
-		return x.Epoch
-	}
-	return nil
-}
-
-func (x *MirrorPollRequest) GetAsks() []*SectionAsk {
-	if x != nil {
-		return x.Asks
-	}
-	return nil
-}
-
-func (x *MirrorPollRequest) GetByteBudget() uint32 {
-	if x != nil && x.ByteBudget != nil {
-		return *x.ByteBudget
-	}
-	return 0
-}
-
-func (x *MirrorPollRequest) GetWaitMs() uint32 {
-	if x != nil && x.WaitMs != nil {
-		return *x.WaitMs
-	}
-	return 0
-}
-
-func (x *MirrorPollRequest) GetJournalAfterCursor() int64 {
-	if x != nil && x.JournalAfterCursor != nil {
-		return *x.JournalAfterCursor
-	}
-	return 0
-}
-
-// The whole section at `at`.
-type Keyframe struct {
-	state     protoimpl.MessageState          `protogen:"open.v1"`
-	At        *Watermark                      `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
-	Buildings []*observationspb.BuildingState `protobuf:"bytes,2,rep,name=buildings,proto3" json:"buildings,omitempty"`
-	Bills     []*observationspb.BillStack     `protobuf:"bytes,3,rep,name=bills,proto3" json:"bills,omitempty"`
-	Cells     *CellGrid                       `protobuf:"bytes,4,opt,name=cells,proto3" json:"cells,omitempty"` // SECTION_PLANNING_CELLS
-	// SECTION_ZONES: the census (context, map snapshot token, every zone).
-	Zones *observationspb.ZonesSnapshot `protobuf:"bytes,5,opt,name=zones,proto3" json:"zones,omitempty"`
-	// SECTION_PAWNS, SECTION_COLONY_FACTS: the snapshot the ask's read
-	// answers, a #773 delta of it when its delta names since.
-	Pawns         *observationspb.PawnSnapshot        `protobuf:"bytes,6,opt,name=pawns,proto3" json:"pawns,omitempty"`
-	ColonyFacts   *observationspb.ColonyFactsSnapshot `protobuf:"bytes,7,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
-	CombatPawns   []*CombatPawn                       `protobuf:"bytes,8,rep,name=combat_pawns,json=combatPawns,proto3" json:"combat_pawns,omitempty"`    // SECTION_COMBAT_PAWNS
-	CombatEvents  []*CombatEventRow                   `protobuf:"bytes,9,rep,name=combat_events,json=combatEvents,proto3" json:"combat_events,omitempty"` // SECTION_COMBAT_EVENTS: the retained ring
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Keyframe) Reset() {
-	*x = Keyframe{}
-	mi := &file_mirror_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Keyframe) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Keyframe) ProtoMessage() {}
-
-func (x *Keyframe) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Keyframe.ProtoReflect.Descriptor instead.
-func (*Keyframe) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *Keyframe) GetAt() *Watermark {
-	if x != nil {
-		return x.At
-	}
-	return nil
-}
-
-func (x *Keyframe) GetBuildings() []*observationspb.BuildingState {
-	if x != nil {
-		return x.Buildings
-	}
-	return nil
-}
-
-func (x *Keyframe) GetBills() []*observationspb.BillStack {
-	if x != nil {
-		return x.Bills
-	}
-	return nil
-}
-
-func (x *Keyframe) GetCells() *CellGrid {
-	if x != nil {
-		return x.Cells
-	}
-	return nil
-}
-
-func (x *Keyframe) GetZones() *observationspb.ZonesSnapshot {
-	if x != nil {
-		return x.Zones
-	}
-	return nil
-}
-
-func (x *Keyframe) GetPawns() *observationspb.PawnSnapshot {
-	if x != nil {
-		return x.Pawns
-	}
-	return nil
-}
-
-func (x *Keyframe) GetColonyFacts() *observationspb.ColonyFactsSnapshot {
-	if x != nil {
-		return x.ColonyFacts
-	}
-	return nil
-}
-
-func (x *Keyframe) GetCombatPawns() []*CombatPawn {
-	if x != nil {
-		return x.CombatPawns
-	}
-	return nil
-}
-
-func (x *Keyframe) GetCombatEvents() []*CombatEventRow {
-	if x != nil {
-		return x.CombatEvents
-	}
-	return nil
-}
-
-// The rows changed after `from`, through `to`, and the ids removed since.
-type Delta struct {
-	state      protoimpl.MessageState          `protogen:"open.v1"`
-	From       *Watermark                      `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
-	To         *Watermark                      `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
-	Buildings  []*observationspb.BuildingState `protobuf:"bytes,3,rep,name=buildings,proto3" json:"buildings,omitempty"`
-	Bills      []*observationspb.BillStack     `protobuf:"bytes,4,rep,name=bills,proto3" json:"bills,omitempty"`
-	Tombstones []string                        `protobuf:"bytes,5,rep,name=tombstones,proto3" json:"tombstones,omitempty"`
-	Cells      *CellGrid                       `protobuf:"bytes,6,opt,name=cells,proto3" json:"cells,omitempty"` // SECTION_PLANNING_CELLS: the changed arrays only
-	// SECTION_ZONES: the census header and the changed zones; removed zone
-	// ids are tombstones.
-	Zones         *observationspb.ZonesSnapshot `protobuf:"bytes,7,opt,name=zones,proto3" json:"zones,omitempty"`
-	CombatPawns   []*CombatPawn                 `protobuf:"bytes,8,rep,name=combat_pawns,json=combatPawns,proto3" json:"combat_pawns,omitempty"`    // SECTION_COMBAT_PAWNS: the changed rows
-	CombatEvents  []*CombatEventRow             `protobuf:"bytes,9,rep,name=combat_events,json=combatEvents,proto3" json:"combat_events,omitempty"` // SECTION_COMBAT_EVENTS: the rows after from
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Delta) Reset() {
-	*x = Delta{}
-	mi := &file_mirror_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Delta) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Delta) ProtoMessage() {}
-
-func (x *Delta) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Delta.ProtoReflect.Descriptor instead.
-func (*Delta) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *Delta) GetFrom() *Watermark {
-	if x != nil {
-		return x.From
-	}
-	return nil
-}
-
-func (x *Delta) GetTo() *Watermark {
-	if x != nil {
-		return x.To
-	}
-	return nil
-}
-
-func (x *Delta) GetBuildings() []*observationspb.BuildingState {
-	if x != nil {
-		return x.Buildings
-	}
-	return nil
-}
-
-func (x *Delta) GetBills() []*observationspb.BillStack {
-	if x != nil {
-		return x.Bills
-	}
-	return nil
-}
-
-func (x *Delta) GetTombstones() []string {
-	if x != nil {
-		return x.Tombstones
-	}
-	return nil
-}
-
-func (x *Delta) GetCells() *CellGrid {
-	if x != nil {
-		return x.Cells
-	}
-	return nil
-}
-
-func (x *Delta) GetZones() *observationspb.ZonesSnapshot {
-	if x != nil {
-		return x.Zones
-	}
-	return nil
-}
-
-func (x *Delta) GetCombatPawns() []*CombatPawn {
-	if x != nil {
-		return x.CombatPawns
-	}
-	return nil
-}
-
-func (x *Delta) GetCombatEvents() []*CombatEventRow {
-	if x != nil {
-		return x.CombatEvents
-	}
-	return nil
-}
-
-type SectionPage struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Section *Section               `protobuf:"varint,1,opt,name=section,proto3,enum=rimgovernor.mirror.v1.Section,oneof" json:"section,omitempty"`
-	// Types that are valid to be assigned to Body:
-	//
-	//	*SectionPage_Keyframe
-	//	*SectionPage_Delta
-	Body isSectionPage_Body `protobuf_oneof:"body"`
-	// The section did not fit this page's byte budget and has no body:
-	// re-poll with wait_ms 0 from the same watermark.
-	More *bool `protobuf:"varint,4,opt,name=more,proto3,oneof" json:"more,omitempty"`
-	// The keyframe an ask's resync asked for, beside its delta.
-	Resync        *Keyframe `protobuf:"bytes,5,opt,name=resync,proto3" json:"resync,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SectionPage) Reset() {
-	*x = SectionPage{}
-	mi := &file_mirror_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SectionPage) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SectionPage) ProtoMessage() {}
-
-func (x *SectionPage) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SectionPage.ProtoReflect.Descriptor instead.
-func (*SectionPage) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *SectionPage) GetSection() Section {
-	if x != nil && x.Section != nil {
-		return *x.Section
-	}
-	return Section_SECTION_UNSPECIFIED
-}
-
-func (x *SectionPage) GetBody() isSectionPage_Body {
-	if x != nil {
-		return x.Body
-	}
-	return nil
-}
-
-func (x *SectionPage) GetKeyframe() *Keyframe {
-	if x != nil {
-		if x, ok := x.Body.(*SectionPage_Keyframe); ok {
-			return x.Keyframe
-		}
-	}
-	return nil
-}
-
-func (x *SectionPage) GetDelta() *Delta {
-	if x != nil {
-		if x, ok := x.Body.(*SectionPage_Delta); ok {
-			return x.Delta
-		}
-	}
-	return nil
-}
-
-func (x *SectionPage) GetMore() bool {
-	if x != nil && x.More != nil {
-		return *x.More
-	}
-	return false
-}
-
-func (x *SectionPage) GetResync() *Keyframe {
-	if x != nil {
-		return x.Resync
-	}
-	return nil
-}
-
-type isSectionPage_Body interface {
-	isSectionPage_Body()
-}
-
-type SectionPage_Keyframe struct {
-	Keyframe *Keyframe `protobuf:"bytes,2,opt,name=keyframe,proto3,oneof"`
-}
-
-type SectionPage_Delta struct {
-	Delta *Delta `protobuf:"bytes,3,opt,name=delta,proto3,oneof"`
-}
-
-func (*SectionPage_Keyframe) isSectionPage_Body() {}
-
-func (*SectionPage_Delta) isSectionPage_Body() {}
-
-type MirrorPage struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Epoch *Epoch                 `protobuf:"bytes,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	// Everything at or before this tick is present in the client's mirror
-	// once the page is applied: the least of the served sections' watermarks,
-	// the unserved asks' and the journal page's tick.
-	CompleteThroughTick *int64              `protobuf:"varint,2,opt,name=complete_through_tick,json=completeThroughTick,proto3,oneof" json:"complete_through_tick,omitempty"`
-	Sections            []*SectionPage      `protobuf:"bytes,3,rep,name=sections,proto3" json:"sections,omitempty"`
-	Journal             *clockpb.EventsPage `protobuf:"bytes,4,opt,name=journal,proto3" json:"journal,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
-}
-
-func (x *MirrorPage) Reset() {
-	*x = MirrorPage{}
-	mi := &file_mirror_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MirrorPage) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MirrorPage) ProtoMessage() {}
-
-func (x *MirrorPage) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MirrorPage.ProtoReflect.Descriptor instead.
-func (*MirrorPage) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *MirrorPage) GetEpoch() *Epoch {
-	if x != nil {
-		return x.Epoch
-	}
-	return nil
-}
-
-func (x *MirrorPage) GetCompleteThroughTick() int64 {
-	if x != nil && x.CompleteThroughTick != nil {
-		return *x.CompleteThroughTick
-	}
-	return 0
-}
-
-func (x *MirrorPage) GetSections() []*SectionPage {
-	if x != nil {
-		return x.Sections
-	}
-	return nil
-}
-
-func (x *MirrorPage) GetJournal() *clockpb.EventsPage {
-	if x != nil {
-		return x.Journal
-	}
-	return nil
-}
-
-type MirrorPollReply struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Outcome:
-	//
-	//	*MirrorPollReply_Page
-	//	*MirrorPollReply_Failure
-	Outcome       isMirrorPollReply_Outcome `protobuf_oneof:"outcome"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MirrorPollReply) Reset() {
-	*x = MirrorPollReply{}
-	mi := &file_mirror_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MirrorPollReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MirrorPollReply) ProtoMessage() {}
-
-func (x *MirrorPollReply) ProtoReflect() protoreflect.Message {
-	mi := &file_mirror_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MirrorPollReply.ProtoReflect.Descriptor instead.
-func (*MirrorPollReply) Descriptor() ([]byte, []int) {
-	return file_mirror_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *MirrorPollReply) GetOutcome() isMirrorPollReply_Outcome {
-	if x != nil {
-		return x.Outcome
-	}
-	return nil
-}
-
-func (x *MirrorPollReply) GetPage() *MirrorPage {
-	if x != nil {
-		if x, ok := x.Outcome.(*MirrorPollReply_Page); ok {
-			return x.Page
-		}
-	}
-	return nil
-}
-
-func (x *MirrorPollReply) GetFailure() *commonpb.Failure {
-	if x != nil {
-		if x, ok := x.Outcome.(*MirrorPollReply_Failure); ok {
-			return x.Failure
-		}
-	}
-	return nil
-}
-
-type isMirrorPollReply_Outcome interface {
-	isMirrorPollReply_Outcome()
-}
-
-type MirrorPollReply_Page struct {
-	Page *MirrorPage `protobuf:"bytes,1,opt,name=page,proto3,oneof"`
-}
-
-type MirrorPollReply_Failure struct {
-	Failure *commonpb.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
-}
-
-func (*MirrorPollReply_Page) isMirrorPollReply_Outcome() {}
-
-func (*MirrorPollReply_Failure) isMirrorPollReply_Outcome() {}
-
 var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\x1a\x12observations.proto\"\xda\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\"\xda\n" +
 	"\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
@@ -2815,25 +2001,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\x04tick\x18\x01 \x01(\x03H\x00R\x04tick\x88\x01\x01\x12\x15\n" +
 	"\x03seq\x18\x02 \x01(\rH\x01R\x03seq\x88\x01\x01B\a\n" +
 	"\x05_tickB\x06\n" +
-	"\x04_seq\"\xb7\x01\n" +
-	"\x05Epoch\x12\x1d\n" +
-	"\aprocess\x18\x01 \x01(\tH\x00R\aprocess\x88\x01\x01\x12;\n" +
-	"\bidentity\x18\x02 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x120\n" +
-	"\x11native_generation\x18\x03 \x01(\x04H\x01R\x10nativeGeneration\x88\x01\x01B\n" +
-	"\n" +
-	"\b_processB\x14\n" +
-	"\x12_native_generation\"\x89\x03\n" +
-	"\n" +
-	"SectionAsk\x12=\n" +
-	"\asection\x18\x01 \x01(\x0e2\x1e.rimgovernor.mirror.v1.SectionH\x00R\asection\x88\x01\x01\x126\n" +
-	"\x05since\x18\x02 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x05since\x127\n" +
-	"\x06window\x18\x03 \x01(\v2\x1f.rimgovernor.mirror.v1.CellRectR\x06window\x12C\n" +
-	"\x05pawns\x18\x04 \x01(\v2-.rimgovernor.observations.v1.ListPawnsRequestR\x05pawns\x12R\n" +
-	"\fcolony_facts\x18\x05 \x01(\v2/.rimgovernor.observations.v1.ColonyFactsRequestR\vcolonyFacts\x12\x1b\n" +
-	"\x06resync\x18\x06 \x01(\bH\x01R\x06resync\x88\x01\x01B\n" +
-	"\n" +
-	"\b_sectionB\t\n" +
-	"\a_resync\"\x89\x01\n" +
+	"\x04_seq\"\x89\x01\n" +
 	"\bCellRect\x12\x11\n" +
 	"\x01x\x18\x01 \x01(\x05H\x00R\x01x\x88\x01\x01\x12\x11\n" +
 	"\x01z\x18\x02 \x01(\x05H\x01R\x01z\x88\x01\x01\x12\x19\n" +
@@ -2881,72 +2049,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\x04ruin\x18\x12 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\x04ruin\x12H\n" +
 	"\x0eplayer_edifice\x18\x13 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rplayerEdifice\x12H\n" +
 	"\x0eclaimable_ruin\x18\x14 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\rclaimableRuin\x12>\n" +
-	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold\"\xeb\x02\n" +
-	"\x11MirrorPollRequest\x12;\n" +
-	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x122\n" +
-	"\x05epoch\x18\x02 \x01(\v2\x1c.rimgovernor.mirror.v1.EpochR\x05epoch\x125\n" +
-	"\x04asks\x18\x03 \x03(\v2!.rimgovernor.mirror.v1.SectionAskR\x04asks\x12$\n" +
-	"\vbyte_budget\x18\x04 \x01(\rH\x00R\n" +
-	"byteBudget\x88\x01\x01\x12\x1c\n" +
-	"\await_ms\x18\x05 \x01(\rH\x01R\x06waitMs\x88\x01\x01\x125\n" +
-	"\x14journal_after_cursor\x18\x06 \x01(\x03H\x02R\x12journalAfterCursor\x88\x01\x01B\x0e\n" +
-	"\f_byte_budgetB\n" +
-	"\n" +
-	"\b_wait_msB\x17\n" +
-	"\x15_journal_after_cursor\"\xe5\x04\n" +
-	"\bKeyframe\x120\n" +
-	"\x02at\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02at\x12H\n" +
-	"\tbuildings\x18\x02 \x03(\v2*.rimgovernor.observations.v1.BuildingStateR\tbuildings\x12<\n" +
-	"\x05bills\x18\x03 \x03(\v2&.rimgovernor.observations.v1.BillStackR\x05bills\x125\n" +
-	"\x05cells\x18\x04 \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x05cells\x12@\n" +
-	"\x05zones\x18\x05 \x01(\v2*.rimgovernor.observations.v1.ZonesSnapshotR\x05zones\x12?\n" +
-	"\x05pawns\x18\x06 \x01(\v2).rimgovernor.observations.v1.PawnSnapshotR\x05pawns\x12S\n" +
-	"\fcolony_facts\x18\a \x01(\v20.rimgovernor.observations.v1.ColonyFactsSnapshotR\vcolonyFacts\x12D\n" +
-	"\fcombat_pawns\x18\b \x03(\v2!.rimgovernor.mirror.v1.CombatPawnR\vcombatPawns\x12J\n" +
-	"\rcombat_events\x18\t \x03(\v2%.rimgovernor.mirror.v1.CombatEventRowR\fcombatEvents\"\xa2\x04\n" +
-	"\x05Delta\x124\n" +
-	"\x04from\x18\x01 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x04from\x120\n" +
-	"\x02to\x18\x02 \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\x02to\x12H\n" +
-	"\tbuildings\x18\x03 \x03(\v2*.rimgovernor.observations.v1.BuildingStateR\tbuildings\x12<\n" +
-	"\x05bills\x18\x04 \x03(\v2&.rimgovernor.observations.v1.BillStackR\x05bills\x12\x1e\n" +
-	"\n" +
-	"tombstones\x18\x05 \x03(\tR\n" +
-	"tombstones\x125\n" +
-	"\x05cells\x18\x06 \x01(\v2\x1f.rimgovernor.mirror.v1.CellGridR\x05cells\x12@\n" +
-	"\x05zones\x18\a \x01(\v2*.rimgovernor.observations.v1.ZonesSnapshotR\x05zones\x12D\n" +
-	"\fcombat_pawns\x18\b \x03(\v2!.rimgovernor.mirror.v1.CombatPawnR\vcombatPawns\x12J\n" +
-	"\rcombat_events\x18\t \x03(\v2%.rimgovernor.mirror.v1.CombatEventRowR\fcombatEvents\"\xb0\x02\n" +
-	"\vSectionPage\x12=\n" +
-	"\asection\x18\x01 \x01(\x0e2\x1e.rimgovernor.mirror.v1.SectionH\x01R\asection\x88\x01\x01\x12=\n" +
-	"\bkeyframe\x18\x02 \x01(\v2\x1f.rimgovernor.mirror.v1.KeyframeH\x00R\bkeyframe\x124\n" +
-	"\x05delta\x18\x03 \x01(\v2\x1c.rimgovernor.mirror.v1.DeltaH\x00R\x05delta\x12\x17\n" +
-	"\x04more\x18\x04 \x01(\bH\x02R\x04more\x88\x01\x01\x127\n" +
-	"\x06resync\x18\x05 \x01(\v2\x1f.rimgovernor.mirror.v1.KeyframeR\x06resyncB\x06\n" +
-	"\x04bodyB\n" +
-	"\n" +
-	"\b_sectionB\a\n" +
-	"\x05_more\"\x8f\x02\n" +
-	"\n" +
-	"MirrorPage\x122\n" +
-	"\x05epoch\x18\x01 \x01(\v2\x1c.rimgovernor.mirror.v1.EpochR\x05epoch\x127\n" +
-	"\x15complete_through_tick\x18\x02 \x01(\x03H\x00R\x13completeThroughTick\x88\x01\x01\x12>\n" +
-	"\bsections\x18\x03 \x03(\v2\".rimgovernor.mirror.v1.SectionPageR\bsections\x12:\n" +
-	"\ajournal\x18\x04 \x01(\v2 .rimgovernor.clock.v1.EventsPageR\ajournalB\x18\n" +
-	"\x16_complete_through_tick\"\x91\x01\n" +
-	"\x0fMirrorPollReply\x127\n" +
-	"\x04page\x18\x01 \x01(\v2!.rimgovernor.mirror.v1.MirrorPageH\x00R\x04page\x12:\n" +
-	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome*\xdd\x01\n" +
-	"\aSection\x12\x17\n" +
-	"\x13SECTION_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11SECTION_BUILDINGS\x10\x01\x12\x11\n" +
-	"\rSECTION_BILLS\x10\x02\x12\x1a\n" +
-	"\x16SECTION_PLANNING_CELLS\x10\x03\x12\x11\n" +
-	"\rSECTION_ZONES\x10\x04\x12\x11\n" +
-	"\rSECTION_PAWNS\x10\x05\x12\x18\n" +
-	"\x14SECTION_COLONY_FACTS\x10\x06\x12\x18\n" +
-	"\x14SECTION_COMBAT_PAWNS\x10\a\x12\x19\n" +
-	"\x15SECTION_COMBAT_EVENTS\x10\b*{\n" +
+	"\truin_hold\x18\x15 \x01(\v2!.rimgovernor.mirror.v1.FieldArrayR\bruinHold*{\n" +
 	"\n" +
 	"CombatSide\x12\x1b\n" +
 	"\x17COMBAT_SIDE_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -2990,144 +2093,92 @@ func file_mirror_proto_rawDescGZIP() []byte {
 	return file_mirror_proto_rawDescData
 }
 
-var file_mirror_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_mirror_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_mirror_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_mirror_proto_goTypes = []any{
-	(Section)(0),                               // 0: rimgovernor.mirror.v1.Section
-	(CombatSide)(0),                            // 1: rimgovernor.mirror.v1.CombatSide
-	(CombatStance)(0),                          // 2: rimgovernor.mirror.v1.CombatStance
-	(CombatLogKind)(0),                         // 3: rimgovernor.mirror.v1.CombatLogKind
-	(*CombatPawn)(nil),                         // 4: rimgovernor.mirror.v1.CombatPawn
-	(*CombatEventRow)(nil),                     // 5: rimgovernor.mirror.v1.CombatEventRow
-	(*CombatGeometryRequest)(nil),              // 6: rimgovernor.mirror.v1.CombatGeometryRequest
-	(*CombatGeometryPropose)(nil),              // 7: rimgovernor.mirror.v1.CombatGeometryPropose
-	(*CombatCoverBehindLine)(nil),              // 8: rimgovernor.mirror.v1.CombatCoverBehindLine
-	(*CombatAdjacentToChoke)(nil),              // 9: rimgovernor.mirror.v1.CombatAdjacentToChoke
-	(*CombatFiringCells)(nil),                  // 10: rimgovernor.mirror.v1.CombatFiringCells
-	(*CombatSightLine)(nil),                    // 11: rimgovernor.mirror.v1.CombatSightLine
-	(*CombatGeometryCell)(nil),                 // 12: rimgovernor.mirror.v1.CombatGeometryCell
-	(*CombatGeometry)(nil),                     // 13: rimgovernor.mirror.v1.CombatGeometry
-	(*CombatGeometryReply)(nil),                // 14: rimgovernor.mirror.v1.CombatGeometryReply
-	(*Watermark)(nil),                          // 15: rimgovernor.mirror.v1.Watermark
-	(*Epoch)(nil),                              // 16: rimgovernor.mirror.v1.Epoch
-	(*SectionAsk)(nil),                         // 17: rimgovernor.mirror.v1.SectionAsk
-	(*CellRect)(nil),                           // 18: rimgovernor.mirror.v1.CellRect
-	(*FieldArray)(nil),                         // 19: rimgovernor.mirror.v1.FieldArray
-	(*PackedUint32)(nil),                       // 20: rimgovernor.mirror.v1.PackedUint32
-	(*PackedDouble)(nil),                       // 21: rimgovernor.mirror.v1.PackedDouble
-	(*SparseArray)(nil),                        // 22: rimgovernor.mirror.v1.SparseArray
-	(*CellGrid)(nil),                           // 23: rimgovernor.mirror.v1.CellGrid
-	(*MirrorPollRequest)(nil),                  // 24: rimgovernor.mirror.v1.MirrorPollRequest
-	(*Keyframe)(nil),                           // 25: rimgovernor.mirror.v1.Keyframe
-	(*Delta)(nil),                              // 26: rimgovernor.mirror.v1.Delta
-	(*SectionPage)(nil),                        // 27: rimgovernor.mirror.v1.SectionPage
-	(*MirrorPage)(nil),                         // 28: rimgovernor.mirror.v1.MirrorPage
-	(*MirrorPollReply)(nil),                    // 29: rimgovernor.mirror.v1.MirrorPollReply
-	(*commonpb.Cell)(nil),                      // 30: rimgovernor.common.v1.Cell
-	(clockpb.CombatEvent)(0),                   // 31: rimgovernor.clock.v1.CombatEvent
-	(*commonpb.Identity)(nil),                  // 32: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),        // 33: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),                   // 34: rimgovernor.common.v1.Failure
-	(*observationspb.ListPawnsRequest)(nil),    // 35: rimgovernor.observations.v1.ListPawnsRequest
-	(*observationspb.ColonyFactsRequest)(nil),  // 36: rimgovernor.observations.v1.ColonyFactsRequest
-	(*observationspb.BuildingState)(nil),       // 37: rimgovernor.observations.v1.BuildingState
-	(*observationspb.BillStack)(nil),           // 38: rimgovernor.observations.v1.BillStack
-	(*observationspb.ZonesSnapshot)(nil),       // 39: rimgovernor.observations.v1.ZonesSnapshot
-	(*observationspb.PawnSnapshot)(nil),        // 40: rimgovernor.observations.v1.PawnSnapshot
-	(*observationspb.ColonyFactsSnapshot)(nil), // 41: rimgovernor.observations.v1.ColonyFactsSnapshot
-	(*clockpb.EventsPage)(nil),                 // 42: rimgovernor.clock.v1.EventsPage
+	(CombatSide)(0),                     // 0: rimgovernor.mirror.v1.CombatSide
+	(CombatStance)(0),                   // 1: rimgovernor.mirror.v1.CombatStance
+	(CombatLogKind)(0),                  // 2: rimgovernor.mirror.v1.CombatLogKind
+	(*CombatPawn)(nil),                  // 3: rimgovernor.mirror.v1.CombatPawn
+	(*CombatEventRow)(nil),              // 4: rimgovernor.mirror.v1.CombatEventRow
+	(*CombatGeometryRequest)(nil),       // 5: rimgovernor.mirror.v1.CombatGeometryRequest
+	(*CombatGeometryPropose)(nil),       // 6: rimgovernor.mirror.v1.CombatGeometryPropose
+	(*CombatCoverBehindLine)(nil),       // 7: rimgovernor.mirror.v1.CombatCoverBehindLine
+	(*CombatAdjacentToChoke)(nil),       // 8: rimgovernor.mirror.v1.CombatAdjacentToChoke
+	(*CombatFiringCells)(nil),           // 9: rimgovernor.mirror.v1.CombatFiringCells
+	(*CombatSightLine)(nil),             // 10: rimgovernor.mirror.v1.CombatSightLine
+	(*CombatGeometryCell)(nil),          // 11: rimgovernor.mirror.v1.CombatGeometryCell
+	(*CombatGeometry)(nil),              // 12: rimgovernor.mirror.v1.CombatGeometry
+	(*CombatGeometryReply)(nil),         // 13: rimgovernor.mirror.v1.CombatGeometryReply
+	(*Watermark)(nil),                   // 14: rimgovernor.mirror.v1.Watermark
+	(*CellRect)(nil),                    // 15: rimgovernor.mirror.v1.CellRect
+	(*FieldArray)(nil),                  // 16: rimgovernor.mirror.v1.FieldArray
+	(*PackedUint32)(nil),                // 17: rimgovernor.mirror.v1.PackedUint32
+	(*PackedDouble)(nil),                // 18: rimgovernor.mirror.v1.PackedDouble
+	(*SparseArray)(nil),                 // 19: rimgovernor.mirror.v1.SparseArray
+	(*CellGrid)(nil),                    // 20: rimgovernor.mirror.v1.CellGrid
+	(*commonpb.Cell)(nil),               // 21: rimgovernor.common.v1.Cell
+	(clockpb.CombatEvent)(0),            // 22: rimgovernor.clock.v1.CombatEvent
+	(*commonpb.Identity)(nil),           // 23: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil), // 24: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),            // 25: rimgovernor.common.v1.Failure
 }
 var file_mirror_proto_depIdxs = []int32{
-	1,  // 0: rimgovernor.mirror.v1.CombatPawn.side:type_name -> rimgovernor.mirror.v1.CombatSide
-	30, // 1: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
-	2,  // 2: rimgovernor.mirror.v1.CombatPawn.stance:type_name -> rimgovernor.mirror.v1.CombatStance
-	15, // 3: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
-	15, // 4: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
-	3,  // 5: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
-	31, // 6: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
-	30, // 7: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
-	30, // 8: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
-	32, // 9: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	30, // 10: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	7,  // 11: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
-	8,  // 12: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
-	9,  // 13: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
-	10, // 14: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
-	30, // 15: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
-	30, // 16: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
-	30, // 17: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
-	30, // 18: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
-	30, // 19: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
-	30, // 20: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
-	11, // 21: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
-	33, // 22: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
-	12, // 23: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	12, // 24: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
-	13, // 25: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
-	34, // 26: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32, // 27: rimgovernor.mirror.v1.Epoch.identity:type_name -> rimgovernor.common.v1.Identity
-	0,  // 28: rimgovernor.mirror.v1.SectionAsk.section:type_name -> rimgovernor.mirror.v1.Section
-	15, // 29: rimgovernor.mirror.v1.SectionAsk.since:type_name -> rimgovernor.mirror.v1.Watermark
-	18, // 30: rimgovernor.mirror.v1.SectionAsk.window:type_name -> rimgovernor.mirror.v1.CellRect
-	35, // 31: rimgovernor.mirror.v1.SectionAsk.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
-	36, // 32: rimgovernor.mirror.v1.SectionAsk.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsRequest
-	20, // 33: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
-	21, // 34: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
-	22, // 35: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
-	18, // 36: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
-	19, // 37: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 38: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 39: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 40: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 41: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 42: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 43: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 44: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 45: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 46: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 47: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 48: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 49: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 50: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 51: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 52: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 53: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 54: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
-	19, // 55: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
-	32, // 56: rimgovernor.mirror.v1.MirrorPollRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	16, // 57: rimgovernor.mirror.v1.MirrorPollRequest.epoch:type_name -> rimgovernor.mirror.v1.Epoch
-	17, // 58: rimgovernor.mirror.v1.MirrorPollRequest.asks:type_name -> rimgovernor.mirror.v1.SectionAsk
-	15, // 59: rimgovernor.mirror.v1.Keyframe.at:type_name -> rimgovernor.mirror.v1.Watermark
-	37, // 60: rimgovernor.mirror.v1.Keyframe.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	38, // 61: rimgovernor.mirror.v1.Keyframe.bills:type_name -> rimgovernor.observations.v1.BillStack
-	23, // 62: rimgovernor.mirror.v1.Keyframe.cells:type_name -> rimgovernor.mirror.v1.CellGrid
-	39, // 63: rimgovernor.mirror.v1.Keyframe.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	40, // 64: rimgovernor.mirror.v1.Keyframe.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	41, // 65: rimgovernor.mirror.v1.Keyframe.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
-	4,  // 66: rimgovernor.mirror.v1.Keyframe.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
-	5,  // 67: rimgovernor.mirror.v1.Keyframe.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
-	15, // 68: rimgovernor.mirror.v1.Delta.from:type_name -> rimgovernor.mirror.v1.Watermark
-	15, // 69: rimgovernor.mirror.v1.Delta.to:type_name -> rimgovernor.mirror.v1.Watermark
-	37, // 70: rimgovernor.mirror.v1.Delta.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	38, // 71: rimgovernor.mirror.v1.Delta.bills:type_name -> rimgovernor.observations.v1.BillStack
-	23, // 72: rimgovernor.mirror.v1.Delta.cells:type_name -> rimgovernor.mirror.v1.CellGrid
-	39, // 73: rimgovernor.mirror.v1.Delta.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	4,  // 74: rimgovernor.mirror.v1.Delta.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
-	5,  // 75: rimgovernor.mirror.v1.Delta.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
-	0,  // 76: rimgovernor.mirror.v1.SectionPage.section:type_name -> rimgovernor.mirror.v1.Section
-	25, // 77: rimgovernor.mirror.v1.SectionPage.keyframe:type_name -> rimgovernor.mirror.v1.Keyframe
-	26, // 78: rimgovernor.mirror.v1.SectionPage.delta:type_name -> rimgovernor.mirror.v1.Delta
-	25, // 79: rimgovernor.mirror.v1.SectionPage.resync:type_name -> rimgovernor.mirror.v1.Keyframe
-	16, // 80: rimgovernor.mirror.v1.MirrorPage.epoch:type_name -> rimgovernor.mirror.v1.Epoch
-	27, // 81: rimgovernor.mirror.v1.MirrorPage.sections:type_name -> rimgovernor.mirror.v1.SectionPage
-	42, // 82: rimgovernor.mirror.v1.MirrorPage.journal:type_name -> rimgovernor.clock.v1.EventsPage
-	28, // 83: rimgovernor.mirror.v1.MirrorPollReply.page:type_name -> rimgovernor.mirror.v1.MirrorPage
-	34, // 84: rimgovernor.mirror.v1.MirrorPollReply.failure:type_name -> rimgovernor.common.v1.Failure
-	85, // [85:85] is the sub-list for method output_type
-	85, // [85:85] is the sub-list for method input_type
-	85, // [85:85] is the sub-list for extension type_name
-	85, // [85:85] is the sub-list for extension extendee
-	0,  // [0:85] is the sub-list for field type_name
+	0,  // 0: rimgovernor.mirror.v1.CombatPawn.side:type_name -> rimgovernor.mirror.v1.CombatSide
+	21, // 1: rimgovernor.mirror.v1.CombatPawn.cell:type_name -> rimgovernor.common.v1.Cell
+	1,  // 2: rimgovernor.mirror.v1.CombatPawn.stance:type_name -> rimgovernor.mirror.v1.CombatStance
+	14, // 3: rimgovernor.mirror.v1.CombatPawn.changed:type_name -> rimgovernor.mirror.v1.Watermark
+	14, // 4: rimgovernor.mirror.v1.CombatEventRow.at:type_name -> rimgovernor.mirror.v1.Watermark
+	2,  // 5: rimgovernor.mirror.v1.CombatEventRow.kind:type_name -> rimgovernor.mirror.v1.CombatLogKind
+	22, // 6: rimgovernor.mirror.v1.CombatEventRow.stop:type_name -> rimgovernor.clock.v1.CombatEvent
+	21, // 7: rimgovernor.mirror.v1.CombatEventRow.cell:type_name -> rimgovernor.common.v1.Cell
+	21, // 8: rimgovernor.mirror.v1.CombatEventRow.landing_cells:type_name -> rimgovernor.common.v1.Cell
+	23, // 9: rimgovernor.mirror.v1.CombatGeometryRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	21, // 10: rimgovernor.mirror.v1.CombatGeometryRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	6,  // 11: rimgovernor.mirror.v1.CombatGeometryRequest.propose:type_name -> rimgovernor.mirror.v1.CombatGeometryPropose
+	7,  // 12: rimgovernor.mirror.v1.CombatGeometryPropose.cover_behind_line:type_name -> rimgovernor.mirror.v1.CombatCoverBehindLine
+	8,  // 13: rimgovernor.mirror.v1.CombatGeometryPropose.adjacent_to_choke:type_name -> rimgovernor.mirror.v1.CombatAdjacentToChoke
+	9,  // 14: rimgovernor.mirror.v1.CombatGeometryPropose.firing_cells:type_name -> rimgovernor.mirror.v1.CombatFiringCells
+	21, // 15: rimgovernor.mirror.v1.CombatCoverBehindLine.line:type_name -> rimgovernor.common.v1.Cell
+	21, // 16: rimgovernor.mirror.v1.CombatAdjacentToChoke.choke:type_name -> rimgovernor.common.v1.Cell
+	21, // 17: rimgovernor.mirror.v1.CombatAdjacentToChoke.our_side:type_name -> rimgovernor.common.v1.Cell
+	21, // 18: rimgovernor.mirror.v1.CombatFiringCells.targets:type_name -> rimgovernor.common.v1.Cell
+	21, // 19: rimgovernor.mirror.v1.CombatFiringCells.from:type_name -> rimgovernor.common.v1.Cell
+	21, // 20: rimgovernor.mirror.v1.CombatGeometryCell.cell:type_name -> rimgovernor.common.v1.Cell
+	10, // 21: rimgovernor.mirror.v1.CombatGeometryCell.lines:type_name -> rimgovernor.mirror.v1.CombatSightLine
+	24, // 22: rimgovernor.mirror.v1.CombatGeometry.context:type_name -> rimgovernor.common.v1.ObservationContext
+	11, // 23: rimgovernor.mirror.v1.CombatGeometry.cells:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	11, // 24: rimgovernor.mirror.v1.CombatGeometry.proposed:type_name -> rimgovernor.mirror.v1.CombatGeometryCell
+	12, // 25: rimgovernor.mirror.v1.CombatGeometryReply.observed:type_name -> rimgovernor.mirror.v1.CombatGeometry
+	25, // 26: rimgovernor.mirror.v1.CombatGeometryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	17, // 27: rimgovernor.mirror.v1.FieldArray.indexes:type_name -> rimgovernor.mirror.v1.PackedUint32
+	18, // 28: rimgovernor.mirror.v1.FieldArray.numbers:type_name -> rimgovernor.mirror.v1.PackedDouble
+	19, // 29: rimgovernor.mirror.v1.FieldArray.sparse:type_name -> rimgovernor.mirror.v1.SparseArray
+	15, // 30: rimgovernor.mirror.v1.CellGrid.rect:type_name -> rimgovernor.mirror.v1.CellRect
+	16, // 31: rimgovernor.mirror.v1.CellGrid.cell:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 32: rimgovernor.mirror.v1.CellGrid.walkable:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 33: rimgovernor.mirror.v1.CellGrid.occupied:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 34: rimgovernor.mirror.v1.CellGrid.zone:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 35: rimgovernor.mirror.v1.CellGrid.roofed:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 36: rimgovernor.mirror.v1.CellGrid.indoors:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 37: rimgovernor.mirror.v1.CellGrid.supports_light:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 38: rimgovernor.mirror.v1.CellGrid.storage_empty:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 39: rimgovernor.mirror.v1.CellGrid.doorway:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 40: rimgovernor.mirror.v1.CellGrid.fertility:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 41: rimgovernor.mirror.v1.CellGrid.polluted:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 42: rimgovernor.mirror.v1.CellGrid.glow:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 43: rimgovernor.mirror.v1.CellGrid.roof:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 44: rimgovernor.mirror.v1.CellGrid.zone_id:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 45: rimgovernor.mirror.v1.CellGrid.natural_rock:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 46: rimgovernor.mirror.v1.CellGrid.ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 47: rimgovernor.mirror.v1.CellGrid.player_edifice:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 48: rimgovernor.mirror.v1.CellGrid.claimable_ruin:type_name -> rimgovernor.mirror.v1.FieldArray
+	16, // 49: rimgovernor.mirror.v1.CellGrid.ruin_hold:type_name -> rimgovernor.mirror.v1.FieldArray
+	50, // [50:50] is the sub-list for method output_type
+	50, // [50:50] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_mirror_proto_init() }
@@ -3153,31 +2204,19 @@ func file_mirror_proto_init() {
 	}
 	file_mirror_proto_msgTypes[11].OneofWrappers = []any{}
 	file_mirror_proto_msgTypes[12].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[13].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[14].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[15].OneofWrappers = []any{
+	file_mirror_proto_msgTypes[13].OneofWrappers = []any{
 		(*FieldArray_Codes)(nil),
 		(*FieldArray_Indexes)(nil),
 		(*FieldArray_Numbers)(nil),
 		(*FieldArray_Sparse)(nil),
-	}
-	file_mirror_proto_msgTypes[20].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[23].OneofWrappers = []any{
-		(*SectionPage_Keyframe)(nil),
-		(*SectionPage_Delta)(nil),
-	}
-	file_mirror_proto_msgTypes[24].OneofWrappers = []any{}
-	file_mirror_proto_msgTypes[25].OneofWrappers = []any{
-		(*MirrorPollReply_Page)(nil),
-		(*MirrorPollReply_Failure)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mirror_proto_rawDesc), len(file_mirror_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   26,
+			NumEnums:      3,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

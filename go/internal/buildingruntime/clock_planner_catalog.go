@@ -50,7 +50,7 @@ type plannerEntry struct {
 }
 
 // The section sets planners consume from the review's census
-// (observations_read_bundle sections, facts.Section). Of the seven family
+// (snapshot frame sections, facts.Section). Of the seven family
 // lists the catalog used to carry, only the building planners' needed the
 // whole colony read (the colony facts, the planning cells, the entity
 // sections and the room census); every other colony reader consumes the

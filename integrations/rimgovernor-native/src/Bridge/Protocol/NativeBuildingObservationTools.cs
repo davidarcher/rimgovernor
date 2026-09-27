@@ -46,15 +46,10 @@ namespace HomeBridge.BridgeTools
                 var source = Source(map, parsed.HasCategory && parsed.Category == "all");
                 var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                 var seed = QuerySeed(parsed);
-                // Entity tracking (issue #358) follows every unfiltered
-                // read: a full one primes the shadow and sweeps the
-                // removed, and mirror_poll asks it for the changed (#795).
-                var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.PlayerOnly + (parsed.Category ?? "")) : null;
                 var snapshot = new Obs.BuildingsSnapshot { Context = context,
                     NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
                 var rows = new Dictionary<string, Obs.BuildingState>();
                 var listed = matched;
-                tracking?.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
                 var afterCursor = listed;
                 if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                 {
@@ -72,7 +67,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var thing in page)
                 {
                     var id = Id(thing.GetUniqueLoadID());
-                    if (!rows.TryGetValue(id, out var row)) { row = Row(thing, context); tracking?.Note(id, row); }
+                    if (!rows.TryGetValue(id, out var row)) { row = Row(thing, context); }
                     cells = checked(cells + row.OccupiedCells.Count);
                     Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
                     snapshot.Buildings.Add(row);
@@ -131,19 +126,8 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Inspect strings and bill ingredient detail are not supported by this read adapter.");
                 return false;
             }
-            if (request.HasChangedSinceTick)
-            {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick is retired; building deltas ride mirror_poll.");
-                return false;
-            }
             return true;
         }
-
-        // Unfiltered is a read that enumerates every building of its category
-        // and faction, the only shape whose tracker can tell a removed
-        // building from a filtered one.
-        private static bool Unfiltered(Obs.ListBuildingsRequest request) => request.Ids.Count == 0 && request.DefNames.Count == 0
-            && request.Statuses.Count == 0 && !request.HasDamagedBelowFraction && request.Region == null;
 
         // Match the existing listing's native coverage without its aggregation,
         // safe-read defaults, fuzzy name matching or detailed-row truncation.

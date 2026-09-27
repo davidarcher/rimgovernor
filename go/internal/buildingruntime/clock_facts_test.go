@@ -24,7 +24,7 @@ func clockFactsOutcome(action string) *k.Event {
 // ObservationInvalidated event drops exactly the families it names, and an
 // unknown family is treated as everything rather than ignored.
 func TestClockPageInvalidation(t *testing.T) {
-	facts := newClockFacts(nil, nil)
+	facts := newClockFacts(nil)
 	facts.remember([]clockWorkItem{{Action: "build", Kind: domain.BuildingAction, Attempt: 1}, {Action: "unarmed", Kind: domain.HaulAction}})
 	cases := []struct {
 		name     string
@@ -50,19 +50,14 @@ func TestClockPageInvalidation(t *testing.T) {
 			t.Fatalf("%s: all=%v families=%v", tc.name, all, families)
 		}
 	}
-	// apply drives the parent cache and the state store alike: after a
+	// apply drives the state store: after a
 	// construction outcome the research section survives and the rooms
 	// section is gone; an authority change empties the store.
-	facts.cache.Invalidate()
 	scope := factsstore.Scope{Load: "l", Generation: 1}
 	factsstore.Put(facts.store, scope, factsstore.Research, factsstore.Held[int]{AsOf: 1, Source: "r"})
 	factsstore.Put(facts.store, scope, factsstore.Rooms, factsstore.Held[int]{AsOf: 1, Source: "r"})
-	before := facts.cache.Stats().Invalidations
 	facts.apply(cases[1].page)
 	facts.apply(cases[0].page)
-	if got := facts.cache.Stats().Invalidations; got != before+1 {
-		t.Fatalf("apply invalidated %d times", got-before)
-	}
 	if _, ok := factsstore.Get[int](facts.store, factsstore.Rooms); ok {
 		t.Fatal("rooms survived a construction outcome")
 	}
@@ -85,7 +80,7 @@ func clockFactsInvalidated(o *k.ObservationInvalidated) *k.Event {
 
 // TestClockPageInvalidationNarrowed (#359): an ObservationInvalidated that
 // names entity ids or a rectangle reaches the store as a narrowed
-// invalidation, so the family's byte cache drops but a planning window
+// invalidation, so a planning window
 // the rectangle misses stays fresh and the zone rows keep their value
 // marked; a whole-family mention of the same family on the page (an
 // unnarrowed event or an outcome) drops it whole after all.
@@ -108,14 +103,13 @@ func TestClockPageInvalidationNarrowed(t *testing.T) {
 		t.Fatalf("families=%v narrowed=%+v", families, narrowed)
 	}
 
-	facts := newClockFacts(nil, nil)
+	facts := newClockFacts(nil)
 	scope := factsstore.Scope{Load: "l", Generation: 1}
 	factsstore.Put(facts.store, scope, factsstore.PlanningCells, factsstore.Held[int]{AsOf: 1, Source: "w", Region: factsstore.Rect{MinX: 0, MinZ: 0, MaxX: 9, MaxZ: 9}})
 	factsstore.Put(facts.store, scope, factsstore.Zones, factsstore.Held[int]{Value: 3, AsOf: 1, Source: "z"})
 	factsstore.Put(facts.store, scope, factsstore.Rooms, factsstore.Held[int]{AsOf: 1, Source: "r"})
-	before := facts.cache.Stats().Invalidations
-	if !facts.apply(narrowedPage) || facts.cache.Stats().Invalidations != before+1 {
-		t.Fatal("a narrowed page must still drop the byte cache family")
+	if !facts.apply(narrowedPage) {
+		t.Fatal("a narrowed page must report its drop")
 	}
 	if !facts.store.Fresh(factsstore.PlanningCells, 1) {
 		t.Fatal("a window the rectangle misses must stay fresh")
@@ -136,7 +130,7 @@ func TestClockPageInvalidationNarrowed(t *testing.T) {
 // TestClockFactsRememberBounded: the watched-kind memory never grows past
 // its bound; overflow clears it, which only broadens later invalidation.
 func TestClockFactsRememberBounded(t *testing.T) {
-	facts := newClockFacts(nil, nil)
+	facts := newClockFacts(nil)
 	for i := 0; i < clockFactsWatchedMax+5; i++ {
 		facts.remember([]clockWorkItem{{Action: domain.ActionID(string(rune('a'+i%26)) + string(rune('a'+i/26))), Kind: domain.BuildingAction, Attempt: 1}})
 	}

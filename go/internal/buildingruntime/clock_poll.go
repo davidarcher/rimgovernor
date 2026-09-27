@@ -14,9 +14,29 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	"google.golang.org/protobuf/proto"
 )
+
+// writesPending is the optional client signal that a side-effect call is
+// queued (bridge.Client.WritesPending): the poll then does not wait.
+type writesPending interface{ WritesPending() bool }
+
+// eventsIdentity is the world the event poll asks for: the last page's,
+// else the current scope from one bare step read (the live tick).
+func (s *ClockScheduler) eventsIdentity(ctx context.Context, native ClockEventNative) (*c.Identity, error) {
+	if s.pollIdentity != nil {
+		return s.pollIdentity, nil
+	}
+	snapshot, _, err := native.ReadStep(ctx, bridge.StepRequest{})
+	if err != nil {
+		return nil, err
+	}
+	current := snapshot.GetContext()
+	if err = bridge.ValidateContext(current); err != nil {
+		return nil, err
+	}
+	return proto.Clone(current.Identity).(*c.Identity), nil
+}
 
 // PollEvents never waits for the player gate. Interruption invalidation precedes
 // persistence and owned cleanup, which may need to join an active command.
@@ -26,7 +46,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// applied (see disableOnEvidence).
 	fresh := false
 	fail := func(cause error) (ClockPollResult, error) {
-		s.admissionWarm.Store(nil)
 		out.Interrupted = true
 		s.running.Store(false)
 		disabled := s.disableOnEvidence(fresh)
@@ -62,55 +81,41 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	before := s.session.State()
-	// The poll's one native read (#795): the journal page after the
-	// review's cursor with the polled mirror sections beside it, from the
-	// same hop (issue #127); the page's journal context is the current
-	// scope, so authority is judged against it below.
-	var current *c.ObservationContext
-	var request *k.EventsRequest
-	var page *k.EventsPage
-	var mirrored *mp.MirrorPage
-	// The poll is asked for a world (#795): the epoch's, else the
-	// current scope read once. A load between them answers
-	// StaleIdentity with the current context; the poll re-anchors on
-	// it and asks again, once.
-	identity, err := s.mirrorIdentity(call, native)
+	// The poll's one native read: the journal page after the review's
+	// cursor; the page's context is the current scope, so authority is
+	// judged against it below. The poll is asked for a world: the last
+	// page's, else the current scope read once. A load between them
+	// answers StaleIdentity with the current context; the poll re-anchors
+	// on it and asks again, once.
+	identity, err := s.eventsIdentity(call, native)
 	if err != nil {
 		return fail(err)
 	}
-	var ask *mp.MirrorPollRequest
-	var reply *mp.MirrorPollReply
+	var request *k.EventsRequest
+	var reply *k.EventsReply
 	for attempt := 0; ; attempt++ {
-		epoch, asks := s.facts.mirrorAsks(nil)
-		if epoch != nil && !proto.Equal(epoch.Identity, identity) {
-			// Watermarks of another world: keyframes for this one.
-			s.facts.resetEpoch()
-			epoch, asks = s.facts.mirrorAsks(nil)
-		}
-		ask = &mp.MirrorPollRequest{Identity: proto.Clone(identity).(*c.Identity), Epoch: epoch, Asks: asks, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), JournalAfterCursor: proto.Int64(review.InboxCursor)}
+		request = &k.EventsRequest{Identity: proto.Clone(identity).(*c.Identity), AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
 		if wait > 0 {
-			ask.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+			request.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
 		}
-		reply, _, err = native.MirrorPoll(call, ask)
+		reply, _, err = native.ReadClockEvents(call, request)
 		var stale *bridge.NativeFailure
 		if attempt == 0 && errors.As(err, &stale) && stale.Value.GetCode() == c.FailureCode_FAILURE_CODE_STALE_IDENTITY && stale.Value.GetObservedContext().GetIdentity() != nil {
 			identity = stale.Value.GetObservedContext().GetIdentity()
-			s.facts.resetEpoch()
 			continue
 		}
 		break
 	}
 	if err != nil {
+		s.pollIdentity = nil
 		return fail(err)
 	}
-	mirrored = reply.GetPage()
-	out.Mirror = true
-	page = mirrored.GetJournal()
-	current = page.GetContext()
-	request = bridge.MirrorJournalRequest(current.GetIdentity(), ask)
+	page := reply.GetPage()
+	current := page.GetContext()
 	if err = bridge.ValidateContext(current); err != nil {
 		return fail(err)
 	}
+	s.pollIdentity = proto.Clone(current.Identity).(*c.Identity)
 	state := s.session.State()
 	if !clockPollMatchesAuthority(current, state) {
 		if state != before && !out.Interrupted {
@@ -194,7 +199,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	if out.Captured {
-		s.admissionWarm.Store(nil)
 		telemetry.ObserveTick(page.Context.GetTick())
 		clockPollEvents(call, page)
 		if clockPollManual(page) {
@@ -216,10 +220,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 			s.config.Routine.census.invalidate()
 		}
 	}
-	// The page's sections are filed after its events invalidated the
-	// store: they describe the same snapshot, at or after every event.
-	applied := s.facts.applyMirrorPage(call, mirrored)
-	out.More, out.MirrorChanged = applied.more, applied.changed > 0
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
 		return fail(err)
@@ -251,9 +251,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	if out.Interrupted {
 		return fail(nil)
-	}
-	if out.Stopped {
-		s.warmAdmission(call, current)
 	}
 	return out, nil
 }

@@ -738,7 +738,7 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"max_probe_tick_gap": phases.Clock.NativeMaxProbeTickGap, "hazard_gaps": phases.Clock.NativeHazardGaps,
 		"paused_fraction": pausedFraction, "paused_fraction_sampling": "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure",
 		"paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
-		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,
+		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep,
 		// The step cost that bounds throughput at speed (#593): the live
 		// steps apart from the cold and stopped ones, their reads and wall,
 		// and the player-gate wait a step spent queued behind the Worker's
@@ -748,7 +748,7 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"step_ms_mean": phases.Steps.StepMs(), "step_ms_max": phases.Steps.MaxElapsedMs,
 		"gate_wait_ms_mean": gateWaitMean, "gate_wait_ms_max": phases.Steps.MaxGateWaitMs,
 		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks,
-		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
+		"stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
 		// The controller's own coupled-order stops (#584): native journals
 		// them as its cleanup, so they are counted from the step rows and

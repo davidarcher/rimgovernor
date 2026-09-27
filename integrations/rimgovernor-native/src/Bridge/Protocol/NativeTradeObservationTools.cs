@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
         {
             Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, Label = SafeText(() => pawn.LabelShort), MapId = pawn.Map?.uniqueID ?? -1,
             Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
-            Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID() },
+            Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(), Token = pawn.GetUniqueLoadID() },
         };
 
         // Mirrors NativeTradeOperations.PrepareOpen's negotiator eligibility

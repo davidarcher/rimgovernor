@@ -41,11 +41,6 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlannersAndReadsTheirSections(t *
 	// hold it back so the wake alone decides the wave.
 	s.queue.due["idleDrafts"] = tick + 1
 	reason := StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Buildings}}
-	// The held population section stays out of the request; research and
-	// the colonist pawns, which the fixture never filed, ride as before.
-	if r := s.bundleRequest(reason); !r.GetColonyFacts() || r.GetPopulation() || !r.GetResearch() || !r.GetColonistPawns() {
-		t.Fatal("bundle request past cadence for a buildings wake", r)
-	}
 	step, err := s.StepWithReason(ctx, reason)
 	if err != nil || step.Reason.Cause != StepLive || !reflect.DeepEqual(step.Planners, []string{"sleeping"}) {
 		t.Fatal(step, err)

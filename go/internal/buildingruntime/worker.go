@@ -43,11 +43,6 @@ type WorkerConfig struct {
 	// Advanced, when set, is called after a step that moved an action to a
 	// new stage, so the clock step loop reviews at once (issue #162).
 	Advanced func()
-	// Facts is the scheduler's cross-step fact cache. Every worker step
-	// runs under a child of it, so a write the worker issues (a setpoint
-	// patch, a dispatch) discards the facts the planners would otherwise
-	// keep reading from before it; nil leaves the worker uncached (#66).
-	Facts *bridge.FactCache
 	// Store is the scheduler's decoded state store. A dispatch native
 	// refuses for a map-consuming kind (a placement or zone whose CAS token
 	// no longer matches) asks it to resync the planning window in full on
@@ -327,20 +322,6 @@ func (w *Worker) takeWake() {
 	}
 }
 
-// readWorld names the loaded world a step reconciles against. The step
-// needs the load, not its tick, so the identity row the scheduler's bundle
-// read seeds into Facts each step serves it without a round trip; a write
-// or a scope change drops that row and the next step reads natively (#181).
-func (w *Worker) readWorld(ctx context.Context) (store.World, error) {
-	if cached, ok := w.config.Facts.Context(); ok && bridge.ValidateContext(cached.Context) == nil {
-		identity := cached.Context.GetIdentity()
-		world := store.World{Colony: domain.ColonyID(identity.GetColonyId()), Load: domain.LoadID(identity.GetLoadToken()), Map: domain.MapID(identity.GetMapId())}
-		if world.Validate() == nil {
-			return world, ctx.Err()
-		}
-	}
-	return w.player.worlds.ReadWorld(ctx)
-}
 func (w *Worker) focusNamed(id domain.ActionID) bool { _, ok := w.focus[id]; return ok }
 func (w *Worker) step(ctx context.Context, now time.Time) error {
 	w.advanced = false
@@ -351,11 +332,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	}
 	stepTrace := parent.Child()
 	call := telemetry.WithTrace(ctx, stepTrace)
-	var cache *bridge.StepReadCache
-	if w.config.Facts != nil {
-		cache = bridge.NewChildReadCache(w.config.Facts)
-		call = bridge.WithStepReadCache(call, cache)
-	}
 	// StepTimeout budgets the dispatches, not the wait for the player
 	// gate: a scheduler step holds the gate for its whole planner wave, and
 	// a budget that started before the wait left the step 0-3 s for its
@@ -372,7 +348,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			call = domain.WithReadValidity(call, v)
 		}
 	}
-	world, worldErr := w.readWorld(call)
+	world, worldErr := w.player.worlds.ReadWorld(call)
 	if worldErr == nil {
 		worldErr = world.Validate()
 	}
@@ -542,18 +518,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		var result executor.Result
 		dispatchStarted := time.Now()
 		running := w.config.WindowRunning != nil && w.config.WindowRunning()
-		// The dispatch's write drops the scheduler's cross-step facts by the
-		// families this kind can change, as the poll narrows its outcome;
-		// dropping everything on every dispatch left the next step reading
-		// every family natively again (#593).
 		kind, known := candidate.kind, !candidate.cleanup
-		cache.SetWriteFamilies(func() (bool, []bridge.FactFamily) { return operationFamilies(kind, known) })
 		run, tally := bridge.WithReadTally(telemetry.WithTrace(call, stepTrace.Child()))
-		if v.Stage == domain.AwaitingObservation {
-			// A reconcile proves an outcome against its live progress read;
-			// a cached row predates that read and is refused as evidence.
-			run = bridge.WithoutStepReadCache(run)
-		}
 		if err == nil {
 			if candidate.cleanup {
 				result, err = w.session.CleanupDraft(run, v.Plan, v.Action)
@@ -575,9 +541,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		stale := !candidate.cleanup && workerHeldStale(after, result, err)
 		if result.NativeCalled {
-			// The decoded store drops what the byte cache's write hook
-			// dropped: otherwise only a clock events page drops it, and a
-			// paused colony with no admitted window never gets one, so the
+			// The decoded store drops what the dispatch changed:
+			// only a clock events page would drop it otherwise, and a
 			// next decision replans from the rows before this write.
 			if everything, families := operationFamilies(kind, known); everything {
 				w.config.Store.InvalidateAll()

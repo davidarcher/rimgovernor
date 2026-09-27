@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -101,58 +100,6 @@ func TestClockSchedulerRejectsDifferentRoutineOwner(t *testing.T) {
 	}
 }
 
-// TestClockSchedulerBundleRequestsFamiliesForAReview: the step's first
-// bundle carries the census families exactly when the step is expected to
-// review (issue #180): never without a reviewer, on a timer only when the
-// full step is due, on evidence when the selection runs the reviewer (a
-// subset selection included), under a running window as under a stopped
-// one (#243).
-func TestClockSchedulerBundleRequestsFamiliesForAReview(t *testing.T) {
-	t.Parallel()
-	s, f := schedulerFixture(t)
-	families := func(r *o.BundleRequest) bool {
-		return r.GetColonyFacts() && r.GetPopulation() && r.GetResearch() && r.GetColonistPawns()
-	}
-	bare := func(r *o.BundleRequest) bool {
-		return r.GetClockStatus() && r.GetEmergency() && r.ColonyFacts == nil && r.Population == nil && r.Research == nil && r.ColonistPawns == nil
-	}
-	if r := s.bundleRequest(StepReason{Cause: StepFull}); !bare(r) {
-		t.Fatal("families without a reviewer", r)
-	}
-	schedulerRoutine(t, s, f)
-	if r := s.bundleRequest(StepReason{Cause: StepFull}); !families(r) || !r.GetClockStatus() || !r.GetEmergency() {
-		t.Fatal(r)
-	}
-	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !families(r) {
-		t.Fatal("timer with the full step due", r)
-	}
-	s.lastFull = s.clock.Now()
-	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !bare(r) {
-		t.Fatal("timer between full steps", r)
-	}
-	if r := s.bundleRequest(StepReason{Cause: StepWake, Authority: true}); !families(r) {
-		t.Fatal("authority wake", r)
-	}
-	if r := s.bundleRequest(StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}}); !families(r) {
-		t.Fatal("wake selecting a planner subset still reviews", r)
-	}
-	s.running.Store(true)
-	if r := s.bundleRequest(StepReason{Cause: StepFull}); !families(r) {
-		t.Fatal("full step under a running window", r)
-	}
-	if r := s.bundleRequest(StepReason{Cause: StepWake, Stopped: true}); !families(r) {
-		t.Fatal("wake carrying the window's stop", r)
-	}
-	s.lastFull = s.clock.Now()
-	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !bare(r) {
-		t.Fatal("timer under a running window between full steps", r)
-	}
-	s.lastFull = time.Time{}
-	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !families(r) {
-		t.Fatal("timer under a running window with the full step due", r)
-	}
-}
-
 // TestClockSchedulerFilesReviewSectionsInTheStore: a reviewing step files
 // the census it decoded in the state store (#354), every section stamped
 // with the bundle's tick, and the review row records the same as-of map
@@ -182,7 +129,7 @@ func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
 			t.Fatalf("%s = %+v ok=%v (tick %d)", section, row, ok, tick)
 		}
 	}
-	if held[factsstore.Emergency].Source != "rimgovernor/observations_read_bundle" {
+	if held[factsstore.Emergency].Source != "rimgovernor/observations_read_status" {
 		t.Fatalf("emergency filed from %q, not the admission bundle", held[factsstore.Emergency].Source)
 	}
 	if _, ok := held[factsstore.Pawns]; ok {
@@ -262,81 +209,6 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	again, err := s.StepWithReason(ctx, StepReason{Cause: StepFull})
 	if err != nil && !errors.Is(err, executor.ErrHeld) || again.Routine == nil || !again.Routine.Review.Enabled || again.Routine.Review.Revision != review.Revision+1 {
 		t.Fatal(again, err)
-	}
-}
-
-// TestClockSchedulerBundleLeavesFreshSectionsOut (#360): a review step's
-// bundle carries a continuous family only while the store does not hold
-// its section fresh at the tick the step expects; without a known tick
-// every family rides.
-func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
-	t.Parallel()
-	s, f := schedulerFixture(t)
-	schedulerRoutine(t, s, f)
-	scope := factsstore.Scope{Load: "load", Generation: 1}
-	store := s.facts.store
-	// Wrong scope, unknown tick, or an empty store: everything rides.
-	if p, r, pw := bundleFamilies(store, 1000, false, nil); !p || !r || !pw {
-		t.Fatal("unknown tick", p, r, pw)
-	}
-	if p, r, pw := bundleFamilies(store, 1000, true, nil); !p || !r || !pw {
-		t.Fatal("empty store", p, r, pw)
-	}
-	factsstore.Put(store, scope, factsstore.Research, factsstore.Held[policy.ResearchFacts]{AsOf: 1000, Complete: true})
-	factsstore.Put(store, scope, factsstore.Population, factsstore.Held[bridge.PrisonerCensus]{AsOf: 1000, Complete: true})
-	factsstore.Put(store, scope, factsstore.Pawns, factsstore.Held[observation.RoutinePawns]{AsOf: 1000, Complete: true})
-	for _, c := range []struct {
-		name                       string
-		tick                       int64
-		population, research, pawn bool
-	}{
-		{"all fresh", 1000, false, false, false},
-		{"pawns past the planning cadence", 1000 + bridge.FactTickTolerancePawns + 1, false, false, true},
-		{"population past the colony cadence", 1000 + bridge.FactTickToleranceColony + 1, true, false, true},
-		{"research past its cadence", 1000 + bridge.FactTickToleranceResearch + 1, true, true, true},
-		{"held ahead of the step", 999, true, true, true},
-	} {
-		if p, r, pw := bundleFamilies(store, c.tick, true, nil); p != c.population || r != c.research || pw != c.pawn {
-			t.Fatalf("%s: population=%v research=%v pawns=%v", c.name, p, r, pw)
-		}
-	}
-	s.lastTick, s.lastTickKnown = 1000, true
-	r := s.bundleRequest(StepReason{Cause: StepFull})
-	if !r.GetColonyFacts() || !r.GetEmergency() || r.GetPopulation() || r.GetResearch() || r.GetColonistPawns() {
-		t.Fatal("review with every section fresh", r)
-	}
-}
-
-// TestClockSchedulerBundleMasksAreConstantPerReview (#360): every review
-// step's bundle carries the same field mask per family, whatever planners
-// the step selects (the review consumes every decoded block regardless),
-// each mask present with only the profile flags (traits, backstory); a step that does not review
-// (a timer between full steps, a wake no configured planner declares,
-// #625) carries none.
-func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
-	t.Parallel()
-	s, f := schedulerFixture(t)
-	schedulerRoutine(t, s, f)
-	empty := func(r *o.BundleRequest) bool {
-		return r.ColonistPawnFields != nil && r.PopulationFields != nil && r.ResearchFields != nil &&
-			proto.Equal(r.ColonistPawnFields, bundlePawnMask()) && proto.Equal(r.PopulationFields, &o.PopulationFields{}) && proto.Equal(r.ResearchFields, &o.ResearchFields{})
-	}
-	for _, reason := range []StepReason{
-		{Cause: StepFull},
-		{Cause: StepWake, Authority: true},
-		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}},
-		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactEmergency}},
-	} {
-		if r := s.bundleRequest(reason); !empty(r) {
-			t.Fatalf("%+v: masks %v %v %v", reason, r.ColonistPawnFields, r.PopulationFields, r.ResearchFields)
-		}
-	}
-	s.lastFull = s.clock.Now()
-	if r := s.bundleRequest(StepReason{Cause: StepTimer}); r.ColonistPawnFields != nil || r.PopulationFields != nil || r.ResearchFields != nil {
-		t.Fatal("masks on a timer step between full steps", r)
-	}
-	if r := s.bundleRequest(StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}}); r.ColonistPawnFields != nil || r.PopulationFields != nil || r.ResearchFields != nil {
-		t.Fatal("masks on a wake no configured planner declares", r)
 	}
 }
 

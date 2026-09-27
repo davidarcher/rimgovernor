@@ -11,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -162,14 +161,14 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 	return reply
 }
 
-// combatPawnStates is the fight's live state: the mirror's combat pawns
-// (#851) when the scheduler files them, else the combat read's rows
+// combatPawnStates is the fight's live state: the frame's combat pawns
+// (#851, #858) when a frame carries them, else the combat read's rows
 // (position, downed, dead; no stance or target).
-func (r *RoutineDefensePlanner) combatPawnStates(rows map[string]*n.PawnState) []policy.CombatPawnState {
+func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []policy.CombatPawnState {
 	var out []policy.CombatPawnState
-	if held, ok := facts.Get[EntitySection[*mp.CombatPawn]](r.reviewer.store, facts.CombatPawns); ok {
-		for id, row := range held.Value {
-			s := policy.CombatPawnState{ID: domain.PawnID(id), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance())}
+	if len(combat.Pawns) > 0 {
+		for _, row := range combat.Pawns {
+			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance())}
 			if cell := row.GetCell(); cell != nil && cell.X != nil && cell.Z != nil {
 				s.Cell = domain.Known(domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 			}
@@ -203,20 +202,16 @@ func combatStance(s mp.CombatStance) policy.CombatStance {
 	return policy.StanceUnknown
 }
 
-// combatStop is the stop being answered: the newest mirrored combat event
-// (#851) of a #849 stop kind after the fight's last decision, or none (the
+// combatStop is the stop being answered: the newest framed combat event
+// (#851, #858) of a #849 stop kind after the fight's last decision, or none (the
 // first decision, or the tick-budget backstop).
-func (r *RoutineDefensePlanner) combatStop(since domain.Tick) policy.StopEvent {
-	held, ok := facts.Get[EntitySection[*mp.CombatEventRow]](r.reviewer.store, facts.CombatEvents)
-	if !ok {
-		return policy.StopEvent{}
-	}
+func combatStop(combat bridge.Combat, since domain.Tick) policy.StopEvent {
 	var newest *mp.CombatEventRow
-	for _, row := range held.Value {
+	for _, row := range combat.Events {
 		if row.Stop == nil || row.GetAt().GetTick() <= int64(since) {
 			continue
 		}
-		if newest == nil || bridge.MirrorBefore(newest.GetAt(), row.GetAt()) {
+		if newest == nil || bridge.CombatBefore(newest.GetAt(), row.GetAt()) {
 			newest = row
 		}
 	}

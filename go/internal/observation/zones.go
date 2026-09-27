@@ -12,7 +12,7 @@ import (
 )
 
 type ZonesNative interface {
-	ReadZoneSection(context.Context, *c.Identity, int64) (bridge.ZonesRead, bridge.Result, error)
+	ReadZoneSection(context.Context, *c.Identity) (bridge.ZonesRead, bridge.Result, error)
 }
 type ZonesSource interface {
 	Zones(context.Context, *c.Identity) (facts.Held[bridge.ZonesRead], error)
@@ -32,7 +32,7 @@ func ReadZoneSection(ctx context.Context, native ZonesNative, id *c.Identity) (f
 	if native == nil {
 		return facts.Held[bridge.ZonesRead]{}, bridge.ErrUnavailable
 	}
-	read, _, err := native.ReadZoneSection(ctx, id, 0)
+	read, _, err := native.ReadZoneSection(ctx, id)
 	return facts.Held[bridge.ZonesRead]{Value: read, AsOf: read.AsOf, Complete: err == nil, Source: "rimgovernor/observations_list_zones"}, err
 }
 
@@ -58,9 +58,9 @@ func FillZones(ctx context.Context, native ZonesNative, id *c.Identity, expected
 	return nil
 }
 
-func (s *routineBracket) ReadZoneSection(ctx context.Context, id *c.Identity, since int64) (bridge.ZonesRead, bridge.Result, error) {
+func (s *routineBracket) ReadZoneSection(ctx context.Context, id *c.Identity) (bridge.ZonesRead, bridge.Result, error) {
 	if native, ok := s.RoutineSource.(ZonesNative); ok {
-		return native.ReadZoneSection(ctx, id, since)
+		return native.ReadZoneSection(ctx, id)
 	}
 	return bridge.ZonesRead{}, bridge.Result{}, bridge.ErrUnavailable
 }

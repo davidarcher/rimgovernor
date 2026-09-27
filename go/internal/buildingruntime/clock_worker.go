@@ -189,11 +189,11 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 	}
 }
 
-// pollLoop reads the native journal through mirror_poll (#795). The read
+// pollLoop reads the native journal through clock_read_events (#858). The read
 // is a long poll bounded by PollWait whether or not a window runs (its
 // wait holds neither the game thread nor an admission slot), so a stop
 // wakes the step as soon as its event lands, except while a side-effect
-// call is queued or the last page left a section for the next (more).
+// call is queued.
 // With PollWait zero the read is unheld, at the RunningPollInterval
 // cadence while held reports a window running; between windows the loop
 // waits locally on scheduler completion (pollWake). A call that waited
@@ -204,11 +204,10 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	backoff := time.Duration(0)
-	more := false
 	for w.ctx.Err() == nil {
 		var wait time.Duration
 		running := w.held == nil || w.held()
-		if w.config.PollWait > 0 && !more && (w.writes == nil || !w.writes()) {
+		if w.config.PollWait > 0 && (w.writes == nil || !w.writes()) {
 			wait = w.config.PollWait
 		}
 		w.pollHeld.Store(wait > 0)
@@ -233,8 +232,7 @@ func (w *ClockWorker) pollLoop() {
 			w.wake.NotifySections(result.Wake, result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Stopped, result.StoppedAt)
 		}
 		waited := wait > 0 && time.Since(started) >= wait/2
-		more = err == nil && result.More
-		if err == nil && (waited || result.Captured || result.More || result.MirrorChanged) {
+		if err == nil && (waited || result.Captured) {
 			backoff = 0
 			if w.ctx.Err() != nil {
 				return

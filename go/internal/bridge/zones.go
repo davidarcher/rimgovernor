@@ -9,48 +9,37 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ZonesRead is the complete zone census or its inclusive-tick delta. An
-// ask the native's tombstones cannot answer (#795) comes back as the
-// complete census (Delta false). Rows are immutable after publication to
-// the facts store.
+// ZonesRead is the complete zone census, rows in id order. Rows are
+// immutable after publication to the facts store.
 type ZonesRead struct {
 	Context     *c.ObservationContext
 	Rows        []*o.ZoneState
-	Removed     []string
-	Unchanged   uint32
 	AsOf        int64
-	Delta       bool
 	MapSnapshot *o.SnapshotRef
 }
 
 // zoneSectionRequest is one page of the zone census read, shared with the
 // bundle's zones family (#593).
-func zoneSectionRequest(identity *c.Identity, since int64, cursor string) *o.ListZonesRequest {
+func zoneSectionRequest(identity *c.Identity, cursor string) *o.ListZonesRequest {
 	q := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: &c.PageRequest{Limit: proto.Uint32(16)}}
-	if since > 0 {
-		q.ChangedSinceTick = proto.Int64(since)
-	}
 	if cursor != "" {
 		q.Page.Cursor = proto.String(cursor)
 	}
 	return q
 }
 
-// ReadZoneSection reads the census, or its delta since a positive tick.
-// A failure never silently replaces a held census.
-func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity, since int64) (ZonesRead, Result, error) {
+// ReadZoneSection reads the whole census. A failure never silently
+// replaces a held census.
+func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity) (ZonesRead, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return ZonesRead{}, Result{}, err
-	}
-	if since < 0 {
-		return ZonesRead{}, Result{}, contract("negative zone delta tick")
 	}
 	out := ZonesRead{}
 	cursor := ""
 	seen := map[string]bool{}
 	var raw Result
 	for page := 0; page < 256; page++ {
-		q := zoneSectionRequest(identity, since, cursor)
+		q := zoneSectionRequest(identity, cursor)
 		reply := &o.ListZonesReply{}
 		var err error
 		raw, err = client.protoRead(ctx, "rimgovernor/observations_list_zones", q, reply)
@@ -67,14 +56,12 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity,
 			return ZonesRead{}, raw, unavailable(u, raw)
 		}
 		v := reply.GetObserved()
-		if err := validateZonePage(v, identity, since); err != nil {
+		if err := validateZonePage(v, identity); err != nil {
 			return ZonesRead{}, raw, err
 		}
-		asOf := v.Context.GetTick()
-		delta := since > 0 && v.AsOfTick != nil
 		if page == 0 {
-			out = ZonesRead{Context: v.Context, AsOf: asOf, Delta: delta, Unchanged: v.GetUnchanged(), Removed: append([]string(nil), v.RemovedIds...), MapSnapshot: v.MapSnapshot}
-		} else if !proto.Equal(out.Context, v.Context) || out.Delta != delta || out.Unchanged != v.GetUnchanged() || !proto.Equal(out.MapSnapshot, v.MapSnapshot) || !equalZoneIDs(out.Removed, v.RemovedIds) {
+			out = ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.MapSnapshot}
+		} else if !proto.Equal(out.Context, v.Context) || !proto.Equal(out.MapSnapshot, v.MapSnapshot) {
 			return ZonesRead{}, raw, contract("zone census changed during pagination")
 		}
 		for _, row := range v.Zones {
@@ -86,11 +73,7 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity,
 		}
 		next := v.Completeness.Page.GetNextCursor()
 		if next == "" {
-			for _, id := range out.Removed {
-				if seen[id] {
-					return ZonesRead{}, raw, contract("zone both changed and removed")
-				}
-			}
+			sort.Slice(out.Rows, func(i, j int) bool { return out.Rows[i].GetId() < out.Rows[j].GetId() })
 			return out, raw, nil
 		}
 		if next == cursor {
@@ -101,19 +84,7 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity,
 	return ZonesRead{}, raw, contract("zone census exceeds page bound")
 }
 
-func equalZoneIDs(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity, since int64) error {
+func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity) error {
 	if v == nil {
 		return contract("missing zone snapshot")
 	}
@@ -122,9 +93,6 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity, since int64) err
 	}
 	if !sameIdentity(v.Context.Identity, identity) {
 		return contract("zone identity mismatch")
-	}
-	if v.AsOfTick != nil && v.GetAsOfTick() != v.Context.GetTick() || v.GetUnchanged() > 0 && (since <= 0 || v.AsOfTick == nil) || len(v.RemovedIds) > 0 && (since <= 0 || v.AsOfTick == nil) || since > v.Context.GetTick() {
-		return contract("invalid zone delta metadata")
 	}
 	counts := v.Completeness
 	if counts == nil || counts.Page == nil || counts.Page.Complete == nil || counts.GetUnreadable() != 0 || counts.Returned == nil || counts.GetReturned() != uint64(len(v.Zones)) || counts.GetMatched() != uint64(len(v.Zones)) || len(v.Zones) > 16 || counts.Page.GetComplete() != (counts.Page.GetNextCursor() == "") {
@@ -136,15 +104,8 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity, since int64) err
 	if snapshot := v.MapSnapshot; snapshot != nil && (!proto.Equal(snapshot.Context, v.Context) || snapshot.GetEntityId() == "" || validID(snapshot.GetToken()) != nil) {
 		return contract("invalid zone map snapshot")
 	}
-	removed := map[string]bool{}
-	for _, id := range v.RemovedIds {
-		if validID(id) != nil || removed[id] {
-			return contract("invalid zone tombstone")
-		}
-		removed[id] = true
-	}
 	for _, row := range v.Zones {
-		if row == nil || validID(row.GetId()) != nil || removed[row.GetId()] || row.FoodStorage == nil {
+		if row == nil || validID(row.GetId()) != nil || row.FoodStorage == nil {
 			return contract("invalid zone row")
 		}
 		if row.Snapshot == nil || !proto.Equal(row.Snapshot.Context, v.Context) || row.Snapshot.GetEntityId() != row.GetId() || validID(row.Snapshot.GetToken()) != nil {
@@ -159,53 +120,4 @@ func validateZonePage(v *o.ZonesSnapshot, identity *c.Identity, since int64) err
 		}
 	}
 	return nil
-}
-
-// MergeZones replaces changed rows and applies tombstones. It never mutates
-// the old value; a full read (asked in full or answered so) replaces it.
-func MergeZones(held ZonesRead, read ZonesRead) ZonesRead {
-	if !read.Delta {
-		return read
-	}
-	rows := map[string]*o.ZoneState{}
-	for _, row := range held.Rows {
-		rows[row.GetId()] = row
-	}
-	for _, id := range read.Removed {
-		delete(rows, id)
-	}
-	for _, row := range read.Rows {
-		rows[row.GetId()] = row
-	}
-	read.Rows = make([]*o.ZoneState, 0, len(rows))
-	for _, row := range rows {
-		read.Rows = append(read.Rows, row)
-	}
-	sort.Slice(read.Rows, func(i, j int) bool { return read.Rows[i].GetId() < read.Rows[j].GetId() })
-	read.Delta, read.Removed, read.Unchanged = false, nil, 0
-	return read
-}
-
-// ZoneDrift compares facts, excluding CAS context stamps (held unchanged
-// rows deliberately retain the tick they were last emitted at).
-func ZoneDrift(held, full ZonesRead) int {
-	rows := map[string]*o.ZoneState{}
-	for _, row := range held.Rows {
-		rows[row.GetId()] = row
-	}
-	drift := 0
-	for _, row := range full.Rows {
-		old := rows[row.GetId()]
-		if old == nil {
-			drift++
-		} else {
-			a, b := proto.Clone(old).(*o.ZoneState), proto.Clone(row).(*o.ZoneState)
-			a.Snapshot, b.Snapshot = nil, nil
-			if !proto.Equal(a, b) {
-				drift++
-			}
-		}
-		delete(rows, row.GetId())
-	}
-	return drift + len(rows)
 }

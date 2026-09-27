@@ -30,6 +30,8 @@ type RoutineDefenseSource interface {
 	// CombatOrders sends a stop's changed orders (#850, #852).
 	CombatOrders(context.Context, *a.WritePrecondition, *op.CombatOrders) ([]bridge.CombatOrderResult, *op.ExecuteReply, bridge.Result, error)
 	CombatGeometry(context.Context, *mirrorpb.CombatGeometryRequest) (*mirrorpb.CombatGeometry, bridge.Result, error)
+	// ReadCombat is the newest snapshot frame's combat state (#851, #858).
+	ReadCombat(context.Context, *c.Identity) (bridge.Combat, error)
 }
 type RoutineDefensePlanner struct {
 	reviewer *RoutineReviewer
@@ -260,12 +262,14 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
+	// No frame yet (or no stream) leaves the combat read's rows and no stop.
+	combat, _ := r.native.ReadCombat(call, identity)
 	tick := domain.Tick(emergency.Context.GetTick())
-	view := policy.CombatView{Tick: tick, Pawns: r.combatPawnStates(rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable}
+	view := policy.CombatView{Tick: tick, Pawns: combatPawnStates(combat, rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable}
 	if ok && layout.Complete {
 		view.Layout = domain.Known(policy.CombatLayout{Firing: layout.Firing, Toward: layout.Toward})
 	}
-	stop := r.combatStop(memory.Tick)
+	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
 	if ask != nil {
 		orders, _, next = policy.DecideCombat(view, r.answerGeometry(call, boundary.Identity(state.Snapshot), ask), stop, memory)

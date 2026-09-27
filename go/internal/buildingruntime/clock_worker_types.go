@@ -5,17 +5,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"time"
 )
 
-// ClockEventNative serves the event poll: one mirror_poll carrying the
-// journal page after the review's cursor, its scope, and the polled
-// mirror sections (#795), and the bare bundle read that finds the world
-// to ask for when no epoch is held.
+// ClockEventNative serves the event poll: the long-polled clock journal
+// page after the review's cursor, and the bare step read that finds the
+// world to ask for when none is held.
 type ClockEventNative interface {
-	MirrorPollNative
-	ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error)
+	ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error)
+	ReadStep(context.Context, bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error)
 }
 
 type ClockPollResult struct {
@@ -34,10 +34,6 @@ type ClockPollResult struct {
 	// stop's native stamp, zero when the event carried none.
 	Stopped   bool
 	StoppedAt time.Time
-	// Mirror reports the poll read through mirror_poll (#795); More that
-	// a section did not fit its page and MirrorChanged that the page
-	// applied rows or tombstones. The loop re-polls at once after either.
-	Mirror, More, MirrorChanged bool
 }
 
 type ClockRenewResult struct {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
@@ -23,7 +22,7 @@ import (
 // 2 true; floats NaN unknown; strings 0 unknown, k for strings[k-1]). A
 // keyframe carries every array; a delta, on the held rect, only the arrays
 // that changed, each dense or sparse over the held array, whichever is
-// smaller. Replay applies it with bridge.ApplyCellGrid and rebuilds the
+// smaller. Replay applies it with applyCellGrid and rebuilds the
 // rows as Encode's JSON of its cells. The writer checks that rebuild
 // against the rows it was given and falls back to the row form (Upserts,
 // Removed, which older streams hold for planning_cells) when they differ,
@@ -74,34 +73,51 @@ func strValue(f domain.Fact[string]) gridValue {
 	return gridValue{str: s, known: known}
 }
 
-// gridArray is one CellGrid array: its kind, its SiteCell value and its
-// slot on the wire, in the wire's field order (presence first).
+// gridArray is one CellGrid array, in the wire's field order (presence
+// first): its kind, its slot on the wire, and a SiteCell's value read
+// (get, the encoder) and written (set, the decoder).
 type gridArray struct {
 	kind gridKind
+	slot func(*mp.CellGrid) **mp.FieldArray
 	get  func(*policy.SiteCell) gridValue
-	put  func(*mp.CellGrid, *mp.FieldArray)
+	set  func(*policy.SiteCell, gridValue)
+}
+
+func (a gridArray) wire(g *mp.CellGrid) *mp.FieldArray   { return *a.slot(g) }
+func (a gridArray) put(g *mp.CellGrid, f *mp.FieldArray) { *a.slot(g) = f }
+
+func boolArray(slot func(*mp.CellGrid) **mp.FieldArray, field func(*policy.SiteCell) *domain.Fact[bool]) gridArray {
+	return gridArray{gridCode, slot, func(c *policy.SiteCell) gridValue { return boolValue(*field(c)) }, func(c *policy.SiteCell, v gridValue) { *field(c) = boolFact(v) }}
+}
+
+func numArray(slot func(*mp.CellGrid) **mp.FieldArray, field func(*policy.SiteCell) *domain.Fact[float64]) gridArray {
+	return gridArray{gridNumber, slot, func(c *policy.SiteCell) gridValue { return numValue(*field(c)) }, func(c *policy.SiteCell, v gridValue) { *field(c) = numFact(v) }}
+}
+
+func strArray(slot func(*mp.CellGrid) **mp.FieldArray, field func(*policy.SiteCell) *domain.Fact[string]) gridArray {
+	return gridArray{gridIndex, slot, func(c *policy.SiteCell) gridValue { return strValue(*field(c)) }, func(c *policy.SiteCell, v gridValue) { *field(c) = strFact(v) }}
 }
 
 var gridArrays = []gridArray{
-	{gridCode, func(*policy.SiteCell) gridValue { return gridValue{code: 1} }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Cell = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Walkable) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Walkable = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Occupied) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Occupied = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Zone) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Zone = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Roofed) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Roofed = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Indoors) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Indoors = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.SupportsLight) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.SupportsLight = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.StorageEmpty) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.StorageEmpty = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Doorway) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Doorway = a }},
-	{gridNumber, func(c *policy.SiteCell) gridValue { return numValue(c.Fertility) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Fertility = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Polluted) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Polluted = a }},
-	{gridNumber, func(c *policy.SiteCell) gridValue { return numValue(c.Glow) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Glow = a }},
-	{gridIndex, func(c *policy.SiteCell) gridValue { return strValue(c.Roof) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Roof = a }},
-	{gridIndex, func(c *policy.SiteCell) gridValue { return strValue(c.ZoneID) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.ZoneId = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.NaturalRock) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.NaturalRock = a }},
-	{gridCode, func(c *policy.SiteCell) gridValue { return boolValue(c.Ruin) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.Ruin = a }},
-	{gridIndex, func(c *policy.SiteCell) gridValue { return strValue(c.PlayerEdifice) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.PlayerEdifice = a }},
-	{gridIndex, func(c *policy.SiteCell) gridValue { return strValue(c.ClaimableRuin) }, func(g *mp.CellGrid, a *mp.FieldArray) { g.ClaimableRuin = a }},
-	{gridIndex, func(c *policy.SiteCell) gridValue { return gridValue{str: c.RuinHold, known: c.RuinHold != ""} }, func(g *mp.CellGrid, a *mp.FieldArray) { g.RuinHold = a }},
+	{gridCode, func(g *mp.CellGrid) **mp.FieldArray { return &g.Cell }, func(*policy.SiteCell) gridValue { return gridValue{code: 1} }, nil},
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Walkable }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Walkable }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Occupied }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Occupied }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Zone }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Zone }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Roofed }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Roofed }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Indoors }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Indoors }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.SupportsLight }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.SupportsLight }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.StorageEmpty }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.StorageEmpty }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Doorway }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Doorway }),
+	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Fertility }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.Fertility }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Polluted }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Polluted }),
+	numArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Glow }, func(c *policy.SiteCell) *domain.Fact[float64] { return &c.Glow }),
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Roof }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.Roof }),
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.ZoneId }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.ZoneID }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.NaturalRock }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.NaturalRock }),
+	boolArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.Ruin }, func(c *policy.SiteCell) *domain.Fact[bool] { return &c.Ruin }),
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.PlayerEdifice }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.PlayerEdifice }),
+	strArray(func(g *mp.CellGrid) **mp.FieldArray { return &g.ClaimableRuin }, func(c *policy.SiteCell) *domain.Fact[string] { return &c.ClaimableRuin }),
+	{gridIndex, func(g *mp.CellGrid) **mp.FieldArray { return &g.RuinHold }, func(c *policy.SiteCell) gridValue { return gridValue{str: c.RuinHold, known: c.RuinHold != ""} }, func(c *policy.SiteCell, v gridValue) { c.RuinHold = v.str }},
 }
 
 // heldGrid is a planning window as the writer holds it: the rect, every
@@ -109,7 +125,7 @@ var gridArrays = []gridArray{
 type heldGrid struct {
 	rect  policy.Rectangle
 	cols  [][]gridValue
-	built *bridge.CellGrid
+	built *cellGrid
 }
 
 var errNotGrid = errors.New("snapshot: rows are not a planning grid")
@@ -155,7 +171,7 @@ func newGridCols(rows any) (policy.Rectangle, [][]gridValue, error) {
 // (over the sentinel array in a keyframe, over base's in a delta),
 // whichever is smaller.
 func wireGrid(rect policy.Rectangle, cols [][]gridValue, base [][]gridValue) *mp.CellGrid {
-	g := &mp.CellGrid{Rect: bridge.WireRect(rect)}
+	g := &mp.CellGrid{Rect: wireRect(rect)}
 	table := map[string]uint32{}
 	index := func(v gridValue) uint32 {
 		if !v.known {
@@ -231,8 +247,8 @@ func wireGrid(rect policy.Rectangle, cols [][]gridValue, base [][]gridValue) *mp
 
 // gridRows applies a wire grid over held (nil for a keyframe) and is the
 // rows it describes as the section holds them.
-func gridRows(held *bridge.CellGrid, key bool, g *mp.CellGrid) (*bridge.CellGrid, map[string]json.RawMessage, map[string]json.RawMessage, error) {
-	built, err := bridge.ApplyCellGrid(held, key, g)
+func gridRows(held *cellGrid, key bool, g *mp.CellGrid) (*cellGrid, map[string]json.RawMessage, map[string]json.RawMessage, error) {
+	built, err := applyCellGrid(held, key, g)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -258,7 +274,7 @@ func gridFrame(held *heldGrid, raw any, encoded map[string]json.RawMessage) ([]b
 	}
 	key := held == nil || held.rect != rect
 	var base [][]gridValue
-	var built *bridge.CellGrid
+	var built *cellGrid
 	if !key {
 		base, built = held.cols, held.built
 	}
@@ -267,7 +283,7 @@ func gridFrame(held *heldGrid, raw any, encoded map[string]json.RawMessage) ([]b
 
 // encodeGrid writes next over base (nil: a keyframe) and checks it
 // rebuilds encoded.
-func encodeGrid(next *heldGrid, key bool, base [][]gridValue, built *bridge.CellGrid, encoded map[string]json.RawMessage) ([]byte, *heldGrid, bool) {
+func encodeGrid(next *heldGrid, key bool, base [][]gridValue, built *cellGrid, encoded map[string]json.RawMessage) ([]byte, *heldGrid, bool) {
 	wire := wireGrid(next.rect, next.cols, base)
 	rebuilt, _, rows, err := gridRows(built, key, wire)
 	if err != nil || len(rows) != len(encoded) {
@@ -288,7 +304,7 @@ func encodeGrid(next *heldGrid, key bool, base [][]gridValue, built *bridge.Cell
 
 // applyGrid lays a grid line over s (a replay).
 func (s *recSection) applyGrid(f sectionFrame) (*recSection, error) {
-	var held *bridge.CellGrid
+	var held *cellGrid
 	if !f.Key {
 		if s == nil || s.grid == nil {
 			return nil, fmt.Errorf("snapshot: section %s grid delta without a held grid", f.Name)

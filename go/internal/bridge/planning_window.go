@@ -171,9 +171,6 @@ func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *
 	if err := colonyCounts(v.Completeness, len(v.Cells), planningWindowPage); err != nil {
 		return err
 	}
-	if v.GetUnchanged() != 0 {
-		return contract("invalid planning cell delta")
-	}
 	area := uint64(v.Region.Maximum.GetX()-v.Region.Minimum.GetX()+1) * uint64(v.Region.Maximum.GetZ()-v.Region.Minimum.GetZ()+1)
 	if area > planningWindowPage || uint64(len(v.Cells))+v.Completeness.GetFiltered() != area {
 		return contract("planning region coverage mismatch")

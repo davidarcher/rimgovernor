@@ -217,7 +217,6 @@ type Client struct {
 	// writes counts the typed side-effect calls queued or in flight.
 	writes atomic.Int64
 
-	deltas deltaStore
 	frames *frameStream
 
 	recorder         *FlightRecorder
@@ -370,6 +369,9 @@ func (c *Client) Reconnect(ctx context.Context) error {
 	if err := c.closeLive(); err != nil {
 		return fmt.Errorf("%w: close old session: %w", ErrTransport, err)
 	}
+	// The new session may be another game process on this host; its
+	// snapshot ring is a different one (#858).
+	c.frames.close()
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()

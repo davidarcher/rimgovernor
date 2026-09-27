@@ -18,7 +18,7 @@ func writeRecordings(t *testing.T, output string) {
 	first := strings.Join([]string{
 		`{"sequence":1,"wall_time":10,"kind":"native_response","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":100,"native_queue_ms":2,"native_execute_ms":4}}}`,
 		`{"sequence":2,"wall_time":11,"kind":"native_error","context":{},"payload":{"request":2,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":1,"response_bytes":20}}}`,
-		`{"sequence":3,"wall_time":12,"kind":"native_cache_hit","context":{},"payload":{"tool":"games_call_tool","native_tool":"x/read"}}`,
+		`{"sequence":3,"wall_time":12,"kind":"native_frame_hit","context":{},"payload":{"tool":"games_call_tool","native_tool":"x/read"}}`,
 		`{"sequence":4,"wall_time":13,"kind":"clock_step","context":{},"payload":{"reads":3,"reason":"timer"}}`,
 		`{"sequence":5,"wall_time":14,"kind":"clock_step","context":{},"payload":{"reads":1,"reason":"timer"}}`,
 		// Clock status samples: paused for 2 of the 4 s they span.

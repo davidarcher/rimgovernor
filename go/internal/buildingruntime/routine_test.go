@@ -33,7 +33,7 @@ type routineNative struct {
 }
 
 // Translate the legacy colony fixture's zone data at the new list boundary.
-func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity, _ int64) (bridge.ZonesRead, bridge.Result, error) {
+func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bridge.ZonesRead, bridge.Result, error) {
 	v := n.reply.GetObserved()
 	out := bridge.ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.GetPlanning().GetObserved().GetZoneMapSnapshot()}
 	for _, issue := range v.Issues {

@@ -29,7 +29,7 @@ import (
 // '.', a keyed list element as <list>[<key>] and the list's order as
 // <list>[]. A sub-section's observed outcome is the sub-section itself, so
 // upkeep's beds are beds[<id>], not observed.beds[<id>]. An element's key
-// is the #773 SectionDelta key (its string id, else the id of its first
+// is the row key (its string id, else the id of its first
 // singular message field), else its zone_id, else its def_name; a list
 // whose elements do not all carry distinct keys is one row. A row is the
 // element itself, or its parent message with only that field set;
@@ -164,6 +164,43 @@ func holdsKeyed(m protoreflect.MessageDescriptor, depth int) bool {
 		}
 	}
 	return false
+}
+
+// elementKey is a repeated element's key: its string id, else the id of
+// its first (by number) singular message field whose type has one.
+func elementKey(element protoreflect.Message) string {
+	if id := idField(element.Descriptor()); id != nil {
+		return element.Get(id).String()
+	}
+	fields := element.Descriptor().Fields()
+	numbers := make([]int, 0, fields.Len())
+	for i := 0; i < fields.Len(); i++ {
+		numbers = append(numbers, int(fields.Get(i).Number()))
+	}
+	sort.Ints(numbers)
+	for _, number := range numbers {
+		field := fields.ByNumber(protoreflect.FieldNumber(number))
+		if field.Kind() != protoreflect.MessageKind || field.IsList() || field.IsMap() {
+			continue
+		}
+		id := idField(field.Message())
+		if id == nil {
+			continue
+		}
+		if !element.Has(field) {
+			return ""
+		}
+		return element.Get(field).Message().Get(id).String()
+	}
+	return ""
+}
+
+func idField(message protoreflect.MessageDescriptor) protoreflect.FieldDescriptor {
+	field := message.Fields().ByName("id")
+	if field == nil || field.Kind() != protoreflect.StringKind || field.IsList() {
+		return nil
+	}
+	return field
 }
 
 // rowKey is an element's key, "" when it has none.

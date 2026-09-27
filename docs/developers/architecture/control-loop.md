@@ -92,7 +92,7 @@ backoff; lease renewal and periodic observation remain independent of task
 completion.
 
 Delivery from the native clock is a poll on the event journal, not a push:
-the transport is request/response only, so the poll's `observations_read_bundle`
+the transport is request/response only, so the poll's `mirror_poll`
 (the scope and the events page in one call, like `clock_read_events`) can hold an
 empty read for up to `wait_ms` (at most 5 s) and answer as soon as a row lands.
 The service holds the read while a window it admitted is running (4 s, the

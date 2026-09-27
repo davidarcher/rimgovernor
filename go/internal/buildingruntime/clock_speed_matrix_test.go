@@ -21,7 +21,6 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -460,30 +459,16 @@ func (n *speedNative) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: n.page(request)}}, bridge.Result{}, ctx.Err()
 }
 
-// ReadBundle composes every section from one locked snapshot so the tick,
+// ReadStep composes every section from one locked snapshot so the tick,
 // status and emergency agree, as the native bundle does.
-func (n *speedNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+func (n *speedNative) ReadStep(ctx context.Context, request bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error) {
 	n.read(ctx)
 	n.mu.Lock()
 	n.advance()
 	n.noteRead(nil)
 	snapshot := n.snapshot()
 	n.mu.Unlock()
-	return composeBundle(ctx, request, snapshot.parts())
-}
-
-// MirrorPoll waits like the long poll first, then composes the journal
-// page from one locked snapshot, as the native poll does.
-func (n *speedNative) MirrorPoll(ctx context.Context, request *mp.MirrorPollRequest) (*mp.MirrorPollReply, bridge.Result, error) {
-	n.read(ctx)
-	n.arrive(&k.EventsRequest{AfterCursor: proto.Int64(request.GetJournalAfterCursor())})
-	n.await(ctx, request.GetJournalAfterCursor(), time.Duration(request.GetWaitMs())*time.Millisecond)
-	n.mu.Lock()
-	n.advance()
-	n.noteRead(proto.Int64(request.GetJournalAfterCursor()))
-	snapshot := n.snapshot()
-	n.mu.Unlock()
-	return composeMirrorPoll(ctx, request, snapshot.parts())
+	return composeStep(ctx, request, snapshot.parts())
 }
 
 // snapshot copies what a composed read answers from; the caller holds mu.
@@ -491,7 +476,7 @@ func (n *speedNative) snapshot() *speedNative {
 	return &speedNative{status: proto.Clone(n.status).(*k.Status), emergency: n.emergency, events: n.events}
 }
 
-// parts are a snapshot's reads, for composeBundle and composeMirrorPoll.
+// parts are a snapshot's reads, for composeBundle.
 func (n *speedNative) parts() bundleParts {
 	return bundleParts{
 		tick: func(ctx context.Context) (*l.TickReply, bridge.Result, error) {

@@ -49,8 +49,6 @@ namespace HomeBridge.BridgeTools
         private static Dictionary<string, object?> EncodePawns(Obs.ListPawnsReply reply, Obs.ListPawnsRequest parsed)
         {
             if (reply.Observed == null) return ProtoBoundary.Encode(reply);
-            var shape = parsed.Clone(); shape.ChangedSince = null;
-            reply.Observed.Delta = SectionDelta.Apply(SectionDelta.Shape("rimgovernor/observations_list_pawns", reply.Observed.Context.Identity, shape), parsed.ChangedSince, reply.Observed, reply.Observed.Context);
             if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
                 return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Pawn reply exceeds one MiB.") });
             return ProtoBoundary.Encode(reply);

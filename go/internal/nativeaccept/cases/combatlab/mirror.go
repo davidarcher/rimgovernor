@@ -5,19 +5,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/snapshotshm"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	// mirrorStepTicks is one synchronous lab step between polls.
+	// mirrorStepTicks is one synchronous lab step between frames: the
+	// stream's capture period.
 	mirrorStepTicks = 60
+	// frameWait bounds the wait for a frame after a step.
+	frameWait = 10 * time.Second
 	// mirrorFightTicks bounds the lab-ranged firefight until a pawn goes
 	// down (the #845 case budget is 5,000 ticks).
 	mirrorFightTicks = 4800
@@ -29,10 +35,10 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name: "combatlab/mirror",
-		Scope: "Combat mirror sections and combat.geometry (#851) on lab-ranged: the combat_pawns keyframe lists the 4 riflemen and 4 raiders with rifles; " +
+		Scope: "Combat frame sections (#851, #858) and combat.geometry on lab-ranged: a snapshot frame's combat_pawns lists the 4 riflemen and 4 raiders with rifles; " +
 			"combat.geometry gives a sandbagged rifleman cover against the raider north of him, an open cell none, line of fire to every raider, a colonist in the path from the cell behind a rifleman, " +
-			"path ticks for a named pawn, and a read at 64 cells x 8 pawns under 50 ms of main thread; proposing cover_behind_line on the sandbags returns every cell behind them, and a firing_cells proposal at the radius cap fills 64 cells within budget (#871); the firefight's first downing or death arrives as a combat_events row and, in the same delta, " +
-			"the pawn's row (downed, stamped with the event's watermark) or its tombstone; then lab-pods' center drop arrives as a hostile_arrived row with strategy pods, " +
+			"path ticks for a named pawn, and a read at 64 cells x 8 pawns under 50 ms of main thread; proposing cover_behind_line on the sandbags returns every cell behind them, and a firing_cells proposal at the radius cap fills 64 cells within budget (#871); the firefight's first downing or death arrives as a combat_events row and, in the same frame, " +
+			"the pawn's row (downed, stamped with the event's watermark) or its absence; then lab-pods' center drop arrives as a hostile_arrived row with strategy pods, " +
 			"landing cells and an open tick by which every raider is out of its pod (#870).",
 		Start:       cases.Lab{Colonists: 4},
 		RequiredOps: []string{na.LabStartTool, StageTool},
@@ -72,50 +78,61 @@ func typedIdentity(identity map[string]any) (*c.Identity, error) {
 	return out, protojson.Unmarshal(raw, out)
 }
 
-// combatPoll is one immediate mirror poll of both combat sections.
-type combatPoll struct {
-	h        *na.Harness
+// combatFrames reads the combat sections of the snapshot stream's frames
+// (#858): the case maps the ring the way the controller's bridge does.
+type combatFrames struct {
 	identity *c.Identity
-	epoch    *mp.Epoch
-	pawnsAt  *mp.Watermark
-	eventsAt *mp.Watermark
-	polls    int
+	reader   *snapshotshm.Reader
+	last     uint64
 }
 
-func (p *combatPoll) poll(ctx context.Context) (*mp.SectionPage, *mp.SectionPage, error) {
-	request := &mp.MirrorPollRequest{Identity: p.identity, Epoch: p.epoch, ByteBudget: proto.Uint32(bridge.MirrorPollMaxBytes), Asks: []*mp.SectionAsk{
-		{Section: mp.Section_SECTION_COMBAT_PAWNS.Enum(), Since: p.pawnsAt}, {Section: mp.Section_SECTION_COMBAT_EVENTS.Enum(), Since: p.eventsAt},
-	}}
-	reply := &mp.MirrorPollReply{}
-	p.polls++
-	if err := wireProto(ctx, p.h, fmt.Sprintf("combat-mirror-%d", p.polls), "mirror_poll", request, reply); err != nil {
-		return nil, nil, err
+func openCombatFrames(ctx context.Context, h *na.Harness, identity *c.Identity) (*combatFrames, error) {
+	reply := &o.SnapshotStreamReply{}
+	if err := wireProto(ctx, h, "combat-open-stream", "observations_open_snapshot_stream", &o.SnapshotStreamRequest{}, reply); err != nil {
+		return nil, err
 	}
-	if f := reply.GetFailure(); f != nil {
-		return nil, nil, fmt.Errorf("mirror poll failed: %v", f)
+	opened := reply.GetOpened()
+	if opened.GetName() == "" {
+		return nil, fmt.Errorf("snapshot stream not opened: %v", reply)
 	}
-	page := reply.GetPage()
-	if err := bridge.ValidateMirrorPage(page, request); err != nil {
-		return nil, nil, err
+	reader, err := snapshotshm.Open(opened.GetName())
+	if err != nil {
+		return nil, err
 	}
-	p.epoch = page.Epoch
-	var pawns, events *mp.SectionPage
-	for _, s := range page.Sections {
-		mark := s.GetKeyframe().GetAt()
-		if mark == nil {
-			mark = s.GetDelta().GetTo()
+	return &combatFrames{identity: identity, reader: reader}, nil
+}
+
+// next is the combat state of the first frame published after the last
+// one read and captured at or past tick.
+func (f *combatFrames) next(ctx context.Context, tick int64) (bridge.Combat, error) {
+	deadline := time.Now().Add(frameWait)
+	for {
+		frame, ok, err := f.reader.Latest()
+		if err != nil {
+			return bridge.Combat{}, err
 		}
-		switch s.GetSection() {
-		case mp.Section_SECTION_COMBAT_PAWNS:
-			pawns, p.pawnsAt = s, mark
-		case mp.Section_SECTION_COMBAT_EVENTS:
-			events, p.eventsAt = s, mark
+		if ok && frame.Number > f.last {
+			v := &o.BundleSnapshot{}
+			if err := proto.Unmarshal(frame.Payload, v); err != nil {
+				return bridge.Combat{}, err
+			}
+			if v.GetContext().GetTick() >= tick {
+				f.last = frame.Number
+				if !proto.Equal(v.GetContext().GetIdentity(), f.identity) {
+					return bridge.Combat{}, fmt.Errorf("frame %d describes another world: %v", frame.Number, v.GetContext().GetIdentity())
+				}
+				return bridge.Combat{Context: v.Context, Pawns: v.CombatPawns, Events: v.CombatEvents}, nil
+			}
 		}
+		if time.Now().After(deadline) {
+			return bridge.Combat{}, fmt.Errorf("no snapshot frame at or past tick %d within %s (last read %d)", tick, frameWait, f.last)
+		}
+		after := f.last
+		if ok {
+			after = frame.Number
+		}
+		f.reader.Wait(ctx, after, 250*time.Millisecond)
 	}
-	if pawns == nil || events == nil {
-		return nil, nil, fmt.Errorf("mirror page without both combat sections: %v", page)
-	}
-	return pawns, events, nil
 }
 
 func runMirror(ctx context.Context, s cases.Session) error {
@@ -129,52 +146,64 @@ func runMirror(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report := s.Report()
-	p := &combatPoll{h: h, identity: identity}
-	pawns, _, err := p.poll(ctx)
+	frames, err := openCombatFrames(ctx, h, identity)
+	if err != nil {
+		return err
+	}
+	defer frames.reader.Close()
+	// One step so a frame is captured past the staging.
+	_, tick, err := Tick(ctx, h, mirrorStepTicks)
+	if err != nil {
+		return err
+	}
+	state, err := frames.next(ctx, int64(tick))
 	if err != nil {
 		return err
 	}
 	rows := map[string]*mp.CombatPawn{}
-	for _, row := range pawns.GetKeyframe().GetCombatPawns() {
+	for _, row := range state.Pawns {
 		rows[row.GetId()] = row
 	}
 	for _, id := range append(staged.Colonists(), staged.Hostiles()...) {
 		row := rows[id]
 		if row == nil || row.GetWeapon() != rifle || row.GetWeaponMelee() || row.GetWeaponRange() <= 0 {
-			return fmt.Errorf("combat_pawns keyframe row for %s: %v (keyframe %d rows)", id, row, len(rows))
+			return fmt.Errorf("combat_pawns row for %s: %v (frame %d rows)", id, row, len(rows))
 		}
 	}
-	report["keyframeRows"] = len(rows)
+	report["frameRows"] = len(rows)
 	if err := geometry(ctx, h, identity, staged, report); err != nil {
 		return err
 	}
-	if err := fight(ctx, h, p, report); err != nil {
+	if err := fight(ctx, h, frames, report); err != nil {
 		return err
 	}
-	return dropPods(ctx, h, identity, report)
+	return dropPods(ctx, h, frames, report)
 }
 
 // dropPods (#870) stages lab-pods: the center drop's arrival is a
 // combat_events hostile_arrived row with strategy pods, its landing cells
 // and an open tick after the arrival, and by that tick every raider is out.
-func dropPods(ctx context.Context, h *na.Harness, identity *c.Identity, report na.Report) error {
+func dropPods(ctx context.Context, h *na.Harness, frames *combatFrames, report na.Report) error {
 	staged, err := Stage(ctx, h, "lab-pods")
 	if err != nil {
 		return err
 	}
-	p := &combatPoll{h: h, identity: identity}
-	_, events, err := p.poll(ctx)
+	_, tick, err := Tick(ctx, h, mirrorStepTicks)
+	if err != nil {
+		return err
+	}
+	state, err := frames.next(ctx, int64(tick))
 	if err != nil {
 		return err
 	}
 	var row *mp.CombatEventRow
-	for _, e := range events.GetKeyframe().GetCombatEvents() {
+	for _, e := range state.Events {
 		if bridge.DropPodArrival(e) {
 			row = e
 		}
 	}
 	if row == nil {
-		return fmt.Errorf("lab-pods: no combat_events row with strategy pods in %v", events)
+		return fmt.Errorf("lab-pods: no combat_events row with strategy pods in %d frame events", len(state.Events))
 	}
 	report["pods"] = map[string]any{"at": row.GetAt().GetTick(), "openTick": row.GetOpenTick(), "landingCells": len(row.GetLandingCells()), "arrival": row.GetDefName()}
 	wait := int(int64(row.GetOpenTick())-row.GetAt().GetTick()) + mirrorStepTicks
@@ -339,46 +368,47 @@ func shots(kinds map[string]int) error {
 }
 
 // fight runs the lab until a pawn goes down or dies, then checks that the
-// event and the pawn's change came in one page at one watermark.
-func fight(ctx context.Context, h *na.Harness, p *combatPoll, report na.Report) error {
+// event and the pawn's change came in one frame at one watermark. Every
+// frame carries the whole event ring, so only events not seen before are
+// counted.
+func fight(ctx context.Context, h *na.Harness, f *combatFrames, report na.Report) error {
 	kinds := map[string]int{}
+	seen := map[string]bool{}
 	for ticks := 0; ticks < mirrorFightTicks; ticks += mirrorStepTicks {
-		if _, _, err := Tick(ctx, h, mirrorStepTicks); err != nil {
-			return err
-		}
-		pawns, events, err := p.poll(ctx)
+		_, tick, err := Tick(ctx, h, mirrorStepTicks)
 		if err != nil {
 			return err
 		}
-		rows := events.GetDelta().GetCombatEvents()
-		if rows == nil {
-			rows = events.GetKeyframe().GetCombatEvents()
+		state, err := f.next(ctx, int64(tick))
+		if err != nil {
+			return err
 		}
-		changed := map[string]*mp.CombatPawn{}
-		for _, row := range append(pawns.GetDelta().GetCombatPawns(), pawns.GetKeyframe().GetCombatPawns()...) {
-			changed[row.GetId()] = row
+		rows := map[string]*mp.CombatPawn{}
+		for _, row := range state.Pawns {
+			rows[row.GetId()] = row
 		}
-		gone := map[string]bool{}
-		for _, id := range pawns.GetDelta().GetTombstones() {
-			gone[id] = true
-		}
-		for _, e := range rows {
+		for _, e := range state.Events {
+			if id := bridge.CombatEventID(e); seen[id] {
+				continue
+			} else {
+				seen[id] = true
+			}
 			kinds[e.GetKind().String()]++
 			switch e.GetKind() {
 			case mp.CombatLogKind_COMBAT_LOG_KIND_DOWNED:
-				row := changed[e.GetThingId()]
+				row := rows[e.GetThingId()]
 				report["eventKinds"], report["down"] = kinds, map[string]any{"event": e.GetAt().String(), "row": row.String(), "ticks": ticks + mirrorStepTicks}
-				if row == nil || !row.GetDowned() || !proto.Equal(row.GetChanged(), e.GetAt()) {
-					if gone[e.GetThingId()] {
-						return shots(kinds) // downed then killed inside one step: the tombstone is its delta
-					}
+				if row == nil {
+					return shots(kinds) // downed then killed inside one step: its row is gone
+				}
+				if !row.GetDowned() || !proto.Equal(row.GetChanged(), e.GetAt()) {
 					return fmt.Errorf("downing %v without its pawn row at the same watermark: %v", e, row)
 				}
 				return shots(kinds)
 			case mp.CombatLogKind_COMBAT_LOG_KIND_KILLED:
 				report["eventKinds"], report["down"] = kinds, map[string]any{"event": e.GetAt().String(), "killed": e.GetThingId(), "ticks": ticks + mirrorStepTicks}
-				if !gone[e.GetThingId()] {
-					return fmt.Errorf("death %v without its tombstone in the same delta", e)
+				if rows[e.GetThingId()] != nil {
+					return fmt.Errorf("death %v with its pawn row still in the same frame", e)
 				}
 				return shots(kinds)
 			}
