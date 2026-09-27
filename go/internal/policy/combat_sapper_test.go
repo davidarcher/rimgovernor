@@ -20,7 +20,7 @@ func withSappers(view CombatView, cells map[PawnID]domain.Cell) CombatView {
 		}
 		s, d := combatRaider(id, c)
 		view.Threats, view.Positional = append(view.Threats, s), append(view.Positional, d)
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(id), Cell: domain.Known(c), Sapper: true, Job: "Mine"})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(id), Cell: domain.Known(c), Sapper: true})
 	}
 	return view
 }

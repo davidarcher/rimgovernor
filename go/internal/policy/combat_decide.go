@@ -79,6 +79,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	}
 	next.Roles = dropMissingTargets(view, next.Roles)
 	manhunterKite(view, &next)
+	sapperIntercept(view, &next)
 	manhunterDoor(view, formed, &next)
 	manhunterShelter(view, &next)
 	orderable := map[domain.PawnID]bool{}
@@ -376,6 +377,8 @@ type CombatMemory struct {
 	WaitDoors     []PodDoor `json:",omitempty"`
 	// SapperBreach is the wall cell a sapper formation guards (#913).
 	SapperBreach *domain.Cell `json:",omitempty"`
+	// Intercept is a sapper fight whose gunners went out to the diggers (#914).
+	Intercept bool `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
