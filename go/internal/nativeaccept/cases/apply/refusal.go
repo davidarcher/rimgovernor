@@ -88,7 +88,7 @@ func run(ctx context.Context, s cases.Session) error {
 	tokens := map[string]string{}
 	for _, key := range []string{"zoneId", "zoneToken", "mapToken", "wallId", "wallToken", "itemId", "itemToken", "haulItemId", "haulItemToken",
 		"pawnId", "pawnWorkToken", "plantId", "plantToken", "plantResource", "rockId", "rockToken", "rockResource", "rockDef", "excavateToken",
-		"benchId", "benchToken", "preyId", "preyResource", "tameId", "tameToken", "tameCensusToken", "growerId", "growerToken", "growerCrop"} {
+		"benchId", "benchToken", "preyId", "preyResource", "tameId", "growerId", "growerToken", "growerCrop"} {
 		if tokens[key], err = str(key); err != nil {
 			return err
 		}
@@ -324,13 +324,14 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Tame: the hare was designated after the read.
-	if err := move("designate-tame", map[string]any{"action": "designate_tame", "id": tokens["tameId"]}); err != nil {
+	// Tame: the hare was designated for hunting after the read; the
+	// Actions/Apply husbandry intent (#941) is refused by native tame
+	// eligibility. (A tame designation would apply as it stands.)
+	if err := move("designate-tame-prey", map[string]any{"action": "designate_hunt", "id": tokens["tameId"]}); err != nil {
 		return err
 	}
-	if err := refused("tame", map[string]any{"tameAnimal": map[string]any{
-		"animal": map[string]any{"entityId": tokens["tameId"], "expectedSnapshotToken": tokens["tameToken"]}, "expectedCensusToken": tokens["tameCensusToken"],
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Native tame eligibility refused the animal or it is already designated."); err != nil {
+	if err := intentRefused("tame", map[string]any{"husbandry": map[string]any{"animalId": tokens["tameId"], "order": "HUSBANDRY_ORDER_TAME"}},
+		"FAILURE_CODE_INVALID_REQUEST", "Husbandry refused: native tame eligibility refused the animal or it is designated for hunting"); err != nil {
 		return err
 	}
 

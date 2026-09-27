@@ -13,13 +13,10 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // The dedicated ReadHusbandry observation NativeHusbandryOperations'
-    // SetAnimalTraining/SlaughterAnimal writes need immediately before preview:
-    // bridge.ReadHusbandryTarget's own read, refreshing the exact settings/
-    // census CAS tokens and training/safe-to-slaughter eligibility facts a
-    // selected method is re-validated against. Reuses
-    // NativeHusbandryOperations.Settings/Census/SafeToSlaughter/Eligible so the
-    // tokens observed here are byte-identical to the ones execute checks.
+    // The dedicated ReadHusbandry observation: the herd's settings/census
+    // tokens and training, tame, release and safe-to-slaughter eligibility
+    // facts, from the same NativeHusbandryOperations rules HusbandryIntent
+    // applies with.
     // Single complete page, like ReadStatus/ReadPopulation/ReadPrisonerInteraction;
     // a paginated herd is deferred to whatever candidate search eventually
     // drives a routine herd planner.
@@ -51,8 +48,8 @@ namespace HomeBridge.BridgeTools
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == player).OrderBy(p => p.thingIDNumber).ToList();
-            // include_wild adds the factionless animals a TameAnimal write can
-            // target, so a tame target refreshes its CAS tokens through the
+            // include_wild adds the factionless animals a tame order can
+            // target, so a tame target reads through the
             // same read the player herd uses.
             if (request.IncludeWild)
                 animals.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == null && !p.Dead).OrderBy(p => p.thingIDNumber));

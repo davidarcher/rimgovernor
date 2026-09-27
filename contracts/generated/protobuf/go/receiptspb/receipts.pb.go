@@ -3126,7 +3126,6 @@ func (x *JobEffect) GetTargetSnapshotToken() string {
 type AnimalEffect struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Animal              *SnapshotEvidence      `protobuf:"bytes,1,opt,name=animal,proto3" json:"animal,omitempty"`
-	CensusToken         *string                `protobuf:"bytes,2,opt,name=census_token,json=censusToken,proto3,oneof" json:"census_token,omitempty"`
 	TrainableDef        *string                `protobuf:"bytes,3,opt,name=trainable_def,json=trainableDef,proto3,oneof" json:"trainable_def,omitempty"`
 	Wanted              *bool                  `protobuf:"varint,4,opt,name=wanted,proto3,oneof" json:"wanted,omitempty"`
 	SlaughterDesignated *bool                  `protobuf:"varint,5,opt,name=slaughter_designated,json=slaughterDesignated,proto3,oneof" json:"slaughter_designated,omitempty"`
@@ -3175,13 +3174,6 @@ func (x *AnimalEffect) GetAnimal() *SnapshotEvidence {
 		return x.Animal
 	}
 	return nil
-}
-
-func (x *AnimalEffect) GetCensusToken() string {
-	if x != nil && x.CensusToken != nil {
-		return *x.CensusToken
-	}
-	return ""
 }
 
 func (x *AnimalEffect) GetTrainableDef() string {
@@ -4853,21 +4845,19 @@ const file_receipts_proto_rawDesc = "" +
 	"\b_can_tryB\x1b\n" +
 	"\x19_resulting_snapshot_tokenB\x11\n" +
 	"\x0f_draft_claim_idB\x18\n" +
-	"\x16_target_snapshot_token\"\xc1\x05\n" +
+	"\x16_target_snapshot_token\"\x9c\x05\n" +
 	"\fAnimalEffect\x12A\n" +
-	"\x06animal\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x06animal\x12&\n" +
-	"\fcensus_token\x18\x02 \x01(\tH\x00R\vcensusToken\x88\x01\x01\x12(\n" +
-	"\rtrainable_def\x18\x03 \x01(\tH\x01R\ftrainableDef\x88\x01\x01\x12\x1b\n" +
-	"\x06wanted\x18\x04 \x01(\bH\x02R\x06wanted\x88\x01\x01\x126\n" +
-	"\x14slaughter_designated\x18\x05 \x01(\bH\x03R\x13slaughterDesignated\x88\x01\x01\x12,\n" +
-	"\x0ftame_designated\x18\x06 \x01(\bH\x04R\x0etameDesignated\x88\x01\x01\x122\n" +
-	"\x12release_designated\x18\a \x01(\bH\x05R\x11releaseDesignated\x88\x01\x01\x12+\n" +
-	"\x0fallowed_area_id\x18\b \x01(\tH\x06R\rallowedAreaId\x88\x01\x01\x12 \n" +
-	"\tmaster_id\x18\t \x01(\tH\aR\bmasterId\x88\x01\x01\x12*\n" +
+	"\x06animal\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x06animal\x12(\n" +
+	"\rtrainable_def\x18\x03 \x01(\tH\x00R\ftrainableDef\x88\x01\x01\x12\x1b\n" +
+	"\x06wanted\x18\x04 \x01(\bH\x01R\x06wanted\x88\x01\x01\x126\n" +
+	"\x14slaughter_designated\x18\x05 \x01(\bH\x02R\x13slaughterDesignated\x88\x01\x01\x12,\n" +
+	"\x0ftame_designated\x18\x06 \x01(\bH\x03R\x0etameDesignated\x88\x01\x01\x122\n" +
+	"\x12release_designated\x18\a \x01(\bH\x04R\x11releaseDesignated\x88\x01\x01\x12+\n" +
+	"\x0fallowed_area_id\x18\b \x01(\tH\x05R\rallowedAreaId\x88\x01\x01\x12 \n" +
+	"\tmaster_id\x18\t \x01(\tH\x06R\bmasterId\x88\x01\x01\x12*\n" +
 	"\x0efollow_drafted\x18\n" +
-	" \x01(\bH\bR\rfollowDrafted\x88\x01\x01\x12.\n" +
-	"\x10follow_fieldwork\x18\v \x01(\bH\tR\x0ffollowFieldwork\x88\x01\x01B\x0f\n" +
-	"\r_census_tokenB\x10\n" +
+	" \x01(\bH\aR\rfollowDrafted\x88\x01\x01\x12.\n" +
+	"\x10follow_fieldwork\x18\v \x01(\bH\bR\x0ffollowFieldwork\x88\x01\x01B\x10\n" +
 	"\x0e_trainable_defB\t\n" +
 	"\a_wantedB\x17\n" +
 	"\x15_slaughter_designatedB\x12\n" +
@@ -4877,7 +4867,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_master_idB\x11\n" +
 	"\x0f_follow_draftedB\x13\n" +
-	"\x11_follow_fieldwork\"\xbc\x01\n" +
+	"\x11_follow_fieldworkJ\x04\b\x02\x10\x03R\fcensus_token\"\xbc\x01\n" +
 	"\x0ePrisonerEffect\x12=\n" +
 	"\x04pawn\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04pawn\x12,\n" +
 	"\x0finteraction_def\x18\x02 \x01(\tH\x00R\x0einteractionDef\x88\x01\x01\x12\x1d\n" +

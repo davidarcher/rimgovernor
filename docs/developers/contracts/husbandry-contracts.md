@@ -40,10 +40,12 @@ ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
 ## Methods
 
-Every method is one direct settings write on one exact animal through the same
-preview → CAS token → dispatch path, so admission is the effect; native handler
-labor afterwards (taming, walking an animal off-map, training steps) is observed
-through the animal's own state, never inferred from the receipt.
+Every method is one `HusbandryIntent` on Actions/Apply: a direct settings
+write on one exact animal that native validates against live state when it
+applies, so applied is the effect; an order that already holds applies again.
+Native handler labor afterwards (taming, walking an animal off-map, training
+steps) is observed through the animal's own state, never inferred from the
+receipt. `cancel_slaughter` and `cancel_release` remove a standing designation.
 
 | Method | Target | Native write | Completed when |
 | --- | --- | --- | --- |
@@ -56,7 +58,7 @@ through the animal's own state, never inferred from the receipt.
 | `follow_drafted` | player animal | `followDrafted` (argument: `true`/`false`) | flag reads back equal |
 | `follow_fieldwork` | player animal | `followFieldwork` (argument: `true`/`false`) | flag reads back equal |
 
-Admission facts: `allowed_area` needs `SupportsAllowedAreas`; `master` and the
+Apply-time rules: `allowed_area` needs `SupportsAllowedAreas`; `master` and the
 follow flags need `Obedient` (learned Obedience; native refuses otherwise). An
 area or master id the map does not carry is refused as not found. Each follow
 method writes only its own flag.
@@ -73,15 +75,14 @@ suitable pen on their own.
 ## Ownership and population
 
 The goal belongs to the colony and map where it was accepted. Each native request
-also binds the load token, exact animal ID, animal settings token and herd census.
-Hands previews and dispatches through the normal writer lock and direction guards.
-The native callback requires a paused matching context and rejects changed settings
-or population. Unconfirmed requests remain blocked for inspection, without retry.
+names the exact animal and applies under native authority against the live
+animal. A refusal re-plans from the next review; an unknown outcome resends
+the same order.
 
 Surplus and shortfall counts subtract animals already designated for
 slaughter or release and add wild animals already designated for taming, so a
 pending write is never duplicated. Native eligibility is checked again at
-dispatch: bonded, mastered, pregnant, downed and already-designated animals are
+apply: bonded, mastered, pregnant, downed and already-designated animals are
 excluded from removal by RimWorld's own designator rules plus the master/bond
 exclusions `SafeToSlaughter`/`SafeToRelease` add; a tame candidate must pass
 `TameUtility.CanTame` and carry no tame or hunt designation. Masters, allowed
@@ -100,12 +101,8 @@ contract.
 ## Training and products
 
 Training requests use native `CanAssignToTrain` and `SetWantedRecursive`; native
-`learned` and step counts track progress separately from settings receipts. The
-per-animal settings token and herd census token are compare-and-swap guards
-against stale in-flight snapshots: they are re-read immediately before preview
-and dispatch, and a mismatch (player edit, birth, death) fails that attempt so
-the next cycle plans from fresh state. They never block the controller from
-changing an animal again. Removal-designated animals receive no training changes.
+`learned` and step counts track progress separately from settings receipts.
+Removal-designated animals receive no training changes.
 
 Handling joins shared deterministic work allocation with the observed native minimum
 skill. Player work overrides remain authoritative. The herd observation retains safe
@@ -165,5 +162,5 @@ above max(floor, breeding pair) rank by native meat nutrition per daily
 grazing demand, then shorter reproduction interval, then animal ID. Missing
 cost facts exclude the candidate. The ledger budgets one offered animal as a
 hunt-kind channel with a `slaughter:` ID and 180 native slaughter ticks;
-`MaintainHerd` dispatches it through its normal guarded husbandry action.
+`MaintainHerd` dispatches it through its normal husbandry action.
 

@@ -304,7 +304,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | ManageWaste.target/pawn | ReadWaste.thing.snapshot; ListPawns.pawn.snapshot |
 | RelieveNeed.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | ImproveGear.pawn/target/loadout | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
-| SetAnimalTraining/SlaughterAnimal.animal/census | ReadHusbandry.pawn.snapshot, animal.census_snapshot; settings snapshot separate |
+| HusbandryIntent.animal_id/target_id | ReadHusbandry.pawn (same animal ID), allowed area and master IDs |
 | PrisonerInteractionIntent.pawn_id | ReadPopulation.pawn and current interaction |
 | SetDrafted/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
 | OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |

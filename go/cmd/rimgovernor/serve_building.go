@@ -136,7 +136,6 @@ type buildingServiceBridge struct {
 	moodReliefWorld     moodReliefWorldSource
 	gearReplace         *buildingruntime.GearReplaceCapabilities
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
-	husbandry           *buildingruntime.HusbandryCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedUse              *beduse.Capabilities
@@ -249,10 +248,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	husbandryWriter, err := bridge.NewHusbandryWriter(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -327,7 +322,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		moodRelief:          &buildingruntime.MoodReliefCapabilities{Native: client, Writer: moodReliefWriter},
 		gearReplace:         &buildingruntime.GearReplaceCapabilities{Native: client, Writer: gearReplace},
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
-		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
@@ -633,13 +627,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		coverClearanceCapabilities = client.coverClearance
 	}
-	var husbandryCapabilities *buildingruntime.HusbandryCapabilities
-	if config.routineHusbandryPlans || config.routineRecoveryPlans {
-		if client.husbandry == nil {
-			return errors.New("husbandry plans require typed capabilities")
-		}
-		husbandryCapabilities = client.husbandry
-	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
 	if config.routineTradePlans {
 		if client.trade == nil {
@@ -754,7 +741,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,
-		Husbandry:           husbandryCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedUse:              bedUseCapabilities,

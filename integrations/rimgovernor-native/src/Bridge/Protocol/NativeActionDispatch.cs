@@ -44,6 +44,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.BedAssign] = new BedAssignActionHandler(),
             [Operations.Action.IntentOneofCase.WorkSettings] = new WorkSettingsActionHandler(),
             [Operations.Action.IntentOneofCase.ProductionBill] = new ProductionBillActionHandler(),
+            [Operations.Action.IntentOneofCase.Husbandry] = new HusbandryActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

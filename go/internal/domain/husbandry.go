@@ -2,13 +2,13 @@ package domain
 
 import "errors"
 
-// HusbandryMethod names the direct-write animal management orders, mirroring
-// bridge.HusbandryMethod: a recursive training request; a slaughter, tame or
-// release-to-wild designation; or one Animals-tab setting (allowed area,
-// master, follow-drafted, follow-fieldwork). All are direct settings writes
-// (no native job), so admission is the effect, not a promise of one; the
-// taming and release work itself is native handler labor afterwards. Tame
-// targets a wild animal, the others a player animal.
+// HusbandryMethod names the direct-write animal management orders: a
+// recursive training request; a slaughter, tame or release-to-wild
+// designation or its cancel; or one Animals-tab setting (allowed area,
+// master, follow-drafted, follow-fieldwork). Each is a HusbandryIntent
+// (#941), a direct settings write with no native job, so applied is the
+// effect; the taming and release work itself is native handler labor
+// afterwards. Tame targets a wild animal, the others a player animal.
 type HusbandryMethod string
 
 const (
@@ -29,9 +29,9 @@ const (
 // setting. Argument is the method's one parameter: the trainable def for
 // train; the area or master identity for allowed_area/master (empty clears
 // the assignment); "true"/"false" for the follow flags; empty for the
-// designations. Native eligibility (canTrain, safeToSlaughter, tameable,
-// safeToRelease, obedient, supportsAllowedAreas) is established at
-// inspection, not here.
+// designations. Native checks eligibility (canTrain, safeToSlaughter,
+// tameable, safeToRelease, obedient, supportsAllowedAreas) at apply, not
+// here.
 type Husbandry struct {
 	animal   PawnID
 	method   HusbandryMethod

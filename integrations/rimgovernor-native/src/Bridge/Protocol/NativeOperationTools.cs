@@ -40,7 +40,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMoodReliefRecord> MoodRelief = new Dictionary<Common.AttemptKey, NativeMoodReliefRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeHusbandryRecord> Husbandry = new Dictionary<Common.AttemptKey, NativeHusbandryRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWasteRecord> Waste = new Dictionary<Common.AttemptKey, NativeWasteRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeGearRecord> Gear = new Dictionary<Common.AttemptKey, NativeGearRecord>();
@@ -164,8 +163,6 @@ namespace HomeBridge.BridgeTools
                 return NativeRecoveryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                 return NativeMoodReliefOperations.Execute(state, request, context);
-            if (NativeHusbandryOperations.TryKind(request.Operation, out _))
-                return NativeHusbandryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                 return NativeWasteOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.GiftCaravanSilver)
@@ -252,8 +249,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
                     return ProtoBoundary.Encode(NativeMoodReliefOperations.Preview(parsed.Operation.RelieveNeed, context));
-                if (parsed.Operation != null && NativeHusbandryOperations.TryKind(parsed.Operation, out _))
-                    return ProtoBoundary.Encode(NativeHusbandryOperations.Preview(parsed.Operation, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ManageWaste)
                     return ProtoBoundary.Encode(NativeWasteOperations.Preview(parsed.Operation.ManageWaste, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.GiftCaravanSilver)
@@ -362,9 +357,6 @@ namespace HomeBridge.BridgeTools
                     NativeMoodReliefRecord relief;
                     if (state.MoodRelief.TryGetValue(parsed.Attempt, out relief))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = relief.Observe(parsed.Attempt, context) });
-                    NativeHusbandryRecord husbandry;
-                    if (state.Husbandry.TryGetValue(parsed.Attempt, out husbandry))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeHusbandryOperations.Observe(parsed.Attempt, context, husbandry) });
                     NativeWasteRecord waste;
                     if (state.Waste.TryGetValue(parsed.Attempt, out waste))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = waste.Observe(parsed.Attempt, context) });

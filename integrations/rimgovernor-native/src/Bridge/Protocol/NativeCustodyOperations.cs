@@ -15,8 +15,7 @@ namespace HomeBridge.BridgeTools
     // PAWN_ORDER_KIND_RESCUE. Both are single fixed vanilla jobs (Capture,
     // Rescue) that carry a downed patient to a bed -- a prisoner bed for
     // capture, an ordinary/guest bed for rescue -- so they share one CAS,
-    // admission and job-dispatch shape here the way NativeHusbandryOperations
-    // shares one class across SetAnimalTraining/SlaughterAnimal. The actual
+    // admission and job-dispatch shape here. The actual
     // eligibility mechanics (CanBeCaptured, HealthAIUtility.CanRescueNow,
     // RestUtility.FindBedFor, HostileTo) are ported field-for-field from
     // OrderTool.cs's PrepareCapture/PrepareRescue, which are not reachable

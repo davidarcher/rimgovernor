@@ -269,7 +269,7 @@ namespace HomeBridge.BridgeTools
                     benchId = bench.GetUniqueLoadID(), benchToken,
                     preyId = prey.GetUniqueLoadID(),
                     preyResource = prey.RaceProps.corpseDef.defName, preyCell = new { x = prey.Position.x, z = prey.Position.z },
-                    tameId = tame.GetUniqueLoadID(), tameToken = NativeHusbandryOperations.Settings(tame), tameCensusToken = NativeHusbandryOperations.Census(tame),
+                    tameId = tame.GetUniqueLoadID(),
                     growerId = grower.GetUniqueLoadID(), growerToken = NativeGrowerCrop.Snapshot(grower, context)!.Token, growerCrop = crop.defName,
                     setup = "Test-only staged targets with their read-time snapshot tokens; every write stays native.",
                 };

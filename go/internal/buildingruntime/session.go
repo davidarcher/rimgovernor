@@ -85,7 +85,6 @@ type SessionConfig struct {
 	// pawn order whose opener the melee lock drafts first.
 	OpenCasket      *OpenCasketCapabilities
 	Trade           *TradeCapabilities
-	Husbandry       *HusbandryCapabilities
 	HomeCoverage    *HomeCoverageCapabilities
 	WallRemoval     *WallRemovalCapabilities
 	MineAcquisition *mineacquisition.MineAcquisitionCapabilities
@@ -380,9 +379,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		return cleanup(ErrControl)
 	}
 
-	if config.Husbandry != nil && (config.Husbandry.Native == nil || config.Husbandry.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.HomeCoverage != nil && (config.HomeCoverage.Native == nil || config.HomeCoverage.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -618,15 +614,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableRecoveryService(recoveryServiceBoundary); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Husbandry != nil {
-		husbandryBoundary, err := NewHusbandryBoundary(config.Husbandry.Native, config.Husbandry.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
-		if err != nil {
-			return cleanup(err)
-		}
-		if err := worker.EnableHusbandry(husbandryBoundary); err != nil {
 			return cleanup(err)
 		}
 	}
