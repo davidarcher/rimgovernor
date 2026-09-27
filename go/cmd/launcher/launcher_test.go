@@ -34,7 +34,7 @@ func TestServeArgsEverything(t *testing.T) {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[15:], " ")
-	want := "--resume --clock-speed Ultrafast --clock-pacing player --chat-model qwen --chat-base-url http://x/v1 --routine-allow-slaughter --routine-allow-release --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --routine-food-reserve-days 2.5 --debug --routine-project-limit 3 --x a b"
+	want := "--resume --clock-speed Ultrafast --chat-model qwen --chat-base-url http://x/v1 --routine-allow-slaughter --routine-allow-release --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --routine-food-reserve-days 2.5 --debug --routine-project-limit 3 --x a b"
 	if got[14] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}

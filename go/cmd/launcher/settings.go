@@ -22,7 +22,7 @@ type Settings struct {
 	// AutoStart is --resume: run the bot on every native load.
 	AutoStart bool `json:"autoStart"`
 	// Speed is Normal, Fast, Superfast, Ultrafast or UltrafastAdaptive
-	// (Ultrafast with --clock-pacing player).
+	// (a legacy name kept for saved settings; Ultrafast is player-paced since #875).
 	Speed string `json:"speed"`
 	// ContinueState reuses the newest .rimgovernor/go/state-*.sqlite.
 	ContinueState bool   `json:"continueState"`
@@ -124,7 +124,7 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 		switch s.Speed {
 		case "Normal":
 		case "UltrafastAdaptive":
-			args = append(args, "--clock-speed", "Ultrafast", "--clock-pacing", "player")
+			args = append(args, "--clock-speed", "Ultrafast")
 		default:
 			args = append(args, "--clock-speed", s.Speed)
 		}
