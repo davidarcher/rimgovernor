@@ -119,6 +119,7 @@ func focusFire(view CombatView, roles, prior []CombatRole) []CombatRole {
 	for _, p := range view.Pawns {
 		state[p.ID] = p
 	}
+	locked := meleeLocked(view, roles)
 	out := slices.Clone(roles)
 	for i, r := range out {
 		if !r.Ranged {
@@ -129,15 +130,18 @@ func focusFire(view CombatView, roles, prior []CombatRole) []CombatRole {
 		if r.Cell != nil {
 			from = domain.Known(*r.Cell)
 		}
-		if h, ok := live[was[r.Pawn]]; ok && inRange(from, s.WeaponRange, h) {
+		// A hostile locked with our blocker is passed over while another
+		// is in range (#978).
+		pick := func(h CombatPawnState) bool { return inRange(from, s.WeaponRange, h) && !locked[h.ID] }
+		if !slices.ContainsFunc(ranked, pick) {
+			pick = func(h CombatPawnState) bool { return inRange(from, s.WeaponRange, h) }
+		}
+		if h, ok := live[was[r.Pawn]]; ok && pick(h) {
 			out[i].Target = h.ID
 			continue
 		}
-		for _, h := range ranked {
-			if inRange(from, s.WeaponRange, h) {
-				out[i].Target = h.ID
-				break
-			}
+		if j := slices.IndexFunc(ranked, pick); j >= 0 {
+			out[i].Target = ranked[j].ID
 		}
 		if near[out[i].Target] {
 			out[i].Target = ""

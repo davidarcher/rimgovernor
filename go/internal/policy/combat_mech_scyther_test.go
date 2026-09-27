@@ -96,38 +96,20 @@ func TestDecideCombatScythersBlockedAndFocused(t *testing.T) {
 	if memory.Tactic != TacticHold {
 		t.Fatalf("the scyther at the choke dropped the hold: %+v", memory)
 	}
+	// r1 is locked with e (#861 holds fire on it): the gunners fire down
+	// the choke at r2 (#978).
 	for _, r := range memory.Roles {
-		if r.Ranged && r.Target != "r1" {
-			t.Fatalf("gunner %s off the scyther in melee: %+v", r.Pawn, memory.Roles)
+		if r.Ranged && r.Target != "r2" {
+			t.Fatalf("gunner %s not on the scyther behind the choke: %+v", r.Pawn, memory.Roles)
 		}
 		if r.Duty == DutyBlocker && (r.Cell == nil || !reflect.DeepEqual(*r.Cell, at[r.Pawn])) {
 			t.Fatalf("blocker %s left the choke: %+v", r.Pawn, memory.Roles)
 		}
 	}
-	hold := func(p domain.PawnID) CombatOrder {
-		return CombatOrder{Pawn: p, Kind: OrderFireMode, FireMode: HoldFire, Reason: ReasonHoldFire}
+	on := func(p, h domain.PawnID) CombatOrder {
+		return CombatOrder{Pawn: p, Kind: OrderAttack, Target: h, Reason: ReasonFormation}
 	}
-	if want := []CombatOrder{hold("a"), hold("b"), hold("c")}; !reflect.DeepEqual(orders, want) {
-		t.Fatalf("gunners not holding fire on the blocker's melee: %+v", orders)
-	}
-
-	// r1 breaks off: fire at will, then every gunner attacks r1 again.
-	view.Tick = 320
-	for i := range view.Pawns {
-		switch view.Pawns[i].ID {
-		case "a", "b", "c":
-			view.Pawns[i].Target, view.Pawns[i].FireMode = "", HoldFire
-		case "e", "r1":
-			view.Pawns[i].Stance = StanceIdle
-		}
-	}
-	_, memory = decideAny(t, view, StopEvent{}, memory)
-	view.Tick = 380
-	for i := range view.Pawns[:3] {
-		view.Pawns[i].FireMode = FireAtWill
-	}
-	orders, _ = decideAny(t, view, StopEvent{}, memory)
-	if want := []CombatOrder{attack("a"), attack("b"), attack("c")}; !reflect.DeepEqual(orders, want) {
-		t.Fatalf("%+v\nwant %+v", orders, want)
+	if want := []CombatOrder{on("a", "r2"), on("b", "r2"), on("c", "r2")}; !reflect.DeepEqual(orders, want) {
+		t.Fatalf("gunners not firing at r2: %+v", orders)
 	}
 }

@@ -176,12 +176,9 @@ const (
 	HoldFire   = "hold_fire"
 )
 
-// holdFire gives hold-fire to a gunner whose target is in melee with one
-// of our blockers (a blocker or melee role), with a stop when the gunner
-// is already shooting it, in place of its other orders; and fire-at-will
-// back to a held gunner once that melee ends. A pawn whose fire mode is
-// unknown counts as held when its last order was hold-fire.
-func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m CombatMemory) []CombatOrder {
+// meleeLocked are the hostiles in melee with one of our blockers (a
+// blocker or melee role), either side swinging.
+func meleeLocked(view CombatView, roles []CombatRole) map[domain.PawnID]bool {
 	state := map[domain.PawnID]CombatPawnState{}
 	for _, p := range view.Pawns {
 		state[p.ID] = p
@@ -204,6 +201,20 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 			locked[p.Target] = true // a blocker on a hostile
 		}
 	}
+	return locked
+}
+
+// holdFire gives hold-fire to a gunner whose target is in melee with one
+// of our blockers (a blocker or melee role), with a stop when the gunner
+// is already shooting it, in place of its other orders; and fire-at-will
+// back to a held gunner once that melee ends. A pawn whose fire mode is
+// unknown counts as held when its last order was hold-fire.
+func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m CombatMemory) []CombatOrder {
+	state := map[domain.PawnID]CombatPawnState{}
+	for _, p := range view.Pawns {
+		state[p.ID] = p
+	}
+	locked := meleeLocked(view, roles)
 	orderable := map[domain.PawnID]bool{}
 	for _, id := range view.Orderable {
 		orderable[id] = true
@@ -225,7 +236,7 @@ func holdFire(view CombatView, roles []CombatRole, orders []CombatOrder, m Comba
 			continue
 		}
 		switch {
-		case locked[r.Target] || locked[s.Target]:
+		case locked[r.Target] || locked[s.Target] && (r.Target == "" || s.Stance != StanceIdle):
 			orders = slices.DeleteFunc(orders, mine)
 			if locked[s.Target] && s.Stance != StanceIdle {
 				orders = append(orders, CombatOrder{Pawn: r.Pawn, Kind: OrderStop, Reason: ReasonHoldFire})

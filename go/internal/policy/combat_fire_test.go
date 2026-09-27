@@ -130,18 +130,24 @@ func TestDecideCombatNoAttackOnMissingTarget(t *testing.T) {
 	}
 }
 
+// loneThreat keeps h1 as the only threat of a threatView.
+func loneThreat(view CombatView) CombatView {
+	view.Threats, view.Positional = view.Threats[:1], view.Positional[:1]
+	return view
+}
+
 // A gunner whose target is in melee with our blocker gets stop and
 // hold-fire; it holds while the melee lasts and gets fire-at-will back
-// when it ends, then its attack.
+// when it ends, then its attack. h1 is the only hostile, so no other is
+// in range to shoot instead (#978).
 func TestDecideCombatHoldsFireOnBlockerMelee(t *testing.T) {
-	view := threatView()
+	view := loneThreat(threatView())
 	cell := func(x int32) *domain.Cell { return &domain.Cell{X: x, Z: 23} }
 	memory := CombatMemory{Tactic: TacticHold, Formed: 50, Roles: []CombatRole{
 		{Pawn: "a", Cell: cell(9), Target: "h1", Ranged: true},
 		{Pawn: "b", Cell: cell(8), Target: "h1", Duty: DutyBlocker},
-		{Pawn: "c", Cell: cell(10), Target: "h5", Ranged: true},
 	}}
-	// h1 and b fight; a is shooting h1, c is on h5.
+	// h1 and b fight; a is shooting h1.
 	view.Pawns[0].Target, view.Pawns[0].Stance, view.Pawns[0].FireMode = "h1", StanceCooldown, FireAtWill
 	view.Pawns[1].Target, view.Pawns[1].Stance = "h1", StanceMelee
 	view.Pawns[2].Target, view.Pawns[2].FireMode = "h5", FireAtWill
@@ -179,12 +185,11 @@ func TestDecideCombatHoldsFireOnBlockerMelee(t *testing.T) {
 // it stands next to our blocker, and a gunner mid-aim at another hostile
 // keeps its fire mode (#903).
 func TestDecideCombatHoldFireSteadyBetweenSwings(t *testing.T) {
-	view := threatView()
+	view := loneThreat(threatView())
 	cell := func(x int32) *domain.Cell { return &domain.Cell{X: x, Z: 23} }
 	memory := CombatMemory{Tactic: TacticHold, Formed: 50, Roles: []CombatRole{
 		{Pawn: "a", Cell: cell(9), Target: "h1", Ranged: true},
 		{Pawn: "b", Cell: cell(8), Target: "h1", Duty: DutyBlocker},
-		{Pawn: "c", Cell: cell(10), Target: "h5", Ranged: true},
 	}}
 	view.Pawns[0].Stance, view.Pawns[0].FireMode = StanceIdle, HoldFire
 	view.Pawns[1].Target, view.Pawns[1].Stance = "h1", StanceMelee
