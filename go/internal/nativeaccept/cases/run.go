@@ -290,6 +290,9 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 // errBroke is what execute returns for a run paused at its breakpoint.
 var errBroke = errors.New("paused at breakpoint")
 
+// errBudgetCut is the cause of a Run body cut at the case's budget.
+var errBudgetCut = errors.New("run cut at its wall-clock budget")
+
 // diagnose writes the postmortem digest of a failed case (#278) onto the
 // report ("diagnosis", which Finalize emits first) and to
 // output/diagnosis.txt, read from the evidence the run left behind. The
@@ -471,7 +474,19 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		ring.Activate()
 	}
 	s.ring, s.stages, s.runStarted = ring, newStages(c, opts, s, cfg, output, staged, report), time.Now()
-	runErr := c.Run(runCtx, s)
+	// The budget cuts the Run body where Finalize would fail it anyway
+	// (#890): the -timeout safety net sits minutes past it, long enough for
+	// a hung serve loop to run on unseen.
+	bodyCtx := context.Context(runCtx)
+	if deadline, ok := report.BudgetDeadline(); ok {
+		var stop context.CancelFunc
+		bodyCtx, stop = context.WithDeadlineCause(runCtx, deadline, errBudgetCut)
+		defer stop()
+	}
+	runErr := c.Run(bodyCtx, s)
+	if runErr != nil && errors.Is(context.Cause(bodyCtx), errBudgetCut) {
+		runErr = fmt.Errorf("%w: %v", errBudgetCut, runErr)
+	}
 	if len(c.Stages) > 0 {
 		report["stages"] = s.stageRows
 	}

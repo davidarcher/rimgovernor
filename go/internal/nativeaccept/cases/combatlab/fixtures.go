@@ -46,7 +46,26 @@ type Fixture struct {
 	// Arrival, when set, is a PawnsArrivalModeDef that drops the hostiles
 	// in around the first hostile's cell instead of spawning each (#870).
 	Arrival string `json:"arrival,omitempty"`
+	// Layout, when set, is the complete defense layout record the metrics
+	// run stores before serving (#890), so the planner holds this
+	// fixture's line instead of refusing the hold for want of one.
+	Layout *Layout `json:"-"`
 }
+
+// Layout is a fixture's hand-written defense layout: the firing line and
+// its fall-back cells, the direction from the enemy toward home, and the
+// choke the blockers hold, if any. The planner's own layout needs a
+// colony's killbox plan and the build of its tiers, minutes of game time
+// on the blank lab; the fixture states the geometry it already staged.
+type Layout struct {
+	Firing, Retreat []Cell
+	// Toward is a domain.Rotation name ("south": the enemy is north).
+	Toward string
+	Choke  *Cell
+}
+
+// Cell is one map cell.
+type Cell struct{ X, Z int }
 
 const (
 	Colonist = "colonist"
@@ -121,6 +140,14 @@ func choke(cx, cz int) Fixture {
 	for dx := -5; dx <= 5; dx += 2 {
 		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: slasher, X: cx + dx, Z: cz + chokeHalf + 13, Weapon: club, WeaponStuff: "WoodLog"})
 	}
+	// The riflemen's line four cells behind the gap, both sides of the
+	// lane; the brawlers block the gap itself.
+	gap := Cell{cx, cz + chokeHalf}
+	f.Layout = &Layout{Toward: "south", Choke: &gap}
+	for _, dx := range []int{-2, 2, -4, 4} {
+		f.Layout.Firing = append(f.Layout.Firing, Cell{cx + dx, cz + chokeHalf - 4})
+		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - chokeHalf + 2})
+	}
 	return f
 }
 
@@ -146,9 +173,14 @@ func ranged(cx, cz int) Fixture {
 	for dx := -3; dx <= 3; dx++ {
 		f.Things = append(f.Things, Thing{Def: "Sandbags", X: cx + dx, Z: cz - 8})
 	}
+	f.Layout = &Layout{Toward: "south"}
 	for i, dx := range []int{-3, -1, 1, 3} {
 		f.Pawns = append(f.Pawns, Pawn{Side: Colonist, Index: i, X: cx + dx, Z: cz - 9, Weapon: rifle})
 		f.Pawns = append(f.Pawns, Pawn{Side: Hostile, Kind: gunner, X: cx + dx, Z: cz + 16, Weapon: rifle})
+		// The line is the cells behind the sandbags, its fall-back five
+		// cells further south.
+		f.Layout.Firing = append(f.Layout.Firing, Cell{cx + dx, cz - 9})
+		f.Layout.Retreat = append(f.Layout.Retreat, Cell{cx + dx, cz - 14})
 	}
 	return f
 }

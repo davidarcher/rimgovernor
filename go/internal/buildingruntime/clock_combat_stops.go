@@ -63,7 +63,9 @@ func (m *combatStopMetrics) admitted(ctx context.Context, stopped *k.Stopped, ti
 		}
 		m.byKind[kind]++
 		attrs := []any{"event", kind, "tick", tick}
-		if at := stopped.GetStoppedAtUnixMs(); at > 0 {
+		// The stop that ends the combat resumes into a colony window after
+		// the full review; its latency is not a combat reaction (#890).
+		if at := stopped.GetStoppedAtUnixMs(); at > 0 && combat {
 			latency := now.Sub(time.UnixMilli(at))
 			m.latencies = append(m.latencies, latency)
 			attrs = append(attrs, "resume_latency_ms", latency.Milliseconds())

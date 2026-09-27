@@ -245,6 +245,10 @@ namespace HomeBridge.BridgeTools
         private static void AfterDraft(Pawn_DraftController __instance, bool __state)
         {
             if (__state == __instance.Drafted) return;
+            // The game undrafts a pawn that breaks, falls or dies; that is
+            // the fight, not the player (#890).
+            var pawn = __instance.pawn;
+            if (!__instance.Drafted && pawn != null && (pawn.InMentalState || pawn.Downed || pawn.Dead || !pawn.Spawned)) return;
             Revoke(NativeControlRevocationReason.PlayerControl, () => Describe(__instance.pawn, __instance.Drafted ? "draft" : "undraft"));
         }
         [ThreadStatic] private static int autoRebuildDepth;

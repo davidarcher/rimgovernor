@@ -9,6 +9,20 @@ import (
 	"time"
 )
 
+func TestBudgetDeadline(t *testing.T) {
+	report := NewReport("budget", true)
+	if _, ok := report.BudgetDeadline(); ok {
+		t.Fatal("deadline without a budget")
+	}
+	started := time.Now().Add(-time.Minute).UTC()
+	report[StartedAtKey] = started.Format(time.RFC3339Nano)
+	report.SetBudget(3 * time.Minute)
+	deadline, ok := report.BudgetDeadline()
+	if !ok || !deadline.Equal(started.Add(3*time.Minute)) {
+		t.Fatalf("deadline %v %v, want %v", deadline, ok, started.Add(3*time.Minute))
+	}
+}
+
 func TestFinalizeRecordsTiming(t *testing.T) {
 	ResetTickStats()
 	observeReply(t, "home/colony_facts", map[string]any{"tick": 1000.0})

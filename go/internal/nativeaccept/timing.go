@@ -33,6 +33,19 @@ const (
 // not held to any.
 func (r Report) SetBudget(budget time.Duration) { r[BudgetMsKey] = budget.Milliseconds() }
 
+// BudgetDeadline is the wall time at which the run's budget is spent
+// (started_at + budget_ms): past it the run fails at Finalize whatever it
+// does, so the runner cuts the case body there (#890) instead of letting a
+// hung loop run on to the -timeout safety net. False without both fields.
+func (r Report) BudgetDeadline() (time.Time, bool) {
+	started, ok := parseReportTime(r[StartedAtKey])
+	ms, has := asUint64(r[BudgetMsKey])
+	if !ok || !has || ms == 0 {
+		return time.Time{}, false
+	}
+	return started.Add(time.Duration(ms) * time.Millisecond), true
+}
+
 // finalizeTiming fills the timing fields at Finalize and applies the
 // budget: a passing report over budget fails with budget_exceeded.
 func (r Report) finalizeTiming(finished time.Time) {

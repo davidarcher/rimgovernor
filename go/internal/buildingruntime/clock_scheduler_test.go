@@ -457,3 +457,41 @@ func TestClockSchedulerOpenFightIsWork(t *testing.T) {
 		t.Fatalf("an open fight with no plan work parked the clock %+v %v", got.Decision, err)
 	}
 }
+
+// #890: the defense planner waits on its own fight's drafts, which stay
+// open for the whole fight; a stopped combat window is that fight's next
+// decision, so the step releases the wait and runs the planner instead of
+// parking it until the fight is over.
+func TestClockSchedulerCombatStopReleasesDefenseWait(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	ctx := context.Background()
+	f.emergency.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
+	plan := combatGoalPlan(t, s)
+	if err := s.player.journal.OpenCombatFight(ctx, plan, policy.CombatMemory{Tactic: policy.TacticSquad}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Step(ctx); err != nil || !got.Combat {
+		t.Fatal(got, err)
+	}
+	state, err := s.player.journal.LoadPlan(ctx, plan)
+	if err != nil || len(state.Spec.Actions()) == 0 {
+		t.Fatal(state, err)
+	}
+	s.queue.waits[defensePlanner] = plannerWait{On: []domain.ActionID{state.Spec.Actions()[0].ID()}, Deadline: 1 << 40}
+	epochs, err := s.player.journal.LoadClockEpochs(ctx, 4096)
+	if err != nil || len(epochs) == 0 {
+		t.Fatal(epochs, err)
+	}
+	epoch := proto.Clone(epochs[len(epochs)-1].Epoch).(*k.Epoch)
+	f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_COMBAT_EVENT.Enum(), CombatEvent: k.CombatEvent_COMBAT_EVENT_MELEE_CONTACT.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
+	f.status.ActualPaused, f.status.NativeTickBoundary, f.status.DurableEvents = proto.Bool(true), proto.Bool(true), proto.Bool(true)
+	f.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum()
+	got, err := s.StepWithReason(ctx, StepReason{Cause: StepWake, TickAdvanced: true})
+	if err != nil || !got.Combat || slices.Contains(got.Waiting, defensePlanner) {
+		t.Fatal(got.Waiting, got.Decision, err)
+	}
+	if _, waits := s.queue.waitingOn(defensePlanner); waits {
+		t.Fatal("defense still waits on its own fight's drafts at a combat stop")
+	}
+}

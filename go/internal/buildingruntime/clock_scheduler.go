@@ -1082,6 +1082,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		clockSchedulerLog("step exit: player epoch replaced before the review: %v", err)
 		return out, err
 	}
+	if status.GetStopped() != nil && s.combatStops.active {
+		s.queue.combatStopped()
+	}
 	sel, err := s.selectPlanners(call, reason, status.Context.GetTick())
 	if err != nil {
 		return out, err

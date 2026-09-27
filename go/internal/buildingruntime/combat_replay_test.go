@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -343,6 +344,39 @@ func TestCombatReplayLabOpen(t *testing.T) {
 		changesOnly(),
 		noAimInterrupt(),
 	)
-	// The served run (#869) decides once: it admits the squad plan at the
-	// first stop and later stops change nothing, so no stop sends orders.
+	// Every combat stop steps DecideCombat since #890, but on an open field
+	// the drafted riflemen are already on the squad's targets, so the stops
+	// change nothing and send no orders; lab-choke's do.
+}
+
+// lab-choke (#854, #890): two longsword blockers and a reserve at the gap
+// of a walled room, two riflemen behind, six club raiders, served with
+// the fixture's defense layout. The hold forms at once with its blocker
+// and reserve duties, later stops send orders (fire mode, a retreat on a
+// serious injury), and the squad takes over once the raid crosses the
+// line.
+func TestCombatReplayLabChoke(t *testing.T) {
+	t.Parallel()
+	retreat := func(s combatReplayStop) bool {
+		return slices.ContainsFunc(s.Orders, func(o policy.CombatOrder) bool { return o.Reason == policy.ReasonRetreat })
+	}
+	checkCombat(t, "testdata/combat/lab-choke.json.gz",
+		formsTactic(firstStop, policy.TacticHold),
+		combatAssertion{name: "blockers and a reserve", at: firstStop, check: func(s combatReplayStop) error {
+			duties := map[string]int{}
+			for _, r := range s.Memory.Roles {
+				duties[string(r.Duty)]++
+			}
+			if duties["blocker"] < 2 || duties["reserve"] < 1 {
+				return fmt.Errorf("duties %v", duties)
+			}
+			return nil
+		}},
+		ordersOwnedDrafts(),
+		changesOnly(),
+		// No noAimInterrupt: the hold-fire toggle (#861) flips a rifleman's
+		// fire mode mid-aim at stops 1 and 4 (#903).
+		combatAssertion{name: "a stop sends orders", at: withOrders, check: func(combatReplayStop) error { return nil }},
+		combatAssertion{name: "a serious injury retreats", at: retreat, check: func(combatReplayStop) error { return nil }},
+	)
 }

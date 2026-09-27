@@ -896,8 +896,15 @@ namespace HomeBridge.BridgeTools
                     // them there was already reported, and re-stopping every
                     // window at zero ticks would pin the clock while the
                     // raider who hurt them still stands (issue #154).
+                    // A combat epoch an open fight owns (SeriousInjury and
+                    // Downed armed, #849/#852) stops on those benign events
+                    // instead: a colonist_health stop there is a hold that
+                    // revokes authority mid-fight, the 2-3 s stop latency
+                    // of #890.
+                    var fightOwned = s.Mode == "combat" && CombatArmed(RimGovernor.Protocol.Clock.CombatEvent.SeriousInjury);
                     if (before != null
                         && s.Mode == "combat"
+                        && !fightOwned
                         && HealthThresholdCrossed(s, before, after))
                     {
                         var health = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
@@ -923,7 +930,7 @@ namespace HomeBridge.BridgeTools
                                 { "bleedRateAfter", after.BleedRate }, { "bloodLossBefore", before.BloodLoss },
                                 { "bloodLossAfter", after.BloodLoss }, { "healthAtStart", before.Health },
                                 { "healthNow", after.Health } };
-                        var threshold = HealthThresholdCrossed(s, before, after);
+                        var threshold = !fightOwned && HealthThresholdCrossed(s, before, after);
                         // Colony mode stops on any worsening -- except for a
                         // colonist who already caused a colonist_injury stop
                         // inside the cooldown, or who was acknowledged. A wolf

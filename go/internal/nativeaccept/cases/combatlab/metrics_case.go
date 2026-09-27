@@ -1,6 +1,7 @@
 package combatlab
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -9,8 +10,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 const (
@@ -25,6 +29,8 @@ const (
 	metricsStopMargin = 800
 	// metricsIdle is how long a still served clock means the run is over.
 	metricsIdle = 20 * time.Second
+	// pauseModeTool sets Prefs.AutomaticPauseMode (scripts/fixtures/LetterFixture.cs).
+	pauseModeTool = "test/letter_pause_mode"
 )
 
 // metricsFamilies is today's autopilot answer to a fight: the routine
@@ -63,11 +69,15 @@ func init() {
 			Name:        "combatlab/metrics-" + name,
 			Scope:       fmt.Sprintf("Combat metrics (#855, #869): stage %s, serve the routine defense planner on it for up to %d game ticks, and record the reads before and after to %s and the aggregate (damage, downs, deaths, fled, contact-to-resolution, friendly fire, orders, step latency) to %s. Evidence, not a gate: native because the metrics are vanilla combat outcomes under the live planner.", name, metricsTicks, ReadsFile, MetricsFile),
 			Start:       cases.Lab{Colonists: probe.Colonists},
-			RequiredOps: []string{na.LabStartTool, StageTool},
+			RequiredOps: []string{na.LabStartTool, StageTool, pauseModeTool},
 			QuietWorld:  true,
-			Serve:       &cases.ServeSpec{Families: metricsFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab"},
-			Budget:      cases.LabBudget,
-			Run:         func(ctx context.Context, s cases.Session) error { return runMetrics(ctx, s, name) },
+			// A checkpoint capture pauses the served game mid-fight: the
+			// external pause revokes authority and drops the fight plan
+			// (#890, lab-open at t+2m).
+			NoCheckpoint: true,
+			Serve:        &cases.ServeSpec{Families: metricsFamilies, PlayerSpeed: metricsSpeed, Prefix: "combatlab"},
+			Budget:       cases.LabBudget,
+			Run:          func(ctx context.Context, s cases.Session) error { return runMetrics(ctx, s, name) },
 		})
 	}
 }
@@ -88,6 +98,21 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 	}
 	first["staged"] = sides
 	start := int(na.AsNumber(first["tick"]))
+	if layout := staged.Fixture.Layout; layout != nil {
+		record, err := storeLayout(ctx, filepath.Join(dir, "service.sqlite"), s.Identity(), *layout)
+		if err != nil {
+			return err
+		}
+		s.Report()["layout"] = record
+	}
+	// A MajorThreat letter mid-fight (a berserk colonist) pauses the game
+	// as the player would; the authority flip then drops the fight plan
+	// (#890, lab-open at tick 1057). The metrics measure the fight.
+	if reply, err := s.Harness().Call(ctx, "pause-mode-never", pauseModeTool, map[string]any{"mode": "Never"}); err != nil {
+		return err
+	} else if na.AsString(reply["mode"]) != "Never" {
+		return fmt.Errorf("%s did not take: %#v", pauseModeTool, reply)
+	}
 	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err
@@ -141,9 +166,10 @@ func runMetrics(ctx context.Context, s cases.Session, name string) error {
 }
 
 // serveUntil polls the service's state until the game tick reaches until,
-// or until the served clock has sat still for metricsIdle (the fight is
-// over and the quiet world leaves the planner no work to admit), and
-// returns the last tick it saw.
+// until the service logs the end of the combat (the colony window after
+// it would otherwise run the quiet lab to the budget, #890), or until the
+// served clock has sat still for metricsIdle, and returns the last tick
+// it saw.
 func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int, error) {
 	tick, moved := -1, time.Now()
 	for {
@@ -158,7 +184,11 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int
 				}
 			}
 		}
-		if tick >= until || (tick >= 0 && time.Since(moved) > metricsIdle) {
+		ended := false
+		if log, err := os.ReadFile(service.StderrPath()); err == nil {
+			ended = bytes.Contains(log, []byte("combat ended"))
+		}
+		if ended || tick >= until || (tick >= 0 && time.Since(moved) > metricsIdle) {
 			return tick, nil
 		}
 		select {
@@ -167,6 +197,48 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
+}
+
+// storeLayout writes the fixture's layout as a complete, verified defense
+// layout record for the staged world into the journal the service will
+// open (na.Serve keeps it at <output>/service.sqlite), so combat reads it
+// as the colony's standing layout (routine_defense.go, LoadDefenseLayout).
+func storeLayout(ctx context.Context, path string, identity map[string]any, l Layout) (store.DefenseLayoutRecord, error) {
+	typed, err := typedIdentity(identity)
+	if err != nil {
+		return store.DefenseLayoutRecord{}, err
+	}
+	cells := func(in []Cell) []domain.Cell {
+		out := make([]domain.Cell, 0, len(in))
+		for _, c := range in {
+			out = append(out, domain.Cell{X: int32(c.X), Z: int32(c.Z)})
+		}
+		return out
+	}
+	record := store.DefenseLayoutRecord{
+		World:  store.World{Colony: domain.ColonyID(typed.GetColonyId()), Load: domain.LoadID(typed.GetLoadToken()), Map: domain.MapID(typed.GetMapId())},
+		Goal:   "combatlab-layout",
+		Toward: domain.Rotation(l.Toward),
+		Firing: cells(l.Firing), Retreat: cells(l.Retreat),
+		// Validate wants a tier; a fixture's structures are staged, not
+		// built by the planner, so its one tier names no buildings.
+		Tiers:    []store.DefenseTierRecord{{Name: policy.TierFiringLine, Built: true}},
+		Complete: true, Anchored: true,
+	}
+	if l.Choke != nil {
+		// Combat's choke is the civilian lane's last cell (#864).
+		record.SafeLane = []domain.Cell{{X: int32(l.Choke.X), Z: int32(l.Choke.Z)}}
+		record.Chokepoint = record.SafeLane[0]
+	}
+	journal, err := store.Open(ctx, path)
+	if err != nil {
+		return record, err
+	}
+	err = journal.SaveDefenseLayout(ctx, record)
+	if closeErr := journal.Close(); err == nil {
+		err = closeErr
+	}
+	return record, err
 }
 
 func writeReads(dir string, reads []map[string]any) error {

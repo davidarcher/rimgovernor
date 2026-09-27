@@ -406,7 +406,7 @@ var plannerCatalog = []plannerEntry{
 			out.Expansion = &method
 			return method.Reason, nil
 		}},
-	{name: "defense", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction, domain.MovementAction}, sections: sectionsThreat,
+	{name: defensePlanner, class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction, domain.MovementAction}, sections: sectionsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Defense != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Defense.step(ctx, epoch, arbiter)

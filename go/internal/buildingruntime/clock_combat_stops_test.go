@@ -52,10 +52,13 @@ func TestCombatStopMetrics(t *testing.T) {
 	}
 	if len(stops) != 3 || !strings.Contains(stops[0], "event=entered_range") || !strings.Contains(stops[0], "ticks_since_stop=40") ||
 		!strings.Contains(stops[1], "event=tick_budget") || !strings.Contains(stops[1], "ticks_since_stop=300") ||
-		!strings.Contains(stops[2], "event=downed") || !strings.Contains(stops[2], "resume_latency_ms=400") {
+		!strings.Contains(stops[1], "resume_latency_ms=200") ||
+		// The stop ending the combat resumes into the colony window: its
+		// latency is the review's, not a combat reaction (#890).
+		!strings.Contains(stops[2], "event=downed") || strings.Contains(stops[2], "resume_latency_ms") {
 		t.Fatal(stops)
 	}
-	for _, want := range []string{"stops=3", "entered_range:1", "tick_budget:1", "downed:1", "resume_latency_p50_ms=200", "resume_latency_p95_ms=400", "ticks_between_stops_p50=60", "ticks_between_stops_p95=300"} {
+	for _, want := range []string{"stops=3", "entered_range:1", "tick_budget:1", "downed:1", "resume_latency_p50_ms=100", "resume_latency_p95_ms=200", "ticks_between_stops_p50=60", "ticks_between_stops_p95=300"} {
 		if !strings.Contains(summary, want) {
 			t.Fatal(want, summary)
 		}

@@ -298,6 +298,18 @@ func (q *plannerQueue) stalled() {
 	}
 }
 
+// combatStopped is the step on a stopped combat window (#890): the stop
+// is the open fight's next decision, so the defense planner runs even
+// though it waits on its own fight's open drafts, which stay open for the
+// whole fight and would otherwise park it until the fight is over.
+func (q *plannerQueue) combatStopped() {
+	delete(q.waits, defensePlanner)
+	q.mark(defensePlanner)
+}
+
+// defensePlanner is the catalog name of the routine defense planner.
+const defensePlanner = "defense"
+
 // waitingOn reports the wait recorded for name, for tests and the step row.
 func (q *plannerQueue) waitingOn(name string) (plannerWait, bool) {
 	wait, ok := q.waits[name]
