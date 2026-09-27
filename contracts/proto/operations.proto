@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 12, 58;
-  reserved "select_research", "set_apparel_policy";
+  reserved 12, 46, 58;
+  reserved "select_research", "confirm_colony_names", "set_apparel_policy";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -97,7 +97,6 @@ message Operation {
     GiftCaravanSilver gift_caravan_silver = 43;
     AcceptQuest accept_quest = 44;
     FulfillQuest fulfill_quest = 45;
-    ConfirmColonyNames confirm_colony_names = 46;
     ExcavateCell excavate_cell = 47;
     TameAnimal tame_animal = 48;
     ReleaseAnimal release_animal = 49;
@@ -372,12 +371,6 @@ message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind
 message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
 message AcceptQuest { EntityPrecondition quest = 1; optional string accepter_pawn_id = 2; optional int32 reward_choice = 3; }
 message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
-// The initial faction/settlement naming dialog is colony-wide, not entity-scoped;
-// window_id plus the exact observed suggestions stand in for EntityPrecondition.
-// This is deliberately independent of presentation.proto's own ConfirmColonyNames,
-// which stays reserved for the explicit-player PlayerPresentation.Apply surface;
-// automated Hands never admit that surface. See presentation-coverage.md.
-message ConfirmColonyNames { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; }
 // Activates one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree). window_id plus the exact observed option index
 // and label stand in for EntityPrecondition: native refuses on any drift.
@@ -443,8 +436,15 @@ message Action {
     MeleeIntent melee = 14;
     ApparelPolicyIntent apparel_policy = 15;
     ResearchIntent research = 16;
+    NamingIntent naming = 17;
   }
 }
+// Confirm the exact observed suggestions of the colony-wide initial
+// faction/settlement naming dialog; window_id plus the suggestions stand in
+// for an entity precondition, so a changed window or suggestion is refused.
+// Names that already hold with the dialog gone are applied again. It is
+// independent of presentation.proto's explicit-player ConfirmColonyNames.
+message NamingIntent { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; }
 // Make the project the ordinary research slot's current project; native
 // refuses a finished, unstartable or anomaly knowledge project, and a
 // project already current is applied again.

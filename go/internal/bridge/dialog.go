@@ -19,7 +19,7 @@ const maxDialogOptions, maxDialogOptionKeys = 32, 32
 // DialogAttempt targets one exact option of the single force-pausing choice
 // dialog (Verse.Dialog_NodeTree) the game opened by itself (#156): the
 // observed window ID plus the option's list position and label stand in for
-// an EntityPrecondition, exactly like NamingAttempt's window/suggestion pair.
+// an EntityPrecondition.
 type DialogAttempt struct {
 	Identity    *c.Identity
 	Attempt     *c.AttemptKey

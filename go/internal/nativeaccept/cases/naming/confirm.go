@@ -8,7 +8,7 @@
 // ConfirmColonyNames, the naming planner commits a one-action
 // NamingConfirmation plan for the exact observed window and suggestions,
 // the store persists it, the executor confirms it through
-// Operations.ConfirmColonyNames, and the clock starts afterwards.
+// a NamingIntent on Actions/Apply, and the clock starts afterwards.
 package naming
 
 import (
@@ -31,7 +31,7 @@ const (
 	// seededFaction is what the fixture puts in place of the generated
 	// faction suggestion when asked (nonAsciiFaction): a name outside
 	// ASCII, so the run proves the suggestion survives the census decode,
-	// the journal and the ConfirmColonyNames request byte for byte (#600).
+	// the journal and the NamingIntent request byte for byte (#600).
 	// The settlement suggestion stays the dialog's own.
 	seededFaction = "Coalition of Ñoa"
 	// ceiling bounds the wait for the dialog to be confirmed and the clock
@@ -43,7 +43,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "naming/confirm",
 		Scope: "Issue #178: the force-pausing faction/settlement naming dialog is read as the colony facts naming " +
-			"section, its exact observed suggestions confirmed through Operations.ConfirmColonyNames under the " +
+			"section, its exact observed suggestions confirmed through a NamingIntent on Actions/Apply under the " +
 			"ConfirmColonyNames routine goal (the plan persisted and dispatched by the store and worker), the names " +
 			"applied natively and the native clock starting afterwards.",
 		Start: cases.LabStart(),

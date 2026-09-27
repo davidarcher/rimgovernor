@@ -36,6 +36,7 @@ func init() {
 	registerIntentKind(domain.MovementAction, movementAction)
 	registerIntentKind(domain.ApparelPolicyAction, apparelPolicyAction)
 	registerIntentKind(domain.ResearchSelectAction, researchAction)
+	registerIntentKind(domain.NamingConfirmationAction, namingAction)
 }
 
 // movementAction is the Actions/Apply move arm of one domain movement.

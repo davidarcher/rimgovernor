@@ -145,7 +145,6 @@ type buildingServiceBridge struct {
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
-	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
@@ -280,10 +279,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	namingControl, err := bridge.NewNamingControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	dialogControl, err := bridge.NewDialogControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -376,7 +371,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
-		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
@@ -732,13 +726,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		questAcceptCapabilities = client.questAccept
 	}
-	var namingCapabilities *buildingruntime.ConfirmColonyNamesCapabilities
-	if config.routineNamingPlans {
-		if client.naming == nil {
-			return errors.New("naming plans require typed capabilities")
-		}
-		namingCapabilities = client.naming
-	}
 	var dialogCapabilities *buildingruntime.DialogAnswerCapabilities
 	if config.routineDialogPlans || config.routinePopulationJoinerPlans {
 		if client.dialog == nil {
@@ -884,7 +871,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		PrisonerInteraction: prisonerInteractionCapabilities,
 		QuestAccept:         questAcceptCapabilities,
 		CaravanDeparture:    caravanDepartureCapabilities,
-		ConfirmColonyNames:  namingCapabilities,
 		DialogAnswer:        dialogCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,

@@ -132,8 +132,6 @@ type Executor struct {
 	zoneWriteJournal           ZoneWriteJournal
 	bedAssign                  BedAssignBoundary
 	bedAssignJournal           BedAssignJournal
-	naming                     ConfirmColonyNamesBoundary
-	namingJournal              ConfirmColonyNamesJournal
 	trade                      TradeBoundary
 	tradeJournal               TradeJournal
 	caravanDeparture           CaravanDepartureBoundary
@@ -420,9 +418,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
 		return e.runBedAssign(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.NamingConfirmationAction && e.naming != nil {
-		return e.runConfirmColonyNames(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.TradeAction && e.trade != nil {
 		return e.runTrade(ctx, action, progress, authority, generation)

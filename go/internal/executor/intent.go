@@ -21,9 +21,10 @@ type IntentInspection struct {
 // prerequisite action and no journal admission. Native validates each
 // against live state and treats a setting that already holds as applied.
 var plainIntents = map[domain.ActionKind]bool{
-	domain.BuildingAction:       true,
-	domain.ApparelPolicyAction:  true,
-	domain.ResearchSelectAction: true,
+	domain.BuildingAction:           true,
+	domain.ApparelPolicyAction:      true,
+	domain.ResearchSelectAction:     true,
+	domain.NamingConfirmationAction: true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

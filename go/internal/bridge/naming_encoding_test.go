@@ -12,7 +12,7 @@ import (
 )
 
 // A generated faction name outside ASCII (#600: "Coalition of Ñoa") must
-// leave the native census decode and reach the ConfirmColonyNames request
+// leave the native census decode and reach the NamingIntent request
 // intact through an ASCII-only frame: the host GABP reader short-reads any frame with
 // a multi-byte character, so the connection escapes them and the game's own
 // JSON parse restores the exact name.
@@ -41,7 +41,7 @@ func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	}
 	// The request the worker builds from that census, as protoCall encodes
 	// it into the games_call_tool argument.
-	request, err := protojson.Marshal(&op.PreviewRequest{Operation: namingOperation(decoded.GetWindowId(), decoded.GetFactionName(), decoded.GetSettlementName())})
+	request, err := protojson.Marshal(&op.ApplyRequest{Actions: []*op.Action{namingIntent(decoded.GetWindowId(), decoded.GetFactionName(), decoded.GetSettlementName())}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,11 +60,11 @@ func TestNamingSuggestionRoundTripsNonASCII(t *testing.T) {
 	if err = json.Unmarshal(frame, &outer); err != nil {
 		t.Fatal(err)
 	}
-	parsed := &op.PreviewRequest{}
+	parsed := &op.ApplyRequest{}
 	if err = protojson.Unmarshal([]byte(outer.Request), parsed); err != nil {
 		t.Fatal(err)
 	}
-	if got := parsed.GetOperation().GetConfirmColonyNames(); got.GetFactionName() != faction || got.GetSettlementName() != settlement {
+	if got := parsed.GetActions()[0].GetNaming(); got.GetFactionName() != faction || got.GetSettlementName() != settlement {
 		t.Fatalf("native would parse %q/%q", got.GetFactionName(), got.GetSettlementName())
 	}
 }
