@@ -14,7 +14,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
@@ -106,7 +105,6 @@ func readMoodReliefLongitude(ctx context.Context, identitySource observation.Sou
 }
 
 type buildingServiceBridge struct {
-	bills               *bill.BillCapabilities
 	reads               serviceBridge
 	native              boundary.Native
 	authority           buildingruntime.NativeAuthority
@@ -192,10 +190,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	clock, err := bridge.NewClockControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
-	bills, err := bridge.NewBillControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
@@ -308,7 +302,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: actionsWriter, moodReliefWorld: client,
-		bills:           &bill.BillCapabilities{Native: client, Writer: bills},
 		zones:           &zone.ZoneCapabilities{Native: client, Writer: zones},
 		acquisition:     &acquisition.AcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
 		mineAcquisition: &mineacquisition.MineAcquisitionCapabilities{Native: client, Writer: acquisitionWriter},
@@ -424,17 +417,6 @@ func drainBuilding(owner buildingCloser) error {
 	}
 }
 
-// billExecutorRequired reports whether the composition dispatches production
-// bill actions: the cooking bill family, MaintainResource toward a stock
-// target (routine_resource.go), or the gear family's replacement bill
-// (routine_gear.go, #233), or the refrigeration family's solar-flare
-// cook-ahead bill (routine_bill.go, #408). Without the bill executor an
-// admitted bill action fails "missing or unsupported building action" on
-// every worker pass.
-func billExecutorRequired(config serveConfig) bool {
-	return config.routineBillPlans || config.resourceTargetsConfigured() || config.routineGearPlans || config.routineRefrigerationPlans
-}
-
 // zoneExecutorRequired reports whether the composition dispatches zone-create
 // actions: field and food-storage plans, SecureSupplies' covered-storage
 // fallback (routine_secure_supplies.go), MaintainResource's material-storage
@@ -506,13 +488,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("supply plans require typed supply capabilities")
 		}
 		supplyCapabilities = client.supplies
-	}
-	var billCapabilities *bill.BillCapabilities
-	if billExecutorRequired(config) {
-		if client.bills == nil {
-			return errors.New("bill plans and resource targets require typed bill capabilities")
-		}
-		billCapabilities = client.bills
 	}
 	var zoneCapabilities *zone.ZoneCapabilities
 	if zoneExecutorRequired(config) {
@@ -758,7 +733,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		MineAcquisition:     mineAcquisitionCapabilities,
 		Excavation:          excavationCapabilities,
 		Zones:               zoneCapabilities,
-		Bills:               billCapabilities,
 		Supplies:            supplyCapabilities,
 		Draft:               client.draft,
 		Clock:               clockCapabilities,

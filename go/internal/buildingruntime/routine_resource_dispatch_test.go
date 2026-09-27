@@ -17,12 +17,11 @@ import (
 )
 
 // resourceNative is the workshop fixture plus the bill path's reads: the
-// ingredient stock and an accepting bill preview. The mine/harvest fallback
+// ingredient stock. The mine/harvest fallback
 // is never reached with a producing bench standing, so those reads fail.
 type resourceNative struct {
 	*workshopNative
-	stock    []policy.Stock
-	previews []domain.ProductionBill
+	stock []policy.Stock
 }
 
 // Two live colonists so the review knows its workers and ranks
@@ -40,11 +39,6 @@ func (n *resourceNative) ReadSupplyStock(context.Context, *c.Identity, []string)
 	return n.stock, bridge.Result{}, nil
 }
 
-func (n *resourceNative) PreviewBill(_ context.Context, _ *c.Identity, bill domain.ProductionBill) (*op.PreviewReply, bridge.Result, error) {
-	n.previews = append(n.previews, bill)
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(true)}}}, bridge.Result{}, nil
-}
-
 func (n *resourceNative) ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error) {
 	return nil, policy.ResourceStorage{}, bridge.Result{}, errors.New("no sources in this fixture")
 }
@@ -59,7 +53,7 @@ func (n *resourceNative) PreviewZone(context.Context, *c.Identity, bridge.ZoneTa
 
 // The journal-level dry run of the bill path a live workshop run only
 // reaches after ~95k ticks: with a CraftingSpot standing, its club recipe
-// funded and the native preview accepting, one resource step commits a
+// funded, one resource step commits a
 // StockTarget bill method on MaintainResource through the real store's
 // admission (which once bound bills to the food goals only), and the next
 // step sees that open work rather than a second bill.
@@ -128,25 +122,22 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	if err != nil || result.Reason != BuildingMethodAdmitted || result.Plan == "" {
 		t.Fatal(result, err)
 	}
-	if len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" || native.previews[0].Recipe() != recipe || native.previews[0].BeforeToken() != "bench-cas" || native.previews[0].Replaces() != replace {
-		t.Fatal(native.previews)
-	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
 	if err != nil || len(plan.Spec.Actions()) != 1 {
 		t.Fatal(plan, err)
 	}
 	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Target() != 3 || bill.Mode() != mode || bill.Replaces() != replace {
+	if !ok || bill.Bench() != "Thing_CraftingSpot1" || bill.Recipe() != recipe || bill.Target() != 3 || bill.Mode() != mode || bill.Replaces() != replace {
 		t.Fatal(bill, ok)
 	}
 	again, err := planner.Step(context.Background())
-	if err != nil || again.Reason != BuildingMethodExistingWork || len(native.previews) != 1 {
-		t.Fatal(again, err, native.previews)
+	if err != nil || again.Reason != BuildingMethodExistingWork {
+		t.Fatal(again, err)
 	}
 }
 
 // MaintainAnimalFeed's delivery constraint on the shared tail: a bench set
-// that excludes every standing bench refuses the bill without a preview
+// that excludes every standing bench refuses the bill
 // (producing where the animal cannot eat only piles feed up, #237), and one
 // that names the bench lets the same step commit the bill there.
 func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
@@ -207,16 +198,16 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 	identity := boundary.Identity(state.Snapshot)
 	stock := resourceStockFacts(v)
 	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodRefused || result.NativeWorkTicks != stockWaitTicks || len(native.previews) != 0 {
-		t.Fatal(result, err, native.previews)
+	if err != nil || result.Reason != BuildingMethodRefused || result.NativeWorkTicks != stockWaitTicks {
+		t.Fatal(result, err)
 	}
 	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodRefused || len(native.previews) != 0 {
-		t.Fatal(result, err, native.previews)
+	if err != nil || result.Reason != BuildingMethodRefused {
+		t.Fatal(result, err)
 	}
 	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodAdmitted || len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" {
-		t.Fatal(result, err, native.previews)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
 	}
 }
 

@@ -67,8 +67,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "bill-plan", 1
-	admission := BillAdmission{Snapshot: target, Tick: tick, Bench: "bench", SnapshotToken: "bench-cas"}
-	if _, err = s.PrepareBill(ctx, "bill-plan", "bill", admission); err != nil {
+	if _, err = s.Prepare(ctx, "bill-plan", "bill", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "bill-plan", "bill", target, tick); err != nil {

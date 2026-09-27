@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"reflect"
 	"testing"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,9 +40,6 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 	value, ok := state.Spec.Actions()[0].ApparelPolicy()
 	if !ok || value.Pawn() != "a" || value.Spec().Name != "RimGovernor worker" || value.Spec().Token != "policy-cas" {
 		t.Fatal(value, ok)
-	}
-	if len(n.previews) != 0 {
-		t.Fatal("bill preview before apparel assignment")
 	}
 }
 
@@ -107,8 +102,6 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 
 type gearProductionNative struct {
 	*gearTestNative
-	previews []domain.ProductionBill
-	refuse   bool
 }
 
 func (n *gearProductionNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
@@ -117,10 +110,6 @@ func (n *gearProductionNative) ReadGearBenches(context.Context, *c.Identity) ([]
 }
 func (n *gearProductionNative) ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error) {
 	return []policy.Stock{{Resource: "Cloth", Available: domain.Known(int64(100))}, {Resource: "Leather_Plain", Available: domain.Known(int64(100))}}, bridge.Result{}, nil
-}
-func (n *gearProductionNative) PreviewBill(_ context.Context, _ *c.Identity, bill domain.ProductionBill) (*op.PreviewReply, bridge.Result, error) {
-	n.previews = append(n.previews, bill)
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(!n.refuse)}}}, bridge.Result{}, nil
 }
 
 func setGearProductionNeed(v *o.ColonyFactsSnapshot) {
@@ -136,15 +125,15 @@ func setGearProductionNeed(v *o.ColonyFactsSnapshot) {
 	v.Planning.GetObserved().Gear = gear
 }
 
-func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
+func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 	t.Parallel()
-	for _, refuse := range []bool{false, true} {
+	{
 		reviewer, db, session, _, native := routineFixture(t)
 		setGearProductionNeed(native.reply.GetObserved())
 		gear := native.reply.GetObserved().GetPlanning().GetObserved().Gear
 		gear.Pawns[1].Deficit = proto.Bool(true)
 		gear.Pawns[1].ReplacementNeeds = []*o.GearReplacementNeed{proto.Clone(gear.Pawns[0].ReplacementNeeds[0]).(*o.GearReplacementNeed)}
-		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}, refuse: refuse}
+		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 		reviewer.native = n
 		reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
 		if _, err := reviewer.Step(context.Background()); err != nil {
@@ -166,18 +155,6 @@ func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(n.previews) != 1 || !reflect.DeepEqual(n.previews[0].Ingredients(), []string{"Cloth"}) {
-			t.Fatal("wrong funded material previewed", n.previews)
-		}
-		if n.previews[0].Mode() != domain.GearBatch || n.previews[0].Target() != 2 {
-			t.Fatal("colony gap not batched", n.previews)
-		}
-		if refuse {
-			if result.Reason != BuildingMethodRefused || result.Plan != "" {
-				t.Fatal(result)
-			}
-			continue
-		}
 		if result.Reason != BuildingMethodAdmitted {
 			t.Fatal(result)
 		}
@@ -186,8 +163,11 @@ func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
 			t.Fatal(err)
 		}
 		bill, ok := plan.Spec.Actions()[0].ProductionBill()
-		if !ok || bill != n.previews[0] {
-			t.Fatal("persisted bill differs from preview", bill, n.previews)
+		if !ok || !reflect.DeepEqual(bill.Ingredients(), []string{"Cloth"}) {
+			t.Fatal("wrong funded material persisted", bill, ok)
+		}
+		if bill.Mode() != domain.GearBatch || bill.Target() != 2 {
+			t.Fatal("colony gap not batched", bill)
 		}
 	}
 }
@@ -210,9 +190,6 @@ func (n *gearTestNative) ReadSupplyStock(ctx context.Context, _ *c.Identity, nam
 		stock = append(stock, policy.Stock{Resource: policy.Resource(name), Available: domain.Known[int64](1)})
 	}
 	return stock, bridge.Result{}, ctx.Err()
-}
-func (n *gearTestNative) PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error) {
-	return nil, bridge.Result{}, errors.New("no bill preview expected for a wear order")
 }
 
 // The gear family must admit a GearReplace method once the routine review

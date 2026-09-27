@@ -292,14 +292,15 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 
-	// Bills: the fixture added the butcher bill after the bench was read.
-	if err := refused("bill", map[string]any{"addBill": map[string]any{
-		"bench":     map[string]any{"entityId": tokens["benchId"], "expectedSnapshotToken": tokens["benchToken"]},
+	// Bills are intents too (#941): the same bill on the fixture's bench
+	// would find its matching bill standing and apply again, so the refusal
+	// names a bench that is not on the map.
+	if err := intentRefused("bill", map[string]any{"productionBill": map[string]any{
+		"benchId":   "Building_missing_bench",
 		"recipeDef": "ButcherCorpseFlesh",
 		"settings": map[string]any{"repeatMode": "REPEAT_MODE_FOREVER", "suspended": false, "ingredientSearchRadius": 40,
-			"store": map[string]any{"mode": "STORE_MODE_DROP_ON_FLOOR"}},
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Production bill requires unchanged native bench, available recipe and assigned skilled worker: "+
-		"bench already carries a matching ButcherCorpseFlesh bill"); err != nil {
+			"store": map[string]any{"mode": "STORE_MODE_DROP_ON_FLOOR"}, "corpseClass": "CORPSE_CLASS_ANIMAL"},
+	}}, "FAILURE_CODE_NOT_FOUND", "Production bill refused: bench Building_missing_bench is not a loaded bill giver"); err != nil {
 		return err
 	}
 

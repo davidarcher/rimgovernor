@@ -14,7 +14,7 @@ func TestGearBatchWireCountAndFilter(t *testing.T) {
 	if _, err = domain.NewProductionBillAction("batch", bill); err != nil {
 		t.Fatal(err)
 	}
-	settings := BillOperation(bill).GetAddBill().GetSettings()
+	settings := billIntent(bill).GetSettings()
 	if settings.GetRepeatMode() != op.RepeatMode_REPEAT_MODE_COUNT || settings.GetRepeatCount() != 11 || settings.TargetCount != nil || settings.GetIngredients().GetReplace().GetSelectors()[0].GetThingDef() != "Cloth" {
 		t.Fatal(settings)
 	}

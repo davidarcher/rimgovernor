@@ -41,7 +41,7 @@ discovered/mapped, not as live source links.
 | `home/place_building` | Operations.Preview / Execute: PlaceBuilding; Placement.Preview | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/pawn_config` | Actions.Apply WorkSettingsIntent; Observations.ReadPawnSettings | Typed | `controller/rimgovernor/bridge_game.py:15` |
 | `home/building_config` | Operations.Preview / Execute: PatchBuilding; Observations.ReadBuildingSettings / PresentationReads.Gizmos | Typed | `controller/rimgovernor/bridge_game.py:16` |
-| `home/bills` | Operations.Preview / Execute: AddBill / PatchBill / DeleteBill / MoveBill; Observations.ReadBills / ReadRecipes | Typed | `controller/rimgovernor/bridge_game.py:16` |
+| `home/bills` | Actions.Apply ProductionBillIntent; Observations.ReadBills / ReadRecipes | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/order` | Operations.Preview / Execute: SetDrafted / AttackTarget / PawnTargetOrder; Actions.Apply MoveIntent; Observations.ResolveTarget; Operations.ReleaseOwnedDraft | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/trade` | Actions.Apply: TradeIntent (open / set_lines / accept / end); Observations.ListTraders / ReadTradeSheet / ReadTradeSession | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/research` | Actions.Apply ResearchIntent; Observations.ReadResearch | Typed | `controller/rimgovernor/bridge_game.py:16` |

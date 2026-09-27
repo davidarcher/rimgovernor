@@ -8,7 +8,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/acquisition"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/beduse"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
@@ -37,7 +36,6 @@ import (
 
 type SessionConfig struct {
 	Deconstruction *DeconstructionCapabilities
-	Bills          *bill.BillCapabilities
 	Zones          *zone.ZoneCapabilities
 	Acquisition    *acquisition.AcquisitionCapabilities
 	Supplies       *supply.SupplyCapabilities
@@ -327,9 +325,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Zones != nil && (config.Zones.Native == nil || config.Zones.Writer == nil) {
 		return cleanup(ErrControl)
 	}
-	if config.Bills != nil && (config.Bills.Native == nil || config.Bills.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.Haul != nil && (config.Haul.Native == nil || config.Haul.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -504,11 +499,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Zones != nil {
 		if err := worker.EnableZone(zone.NewZoneBoundary(place, *config.Zones, journal)); err != nil {
-			return cleanup(err)
-		}
-	}
-	if config.Bills != nil {
-		if err := worker.EnableBill(bill.NewBillBoundary(place, *config.Bills)); err != nil {
 			return cleanup(err)
 		}
 	}

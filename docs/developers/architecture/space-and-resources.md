@@ -68,11 +68,10 @@ and revalidate safety at dispatch.
 ## Material runway
 
 `MaintainResource` reviews Steel and ComponentIndustrial over the last 15 game
-days of journal history (at least one day). Placed construction counts its
-admitted material cost once; completed bills count observed iterations against
-native recipe quantities. Ambiguous ingredients and older bills without this
-evidence leave that material's rate unknown. This estimates controller-recorded
-consumption, not every material transfer in the colony.
+days of journal history (at least one day). No consumption is charged to that
+window: a bill intent's receipt is terminal, so nothing observes what its
+iterations spent (#941), and the rate reads zero. A deficit is then stock below
+the reserve floor.
 
 Usable stock is stock above the larger configured acquisition/reserve floor.
 `stockDays` divides usable stock by daily consumption; `daysLeft` also includes

@@ -87,8 +87,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	}
 	target := r.Current
 	target.Plan, target.Revision = "bill-plan", 1
-	admission := BillAdmission{Snapshot: target, Tick: tick, Bench: "bench", SnapshotToken: "bench-cas"}
-	if _, err = s.PrepareBill(ctx, "bill-plan", "bill", admission); err != nil {
+	if _, err = s.Prepare(ctx, "bill-plan", "bill", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "bill-plan", "bill", target, tick); err != nil {
@@ -105,7 +104,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	}
 }
 
-// Once the dispatched bill's output is fully resolved, the recovered gate
+// Once the bill intent has applied, the recovered gate
 // leaves nothing pending: the goal settles to Satisfied rather than staying
 // Active, and authorization must refuse it like any other satisfied goal.
 func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
@@ -135,18 +134,13 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "bill-plan", 1
-	admission := BillAdmission{Snapshot: target, Tick: tick, Bench: "bench", SnapshotToken: "bench-cas"}
-	if _, err = s.PrepareBill(ctx, "bill-plan", "bill", admission); err != nil {
+	if _, err = s.Prepare(ctx, "bill-plan", "bill", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "bill-plan", "bill", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.RecordReceipt(ctx, "bill-plan", "bill", 1, domain.ReceiptAccepted); err != nil {
-		t.Fatal(err)
-	}
-	observation := domain.Observation{Action: "bill", Attempt: 1, Snapshot: target, Tick: tick + 1, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}
-	if _, err = s.Observe(ctx, "bill-plan", observation, target); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Cooking = domain.Known(true)
@@ -198,8 +192,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	}
 	target := r.Current
 	target.Plan, target.Revision = "bill-plan", 1
-	admission := BillAdmission{Snapshot: target, Tick: tick, Bench: "bench1", SnapshotToken: "bench1-cas"}
-	if _, err = s.PrepareBill(ctx, "bill-plan", "bill1", admission); err != nil {
+	if _, err = s.Prepare(ctx, "bill-plan", "bill1", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "bill-plan", "bill1", target, tick); err != nil {
@@ -334,7 +327,7 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = "bill-plan", 1
-	if _, err = s.PrepareBill(ctx, "bill-plan", "bill", BillAdmission{Snapshot: target, Tick: tick, Bench: "bench", SnapshotToken: "bench-cas"}); err != nil {
+	if _, err = s.Prepare(ctx, "bill-plan", "bill", target, tick); err != nil {
 		t.Fatal(err)
 	}
 	if p, err := s.LoadPlan(ctx, "bill-plan"); err != nil || p.Progress[0].View().Stage != domain.Prepared {

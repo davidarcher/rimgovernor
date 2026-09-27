@@ -28,11 +28,10 @@ type GearReplaceRead struct {
 // succeed, so the executor cancels it instead of holding the plan.
 var ErrGearCandidateAbsent = errors.New("gear candidate absent")
 
-// ReadGearReplacement reuses the generic colony census (the same read
-// PreviewBill and ReadBillTarget drive) to find one already-selected pawn's
-// gear loadout token and one already-selected replacement candidate's item
-// token. It returns ErrUnavailable when the pawn or candidate is not present
-// in the current census, mirroring ReadBillTarget's bench lookup.
+// ReadGearReplacement reuses the generic colony census to find one
+// already-selected pawn's gear loadout token and one already-selected
+// replacement candidate's item token. It returns ErrUnavailable when the
+// pawn or candidate is not present in the current census.
 func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Identity, pawn, thing string) (GearReplaceRead, Result, error) {
 	reply, raw, err := client.ReadColonyFacts(ctx, identity, true, nil)
 	if err != nil {

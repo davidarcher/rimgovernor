@@ -14,7 +14,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // RoutineGearSource reads the same generic colony census (with planning
@@ -26,14 +25,12 @@ import (
 // workshop-bill half (GearProduce): a fresh bench/recipe census and the
 // ingredient stock funding it, respectively, gathered only when no
 // replace-candidate is already pending (SelectGearMethod always prefers
-// wearing an existing item over crafting a new one). PreviewBill re-checks
-// one already-selected bench/recipe bill immediately before dispatch, the
-// same acceptance-not-authority preview RoutineBillPlanner uses for food.
+// wearing an existing item over crafting a new one). Native checks the bill against
+// live state when the ProductionBillIntent applies.
 type RoutineGearSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineGearPlanner struct {
 	reviewer *RoutineReviewer
@@ -390,17 +387,6 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.GearBatch, choice.Count, ingredients...)
 		if err != nil {
 			return RoutineGearResult{}, err
-		}
-		preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
-		if err != nil {
-			return RoutineGearResult{}, err
-		}
-		evaluated := preview.GetEvaluated()
-		if evaluated == nil || !evaluated.GetAccepted() {
-			return RoutineGearResult{Reason: BuildingMethodRefused}, nil
-		}
-		if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-			return RoutineGearResult{}, ErrControl
 		}
 		if action, err = domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill); err != nil {
 			return RoutineGearResult{}, err

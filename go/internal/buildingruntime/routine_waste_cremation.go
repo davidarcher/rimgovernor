@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // Cremating raiders (#833): MaintainWaste places a crematorium in a free
@@ -24,7 +23,6 @@ import (
 // never cremates.
 type cremationBills interface {
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 
 // cremationMethod names a cremation step's method, once per goal epoch.
@@ -89,17 +87,6 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, token, domain.CorpseStranger)
 	if err != nil {
 		return RoutineWasteResult{}, true, err
-	}
-	preview, _, err := bills.PreviewBill(call, identity, bill)
-	if err != nil {
-		return RoutineWasteResult{}, true, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineWasteResult{Reason: BuildingMethodRefused}, true, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineWasteResult{}, true, ErrControl
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-waste-cremate-%x", digest[:16]))

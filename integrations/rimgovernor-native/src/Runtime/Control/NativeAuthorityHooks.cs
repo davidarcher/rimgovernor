@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             new Spec("Current.Game", () => AccessTools.PropertySetter(typeof(Current), "Game"), nameof(BeforeGame), nameof(AfterGame)),
             new Spec("Game.CurrentMap", () => AccessTools.PropertySetter(typeof(Game), "CurrentMap"), nameof(BeforeMap), nameof(AfterMap)),
             new Spec("Game.UpdatePlay", () => AccessTools.Method(typeof(Game), "UpdatePlay", Type.EmptyTypes), nameof(Update), null),
-            // Bills: RimGovernor's own writes (NativeProductionBills.Execute) run inside authority.Owned(),
+            // Bills: RimGovernor's own writes (ProductionBillActionHandler.Apply) run inside authority.Owned(),
             // which suppresses these; any other caller (player UI, home/bills) is treated as external.
             new Spec("BillStack.AddBill", () => AccessTools.Method(typeof(BillStack), "AddBill", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite)),
             new Spec("BillStack.Delete", () => AccessTools.Method(typeof(BillStack), "Delete", new[] { typeof(Bill) }), null, nameof(ExternalBillWrite)),

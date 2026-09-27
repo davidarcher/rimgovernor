@@ -5,14 +5,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 type RoutineBillPlanner struct {
@@ -26,9 +22,9 @@ type RoutineBillResult struct {
 	Plan   domain.PlanID
 }
 
-type BillPlannerNative interface {
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
-}
+// BillPlannerNative is the native reader behind a bill planner; the
+// butcher purpose asserts it to RoutineResourceSource for a corpse storage zone.
+type BillPlannerNative interface{}
 
 // NewRoutineBillPlanner composes one bill purpose: cooking serves
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, and the
@@ -287,24 +283,6 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	action, err := domain.NewProductionBillAction(domain.ActionID(string(id)+"-0"), value)
 	if err != nil {
 		return RoutineBillResult{}, err
-	}
-	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), value)
-	var refused *bridge.NativeFailure
-	if errors.As(err, &refused) {
-		// A native refusal is a planning outcome for this bench, not a step
-		// failure: the sibling planners of the same step keep their turn.
-		clockSchedulerLog("%s: bill preview refused bench=%s recipe=%s code=%v detail=%q", goal.Goal.ID, selected.Bench, selected.Recipe, refused.Value.GetCode(), refused.Value.GetDetail())
-		return RoutineBillResult{Reason: BuildingMethodRefused}, nil
-	}
-	if err != nil {
-		return RoutineBillResult{}, err
-	}
-	v := preview.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
-		return RoutineBillResult{Reason: BuildingMethodRefused}, nil
-	}
-	if _, err = boundary.Context(v.Context, state.Snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineBillResult{}, ErrControl
 	}
 	actions := []domain.Action{action}
 	plan, err := domain.NewPlan(id, 1, actions)

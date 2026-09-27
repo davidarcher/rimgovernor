@@ -15,9 +15,8 @@ using Obs = RimGovernor.Protocol.Observations;
 namespace HomeBridge.BridgeTools
 {
     // Read-only bench census behind Observations/ReadBills and ReadRecipes.
-    // Every bench row carries the same NativeProductionBills.Snapshot token
-    // Operations/Execute AddBill checks, so a caller can read then dispatch in
-    // one step. Pawns also implement IBillGiver (surgery); they are not benches
+    // Every bench row carries the NativeProductionBills.Snapshot token of its
+    // whole ordered bill stack. Pawns also implement IBillGiver (surgery); they are not benches
     // and are excluded here. A recipe read without bench_id is the definition
     // catalog: which player-buildable benches host a recipe and whether its
     // research is complete, so a planner can stage a bench before one exists.
@@ -26,7 +25,7 @@ namespace HomeBridge.BridgeTools
         internal const string BillsToolName = "rimgovernor/observations_read_bills";
         internal const string RecipesToolName = "rimgovernor/observations_read_recipes";
 
-        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes.")]
+        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bill stacks of every spawned bench (IBillGiver building) on the current map, with a snapshot token of each ordered stack. Defaults to player benches; no bill changes.")]
         [ToolResponse("payload", "string", "Official ProtoJSON BillsReply.", Always = true)]
         public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)

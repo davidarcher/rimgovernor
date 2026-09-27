@@ -15,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // medicineResourceDefinition is the one native resource definition
@@ -36,15 +35,12 @@ const medicineResourceDefinition = policy.Resource("MedicineHerbal")
 // (bridge.ReadGearBenches/ReadSupplyStock read every bench's bills and
 // recipes regardless of what they produce, so no separate medical census
 // type is needed -- SelectMedicineMethod only matches recipes whose
-// Products include MedicineHerbal). PreviewBill re-checks one
-// already-selected bench/recipe bill immediately before dispatch, the same
-// acceptance-not-authority preview RoutineGearPlanner and RoutineBillPlanner
-// use.
+// Products include MedicineHerbal). Native checks the bill against
+// live state when the ProductionBillIntent applies.
 type RoutineMedicalSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineMedicalPlanner struct {
 	reviewer *RoutineReviewer
@@ -264,17 +260,6 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, target)
 	if err != nil {
 		return RoutineMedicalResult{}, err
-	}
-	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
-	if err != nil {
-		return RoutineMedicalResult{}, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineMedicalResult{Reason: BuildingMethodRefused}, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineMedicalResult{}, ErrControl
 	}
 	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
 	if err != nil {

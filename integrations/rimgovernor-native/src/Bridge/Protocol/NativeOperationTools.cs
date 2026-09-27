@@ -22,7 +22,6 @@ namespace HomeBridge.BridgeTools
         internal readonly NativeAttemptLedger Ledger;
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeProductionRecord> Bills = new Dictionary<Common.AttemptKey, NativeProductionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeZoneRecord> Zones = new Dictionary<Common.AttemptKey, NativeZoneRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeZoneEditRecord> ZoneEdits = new Dictionary<Common.AttemptKey, NativeZoneEditRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeStockpilePatchRecord> StockpilePatches = new Dictionary<Common.AttemptKey, NativeStockpilePatchRecord>();
@@ -76,7 +75,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeProductionTracking.Install(); NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
+        public NativeOperationTools() { NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
 
         [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit exact supply Allow, temporary SetDrafted, melee, direct-bullet or supported injury-only explosive AttackTarget, or a batched CombatOrders, under current native authority. Combat requires an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
@@ -115,7 +114,6 @@ namespace HomeBridge.BridgeTools
             NativeDrugPolicy.Install();
             var prior = state.Ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.DecidedReply;
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AddBill) return NativeProductionBills.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return NativeZoneCreation.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
                 return NativePlantAcquisition.Execute(state, request, context);
@@ -210,7 +208,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                     return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AddBill) return ProtoBoundary.Encode(NativeProductionBills.Preview(parsed.Operation.AddBill, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return ProtoBoundary.Encode(NativeZoneCreation.Preview(parsed.Operation.CreateZone, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
                     return ProtoBoundary.Encode(NativePlantAcquisition.Preview(parsed.Operation.AcquireResource, context));
@@ -322,8 +319,6 @@ namespace HomeBridge.BridgeTools
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
                     Receipts.DesignationEffect allowed;
-                    NativeProductionRecord bill;
-                    if (state.Bills.TryGetValue(parsed.Attempt, out bill)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = bill.Observe(parsed.Attempt, context) });
                     NativeZoneRecord zone;
                     if (state.Zones.TryGetValue(parsed.Attempt, out zone)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = zone.Observe(parsed.Attempt, context) });
                     INativeAcquisitionRecord acquisition;

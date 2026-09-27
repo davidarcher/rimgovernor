@@ -151,30 +151,22 @@ func TestReadyWorkExposesIndependentWallBesideBlockedBed(t *testing.T) {
 	}
 }
 
-func TestReadyWorkPlacedBillWaitingOnIngredientsClaimsNoCook(t *testing.T) {
+// A bill intent in flight awaits its receipt and claims no cook (#941):
+// once applied it is done, and the bench's work is native's.
+func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 	bill := readyBill(t, "bill")
 	spec, err := domain.NewPlan("feed", 1, []domain.Action{bill})
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan := ReadyPlan{Goal: MaintainAnimalFeed, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "bill", "dispatched")}}
-	for _, tc := range []struct {
-		inputs map[domain.ActionID]domain.Fact[bool]
-		want   ReadyState
-	}{
-		{nil, ReadyAwaiting},
-		{map[domain.ActionID]domain.Fact[bool]{"bill": domain.Known(false)}, ReadyOpenEffect},
-		{map[domain.ActionID]domain.Fact[bool]{"bill": domain.Known(true)}, ReadyRunnable},
-	} {
-		plan.Inputs = tc.inputs
-		r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("feed"), Plans: []ReadyPlan{plan}})
-		c := byStage(r)["bill:Make_Kibble"]
-		if c.State != tc.want || c.Work[0] != WorkCooking {
-			t.Fatalf("%v: %+v", tc.inputs, c)
-		}
-		if busy := r.Demand()[WorkCooking]; (tc.want == ReadyRunnable) != (busy == 1) {
-			t.Fatalf("%v: cook demand %d", tc.inputs, busy)
-		}
+	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("feed"), Plans: []ReadyPlan{plan}})
+	c := byStage(r)["bill:Make_Kibble"]
+	if c.State != ReadyAwaiting || c.Work[0] != WorkCooking {
+		t.Fatalf("%+v", c)
+	}
+	if busy := r.Demand()[WorkCooking]; busy != 0 {
+		t.Fatalf("cook demand %d", busy)
 	}
 }
 

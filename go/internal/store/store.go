@@ -21,7 +21,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store/acquisition"
-	"github.com/davidarcher/RimGovernor/go/internal/store/bill"
 	"github.com/davidarcher/RimGovernor/go/internal/store/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/store/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
@@ -38,7 +37,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 127
+const schemaVersion = 128
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -56,7 +55,6 @@ type Store struct{ db *sql.DB }
 // It is independent of HTTP process sessions and survives controller restarts.
 type ControllerSessionID = core.ControllerSessionID
 type PlanState struct {
-	BillAdmissions []ActionBillAdmission
 	ZoneAdmissions []ActionZoneAdmission
 
 	Retired                       bool
@@ -249,7 +247,6 @@ CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), act
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
-CREATE TABLE bill_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id),payload BLOB NOT NULL) STRICT;
 CREATE TABLE zone_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE acquisition_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE supply_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -660,16 +657,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if supplyPresent {
 			state.SupplyAdmissions = append(state.SupplyAdmissions, ActionSupplyAdmission{Action: a.ID(), Admission: supplyAdmission})
 		}
-		billAdmission, billPresent, e := bill.LoadAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.ProductionBillAction && !billPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("bill progress lacks admission")
-		}
-		if billPresent {
-			state.BillAdmissions = append(state.BillAdmissions, ActionBillAdmission{Action: a.ID(), Admission: billAdmission})
-		}
 		zoneAdmission, zonePresent, e := zone.LoadAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -1036,12 +1023,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 		}
 	}
 	if current.Action().Kind() == domain.ProductionBillAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("bill requires typed preparation")
-		}
-		if event.Kind == "dispatch" && !bill.GuardDispatch(state.BillAdmissions, action, event.Snapshot, event.Tick) {
-			return domain.Progress{}, errors.New("bill dispatch lacks admission")
-		}
 		// A trusted refusal proves no bill was created, leaving the bench+recipe pair
 		// claimable again; only an accepted or uncertain write may have produced one.
 		if production, _ := current.Action().ProductionBill(); event.Kind == "receipt" && event.Receipt != domain.ReceiptRefused && event.Receipt != domain.ReceiptUnsent && production.Mode() != domain.GearBatch {

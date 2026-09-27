@@ -12,7 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // sculptureSource is the native half the sculpture lever (#830) needs
@@ -21,7 +20,6 @@ type sculptureSource interface {
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadPackedItems(context.Context, *c.Identity, string) ([]string, bridge.Result, error)
 	ResolvePackedInstall(context.Context, *c.Identity, string, domain.Cell, domain.Rotation) (string, string, bridge.Result, error)
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 
 var _ sculptureSource = (*bridge.Client)(nil)
@@ -79,13 +77,6 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 		bill, err := domain.NewProductionBill(step.Bench, policy.SculptureRecipe, tokens[step.Bench], domain.GearBatch, 1)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
-		}
-		preview, _, err := native.PreviewBill(call, identity, bill)
-		if err != nil {
-			return RoutineBuildingResult{}, false, err
-		}
-		if v := preview.GetEvaluated(); v == nil || !v.GetAccepted() {
-			return RoutineBuildingResult{Reason: BuildingMethodRefused}, true, nil
 		}
 		if action, err = domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill); err != nil {
 			return RoutineBuildingResult{}, false, err

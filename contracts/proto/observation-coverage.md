@@ -294,7 +294,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
 | PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
-| AddBill.bench | ReadBills.bench.snapshot; whole ordered stack token |
+| ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
 | CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
 | DeleteZone/EditZoneCells/PatchStockpile.zone | ListZones.zone.snapshot |
 | ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |

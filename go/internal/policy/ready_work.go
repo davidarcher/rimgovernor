@@ -175,8 +175,8 @@ type ReadyPlan struct {
 	Spec     domain.PlanSpec
 	Progress []domain.Progress
 	// Inputs is the observed next-stage prerequisite of an admitted action
-	// whose work comes in stages: a bill's ingredients, a crop ready to
-	// sow or harvest. Missing means unknown.
+	// whose work comes in stages: a crop ready to sow or harvest. Missing
+	// means unknown.
 	Inputs map[domain.ActionID]domain.Fact[bool]
 }
 
@@ -357,8 +357,8 @@ type readyStage struct {
 	stage  string
 	work   WorkType // "" = no pawn work (a settings write)
 	claims []ReadyClaim
-	// staged: once dispatched, the next stage waits on Inputs (a bill,
-	// a crop) instead of occupying a worker.
+	// staged: once dispatched, the next stage waits on Inputs (a crop)
+	// instead of occupying a worker.
 	staged bool
 }
 
@@ -373,7 +373,7 @@ func readyActionStage(a domain.Action) (readyStage, bool) {
 		return readyStage{stage: "cut_plant:" + v.Definition(), work: WorkPlantCutting, claims: []ReadyClaim{{"thing", v.Plant()}}}, true
 	}
 	if v, ok := a.ProductionBill(); ok {
-		return readyStage{stage: "bill:" + v.Recipe(), work: billWork(v.Recipe()), claims: []ReadyClaim{{"bench", v.Bench()}}, staged: true}, true
+		return readyStage{stage: "bill:" + v.Recipe(), work: billWork(v.Recipe()), claims: []ReadyClaim{{"bench", v.Bench()}}}, true
 	}
 	if _, ok := a.GrowerCrop(); ok {
 		return readyStage{stage: "grow", work: WorkGrowing, staged: true}, true

@@ -38,9 +38,6 @@ func (f *fakeResourceSourceNative) ReadGearBenches(context.Context, *c.Identity)
 func (f *fakeResourceSourceNative) ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error) {
 	panic("unused")
 }
-func (f *fakeResourceSourceNative) PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error) {
-	panic("unused")
-}
 func (f *fakeResourceSourceNative) PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error) {
 	panic("unused")
 }

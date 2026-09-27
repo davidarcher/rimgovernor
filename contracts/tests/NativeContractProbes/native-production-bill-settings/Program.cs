@@ -4,37 +4,10 @@ using Operations = RimGovernor.Protocol.Operations;
 
 internal static class NativeProductionBillSettingsProbe
 {
-    private static void ConfigurationDiagnostics()
-    {
-        var fields = new System.Collections.Generic.Dictionary<string,string>();
-        byte[] Write(bool annotate) {
-            using (var bytes = new System.IO.MemoryStream()) {
-                using (var writer = new System.IO.BinaryWriter(bytes, System.Text.Encoding.UTF8, true)) {
-                    var config = new NativeBillConfiguration(writer, annotate ? fields : null);
-                    config.Write("flag", true); config.Write("count", 65); config.Write("radius", 40f);
-                    config.Write("recipe", "Make_Kibble");
-                    config.Group("defs", w => { w.Write(2); w.Write("Hay"); w.Write("Meat_Muffalo"); });
-                    config.Write("long", new string('x', 10000));
-                }
-                return bytes.ToArray();
-            }
-        }
-        var plain = Write(false); var annotated = Write(true);
-        Check(System.Linq.Enumerable.SequenceEqual(plain, annotated), "diagnostics changed hash input");
-        Check(fields["long"].Length == 71, "large value was not digested");
-        var after = new System.Collections.Generic.Dictionary<string,string>(fields);
-        after["count"] = "66";
-        var detail = NativeBillConfiguration.Changes(fields, after, 0, 1);
-        Check(detail.Contains("count=65 -> 66") && detail.Contains("index=0 -> 1"), "before/after or order missing");
-        for (var i = 0; i < 40; i++) { fields["field"+i] = new string('a',80); after["field"+i] = new string('b',80); }
-        detail = NativeBillConfiguration.Changes(fields, after, 0, 1);
-        Check(detail.Length <= 1536 && detail.Contains("omitted=36"), "diagnostic budget or omission count");
-    }
     public static void Invoke()
     {
-        ConfigurationDiagnostics();
-        var bill = new Operations.AddBill {
-            Bench = new Operations.EntityPrecondition { EntityId = "tailor", ExpectedSnapshotToken = "token" },
+        var bill = new Operations.ProductionBillIntent {
+            BenchId = "tailor",
             RecipeDef = "Make_Apparel_BasicShirt",
             Settings = new Operations.BillSettings {
                 RepeatMode = Operations.RepeatMode.Target, TargetCount = 1, UnpauseThreshold = 1,
@@ -43,6 +16,14 @@ internal static class NativeProductionBillSettingsProbe
             }
         };
         Check(NativeProductionBillSettings.Valid(bill), "recipe defaults rejected");
+        // A finite batch (gear, sculpture) repeats a count, with no target.
+        var batch = bill.Clone();
+        batch.Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Count, RepeatCount = 2,
+            Suspended = false, IngredientSearchRadius = 40,
+            Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor } };
+        Check(NativeProductionBillSettings.Valid(batch), "finite batch rejected");
+        batch.Settings.TargetCount = 2;
+        Check(!NativeProductionBillSettings.Valid(batch), "finite batch with a target accepted");
         var filter = new Operations.FilterPatch { Replace = new Operations.SelectorList() };
         filter.Replace.Selectors.Add(new Operations.FilterSelector { ThingDef = "Leather_Plain" });
         bill.Settings.Ingredients = filter;
@@ -83,7 +64,7 @@ internal static class NativeProductionBillSettingsProbe
         var classedMeal = bill.Clone();
         classedMeal.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
         Check(!NativeProductionBillSettings.Valid(classedMeal), "corpse class accepted outside corpse recipes");
-        Check(!NativeProductionBillSettings.Valid(new Operations.AddBill(butcher) { Settings = new Operations.BillSettings(butcher.Settings) { Worker = new Operations.Assignment { EntityId = "Pawn_Cook" } } }), "pinned animal butcher accepted");
+        Check(!NativeProductionBillSettings.Valid(new Operations.ProductionBillIntent(butcher) { Settings = new Operations.BillSettings(butcher.Settings) { Worker = new Operations.Assignment { EntityId = "Pawn_Cook" } } }), "pinned animal butcher accepted");
         butcher.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Stranger;
         butcher.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
         Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");

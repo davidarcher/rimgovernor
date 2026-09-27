@@ -25,9 +25,8 @@ import (
 // RoutineMedicalPlanner, it reads a fresh top-level resource stock census
 // (not gated behind the planning flag) plus the same generic bench/recipe
 // census and ingredient stock funding GearProduce/MaintainMedicalReserves
-// already established. PreviewBill re-checks one already-selected
-// bench/recipe bill immediately before dispatch, the same
-// acceptance-not-authority preview those planners use.
+// already established. Native checks the bill against
+// live state when the ProductionBillIntent applies.
 //
 // This planner covers the resource method's bench/recipe
 // fallback branch (policy.SelectResourceMethod), the same bench-production
@@ -48,7 +47,6 @@ type RoutineResourceSource interface {
 	observation.ColonySource
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error)
 	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
@@ -373,26 +371,6 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-	}
-	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
-	var refused *bridge.NativeFailure
-	if errors.As(err, &refused) {
-		// A native refusal (an unfueled bench, no worker in reach) is a
-		// planning outcome that game time may resolve, not a step failure:
-		// lend one window so the hauls that change the answer can run
-		// instead of parking the clock on no_work (#219).
-		clockSchedulerLog("%s: bill preview refused bench=%s recipe=%s code=%v detail=%q", goal.Goal.ID, choice.Bench, choice.Recipe, refused.Value.GetCode(), refused.Value.GetDetail())
-		return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockWaitTicks}, nil
-	}
-	if err != nil {
-		return RoutineResourceResult{}, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockWaitTicks}, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineResourceResult{}, ErrControl
 	}
 	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
 	if err != nil {

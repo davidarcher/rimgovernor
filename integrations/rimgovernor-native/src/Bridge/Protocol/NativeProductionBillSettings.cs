@@ -4,11 +4,11 @@ using Operations=RimGovernor.Protocol.Operations;
 using Common=RimGovernor.Protocol.Common;
 namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBillSettings {
-  internal static bool Valid(Operations.AddBill? command){
+  internal static bool Valid(Operations.ProductionBillIntent? command){
    var s=command?.Settings;
    if(command?.HasReplaceOwnedBillId==true && !ProtoBoundary.IsIdentifier(command.ReplaceOwnedBillId))return false;
    if(!ValidIngredients(s?.Ingredients))return false;
-   if(command?.Bench==null||!command.Bench.HasEntityId||!ProtoBoundary.IsIdentifier(command.Bench.EntityId)||!command.Bench.HasExpectedSnapshotToken||!ProtoBoundary.IsIdentifier(command.Bench.ExpectedSnapshotToken)||!command.HasRecipeDef||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
+   if(command==null||!command.HasBenchId||!ProtoBoundary.IsIdentifier(command.BenchId)||!command.HasRecipeDef||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
    var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone()};
    if(s.HasBeerReserve){if(!s.BeerReserve)return false;expected.BeerReserve=true;}
    // Corpse bill (#833): a corpse recipe plus whose corpses it takes. A
@@ -19,6 +19,9 @@ namespace HomeBridge.BridgeTools {
     if(pinned!=(s.Worker!=null)||s.Worker!=null&&(s.Worker.ValueCase!=Operations.Assignment.ValueOneofCase.EntityId||!ProtoBoundary.IsIdentifier(s.Worker.EntityId)))return false;
     return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Worker=s.Worker?.Clone(),CorpseClass=s.CorpseClass});
    }
+   // A finite batch (gear, sculpture): repeat a count of times, no target.
+   if(s.RepeatMode==Operations.RepeatMode.Count)
+    return !s.HasBeerReserve&&s.HasRepeatCount&&s.RepeatCount>=1&&s.RepeatCount<=10000&&s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone()});
    return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;
   }
   internal static bool CorpseRecipe(string recipe)=>recipe=="ButcherCorpseFlesh"||recipe=="CremateCorpse";

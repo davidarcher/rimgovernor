@@ -212,7 +212,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 const animalFeedBillWorkTicks = 2500
 
 // completedBillPlan reports a plan whose every action is a production bill
-// that reached completed: the bill exists natively and produced at least once.
+// that reached completed: native placed the bill (or found it standing).
 func completedBillPlan(plan store.PlanState) bool {
 	if len(plan.Progress) == 0 {
 		return false

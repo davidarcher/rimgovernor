@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,9 +23,6 @@ func (n *benchlessMedicalNative) ReadGearBenches(context.Context, *c.Identity) (
 }
 func (n *benchlessMedicalNative) ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error) {
 	return nil, bridge.Result{}, nil
-}
-func (n *benchlessMedicalNative) PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error) {
-	panic("no bench to preview")
 }
 
 func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {

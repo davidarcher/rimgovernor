@@ -79,8 +79,6 @@ type Result struct {
 }
 
 type Executor struct {
-	bill                       BillBoundary
-	billJournal                BillJournal
 	zone                       ZoneBoundary
 	zoneJournal                ZoneJournal
 	acquisition                AcquisitionBoundary
@@ -319,9 +317,6 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
-	}
-	if action.Kind() == domain.ProductionBillAction && e.bill != nil {
-		return e.runBill(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.ZoneCreateAction && e.zone != nil {
 		return e.runZone(ctx, action, progress, authority, generation)

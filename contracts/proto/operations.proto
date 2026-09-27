@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 7, 12, 21, 32, 46, 53, 58, 59;
-  reserved "patch_pawn", "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed", "set_drug_policy";
+  reserved 7, 8, 12, 21, 32, 46, 53, 58, 59;
+  reserved "patch_pawn", "add_bill", "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy", "set_prisoner_interaction", "assign_bed", "set_drug_policy";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -77,7 +77,6 @@ message Operation {
     AcquireResource acquire_resource = 4;
     DesignateThing designate_thing = 5;
     PatchBuilding patch_building = 6;
-    AddBill add_bill = 8;
     CreateZone create_zone = 14;
     DeleteZone delete_zone = 15;
     EditZoneCells edit_zone_cells = 16;
@@ -265,7 +264,6 @@ message BillSettings {
   // refused on others; a butcher bill with a pinned worker is humanlike.
   optional rimgovernor.common.v1.CorpseClass corpse_class = 14;
 }
-message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; optional string replace_owned_bill_id = 4; }
 message DefinitionList { repeated string defs = 1; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
 enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
@@ -408,6 +406,7 @@ message Action {
     FormCaravanIntent form_caravan = 21;
     BedAssignIntent bed_assign = 22;
     WorkSettingsIntent work_settings = 23;
+    ProductionBillIntent production_bill = 24;
   }
 }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
@@ -415,6 +414,18 @@ message Action {
 // and label stand in for an entity precondition, and native refuses on any drift.
 // With joiner_letter_token, window_id is a WandererJoins letter ID and option 0
 // accepts the joiner; a joiner already accepted by that letter applies again.
+// Add one production bill to a player bench: the recipe, its repeat
+// settings, ingredient filter, corpse class and pinned worker. Native checks
+// the bench, recipe, ingredients and a skilled reaching worker live when it
+// applies; a bench already carrying a matching bill applies again. With
+// replace_owned_bill_id the named bill (same recipe on this bench, or an
+// ordinary meal tier on this map) is deleted in the same apply.
+message ProductionBillIntent {
+  optional string bench_id = 1;
+  optional string recipe_def = 2;
+  BillSettings settings = 3;
+  optional string replace_owned_bill_id = 4;
+}
 // Write one free colonist's settings: work priorities, allowed area, the
 // 24-hour timetable and food additions together, or the medicine ceiling
 // alone, or the named social-only drug policy alone (created or updated,

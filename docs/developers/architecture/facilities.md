@@ -41,8 +41,8 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    and again whenever those change. Native storage capacity
    counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoutineResourcePlanner` dispatches the bill and native readback
-   of the rising item count carries the deficit to recovery. The native
-   preview admits a bill on an unfueled bench (`UsableForBillsAfterFueling`):
+   of the rising item count carries the deficit to recovery. Native
+   applies a bill on an unfueled bench (`UsableForBillsAfterFueling`):
    a bill waiting on the bench is what makes haulers refuel it, and a bench
    with no bill leaves the clock with no work to run those hauls under.
 

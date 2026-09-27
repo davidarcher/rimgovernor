@@ -43,6 +43,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.FormCaravan] = new FormCaravanActionHandler(),
             [Operations.Action.IntentOneofCase.BedAssign] = new BedAssignActionHandler(),
             [Operations.Action.IntentOneofCase.WorkSettings] = new WorkSettingsActionHandler(),
+            [Operations.Action.IntentOneofCase.ProductionBill] = new ProductionBillActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

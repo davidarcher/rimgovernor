@@ -40,7 +40,7 @@ func TestCompletedBillPlan(t *testing.T) {
 	if completedBillPlan(store.PlanState{Spec: spec}) {
 		t.Fatal("plan without progress counted as standing")
 	}
-	done, err := p.Observe(domain.Observation{Action: action.ID(), Attempt: p.View().Attempt, Snapshot: snapshot, Tick: 20, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot)
+	done, err := p.RecordReceipt(p.View().Attempt, domain.ReceiptAccepted)
 	if err != nil {
 		t.Fatal(err)
 	}

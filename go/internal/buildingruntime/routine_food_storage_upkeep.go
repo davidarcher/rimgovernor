@@ -14,7 +14,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // foodStorageResourceDefinition is the one native resource definition
@@ -37,15 +36,14 @@ const foodStorageSiteLimit = 16
 // routine_resource.go's RoutineResourceSource already established (reused
 // here rather than inventing a food-specific storage read), and the same
 // generic bench/recipe census and ingredient stock funding
-// GearProduce/MaintainMedicalReserves/MaintainResource already use. PreviewBill
-// re-checks one already-selected bench/recipe bill immediately before
-// dispatch, the same acceptance-not-authority preview those planners use.
+// GearProduce/MaintainMedicalReserves/MaintainResource already use.
+// Native checks the bill against
+// live state when the ProductionBillIntent applies.
 type RoutineFoodStorageUpkeepSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
-	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 type RoutineFoodStorageUpkeepPlanner struct {
 	reviewer *RoutineReviewer
@@ -295,17 +293,6 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	bill, err := domain.NewProductionBill(medChoice.Bench, medChoice.Recipe, token, domain.StockTarget, target)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
-	}
-	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
-	if err != nil {
-		return RoutineFoodStorageUpkeepResult{}, err
-	}
-	evaluated := preview.GetEvaluated()
-	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodRefused}, nil
-	}
-	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
-		return RoutineFoodStorageUpkeepResult{}, ErrControl
 	}
 	action, err := domain.NewProductionBillAction(domain.ActionID(fmt.Sprintf("%s-0", id)), bill)
 	if err != nil {
