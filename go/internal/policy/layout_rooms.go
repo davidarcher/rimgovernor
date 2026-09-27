@@ -86,3 +86,41 @@ func (p LayoutPlan) PlannedShells(role RoomRole) []domain.RoomFootprint {
 	}
 	return shells
 }
+
+// NextPlannedRoom is the plan's first open-ground room of role with no
+// room standing in it yet (#835): the kitchen, freezer or jail its owning
+// goal shells before furnishing. A dug room is mined out first (#836).
+func (p LayoutPlan) NextPlannedRoom(role ModuleRole, rooms RoomObservation) (LayoutRoom, bool) {
+	for _, r := range p.Rooms {
+		if r.Role != role {
+			continue
+		}
+		if _, ok := PlannedRoomStanding(r, rooms); !ok {
+			return r, true
+		}
+	}
+	return LayoutRoom{}, false
+}
+
+// ShellDoors is the cells of r's ring that take a door rather than a
+// wall: its own door, its Link, and any other room's Link that lies in
+// r's ring (the kitchen's side of the freezer door, #835).
+func (p LayoutPlan) ShellDoors(r LayoutRoom) []domain.Cell {
+	doors := []domain.Cell{r.Door}
+	if r.Link != nil {
+		doors = append(doors, *r.Link)
+	}
+	in := r.Interior
+	for _, o := range p.Rooms {
+		if o.Link == nil || o.Interior == in {
+			continue
+		}
+		l := *o.Link
+		onX := l.X == in.X-1 || l.X == in.X+in.Width
+		onZ := l.Z == in.Z-1 || l.Z == in.Z+in.Height
+		if onX && l.Z >= in.Z && l.Z < in.Z+in.Height || onZ && l.X >= in.X && l.X < in.X+in.Width {
+			doors = append(doors, l)
+		}
+	}
+	return doors
+}

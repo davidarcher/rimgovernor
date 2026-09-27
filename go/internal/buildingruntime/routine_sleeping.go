@@ -340,6 +340,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.shelter && r.goal == policy.EnsureInitialShelter {
 		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition)
 	}
+	if r.goal == policy.EnsureCooking || r.goal == policy.MaintainRefrigeration {
+		// The planned kitchen or freezer is shelled first (#835).
+		observed = append(append([]string(nil), observed...), "Wall", "Door")
+	}
 	if r.shelter {
 		// The door ladder proposes an Autodoor only once the read shows it
 		// available (#610); the ring never waits on it.
@@ -492,6 +496,23 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	missing, method, reason := r.selection(facts)
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
+	}
+	if module, ok := r.plannedRoomModule(); ok {
+		// The planned room stands before its stove or cooler (#835); a
+		// shell already tried this epoch, or refused, leaves the usual
+		// placement to go on.
+		if room, owed := plannedRoomOwed(facts, module); owed {
+			result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "routine-planned-"+string(module), "")
+			if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
+				return result, err
+			}
+		} else if module == policy.ModuleKitchen {
+			if cells := plannedRoomCells(facts, module); cells != nil {
+				kitchen := *r
+				kitchen.cells = cells
+				r = &kitchen
+			}
+		}
 	}
 	if r.shelter && r.excavation != nil {
 		// An excavation project in progress under this goal epoch continues
@@ -962,6 +983,10 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		allowed := map[domain.Cell]bool{}
 		for _, c := range r.cells {
 			allowed[c] = true
+			if r.facility == nil {
+				// No facility: the cells are the room (the kitchen, #835).
+				roomCells[c] = true
+			}
 		}
 		for c := range roomCells {
 			if !allowed[c] {

@@ -66,10 +66,10 @@ func bedroomMethod(kind policy.BedroomStepKind, room policy.LayoutRoom) domain.M
 	return domain.MethodID(fmt.Sprintf("bedroom-%s-%d-%d", kind, room.Interior.X, room.Interior.Z))
 }
 
-// bedroomRing is the planned room's wall ring, door first, without the
+// bedroomRing is the planned room's wall ring, doors first, without the
 // cells a wall or door already stands on (a neighbour's shared wall) or
 // natural rock walls.
-func bedroomRing(room policy.LayoutRoom, facts observation.ColonyProjection) []domain.Cell {
+func bedroomRing(room policy.LayoutRoom, doors map[domain.Cell]bool, order []domain.Cell, facts observation.ColonyProjection) []domain.Cell {
 	standing := map[domain.Cell]bool{}
 	if census, known := facts.Facts.CurrentConstruction.Value(); known {
 		for _, b := range census.Buildings {
@@ -82,20 +82,22 @@ func bedroomRing(room policy.LayoutRoom, facts observation.ColonyProjection) []d
 	}
 	// Natural rock on the ring walls a dug room as it stands (#836).
 	for _, c := range facts.Cells {
-		if rock, known := c.NaturalRock.Value(); known && rock && c.Cell != room.Door {
+		if rock, known := c.NaturalRock.Value(); known && rock && !doors[c.Cell] {
 			standing[c.Cell] = true
 		}
 	}
 	in := room.Interior
 	ring := []domain.Cell{}
-	if !standing[room.Door] {
-		ring = append(ring, room.Door)
+	for _, d := range order {
+		if !standing[d] {
+			ring = append(ring, d)
+		}
 	}
 	for x := in.X - 1; x <= in.X+in.Width; x++ {
 		for z := in.Z - 1; z <= in.Z+in.Height; z++ {
 			c := domain.Cell{X: x, Z: z}
 			edge := x == in.X-1 || x == in.X+in.Width || z == in.Z-1 || z == in.Z+in.Height
-			if edge && c != room.Door && !standing[c] {
+			if edge && !doors[c] && !standing[c] {
 				ring = append(ring, c)
 			}
 		}
@@ -106,7 +108,7 @@ func bedroomRing(room policy.LayoutRoom, facts observation.ColonyProjection) []d
 // shellBedroom previews and admits the planned room's walls and door. A
 // refused cell makes the slot no site this step.
 func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, step policy.BedroomStep) (RoutineBuildingResult, error) {
-	return r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, bedroomMethod(step.Kind, step.Room), "routine-sleeping-bedroom", bedroomShellReason(step))
+	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, bedroomMethod(step.Kind, step.Room), "routine-sleeping-bedroom", bedroomShellReason(step))
 }
 
 // bedroomShellReason is a bedroom shell's short why: the colonists still
@@ -121,7 +123,7 @@ func bedroomShellReason(step policy.BedroomStep) string {
 // shellRoom previews and admits a planned room's walls and door once per
 // method; prefix names the plan (the tomb shares it, #832). reason is the
 // admission's short why for Operation.intent (#846).
-func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, room policy.LayoutRoom, method domain.MethodID, prefix, reason string) (RoutineBuildingResult, error) {
+func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, prefix, reason string) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -156,17 +158,24 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	}
 	// A room planned into rock is mined out before its ring (#836).
 	plan, _ := facts.LayoutPlan.Value()
-	if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, plan, room, check); err != nil || handled {
+	if result, handled, err := b.digPlannedRoom(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, plan, room, check); err != nil || handled {
 		return result, err
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	// A door goes wherever the plan puts one in this ring: the room's own,
+	// and a Link it or a neighbour shares (#835).
+	order := plan.ShellDoors(room)
+	doors := make(map[domain.Cell]bool, len(order))
+	for _, d := range order {
+		doors[d] = true
+	}
 	var selected []policy.Preview
-	for i, cell := range bedroomRing(room, facts) {
+	for i, cell := range bedroomRing(room, doors, order, facts) {
 		if err := check(); err != nil {
 			return RoutineBuildingResult{}, err
 		}
 		definition := "Wall"
-		if cell == room.Door {
+		if doors[cell] {
 			definition = "Door"
 		}
 		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
@@ -200,5 +209,5 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if len(selected) == 0 {
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, partial: true, check: check})
+	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, read: reading, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter, partial: true, check: check})
 }

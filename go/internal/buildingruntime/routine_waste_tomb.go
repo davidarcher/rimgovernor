@@ -44,7 +44,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	var result RoutineBuildingResult
 	switch step.Kind {
 	case policy.TombShell:
-		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading, step.Room, tombMethod(step), "routine-waste-tomb", "")
+		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, tombMethod(step), "routine-waste-tomb", "")
 	case policy.TombPlace:
 		result, err = r.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step), "routine-waste-tomb")
 	case policy.TombFull:

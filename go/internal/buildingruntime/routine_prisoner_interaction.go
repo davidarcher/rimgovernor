@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -22,6 +23,9 @@ import (
 // policy.MaintainPopulation's doc comment for why.
 type RoutinePrisonerInteractionPlanner struct {
 	reviewer *RoutineReviewer
+	// building shells the planned jail while a prisoner is held (#835);
+	// nil for a source that cannot preview buildings.
+	building *RoutineBuildingPlanner
 }
 type RoutinePrisonerInteractionResult struct {
 	Reason RoutineBuildingReason
@@ -32,7 +36,11 @@ func NewRoutinePrisonerInteractionPlanner(reviewer *RoutineReviewer) (*RoutinePr
 	if reviewer == nil {
 		return nil, ErrControl
 	}
-	return &RoutinePrisonerInteractionPlanner{reviewer}, nil
+	r := &RoutinePrisonerInteractionPlanner{reviewer: reviewer}
+	if source, ok := reviewer.native.(RoutineBuildingSource); ok {
+		r.building = &RoutineBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainPopulation, definition: "Wall"}
+	}
+	return r, nil
 }
 func (r *RoutinePrisonerInteractionPlanner) Step(ctx context.Context) (RoutinePrisonerInteractionResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
@@ -102,6 +110,9 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	case policy.PrisonerUnknown:
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodUnknown}, nil
 	}
+	if result, handled, err := r.stageJail(call, epoch, state, review, goal, expected); err != nil || handled {
+		return result, err
+	}
 	// Keyed by mode, pawn and attempt count, mirroring
 	// RoutineHusbandryPlanner's method key: a fresh attempt after an
 	// interrupted or failed try re-selects whichever prisoner and write is
@@ -137,4 +148,43 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	return RoutinePrisonerInteractionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// stageJail shells the planned jail (#835) while a prisoner is held and
+// no jail stands; handled is false when nothing is due, the shell was
+// already tried this epoch, or native refuses a ring cell, so the
+// interaction goes on.
+func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, expected observation.Identity) (RoutinePrisonerInteractionResult, bool, error) {
+	if r.building == nil {
+		return RoutinePrisonerInteractionResult{}, false, nil
+	}
+	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim](), "Wall", "Door")
+	if err != nil {
+		return RoutinePrisonerInteractionResult{}, false, err
+	}
+	facts := reading.Projection
+	if prisoners, _ := facts.Facts.Prisoners.Value(); !heldPrisoner(prisoners) {
+		return RoutinePrisonerInteractionResult{}, false, nil
+	}
+	room, owed := plannedRoomOwed(facts, policy.ModulePrison)
+	if !owed {
+		return RoutinePrisonerInteractionResult{}, false, nil
+	}
+	result, err := r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, room, plannedRoomMethod(room), "routine-planned-jail", "")
+	if err != nil || result.Reason == BuildingMethodUsed || result.Reason == BuildingMethodNoSpace || result.Reason == BuildingMethodUnknown {
+		return RoutinePrisonerInteractionResult{}, false, err
+	}
+	return RoutinePrisonerInteractionResult{Reason: result.Reason}, true, nil
+}
+
+// heldPrisoner reports a living prisoner in the census.
+func heldPrisoner(prisoners []policy.PrisonerFacts) bool {
+	for _, p := range prisoners {
+		held, hk := p.Prisoner.Value()
+		dead, dk := p.Dead.Value()
+		if hk && held && dk && !dead {
+			return true
+		}
+	}
+	return false
 }

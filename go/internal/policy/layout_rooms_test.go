@@ -63,3 +63,43 @@ func TestStarterLayoutsBuildTheFirstBuildablePlannedRoom(t *testing.T) {
 		t.Fatalf("fallback search: %d layouts, %v", len(layouts), err)
 	}
 }
+
+func TestShellDoorsPutTheFreezerLinkInBothRings(t *testing.T) {
+	kitchen := coreRoom(ModuleKitchen, 10, 30, 6, 5, true)
+	freezer := coreRoom(ModuleFreezer, 17, 30, 5, 5, true)
+	link := domain.Cell{X: 16, Z: kitchen.Interior.Z + 2}
+	freezer.Link = &link
+	jail := coreRoom(ModulePrison, 40, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []LayoutRoom{kitchen, freezer, jail}}
+	has := func(doors []domain.Cell, c domain.Cell) bool {
+		for _, d := range doors {
+			if d == c {
+				return true
+			}
+		}
+		return false
+	}
+	if d := plan.ShellDoors(kitchen); len(d) != 2 || !has(d, kitchen.Door) || !has(d, link) {
+		t.Fatalf("kitchen doors %v", d)
+	}
+	if d := plan.ShellDoors(freezer); len(d) != 2 || !has(d, freezer.Door) || !has(d, link) {
+		t.Fatalf("freezer doors %v", d)
+	}
+	if d := plan.ShellDoors(jail); len(d) != 1 || d[0] != jail.Door {
+		t.Fatalf("jail doors %v", d)
+	}
+}
+
+func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
+	built := coreRoom(ModulePrison, 20, 30, 5, 5, true)
+	open := coreRoom(ModulePrison, 30, 30, 5, 5, true)
+	plan := LayoutPlan{Rooms: []LayoutRoom{built, open}}
+	centre := domain.Cell{X: built.Interior.X + 2, Z: built.Interior.Z + 2}
+	rooms := RoomObservation{Rooms: []Room{{ID: "r", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
+	if r, ok := plan.NextPlannedRoom(ModulePrison, rooms); !ok || r.Interior != open.Interior {
+		t.Fatalf("next %+v %v", r, ok)
+	}
+	if _, ok := plan.NextPlannedRoom(ModuleKitchen, rooms); ok {
+		t.Fatal("no kitchen is planned")
+	}
+}

@@ -289,6 +289,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.MaintainWaste) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}
+	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {
+		// The planned kitchen, freezer and jail shells (#835).
+		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door")
+	}
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
 		// Directly created plans have no player submission or saved overrides.
