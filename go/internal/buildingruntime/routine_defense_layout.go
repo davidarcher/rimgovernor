@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,7 +24,9 @@ import (
 
 // defenseDefinitions are the native buildings each tier places. Wood keeps
 // the first layout affordable (native Sandbags need fabric or leather, which
-// a young colony rarely holds; a wooden Barricade gives the same 0.55 cover);
+// a young colony rarely holds; a wooden Barricade gives the same 0.55 cover;
+// policy.DefenseCoverChoice swaps in Sandbags once the stock covers them and
+// names the Embrasure where the game has one, #868);
 // MaintainStoneShell upgrades flammable walls afterwards through its own goal.
 // The wood floor under each shooter needs no research and keeps the firing
 // cell free of the trees that grew onto it before (#224).
@@ -40,7 +43,29 @@ const (
 	defenseConduitDefinition = "HiddenConduit"
 )
 
-var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseConduitDefinition}
+var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseConduitDefinition, policy.DefenseSandbags, policy.DefenseEmbrasure}
+
+// defenseDefinitionAvailable reports a planning definition the census
+// observed as available, its research finished: a definition the game
+// lacks (Embrasure before Ideology/1.4) has no row and is unavailable.
+func defenseDefinitionAvailable(read observation.RoutineReading, name string) bool {
+	research, rk := read.Projection.Facts.Research.Value()
+	for _, d := range read.Projection.Definitions {
+		if d.Name != name {
+			continue
+		}
+		if v, k := d.Available.Value(); !k || !v || len(d.Research) > 0 && !rk {
+			return false
+		}
+		for _, prerequisite := range d.Research {
+			if !slices.Contains(research.Finished, policy.ResearchProjectID(prerequisite)) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
 
 // defenseTierOrder is the staged construction order; a tier without
 // placements (the chokepoint reuses existing geometry) is complete as-is.
@@ -906,6 +931,9 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 		return policy.DefenseLayout{}, nil, false, err
 	}
 	request.Defenders, request.MinRange = defenders, minRange
+	stock, stockKnown := projection.Resources.Value()
+	request.Definitions = policy.DefenseCoverChoice(request.Definitions, stock, stockKnown,
+		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		return policy.DefenseLayout{}, nil, false, nil
@@ -1133,12 +1161,25 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, projection observa
 	if err != nil {
 		return err
 	}
+	// A cell a killbox tier already builds on (a firing-line embrasure in
+	// the wall, #868) is that tier's, not the perimeter's.
+	taken := map[domain.Cell]bool{}
+	for _, t := range record.Tiers {
+		for _, b := range t.Buildings {
+			taken[b.Cell] = true
+		}
+	}
 	for _, section := range sections {
 		t := store.DefenseTierRecord{Name: section.Name}
 		for _, b := range section.Buildings {
+			if taken[b.Cell()] {
+				continue
+			}
 			t.Buildings = append(t.Buildings, store.DefenseBuilding{Definition: b.Definition(), Cell: b.Cell(), Rotation: b.Rotation(), Stuff: b.Stuff()})
 		}
-		record.Tiers = append(record.Tiers, t)
+		if len(t.Buildings) > 0 {
+			record.Tiers = append(record.Tiers, t)
+		}
 	}
 	return record.Validate()
 }

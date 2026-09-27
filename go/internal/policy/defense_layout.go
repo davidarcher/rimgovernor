@@ -32,8 +32,12 @@ type DefenseLine struct {
 // terrain the firing line lays on each shooter cell: nothing grows on a
 // built floor, and a blueprint over a plant has the constructor cut it, so
 // the firing position stays standable for the hold plan's move (#224).
+// Embrasure, when the game has it (Ideology/1.4+), is the cover a firing
+// position gets where its cover cell is the perimeter wall (#868); empty,
+// such positions are skipped. It takes WallStuff.
 type DefenseDefinitions struct {
 	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff, Door, DoorStuff, Floor string
+	Embrasure                                                                                          string
 }
 
 type DefenseRequest struct {
@@ -402,7 +406,16 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			if known && !los {
 				continue
 			}
-			b, err := domain.NewBuilding(r.Definitions.Sandbag, cover, domain.North, r.Definitions.SandbagStuff)
+			// A cover cell on the perimeter wall is an embrasure in the
+			// wall rather than wall plus sandbag (#868).
+			coverDef, coverStuff := r.Definitions.Sandbag, r.Definitions.SandbagStuff
+			if walled[cover] {
+				if r.Definitions.Embrasure == "" {
+					continue
+				}
+				coverDef, coverStuff = r.Definitions.Embrasure, r.Definitions.WallStuff
+			}
+			b, err := domain.NewBuilding(coverDef, cover, domain.North, coverStuff)
 			if err != nil {
 				return DefenseLayout{}, err
 			}
