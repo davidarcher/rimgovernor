@@ -63,8 +63,8 @@ message Operation {
   reserved 2, 9, 10, 11, 17, 19;
   reserved "cancel_construction", "patch_bill", "delete_bill", "move_bill", "repair_zone", "patch_growing";
   // Settings moved to Actions/Apply intents (#941).
-  reserved 12, 46, 58;
-  reserved "select_research", "confirm_colony_names", "set_apparel_policy";
+  reserved 12, 46, 53, 58;
+  reserved "select_research", "confirm_colony_names", "answer_dialog", "set_apparel_policy";
   // Arms Go never sent (#938).
   reserved 23, 24, 29;
   reserved "release_wall_removals", "recovery_area", "queue_surgery";
@@ -103,7 +103,6 @@ message Operation {
     SetAnimalArea set_animal_area = 50;
     SetAnimalMaster set_animal_master = 51;
     SetAnimalFollowing set_animal_following = 52;
-    AnswerDialog answer_dialog = 53;
     CancelAcquisition cancel_acquisition = 54;
     Deconstruct deconstruct = 55;
     ReleaseDeconstructions release_deconstructions = 56;
@@ -371,10 +370,6 @@ message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind
 message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
 message AcceptQuest { EntityPrecondition quest = 1; optional string accepter_pawn_id = 2; optional int32 reward_choice = 3; }
 message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
-// Activates one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
-// observed (Verse.Dialog_NodeTree). window_id plus the exact observed option index
-// and label stand in for EntityPrecondition: native refuses on any drift.
-message AnswerDialog { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; optional string joiner_letter_token = 4; }
 
 // Safe cleanup may run after authority revocation, only for an unchanged native
 // claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether
@@ -437,8 +432,15 @@ message Action {
     ApparelPolicyIntent apparel_policy = 15;
     ResearchIntent research = 16;
     NamingIntent naming = 17;
+    DialogIntent dialog = 18;
   }
 }
+// Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
+// observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
+// and label stand in for an entity precondition, and native refuses on any drift.
+// With joiner_letter_token, window_id is a WandererJoins letter ID and option 0
+// accepts the joiner; a joiner already accepted by that letter applies again.
+message DialogIntent { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; optional string joiner_letter_token = 4; }
 // Confirm the exact observed suggestions of the colony-wide initial
 // faction/settlement naming dialog; window_id plus the suggestions stand in
 // for an entity precondition, so a changed window or suggestion is refused.

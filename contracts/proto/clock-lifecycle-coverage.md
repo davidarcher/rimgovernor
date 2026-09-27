@@ -58,7 +58,7 @@ unavailable/watcher/journal errors, force-pause waiting/cleared events and
 `STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
 game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch (#156). Like a
 letter pause it is a non-benign stop the player acknowledges; the controller
-answers the dialog through `Operations.AnswerDialog` and starts a new epoch, and
+answers the dialog through a `DialogIntent` on Actions/Apply and starts a new epoch, and
 a start attempted while such a window is open is refused as unavailable rather
 than reported as a running epoch's pause. Source numeric pawn IDs must resolve to exact
 canonical IDs, never suffix matching. Every event carries its original native

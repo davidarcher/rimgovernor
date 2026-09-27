@@ -37,6 +37,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.ApparelPolicy] = new ApparelPolicyActionHandler(),
             [Operations.Action.IntentOneofCase.Research] = new ResearchActionHandler(),
             [Operations.Action.IntentOneofCase.Naming] = new NamingActionHandler(),
+            [Operations.Action.IntentOneofCase.Dialog] = new DialogActionHandler(),
         };
 
         private const int ReplayCapacity = 256;

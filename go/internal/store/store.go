@@ -39,7 +39,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 121
+const schemaVersion = 122
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -81,7 +81,6 @@ type PlanState struct {
 	RecoveryServiceAdmissions     []ActionRecoveryServiceAdmission
 	BuildingTemperatureAdmissions []ActionBuildingTemperatureAdmission
 	BedAssignAdmissions           []ActionBedAssignAdmission
-	DialogAnswerAdmissions        []ActionDialogAnswerAdmission
 	CaravanDepartureAdmissions    []ActionCaravanDepartureAdmission
 	HusbandryAdmissions           []ActionHusbandryAdmission
 	HomeCoverageAdmissions        []ActionHomeCoverageAdmission
@@ -274,7 +273,6 @@ CREATE TABLE mood_relief_admissions(action_id TEXT PRIMARY KEY REFERENCES action
 CREATE TABLE recovery_service_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE building_temperature_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE bed_assign_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE dialog_answer_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE caravan_departure_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE husbandry_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE home_coverage_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -359,7 +357,7 @@ CREATE TABLE population_decisions(colony TEXT NOT NULL, load_token TEXT NOT NULL
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM dialog_answer_admissions LIMIT 0", "SELECT action_id,payload FROM husbandry_admissions LIMIT 0", "SELECT action_id,payload FROM home_coverage_admissions LIMIT 0", "SELECT action_id,payload FROM prisoner_interaction_admissions LIMIT 0", "SELECT action_id,payload FROM quest_accept_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM cover_clearance_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM caravan_departure_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT action_id,payload FROM bed_assign_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM tend_admissions LIMIT 0", "SELECT action_id,payload FROM rescue_admissions LIMIT 0", "SELECT action_id,payload FROM capture_admissions LIMIT 0", "SELECT action_id,payload FROM ranged_admissions LIMIT 0", "SELECT action_id,payload FROM equip_admissions LIMIT 0", "SELECT action_id,payload FROM gear_replace_admissions LIMIT 0", "SELECT action_id,payload FROM recovery_service_admissions LIMIT 0", "SELECT action_id,payload FROM husbandry_admissions LIMIT 0", "SELECT action_id,payload FROM home_coverage_admissions LIMIT 0", "SELECT action_id,payload FROM prisoner_interaction_admissions LIMIT 0", "SELECT action_id,payload FROM quest_accept_admissions LIMIT 0", "SELECT action_id,payload FROM mine_acquisition_admissions LIMIT 0", "SELECT action_id,payload FROM cut_plant_admissions LIMIT 0", "SELECT action_id,payload FROM move_building_admissions LIMIT 0", "SELECT action_id,payload FROM cover_clearance_admissions LIMIT 0", "SELECT action_id,payload FROM deconstruction_admissions LIMIT 0", "SELECT action_id,payload FROM caravan_departure_admissions LIMIT 0", "SELECT action_id,payload FROM excavation_admissions LIMIT 0", "SELECT action_id,payload FROM wall_removal_admissions LIMIT 0", "SELECT action_id,payload FROM building_temperature_admissions LIMIT 0", "SELECT action_id,payload FROM bed_assign_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -851,16 +849,6 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if bedAssignPresent {
 			state.BedAssignAdmissions = append(state.BedAssignAdmissions, ActionBedAssignAdmission{Action: a.ID(), Admission: bedAssignAdmission})
 		}
-		dialogAnswerAdmission, dialogAnswerPresent, e := loadDialogAnswerAdmission(ctx, tx, a, p)
-		if e != nil {
-			return PlanState{}, e
-		}
-		if a.Kind() == domain.DialogAnswerAction && !dialogAnswerPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
-			return PlanState{}, errors.New("dialog answer progress lacks admission")
-		}
-		if dialogAnswerPresent {
-			state.DialogAnswerAdmissions = append(state.DialogAnswerAdmissions, ActionDialogAnswerAdmission{Action: a.ID(), Admission: dialogAnswerAdmission})
-		}
 		caravanDepartureAdmission, caravanDeparturePresent, e := loadCaravanDepartureAdmission(ctx, tx, a, p)
 		if e != nil {
 			return PlanState{}, e
@@ -1292,22 +1280,6 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			}
 			if !matched {
 				return domain.Progress{}, errors.New("wall removal dispatch lacks current admission")
-			}
-		}
-	}
-	if current.Action().Kind() == domain.DialogAnswerAction {
-		if event.Kind == "prepare" {
-			return domain.Progress{}, errors.New("dialog answer requires typed preparation")
-		}
-		if event.Kind == "dispatch" {
-			matched := false
-			for _, record := range state.DialogAnswerAdmissions {
-				if record.Action == action && record.Admission.Snapshot == event.Snapshot && record.Admission.Tick <= event.Tick {
-					matched = true
-				}
-			}
-			if !matched {
-				return domain.Progress{}, errors.New("dialog answer dispatch lacks current admission")
 			}
 		}
 	}

@@ -25,6 +25,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.ApparelPolicyAction:      true,
 	domain.ResearchSelectAction:     true,
 	domain.NamingConfirmationAction: true,
+	domain.DialogAnswerAction:       true,
 }
 
 // runIntent dispatches one plain intent. The receipt is terminal: applied

@@ -145,7 +145,6 @@ type buildingServiceBridge struct {
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
 	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
-	dialog              *buildingruntime.DialogAnswerCapabilities
 	trade               *buildingruntime.TradeCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedUse              *beduse.Capabilities
@@ -279,10 +278,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	dialogControl, err := bridge.NewDialogControl(client)
-	if err != nil {
-		return buildingServiceBridge{}, errors.Join(err, client.Close())
-	}
 	actionsWriter, err := bridge.NewActionsWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -371,7 +366,6 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
 		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
-		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
 		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: actionsWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedUse:              &beduse.Capabilities{Native: client, Writer: bedUseControl},
@@ -726,13 +720,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		questAcceptCapabilities = client.questAccept
 	}
-	var dialogCapabilities *buildingruntime.DialogAnswerCapabilities
-	if config.routineDialogPlans || config.routinePopulationJoinerPlans {
-		if client.dialog == nil {
-			return errors.New("dialog plans require typed capabilities")
-		}
-		dialogCapabilities = client.dialog
-	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
 	if config.routineTradePlans {
 		if client.trade == nil {
@@ -871,7 +858,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		PrisonerInteraction: prisonerInteractionCapabilities,
 		QuestAccept:         questAcceptCapabilities,
 		CaravanDeparture:    caravanDepartureCapabilities,
-		DialogAnswer:        dialogCapabilities,
 		Trade:               tradeCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedUse:              bedUseCapabilities,

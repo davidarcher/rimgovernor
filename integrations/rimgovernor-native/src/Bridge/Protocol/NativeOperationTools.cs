@@ -57,8 +57,6 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetDrugPolicy> DrugPolicies = new Dictionary<Common.AttemptKey, Operations.SetDrugPolicy>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeJoinerLetterRecord> JoinerLetters = new Dictionary<Common.AttemptKey, NativeJoinerLetterRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeDialogRecord> Dialogs = new Dictionary<Common.AttemptKey, NativeDialogRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDeconstructionRecord> Deconstructions = new Dictionary<Common.AttemptKey, NativeDeconstructionRecord>();
@@ -193,8 +191,6 @@ namespace HomeBridge.BridgeTools
                 return NativeQuestFulfillOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
                 return NativeCaravanTravel.Execute(state, request, context);
-            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AnswerDialog)
-                return NativeChoiceDialogOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
                 return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
@@ -296,8 +292,6 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeDrugPolicyOperations.Preview(parsed.Operation.SetDrugPolicy, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
                     return ProtoBoundary.Encode(NativeCaravanTravel.Preview(parsed.Operation.TravelCaravan, context));
-                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AnswerDialog)
-                    return ProtoBoundary.Encode(NativeChoiceDialogOperations.Preview(parsed.Operation.AnswerDialog, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
@@ -449,11 +443,6 @@ namespace HomeBridge.BridgeTools
                     NativeCaravanTravelRecord caravanTravel;
                     if (state.CaravanTravels.TryGetValue(parsed.Attempt, out caravanTravel))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeCaravanTravel.Observe(parsed.Attempt, context, caravanTravel) });
-                    if (state.JoinerLetters.TryGetValue(parsed.Attempt, out var joinerLetter))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeJoinerLetters.Observe(parsed.Attempt, context, joinerLetter) });
-                    NativeDialogRecord dialog;
-                    if (state.Dialogs.TryGetValue(parsed.Attempt, out dialog))
-                        return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = NativeChoiceDialogOperations.Observe(parsed.Attempt, context, dialog) });
                     NativeBedAssignRecord bedAssign;
                     if (state.BedAssignments.TryGetValue(parsed.Attempt, out bedAssign))
                         return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = bedAssign.Observe(parsed.Attempt, context) });

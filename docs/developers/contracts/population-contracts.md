@@ -50,10 +50,11 @@ to expire; nothing is ever rejected natively, and a reward-choice offer takes th
 game's first option. Pending current-map `WandererJoins` letters are read through
 the typed colony census (`joiner_letters`) with their letter ID, pawn, expiry
 and snapshot token. The same capacity policy admits one letter answer at a time
-through `AnswerDialog.joiner_letter_token`. Native rechecks the exact letter,
+through `DialogIntent.joiner_letter_token` on Actions/Apply. Native rechecks the exact letter,
 quest, pawn, map, expiry and option under authority and runs its ordinary Accept
-option. Completion requires the offered pawn to be a living spawned free colonist
-on that map; closing the letter alone is insufficient. Expired, changed and
+option. The intent applies only once the offered pawn is a living spawned free colonist
+on that map; closing the letter alone is insufficient, and a resent intent for a
+letter already accepted that way applies again. Expired, changed and
 unsupported offers are never answered. Without known capacity, letters expire
 through their own native quest timeout.
 

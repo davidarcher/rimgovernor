@@ -10,7 +10,7 @@
 // STOP_REASON_DIALOG_PAUSE hold, acknowledged like a letter pause). For
 // each, the routine review raises AnswerDialog, the dialog planner picks the
 // policy-preferred option ("OK" over "Research screen"), the executor
-// activates it through Operations.AnswerDialog, and the clock runs again.
+// activates it through a DialogIntent on Actions/Apply, and the clock runs again.
 package dialog
 
 import (
@@ -44,7 +44,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "dialog/pause",
 		Scope: "Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony " +
-			"facts dialog section, answered with the policy-preferred option through Operations.AnswerDialog under the " +
+			"facts dialog section, answered with the policy-preferred option through a DialogIntent on Actions/Apply under the " +
 			"AnswerDialog routine goal, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the " +
 			"native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-window.",
 		Start:       cases.LabStart(),

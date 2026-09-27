@@ -92,7 +92,6 @@ type SessionConfig struct {
 	// BedAssign backs the sleeping family's bed ownership transfer, the
 	// same one-shot CAS write shape as BedUse.
 	BedAssign           *bedassign.Capabilities
-	DialogAnswer        *DialogAnswerCapabilities
 	Trade               *TradeCapabilities
 	Husbandry           *HusbandryCapabilities
 	HomeCoverage        *HomeCoverageCapabilities
@@ -401,9 +400,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		return cleanup(ErrControl)
 	}
 
-	if config.DialogAnswer != nil && (config.DialogAnswer.Native == nil || config.DialogAnswer.Writer == nil) {
-		return cleanup(ErrControl)
-	}
 	if config.Husbandry != nil && (config.Husbandry.Native == nil || config.Husbandry.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -556,11 +552,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 
-	if config.DialogAnswer != nil {
-		if err := worker.EnableDialogAnswer(&dialogAnswerBoundary{Boundary: place, dialog: *config.DialogAnswer}); err != nil {
-			return cleanup(err)
-		}
-	}
 	if config.Haul != nil {
 		haulBoundary, err := haul.NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock)
 		if err != nil {
