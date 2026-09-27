@@ -26,8 +26,8 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	next := memory.clone()
 	next.Tick = view.Tick
 	live := view.live()
-	// A downed or dead defender keeps no role; its rescue is the rescue
-	// planner's (#867), not an order here.
+	// A downed or dead defender keeps no role; its rescue is rescueStep's
+	// (#867, combat_rescue.go).
 	next.Roles = slices.DeleteFunc(next.Roles, func(r CombatRole) bool { return !live[r.Pawn] })
 	if !relieveBlocker(view, stop, &next) && !fallBack(view, stop, &next) && reform(view, stop, next) {
 		if ask := formationAsk(view); ask != nil && !geometry.Answered {
@@ -50,9 +50,13 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	for _, p := range view.Pawns {
 		state[p.ID] = p
 	}
+	rescue, ask := rescueStep(view, geometry, stop, &next, orderable, state)
+	if ask != nil {
+		return nil, ask, memory
+	}
 	var orders []CombatOrder
 	for _, role := range next.Roles {
-		if !orderable[role.Pawn] {
+		if !orderable[role.Pawn] || next.Rescue.carrying(role.Pawn) {
 			continue
 		}
 		want, ok := role.want(state[role.Pawn])
@@ -64,7 +68,7 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 		orders = append(orders, want)
 	}
-	orders = holdFire(view, next.Roles, orders, memory)
+	orders = holdFire(view, slices.DeleteFunc(slices.Clone(next.Roles), func(r CombatRole) bool { return next.Rescue.carrying(r.Pawn) }), orders, memory)
 	if !geometry.Answered {
 		// The attacks' lines of fire (#861) take the stop's geometry round
 		// trip when Formation did not.
@@ -73,8 +77,12 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 		}
 	}
 	orders, next.Roles = clearLines(view, orders, geometry.Lines, next.Roles)
+	// The rescue's orders (#867) lead; a door order names no pawn to issue.
+	orders = append(rescue, orders...)
 	for _, o := range orders {
-		next.issue(o, view.Tick)
+		if o.Pawn != "" {
+			next.issue(o, view.Tick)
+		}
 	}
 	return orders, nil, next
 }
@@ -108,6 +116,11 @@ type CombatPawnState struct {
 	WeaponRange float64
 	Kind        string
 	Sapper      bool
+	// Rescuer facts (#867): the current job def, a worn shield belt and
+	// the Medicine skill level.
+	Job          string
+	ShieldBelt   bool
+	MedicalSkill int
 	// Shield is the worn shield's charge, a fraction of max (#866);
 	// unknown without a shield.
 	Shield domain.Fact[float64]
@@ -178,6 +191,9 @@ type GeometryRequest struct {
 	Cells    []domain.Cell
 	Line     []domain.Cell
 	Hostiles []domain.PawnID
+	// Pawn and To are the rescue_path role's walker and goal (#867).
+	Pawn domain.PawnID
+	To   domain.Cell
 	// Choke and OurSide anchor the adjacent_to_choke role (#864).
 	Choke, OurSide domain.Cell
 }
@@ -189,6 +205,9 @@ type GeometryRequest struct {
 type GeometryReply struct {
 	Answered  bool
 	Proposals []domain.Cell
+	// Role is the answered ask's role; Route is a rescue_path answer (#867).
+	Role  FormationRole
+	Route []RouteCell
 	// Lines are the named and proposed cells' sight lines to the ask's
 	// hostiles.
 	Lines []SightLine
@@ -251,6 +270,8 @@ type CombatOrder struct {
 	// FireMode is a fire_mode order's FireAtWill or HoldFire.
 	FireMode string `json:",omitempty"`
 	Reason   CombatOrderReason
+	// Door is a door order's mode (#867); a door order names no pawn.
+	Door DoorMode `json:",omitempty"`
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.
@@ -268,6 +289,8 @@ type CombatMemory struct {
 	Formed  domain.Tick   `json:",omitempty"`
 	Issued  []IssuedOrder `json:",omitempty"`
 	Tick    domain.Tick   `json:",omitempty"`
+	// Rescue is the rescue under way (#867).
+	Rescue *CombatRescue `json:",omitempty"`
 }
 
 // Forget drops pawn's last order, so the next stop gives it again (native
@@ -275,12 +298,20 @@ type CombatMemory struct {
 func (m CombatMemory) Forget(pawn domain.PawnID) CombatMemory {
 	m = m.clone()
 	m.Issued = slices.DeleteFunc(m.Issued, func(o IssuedOrder) bool { return o.Pawn == pawn })
+	if m.Rescue != nil && m.Rescue.Rescuer == pawn {
+		m.Rescue.Rescuer = ""
+	}
 	return m
 }
 
 func (m CombatMemory) clone() CombatMemory {
 	m.Roles = slices.Clone(m.Roles)
 	m.Issued = slices.Clone(m.Issued)
+	if m.Rescue != nil {
+		r := *m.Rescue
+		r.Doors = slices.Clone(r.Doors)
+		m.Rescue = &r
+	}
 	return m
 }
 

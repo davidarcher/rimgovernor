@@ -170,9 +170,13 @@ func TestDecideCombatWarmupGuard(t *testing.T) {
 func TestDecideCombatFormsSquadWithoutALayout(t *testing.T) {
 	view := holdView()
 	view.Layout = domain.Fact[CombatLayout]{}
-	orders, ask, next := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
-	if ask != nil || next.Tactic != TacticSquad || len(orders) == 0 {
-		t.Fatalf("%+v %+v %+v", orders, ask, next)
+	// The only ask is the attacks' lines of fire (#861), not Formation's.
+	if _, ask, _ := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{}); ask != nil && ask.Propose != "" {
+		t.Fatalf("formation asked %+v without a layout", ask)
+	}
+	orders, next := decideStop(t, view, StopEvent{}, CombatMemory{})
+	if next.Tactic != TacticSquad || len(orders) == 0 {
+		t.Fatalf("%+v %+v", orders, next)
 	}
 }
 
