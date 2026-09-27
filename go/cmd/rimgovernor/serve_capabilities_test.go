@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -71,5 +72,20 @@ func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 			t.Error("declared twice:", goal)
 		}
 		seen[goal] = true
+	}
+}
+
+// A serve composing every family must pass the reviewer's startup
+// validation: every declared method is a goal DetectRoutine recognizes on
+// empty facts (#766, service/development died at serve start).
+func TestRoutineCapabilitiesValidateAtStartup(t *testing.T) {
+	t.Parallel()
+	var c serveConfig
+	for _, f := range routineFamilies(&c) {
+		*f.Enabled = true
+	}
+	thresholds, capabilities := routineCapabilities(c)
+	if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: domain.Known(capabilities.Methods)}, policy.RoutineLatches{}, thresholds); err != nil {
+		t.Fatal(err)
 	}
 }
