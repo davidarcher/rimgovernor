@@ -46,7 +46,10 @@ once acceptance passes, and land immediately.
    one (the smoke tier since #387; `-unverified` lands it, naming what went
    unverified in the commit body, not an issue), squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
-   GitHub issue with the landing commit. Call it once and move on; land
+   GitHub issue with the landing commit. From a Claude agent worktree
+   (`.claude/worktrees/agent-*` on `worktree-agent-*`) it then removes the
+   worktree and deletes its branch when both are clean and fully landed;
+   an agent landing several milestones passes `-keep-worktree`. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task
    is done. Rebase or merge by hand only to resolve a conflict it reports.
    The issue closes when the landing meets the acceptance written in its

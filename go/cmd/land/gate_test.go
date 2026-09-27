@@ -51,7 +51,7 @@ func TestRemoteRejectionPrecedesMainMerge(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "result.json"), `{"passed":true,"tier":"land","cases":[],"remote":{}}`)
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{Results: dir}, nil); err == nil {
+	if err := run("", "", "", time.Second, false, acceptanceGate{Results: dir}, nil, false); err == nil {
 		t.Fatal("unauthenticated remote evidence landed")
 	}
 	if got := mustGit(t, wt, "rev-parse", "HEAD"); got != head {
@@ -113,7 +113,7 @@ func TestLandRefusesAGatedDiffWithoutResults(t *testing.T) {
 	mustGit(t, wt, "add", ".")
 	mustGit(t, wt, "commit", "-qm", "native edit")
 	t.Chdir(wt)
-	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
+	err := run("", "", "", time.Second, false, acceptanceGate{}, nil, false)
 	if err == nil || !strings.Contains(err.Error(), "presents no acceptance results") {
 		t.Fatalf("gated diff: got %v", err)
 	}
@@ -122,7 +122,7 @@ func TestLandRefusesAGatedDiffWithoutResults(t *testing.T) {
 	}
 	results := t.TempDir()
 	write(t, filepath.Join(results, "result.json"), `{"passed": true, "tier": "land", "cases": [{"name": "smoke/identity", "passed": true}]}`)
-	if err := run("", "", "", time.Second, false, acceptanceGate{Results: results}, nil); err != nil {
+	if err := run("", "", "", time.Second, false, acceptanceGate{Results: results}, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "native edit\ninit" {
