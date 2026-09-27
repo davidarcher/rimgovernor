@@ -333,7 +333,7 @@ type ClockScheduler struct {
 	speed speedPolicy
 	// blindTicks is the widest SpeedChanged.BlindTicks a poll saw since the
 	// last admission (#737): written by the poll, taken by the step.
-	blindTicks atomic.Int64
+	blindTicks *atomic.Int64
 	// combatStops measures combat windows' stops (#849), under the player gate.
 	combatStops combatStopMetrics
 	// livePaceTicks is the pace a step projects the tick by (drift):
@@ -601,7 +601,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), blindTicks: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
 	if config.Start.PlayerAccelerated || config.FollowPlayerSpeed {
 		scheduler.paceEpoch = new(atomic.Pointer[k.Epoch])
 		scheduler.pace = newPaceBackoff(config.PaceHorizonTicks, clock.Now, scheduler.requestCeiling)
