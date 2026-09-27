@@ -393,10 +393,22 @@ func TestCombatReplayLabChoke(t *testing.T) {
 		attacksOnPresentHostiles(),
 		noAimInterrupt(),
 		// Hold fire holds while the raider fights our blocker between
-		// swings (#903): no fire-at-will at stops 2 and 5.
+		// swings (#903): no fire-at-will at stops 2 and 5, except for a
+		// gunner passed on to a raider not on a blocker (#978).
 		combatAssertion{name: "hold fire holds", at: func(s combatReplayStop) bool { return s.Index == 2 || s.Index == 5 }, check: func(s combatReplayStop) error {
 			for _, o := range s.Orders {
-				if o.Kind == policy.OrderFireMode && o.FireMode == policy.FireAtWill {
+				if o.Kind != policy.OrderFireMode || o.FireMode != policy.FireAtWill {
+					continue
+				}
+				i := slices.IndexFunc(s.Memory.Roles, func(r policy.CombatRole) bool { return r.Pawn == o.Pawn })
+				j := -1
+				if i >= 0 {
+					j = slices.IndexFunc(s.View.Pawns, func(p policy.CombatPawnState) bool { return p.ID == s.Memory.Roles[i].Target })
+				}
+				blocker := func(id domain.PawnID) bool {
+					return slices.ContainsFunc(s.Memory.Roles, func(r policy.CombatRole) bool { return r.Pawn == id && !r.Ranged })
+				}
+				if j < 0 || blocker(s.View.Pawns[j].Target) {
 					return fmt.Errorf("%s back to fire at will", o.Pawn)
 				}
 			}

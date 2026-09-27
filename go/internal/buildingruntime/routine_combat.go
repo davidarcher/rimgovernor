@@ -288,7 +288,20 @@ func (r *RoutineDefensePlanner) answerGeometry(ctx context.Context, identity *c.
 		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_CoverBehindLine{CoverBehindLine: &mp.CombatCoverBehindLine{Line: line}}}
 	case policy.RoleAdjacentToChoke:
 		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_AdjacentToChoke{AdjacentToChoke: &mp.CombatAdjacentToChoke{Choke: wire(ask.Choke), OurSide: wire(ask.OurSide)}}}
+	case policy.RoleFiringCells:
+		// A walled-in gunner's firing cells (#967).
+		targets := make([]*c.Cell, 0, len(ask.Targets))
+		for _, cell := range ask.Targets {
+			targets = append(targets, wire(cell))
+		}
+		if len(targets) > bridge.CombatGeometryMaxHostiles {
+			targets = targets[:bridge.CombatGeometryMaxHostiles]
+		}
+		propose = &mp.CombatGeometryPropose{Role: &mp.CombatGeometryPropose_FiringCells{FiringCells: &mp.CombatFiringCells{
+			From: wire(ask.From), Radius: proto.Int32(bridge.CombatGeometryMaxRadius), Targets: targets,
+		}}}
 	}
+	reply.Role = ask.Propose
 	// The line is named, so its cells carry the game's cover and Formation
 	// ranks line and proposals alike (#862); so are the shooters' cells, so
 	// their attacks carry lines of fire (#861).

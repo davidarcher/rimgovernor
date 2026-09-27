@@ -127,11 +127,11 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	if !geometry.Answered {
 		// The attacks' lines of fire (#861) take the stop's geometry round
 		// trip when Formation did not.
-		if ask := lineAsk(view, orders); ask != nil {
+		if ask := lineAsk(view, orders, next); ask != nil {
 			return nil, ask, memory
 		}
 	}
-	orders, next.Roles = clearLines(view, orders, geometry.Lines, next.Roles, next)
+	orders, next.Roles, next.CannotHit = clearLines(view, orders, geometry, next.Roles, next)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	for _, o := range orders {
@@ -261,6 +261,10 @@ type GeometryRequest struct {
 	To   domain.Cell
 	// Choke and OurSide anchor the adjacent_to_choke role (#864).
 	Choke, OurSide domain.Cell
+	// From and Targets anchor the firing_cells role: a walled-in gunner's
+	// cell and the hostiles' cells it needs a line to (#967).
+	From    domain.Cell
+	Targets []domain.Cell
 }
 
 // GeometryReply answers a GeometryRequest with the game's proposals, best

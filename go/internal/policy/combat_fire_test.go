@@ -2,6 +2,7 @@ package policy
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -19,18 +20,18 @@ func TestClearLinesBlockedAndRefusedHits(t *testing.T) {
 	}
 	roles := []CombatRole{{Pawn: "s1", Target: "h1", Ranged: true}}
 	attack := CombatOrder{Pawn: "s1", Kind: OrderAttack, Target: "h1", Reason: ReasonFormation}
-	walled := []SightLine{{Cell: from, Hostile: "h1"}, {Cell: from, Hostile: "h2"}}
-	if out, _ := clearLines(view, []CombatOrder{attack}, walled, roles, CombatMemory{}); len(out) != 0 {
+	walled := GeometryReply{Lines: []SightLine{{Cell: from, Hostile: "h1"}, {Cell: from, Hostile: "h2"}}}
+	if out, _, _ := clearLines(view, []CombatOrder{attack}, walled, roles, CombatMemory{}); len(out) != 0 {
 		t.Fatalf("attack through a wall sent: %+v", out)
 	}
-	open := []SightLine{{Cell: from, Hostile: "h1"}, {Cell: from, Hostile: "h2", LineOfFire: true}}
-	out, got := clearLines(view, []CombatOrder{attack}, open, roles, CombatMemory{})
+	open := GeometryReply{Lines: []SightLine{{Cell: from, Hostile: "h1"}, {Cell: from, Hostile: "h2", LineOfFire: true}}}
+	out, got, _ := clearLines(view, []CombatOrder{attack}, open, roles, CombatMemory{})
 	if len(out) != 1 || out[0].Target != "h2" || got[0].Target != "h2" {
 		t.Fatalf("no retarget to the open line: %+v %+v", out, got)
 	}
 	// Refused cannot_hit from this cell: not re-sent, even with no lines.
 	m := CombatMemory{}.RefuseHit(attack, from)
-	if out, _ := clearLines(view, []CombatOrder{attack}, nil, roles, m); len(out) != 0 {
+	if out, _, _ := clearLines(view, []CombatOrder{attack}, GeometryReply{}, roles, m); len(out) != 0 {
 		t.Fatalf("refused attack re-sent: %+v", out)
 	}
 	if kept := keepHitRefusals(view, m.CannotHit); len(kept) != 1 {
@@ -127,6 +128,71 @@ func TestDecideCombatNoAttackOnMissingTarget(t *testing.T) {
 	}
 	if memory.Roles[0].Target != "" {
 		t.Fatalf("role kept missing target: %+v", memory.Roles)
+	}
+}
+
+// Lab pods (#967): raiders dropped inside a walled room, the gunner in the
+// corridor outside with every line blocked. Its walled lines become
+// refused hits, the next stop asks firing cells around it, and the answer
+// moves it to the nearest free proposal with a clear line.
+func TestClearLinesWalledGunnerRepositions(t *testing.T) {
+	from := domain.Cell{X: 5, Z: 5}
+	h1, h2 := domain.Cell{X: 12, Z: 5}, domain.Cell{X: 12, Z: 7}
+	view := CombatView{
+		Pawns: []CombatPawnState{
+			{ID: "s1", Cell: domain.Known(from)},
+			{ID: "s2", Cell: domain.Known(domain.Cell{X: 6, Z: 6})},
+			{ID: "h1", Cell: domain.Known(h1)}, {ID: "h2", Cell: domain.Known(h2)},
+		},
+		Threats:   []SquadThreatFacts{{ID: "h1"}, {ID: "h2"}},
+		Orderable: []domain.PawnID{"s1", "s2"},
+		Defenders: []SquadDefenderFacts{combatRifleman("s1"), combatRifleman("s2")},
+	}
+	roles := []CombatRole{{Pawn: "s1", Target: "h1", Ranged: true, Cell: &from}}
+	attack := []CombatOrder{{Pawn: "s1", Kind: OrderAttack, Target: "h1", Reason: ReasonFormation}}
+	lines := func(c domain.Cell, clear ...domain.PawnID) []SightLine {
+		return []SightLine{
+			{Cell: c, Hostile: "h1", LineOfFire: slices.Contains(clear, "h1")},
+			{Cell: c, Hostile: "h2", LineOfFire: slices.Contains(clear, "h2")},
+		}
+	}
+	// Every line walled: no order, both lines remembered.
+	out, _, refused := clearLines(view, attack, GeometryReply{Answered: true, Lines: lines(from)}, roles, CombatMemory{})
+	if len(out) != 0 || len(refused) != 2 {
+		t.Fatalf("walled: %+v %+v", out, refused)
+	}
+	m := CombatMemory{CannotHit: refused}
+	ask := lineAsk(view, attack, m)
+	if ask == nil || ask.Propose != RoleFiringCells || ask.From != from || !reflect.DeepEqual(ask.Targets, []domain.Cell{h1, h2}) {
+		t.Fatalf("no firing-cells ask: %+v", ask)
+	}
+	if ask := lineAsk(view, attack, CombatMemory{}); ask == nil || ask.Propose != "" {
+		t.Fatalf("firing cells asked with a line untried: %+v", ask)
+	}
+	door, far, taken, shut := domain.Cell{X: 7, Z: 4}, domain.Cell{X: 9, Z: 9}, domain.Cell{X: 6, Z: 6}, domain.Cell{X: 5, Z: 4}
+	for _, tc := range []struct {
+		name  string
+		reply GeometryReply
+		want  []CombatOrder
+	}{
+		{"nearest clear free cell", GeometryReply{
+			Role: RoleFiringCells, Proposals: []domain.Cell{far, shut, taken, door},
+			Lines: slices.Concat(lines(from), lines(far, "h1"), lines(shut), lines(taken, "h1"), lines(door, "h2")),
+		}, []CombatOrder{{Pawn: "s1", Kind: OrderMove, Cell: door, Reason: ReasonFormation}}},
+		{"no clear proposal", GeometryReply{
+			Role: RoleFiringCells, Proposals: []domain.Cell{shut},
+			Lines: slices.Concat(lines(from), lines(shut)),
+		}, nil},
+		{"lines only, no proposals", GeometryReply{Lines: lines(from)}, nil},
+	} {
+		tc.reply.Answered = true
+		out, got, _ := clearLines(view, attack, tc.reply, roles, m)
+		if !reflect.DeepEqual(out, tc.want) {
+			t.Fatalf("%s: %+v want %+v", tc.name, out, tc.want)
+		}
+		if tc.want != nil && (*got[0].Cell != door || got[0].Target != "h2") {
+			t.Fatalf("%s: role not moved: %+v", tc.name, got[0])
+		}
 	}
 }
 

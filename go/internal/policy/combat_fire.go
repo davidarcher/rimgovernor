@@ -73,22 +73,42 @@ func shooterCells(view CombatView) []domain.Cell {
 }
 
 // lineAsk is the stop's geometry ask when its attack orders have no lines
-// yet: the shooters' cells against the top-scored hostiles.
-func lineAsk(view CombatView, orders []CombatOrder) *GeometryRequest {
+// yet: the shooters' cells against the top-scored hostiles. When an
+// attacker's every line from its cell was blocked or refused before
+// (walled in, #967), it also asks firing cells around that attacker.
+func lineAsk(view CombatView, orders []CombatOrder, m CombatMemory) *GeometryRequest {
 	if !slices.ContainsFunc(orders, func(o CombatOrder) bool { return o.Kind == OrderAttack }) {
 		return nil
 	}
 	ask := &GeometryRequest{Cells: shooterCells(view)}
+	var targets []domain.Cell
 	for _, h := range rankThreats(view) {
 		if len(ask.Hostiles) < maxGeometryHostiles {
 			ask.Hostiles = append(ask.Hostiles, h.ID)
+			if c, ok := h.Cell.Value(); ok && !slices.Contains(targets, c) {
+				targets = append(targets, c)
+			}
 		}
 	}
 	if len(ask.Cells) == 0 || len(ask.Hostiles) == 0 {
 		return nil
 	}
-	if len(ask.Cells) > maxGeometryCells {
-		ask.Cells = ask.Cells[:maxGeometryCells]
+	if len(ask.Cells) > maxGeometryCells-1 {
+		ask.Cells = ask.Cells[:maxGeometryCells-1]
+	}
+	cells := map[domain.PawnID]domain.Cell{}
+	for _, p := range view.Pawns {
+		if c, ok := p.Cell.Value(); ok {
+			cells[p.ID] = c
+		}
+	}
+	for _, o := range orders {
+		from, ok := cells[o.Pawn]
+		open := func(h domain.PawnID) bool { return !m.refusedHit(o.Pawn, h, from) }
+		if o.Kind == OrderAttack && ok && len(targets) > 0 && !slices.ContainsFunc(ask.Hostiles, open) {
+			ask.Propose, ask.From, ask.Targets = RoleFiringCells, from, targets
+			break
+		}
 	}
 	return ask
 }
@@ -103,17 +123,26 @@ const maxGeometryCells = 64
 // a clear, answered line from that cell not refused from it, else gives no
 // order. An unanswered pair keeps the order. A retarget becomes the role's
 // target, so the focus holds on it.
-func clearLines(view CombatView, orders []CombatOrder, lines []SightLine, roles []CombatRole, m CombatMemory) ([]CombatOrder, []CombatRole) {
+//
+// A ranged attacker with no clear line is walled in (#967): its walled
+// lines are remembered as refused hits, so the next stop asks firing cells
+// around it, and once proposed firing cells are answered it moves to the
+// nearest free one with a clear line; that cell becomes its role's cell.
+// It returns the orders, the roles and the refused hits.
+func clearLines(view CombatView, orders []CombatOrder, geometry GeometryReply, roles []CombatRole, m CombatMemory) ([]CombatOrder, []CombatRole, []HitRefusal) {
 	sight := map[sightKey]SightLine{}
-	for _, l := range lines {
+	for _, l := range geometry.Lines {
 		sight[sightKey{l.Cell, l.Hostile}] = l
 	}
 	cells := map[domain.PawnID]domain.Cell{}
+	taken := map[domain.Cell]bool{}
 	for _, p := range view.Pawns {
 		if c, ok := p.Cell.Value(); ok {
 			cells[p.ID] = c
+			taken[c] = true
 		}
 	}
+	refused := slices.Clone(m.CannotHit)
 	ranged := map[domain.PawnID]bool{}
 	for _, r := range roles {
 		ranged[r.Pawn] = r.Ranged
@@ -141,17 +170,51 @@ func clearLines(view CombatView, orders []CombatOrder, lines []SightLine, roles 
 				break
 			}
 		}
+		i := slices.IndexFunc(roles, func(r CombatRole) bool { return r.Pawn == o.Pawn })
 		if o.Target == "" {
+			if !ranged[o.Pawn] || i < 0 {
+				continue
+			}
+			for _, h := range ranked {
+				if l, ok := sight[sightKey{from, h.ID}]; ok && !l.LineOfFire && !m.refusedHit(o.Pawn, h.ID, from) {
+					refused = append(refused, HitRefusal{Pawn: o.Pawn, Target: h.ID, From: from})
+				}
+			}
+			if cell, h, ok := firingCell(from, geometry, sight, ranked, taken); ok {
+				taken[cell] = true
+				roles[i].Cell, roles[i].Target = &cell, h
+				out = append(out, CombatOrder{Pawn: o.Pawn, Kind: OrderMove, Cell: cell, Reason: ReasonFormation})
+			}
 			continue
 		}
-		for i := range roles {
-			if roles[i].Pawn == o.Pawn {
-				roles[i].Target = o.Target
-			}
+		if i >= 0 {
+			roles[i].Target = o.Target
 		}
 		out = append(out, o)
 	}
-	return out, roles
+	return out, roles, refused
+}
+
+// firingCell is the proposed firing cell (#967) nearest from, free, with a
+// clear line to a ranked hostile, and that hostile (the top-scored one).
+func firingCell(from domain.Cell, geometry GeometryReply, sight map[sightKey]SightLine, ranked []CombatPawnState, taken map[domain.Cell]bool) (domain.Cell, domain.PawnID, bool) {
+	if geometry.Role != RoleFiringCells {
+		return domain.Cell{}, "", false
+	}
+	var best domain.Cell
+	var target domain.PawnID
+	for _, c := range geometry.Proposals {
+		if taken[c] || target != "" && distance2(from, c) >= distance2(from, best) {
+			continue
+		}
+		for _, h := range ranked {
+			if l, ok := sight[sightKey{c, h.ID}]; ok && l.LineOfFire && !l.ColonistInPath {
+				best, target = c, h.ID
+				break
+			}
+		}
+	}
+	return best, target, target != ""
 }
 
 // inMelee reports p fighting its target hand to hand: in the melee stance,
