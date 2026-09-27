@@ -108,9 +108,7 @@ func (a *app) url(port int) string  { return "http://127.0.0.1:" + strconv.Itoa(
 func (a *app) Write(p []byte) (int, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for _, line := range strings.Split(strings.TrimRight(strings.ReplaceAll(string(p), "\r", ""), "\n"), "\n") {
-		a.log = append(a.log, line)
-	}
+	a.log = append(a.log, strings.Split(strings.TrimRight(strings.ReplaceAll(string(p), "\r", ""), "\n"), "\n")...)
 	if n := len(a.log); n > 3000 {
 		a.log = append([]string(nil), a.log[n-3000:]...)
 	}

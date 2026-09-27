@@ -98,7 +98,7 @@ func (client *Client) ListTraders(ctx context.Context, identity *c.Identity) (Tr
 	out := TradersRead{Context: snapshot.Context}
 	seen := map[string]bool{}
 	for _, row := range snapshot.Traders {
-		if row == nil || row.Trader == nil || validID(row.Trader.GetId()) != nil || row.Trader.Snapshot == nil || validID(row.Trader.Snapshot.GetToken()) != nil {
+		if row == nil || row.Trader == nil || validID(row.Trader.GetId()) != nil {
 			return TradersRead{}, raw, contract("invalid trader row")
 		}
 		if !diagnostic(row.Kind) || !diagnostic(row.FactionId) || !diagnostic(row.Reason) || row.CanTrade == nil || row.Travelling == nil {
@@ -118,7 +118,7 @@ func (client *Client) ListTraders(ctx context.Context, identity *c.Identity) (Tr
 		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.Trader.Snapshot.GetToken(), Kind: row.GetKind(), Faction: row.GetFactionId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
 	}
 	for _, row := range snapshot.Negotiators {
-		if row == nil || validID(row.GetId()) != nil || row.Snapshot == nil || validID(row.Snapshot.GetToken()) != nil {
+		if row == nil || validID(row.GetId()) != nil {
 			return TradersRead{}, raw, contract("invalid negotiator row")
 		}
 		if seen[row.GetId()] {
