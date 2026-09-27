@@ -223,7 +223,7 @@ namespace HomeBridge.BridgeTools
                     s.BoostOwned = true;
                     BoostField.SetValue(null, true);
                 }
-                Find.TickManager.CurTimeSpeed = speed;
+                PlayerSpeedHook.Owned(() => Find.TickManager.CurTimeSpeed = speed);
                 if (Find.TickManager.CurTimeSpeed != speed)
                 {
                     Stop(s, "start_refused", "The requested speed did not take.", true, null);
@@ -246,7 +246,7 @@ namespace HomeBridge.BridgeTools
                     return Failure("Pause the accelerated epoch before changing its speed.");
                 var old = s.RequestedSpeed;
                 s.RequestedSpeed = speed;
-                Find.TickManager.CurTimeSpeed = speed;
+                PlayerSpeedHook.Owned(() => Find.TickManager.CurTimeSpeed = speed);
                 if (Find.TickManager.CurTimeSpeed != speed)
                 {
                     s.RequestedSpeed = old;

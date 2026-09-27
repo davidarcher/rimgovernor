@@ -490,7 +490,7 @@ namespace HomeBridge.BridgeTools
                     var tm = Find.TickManager;
                     if (tm == null)
                         return TimeSpeed.Paused;
-                    tm.CurTimeSpeed = requested;
+                    PlayerSpeedHook.Owned(() => tm.CurTimeSpeed = requested);
                     return tm.CurTimeSpeed;
                 }, cancellationToken).ConfigureAwait(false);
             }

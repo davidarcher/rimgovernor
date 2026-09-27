@@ -39,12 +39,6 @@ const (
 	modSet      = "Core"
 )
 
-// playerControl is the player control path: plain Ultrafast, which serve
-// runs under #627's player pacing since #875.
-func playerControl() (mode string, args []string, err error) {
-	return "player", []string{"--clock-speed", "Ultrafast"}, nil
-}
-
 // WindowTicksEnv overrides the foothold window (footholdTicks) in game
 // ticks; the shorter recovery and fault windows scale with it.
 const WindowTicksEnv = "RIMGOVERNOR_ACCEPT_CAMPAIGN_TICKS"
@@ -68,11 +62,9 @@ func footholdWindow() uint64 {
 // every goal after a raid, #620), the player control path's clock flags
 // and the campaign's own request prefix.
 func serveSpec(prefix string) (cases.ServeSpec, error) {
-	_, args, err := playerControl()
-	if err != nil {
-		return cases.ServeSpec{}, err
-	}
-	return cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: prefix, Extra: args}, nil
+	// The player control path: the player's Ultrafast, which serve runs
+	// under #627's player pacing (#875).
+	return cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: prefix, PlayerSpeed: "Ultrafast"}, nil
 }
 
 // campaignCase is the shape every case in the family shares: the baseline
@@ -112,12 +104,8 @@ type campaign struct {
 }
 
 func newCampaign(s cases.Session) (*campaign, error) {
-	mode, _, err := playerControl()
-	if err != nil {
-		return nil, err
-	}
 	c := &campaign{s: s, report: s.Report()}
-	c.report["manifest"] = map[string]any{"fixture": fixtureSave, "mods": []string{modSet}, "seed": na.AsString(s.Identity()["seed"]), "identity": s.Identity(), "control": mode, "viewer": "one dashboard video tile (na.ViewerClient)"}
+	c.report["manifest"] = map[string]any{"fixture": fixtureSave, "mods": []string{modSet}, "seed": na.AsString(s.Identity()["seed"]), "identity": s.Identity(), "control": "player", "viewer": "one dashboard video tile (na.ViewerClient)"}
 	c.report["interventions"] = c.interventions
 	c.report["injections"] = c.injections
 	c.report["milestones"] = c.milestones

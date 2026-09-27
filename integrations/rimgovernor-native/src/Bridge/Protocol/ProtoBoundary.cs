@@ -352,6 +352,7 @@ namespace HomeBridge.BridgeTools
                 // contract probes build has no game boundary to patch, so the
                 // install is gated out of it rather than faked.
                 ObservationFrameHook.Ensure();
+                PlayerSpeedHook.Ensure();
 #endif
                 var started = Stopwatch.GetTimestamp();
                 var work = ObservationWork.Begin();

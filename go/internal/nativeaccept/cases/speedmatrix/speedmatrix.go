@@ -18,7 +18,7 @@
 // contiguous run of legal Wall cells. That game is saved once; every speed
 // reloads the save, so the map, pawns and stacks are the same. Per speed
 // the case releases the game to one serve process (haul + work families)
-// with the speed's --clock-speed, submits the wall run as building plans,
+// at the row's speed, submits the wall run as building plans,
 // resumes automatic control and waits, stall-bounded, until the serve-side
 // tick has advanced by the budget or the stage has run out of work (every
 // wall plan completed and no storage deficit pending): once the work is done
@@ -344,7 +344,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, fmt.Errorf("stage is not fresh after reload: %#v", before)
 	}
 	startTick := uint64(na.AsNumber(before["tick"]))
-	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []string{"haul", "work"}, Extra: c.ServeArgs(), Output: output, Report: report})
+	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []string{"haul", "work"}, Extra: c.ServeArgs(), PlayerSpeed: c.Speed, Output: output, Report: report})
 	if err != nil {
 		return outcome, err
 	}

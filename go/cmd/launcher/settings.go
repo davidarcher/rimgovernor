@@ -19,9 +19,6 @@ type Settings struct {
 	Observe bool `json:"observe"`
 	// AutoStart is --resume: run the bot on every native load.
 	AutoStart bool `json:"autoStart"`
-	// Speed is Normal, Fast, Superfast, Ultrafast or UltrafastAdaptive
-	// (a legacy name kept for saved settings; Ultrafast is player-paced since #875).
-	Speed string `json:"speed"`
 	// ContinueState reuses the newest .rimgovernor/go/state-*.sqlite.
 	ContinueState bool   `json:"continueState"`
 	ChatModel     string `json:"chatModel"`
@@ -38,7 +35,6 @@ type Settings struct {
 // DefaultSettings match serve's own defaults.
 func DefaultSettings() Settings {
 	return Settings{
-		Speed:         "Normal",
 		ContinueState: true,
 		LayoutOverlay: true,
 	}
@@ -74,11 +70,6 @@ func SaveSettings(path string, s Settings) error {
 
 // Validate refuses settings serve would refuse, before a start.
 func (s Settings) Validate() error {
-	switch s.Speed {
-	case "Normal", "Fast", "Superfast", "Ultrafast", "UltrafastAdaptive":
-	default:
-		return fmt.Errorf("unknown game speed %q", s.Speed)
-	}
 	if s.ShrineHeatFallback && !s.ShrineOpenCaskets {
 		return errors.New("the shrine heat fallback requires opening caskets")
 	}
@@ -111,13 +102,6 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 	if !s.Observe {
 		if s.AutoStart {
 			args = append(args, "--resume")
-		}
-		switch s.Speed {
-		case "Normal":
-		case "UltrafastAdaptive":
-			args = append(args, "--clock-speed", "Ultrafast")
-		default:
-			args = append(args, "--clock-speed", s.Speed)
 		}
 		if m := strings.TrimSpace(s.ChatModel); m != "" {
 			args = append(args, "--chat-model", m)

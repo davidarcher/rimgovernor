@@ -51,7 +51,12 @@ type ClockSchedulerConfig struct {
 	// window while readmit and observe latency hold (#635). Ignored under
 	// Start.PlayerAccelerated, whose backoff owns the pace.
 	SpeedPolicy *SpeedPolicyConfig
-	MaxAge      time.Duration
+	// FollowPlayerSpeed starts each window at the speed the player last
+	// chose in the loaded game (Status.player_speed, #875), Ultrafast when
+	// none was chosen; an Ultrafast window runs player acceleration.
+	// Start.Speed and Start.PlayerAccelerated are then only the fallback.
+	FollowPlayerSpeed bool
+	MaxAge            time.Duration
 	// Worker is set when a routine Worker reconciles and dispatches beside
 	// this scheduler: a review then defers admission while the Worker owes
 	// a latched outcome's reconcile or a successor's dispatch (issue #162).
@@ -599,7 +604,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	config.Profile = inbox.Profile
 	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
-	if config.Start.PlayerAccelerated {
+	if config.Start.PlayerAccelerated || config.FollowPlayerSpeed {
 		scheduler.paceEpoch = new(atomic.Pointer[k.Epoch])
 		scheduler.pace = newPaceBackoff(config.PaceHorizonTicks, clock.Now, scheduler.requestCeiling)
 	}
@@ -1192,6 +1197,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
+	if s.config.FollowPlayerSpeed {
+		start = followPlayerSpeed(start, status)
+	}
 	// A routine window runs the whole budget (#244); a native-work or
 	// combat bound may narrow it below.
 	paused = clockStopSpan(status, s.clock.Now())
@@ -1341,7 +1349,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
-	if s.pace != nil {
+	if s.pace != nil && start.PlayerAccelerated {
 		// The window resumes the rate the last critical waves earned.
 		if ceiling := s.pace.Ceiling(); ceiling != 0 && (start.MaxTicksPerSecond == 0 || ceiling < start.MaxTicksPerSecond) {
 			start.MaxTicksPerSecond = ceiling
@@ -1479,7 +1487,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	if s.paceKnown {
 		readAt = s.paceAt
 	}
-	if s.pace != nil && status.GetRunning() != nil {
+	if s.pace != nil && status.GetRunning().GetEpoch().GetPacing() == k.Pacing_PACING_PLAYER_ACCELERATED {
 		s.paceEpoch.Store(proto.Clone(status.GetRunning().GetEpoch()).(*k.Epoch))
 		watched = s.pace.Watch(call, readAt)
 	}

@@ -99,7 +99,6 @@ type serveConfig struct {
 	caravanJourneyTracking          bool
 	worldEvaluation                 bool
 	refresh                         time.Duration
-	clockSpeed                      string
 	clockTestAcceleration           bool
 	clockBlindTicks                 uint
 	chat                            bool
@@ -140,8 +139,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.assets, "assets", "", "absolute built dashboard directory (optional)")
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
-	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
-	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
+	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost and run every window at Ultrafast whatever the player chose; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	c.refresh = serveRefresh
 	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
@@ -164,7 +162,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "routine-resource-reserve", "routine-resource-stop", "chat-model", "chat-base-url", "resume"} {
+		for _, name := range []string{"profile", "clock-test-acceleration", "routine-resource-reserve", "routine-resource-stop", "chat-model", "chat-base-url", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -182,12 +180,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 		if !filepath.IsAbs(c.profile) {
 			return c, errors.New("serve requires an absolute --profile (or --observe)")
 		}
-	}
-	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" && c.clockSpeed != "Ultrafast" {
-		return c, errors.New("--clock-speed must be Normal, Fast, Superfast or Ultrafast")
-	}
-	if c.clockTestAcceleration && c.clockSpeed != "Ultrafast" {
-		return c, errors.New("--clock-test-acceleration requires --clock-speed Ultrafast")
 	}
 	if c.clockBlindTicks > maxClockBlindTicks {
 		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)

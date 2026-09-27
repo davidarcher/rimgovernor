@@ -305,6 +305,11 @@ message Status {
   optional uint64 paced_frames = 30;
   optional uint64 paced_frames_over_budget = 31;
   optional double max_paced_frame_ms = 32;
+  // The speed the player last chose in this loaded game (#875): a speed
+  // set by anything but the supervisor itself, or by a fixture standing in
+  // for the player. Unset until one is chosen; pauses never count. The
+  // owner starts each window at it.
+  optional Speed player_speed = 33;
 }
 // One hazard class the supervisor probe covers: its declared detection
 // bound in ticks (holds at every speed) and the widest gap observed.

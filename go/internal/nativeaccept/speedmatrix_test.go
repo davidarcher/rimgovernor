@@ -23,17 +23,17 @@ func TestParseSpeedCases(t *testing.T) {
 	if cases[7].Name != "viewer" || !cases[7].Viewer || !cases[7].Compared() || !cases[7].TestAcceleration {
 		t.Fatalf("unexpected viewer case %+v", cases[7])
 	}
-	if got := cases[4].ServeArgs(); len(got) != 3 || got[2] != "--clock-test-acceleration" {
+	if got := cases[4].ServeArgs(); len(got) != 1 || got[0] != "--clock-test-acceleration" {
 		t.Fatalf("uncapped args %v", got)
 	}
 	// The regulated row (#583) is uncapped under the blind-tick budget.
 	if cases[5].Name != "regulated" || !cases[5].TestAcceleration || cases[5].BlindTicks != RegulatedBlindTicks {
 		t.Fatalf("unexpected regulated case %+v", cases[5])
 	}
-	if got := cases[5].ServeArgs(); len(got) != 5 || got[3] != "--clock-blind-ticks" || got[4] != "300" {
+	if got := cases[5].ServeArgs(); len(got) != 3 || got[1] != "--clock-blind-ticks" || got[2] != "300" {
 		t.Fatalf("regulated args %v", got)
 	}
-	if got := cases[0].ServeArgs(); len(got) != 2 || got[1] != "Normal" {
+	if got := cases[0].ServeArgs(); len(got) != 0 {
 		t.Fatalf("normal args %v", got)
 	}
 	if _, err := ParseSpeedCases("Normal,normal"); err == nil {

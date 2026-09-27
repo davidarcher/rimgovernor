@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -239,13 +240,13 @@ func ObserveCompleted(ctx context.Context, h *Harness, label string, ticks uint6
 	return completed, nil
 }
 
-// ClockSpeedEnv overrides the clock speed a serve-driven harness passes to
-// rimgovernor serve (--clock-speed); the default is Ultrafast (#265). The
-// clock wire admits Normal, Fast, Superfast and Ultrafast. Ultrafast also
-// asks for test acceleration (the native dev tick boost), which only a
-// headless.Prepare launch admits: under a rendered profile native refuses
-// the window. A case that wants the game held
-// to a slower pace opts out through this variable.
+// ClockSpeedEnv overrides the clock speed a serve-driven harness runs
+// rimgovernor serve at; the default is Ultrafast (#265). Normal, Fast,
+// Superfast and Ultrafast are admitted. Ultrafast asks for test
+// acceleration (--clock-test-acceleration, the native dev tick boost),
+// which only a headless.Prepare launch admits: under a rendered profile
+// native refuses the window. A slower speed is set as the player's choice
+// before serve starts (WritePlayerSpeed, #875), and serve follows it.
 const ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED"
 
 // ClockSpeed is ClockSpeedEnv or Ultrafast.
@@ -256,15 +257,39 @@ func ClockSpeed() string {
 	return "Ultrafast"
 }
 
-// ClockSpeedArgs is the serve flag set for ClockSpeed: --clock-speed, plus
-// --clock-test-acceleration at Ultrafast.
-func ClockSpeedArgs() []string { return ClockSpeedFlags(ClockSpeed()) }
-
-// ClockSpeedFlags is ClockSpeedArgs for an explicit speed.
-func ClockSpeedFlags(speed string) []string {
-	args := []string{"--clock-speed", speed}
-	if speed == "Ultrafast" {
-		args = append(args, "--clock-test-acceleration")
+// ClockSpeedArgs is the serve flag set for ClockSpeed:
+// --clock-test-acceleration at Ultrafast, nothing otherwise.
+func ClockSpeedArgs() []string {
+	if ClockSpeed() == "Ultrafast" {
+		return []string{"--clock-test-acceleration"}
 	}
-	return args
+	return nil
+}
+
+// WritePlayerSpeed sets the speed spec's service will follow as the
+// player's own choice (#875): the speed, then a pause, through the ordinary
+// time controls, so native records it as the player's pre-pause speed. A
+// boosted service (--clock-test-acceleration) ignores it and nothing is
+// written. The identity read first is a typed hop, which installs native's
+// speed hook if nothing has yet.
+func WritePlayerSpeed(ctx context.Context, h *Harness, spec ServeSpec) error {
+	speed := spec.PlayerSpeed
+	if speed == "" {
+		speed = ClockSpeed()
+		if speed == "Ultrafast" {
+			return nil
+		}
+	}
+	if slices.Contains(spec.Extra, "--clock-test-acceleration") {
+		return nil
+	}
+	if _, err := h.Wire(ctx, "player-speed-hook", "lifecycle_read_identity", map[string]any{}); err != nil {
+		return err
+	}
+	for _, s := range []string{speed, "Paused"} {
+		if _, err := h.Call(ctx, "player-speed-"+strings.ToLower(s), "rimworld/set_time_speed", map[string]any{"speed": s, "ultraSpeedBoost": false}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -26,7 +26,7 @@ func TestServeArgsDefaults(t *testing.T) {
 
 func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
-	s.AutoStart, s.Speed, s.ChatModel, s.ChatBaseURL = true, "UltrafastAdaptive", "qwen", "http://x/v1"
+	s.AutoStart, s.ChatModel, s.ChatBaseURL = true, "qwen", "http://x/v1"
 	s.ShrineOpenCaskets, s.ShrineHeatFallback = true, true
 	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
@@ -34,7 +34,7 @@ func TestServeArgsEverything(t *testing.T) {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[15:], " ")
-	want := "--resume --clock-speed Ultrafast --chat-model qwen --chat-base-url http://x/v1 --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
+	want := "--resume --chat-model qwen --chat-base-url http://x/v1 --routine-shrine-open-caskets --routine-shrine-heat-fallback --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
 	if got[14] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
@@ -45,7 +45,7 @@ func TestServeArgsEverything(t *testing.T) {
 
 func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	s := DefaultSettings()
-	s.Observe, s.AutoStart, s.Speed, s.ChatModel = true, true, "Fast", "m"
+	s.Observe, s.AutoStart, s.ChatModel = true, true, "m"
 	got, err := ServeArgs(s, testPaths, 8787)
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +54,7 @@ func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	if !strings.Contains(joined, "--observe") {
 		t.Fatal(joined)
 	}
-	for _, f := range []string{"--profile", "--resume", "--clock-speed", "--chat-model"} {
+	for _, f := range []string{"--profile", "--resume", "--chat-model"} {
 		if strings.Contains(joined, f) {
 			t.Errorf("observe passes %s: %s", f, joined)
 		}
@@ -63,7 +63,6 @@ func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	for name, mutate := range map[string]func(*Settings){
-		"speed": func(s *Settings) { s.Speed = "Warp" },
 		"heat":  func(s *Settings) { s.ShrineHeatFallback = true },
 		"quote": func(s *Settings) { s.ExtraArgs = `"open` },
 	} {
@@ -81,18 +80,18 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("missing file: %+v %v", s, err)
 	}
 	s := DefaultSettings()
-	s.Speed = "Fast"
+	s.Debug = true
 	if err := SaveSettings(path, s); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := LoadSettings(path); err != nil || !reflect.DeepEqual(got, s) {
 		t.Fatalf("%+v %v", got, err)
 	}
-	// Settings saved before #875 carry the removed herd toggles; they load.
+	// Settings saved before #875 carry the removed speed and herd settings; they load.
 	if err := os.WriteFile(path, []byte(`{"speed":"Fast","allowSlaughter":true,"allowRelease":true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := LoadSettings(path); err != nil || !reflect.DeepEqual(got, s) {
+	if got, err := LoadSettings(path); err != nil || !reflect.DeepEqual(got, DefaultSettings()) {
 		t.Fatalf("old settings: %+v %v", got, err)
 	}
 }

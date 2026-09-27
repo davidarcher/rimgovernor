@@ -62,7 +62,7 @@ the controller.
 | `--gabs`, `--config`, `--game`, `--state` | Absolute GABS, config and state paths and the configured game ID (both modes). |
 | `--profile` | Absolute shared game profile; required for autonomous play. |
 | `--assets`, `--listen`, `--timeout` | Built dashboard directory; loopback listen address (default `127.0.0.1:0`, prints the URL); native call timeout. |
-| `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
+| `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast. Otherwise each window runs at the speed the player last chose in game (Ultrafast under player pacing when none was chosen, #875). |
 | `--routine-resource-*` | Routine tuning: resource reserves/stops (MaintainResource keeps the default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor). |
 | `--resource-rule` | Resource reservation rules for building admission. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |

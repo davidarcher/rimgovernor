@@ -12,7 +12,7 @@ import (
 )
 
 // SpeedCase is one column of the speed matrix (issue #111): the serve
-// --clock-speed flag it runs under and whether the test acceleration (#109)
+// speed it runs at (the player's choice serve follows, #875) and whether the test acceleration (#109)
 // is on. "uncapped" is Ultrafast with acceleration; both acceptance profiles
 // (headless and rendered) admit it, a player launch does not. "regulated"
 // is uncapped under the native blind-tick regulator (#583), the budget in
@@ -90,10 +90,11 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 	return cases, nil
 }
 
-// ServeArgs are the serve flags a case adds: its clock speed, for uncapped
-// the test-acceleration opt-in and for regulated the blind-tick budget.
+// ServeArgs are the serve flags a case adds (its speed is the player's
+// choice, c.Speed, written before serve starts, #875): for uncapped the
+// test-acceleration opt-in and for regulated the blind-tick budget.
 func (c SpeedCase) ServeArgs() []string {
-	args := []string{"--clock-speed", c.Speed}
+	var args []string
 	if c.TestAcceleration {
 		args = append(args, "--clock-test-acceleration")
 	}

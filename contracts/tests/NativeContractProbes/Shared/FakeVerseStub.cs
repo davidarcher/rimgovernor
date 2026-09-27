@@ -59,6 +59,7 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<Verse.Letter> Letters() => LiveLetters;
     }
     internal static class LetterPauseHook { internal static void EnsurePatched() { } }
+    internal static class PlayerSpeedHook { internal static Verse.TimeSpeed? Chosen() => null; }
     // NativeClockRuntime attaches DialogPause evidence from this lookup; the
     // clock probe never stops for a dialog, so no window is ever pending.
     internal static class ChoiceDialogTools

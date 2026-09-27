@@ -101,12 +101,6 @@
         <input type="radio" name="mode" id="modeObserve" value="observe"><label for="modeObserve">Observe only</label>
       </span>
     </div>
-    <div class="field"><label for="speed">Game speed</label>
-      <select id="speed">
-        <option value="Normal">Normal</option><option value="Fast">Fast</option><option value="Superfast">Superfast</option>
-        <option value="Ultrafast">Ultrafast</option>
-      </select>
-    </div>
     <div class="check"><input type="checkbox" id="autoStart"><label for="autoStart">Start the autopilot as soon as a colony loads</label></div>
     <div class="field"><span>Controller memory</span>
       <span class="seg" role="radiogroup" aria-label="Controller memory">
@@ -145,7 +139,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const bools = ['autoStart', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'debug'];
-const texts = ['speed', 'chatModel', 'chatBaseURL', 'extraArgs'];
+const texts = ['chatModel', 'chatBaseURL', 'extraArgs'];
 let view = null, loaded = false, busyAction = false;
 
 function fill(s) {
@@ -166,7 +160,7 @@ function read() {
 // Observe only never writes to the game: play settings do not apply.
 function policyEnabled() {
   const observe = $('modeObserve').checked;
-  ['speed', 'autoStart', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'chatModel', 'chatBaseURL']
+  ['autoStart', 'shrineOpenCaskets', 'shrineHeatFallback', 'layoutOverlay', 'chatModel', 'chatBaseURL']
     .forEach(k => $(k).disabled = observe);
   $('shrineHeatFallback').disabled = observe || !$('shrineOpenCaskets').checked;
 }

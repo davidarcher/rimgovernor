@@ -894,6 +894,13 @@ func (s *session) Launch(ctx context.Context, launch na.ServiceLaunch) (*na.Serv
 	if launch.Binary == "" {
 		return nil, errors.New("the case launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>")
 	}
+	// The player's speed lives in the loaded game, so a relaunch after the
+	// slot was released keeps the one written before the first launch.
+	if s.Session != nil && !s.Session.Game.Released() {
+		if err := na.WritePlayerSpeed(ctx, s.Session.Harness, na.ServeSpec{Extra: launch.Extra, PlayerSpeed: launch.PlayerSpeed}); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.Release(); err != nil {
 		return nil, err
 	}

@@ -58,26 +58,26 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	}
 }
 
-// Ultrafast is an ordinary --clock-speed; --clock-test-acceleration rides on
-// it only, and reaches the window start request.
-func TestServeClockTestAccelerationRequiresUltrafast(t *testing.T) {
+// --clock-test-acceleration pins every window to boosted Ultrafast; without
+// it the windows follow the player's speed under player pacing (#875), and
+// --clock-speed is gone.
+func TestServeClockTestAccelerationPinsUltrafast(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
-	for _, speed := range []string{"Normal", "Fast", "Superfast"} {
-		if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", speed, "--clock-test-acceleration"), io.Discard); err == nil {
-			t.Fatalf("test acceleration accepted at %s", speed)
-		}
+	if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", "Fast"), io.Discard); err == nil {
+		t.Fatal("accepted the retired --clock-speed")
 	}
-	c, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", "Ultrafast", "--clock-test-acceleration"), io.Discard)
+	c, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-test-acceleration"), io.Discard)
 	if err != nil || !c.clockTestAcceleration {
-		t.Fatalf("ultrafast acceleration: %+v %v", c, err)
+		t.Fatalf("acceleration: %+v %v", c, err)
 	}
-	config := serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, defaultClockWindowTicks, uint32(c.clockBlindTicks))
-	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || !config.Start.TestAcceleration {
+	config := serviceClockConfig(dir, c.clockTestAcceleration, defaultClockWindowTicks, uint32(c.clockBlindTicks))
+	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || !config.Start.TestAcceleration || config.Start.PlayerAccelerated || config.FollowPlayerSpeed {
 		t.Fatalf("window start: %+v", config.Start)
 	}
-	if c, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", "Ultrafast"), io.Discard); err != nil || c.clockTestAcceleration {
-		t.Fatalf("plain ultrafast: %+v %v", c, err)
+	config = serviceClockConfig(dir, false, defaultClockWindowTicks, 0)
+	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || config.Start.TestAcceleration || !config.Start.PlayerAccelerated || !config.FollowPlayerSpeed {
+		t.Fatalf("player window start: %+v", config.Start)
 	}
 }
 
@@ -88,7 +88,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
-	for _, extra := range [][]string{{"--profile", dir}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--clock-speed", "Ultrafast", "--clock-test-acceleration"}, {"unexpected"}} {
+	for _, extra := range [][]string{{"--profile", dir}, {"--chat-model", "m"}, {"--resume"}, {"--clock-test-acceleration"}, {"unexpected"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--observe"), extra...), io.Discard); err == nil {
 			t.Fatalf("observe accepted %v", extra)
 		}

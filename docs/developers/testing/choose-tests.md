@@ -302,9 +302,8 @@ The `campaign/*` family (#633, epic #613) is the proof of autonomy and runs
 outside the land tier (`nightlyOnly` in `cmd/acceptance/tier.go`); foothold and recovery run in the nightly tier, the rest in full.
 Every case declares its fixture (the committed tribal8 baseline, Core only,
 the save's seed) in `report.json`'s `manifest`, plays through the player
-control path (`--clock-speed Ultrafast` without test acceleration;
-`RIMGOVERNOR_ACCEPT_CAMPAIGN_CONTROL=player` is the hook for #627's paced
-mode) with one dashboard viewer streaming video, and lets the harness act
+control path (the player's Ultrafast without test acceleration, which
+runs #627's player pacing) with one dashboard viewer streaming video, and lets the harness act
 only during setup: every later hand (a keep-alive re-acquisition, a fixture
 op) lands under `interventions` and `intervention_count`, which the
 campaigns require to be zero. The disturbances a scenario stages are
@@ -573,7 +572,7 @@ by review alone.
    tick budget means the same at every speed and on every machine; the
    stall budget still catches a game that stops ticking (a pausing letter)
    and the wall ceiling a run that never finishes. *Enforced:* `s.Serve`
-   always passes `na.ClockSpeedArgs` (`--clock-speed Ultrafast --clock-test-acceleration` by default since #265,
+   always passes `na.ClockSpeedArgs` (`--clock-test-acceleration`, boosted Ultrafast, by default since #265; a slower speed is written as the player's choice before serve starts, #875;
    override with
    `RIMGOVERNOR_ACCEPT_CLOCK_SPEED`; the clock wire admits Normal, Fast,
    Superfast and Ultrafast, and at Ultrafast the runner also passes

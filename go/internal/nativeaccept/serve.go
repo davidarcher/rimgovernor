@@ -62,6 +62,11 @@ type ServeSpec struct {
 	// open for the service instead of dismissing it before the slot is
 	// released: the case proves the ConfirmColonyNames routine family.
 	KeepColonyNaming bool
+	// PlayerSpeed is the speed the harness sets as the player's choice
+	// before the service starts (#875): serve runs its windows at it. Empty
+	// is ClockSpeed(); a harness that sets it also owns
+	// --clock-test-acceleration in Extra.
+	PlayerSpeed string
 }
 
 // ServiceProcess is one running `rimgovernor serve` launched by Serve (or
@@ -123,6 +128,8 @@ type ServiceLaunch struct {
 	// launches once per sub-run (speedmatrix) keeps each apart.
 	Output string
 	Report Report
+	// PlayerSpeed is ServeSpec.PlayerSpeed.
+	PlayerSpeed string
 }
 
 // Serve is the serve-driven family's one lifecycle: it loads spec.Save
@@ -159,6 +166,9 @@ func serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any
 					return nil, err
 				}
 				report["identity"] = identity
+			}
+			if err := WritePlayerSpeed(ctx, h, spec); err != nil {
+				return nil, err
 			}
 			// Free the sole GABP slot before the service starts its own
 			// bridge session; this does NOT call games_stop, so the loaded
@@ -197,7 +207,7 @@ func LaunchService(ctx context.Context, cfg *Config, gabsExecutable string, laun
 	if launch.Report != nil {
 		report = launch.Report
 	}
-	return launchServe(ctx, cfg, gabsExecutable, ServeSpec{Binary: launch.Binary, Families: launch.Families, Extra: launch.Extra, Env: launch.Env}, 1, report)
+	return launchServe(ctx, cfg, gabsExecutable, ServeSpec{Binary: launch.Binary, Families: launch.Families, Extra: launch.Extra, Env: launch.Env, PlayerSpeed: launch.PlayerSpeed}, 1, report)
 }
 
 // Restart launches the service again on the same state path after Stop, so
@@ -238,11 +248,9 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 		// there.
 		"--debug",
 	}
-	// A harness that names its own --clock-speed in Extra (speedmatrix's
-	// rows) owns the pair: the shared Ultrafast default would otherwise
-	// leave its --clock-test-acceleration beside a slower speed, which
-	// serve refuses.
-	if !slices.Contains(spec.Extra, "--clock-speed") {
+	// A harness that names its own PlayerSpeed owns the test-acceleration
+	// flag too; one that passed ClockSpeedArgs in Extra already has it.
+	if spec.PlayerSpeed == "" && !slices.Contains(spec.Extra, "--clock-test-acceleration") {
 		argv = append(argv, ClockSpeedArgs()...)
 	}
 	if ProfileServices() {

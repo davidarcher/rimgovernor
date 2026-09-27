@@ -53,28 +53,35 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	for _, want := range []string{
 		"serve --profile C:/out/service-profile --gabs C:/gabs.exe --config C:/cfg --game rimworld --state C:/out/service.sqlite",
 		"--listen 127.0.0.1:0", "--timeout 15s", "--flight-recorder C:/out/flight.jsonl",
-		"--clock-speed Ultrafast --clock-test-acceleration", "--pprof", "--resume", "--routine-food-reserve-days 2",
+		"--clock-test-acceleration", "--pprof", "--resume", "--routine-food-reserve-days 2",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("argv %q lacks %q", joined, want)
 		}
 	}
-	if strings.Index(joined, "--clock-speed") > strings.Index(joined, "--routine-food-reserve-days") {
+	if strings.Index(joined, "--clock-test-acceleration") > strings.Index(joined, "--routine-food-reserve-days") {
 		t.Errorf("Extra must follow the shared flags so a harness can override them: %q", joined)
 	}
 	if got := ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{NativeTimeout: 45 * time.Second}); !strings.Contains(strings.Join(got, " "), "--timeout 45s") {
 		t.Errorf("NativeTimeout not applied: %q", got)
 	}
-	// RIMGOVERNOR_ACCEPT_CLOCK_SPEED is the only knob (#128): without it the
-	// shared Ultrafast default applies, and exactly one --clock-speed is
-	// emitted either way. A harness naming its own speed in Extra gets no
-	// shared pair at all, so the boost never rides beside a slower speed.
+	// Without RIMGOVERNOR_ACCEPT_CLOCK_SPEED the boosted Ultrafast default
+	// applies once; a slower speed is the player's choice written before
+	// serve starts (#875), so no flag. A harness naming its own PlayerSpeed
+	// owns the boost flag, and one passing ClockSpeedArgs gets it once.
 	t.Setenv(ClockSpeedEnv, "")
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); !strings.Contains(got, "--clock-speed Ultrafast --clock-test-acceleration") || strings.Count(got, "--clock-speed") != 1 {
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Count(got, "--clock-test-acceleration") != 1 || strings.Contains(got, "--clock-speed") {
 		t.Errorf("default speed: %q", got)
 	}
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{Extra: []string{"--clock-speed", "Normal"}}), " "); !strings.Contains(got, "--clock-speed Normal") || strings.Count(got, "--clock-speed") != 1 || strings.Contains(got, "--clock-test-acceleration") {
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{Extra: ClockSpeedArgs()}), " "); strings.Count(got, "--clock-test-acceleration") != 1 {
+		t.Errorf("explicit default: %q", got)
+	}
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{PlayerSpeed: "Normal"}), " "); strings.Contains(got, "--clock-test-acceleration") {
 		t.Errorf("harness speed: %q", got)
+	}
+	t.Setenv(ClockSpeedEnv, "Fast")
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--clock-test-acceleration") {
+		t.Errorf("env speed: %q", got)
 	}
 	t.Setenv(PprofEnv, "0")
 	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--pprof") {
@@ -233,14 +240,5 @@ func TestLaunchServeExitIsTerminalAndNamesTheStepFailure(t *testing.T) {
 	stall := &StepStallError{Stall: time.Minute, Families: "haul,work", LastFailure: lastStepFailure(p.StderrPath())}
 	if !strings.Contains(stall.Error(), "Fields: context deadline exceeded") {
 		t.Fatalf("stall error %q", stall)
-	}
-}
-
-func TestClockSpeedFlagsAddTheBoostAtUltrafast(t *testing.T) {
-	if got := strings.Join(ClockSpeedFlags("Fast"), " "); got != "--clock-speed Fast" {
-		t.Fatalf("Fast: %q", got)
-	}
-	if got := strings.Join(ClockSpeedFlags("Ultrafast"), " "); got != "--clock-speed Ultrafast --clock-test-acceleration" {
-		t.Fatalf("Ultrafast: %q", got)
 	}
 }

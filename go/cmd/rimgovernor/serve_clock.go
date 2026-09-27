@@ -122,21 +122,6 @@ type serviceClockReads interface {
 	buildingruntime.ClockEventNative
 }
 
-// parseClockSpeed maps the validated --clock-speed flag value (parseServe
-// already rejects anything else) to the native Clock.Speed enum.
-func parseClockSpeed(speed string) k.Speed {
-	switch speed {
-	case "Fast":
-		return k.Speed_SPEED_FAST
-	case "Superfast":
-		return k.Speed_SPEED_SUPERFAST
-	case "Ultrafast":
-		return k.Speed_SPEED_ULTRAFAST
-	default:
-		return k.Speed_SPEED_NORMAL
-	}
-}
-
 // Window policy. A routine window runs defaultClockWindowTicks (one game
 // day, the review guarantee of #126) unless danger or player input stops it
 // earlier (#244, #584): the planners review and the Worker dispatches under
@@ -162,7 +147,7 @@ const (
 	maxClockBlindTicks = 1800000
 )
 
-func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, windowTicks, blindTicks uint32) buildingruntime.ClockSchedulerConfig {
+func serviceClockConfig(profile string, testAcceleration bool, windowTicks, blindTicks uint32) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
 		// MaxAge bounds how stale the admission reads (status, emergency)
 		// may be by the time EvaluateClockWindow admits a window. The
@@ -171,7 +156,11 @@ func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, wi
 		// a slow admission read under peer load still admits.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
 		CombatMaxTicks: min(combatBackstopTicks, windowTicks),
-		Start: bridge.ClockStart{Speed: speed, TestAcceleration: testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
+		// Without the dev tick boost each window runs at the player's own
+		// speed, Ultrafast under player pacing (#627) when none was chosen
+		// (#875); with it every window is boosted Ultrafast.
+		FollowPlayerSpeed: !testAcceleration,
+		Start: bridge.ClockStart{Speed: k.Speed_SPEED_ULTRAFAST, TestAcceleration: testAcceleration, PlayerAccelerated: !testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
 				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
@@ -239,7 +228,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, sections *facts.Store) (*buildingruntime.ClockWorker, error) {
-	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
+	profile, routine := sc.profile, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.workshopPlans()
 	ingredientStorage := sc.routineIngredientStoragePlans && sc.resourceTargetsConfigured()
@@ -262,9 +251,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
 	tidy := sc.routineTidyPlans
-	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
-	// Ultrafast without the dev tick boost always runs player pacing (#627, #875).
-	config.Start.PlayerAccelerated = config.Start.Speed == k.Speed_SPEED_ULTRAFAST && !config.Start.TestAcceleration
+	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
 		// The native digest appends a colony row when a stock crosses one

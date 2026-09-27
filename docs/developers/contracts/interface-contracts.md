@@ -38,7 +38,7 @@ controls enter Manual, invalidate pending execution, verify a native pause and r
 owned drafts before requesting Normal, Fast or Superfast through the existing
 supervisor. An in-flight review must finish before a play request; Pause remains
 available. New direction or a load change prevents resuming. The clock wire also
-admits Ultrafast (`rimgovernor serve --clock-speed Ultrafast`); the native tick
+admits Ultrafast; the native tick
 boost behind it (`--clock-test-acceleration`, `StartRequest.test_acceleration`)
 is refused unless the game was launched with `-rimgovernor-test-acceleration`,
 which only the acceptance profiles (headless and rendered) carry, so boosted
@@ -63,8 +63,18 @@ accelerated epoch admits a live ceiling change through `SpeedRequest`
 while its speed stays Ultrafast. `speedmatrix/plain`'s `regulated` row runs
 uncapped under a 300-tick budget and must match the capped speeds' outcome.
 
-Player acceleration (any `--clock-speed Ultrafast` window without
-`--clock-test-acceleration` since #875, `StartRequest.pacing =
+Autonomous windows run at the player's own speed (#875): native reports
+the last speed the player chose in the loaded game (`Status.player_speed`:
+any speed assignment but the supervisor's own; unset after a load) and
+`serve` starts each window at it, Ultrafast when none was chosen, so
+there is no speed flag. A speed change inside a running window is still
+an `external_speed_changed` stop. `--clock-test-acceleration` pins every
+window to boosted Ultrafast instead. Acceptance sets a slower speed as the
+player's choice (`rimworld/set_time_speed`, then a pause) before `serve`
+starts (`na.WritePlayerSpeed`).
+
+Player acceleration (every Ultrafast window without
+`--clock-test-acceleration`, `StartRequest.pacing =
 PACING_PLAYER_ACCELERATED`, #627) is the player-launch mode: Ultrafast only,
 never with `--clock-test-acceleration` (which stays acceptance-only). Native
 raises Ultrafast's multiplier between 15x and 150x against the frame budget
